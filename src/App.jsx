@@ -63,15 +63,15 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     try {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v21_clean_production_installer') {
+      if (versionKey !== 'v22_clean_slate_superadmin_only') {
         localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v21_clean_production_installer');
+        localStorage.setItem('mris_version', 'v22_clean_slate_superadmin_only');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.outlets) && parsed.outlets.length > 0) {
+        if (parsed && typeof parsed === 'object') {
           return { ...initialMasterData, ...parsed };
         }
       }
