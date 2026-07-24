@@ -105,7 +105,46 @@ pm2 save
 
 ---
 
-## 🔍 HASSIL AKHIR ISOLASI REKAYASA:
-1. **Domain `.com`** (Aplikasi Lama Anda): Tetap berjalan di `187.77.122.142` tanpa terganggu sama sekali.
-2. **Domain `.tech`** (Aplikasi Baru MRIS): Berjalan di folder `/var/www/MRIS_TECH`, port `4000`, dan PM2 `mris-app-tech`.
-3. **Database**: Terisolasi 100% di `/var/www/MRIS_TECH/data/` sehingga **mustahil data saling bocor / tertukar**.
+## 🛠️ TAHAP 3: ALUR ALUR UPDATE / PERBAIKAN BUG DI KEMUDIAN HARI (LOCAL ➔ GITHUB ➔ VPS)
+
+Setiap kali Anda ingin **memperbaiki bug**, **menambah fitur baru**, atau **mengubah tampilan**, selalu ikuti 3 Langkah Alur Kerja Standar Industri ini:
+
+```
+[Komputer Lokal (Mac)] ➔ 1. Edit & Tes Lokal ➔ 2. Git Commit & Push ➔ [GitHub] ➔ 3. Pull & Build di VPS
+```
+
+---
+
+### 🟢 LANGKAH 1: PERBAIKI / EDIT DI KOMPUTER LOKAL (MAC)
+1. Edit file / kode di Mac Anda (misal merapikan tampilan atau memperbaiki rumus Laba Rugi).
+2. Jalankan server lokal untuk mengetes hasil perbaikan:
+   ```bash
+   npm run dev
+   ```
+3. Buka browser di Mac (`http://localhost:5173`) dan pastikan bug sudah hilang dan berjalan 100% normal.
+
+---
+
+### 🔵 LANGKAH 2: COMMIT & PUSH HASIL PERBAIKAN KE GITHUB
+Setelah yakin kode lokal sudah sempurna, jalankan perintah ini di Terminal Mac Anda:
+
+```bash
+git add .
+git commit -m "Fix: Perbaikan bug perhitungan HPP dan tampilan dashboard"
+git push origin main
+```
+*(Kode terbaru Anda kini aman tersimpan di repository GitHub).*
+
+---
+
+### 🔴 LANGKAH 3: DEPLOY UPDATE KE VPS HOSTINGER (CUKUP 1 BARIS PERINTAH)
+Buka Terminal SSH ke VPS Hostinger (`ssh root@187.77.122.142`), lalu jalankan 1 baris perintah ini:
+
+```bash
+cd /var/www/MRIS_TECH && git pull origin main && npm run build && pm2 restart mris-app-tech
+```
+
+---
+
+### 🎉 SELESAI!
+Dalam waktu 5-10 detik, perbaikan yang Anda buat di komputer Mac Anda akan **langsung otomatis aktif secara live di domain `https://barokahgroupindonesia.tech`** tanpa mengganggu pengguna lain dan tanpa membuat website down!
