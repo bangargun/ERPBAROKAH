@@ -81,10 +81,37 @@ export default function App() {
     return initialMasterData;
   });
 
-  // Sync Master Data to localStorage
+  // Sync Master Data to localStorage & Central VPS Cloud API
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
+    
+    // Auto Sync to Central Server API on VPS
+    const syncTimer = setTimeout(() => {
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(masterData)
+      }).catch(() => {
+        // Offline-first fallback
+      });
+    }, 1500);
+
+    return () => clearTimeout(syncTimer);
   }, [masterData]);
+
+  // Initial Fetch from Central VPS Cloud Database on Startup
+  useEffect(() => {
+    fetch('/api/master-data')
+      .then(res => res.ok ? res.json() : null)
+      .then(serverData => {
+        if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
+          setMasterData(prev => ({ ...prev, ...serverData }));
+        }
+      })
+      .catch(() => {
+        // Offline-first fallback
+      });
+  }, []);
 
   // Derived Financial Stats
   const activeOutletList = masterData.outlets || [];

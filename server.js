@@ -369,6 +369,32 @@ app.get('/api/reports/pnl', (req, res) => {
   });
 });
 
+// 8. Full Master Data Sync Endpoints
+app.get('/api/master-data', (req, res) => {
+  try {
+    const db = readDb();
+    res.json(db.masterData || initialDb);
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal mengambil data master terpusat' });
+  }
+});
+
+app.post('/api/master-data', (req, res) => {
+  try {
+    const payload = req.body;
+    if (!payload || typeof payload !== 'object') {
+      return res.status(400).json({ error: 'Payload tidak valid' });
+    }
+    const db = readDb();
+    db.masterData = payload;
+    db.lastUpdated = new Date().toISOString();
+    saveDb(db);
+    res.json({ success: true, message: 'Data master terpusat berhasil diperbarui', timestamp: db.lastUpdated });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal menyinkronkan data master ke server' });
+  }
+});
+
 // Serve Static Production Bundle
 app.use(express.static(path.join(__dirname, 'dist')));
 
