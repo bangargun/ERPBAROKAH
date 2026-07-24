@@ -1,0 +1,53 @@
+# Execution Tasks: Logistics Refactoring (Logistik & Refactor Stok)
+
+- [x] 1. Update Sidebar Menu in `AdminLayout.jsx`:
+  - [x] Rename `"5. Stok Inventoris"` to `"5. Logistik"`
+- [x] 2. Remove Stock Outflow (Sub-tab 8) from `SalesTransactionsPage.jsx`:
+  - [x] Delete `stock_deduction` tab from `analysisTabs`
+  - [x] Re-number tab names so `"8. Perbandingan Bulanan"` is the 8th tab
+- [x] 3. Refactor `StockManagement.jsx` (rename component and restructure):
+  - [x] Import `DoubleCalendarPicker` from `./SalesTransactionsPage`
+  - [x] Set up 5 tabs: `stok_masuk`, `stok_keluar`, `transfer_stok`, `stok_rusak`, `stok_opname`
+- [x] 4. Add User Access Rights ("Hak User") in Settings:
+  - [x] Create sub-tab `"Hak User (Akses Akun)"` in `SystemSettings.jsx`
+  - [x] Add user account creation form (username, roles dropdown, status dropdown)
+  - [x] Implement user rights list table with edit status toggle and delete actions
+- [x] 5. Overhaul manual stock inflow entry in `StockManagement.jsx`:
+  - [x] Render dynamic table form starting with 5 rows on load
+  - [x] Add search filters to easily find ingredients
+  - [x] Auto-generate unit from selected ingredient and auto-calculate total price
+  - [x] Implement preview board showing confirmation summary ("Edit Lagi" or "Simpan & Masukkan database")
+- [x] 6. Implement H+1 logistics entry alarm banner
+- [x] 7. Link Approved Logistics tab in `ApprovalCenter.jsx` to push "by kasir" inflow entries
+- [x] 8. Add Persetujuan Transfer Stok in Approval Center:
+  - [x] Create sub-tab `"Persetujuan Transfer Stok"` in `ApprovalCenter.jsx`
+  - [x] Link "Setujui Transfer" action to append stock Transfer entries with `"by approval"` type
+- [x] 9. Overhaul Transfer Stok manual modal & table:
+  - [x] Add date, administrator selection dropdown, and search filter to find materials
+  - [x] Auto-generate unit and default status as unreturned (`is_returned: false`)
+  - [x] Add "Analisis Pengembalian" column showing warning if not returned, with quick toggle "Retur" action
+  - [x] Implement Edit action for transfer stok entries and update PDF/Excel exports
+- [x] 10. Overhaul Stok Rusak manual modal, approval, and table:
+  - [x] Create sub-tab `"Persetujuan Stok Rusak"` in `ApprovalCenter.jsx`
+  - [x] Form modal: add date, administrator selection dropdown, search filter for materials, auto-generate unit, and notes
+  - [x] Table columns: date, createdBy, typeInput, outlet, itemName, qty, unit, notes, and Edit button action
+  - [x] Implement edit modal save handler for waste type records
+  - [x] Integrate CSV & PDF export for waste log items
+- [x] 11. Hapus parameter nominal kerugian (HPP) dan Estimasi Nilai Kerugian (Rupiah):
+  - [x] Hapus input nominal kerugian dari modal tambah manual stok rusak
+  - [x] Hapus input nominal kerugian dari modal edit record stok rusak
+  - [x] Hapus th/td kerugian dari tabel stok rusak logistik dan persetujuan stok rusak
+  - [x] Sesuaikan download PDF dan Excel agar bersih dari nominal kerugian
+- [x] 12. Overhaul Stok Opname manual modal, calculations, and table:
+  - [x] Form modal: add date, administrator selection dropdown, search filter for materials, auto-generate unit, quantities input (Awal, Masuk, Keluar, Trans Masuk, Trans Keluar, Rusak, Fisik)
+  - [x] Automatically fetch item's unit price dynamically from Logistics Inflow (Stok Masuk) records
+  - [x] Remove Harga Satuan (Rp) manual input field from opname modal form
+  - [x] Calculate Sisa Stok by Sistem: `(Awal + Masuk + Trans Masuk) - (Keluar + Rusak + Trans Keluar)`
+  - [x] Status Selisih: `Pas`, `SOP tidak berjalan` (sistem > fisik), `Kehilangan` (sistem < fisik)
+  - [x] Denda Stok: `Harga Satuan * (Fisik - Sistem)` if sistem < fisik (Kehilangan)
+  - [x] Total Denda Stok badge at the top
+  - [x] Add Edit, Delete actions, and send to Mobile APK button
+  - [x] Update PDF/Excel export headers & rows for opname audit fields
+- [x] 13. Add Delete and Kirim ke Mobile APK buttons for all 5 subtabs (Masuk, Keluar, Transfer, Rusak, Opname)
+- [x] 14. Verify build (`npm run build`) & test preview at `http://localhost:8081`
+- [x] 15. Update Walkthrough Artifact (`walkthrough.md`)
