@@ -74,16 +74,17 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
   const todayIncomeTx = todayTx.reduce((sum, t) => sum + (t.amount || 0), 0);
 
   const todayManualInc = allApprovedFinance.filter(f => (!selectedBranch || Number(f.outlet_id) === Number(selectedBranch)) && (f.date === todayStr || !f.date)).reduce((sum, f) => sum + (f.net_sales || 0), 0);
-  const todayIncome = Math.max(todayIncomeTx, todayManualInc) || stats.totalIncome * 0.25;
+  const todayIncome = Math.max(todayIncomeTx, todayManualInc);
 
-  const todayExpManual = allApprovedFinance.filter(f => (!selectedBranch || Number(f.outlet_id) === Number(selectedBranch)) && (f.date === todayStr || !f.date)).reduce((sum, f) => sum + (f.total_expense || 0), 0);
+  // Real Daily Stat Summary Calculations (Zero Fallback for Pure Clean Data)
+  const todayExpManual = allApprovedFinance.filter(f => (!selectedBranch || Number(f.outlet_id) === Number(selectedBranch)) && (f.date === todayStr || !f.date)).reduce((sum, f) => sum + (f.cogs || 0) + (f.operational || 0) + (f.gaji || 0) + (f.other_costs || 0), 0);
   const todayExpRecords = allFinancialRecords.filter(f => f.type === 'expense' && (!selectedBranch || Number(f.outlet_id) === Number(selectedBranch)) && (f.date === todayStr || !f.date)).reduce((sum, f) => sum + (f.amount || 0), 0);
-  const todayExpense = (todayExpManual + todayExpRecords) || stats.totalExpense * 0.25;
+  const todayExpense = todayExpManual + todayExpRecords;
 
   const todayNetProfit = todayIncome - todayExpense;
-  const todayMargin = todayIncome > 0 ? ((todayNetProfit / todayIncome) * 100).toFixed(1) : 0;
-  const todayTxCount = todayTx.length || 42;
-  const todayAvgBill = todayTxCount > 0 ? Math.round(todayIncome / todayTxCount) : 65000;
+  const todayMargin = todayIncome > 0 ? ((todayNetProfit / todayIncome) * 100).toFixed(1) : '0.0';
+  const todayTxCount = todayTx.length;
+  const todayAvgBill = todayTxCount > 0 ? Math.round(todayIncome / todayTxCount) : 0;
 
   // ------------------------------------------------------------------
   // 2. CARD 1: OMZET BULAN LALU VS BULAN INI PER OUTLET DATA
@@ -95,12 +96,11 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
     }
 
     return outletList.map(o => {
-      // Calculate revenue
+      // Calculate real revenue from sales transactions
       const oTx = allSalesTx.filter(t => Number(t.outlet_id) === Number(o.id));
-      const totalOmzet = oTx.reduce((s, t) => s + (t.amount || 0), 0) || Math.floor(180000000 + Math.random() * 140000000);
+      const totalOmzet = oTx.reduce((s, t) => s + (t.amount || 0), 0);
       
-      // Last month ~ 85% of total, current month ~ total
-      const omzetBulanLalu = Math.round(totalOmzet * 0.82);
+      const omzetBulanLalu = 0;
       const omzetBulanIni = totalOmzet;
       const diff = omzetBulanIni - omzetBulanLalu;
       const growth = omzetBulanLalu > 0 ? ((diff / omzetBulanLalu) * 100).toFixed(1) : 0;
@@ -132,8 +132,8 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
 
     return prods.slice(0, 6).map(p => {
       const outletName = allOutlets.find(o => Number(o.id) === Number(p.outlet_id))?.name || 'Seluruh Outlet';
-      const costHpp = p.cost || Math.round((p.price || 50000) * 0.38);
-      const marginPct = p.price > 0 ? (((p.price - costHpp) / p.price) * 100).toFixed(1) : 0;
+      const costHpp = p.cost || 0;
+      const marginPct = p.price > 0 ? (((p.price - costHpp) / p.price) * 100).toFixed(1) : '0.0';
 
       return {
         ...p,
@@ -150,33 +150,28 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
   // 4. CARD 3: PERBANDINGAN HARGA BAHAN BAKU PER OUTLET
   // ------------------------------------------------------------------
   const getIngredientPriceComparison = () => {
-    // Default key ingredients
-    const baseIngredients = [
-      { name: 'Daging Ayam Broiler', category: 'Ayam', unit: 'Kg', baseCost: 34000 },
-      { name: 'Daging Sapi Lokal', category: 'Daging', unit: 'Kg', baseCost: 125000 },
-      { name: 'Cabai Merah Keriting', category: 'Bumbu', unit: 'Kg', baseCost: 42000 },
-      { name: 'Minyak Goreng Sawit', category: 'Minyak', unit: 'Liter', baseCost: 17500 },
-      { name: 'Beras Premium', category: 'Sembako', unit: 'Kg', baseCost: 14000 },
-      { name: 'Telur Ayam Ras', category: 'Telur', unit: 'Kg', baseCost: 28000 }
-    ];
+    // Read real ingredients strictly from masterData
+    const realIngredients = masterData?.ingredients || [];
+    
+    if (realIngredients.length === 0) {
+      return [];
+    }
 
-    let filtered = baseIngredients;
+    let filtered = realIngredients;
     if (selectedIngredientCategory !== 'ALL') {
-      filtered = baseIngredients.filter(i => i.category === selectedIngredientCategory);
+      filtered = realIngredients.filter(i => i.category === selectedIngredientCategory);
     }
 
     return filtered.map(ing => {
       // Create price breakdown per outlet
-      const outletPrices = allOutlets.map((o, idx) => {
-        // add slight natural variation per outlet (+- 5%)
-        const variance = (idx % 3 === 0 ? 1.05 : idx % 2 === 0 ? 0.96 : 1.0);
-        const price = Math.round(ing.baseCost * variance);
+      const outletPrices = allOutlets.map((o) => {
+        const price = ing.price || ing.cost || ing.unitPrice || 0;
         return { outletName: o.name, price };
       });
 
       const prices = outletPrices.map(op => op.price);
-      const minPrice = Math.min(...prices);
-      const maxPrice = Math.max(...prices);
+      const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+      const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
       const disparity = maxPrice - minPrice;
 
       return {
@@ -192,16 +187,16 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
   const ingredientComparisonList = getIngredientPriceComparison();
 
   // ------------------------------------------------------------------
-  // 5. CARD 4: PERHITUNGAN & PERBANDINGAN HPP (COGS) TIAL OUTLET
+  // 5. CARD 4: PERHITUNGAN & PERBANDINGAN HPP (COGS) TIAP OUTLET
   // ------------------------------------------------------------------
   const getHppComparisonData = () => {
     return allOutlets.map(o => {
       const oTx = allSalesTx.filter(t => Number(t.outlet_id) === Number(o.id));
-      const revenue = oTx.reduce((s, t) => s + (t.amount || 0), 0) || Math.floor(150000000 + Math.random() * 100000000);
+      const revenue = oTx.reduce((s, t) => s + (t.amount || 0), 0);
 
       const oManualHpp = allApprovedFinance.filter(f => Number(f.outlet_id) === Number(o.id)).reduce((s, f) => s + (f.cogs || 0), 0);
-      const hppAmount = oManualHpp || Math.round(revenue * (0.31 + (o.id % 4) * 0.02));
-      const hppPct = revenue > 0 ? Number(((hppAmount / revenue) * 100).toFixed(1)) : 33;
+      const hppAmount = oManualHpp;
+      const hppPct = revenue > 0 ? Number(((hppAmount / revenue) * 100).toFixed(1)) : 0;
       const targetPct = 35.0; // Standard ideal max HPP for restaurant industry
       const isOverBudget = hppPct > targetPct;
 
@@ -426,22 +421,30 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 </tr>
               </thead>
               <tbody>
-                {highestPriceProducts.map((p, idx) => (
-                  <tr key={p.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <td style={{ padding: '6px 8px', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '0.80rem' }}>{idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🍴'}</span>
-                      <span>{p.name}</span>
-                    </td>
-                    <td style={{ padding: '6px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>{p.outletName}</td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '900', color: '#eab308' }}>{formatRupiah(p.price)}</td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(p.costHpp)}</td>
-                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                      <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800', fontSize: '0.68rem' }}>
-                        {p.marginPct}%
-                      </span>
+                {highestPriceProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.74rem' }}>
+                      🍴 Belum ada data produk/menu terdaftar. Tambahkan produk baru di menu <strong>Data Master &gt; Produk / Menu</strong>.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  highestPriceProducts.map((p, idx) => (
+                    <tr key={p.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.80rem' }}>{idx === 0 ? '🏆' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🍴'}</span>
+                        <span>{p.name}</span>
+                      </td>
+                      <td style={{ padding: '6px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>{p.outletName}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '900', color: '#eab308' }}>{formatRupiah(p.price)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(p.costHpp)}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                        <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: '800', fontSize: '0.68rem' }}>
+                          {p.marginPct}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -486,30 +489,36 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '210px', overflowY: 'auto' }}>
-            {ingredientComparisonList.map((ing, idx) => (
-              <div key={idx} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: '#f59e0b' }}>📦 {ing.name}</span>
-                    <span style={{ fontSize: '0.66rem', color: '#94a3b8', background: '#1e293b', padding: '1px 6px', borderRadius: '4px' }}>per {ing.unit}</span>
-                  </div>
-                  <div style={{ fontSize: '0.68rem', color: ing.disparity > 2000 ? '#ef4444' : '#34d399', fontWeight: '800' }}>
-                    {ing.disparity > 2000 ? `⚠️ Selisih Harga: ${formatRupiah(ing.disparity)}` : '✅ Harga Stabil'}
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', fontSize: '0.68rem' }}>
-                  {ing.outletPrices.map((op, oIdx) => (
-                    <div key={oIdx} style={{ background: '#1e293b', padding: '4px 6px', borderRadius: '4px', textAlign: 'center', border: op.price === ing.maxPrice && ing.disparity > 2000 ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ color: '#cbd5e1', fontSize: '0.62rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{op.outletName}</div>
-                      <div style={{ fontWeight: '800', color: op.price === ing.maxPrice && ing.disparity > 2000 ? '#ef4444' : '#38bdf8', marginTop: '2px' }}>
-                        {formatRupiah(op.price)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {ingredientComparisonList.length === 0 ? (
+              <div style={{ background: '#0f172a', border: '1px dashed #334155', borderRadius: '8px', padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.76rem' }}>
+                📦 Belum ada data bahan baku terdaftar. Tambahkan bahan baku baru di menu <strong>Data Master &gt; Bahan Baku</strong>.
               </div>
-            ))}
+            ) : (
+              ingredientComparisonList.map((ing, idx) => (
+                <div key={idx} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#f59e0b' }}>📦 {ing.name}</span>
+                      <span style={{ fontSize: '0.66rem', color: '#94a3b8', background: '#1e293b', padding: '1px 6px', borderRadius: '4px' }}>per {ing.unit}</span>
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: ing.disparity > 2000 ? '#ef4444' : '#34d399', fontWeight: '800' }}>
+                      {ing.disparity > 2000 ? `⚠️ Selisih Harga: ${formatRupiah(ing.disparity)}` : '✅ Harga Stabil'}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', fontSize: '0.68rem' }}>
+                    {ing.outletPrices.map((op, oIdx) => (
+                      <div key={oIdx} style={{ background: '#1e293b', padding: '4px 6px', borderRadius: '4px', textAlign: 'center', border: op.price === ing.maxPrice && ing.disparity > 2000 ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ color: '#cbd5e1', fontSize: '0.62rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{op.outletName}</div>
+                        <div style={{ fontWeight: '800', color: op.price === ing.maxPrice && ing.disparity > 2000 ? '#ef4444' : '#38bdf8', marginTop: '2px' }}>
+                          {formatRupiah(op.price)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
