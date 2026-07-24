@@ -8,14 +8,21 @@
 
 ## 📌 TAHAP 1: ATUR DNS MANAGEMENT DI DOMAIN `barokahgroupindonesia.tech`
 
-Masuk ke hPanel Hostinger pada domain **`barokahgroupindonesia.tech`** (bukan `.com`), pilih menu **DNS/Nameserver**, lalu masukkan DNS Record berikut:
+Masuk ke hPanel Hostinger pada domain **`barokahgroupindonesia.tech`**, pilih menu **DNS/Nameserver**.
 
-| Tipe | Nama | Konten / Value | TTL | Keterangan |
+### 💡 SOLUSI CARA MENGATASI ERROR `CNAME www` DI HOSTINGER:
+Hostinger menolak CNAME `www` jika di tabel bawah sudah ada record `www` lama. **Gunakan Tipe A untuk `www` dengan IP `187.77.122.142`** (jauh lebih stabil dan 100% tanpa error).
+
+Masukkan 4 Record Tipe **A** berikut ini di Hostinger:
+
+| Tipe | Nama | Value / Konten (IP) | TTL | Keterangan |
 | :--- | :--- | :--- | :--- | :--- |
 | **A** | `@` | `187.77.122.142` | `14400` | Domain Utama MRIS |
-| **A** | `mris-admin` | `187.77.122.142` | `14400` | Subdomain Web Admin Executive *(Membedakan dari admin-pos `.com`)* |
-| **A** | `mris-api` | `187.77.122.142` | `14400` | Subdomain API Backend MRIS *(Membedakan dari pos-api `.com`)* |
-| **CNAME** | `www` | `barokahgroupindonesia.tech` | `300` | CNAME Alias |
+| **A** | `www` | `187.77.122.142` | `14400` | Subdomain WWW *(Ganti tipe ke A agar tidak bentrok)* |
+| **A** | `mris-admin` | `187.77.122.142` | `14400` | Subdomain Web Admin Executive |
+| **A** | `mris-api` | `187.77.122.142` | `14400` | Subdomain API Backend MRIS |
+
+*(Jika ada tombol sampah pada `www` lama di tabel daftar record bawah, hapus `www` lama terlebih dahulu sebelum menekan Tambahkan Record).*
 
 ---
 
@@ -105,46 +112,25 @@ pm2 save
 
 ---
 
-## 🛠️ TAHAP 3: ALUR ALUR UPDATE / PERBAIKAN BUG DI KEMUDIAN HARI (LOCAL ➔ GITHUB ➔ VPS)
-
-Setiap kali Anda ingin **memperbaiki bug**, **menambah fitur baru**, atau **mengubah tampilan**, selalu ikuti 3 Langkah Alur Kerja Standar Industri ini:
+## 🛠️ TAHAP 3: ALUR UPDATE / PERBAIKAN BUG DI KEMUDIAN HARI (LOCAL ➔ GITHUB ➔ VPS)
 
 ```
 [Komputer Lokal (Mac)] ➔ 1. Edit & Tes Lokal ➔ 2. Git Commit & Push ➔ [GitHub] ➔ 3. Pull & Build di VPS
 ```
 
----
+### 1. Edit & Tes Lokal di Mac
+```bash
+npm run dev
+```
 
-### 🟢 LANGKAH 1: PERBAIKI / EDIT DI KOMPUTER LOKAL (MAC)
-1. Edit file / kode di Mac Anda (misal merapikan tampilan atau memperbaiki rumus Laba Rugi).
-2. Jalankan server lokal untuk mengetes hasil perbaikan:
-   ```bash
-   npm run dev
-   ```
-3. Buka browser di Mac (`http://localhost:5173`) dan pastikan bug sudah hilang dan berjalan 100% normal.
-
----
-
-### 🔵 LANGKAH 2: COMMIT & PUSH HASIL PERBAIKAN KE GITHUB
-Setelah yakin kode lokal sudah sempurna, jalankan perintah ini di Terminal Mac Anda:
-
+### 2. Commit & Push ke GitHub
 ```bash
 git add .
-git commit -m "Fix: Perbaikan bug perhitungan HPP dan tampilan dashboard"
+git commit -m "Fix bug / update fitur"
 git push origin main
 ```
-*(Kode terbaru Anda kini aman tersimpan di repository GitHub).*
 
----
-
-### 🔴 LANGKAH 3: DEPLOY UPDATE KE VPS HOSTINGER (CUKUP 1 BARIS PERINTAH)
-Buka Terminal SSH ke VPS Hostinger (`ssh root@187.77.122.142`), lalu jalankan 1 baris perintah ini:
-
+### 3. Deploy Update di VPS Hostinger (1 Baris Perintah)
 ```bash
 cd /var/www/MRIS_TECH && git pull origin main && npm run build && pm2 restart mris-app-tech
 ```
-
----
-
-### 🎉 SELESAI!
-Dalam waktu 5-10 detik, perbaikan yang Anda buat di komputer Mac Anda akan **langsung otomatis aktif secara live di domain `https://barokahgroupindonesia.tech`** tanpa mengganggu pengguna lain dan tanpa membuat website down!
