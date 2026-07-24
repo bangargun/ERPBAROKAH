@@ -1,55 +1,46 @@
-# 🚀 PANDUAN LANGKAH-LANGKAH LANJUTAN DEPLOYMENT MRIS RESTORAN
-**Domain Resmi**: `barokahgroupindonesia.tech`  
-**Repository GitHub**: `https://github.com/bangargun/MRIS.git`  
-**Port API Khusus MRIS**: `4000` *(Diterapkan isolasi port ketat agar tidak bentrok dengan domain lain di 1 VPS)*
+# 🚀 PANDUAN DEPLOYMENT ISOLASI KHUSUS MRIS (`barokahgroupindonesia.tech`)
+**IP VPS Hostinger**: `187.77.122.142`  
+**Domain Baru MRIS**: `barokahgroupindonesia.tech` *(Terisolasi 100% dari domain `barokahgroupindonesia.com`)*  
+**Port API Khusus MRIS**: `4000`  
+**Nama Layanan PM2**: `mris-app-tech`
 
 ---
 
-## 📌 TAHAP 1: ARANKAN DNS DOMAIN KE IP VPS HOSTINGER
+## 📌 TAHAP 1: ATUR DNS MANAGEMENT DI DOMAIN `barokahgroupindonesia.tech`
 
-Buka portal **Domain / DNS Zone Editor** di Hostinger / tempat Anda membeli domain `barokahgroupindonesia.tech`, lalu tambahkan/edit 2 DNS Record berikut:
+Masuk ke hPanel Hostinger pada domain **`barokahgroupindonesia.tech`** (bukan `.com`), pilih menu **DNS/Nameserver**, lalu masukkan DNS Record berikut:
 
-| Type | Name / Host | TTL | Target / Point To |
-| :--- | :--- | :--- | :--- |
-| **A** | `@` | Auto (14400) | `[IP_VPS_HOSTINGER_ANDA]` |
-| **A** | `www` | Auto (14400) | `[IP_VPS_HOSTINGER_ANDA]` |
+| Tipe | Nama | Konten / Value | TTL | Keterangan |
+| :--- | :--- | :--- | :--- | :--- |
+| **A** | `@` | `187.77.122.142` | `14400` | Domain Utama MRIS |
+| **A** | `mris-admin` | `187.77.122.142` | `14400` | Subdomain Web Admin Executive *(Membedakan dari admin-pos `.com`)* |
+| **A** | `mris-api` | `187.77.122.142` | `14400` | Subdomain API Backend MRIS *(Membedakan dari pos-api `.com`)* |
+| **CNAME** | `www` | `barokahgroupindonesia.tech` | `300` | CNAME Alias |
 
 ---
 
-## 💻 TAHAP 2: SETUP SERVER & DATABASE DI VPS HOSTINGER (COP-PASTE PERINTAH)
+## 💻 TAHAP 2: SETUP PERINTAH SSH (JALANKAN DI TERMINAL VPS `187.77.122.142`)
 
-Buka aplikasi **Terminal** di Mac Anda dan jalankan perintah di bawah ini secara berurutan:
+Buka Terminal Mac Anda dan ikuti perintah di bawah ini:
 
-### 1. Login SSH ke VPS Hostinger Anda
+### 1. Login SSH ke VPS Hostinger
 ```bash
-ssh root@IP_VPS_HOSTINGER_ANDA
-```
-*(Ganti `IP_VPS_HOSTINGER_ANDA` dengan IP server VPS Anda, lalu masukkan password root).*
-
----
-
-### 2. Update System & Install Tooling (Nginx, Node.js 20, Git, PM2 & Certbot)
-Copy-paste perintah ini sekaligus ke terminal VPS Anda:
-```bash
-sudo apt update && sudo apt install -y nginx git certbot python3-certbot-nginx curl && \
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && \
-sudo apt install -y nodejs && \
-sudo npm install -g pm2
+ssh root@187.77.122.142
 ```
 
 ---
 
-### 3. Clone Repository MRIS & Buat Folder Database Terisolasi
+### 2. Clone Proyek ke Folder Terisolasi `/var/www/MRIS_TECH`
 ```bash
 cd /var/www
-sudo git clone https://github.com/bangargun/MRIS.git
-cd /var/www/MRIS
+sudo git clone https://github.com/bangargun/MRIS.git MRIS_TECH
+cd /var/www/MRIS_TECH
 sudo mkdir -p data
 ```
 
 ---
 
-### 4. Install Dependencies & Build Web Dist Production
+### 3. Install Dependencies & Build Production Web Dist
 ```bash
 npm install
 npm run build
@@ -57,27 +48,27 @@ npm run build
 
 ---
 
-### 5. Buat Konfigurasi Nginx Terisolasi (Port 4000 Khusus MRIS)
-Jalankan perintah ini untuk membuka editor file Nginx:
+### 4. Buat Konfigurasi Nginx Terisolasi
+Jalankan perintah ini:
 ```bash
 sudo nano /etc/nginx/sites-available/barokahgroupindonesia.tech
 ```
 
-Copy dan Paste seluruh teks konfigurasi di bawah ini ke dalam editor `nano`:
+Copy dan paste seluruh konfigurasi Nginx di bawah ini ke dalam editor `nano`:
 ```nginx
 server {
     listen 80;
-    server_name barokahgroupindonesia.tech www.barokahgroupindonesia.tech;
+    server_name barokahgroupindonesia.tech www.barokahgroupindonesia.tech mris-admin.barokahgroupindonesia.tech mris-api.barokahgroupindonesia.tech;
 
-    # Serve static frontend web dist
-    root /var/www/MRIS/dist;
+    # Folder Terisolasi Khusus MRIS TECH
+    root /var/www/MRIS_TECH/dist;
     index index.html;
 
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # Proxy API Requests ke Backend Server MRIS di Port 4000 (Terisolasi Total)
+    # Proxy API Khusus Port 4000 (Terisolasi dari aplikasi .com)
     location /api/ {
         proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
@@ -87,63 +78,34 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
 
-    # Enable Gzip Compression untuk Kecepatan Maksimal
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
 }
 ```
-> 💡 **Cara Simpan di Nano**: Tekan **`Ctrl + O`**, lalu tekan **`Enter`**. Setelah itu tekan **`Ctrl + X`** untuk keluar.
+> 💡 **Cara Simpan di Nano**: Tekan **`Ctrl + O`** ➔ **`Enter`** ➔ Tekan **`Ctrl + X`**.
 
 ---
 
-### 6. Aktifkan Site Nginx & Restart Web Server
+### 5. Aktifkan Nginx & Install SSL HTTPS
 ```bash
 sudo ln -s /etc/nginx/sites-available/barokahgroupindonesia.tech /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
+sudo certbot --nginx -d barokahgroupindonesia.tech -d www.barokahgroupindonesia.tech -d mris-admin.barokahgroupindonesia.tech -d mris-api.barokahgroupindonesia.tech
 ```
 
 ---
 
-### 7. Install Sertifikat SSL Gratis (HTTPS Gembok Hijau)
+### 6. Jalankan Server Database MRIS via PM2 (Port 4000)
 ```bash
-sudo certbot --nginx -d barokahgroupindonesia.tech -d www.barokahgroupindonesia.tech
-```
-*(Ketik email Anda dan jawab `Y` saat diminta konfirmasi).*
-
----
-
-### 8. Jalankan Database & API Server 24/7 via PM2
-```bash
-cd /var/www/MRIS
-pm2 start server.js --name "mris-backend"
+cd /var/www/MRIS_TECH
+PORT=4000 pm2 start server.js --name "mris-app-tech"
 pm2 save
-pm2 startup
 ```
 
 ---
 
-## 🔄 TAHAP 3: CARA UPDATE OTOMATIS JIKA ADA PERUBAHAN KODE DI KEMUDIAN HARI
-
-Jika Anda melakukan update kode di komputer lokal dan sudah push ke GitHub, Anda cukup jalankan 1 baris perintah ini di VPS Hostinger:
-
-```bash
-cd /var/www/MRIS && git pull origin main && npm run build && pm2 restart mris-backend
-```
-
----
-
-## 📱 TAHAP 4: OPERASIONAL ALUR PENGGUNAAN
-
-### 1. Untuk Owner & Manajemen (Laptop / Mac / iPad / Browser HP)
-- Buka URL: **`https://barokahgroupindonesia.tech`**
-- Masuk melalui **Papan Login Khusus Manajemen** (`🚫 Restricted Access Gate`):
-  - 👑 **Super Admin**: Username `superadmin` | Password `888` (atau `master` / `1234`)
-  - 💼 **Owner**: Username `owner` | Password `999`
-  - 🏢 **Admin Operasional**: Username `dewi_admin` | Password `123`
-
-### 2. Untuk Kasir (Tablet / HP Android Outlet)
-- Kirim file installer **`MRIS_POS_Kasir.apk`** dari folder laptop Anda ke perangkat Android kasir.
-- Install file APK di Android.
-- Kasir membuka aplikasi untuk **Buka Shift (Input Modal Kas)**, **Transaksi Penjualan**, **Cetak Struk**, dan **Tutup Shift**.
-- Seluruh data penjualan kasir akan otomatis tersinkronisasi ke Web Management Dashboard Owner secara *real-time*!
+## 🔍 HASSIL AKHIR ISOLASI REKAYASA:
+1. **Domain `.com`** (Aplikasi Lama Anda): Tetap berjalan di `187.77.122.142` tanpa terganggu sama sekali.
+2. **Domain `.tech`** (Aplikasi Baru MRIS): Berjalan di folder `/var/www/MRIS_TECH`, port `4000`, dan PM2 `mris-app-tech`.
+3. **Database**: Terisolasi 100% di `/var/www/MRIS_TECH/data/` sehingga **mustahil data saling bocor / tertukar**.
