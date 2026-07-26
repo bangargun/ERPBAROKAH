@@ -31,7 +31,7 @@ const ROLE_ICONS = {
 };
 
 export default function LoginPage({ onLoginSuccess, masterData }) {
-  const [mode, setMode] = useState(null);
+  const [mode, setMode] = useState('admin');
   const [selectedOutlet, setSelectedOutlet] = useState('');
   const [selectedUsername, setSelectedUsername] = useState('');
   const [password, setPassword] = useState('');

@@ -289,16 +289,7 @@ export default function AdminLayout({
               )}
             </div>
 
-            {/* Switch to Mobile POS Button */}
-            {onSwitchToMobile && (
-              <button 
-                onClick={onSwitchToMobile}
-                style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#ffffff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Smartphone size={14} />
-                <span>POS Tablet</span>
-              </button>
-            )}
+
 
             {/* Profile Avatar Badge */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px 4px 4px', background: '#1e293b', border: '1px solid #334155', borderRadius: '20px' }}>

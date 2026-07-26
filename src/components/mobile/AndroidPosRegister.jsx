@@ -2181,15 +2181,7 @@ export default function AndroidPosRegister({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {onSwitchToAdmin && (
-              <button
-                type="button"
-                onClick={onSwitchToAdmin}
-                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none', color: '#ffffff', padding: '6px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}
-              >
-                <span>💻 Web Based Admin</span>
-              </button>
-            )}
+
 
             <button
               onClick={() => setActiveNavTab('printer_setting')}
