@@ -2781,10 +2781,10 @@ export default function AndroidPosRegister({
               <div>
                 <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ShoppingBag size={22} color="#2563eb" />
-                  <span>Cart (Keranjang)</span>
+                  <span>Open Bills (Pesanan Gantung)</span>
                 </h2>
                 <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                  Outlet: {currentOutlet.name} • Total {pendingOrdersList.length} Pesanan Aktif di Cart (Belum Dibayar)
+                  Outlet: {currentOutlet.name} • Total {pendingOrdersList.length} Pesanan Aktif Gantung (Bebas / Non-FIFO / Parallel Multi-Order)
                 </p>
               </div>
             </div>
