@@ -125,13 +125,20 @@ export default function App() {
     return initialMasterData;
   });
 
+  // Helper for VPS API URL in APK & Web
+  const getApiUrl = (pathStr) => {
+    const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
+    const baseUrl = isNativeApp ? 'https://mris-admin.barokahgroupindonesia.tech' : '';
+    return `${baseUrl}${pathStr}`;
+  };
+
   // Sync Master Data to localStorage & Central VPS Cloud API
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
     
     // Auto Sync to Central Server API on VPS
     const syncTimer = setTimeout(() => {
-      fetch('/api/master-data', {
+      fetch(getApiUrl('/api/master-data'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(masterData)
@@ -145,7 +152,7 @@ export default function App() {
 
   // Initial Fetch from Central VPS Cloud Database on Startup
   useEffect(() => {
-    fetch('/api/master-data')
+    fetch(getApiUrl('/api/master-data'))
       .then(res => res.ok ? res.json() : null)
       .then(serverData => {
         if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
