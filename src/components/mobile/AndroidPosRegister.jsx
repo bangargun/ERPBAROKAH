@@ -71,8 +71,20 @@ export default function AndroidPosRegister({
   const outlets = masterData?.outlets || [];
   const currentOutlet = outlets.find(o => o.id === selectedBranch) || outlets[0] || { id: 1, name: 'Restoran Utama' };
 
-  // Filter products for this outlet
-  const products = (masterData?.products || []).filter(p => !p.outlet_id || p.outlet_id === currentOutlet.id);
+  const DEFAULT_POS_PRODUCTS = [
+    { id: 101, name: 'Nasi Goreng Spesial', category: 'Penjualan Dine-in', price: 35000, isPopular: true },
+    { id: 102, name: 'Ayam Bakar Madu', category: 'Penjualan Dine-in', price: 42000, isPopular: true },
+    { id: 103, name: 'Es Teh Manis Jumbo', category: 'Penjualan Dine-in', price: 10000, isPopular: true },
+    { id: 104, name: 'Mie Goreng Seafood', category: 'Penjualan Dine-in', price: 38000, isPopular: true },
+    { id: 105, name: 'Kopi Susu Gula Aren', category: 'Penjualan Dine-in', price: 22000, isPopular: true },
+    { id: 106, name: 'Soto Ayam Lamongan', category: 'Penjualan Dine-in', price: 30000, isPopular: false },
+    { id: 107, name: 'Sate Ayam Madura (10 KTP)', category: 'Penjualan Dine-in', price: 40000, isPopular: true },
+    { id: 108, name: 'Jus Alpukat Kocok', category: 'Penjualan Dine-in', price: 25000, isPopular: false }
+  ];
+
+  const rawProducts = (masterData?.products || []);
+  const availableProducts = rawProducts.length > 0 ? rawProducts : DEFAULT_POS_PRODUCTS;
+  const products = availableProducts;
   const menuList = products;
   const masterCategoryNames = (masterData?.categories || [])
     .filter(c => !c.status || c.status === 'Aktif')
@@ -2035,8 +2047,12 @@ export default function AndroidPosRegister({
   }
 
   const filteredItems = menuList.filter(item => {
-    const matchesCat = activeCategory === 'Semua' || item.category === activeCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+    let matchesCat = activeCategory === 'Semua' || item.category === activeCategory;
+    if (activeCategory === '🔥 Sering Diorder') {
+      const hasPopular = menuList.some(i => i.isPopular || i.is_popular || i.isFavorite);
+      matchesCat = hasPopular ? !!(item.isPopular || item.is_popular || item.isFavorite) : true;
+    }
+    const matchesSearch = (item.name || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesSearch;
   });
 
@@ -2226,7 +2242,7 @@ export default function AndroidPosRegister({
               {/* ----------------------------------------------------------- */}
               {/* LEFT CATALOG PANEL (PRODUCTS CATALOG - 60% WIDTH)            */}
               {/* ----------------------------------------------------------- */}
-              <div style={{ flex: '0 0 60%', display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(255,255,255,0.08)', background: '#0f172a' }}>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(255,255,255,0.08)', background: '#0f172a', boxSizing: 'border-box' }}>
 
                 {/* Catalog Header: Title + Search & Barcode Scanner */}
                 <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b' }}>
@@ -2333,9 +2349,9 @@ export default function AndroidPosRegister({
 
 
               {/* ----------------------------------------------------------- */}
-              {/* RIGHT CHECKOUT PANEL (CART REGISTER & SUMMARY - 40% WIDTH)   */}
+              {/* RIGHT CHECKOUT PANEL (CART REGISTER & SUMMARY - FIXED 380PX) */}
               {/* ----------------------------------------------------------- */}
-              <div style={{ flex: '0 0 40%', display: 'flex', flexDirection: 'column', background: '#1e293b' }}>
+              <div style={{ width: '380px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#1e293b', boxSizing: 'border-box' }}>
 
                 {/* Top 3 Action Tabs: ORDER | TABLE | MORE */}
                 <div style={{ display: 'flex', background: '#0b1329', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>

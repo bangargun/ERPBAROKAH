@@ -315,7 +315,9 @@ export default function App() {
   };
 
   // FLOATING PREVIEW TOGGLE BUTTON BAR (BERALIH DENGAN MUDAH ANTARA WEB ADMIN & POS MOBILE APK)
-  const renderPreviewToggleBar = () => (
+  const renderPreviewToggleBar = () => {
+    if (viewMode === 'mobile') return null;
+    return (
     <div style={{
       position: 'fixed',
       top: '12px',
@@ -375,7 +377,8 @@ export default function App() {
         <span>📱 POS Mobile APK</span>
       </button>
     </div>
-  );
+    );
+  };
 
   // MODAL PERINGATAN: Keluar dulu dari POS Mobile sebelum ke Web Admin
   const renderSwitchWarningModal = () => {
