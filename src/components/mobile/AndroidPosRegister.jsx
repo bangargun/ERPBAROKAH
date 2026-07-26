@@ -202,21 +202,19 @@ export default function AndroidPosRegister({
   const [manualRepNo, setManualRepNo] = useState(`LAP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [manualRepAuthor, setManualRepAuthor] = useState('Master Super Admin');
   const [manualRepOutletId, setManualRepOutletId] = useState(1);
-  const [manualRepNetSales, setManualRepNetSales] = useState(1940000);
-  const [manualRepNonCash, setManualRepNonCash] = useState(750000);
+  const [manualRepNetSales, setManualRepNetSales] = useState(0);
+  const [manualRepNonCash, setManualRepNonCash] = useState(0);
   const [manualRepDebtPayment, setManualRepDebtPayment] = useState(0);
   const [manualRepStatus, setManualRepStatus] = useState('pending');
   const [manualRepNotes, setManualRepNotes] = useState('');
 
-  // COGS & Expense Multi-Row States (Minimal 5 open fields)
+  // COGS & Expense Multi-Row States
   const [manualCogsRows, setManualCogsRows] = useState([]);
   const [manualCogsSearch, setManualCogsSearch] = useState('');
   const [manualExpenseRows, setManualExpenseRows] = useState([]);
   const [manualExpenseSearch, setManualExpenseSearch] = useState('');
-  const [manualCashReturnRows, setManualCashReturnRows] = useState([
-    { id: 1, date: new Date().toISOString().split('T')[0], debtAmount: 500000, returnAmount: 250000 }
-  ]);
-  const [manualDefaultCashModal, setManualDefaultCashModal] = useState(2000000);
+  const [manualCashReturnRows, setManualCashReturnRows] = useState([]);
+  const [manualDefaultCashModal, setManualDefaultCashModal] = useState(0);
 
   // Logistics Stock Opname Form States (Matching Web-Based Stock Opname 100%)
   const [showAddLogisticsModal, setShowAddLogisticsModal] = useState(false);
@@ -3928,22 +3926,15 @@ export default function AndroidPosRegister({
                             { id: 'acc-2', name: 'Biaya Gas LPG Dapur', item_type: 'Biaya Operasional', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)', unit: 'tabung', cost: 220000 }
                           ];
 
-                      // TOTAL 3 BARIS DEFAULT INITIALIZATION
-                      const default3ExpenseRows = [
-                        { id: Date.now() + 1, name: masterIngs[0]?.name || 'Beras Pandan Wangi', category: masterIngs[0]?.category || 'HPP Dapur (Bahan Mentah)', item_type: 'Bahan Baku', qty: 1, unit: masterIngs[0]?.unit || 'kg', price_unit: masterIngs[0]?.cost || 14000, amount: masterIngs[0]?.cost || 14000 },
-                        { id: Date.now() + 2, name: masterIngs[1]?.name || 'Minyak Goreng Bimoli', category: masterIngs[1]?.category || 'HPP Dapur (Bahan Mentah)', item_type: 'Bahan Baku', qty: 1, unit: masterIngs[1]?.unit || 'liter', price_unit: masterIngs[1]?.cost || 18000, amount: masterIngs[1]?.cost || 18000 },
-                        { id: Date.now() + 3, name: masterAccs[0]?.name || 'Biaya Listrik & Air', category: masterAccs[0]?.category || 'Biaya Utilitas (Gas LPG, Air & Listrik)', item_type: 'Biaya Operasional', qty: 1, unit: 'paket', price_unit: masterAccs[0]?.cost || 150000, amount: masterAccs[0]?.cost || 150000 }
-                      ];
-
                       setManualRepDate(todayStr);
                       setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setManualRepOutletId(currentOutlet.id || 1);
                       setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || 'Master Super Admin');
-                      setManualRepNetSales(totalSalesGross || 1940000);
-                      setManualRepNonCash(750000);
+                      setManualRepNetSales(totalSalesGross || 0);
+                      setManualRepNonCash(0);
                       setManualRepDebtPayment(0);
-                      setManualCogsRows(default3ExpenseRows.filter(r => r.item_type === 'Bahan Baku'));
-                      setManualExpenseRows(default3ExpenseRows.filter(r => r.item_type !== 'Bahan Baku'));
+                      setManualCogsRows([]);
+                      setManualExpenseRows([]);
                       setManualCogsSearch('');
                       setManualExpenseSearch('');
                       setManualRepStatus('pending');
@@ -9307,11 +9298,11 @@ export default function AndroidPosRegister({
               
               const autoCashVal = matchedSales
                 .filter(t => !t.payment_method || t.payment_method.toLowerCase() === 'cash' || t.payment_method.toLowerCase() === 'tunai')
-                .reduce((sum, t) => sum + Number(t.amount || 0), 0) || Number(manualRepNetSales || 1940000) - Number(manualRepNonCash || 750000);
+                .reduce((sum, t) => sum + Number(t.amount || 0), 0) || Number(manualRepNetSales || 0);
 
               const autoNonCashVal = matchedSales
                 .filter(t => t.payment_method && t.payment_method.toLowerCase() !== 'cash' && t.payment_method.toLowerCase() !== 'tunai')
-                .reduce((sum, t) => sum + Number(t.amount || 0), 0) || Number(manualRepNonCash || 750000);
+                .reduce((sum, t) => sum + Number(t.amount || 0), 0) || Number(manualRepNonCash || 0);
 
               const autoTotalSalesVal = autoCashVal + autoNonCashVal;
 
