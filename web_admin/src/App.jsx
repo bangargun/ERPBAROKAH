@@ -166,6 +166,21 @@ export default function App() {
         .then(serverData => {
           if (serverData && typeof serverData === 'object') {
             setMasterData(prev => {
+              const clientUpdated = prev?._lastUpdated || 0;
+              const serverUpdated = serverData?._lastUpdated || 0;
+
+              // If server has newer or equal timestamp, trust server state authoritative snapshot
+              if (serverUpdated >= clientUpdated) {
+                const prevJson = JSON.stringify(prev);
+                const serverJson = JSON.stringify(serverData);
+                if (prevJson === serverJson) return prev;
+                return {
+                  ...prev,
+                  ...serverData
+                };
+              }
+
+              // Otherwise client has un-pushed local mutations; merge by ID
               const updated = {
                 ...prev,
                 ...serverData,
