@@ -919,10 +919,21 @@ export default function AndroidPosRegister({
     return list;
   }, [tableStatusMap, tables]);
 
-  // Outlet Sales Transactions
-  const outletTransactions = (masterData?.salesTransactions || []).filter(
-    t => !selectedBranch || Number(t.outlet_id) === Number(selectedBranch)
-  );
+  // Outlet Sales Transactions (Robust Branch Matching for String/Number IDs)
+  const outletTransactions = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
+    if (!selectedBranch || selectedBranch === 'ALL') return true;
+    if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
+      const bId = Number(selectedBranch);
+      return Number(t.outlet_id) === bId || Number(t.branch_id) === bId;
+    }
+    // If selectedBranch is outlet name string (e.g. 'Gourmet Bistro - Senopati')
+    return (
+      t.branch_name === selectedBranch ||
+      t.outlet === selectedBranch ||
+      t.outlet_name === selectedBranch ||
+      (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
+    );
+  });
 
   // Derived Financials for Selected Outlet
   const totalSalesGross = outletTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
