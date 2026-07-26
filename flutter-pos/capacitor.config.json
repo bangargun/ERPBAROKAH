@@ -1,0 +1,11 @@
+{
+  "appId": "com.mris.finance",
+  "appName": "MRIS Dual Screen POS",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://mris-admin.barokahgroupindonesia.tech",
+    "cleartext": true,
+    "androidScheme": "https"
+  }
+}
