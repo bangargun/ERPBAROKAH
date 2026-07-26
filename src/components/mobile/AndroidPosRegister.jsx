@@ -74,7 +74,13 @@ export default function AndroidPosRegister({
   // Filter products for this outlet
   const products = (masterData?.products || []).filter(p => !p.outlet_id || p.outlet_id === currentOutlet.id);
   const menuList = products;
-  const categories = ['🔥 Sering Diorder', 'Semua', ...Array.from(new Set(menuList.map(item => item.category || 'Umum')))];
+  const masterCategoryNames = (masterData?.categories || [])
+    .filter(c => !c.status || c.status === 'Aktif')
+    .map(c => c.name)
+    .filter(Boolean);
+  const productCategoryNames = menuList.map(item => item.category || 'Umum').filter(Boolean);
+  const allCategoryNames = Array.from(new Set([...masterCategoryNames, ...productCategoryNames]));
+  const categories = ['🔥 Sering Diorder', 'Semua', ...allCategoryNames];
 
   // POS State
   const [activeCategory, setActiveCategory] = useState('🔥 Sering Diorder');

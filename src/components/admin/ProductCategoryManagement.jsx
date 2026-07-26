@@ -59,8 +59,10 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
       created_at: new Date().toISOString().split('T')[0]
     };
 
-    const updated = { ...masterData };
-    updated.categories.push(newCategory);
+    const updated = {
+      ...masterData,
+      categories: [...(masterData.categories || []), newCategory]
+    };
     setMasterData(updated);
 
     setShowAddModal(false);
@@ -79,12 +81,11 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
     e.preventDefault();
     if (!editingCategory || !editingCategory.name.trim()) return;
 
-    const updated = { ...masterData };
-    const index = updated.categories.findIndex(c => c.id === editingCategory.id);
-    if (index !== -1) {
-      updated.categories[index] = { ...editingCategory };
-      setMasterData(updated);
-    }
+    const updated = {
+      ...masterData,
+      categories: (masterData.categories || []).map(c => c.id === editingCategory.id ? { ...editingCategory } : c)
+    };
+    setMasterData(updated);
 
     setShowEditModal(false);
     setEditingCategory(null);
@@ -103,8 +104,10 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
       }
     }
 
-    const updated = { ...masterData };
-    updated.categories = updated.categories.filter(c => c.id !== catId);
+    const updated = {
+      ...masterData,
+      categories: (masterData.categories || []).filter(c => c.id !== catId)
+    };
     setMasterData(updated);
   };
 
