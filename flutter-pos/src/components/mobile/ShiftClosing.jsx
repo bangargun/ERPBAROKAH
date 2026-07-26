@@ -246,7 +246,10 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
     if (setMasterData) {
       setMasterData(prev => ({
         ...prev,
-        approvedFinanceDaily: [previewingRecord, ...(prev.approvedFinanceDaily || [])]
+        _lastUpdated: Date.now(),
+        approvedFinanceDaily: [previewingRecord, ...(prev.approvedFinanceDaily || [])],
+        shiftClosings: [previewingRecord, ...(prev.shiftClosings || [])],
+        closedShifts: [previewingRecord, ...(prev.closedShifts || [])]
       }));
     }
 
