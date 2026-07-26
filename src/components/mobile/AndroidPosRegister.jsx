@@ -71,20 +71,9 @@ export default function AndroidPosRegister({
   const outlets = masterData?.outlets || [];
   const currentOutlet = outlets.find(o => o.id === selectedBranch) || outlets[0] || { id: 1, name: 'Restoran Utama' };
 
-  const DEFAULT_POS_PRODUCTS = [
-    { id: 101, name: 'Nasi Goreng Spesial', category: 'Penjualan Dine-in', price: 35000, isPopular: true },
-    { id: 102, name: 'Ayam Bakar Madu', category: 'Penjualan Dine-in', price: 42000, isPopular: true },
-    { id: 103, name: 'Es Teh Manis Jumbo', category: 'Penjualan Dine-in', price: 10000, isPopular: true },
-    { id: 104, name: 'Mie Goreng Seafood', category: 'Penjualan Dine-in', price: 38000, isPopular: true },
-    { id: 105, name: 'Kopi Susu Gula Aren', category: 'Penjualan Dine-in', price: 22000, isPopular: true },
-    { id: 106, name: 'Soto Ayam Lamongan', category: 'Penjualan Dine-in', price: 30000, isPopular: false },
-    { id: 107, name: 'Sate Ayam Madura (10 KTP)', category: 'Penjualan Dine-in', price: 40000, isPopular: true },
-    { id: 108, name: 'Jus Alpukat Kocok', category: 'Penjualan Dine-in', price: 25000, isPopular: false }
-  ];
-
+  // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
-  const availableProducts = rawProducts.length > 0 ? rawProducts : DEFAULT_POS_PRODUCTS;
-  const products = availableProducts;
+  const products = rawProducts.filter(p => !p.outlet_id || p.outlet_id === currentOutlet.id || currentOutlet.id === 1);
   const menuList = products;
   const masterCategoryNames = (masterData?.categories || [])
     .filter(c => !c.status || c.status === 'Aktif')
