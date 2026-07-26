@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LoginPage from './components/admin/LoginPage';
 
 import MobileLayout from './components/mobile/MobileLayout';
 import DailyTransactionEntry from './components/mobile/DailyTransactionEntry';
