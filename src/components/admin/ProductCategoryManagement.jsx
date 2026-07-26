@@ -61,6 +61,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
 
     const updated = {
       ...masterData,
+      _lastUpdated: Date.now(),
       categories: [...(masterData.categories || []), newCategory]
     };
     setMasterData(updated);
@@ -83,6 +84,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
 
     const updated = {
       ...masterData,
+      _lastUpdated: Date.now(),
       categories: (masterData.categories || []).map(c => c.id === editingCategory.id ? { ...editingCategory } : c)
     };
     setMasterData(updated);
@@ -106,6 +108,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
 
     const updated = {
       ...masterData,
+      _lastUpdated: Date.now(),
       categories: (masterData.categories || []).filter(c => c.id !== catId)
     };
     setMasterData(updated);

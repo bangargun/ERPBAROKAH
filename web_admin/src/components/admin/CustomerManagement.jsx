@@ -92,7 +92,10 @@ export default function CustomerManagement({ masterData, setMasterData }) {
       return;
     }
 
-    const updated = { ...masterData };
+    const updated = {
+      ...masterData,
+      _lastUpdated: Date.now()
+    };
     if (!updated.customers) updated.customers = [];
 
     if (editingCustomer) {
@@ -128,7 +131,10 @@ export default function CustomerManagement({ masterData, setMasterData }) {
   // Delete Customer
   const handleDeleteCustomer = (id, custName) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus pelanggan "${custName}"?`)) {
-      const updated = { ...masterData };
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now()
+      };
       updated.customers = updated.customers.filter(c => c.id !== id);
       setMasterData(updated);
     }

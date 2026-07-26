@@ -326,7 +326,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       compositions
     };
 
-    const updated = { ...masterData };
+    const updated = {
+      ...masterData,
+      _lastUpdated: Date.now()
+    };
+
     if (editingProductId) {
       const idx = updated.products.findIndex(p => p.id === editingProductId);
       if (idx !== -1) updated.products[idx] = productPayload;
@@ -342,7 +346,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // 8. Delete Product
   const handleDeleteProduct = (id, name) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus produk "${name}"?`)) {
-      const updated = { ...masterData };
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now()
+      };
       updated.products = updated.products.filter(p => p.id !== id);
       setMasterData(updated);
     }

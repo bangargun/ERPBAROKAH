@@ -75,7 +75,10 @@ export default function OutletManagement({ masterData, setMasterData }) {
       return;
     }
 
-    const updated = { ...masterData };
+    const updated = {
+      ...masterData,
+      _lastUpdated: Date.now()
+    };
     if (!updated.outlets) updated.outlets = [];
 
     const finalCode = code.trim().toUpperCase();
@@ -114,7 +117,10 @@ export default function OutletManagement({ masterData, setMasterData }) {
   // Delete Outlet
   const handleDeleteOutlet = (id, outletName) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus outlet "${outletName}"?`)) {
-      const updated = { ...masterData };
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now()
+      };
       updated.outlets = updated.outlets.filter(o => o.id !== id);
       setMasterData(updated);
     }

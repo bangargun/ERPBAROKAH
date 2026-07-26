@@ -369,7 +369,9 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (setMasterData) {
       setMasterData({
         ...masterData,
-        salesTransactions: updatedList
+        _lastUpdated: Date.now(),
+        salesTransactions: updatedList,
+        transactions: updatedList
       });
     }
 
@@ -390,7 +392,9 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (setMasterData) {
       setMasterData({
         ...masterData,
-        salesTransactions: updatedList
+        _lastUpdated: Date.now(),
+        salesTransactions: updatedList,
+        transactions: updatedList
       });
     }
   };
@@ -401,7 +405,9 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       if (setMasterData) {
         setMasterData({
           ...masterData,
-          salesTransactions: updatedList
+          _lastUpdated: Date.now(),
+          salesTransactions: updatedList,
+          transactions: updatedList
         });
       }
     }

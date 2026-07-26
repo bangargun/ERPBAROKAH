@@ -339,17 +339,10 @@ app.get('/api/reports/pnl', (req, res) => {
   });
 });
 
-// Default Master Data Schema Structure
+// Default Master Data Schema Structure (Clean Slate)
 const defaultMasterData = {
-  outlets: [
-    { id: 1, code: 'RST-001', name: 'Gourmet Bistro - Senopati', location: 'Jl. Senopati No. 45, Jakarta Selatan', manager_name: 'Budi Santoso', phone: '0812-3456-7890', monthly_budget: 120000000, status: 'Active', color: '#6366f1' },
-    { id: 2, code: 'RST-002', name: 'Ramen Haus - Kemang', location: 'Jl. Kemang Raya No. 12, Jakarta Selatan', manager_name: 'Siti Rahma', phone: '0813-9876-5432', monthly_budget: 85000000, status: 'Active', color: '#ec4899' },
-    { id: 3, code: 'RST-003', name: 'Kopi & Kitchen - PIK', location: 'Ruko Crown Golf Blok B No. 8, Pantai Indah Kapuk', manager_name: 'Kevin Wijaya', phone: '0811-2233-4455', monthly_budget: 65000000, status: 'Active', color: '#10b981' }
-  ],
-  categories: [
-    { id: 1, name: 'Penjualan Dine-in', type: 'income', icon: 'Utensils' },
-    { id: 2, name: 'Penjualan Takeaway / Online', type: 'income', icon: 'ShoppingBag' }
-  ],
+  outlets: [],
+  categories: [],
   products: [],
   customers: [],
   salesTransactions: [],
