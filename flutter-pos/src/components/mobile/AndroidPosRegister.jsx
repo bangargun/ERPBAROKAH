@@ -2108,7 +2108,13 @@ export default function AndroidPosRegister({
             return (
               <button
                 key={nav.id}
-                onClick={() => setActiveNavTab(nav.id)}
+                onClick={() => {
+                  setActiveNavTab(nav.id);
+                  if (nav.id === 'laporan') {
+                    setActiveLaporanSubView(null);
+                    setIsMobileReportUnlocked(true);
+                  }
+                }}
                 title={showSyncDot ? `Tersinkronisasi dengan Server Database` : nav.label}
                 style={{
                   position: 'relative',
@@ -3861,13 +3867,13 @@ export default function AndroidPosRegister({
                   <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Kas Tunai / Cash</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>
-                      {formatRupiah((outletTransactions || []).filter(tx => (tx.payment_method || 'Cash') === 'Cash').reduce((sum, tx) => sum + (tx.amount || 0), 0))}
+                      {formatRupiah((outletTransactions || []).filter(tx => String(tx.payment_method || '').toLowerCase().includes('cash') || String(tx.payment_method || '').toLowerCase().includes('tunai')).reduce((sum, tx) => sum + (tx.amount || 0), 0))}
                     </div>
                   </div>
                   <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Non-Tunai (QRIS / EDC)</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#a78bfa', marginTop: '6px' }}>
-                      {formatRupiah((outletTransactions || []).filter(tx => (tx.payment_method || '') !== 'Cash').reduce((sum, tx) => sum + (tx.amount || 0), 0))}
+                      {formatRupiah((outletTransactions || []).filter(tx => !String(tx.payment_method || '').toLowerCase().includes('cash') && !String(tx.payment_method || '').toLowerCase().includes('tunai')).reduce((sum, tx) => sum + (tx.amount || 0), 0))}
                     </div>
                   </div>
                 </div>
