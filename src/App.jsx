@@ -301,68 +301,7 @@ export default function App() {
 
   // FLOATING PREVIEW TOGGLE BUTTON BAR (BERALIH DENGAN MUDAH ANTARA WEB ADMIN & POS MOBILE APK)
   const renderPreviewToggleBar = () => {
-    if (viewMode === 'mobile') return null;
-    return (
-    <div style={{
-      position: 'fixed',
-      top: '12px',
-      right: '20px',
-      zIndex: 999999,
-      background: 'rgba(15, 23, 42, 0.90)',
-      backdropFilter: 'blur(12px)',
-      border: '1.5px solid rgba(56, 189, 248, 0.4)',
-      padding: '4px 6px',
-      borderRadius: '30px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.6), 0 0 15px rgba(56, 189, 248, 0.25)'
-    }}>
-      <button
-        type="button"
-        onClick={() => handleRequestSwitchToMode('admin')}
-        style={{
-          padding: '7px 16px',
-          borderRadius: '24px',
-          border: 'none',
-          background: viewMode === 'admin' ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'transparent',
-          color: viewMode === 'admin' ? '#ffffff' : '#94a3b8',
-          fontSize: '0.78rem',
-          fontWeight: '900',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          boxShadow: viewMode === 'admin' ? '0 4px 12px rgba(99,102,241,0.4)' : 'none',
-          transition: 'all 0.2s ease'
-        }}
-      >
-        <span>💻 Web Based Admin</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => handleRequestSwitchToMode('mobile')}
-        style={{
-          padding: '7px 16px',
-          borderRadius: '24px',
-          border: 'none',
-          background: viewMode === 'mobile' ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'transparent',
-          color: viewMode === 'mobile' ? '#ffffff' : '#94a3b8',
-          fontSize: '0.78rem',
-          fontWeight: '900',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          boxShadow: viewMode === 'mobile' ? '0 4px 12px rgba(37,99,235,0.4)' : 'none',
-          transition: 'all 0.2s ease'
-        }}
-      >
-        <span>📱 POS Mobile APK</span>
-      </button>
-    </div>
-    );
+    return null;
   };
 
   // MODAL PERINGATAN: Keluar dulu dari POS Mobile sebelum ke Web Admin
