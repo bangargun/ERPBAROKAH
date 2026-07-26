@@ -19,6 +19,17 @@ export default function App() {
     window.location.hash.includes('register-customer')
   );
 
+  // Helper untuk URL VPS Backend Cloud API
+  const getApiUrl = (pathStr) => {
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host && host !== 'localhost' && host !== '127.0.0.1' && !host.includes('http')) {
+        return `${window.location.protocol}//${host}${window.location.port ? ':' + window.location.port : ''}${pathStr}`;
+      }
+    }
+    return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
+  };
+
   // User Authentication State (null = belum login, tampilkan LoginPage)
   const [userSession, setUserSession] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -66,10 +77,50 @@ export default function App() {
     return defaultBranch;
   });
 
-  // Sync Master Data to localStorage & VPS Cloud API
+  // 1. AUTO SYNC FLUSH TO VPS CLOUD SERVER ON EVERY DATA CHANGE
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
+
+    const syncTimer = setTimeout(() => {
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(masterData)
+      }).catch(() => {
+        // Offline-first fallback
+      });
+    }, 1000);
+
+    return () => clearTimeout(syncTimer);
   }, [masterData]);
+
+  // 2. REAL-TIME 2-WAY LIVE POLLING SYNC WITH VPS CLOUD SERVER (EVERY 3 SECONDS)
+  useEffect(() => {
+    const fetchLatestFromServer = () => {
+      fetch(getApiUrl('/api/master-data'))
+        .then(res => res.ok ? res.json() : null)
+        .then(serverData => {
+          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
+            setMasterData(prev => {
+              const prevJson = JSON.stringify(prev);
+              const serverJson = JSON.stringify(serverData);
+              if (prevJson === serverJson) return prev;
+              return {
+                ...prev,
+                ...serverData,
+                webAdminAccounts: serverData.webAdminAccounts !== undefined ? serverData.webAdminAccounts : prev.webAdminAccounts,
+                mobileAccounts: serverData.mobileAccounts !== undefined ? serverData.mobileAccounts : prev.mobileAccounts
+              };
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchLatestFromServer();
+    const interval = setInterval(fetchLatestFromServer, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // RENDER PUBLIC CUSTOMER SELF-REGISTRATION WEB PAGE
   if (isSelfRegPath) {
