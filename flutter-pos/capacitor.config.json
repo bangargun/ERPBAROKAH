@@ -3,9 +3,5 @@
   "appName": "MRIS POS Mobile v2.0.0",
   "webDir": "dist",
   "bundledWebRuntime": false,
-  "server": {
-    "url": "https://mris-admin.barokahgroupindonesia.tech",
-    "cleartext": true,
-    "androidScheme": "https"
-  }
+  "androidScheme": "https"
 }
