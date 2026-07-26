@@ -450,7 +450,7 @@ export default function AndroidPosRegister({
       .then(() => fetch(getApiUrl('/api/master-data')))
       .then(res => res.ok ? res.json() : null)
       .then(serverData => {
-        if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
+        if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets)) {
           setMasterData(prev => ({ ...prev, ...serverData }));
         }
       })

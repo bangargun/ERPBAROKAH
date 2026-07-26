@@ -60,7 +60,7 @@ export default function App() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === 'object' && Array.isArray(parsed.outlets) && parsed.outlets.length > 0) {
+          if (parsed && typeof parsed === 'object' && Array.isArray(parsed.outlets)) {
             return parsed;
           }
         } catch (e) {}
