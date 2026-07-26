@@ -1,6 +1,6 @@
 {
   "appId": "com.mris.finance",
-  "appName": "MRIS Dual Screen POS",
+  "appName": "MRIS POS Mobile v2.0.0",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
