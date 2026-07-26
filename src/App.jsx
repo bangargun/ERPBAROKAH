@@ -150,18 +150,27 @@ export default function App() {
     return () => clearTimeout(syncTimer);
   }, [masterData]);
 
-  // Initial Fetch from Central VPS Cloud Database on Startup
+  // Real-time Live Polling Sync with VPS Central Cloud Server (Every 3 Seconds)
   useEffect(() => {
-    fetch(getApiUrl('/api/master-data'))
-      .then(res => res.ok ? res.json() : null)
-      .then(serverData => {
-        if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
-          setMasterData(prev => ({ ...prev, ...serverData }));
-        }
-      })
-      .catch(() => {
-        // Offline-first fallback
-      });
+    const fetchLatestFromServer = () => {
+      fetch(getApiUrl('/api/master-data'))
+        .then(res => res.ok ? res.json() : null)
+        .then(serverData => {
+          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
+            setMasterData(prev => {
+              const prevJson = JSON.stringify(prev);
+              const serverJson = JSON.stringify(serverData);
+              if (prevJson === serverJson) return prev;
+              return { ...prev, ...serverData };
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchLatestFromServer();
+    const livePollTimer = setInterval(fetchLatestFromServer, 3000);
+    return () => clearInterval(livePollTimer);
   }, []);
 
   // Derived Financial Stats

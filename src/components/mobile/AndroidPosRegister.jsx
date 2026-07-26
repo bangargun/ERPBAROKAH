@@ -429,14 +429,33 @@ export default function AndroidPosRegister({
   // Handle Manual Sync Button Click
   const handleTriggerSyncData = () => {
     setIsSyncingNow(true);
-    setTimeout(() => {
-      const now = new Date();
-      const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
-      setLastSyncTime(formatted);
-      setIsSyncingNow(false);
-      setSyncSuccessToast(true);
-      setTimeout(() => setSyncSuccessToast(false), 3500);
-    }, 1200);
+    const getApiUrl = (pathStr) => {
+      const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
+      const baseUrl = isNativeApp ? 'https://mris-admin.barokahgroupindonesia.tech' : '';
+      return `${baseUrl}${pathStr}`;
+    };
+
+    fetch(getApiUrl('/api/master-data'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(masterData)
+    })
+      .then(() => fetch(getApiUrl('/api/master-data')))
+      .then(res => res.ok ? res.json() : null)
+      .then(serverData => {
+        if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
+          setMasterData(prev => ({ ...prev, ...serverData }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        const now = new Date();
+        const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
+        setLastSyncTime(formatted);
+        setIsSyncingNow(false);
+        setSyncSuccessToast(true);
+        setTimeout(() => setSyncSuccessToast(false), 3500);
+      });
   };
 
   // 1. Initiate Backup (Manual Access - Direct Download & System Sync without Super Admin PIN)
