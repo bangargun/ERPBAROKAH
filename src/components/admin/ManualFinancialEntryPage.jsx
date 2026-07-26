@@ -53,13 +53,12 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
         { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
       ];
 
-  const adminList = (masterData.userRights || []).length > 0
-    ? masterData.userRights
+  const adminList = (masterData.userRights || masterData.users || []).length > 0
+    ? (masterData.userRights || masterData.users)
     : [
-        { id: 1, name: 'Argun Admin', role: 'Super Admin Restoran' },
-        { id: 2, name: 'Budi Santoso', role: 'Manajer Cabang Senopati' },
-        { id: 3, name: 'Siti Aminah', role: 'Kasir Shift Pagi' },
-        { id: 4, name: 'Rian Kurnia', role: 'Kasir Shift Malam' }
+        { id: 1, name: 'Master Super Admin', role: 'Super Admin Restoran' },
+        { id: 2, name: 'Manajer Cabang', role: 'Branch Manager' },
+        { id: 3, name: 'Kasir Utama', role: 'Kasir Senior' }
       ];
 
   const formatRupiah = (val) => {
@@ -193,48 +192,49 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
     const todayStr = new Date().toISOString().split('T')[0];
     setDailyRepDate(todayStr);
     setDailyRepOutletId(selectedBranch || (outlets[0] ? outlets[0].id : 1));
-    setDailyRepCreatedBy(adminList[0]?.name || 'Argun Admin');
+    setDailyRepCreatedBy(masterData?.currentUser?.name || masterData?.user?.name || adminList[0]?.name || 'Master Super Admin');
 
-    const initialRows = Array.from({ length: 5 }).map((_, idx) => {
-      const item = combinedMasterItemsList[idx % combinedMasterItemsList.length];
-      const isIng = item.itemType === 'Bahan Baku';
-      return {
-        id: Date.now() + idx + Math.random(),
-        itemName: item.name,
-        itemType: item.itemType,
-        category: item.category,
-        supplier: isIng ? (suppliersList[idx % suppliersList.length]?.name || suppliersList[0]?.name || 'PT Sembako Nusantara') : '-',
-        qty: 1,
-        priceUnit: item.price || 10000,
-        totalPrice: item.price || 10000
-      };
-    });
-
-    const initialCashReturns = [
-      {
+    const initialRows = [];
+    if (ingredientsList && ingredientsList.length > 0) {
+      ingredientsList.slice(0, 2).forEach((ing, idx) => {
+        initialRows.push({
+          id: Date.now() + idx + 1,
+          itemName: ing.name,
+          itemType: 'Bahan Baku',
+          category: ing.category || 'HPP Dapur (Bahan Mentah)',
+          qty: 1,
+          priceUnit: ing.cost || ing.price || 0,
+          totalPrice: ing.cost || ing.price || 0
+        });
+      });
+    }
+    if (expenseMasterList && expenseMasterList.length > 0) {
+      const exp1 = expenseMasterList[0];
+      initialRows.push({
         id: Date.now() + 10,
-        date: todayStr,
-        debtAmount: 500000,
-        returnAmount: 250000
-      }
-    ];
+        itemName: exp1.name,
+        itemType: 'Biaya Operasional',
+        category: exp1.category || 'Biaya Operasional (OPEX)',
+        qty: 1,
+        priceUnit: exp1.amount || exp1.cost || 0,
+        totalPrice: exp1.amount || exp1.cost || 0
+      });
+    }
 
     setDailyExpenseRows(initialRows);
-    setCashReturnRows(initialCashReturns);
-    setDefaultCashModal(2000000);
+    setCashReturnRows([]);
+    setDefaultCashModal(0);
     setDailyRepNotes('');
     setShowDailyReportModal(true);
   };
 
   const handleAddDailyExpenseRow = () => {
     const item = combinedMasterItemsList[dailyExpenseRows.length % combinedMasterItemsList.length] || { name: 'Bahan Baku Baru', itemType: 'Bahan Baku', category: 'HPP Dapur', price: 15000 };
-    const isIng = item.itemType === 'Bahan Baku';
     setDailyExpenseRows(prev => [...prev, {
       id: Date.now() + Math.random(),
       itemName: item.name,
       itemType: item.itemType,
       category: item.category,
-      supplier: isIng ? (suppliersList[0]?.name || 'PT Sembako Nusantara') : '-',
       qty: 1,
       priceUnit: item.price || 15000,
       totalPrice: item.price || 15000
@@ -249,14 +249,12 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
     setDailyExpenseRows(prev => prev.map(r => {
       if (r.id !== id) return r;
       if (field === 'itemName') {
-        const found = combinedMasterItemsList.find(m => m.name === val);
-        const isIng = found ? (found.itemType === 'Bahan Baku') : (r.itemType === 'Bahan Baku');
+        const found = combinedMasterItemsList.find(m => m.name.toLowerCase() === val.toLowerCase());
         return {
           ...r,
           itemName: val,
           itemType: found ? found.itemType : r.itemType,
           category: found ? found.category : r.category,
-          supplier: isIng ? (r.supplier !== '-' ? r.supplier : (suppliersList[0]?.name || 'PT Sembako Nusantara')) : '-',
           priceUnit: found ? found.price : r.priceUnit,
           totalPrice: (Number(r.qty || 1)) * (found ? found.price : r.priceUnit)
         };
@@ -479,7 +477,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
 
     const updatedItem = {
       ...fin,
-      status: 'ok',
+      status: 'approved',
       approved_by: 'Admin / Owner',
       notes: fin.notes || 'Penutupan keuangan kasir disetujui & didistribusikan'
     };
@@ -530,15 +528,21 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
         status: 'approved'
       }));
 
+      const manualList = prev.manualEntryRecords || [];
+      const updatedManualList = manualList.map(item => (item.id === fin.id || item.report_no === fin.report_no) ? { ...item, status: 'approved' } : item);
+
       return {
         ...prev,
         ingredients: updatedIngredients,
         approvedFinanceDaily: list,
+        manualEntryRecords: updatedManualList.some(item => item.id === fin.id || item.report_no === fin.report_no)
+          ? updatedManualList
+          : [{ ...updatedItem, status: 'approved' }, ...manualList],
         financialRecords: [...(prev.financialRecords || []), ...newExpenses]
       };
     });
 
-    setToastMessage(`✅ Laporan ${updatedItem.report_no || updatedItem.id} Berhasil Di-ACC! Stok Bahan Mentah & Laporan Ter-update.`);
+    setToastMessage(`✅ Laporan ${updatedItem.report_no || updatedItem.id} Berhasil Di-ACC! Status POS Mobile Ter-update menjadi APPROVED.`);
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 2500);
   };
@@ -1263,8 +1267,8 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 {visibleColsFinance.grossProfit && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Laba Kotor</th>}
                 {visibleColsFinance.capitalReturn && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Uang Modal</th>}
                 {visibleColsFinance.actualCash && <th style={{ padding: '12px 10px', textAlign: 'right' }}>💵 Uang Di Laci (Fisik Kas)</th>}
-                {visibleColsFinance.status && <th style={{ padding: '12px 10px', textAlign: 'center' }}>Status</th>}
-                {visibleColsFinance.actions && <th style={{ padding: '12px 10px', textAlign: 'center', width: '280px' }}>Tombol ACC & Aksi</th>}
+                {visibleColsFinance.status && <th style={{ padding: '12px 10px', textAlign: 'center', width: '140px' }}>Tombol ACC</th>}
+                {visibleColsFinance.actions && <th style={{ padding: '12px 10px', textAlign: 'center', width: '220px' }}>Aksi</th>}
               </tr>
             </thead>
             <tbody>
@@ -1289,7 +1293,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                   return (
                     <tr>
                       <td colSpan={12} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-                        Belum ada laporan keuangan untuk filter ini. Klik "+ Tambahkan Input Manual" di atas.
+                        Belum ada laporan keuangan untuk filter ini. Klik "+ Laporan dari Outlet Harian" di atas.
                       </td>
                     </tr>
                   );
@@ -1346,69 +1350,74 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                       {visibleColsFinance.grossProfit && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: grossVal >= 0 ? '#34d399' : '#fb7185' }}>{formatRupiah(grossVal)}</td>}
                       {visibleColsFinance.capitalReturn && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fbbf24' }}>{debtPay ? formatRupiah(debtPay) : '-'}</td>}
                       {visibleColsFinance.actualCash && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#34d399' }}>{formatRupiah(calculatedFisikKas)}</td>}
+                      
+                      {/* KOLOM TOMBOL ACC */}
                       {visibleColsFinance.status && (
                         <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                          <span style={{
-                            padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', textTransform: 'lowercase',
-                            background: isOk ? 'rgba(52, 211, 153, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                            color: isOk ? '#34d399' : '#fbbf24',
-                            border: '1px solid', borderColor: isOk ? 'rgba(52, 211, 153, 0.3)' : 'rgba(245, 158, 11, 0.3)'
-                          }}>
-                            {isOk ? '✓ ok' : '⏳ ditunda'}
-                          </span>
-                        </td>
-                      )}
-                      {visibleColsFinance.actions && (
-                        <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                           {!isOk ? (
                             <button
+                              type="button"
                               onClick={() => handleDirectAccFinance(fin)}
                               className="btn-emerald"
-                              style={{ padding: '5px 10px', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              title="Setujui Laporan Keuangan (ACC)"
+                              style={{ padding: '6px 14px', fontSize: '0.78rem', fontWeight: '900', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', border: 'none', boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}
+                              title="Klik untuk setujui laporan keuangan (ACC)"
                             >
-                              <CheckCircle2 size={13} />
+                              <CheckCircle2 size={14} />
                               <span>ACC</span>
                             </button>
                           ) : (
-                            <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <span style={{
+                              padding: '5px 12px', borderRadius: '12px', fontSize: '0.74rem', fontWeight: '900',
+                              background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', border: '1px solid #34d399',
+                              display: 'inline-flex', alignItems: 'center', gap: '4px'
+                            }}>
                               <ShieldCheck size={14} color="#34d399" />
-                              <span>Telah ACC</span>
+                              <span>APPROVED</span>
                             </span>
                           )}
+                        </td>
+                      )}
 
-                          <button
-                            onClick={() => setPreviewFinanceRecord(fin)}
-                            style={{
-                              background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#818cf8', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px'
-                            }}
-                            title="Preview Laporan"
-                          >
-                            <Eye size={12} />
-                            <span>Preview</span>
-                          </button>
+                      {/* KOLOM AKSI (PREVIEW, EDIT, DELETE) */}
+                      {visibleColsFinance.actions && (
+                        <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFinanceRecord(fin)}
+                              style={{
+                                background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#818cf8', padding: '5px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px'
+                              }}
+                              title="Preview Laporan"
+                            >
+                              <Eye size={13} />
+                              <span>Preview</span>
+                            </button>
 
-                          <button
-                            onClick={() => handleOpenEditFinanceModal(fin)}
-                            style={{
-                              background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px'
-                            }}
-                            title="Edit Laporan"
-                          >
-                            <Edit3 size={12} />
-                            <span>Edit</span>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditFinanceModal(fin)}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '5px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px'
+                              }}
+                              title="Edit Laporan"
+                            >
+                              <Edit3 size={13} />
+                              <span>Edit</span>
+                            </button>
 
-                          <button
-                            onClick={() => handleDeleteFinanceRecord(fin.id)}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px'
-                            }}
-                            title="Hapus Laporan"
-                          >
-                            <Trash2 size={12} />
-                            <span>Hapus</span>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFinanceRecord(fin.id)}
+                              style={{
+                                background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '5px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px'
+                              }}
+                              title="Hapus Laporan"
+                            >
+                              <Trash2 size={13} />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -1826,63 +1835,202 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
         </div>
       )}
 
-      {/* FINANCE MODAL: PREVIEW LAPORAN KEUANGAN KASIR */}
-      {previewFinanceRecord && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '480px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Receipt size={20} color="#38bdf8" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc' }}>
-                  Preview Laporan Keuangan Kasir
-                </h3>
-              </div>
-              <button onClick={() => setPreviewFinanceRecord(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>✕</button>
-            </div>
+      {/* FINANCE MODAL: DETAIL LAPORAN KEUANGAN YANG DITERIMA */}
+      {previewFinanceRecord && (() => {
+        const isApproved = previewFinanceRecord.status === 'approved' || previewFinanceRecord.status === 'ok';
+        const netSalesVal = Number(previewFinanceRecord.net_sales || previewFinanceRecord.system_sales || 0);
+        const cashSalesVal = Number(previewFinanceRecord.cash_sales || (netSalesVal - Number(previewFinanceRecord.non_cash_sales || 0)));
+        const nonCashSalesVal = Number(previewFinanceRecord.non_cash_sales || 0);
+        const totalExpVal = Number(previewFinanceRecord.total_expense !== undefined ? previewFinanceRecord.total_expense : ((previewFinanceRecord.expenses_breakdown || []).reduce((s, e) => s + (e.amount || 0), 0)));
+        const labaKotorVal = netSalesVal - totalExpVal;
+        const fisikKasVal = Number(previewFinanceRecord.actual_cash !== undefined ? previewFinanceRecord.actual_cash : (previewFinanceRecord.cash_physical !== undefined ? previewFinanceRecord.cash_physical : (labaKotorVal - nonCashSalesVal)));
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>No. Laporan:</span>
-                <span style={{ fontWeight: '800', color: '#38bdf8' }}>{previewFinanceRecord.report_no || previewFinanceRecord.id}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal Laporan:</span>
-                <span style={{ fontWeight: '700', color: '#f8fafc' }}>{previewFinanceRecord.date}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Outlet & Shift:</span>
-                <span style={{ fontWeight: '700', color: '#f8fafc' }}>🏢 {previewFinanceRecord.branch_name || getOutletName(previewFinanceRecord.outlet_id)} ({previewFinanceRecord.shift || 'Pagi'})</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Kasir POS:</span>
-                <span style={{ fontWeight: '700', color: '#818cf8' }}>👤 {previewFinanceRecord.author_name || previewFinanceRecord.cashier || 'Kasir'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Pendapatan Bersih (Net):</span>
-                <span style={{ fontWeight: '800', color: '#34d399' }}>{formatRupiah(previewFinanceRecord.net_sales || previewFinanceRecord.system_sales)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Penjualan Non-Cash:</span>
-                <span style={{ fontWeight: '700', color: '#38bdf8' }}>{formatRupiah(previewFinanceRecord.non_cash_sales)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
-                <span style={{ color: '#94a3b8' }}>Total Pengeluaran:</span>
-                <span style={{ fontWeight: '800', color: '#fb7185' }}>-{formatRupiah(previewFinanceRecord.total_expense)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(52, 211, 153, 0.15)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                <span style={{ fontWeight: '800', color: '#34d399' }}>💵 Fisik Kas (Uang Laci):</span>
-                <span style={{ fontWeight: '900', color: '#34d399', fontSize: '1rem' }}>{formatRupiah(previewFinanceRecord.actual_cash || previewFinanceRecord.cash_physical)}</span>
-              </div>
-            </div>
+        const cogsList = previewFinanceRecord.cogs_breakdown || previewFinanceRecord.cogs_items || [];
+        const expList = previewFinanceRecord.expenses_breakdown || [];
+        const combinedBreakdown = [...cogsList, ...expList];
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <button onClick={() => setPreviewFinanceRecord(null)} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-                Tutup Preview
-              </button>
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 130 }}>
+            <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '92vh', overflowY: 'auto', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
+              
+              {/* Header Modal */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                    <Receipt size={24} color="#38bdf8" />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                      📋 Detail Laporan Keuangan yang Diterima
+                    </h3>
+                    <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                      Nomor Laporan: <strong style={{ color: '#38bdf8' }}>{previewFinanceRecord.report_no || previewFinanceRecord.id}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{
+                    padding: '5px 12px', borderRadius: '12px', fontSize: '0.74rem', fontWeight: '900',
+                    background: isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
+                    color: isApproved ? '#34d399' : '#fbbf24',
+                    border: `1px solid ${isApproved ? '#34d399' : '#fbbf24'}`
+                  }}>
+                    {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
+                  </span>
+                  <button onClick={() => setPreviewFinanceRecord(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                    <X size={24} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid Metadata Laporan */}
+              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', fontSize: '0.82rem' }}>
+                <div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>📅 Tanggal Shift</span>
+                  <span style={{ fontWeight: '800', color: '#f8fafc', fontSize: '0.92rem' }}>{previewFinanceRecord.date}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>🏢 Outlet & Shift</span>
+                  <span style={{ fontWeight: '800', color: '#38bdf8', fontSize: '0.92rem' }}>{previewFinanceRecord.branch_name || (outlets.find(o => Number(o.id) === Number(previewFinanceRecord.outlet_id))?.name || `Outlet #${previewFinanceRecord.outlet_id}`)}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>👤 Dibuat Oleh / Kasir</span>
+                  <span style={{ fontWeight: '800', color: '#34d399', fontSize: '0.92rem' }}>{previewFinanceRecord.author_name || previewFinanceRecord.cashier || 'Kasir POS'}</span>
+                </div>
+              </div>
+
+              {/* Grid Financial Cards Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                <div style={{ background: 'rgba(52, 211, 153, 0.1)', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>💰 Total Net Sales</span>
+                  <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>{formatRupiah(netSalesVal)}</div>
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px' }}>
+                    Cash: <strong style={{ color: '#34d399' }}>{formatRupiah(cashSalesVal)}</strong> | QRIS/EDC: <strong style={{ color: '#38bdf8' }}>{formatRupiah(nonCashSalesVal)}</strong>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(251, 113, 133, 0.1)', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(251, 113, 133, 0.3)' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>🔥 Total Pengeluaran</span>
+                  <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#fb7185', marginTop: '2px' }}>-{formatRupiah(totalExpVal)}</div>
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px' }}>
+                    Laba Kotor: <strong style={{ color: labaKotorVal >= 0 ? '#34d399' : '#fb7185' }}>{formatRupiah(labaKotorVal)}</strong>
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>💵 Uang Fisik Di Laci Kasir</span>
+                  <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>{formatRupiah(fisikKasVal)}</div>
+                  <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px' }}>
+                    Sisa Kas Modal: <strong style={{ color: '#fbbf24' }}>{formatRupiah(previewFinanceRecord.sisa_uang_kas || 2000000)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabel Detail Breakdown Pengeluaran */}
+              <div style={{ background: '#0f172a', borderRadius: '12px', border: '1px solid #334155', overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px', background: '#1e293b', borderBottom: '1px solid #334155', fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>📦 Rincian Pengeluaran Bahan Baku & Biaya Operasional</span>
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Total Item: {combinedBreakdown.length}</span>
+                </div>
+                <div style={{ overflowX: 'auto', maxHeight: '220px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem' }}>
+                        <th style={{ padding: '8px 10px', width: '35px', textAlign: 'center' }}>#</th>
+                        <th style={{ padding: '8px 10px' }}>Nama Bahan Baku / Biaya</th>
+                        <th style={{ padding: '8px 10px' }}>Jenis Pengeluaran</th>
+                        <th style={{ padding: '8px 10px', width: '80px', textAlign: 'center' }}>Qty</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Harga Satuan</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Harga</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {combinedBreakdown.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                            Tidak ada rincian pengeluaran item.
+                          </td>
+                        </tr>
+                      ) : (
+                        combinedBreakdown.map((item, idx) => {
+                          const isIng = item.category === 'HPP Dapur (Bahan Mentah)' || item.unit !== undefined;
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#94a3b8' }}>{idx + 1}</td>
+                              <td style={{ padding: '8px 10px', fontWeight: '800', color: isIng ? '#fb7185' : '#38bdf8' }}>
+                                {item.name || item.itemName}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <span style={{
+                                  padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '800',
+                                  background: isIng ? 'rgba(251, 113, 133, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                                  color: isIng ? '#fb7185' : '#38bdf8', border: `1px solid ${isIng ? '#fb7185' : '#38bdf8'}`
+                                }}>
+                                  {item.category || (isIng ? 'HPP Dapur (Bahan Mentah)' : 'Biaya Operasional (OPEX)')}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center', color: '#cbd5e1', fontWeight: '700' }}>
+                                {item.qty || 1} {item.unit || ''}
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'right', color: '#cbd5e1' }}>
+                                {formatRupiah(item.price_unit || item.priceUnit || item.amount || 0)}
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '900', color: isIng ? '#fb7185' : '#38bdf8' }}>
+                                {formatRupiah(item.amount || (item.qty * (item.price_unit || item.priceUnit || 0)))}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Notes & Keterangan */}
+              {previewFinanceRecord.notes && (
+                <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '10px', border: '1px solid #334155', fontSize: '0.80rem' }}>
+                  <span style={{ color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '2px' }}>📝 Catatan Kasir:</span>
+                  <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>{previewFinanceRecord.notes}</span>
+                </div>
+              )}
+
+              {/* Footer Modal Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #334155', paddingTop: '14px' }}>
+                {!isApproved ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDirectAccFinance(previewFinanceRecord);
+                      setPreviewFinanceRecord(null);
+                    }}
+                    className="btn-emerald"
+                    style={{ padding: '10px 18px', fontSize: '0.82rem', fontWeight: '900', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', border: 'none', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>Setujui Laporan Ini (ACC)</span>
+                  </button>
+                ) : (
+                  <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldCheck size={18} color="#34d399" />
+                    <span>Laporan Ini Telah Disetujui & Diverifikasi (ACC)</span>
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewFinanceRecord(null)}
+                  style={{ padding: '10px 20px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Tutup Detail
+                </button>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* FINANCE MODAL: ACC KEUANGAN KASIR */}
       {accFinanceModalRecord && (() => {
@@ -2088,19 +2236,23 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>🏢 Nama Outlet *</label>
-                  <select value={dailyRepOutletId} onChange={e => setDailyRepOutletId(Number(e.target.value))} className="form-select" style={{ width: '100%', height: '40px' }}>
-                    {outlets.map(o => (
-                      <option key={o.id} value={o.id}>{o.name}</option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    readOnly
+                    value={outlets.find(o => o.id === dailyRepOutletId)?.name || outlets[0]?.name || 'Restoran Utama'}
+                    className="form-input"
+                    style={{ width: '100%', height: '40px', background: '#0f172a', color: '#38bdf8', fontWeight: '800', border: '1px solid #334155', cursor: 'not-allowed' }}
+                  />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>👤 Dibuat Oleh *</label>
-                  <select value={dailyRepCreatedBy} onChange={e => setDailyRepCreatedBy(e.target.value)} className="form-select" style={{ width: '100%', height: '40px' }}>
-                    {adminList.map(a => (
-                      <option key={a.id} value={a.name}>{a.name} ({a.role || 'Staf Outlet'})</option>
-                    ))}
-                  </select>
+                  <input
+                    type="text"
+                    readOnly
+                    value={dailyRepCreatedBy || masterData?.currentUser?.name || masterData?.user?.name || adminList[0]?.name || 'Master Super Admin'}
+                    className="form-input"
+                    style={{ width: '100%', height: '40px', background: '#0f172a', color: '#34d399', fontWeight: '800', border: '1px solid #334155', cursor: 'not-allowed' }}
+                  />
                 </div>
               </div>
 
@@ -2139,8 +2291,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                       <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                         <th style={{ padding: '10px', width: '40px', textAlign: 'center' }}>#</th>
                         <th style={{ padding: '10px' }}>Bahan Baku / Biaya</th>
-                        <th style={{ padding: '10px', width: '160px' }}>Jenis Pengeluaran</th>
-                        <th style={{ padding: '10px', width: '180px' }}>Supplier</th>
+                        <th style={{ padding: '10px', width: '220px' }}>Jenis Pengeluaran (Otomatis)</th>
                         <th style={{ padding: '10px', width: '80px', textAlign: 'center' }}>Jumlah</th>
                         <th style={{ padding: '10px', width: '130px', textAlign: 'right' }}>Harga Satuan</th>
                         <th style={{ padding: '10px', width: '140px', textAlign: 'right' }}>Total Harga</th>
@@ -2154,54 +2305,36 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                           <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '8px', textAlign: 'center', color: '#94a3b8', fontWeight: '700' }}>{idx + 1}</td>
                             
-                            {/* Bahan Baku / Biaya Dropdown */}
+                            {/* Autocomplete Sugesti Bahan Baku / Biaya */}
                             <td style={{ padding: '8px' }}>
-                              <select
+                              <input
+                                type="text"
+                                list={`suggest-daily-${r.id}`}
                                 value={r.itemName}
                                 onChange={e => handleUpdateDailyExpenseRow(r.id, 'itemName', e.target.value)}
-                                className="form-select"
-                                style={{ height: '34px', fontSize: '0.8rem', fontWeight: '700', color: isIng ? '#fb7185' : '#38bdf8' }}
-                              >
-                                <optgroup label="📦 Bahan Baku (Master Data)">
-                                  {(ingredientsList || []).map(ing => (
-                                    <option key={`ing-${ing.id}`} value={ing.name}>{ing.name}</option>
-                                  ))}
-                                </optgroup>
-                                <optgroup label="💵 Biaya Operasional (Master Data)">
-                                  {(expenseMasterList || []).map(exp => (
-                                    <option key={`exp-${exp.id}`} value={exp.name}>{exp.name}</option>
-                                  ))}
-                                </optgroup>
-                              </select>
+                                placeholder="Ketik/Pilih Bahan Baku atau Biaya..."
+                                className="form-input"
+                                style={{ width: '100%', height: '34px', fontSize: '0.8rem', fontWeight: '800', color: isIng ? '#fb7185' : '#38bdf8' }}
+                              />
+                              <datalist id={`suggest-daily-${r.id}`}>
+                                {combinedMasterItemsList.map((m, mIdx) => (
+                                  <option key={mIdx} value={m.name}>
+                                    {m.itemType === 'Bahan Baku' ? '🌾' : '📊'} {m.name} ({m.category})
+                                  </option>
+                                ))}
+                              </datalist>
                             </td>
 
                             {/* Jenis Pengeluaran (Auto Generated) */}
                             <td style={{ padding: '8px' }}>
                               <span style={{
-                                padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
+                                padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
                                 background: isIng ? 'rgba(251, 113, 133, 0.15)' : 'rgba(56, 189, 248, 0.15)',
-                                color: isIng ? '#fb7185' : '#38bdf8', border: `1px solid ${isIng ? '#fb7185' : '#38bdf8'}`
+                                color: isIng ? '#fb7185' : '#38bdf8', border: `1px solid ${isIng ? '#fb7185' : '#38bdf8'}`,
+                                display: 'inline-block'
                               }}>
-                                {r.category}
+                                {r.category || (isIng ? 'HPP Dapur (Bahan Mentah)' : 'Biaya Operasional (OPEX)')}
                               </span>
-                            </td>
-
-                            {/* Supplier Dropdown (Active if Bahan Baku, else '-') */}
-                            <td style={{ padding: '8px' }}>
-                              {isIng ? (
-                                <select
-                                  value={r.supplier}
-                                  onChange={e => handleUpdateDailyExpenseRow(r.id, 'supplier', e.target.value)}
-                                  className="form-select"
-                                  style={{ height: '34px', fontSize: '0.78rem' }}
-                                >
-                                  {suppliersList.map(s => (
-                                    <option key={s.id} value={s.name}>{s.name}</option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <span style={{ color: '#64748b', fontSize: '0.78rem', fontStyle: 'italic', paddingLeft: '8px' }}>-</span>
-                              )}
                             </td>
 
                             {/* Jumlah (Qty) */}
@@ -2228,7 +2361,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                             </td>
 
                             {/* Total Harga */}
-                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>
+                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: '900', color: isIng ? '#fb7185' : '#38bdf8' }}>
                               {formatRupiah(r.totalPrice)}
                             </td>
 
@@ -2237,7 +2370,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                               <button
                                 type="button"
                                 onClick={() => handleRemoveDailyExpenseRow(r.id)}
-                                style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}
+                                style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '900' }}
                               >
                                 ✕
                               </button>

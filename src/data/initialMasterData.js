@@ -77,8 +77,8 @@ export const initialMasterData = {
     lastSecurityScan: '2026-07-25 08:00:00 WIB'
   },
 
-  // HAK USER & AKUN PENGGUNA TERDAFTAR (KHUSUS SUPER ADMIN ONLY)
-  userAccounts: [
+  // HAK USER & AKUN PENGGUNA - WEB BASED ADMIN (terpisah dari POS Mobile)
+  webAdminAccounts: [
     {
       id: 1,
       name: 'Super Admin Restoran',
@@ -86,13 +86,48 @@ export const initialMasterData = {
       username: 'superadmin',
       password: '888',
       role: 'Super Admin',
-      status: 'Aktif',
-      canLoginMobile: true,
-      mobileLoginPassword: '888',
-      canAccessMobileReports: true,
-      mobileReportPassword: '8888'
+      status: 'Aktif'
+    },
+    {
+      id: 2,
+      name: 'Owner Restoran',
+      outlet: 'Semua Outlet (Central)',
+      username: 'owner',
+      password: '999',
+      role: 'Owner',
+      status: 'Aktif'
     }
   ],
+
+  // OTENTIKASI AKSES AKUN - POS MOBILE APK (terpisah dari Web Admin)
+  mobileAccounts: [
+    {
+      id: 1,
+      name: 'Super Admin Restoran',
+      outlet: 'Semua Outlet (Central)',
+      username: 'superadmin',
+      mobileLoginPassword: '888',
+      role: 'Super Admin / Owner',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '8888'
+    },
+    {
+      id: 2,
+      name: 'Owner Restoran',
+      outlet: 'Semua Outlet (Central)',
+      username: 'owner',
+      mobileLoginPassword: '999',
+      role: 'Super Admin / Owner',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '9999'
+    }
+  ],
+
+  // (Legacy - tidak digunakan lagi, digantikan webAdminAccounts & mobileAccounts)
+  userAccounts: [],
+
 
   // DOKUMEN SOP RESTORAN
   sopDocuments: [

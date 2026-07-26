@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Layers, Plus, Search, Edit3, Trash2, CheckCircle2, AlertCircle, Package, X, Eye } from 'lucide-react';
+import { Layers, Plus, Search, Edit3, Trash2, CheckCircle2, AlertCircle, Package, X, Eye, FileSpreadsheet } from 'lucide-react';
 import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import CategoryAnalyticsDetailModal from './CategoryAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
+import ExcelMasterImportModal from './ExcelMasterImportModal';
 
 export default function ProductCategoryManagement({ masterData, setMasterData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showExcelImportModal, setShowExcelImportModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [selectedMenuDetail, setSelectedMenuDetail] = useState(null);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState(null);
@@ -131,10 +133,33 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
           </p>
         </div>
 
-        <button onClick={() => setShowAddModal(true)} className="btn-primary">
-          <Plus size={18} />
-          <span>Tambahkan Kategori Menu</span>
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowExcelImportModal(true)}
+            style={{
+              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+              color: '#ffffff',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(2,132,199,0.3)'
+            }}
+          >
+            <FileSpreadsheet size={15} />
+            <span>📥 Template & Upload Excel</span>
+          </button>
+
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">
+            <Plus size={18} />
+            <span>Tambahkan Kategori Menu</span>
+          </button>
+        </div>
       </div>
 
       {/* Summary KPI Cards */}
@@ -613,6 +638,15 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
           onClose={() => setSelectedCategoryDetail(null)}
         />
       )}
+
+      {/* EXCEL IMPORT MODAL */}
+      <ExcelMasterImportModal
+        isOpen={showExcelImportModal}
+        onClose={() => setShowExcelImportModal(false)}
+        moduleType="categories"
+        masterData={masterData}
+        setMasterData={setMasterData}
+      />
     </div>
   );
 }

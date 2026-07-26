@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { ShoppingBasket, Plus, Search, Trash2, Edit3, X, CheckCircle2, AlertTriangle, Eye, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ShoppingBasket, Plus, Search, Trash2, Edit3, X, CheckCircle2, AlertTriangle, Eye, ArrowLeft, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 import IngredientAnalyticsDetailModal from './IngredientAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
+import ExcelMasterImportModal from './ExcelMasterImportModal';
 
 export default function IngredientsManagement({ masterData, setMasterData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddFormModal, setShowAddFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showExcelImportModal, setShowExcelImportModal] = useState(false);
   const [selectedIngredientDetail, setSelectedIngredientDetail] = useState(null);
 
   // Pagination States (Default 25 rows per page)
@@ -190,10 +192,33 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
           </p>
         </div>
 
-        <button onClick={handleOpenAddForm} className="btn-primary">
-          <Plus size={18} />
-          <span>Tambahkan Bahan Baku</span>
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowExcelImportModal(true)}
+            style={{
+              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+              color: '#ffffff',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              fontWeight: '700',
+              fontSize: '0.78rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(2,132,199,0.3)'
+            }}
+          >
+            <FileSpreadsheet size={15} />
+            <span>📥 Template & Upload Excel</span>
+          </button>
+
+          <button onClick={handleOpenAddForm} className="btn-primary">
+            <Plus size={18} />
+            <span>Tambahkan Bahan Baku</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -608,6 +633,15 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
           onClose={() => setSelectedIngredientDetail(null)}
         />
       )}
+
+      {/* EXCEL IMPORT MODAL */}
+      <ExcelMasterImportModal
+        isOpen={showExcelImportModal}
+        onClose={() => setShowExcelImportModal(false)}
+        moduleType="ingredients"
+        masterData={masterData}
+        setMasterData={setMasterData}
+      />
     </div>
   );
 }

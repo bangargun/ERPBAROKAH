@@ -105,22 +105,13 @@ class _MainPosContainerState extends State<MainPosContainer> {
   ];
 
   OutletBranch? _selectedOutlet;
-  final String _cashierName = 'Rina Kasir';
-  double _initialShiftCash = 500000;
+  final String _cashierName = 'Kasir';
+  double _initialShiftCash = 0;
   DateTime? _shiftStartTime;
 
   final List<String> _categories = ['Semua', 'Makanan Utama', 'Minuman', 'Snack & Dessert'];
 
-  final List<ProductItem> _allProducts = [
-    ProductItem(id: 'P1', name: 'Nasi Goreng Spesial', category: 'Makanan Utama', price: 35000, outletId: 1),
-    ProductItem(id: 'P2', name: 'Ayam Bakar Madu', category: 'Makanan Utama', price: 42000, outletId: 1),
-    ProductItem(id: 'P3', name: 'Mie Goreng Seafood', category: 'Makanan Utama', price: 38000, outletId: 1),
-    ProductItem(id: 'P4', name: 'Es Teh Manis Artisan', category: 'Minuman', price: 12000, outletId: 1),
-    ProductItem(id: 'P5', name: 'Kopi Susu Gula Aren', category: 'Minuman', price: 22000, outletId: 1),
-    ProductItem(id: 'P6', name: 'Jus Alpukat Kocok', category: 'Minuman', price: 25000, outletId: 1),
-    ProductItem(id: 'P7', name: 'Pisang Goreng Keju', category: 'Snack & Dessert', price: 20000, outletId: 1),
-    ProductItem(id: 'P8', name: 'Singkong Goreng Crispy', category: 'Snack & Dessert', price: 18000, outletId: 1),
-  ];
+  final List<ProductItem> _allProducts = [];
 
   final List<CartItem> _cart = [];
   final List<PosTransaction> _completedTransactions = [];
@@ -135,7 +126,9 @@ class _MainPosContainerState extends State<MainPosContainer> {
   @override
   void initState() {
     super.initState();
-    _selectedOutlet = _outlets[0];
+    if (_outlets.isNotEmpty) {
+      _selectedOutlet = _outlets[0];
+    }
   }
 
   void _processPayment(String paymentMethod) {
@@ -170,7 +163,7 @@ class _MainPosContainerState extends State<MainPosContainer> {
   // WORKFLOW 1: PAIRING & LOGIN KASIR
   // ---------------------------------------------------------------------------
   Widget _buildLoginView() {
-    final pinController = TextEditingController(text: '1234');
+    final pinController = TextEditingController(text: '');
     return Scaffold(
       body: Center(
         child: Container(
@@ -244,7 +237,7 @@ class _MainPosContainerState extends State<MainPosContainer> {
   // WORKFLOW 2: BUKA SHIFT KASIR (MODAL AWAL)
   // ---------------------------------------------------------------------------
   Widget _buildShiftOpenView() {
-    final cashController = TextEditingController(text: '500000');
+    final cashController = TextEditingController(text: '');
     return Scaffold(
       body: Center(
         child: Container(
@@ -268,6 +261,7 @@ class _MainPosContainerState extends State<MainPosContainer> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Nominal Modal Kas Kecil (Rp)',
+                  hintText: 'Contoh: 500000',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.payments),
                 ),
@@ -280,7 +274,7 @@ class _MainPosContainerState extends State<MainPosContainer> {
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
                   onPressed: () {
                     setState(() {
-                      _initialShiftCash = double.tryParse(cashController.text) ?? 500000;
+                      _initialShiftCash = double.tryParse(cashController.text) ?? 0;
                       _shiftStartTime = DateTime.now();
                       _currentView = 'pos_register';
                     });
@@ -355,15 +349,28 @@ class _MainPosContainerState extends State<MainPosContainer> {
                 ),
                 // Product Grid
                 Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(12),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 1.2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                    ),
-                    itemCount: filteredProducts.length,
+                  child: filteredProducts.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.inventory_2_outlined, size: 48, color: Colors.white24),
+                              SizedBox(height: 12),
+                              Text('Belum ada menu produk terdaftar.', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500)),
+                              SizedBox(height: 4),
+                              Text('Silakan sinkronkan atau tambahkan produk dari Admin Web POS', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                            ],
+                          ),
+                        )
+                      : GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            childAspectRatio: 1.2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
+                          itemCount: filteredProducts.length,
                     itemBuilder: (context, idx) {
                       final p = filteredProducts[idx];
                       return InkWell(

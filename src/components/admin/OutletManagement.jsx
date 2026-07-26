@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Store, Plus, Search, Edit3, Trash2, X, CheckCircle2, MapPin } from 'lucide-react';
+import { Store, Plus, Search, Edit3, Trash2, X, CheckCircle2, MapPin, Target, Users } from 'lucide-react';
 import OutletAnalyticsDetailModal from './OutletAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 
@@ -17,7 +17,13 @@ export default function OutletManagement({ masterData, setMasterData }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [targetOmzet, setTargetOmzet] = useState('50000000');
+  const [employeeCount, setEmployeeCount] = useState('10');
   const [status, setStatus] = useState('Aktif');
+
+  const formatRupiah = (val) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
+  };
 
   // Helper to generate next sequential Outlet Code (OTL-001, OTL-002)
   const generateNextOutletCode = () => {
@@ -43,6 +49,8 @@ export default function OutletManagement({ masterData, setMasterData }) {
     setCode(generateNextOutletCode());
     setName('');
     setAddress('');
+    setTargetOmzet('50000000');
+    setEmployeeCount('10');
     setStatus('Aktif');
     setShowAddModal(true);
   };
@@ -53,6 +61,8 @@ export default function OutletManagement({ masterData, setMasterData }) {
     setCode(outlet.code || `OTL-00${outlet.id}`);
     setName(outlet.name);
     setAddress(outlet.address || '');
+    setTargetOmzet(outlet.target_omzet !== undefined ? outlet.target_omzet : (outlet.target || '50000000'));
+    setEmployeeCount(outlet.employee_count !== undefined ? outlet.employee_count : (outlet.employees || '10'));
     setStatus(outlet.status || 'Aktif');
     setShowAddModal(true);
   };
@@ -78,6 +88,8 @@ export default function OutletManagement({ masterData, setMasterData }) {
           code: finalCode,
           name: name.trim(),
           address: address.trim(),
+          target_omzet: Number(targetOmzet) || 0,
+          employee_count: Number(employeeCount) || 0,
           status: status
         };
       }
@@ -87,6 +99,8 @@ export default function OutletManagement({ masterData, setMasterData }) {
         code: finalCode,
         name: name.trim(),
         address: address.trim(),
+        target_omzet: Number(targetOmzet) || 0,
+        employee_count: Number(employeeCount) || 0,
         status: status
       };
       updated.outlets.unshift(newOutlet);
@@ -159,6 +173,8 @@ export default function OutletManagement({ masterData, setMasterData }) {
                 <th style={{ padding: '12px' }}>Kode Outlet</th>
                 <th style={{ padding: '12px' }}>Nama Outlet</th>
                 <th style={{ padding: '12px' }}>Alamat Lokasi</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>Target Outlet (Omzet)</th>
+                <th style={{ padding: '12px', textAlign: 'center' }}>Jumlah Karyawan</th>
                 <th style={{ padding: '12px' }}>Status</th>
                 <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
               </tr>
@@ -166,13 +182,15 @@ export default function OutletManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedOutlets.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                     Belum ada data outlet yang dikonfigurasi.
                   </td>
                 </tr>
               ) : (
                 paginatedOutlets.map(outlet => {
                   const isAktif = (outlet.status || 'Aktif') === 'Aktif';
+                  const targetVal = outlet.target_omzet !== undefined ? outlet.target_omzet : (outlet.target || 50000000);
+                  const empVal = outlet.employee_count !== undefined ? outlet.employee_count : (outlet.employees || 10);
 
                   return (
                     <tr key={outlet.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
@@ -192,7 +210,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
                         </span>
                       </td>
 
-                      {/* 2. NAMA OUTLET (Klik Nama Outlet -> Papan Informasi Detail Analisis Outlet) */}
+                      {/* 2. NAMA OUTLET */}
                       <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem' }}>
                         <button
                           type="button"
@@ -226,7 +244,31 @@ export default function OutletManagement({ masterData, setMasterData }) {
                         </div>
                       </td>
 
-                      {/* 4. STATUS */}
+                      {/* 4. TARGET OUTLET */}
+                      <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#34d399' }}>
+                        {formatRupiah(targetVal)}
+                      </td>
+
+                      {/* 5. JUMLAH KARYAWAN */}
+                      <td style={{ padding: '14px 12px', textAlign: 'center' }}>
+                        <span style={{
+                          background: 'rgba(168, 85, 247, 0.15)',
+                          color: '#a78bfa',
+                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          fontWeight: '800',
+                          fontSize: '0.78rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}>
+                          <Users size={13} />
+                          <span>{empVal} Orang</span>
+                        </span>
+                      </td>
+
+                      {/* 6. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
                           background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
@@ -372,10 +414,43 @@ export default function OutletManagement({ masterData, setMasterData }) {
                 />
               </div>
 
-              {/* Field 4: Status */}
+              {/* Field 4: Target Omzet Outlet (Rp) */}
               <div>
                 <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
-                  4. Status Operasional Outlet
+                  4. Target Omzet Outlet (Rp) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  placeholder="Contoh: 50000000"
+                  value={targetOmzet}
+                  onChange={e => setTargetOmzet(e.target.value)}
+                  className="form-input"
+                  style={{ fontWeight: '800', color: '#34d399' }}
+                />
+              </div>
+
+              {/* Field 5: Jumlah Karyawan */}
+              <div>
+                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  5. Jumlah Karyawan (Orang) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="Contoh: 12"
+                  value={employeeCount}
+                  onChange={e => setEmployeeCount(e.target.value)}
+                  className="form-input"
+                  style={{ fontWeight: '800', color: '#a78bfa' }}
+                />
+              </div>
+
+              {/* Field 6: Status */}
+              <div>
+                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  6. Status Operasional Outlet
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <button

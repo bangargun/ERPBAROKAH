@@ -66,29 +66,72 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
       }
     });
 
-    // Fallback if no exact products linked in state yet: attach 3 sample menus for demo UI
-    if (connected.length === 0) {
-      products.slice(0, 3).forEach((p, idx) => {
-        connected.push({
-          ...p,
-          dosageText: `${(idx + 1) * 15} ${ingredient.unit || 'Gram'} / porsi`
-        });
-      });
-    }
-
     return connected;
   };
 
   const connectedMenus = getConnectedMenus();
 
-  // Generate Usage & Sales History for this Ingredient (Real & Consolidated)
+  // Generate Usage, Transfer, & Sales History for this Ingredient (Real & Consolidated)
   const generateUsageHistory = () => {
     let matchedHistory = [];
 
     const ingNameLower = (ingredient.name || '').toLowerCase().trim();
     const ingUnit = ingredient.unit || 'Gram';
 
-    // 1. EXTRACT FROM APPROVED DAILY FINANCIAL REPORTS (ACC)
+    // 1. EXTRACT FROM TRANSFER STOK (TRANSFER OUT & TRANSFER IN)
+    const rawTransfers = [
+      ...(masterData?.stockTransfer || []),
+      ...(masterData?.approvedTransfers || [])
+    ];
+    const seenTrfKeys = new Set();
+    rawTransfers.forEach((t, idx) => {
+      const trfKey = `${t.id || t.report_no}_${t.item_name}_${t.from_outlet_id}_${t.to_outlet_id}`;
+      if (seenTrfKeys.has(trfKey)) return;
+      seenTrfKeys.add(trfKey);
+
+      const itemNameLower = (t.item_name || t.itemName || '').toLowerCase().trim();
+      if (itemNameLower.includes(ingNameLower) || ingNameLower.includes(itemNameLower)) {
+        const fromOutlet = t.from_outlet_name || (outletsList.find(o => Number(o.id) === Number(t.from_outlet_id || t.fromOutletId))?.name || 'Outlet Pengirim');
+        const toOutlet = t.to_outlet_name || (outletsList.find(o => Number(o.id) === Number(t.to_outlet_id || t.toOutletId))?.name || 'Outlet Penerima');
+        const qtyNum = Number(t.qty || 1);
+        const unitStr = t.unit || ingUnit;
+        const dateStr = t.date || new Date().toISOString().split('T')[0];
+
+        // Transfer Out record (Outlet Pengirim)
+        matchedHistory.push({
+          id: `trf-out-${t.id || idx}`,
+          receipt_no: t.report_no || t.id,
+          date: dateStr,
+          month_year: 'Juli 2026',
+          outlet_name: fromOutlet,
+          ordered_menu: `🔴 Transfer Out ke ${toOutlet}`,
+          used_qty: -qtyNum,
+          unit: unitStr,
+          total_cost: 0,
+          cashier: t.submitted_by || t.created_by || 'Admin',
+          type: 'Transfer Out (-)',
+          badgeColor: '#fb7185'
+        });
+
+        // Transfer In record (Outlet Penerima)
+        matchedHistory.push({
+          id: `trf-in-${t.id || idx}`,
+          receipt_no: t.report_no || t.id,
+          date: dateStr,
+          month_year: 'Juli 2026',
+          outlet_name: toOutlet,
+          ordered_menu: `🟢 Transfer In dari ${fromOutlet}`,
+          used_qty: +qtyNum,
+          unit: unitStr,
+          total_cost: 0,
+          cashier: t.submitted_by || t.created_by || 'Admin',
+          type: 'Transfer In (+)',
+          badgeColor: '#34d399'
+        });
+      }
+    });
+
+    // 2. EXTRACT FROM APPROVED DAILY FINANCIAL REPORTS (ACC)
     const approvedFinance = (masterData?.approvedFinanceDaily || []).filter(f => f.status === 'ok' || f.status === 'approved');
     approvedFinance.forEach(rep => {
       const cogsItems = rep.cogs_items || rep.cogs_breakdown || [];
@@ -106,93 +149,93 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
             date: dateStr,
             month_year: 'Juli 2026',
             outlet_name: rep.branch_name || (outletsList.find(o => Number(o.id) === Number(rep.outlet_id))?.name || 'Outlet Utama'),
-            ordered_menu: `📦 Pembelian HPP Kasir (Stok Masuk: ${item.name || ingredient.name})`,
-            used_qty: qty,
+            ordered_menu: `📥 Stok Masuk Pembelian HPP`,
+            used_qty: +qty,
             unit: item.unit || ingUnit,
             total_cost: totalPrice,
             cashier: rep.author_name || rep.cashier || 'Kasir / Admin',
-            type: 'Stok Masuk HPP (ACC)'
+            type: 'Stok Masuk (+)',
+            badgeColor: '#38bdf8'
           });
         }
       });
     });
 
-    // 2. EXTRACT FROM STOCK MOVEMENTS LOG
-    const movements = masterData?.stockMovements || [];
+    // 3. EXTRACT FROM STOCK MOVEMENTS LOG (LOGISTIK)
+    const movements = masterData?.stockMovement || masterData?.stockMovements || [];
     movements.forEach(m => {
       if ((m.item_name || '').toLowerCase().includes(ingNameLower)) {
+        const isOut = m.type === 'OUT';
+        const qtyNum = Number(m.qty || m.qty_in || 1);
         matchedHistory.push({
-          id: m.id,
-          receipt_no: m.ref_no || `#LOG-${m.id}`,
+          id: `mov-${m.id}`,
+          receipt_no: m.ref_no || m.report_no || `#LOG-${m.id}`,
           date: m.date || '2026-07-24',
           month_year: 'Juli 2026',
-          outlet_name: m.outlet_name || 'Outlet Utama',
-          ordered_menu: `📦 ${m.source || 'Mutasi Stok Masuk'}`,
-          used_qty: Number(m.qty_in || m.qty || 1),
+          outlet_name: m.outlet_name || (outletsList.find(o => Number(o.id) === Number(m.outlet_id))?.name || 'Outlet Utama'),
+          ordered_menu: `📦 ${m.source || (isOut ? 'Mutasi Stok Keluar' : 'Mutasi Stok Masuk')}`,
+          used_qty: isOut ? -qtyNum : +qtyNum,
           unit: m.unit || ingUnit,
-          total_cost: Number(m.total_amount || m.price_unit * m.qty_in || 15000),
-          cashier: 'Stok Opname System',
-          type: 'Mutasi Logistik'
+          total_cost: Number(m.total_amount || (m.price_unit ? m.price_unit * qtyNum : 0)),
+          cashier: m.created_by || 'Admin Logistik',
+          type: isOut ? 'Stok Keluar (-)' : 'Stok Masuk (+)',
+          badgeColor: isOut ? '#fb7185' : '#38bdf8'
         });
       }
     });
 
-    // 3. EXTRACT FROM SALES TRANSACTIONS
+    // 4. EXTRACT FROM DAMAGED GOODS / WASTE
+    const wasteList = masterData?.damagedGoods || [];
+    wasteList.forEach(w => {
+      if ((w.itemName || w.item_name || '').toLowerCase().includes(ingNameLower)) {
+        const qtyNum = Number(w.qty || 1);
+        matchedHistory.push({
+          id: `waste-${w.id}`,
+          receipt_no: w.report_no || `#WST-${w.id}`,
+          date: w.date || '2026-07-24',
+          month_year: 'Juli 2026',
+          outlet_name: w.outletName || (outletsList.find(o => Number(o.id) === Number(w.outletId))?.name || 'Outlet Utama'),
+          ordered_menu: `🗑️ Barang Rusak / Waste (${w.notes || 'Kerusakan Stok'})`,
+          used_qty: -qtyNum,
+          unit: w.unit || ingUnit,
+          total_cost: 0,
+          cashier: w.submittedBy || 'Kasir',
+          type: 'Stok Rusak (-)',
+          badgeColor: '#f43f5e'
+        });
+      }
+    });
+
+    // 5. EXTRACT FROM ACTUAL SALES TRANSACTIONS (MATCHED INGREDIENTS ONLY)
     const rawSales = masterData?.salesTransactions || masterData?.transactions || [];
     rawSales.forEach((tx, idx) => {
-      const menuObj = connectedMenus[idx % connectedMenus.length] || { name: 'Menu Restoran', price: 35000 };
-      const portionQty = (idx % 3) + 1;
-      const dosageNum = parseFloat(menuObj.dosageText) || 20;
-      const totalIngUsed = dosageNum * portionQty;
-      const totalIngCost = totalIngUsed * ((ingredient.cost || 100) / 100);
+      const itemsList = tx.items || [];
+      itemsList.forEach((itemObj, itemIdx) => {
+        const itemObjName = (itemObj.name || itemObj.item_name || '').toLowerCase().trim();
+        const isMatchedMenu = connectedMenus.some(m => (m.name || '').toLowerCase().trim() === itemObjName);
+        if (isMatchedMenu || itemObjName.includes(ingNameLower)) {
+          const qty = Number(itemObj.qty || itemObj.quantity || 1);
+          const priceUnit = Number(itemObj.price || itemObj.amount || 0);
 
-      matchedHistory.push({
-        id: `sales-tx-${tx.id || idx}`,
-        receipt_no: tx.receipt_no || tx.id || `#TRX-${2000 + idx}`,
-        date: tx.date || `2026-07-${String(24 - (idx % 10)).padStart(2, '0')}`,
-        month_year: 'Juli 2026',
-        outlet_name: tx.branch_name || outletsList[idx % outletsList.length]?.name || 'Gourmet Bistro',
-        ordered_menu: `${tx.items_summary || menuObj.name} (x${portionQty})`,
-        used_qty: totalIngUsed,
-        unit: ingUnit,
-        total_cost: totalIngCost > 0 ? totalIngCost : totalIngUsed * 150,
-        cashier: tx.cashier || 'Kasir POS',
-        type: 'Pemakaian Penjualan Menu'
+          matchedHistory.push({
+            id: `sales-tx-${tx.id || idx}-${itemIdx}`,
+            receipt_no: tx.receipt_no || tx.id || `#TRX-${tx.id}`,
+            date: tx.date || new Date().toISOString().split('T')[0],
+            month_year: 'Juli 2026',
+            outlet_name: tx.branch_name || (outletsList.find(o => Number(o.id) === Number(tx.outlet_id))?.name || 'Outlet Restoran'),
+            ordered_menu: `🛒 ${itemObj.name || itemObj.item_name} (x${qty})`,
+            used_qty: -qty,
+            unit: ingUnit,
+            total_cost: priceUnit * qty,
+            cashier: tx.cashier || tx.created_by || 'Kasir POS',
+            type: 'Penjualan Menu (-)',
+            badgeColor: '#a78bfa'
+          });
+        }
       });
     });
 
-    // Fallback demo data if empty
-    if (matchedHistory.length === 0) {
-      const sampleOutlets = outletsList.map(o => o.name);
-      const sampleMonths = ['Juli 2026', 'Juni 2026', 'Mei 2026', 'April 2026'];
-      const sampleCashiers = ['Andi Kasir', 'Siti Supervisor', 'Budi Kasir', 'Dewi Admin'];
-      const estimatedCostPerUnit = ingredient.cost || ingredient.price || (ingUnit === 'Kg' ? 120000 : 100);
-
-      for (let i = 1; i <= 10; i++) {
-        const menuObj = connectedMenus[(i - 1) % connectedMenus.length] || { name: 'Menu Spesial Restoran', price: 35000 };
-        const portionQty = (i % 3) + 1;
-        const dosageNum = parseFloat(menuObj.dosageText) || 20;
-        const totalIngUsed = dosageNum * portionQty;
-        const totalIngCost = totalIngUsed * (estimatedCostPerUnit / 100);
-        const day = 24 - i;
-
-        matchedHistory.push({
-          id: `ing-demo-${ingredient.id}-${i}`,
-          receipt_no: `#TRX-202607${String(day).padStart(2, '0')}-${String(200 + i)}`,
-          date: `2026-07-${String(day).padStart(2, '0')}`,
-          month_year: sampleMonths[i % sampleMonths.length],
-          outlet_name: sampleOutlets[i % sampleOutlets.length],
-          ordered_menu: `${menuObj.name} (x${portionQty})`,
-          used_qty: totalIngUsed,
-          unit: ingUnit,
-          total_cost: totalIngCost > 0 ? totalIngCost : totalIngUsed * 150,
-          cashier: sampleCashiers[i % sampleCashiers.length],
-          type: 'Pemakaian Penjualan Menu'
-        });
-      }
-    }
-
-    return matchedHistory;
+    return matchedHistory.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   };
 
   const allHistory = generateUsageHistory();
@@ -385,47 +428,61 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
               <thead>
                 <tr style={{ background: '#1f2937', borderBottom: '1px solid #374151', color: '#94a3b8', fontWeight: '800', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   <th style={{ padding: '12px 14px' }}>Tanggal & Waktu</th>
-                  <th style={{ padding: '12px 14px' }}>No. Struk</th>
+                  <th style={{ padding: '12px 14px' }}>No. Laporan / Struk</th>
+                  <th style={{ padding: '12px 14px' }}>Tipe Transaksi</th>
                   <th style={{ padding: '12px 14px' }}>Outlet Cabang</th>
-                  <th style={{ padding: '12px 14px' }}>Menu Dipesan</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>Pemakaian Bahan</th>
-                  <th style={{ padding: '12px 14px' }}>Nilai HPP Bahan</th>
+                  <th style={{ padding: '12px 14px' }}>Keterangan / Menu Dipesan</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>Mutasi Stok</th>
+                  <th style={{ padding: '12px 14px' }}>Nilai HPP</th>
                   <th style={{ padding: '12px 14px' }}>Kasir / User</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
-                      Tidak ada riwayat pemakaian bahan untuk kombinasi filter ini.
+                    <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                      Tidak ada riwayat pemakaian atau mutasi stok untuk kombinasi filter ini.
                     </td>
                   </tr>
                 ) : (
-                  filteredHistory.map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                      <td style={{ padding: '12px 14px', color: '#cbd5e1' }}>
-                        {row.date}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: '800', color: '#38bdf8' }}>
-                        {row.receipt_no}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontWeight: '700', color: '#f8fafc' }}>
-                        🏬 {row.outlet_name}
-                      </td>
-                      <td style={{ padding: '12px 14px', color: '#818cf8', fontWeight: '800' }}>
-                        🍽️ {row.ordered_menu}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: '#34d399' }}>
-                        {row.used_qty} {row.unit}
-                      </td>
-                      <td style={{ padding: '12px 14px', fontWeight: '900', color: '#ffffff' }}>
-                        {formatRupiah(row.total_cost)}
-                      </td>
-                      <td style={{ padding: '12px 14px', color: '#94a3b8' }}>
-                        👤 {row.cashier}
-                      </td>
-                    </tr>
-                  ))
+                  filteredHistory.map((row, idx) => {
+                    const isPositive = row.used_qty > 0;
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <td style={{ padding: '12px 14px', color: '#cbd5e1', whiteSpace: 'nowrap' }}>
+                          {row.date}
+                        </td>
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: '800', color: '#38bdf8', whiteSpace: 'nowrap' }}>
+                          📋 {row.receipt_no}
+                        </td>
+                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            padding: '3px 8px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: '800',
+                            background: `${row.badgeColor || '#818cf8'}20`,
+                            color: row.badgeColor || '#818cf8',
+                            border: `1px solid ${row.badgeColor || '#818cf8'}50`
+                          }}>
+                            {row.type || 'Mutasi'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 14px', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap' }}>
+                          🏬 {row.outlet_name}
+                        </td>
+                        <td style={{ padding: '12px 14px', color: '#e2e8f0', fontWeight: '700' }}>
+                          {row.ordered_menu}
+                        </td>
+                        <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: isPositive ? '#34d399' : '#fb7185', whiteSpace: 'nowrap' }}>
+                          {isPositive ? `+${row.used_qty}` : row.used_qty} {row.unit}
+                        </td>
+                        <td style={{ padding: '12px 14px', fontWeight: '900', color: '#ffffff', whiteSpace: 'nowrap' }}>
+                          {row.total_cost > 0 ? formatRupiah(row.total_cost) : '-'}
+                        </td>
+                        <td style={{ padding: '12px 14px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                          👤 {row.cashier}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

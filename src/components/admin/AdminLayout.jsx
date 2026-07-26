@@ -36,13 +36,14 @@ export default function AdminLayout({
   onSwitchToMobile,
   onOpenAddTransaction,
   onLogout,
+  userSession,
   children
 }) {
   const menuItems = [
     { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard },
     { id: 'data', label: '2. Data Master', icon: Database },
     { id: 'manual_entry', label: '3. Laporan dari Outlet', icon: FileEdit },
-    { id: 'sales', label: '4. Pendapatan', icon: ShoppingBag },
+    { id: 'sales', label: '4. Penjualan', icon: ShoppingBag },
     { id: 'stock', label: '5. Logistik', icon: Package },
     { id: 'reports', label: '6. Laporan Keuangan', icon: FileText },
     { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen },
@@ -50,6 +51,18 @@ export default function AdminLayout({
     { id: 'settings', label: '9. Pengaturan', icon: Settings },
     { id: 'activity_log', label: '10. Log Aktivitas', icon: History }
   ];
+
+  const userName = userSession?.name || 'Super Admin Restoran';
+  const userRole = userSession?.role || 'Super Admin';
+  const userOutlet = userSession?.outlet || 'Semua Outlet (Central)';
+  const userInitial = userName ? userName.charAt(0).toUpperCase() : 'S';
+
+  const todayFormatted = new Date().toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0b0f19', color: '#f8fafc', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -164,12 +177,12 @@ export default function AdminLayout({
 
         {/* User Profile Footer */}
         <div style={{ padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.80rem', color: '#ffffff', border: '1px solid #f59e0b' }}>
-            A
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.80rem', color: '#ffffff', border: '1px solid #f59e0b', flexShrink: 0 }}>
+            {userInitial}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Bang Argun</div>
-            <div style={{ fontSize: '0.66rem', color: '#f59e0b', fontWeight: '700' }}>Owner</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
+            <div style={{ fontSize: '0.64rem', color: '#f59e0b', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userRole} • {userOutlet}</div>
           </div>
           {onLogout && (
             <button
@@ -211,10 +224,10 @@ export default function AdminLayout({
           {/* Greeting & Date */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ fontSize: '0.90rem', fontWeight: '800', color: '#ffffff' }}>
-              Good Afternoon, Bang Argun 🖐️
+              Selamat Datang, {userName} 🖐️
             </div>
             <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: '600', paddingLeft: '8px', borderLeft: '1px solid #334155' }}>
-              Kamis, 24 Juli 2025
+              {todayFormatted}
             </span>
           </div>
 

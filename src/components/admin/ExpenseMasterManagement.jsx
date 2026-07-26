@@ -21,53 +21,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
   const [status, setStatus] = useState('Aktif');
   const [notes, setNotes] = useState('');
 
-  // Default Standard Chart of Accounts (Daftar Akun Akuntansi Restoran)
-  const defaultAccounts = [
-    // [1000] AKTIVA / ASSETS
-    { id: 1, code: '1101', name: 'Kas Laci Kasir & Rekening Bank Operasional', categoryGroup: 'Aktiva Lancar (Kas & Bank)', targetReport: 'Laporan Neraca & Arus Kas', normalBalance: 'Debet', status: 'Aktif', notes: 'Kas fisik laci kasir dan saldo bank operasional cabang' },
-    { id: 2, code: '1201', name: 'Piutang Usaha Penjualan Pelanggan', categoryGroup: 'Aktiva Lancar (Piutang Usaha)', targetReport: 'Laporan Neraca', normalBalance: 'Debet', status: 'Aktif', notes: 'Piutang pesanan katering dan bon pelanggan' },
-    { id: 3, code: '1301', name: 'Persediaan Stok Bahan Baku & Consumables Dapur', categoryGroup: 'Aktiva Lancar (Persediaan)', targetReport: 'Laporan Neraca', normalBalance: 'Debet', status: 'Aktif', notes: 'Nilai total fisik persediaan bahan mentah dapur' },
-    { id: 4, code: '1431', name: 'Dana Cadangan Gaji Karyawan', categoryGroup: 'Aktiva Lancar Lainnya', targetReport: 'Laporan Neraca', normalBalance: 'Debet', status: 'Aktif', notes: 'Alokasi akumulasi dana cadangan gaji bulanan' },
-    { id: 5, code: '1432', name: 'Dana Cadangan Sewa Gedung', categoryGroup: 'Aktiva Lancar Lainnya', targetReport: 'Laporan Neraca', normalBalance: 'Debet', status: 'Aktif', notes: 'Alokasi dana cadangan sewa lokasi bangunan' },
-    { id: 6, code: '1433', name: 'Dana Cadangan Tunjangan HariRaya (THR)', categoryGroup: 'Aktiva Lancar Lainnya', targetReport: 'Laporan Neraca', normalBalance: 'Debet', status: 'Aktif', notes: 'Dana cadangan THR tahunan karyawan' },
-
-    // [2000] PASIVA / LIABILITIES
-    { id: 7, code: '2101', name: 'Hutang Operasional Kasir & Supplier', categoryGroup: 'Kewajiban / Hutang Lancar', targetReport: 'Laporan Neraca', normalBalance: 'Kredit', status: 'Aktif', notes: 'Hutang pembelian bahan ke supplier & minus laci' },
-
-    // [3000] EKUITAS / EQUITY
-    { id: 8, code: '3101', name: 'Modal Disetor Owner / Investor', categoryGroup: 'Ekuitas / Modal Owner', targetReport: 'Laporan Neraca', normalBalance: 'Kredit', status: 'Aktif', notes: 'Setoran modal investasi awal pendirian usaha' },
-    { id: 9, code: '3201', name: 'Net Income (Laba Bersih Operasional)', categoryGroup: 'Ekuitas / Laba Ditahan', targetReport: 'Laporan Neraca', normalBalance: 'Kredit', status: 'Aktif', notes: 'Akumulasi laba bersih yang ditahan dalam operasional' },
-
-    // [4000] PENDAPATAN / REVENUE
-    { id: 10, code: '4001', name: 'Pendapatan Usaha (Gross Sales)', categoryGroup: 'Pendapatan Utama Restoran', targetReport: 'Laporan Laba Rugi & Arus Kas', normalBalance: 'Kredit', status: 'Aktif', notes: 'Total penerimaan omzet kotor penjualan makanan & minuman' },
-    { id: 11, code: '4001.01', name: 'Penjualan Kas Tunai (Cash POS)', categoryGroup: 'Pendapatan Rincian - Cash', targetReport: 'Laporan Laba Rugi', normalBalance: 'Kredit', status: 'Aktif', notes: 'Omzet tunai diterima di laci kasir POS' },
-    { id: 12, code: '4001.02', name: 'Penjualan Barcode QRIS & E-Wallet', categoryGroup: 'Pendapatan Rincian - Digital', targetReport: 'Laporan Laba Rugi', normalBalance: 'Kredit', status: 'Aktif', notes: 'Omzet via scan QRIS GoPay, OVO, ShopeePay, Dana' },
-    { id: 13, code: '4001.03', name: 'Penjualan Kartu Debit/Kredit (EDC)', categoryGroup: 'Pendapatan Rincian - EDC', targetReport: 'Laporan Laba Rugi', normalBalance: 'Kredit', status: 'Aktif', notes: 'Omzet via mesin EDC gesek kartu bank' },
-    { id: 14, code: '4001.04', name: 'Penjualan Transfer Bank Direct', categoryGroup: 'Pendapatan Rincian - Transfer', targetReport: 'Laporan Laba Rugi', normalBalance: 'Kredit', status: 'Aktif', notes: 'Omzet via transfer langsung ke rekening bank usaha' },
-    { id: 15, code: '4002', name: 'Diskon Penjualan (Potongan Promo & Member)', categoryGroup: 'Pengurang Pendapatan', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Total potongan diskon voucher, promo & member' },
-
-    // [5000] HARGA POKOK PRODUKSI / COGS
-    { id: 16, code: '5002', name: 'Harga Pokok Produksi / Penjualan (HPP)', categoryGroup: 'COGS / HPP Dapur', targetReport: 'Laporan Laba Rugi & Arus Kas', normalBalance: 'Debet', status: 'Aktif', notes: 'Total biaya pemakaian bahan baku masakan dapur' },
-    { id: 17, code: '5002.01', name: 'HPP Bahan Baku Utama (Daging, Ayam & Seafood)', categoryGroup: 'HPP Rincian - Bahan Utama', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'HPP bahan utama daging sapi, ayam, dan seafood' },
-    { id: 18, code: '5002.02', name: 'HPP Sayuran, Bumbu & Bahan Dapur', categoryGroup: 'HPP Rincian - Bumbu & Sayur', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'HPP bahan pelengkap bumbu dapur, beras & sayur' },
-    { id: 19, code: '5002.03', name: 'HPP Minuman & Packaged Goods', categoryGroup: 'HPP Rincian - Minuman & Kemasan', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'HPP sirup, bubuk minuman, es kristal, dan cup/kemasan' },
-    { id: 20, code: '5005', name: 'Biaya Pengiriman & Expedisi Bahan Baku', categoryGroup: 'Biaya Distribusi HPP', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Ongkos kirim pengadaan bahan mentah dari pasar/supplier' },
-
-    // [6000] BEBAN OPERASIONAL / OPEX
-    { id: 21, code: '6901', name: 'Beban Operasional Harian Kasir', categoryGroup: 'Beban Operasional (OPEX)', targetReport: 'Laporan Laba Rugi & Arus Kas', normalBalance: 'Debet', status: 'Aktif', notes: 'Pengeluaran rutin harian yang diinput kasir saat closing' },
-    { id: 22, code: '6902', name: 'Beban Gaji & Upah Karyawan', categoryGroup: 'Beban Personalia / Gaji', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Gaji pokok, bonus, dan insentif lembur karyawan' },
-    { id: 23, code: '6903', name: 'Beban Utilitas (Listrik PLN, Air PDAM & Gas LPG)', categoryGroup: 'Beban Utilitas', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Tagihan energi bulanan (PLN, PDAM, Internet, Gas LPG)' },
-    { id: 24, code: '6904', name: 'Beban Sewa Gedung & Bangunan Cabang', categoryGroup: 'Beban Operasional (OPEX)', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Amortisasi beban sewa tempat usaha restoran' },
-    { id: 25, code: '6905', name: 'Beban Pemasaran, Iklan & Promosi (Marketing)', categoryGroup: 'Beban Pemasaran', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Biaya iklan media sosial, cetak spanduk & brosur' },
-    { id: 26, code: '6906', name: 'Beban Pemeliharaan & Perbaikan Peralatan', categoryGroup: 'Beban Perawatan & Service', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Service AC, kulkas freezer, mesin espresso, dan kompor' },
-    { id: 27, code: '6907', name: 'Beban Kebersihan, Keamanan & Perlengkapan', categoryGroup: 'Beban Perlengkapan', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Perlengkapan sabun cuci piring, kantong sampah, iuran lingkungan' },
-
-    // [7000-8000] NON-OPERASIONAL
-    { id: 28, code: '7001', name: 'Pendapatan Sewa Space / Bunga Bank', categoryGroup: 'Pendapatan Lain-Lain', targetReport: 'Laporan Laba Rugi & Arus Kas', normalBalance: 'Kredit', status: 'Aktif', notes: 'Penerimaan sewa booth vendor / bunga simpanan bank' },
-    { id: 29, code: '8001', name: 'Beban Admin Bank & Pajak Non-Operasional', categoryGroup: 'Beban Lain-Lain', targetReport: 'Laporan Laba Rugi', normalBalance: 'Debet', status: 'Aktif', notes: 'Biaya administrasi bulanan bank & denda/pajak non-rutin' }
-  ];
-
-  const accountsList = masterData.chartOfAccounts || masterData.expenseMaster || defaultAccounts;
+  const accountsList = masterData.chartOfAccounts || masterData.expenseMaster || [];
 
   // Helper to categorize account code into Class Badge Style
   const getAccountClassInfo = (account) => {

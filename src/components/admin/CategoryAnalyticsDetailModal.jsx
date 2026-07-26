@@ -31,40 +31,27 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
     const rawSales = masterData?.salesTransactions || masterData?.transactions || [];
     let matchedHistory = [];
 
-    const sampleOutlets = outletsList.map(o => o.name);
-    const sampleMonths = ['Juli 2026', 'Juni 2026', 'Mei 2026', 'April 2026'];
-    const samplePayments = ['QRIS BCA', 'Cash', 'Transfer Mandiri', 'Debit BRI'];
-    const sampleCashiers = ['Andi Kasir', 'Siti Supervisor', 'Budi Kasir', 'Dewi Admin'];
-
-    const targetMenus = connectedProducts.length > 0 
-      ? connectedProducts 
-      : [{ id: 1, name: 'Menu Utama Kategori', price: 35000 }];
-
-    for (let i = 1; i <= 18; i++) {
-      const menuObj = targetMenus[(i - 1) % targetMenus.length];
-      const qty = (i % 4) + 1;
-      const unitPrice = menuObj.price || 30000;
-      const totalPrice = qty * unitPrice;
-
-      const day = 24 - i;
-      const monthIndex = i % sampleMonths.length;
-      const monthStr = sampleMonths[monthIndex];
-      const outletStr = sampleOutlets[i % sampleOutlets.length];
-
-      matchedHistory.push({
-        id: `cat-sales-${category.id}-${i}`,
-        receipt_no: `#TRX-2026${String(7 - monthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(300 + i)}`,
-        date: `${day} ${monthStr.split(' ')[0]} 2026, ${12 + (i % 7)}:${12 + (i * 5) % 45} WIB`,
-        month_year: monthStr,
-        outlet_name: outletStr,
-        item_name: menuObj.name,
-        qty: qty,
-        unit_price: unitPrice,
-        total_price: totalPrice,
-        payment_method: samplePayments[i % samplePayments.length],
-        cashier: sampleCashiers[i % sampleCashiers.length]
+    // Filter real raw sales for connected products
+    rawSales.forEach(tx => {
+      (tx.items || []).forEach(item => {
+        const isMatched = connectedProducts.some(p => p.id === item.id || p.name === item.name);
+        if (isMatched) {
+          matchedHistory.push({
+            id: tx.id || `tx-${Math.random()}`,
+            receipt_no: tx.receipt_no || tx.receiptNo || `#TRX-${tx.id}`,
+            date: tx.date || tx.createdAt || tx.timestamp,
+            month_year: tx.month_year || tx.monthYear || 'Tahun 2026',
+            outlet_name: tx.outlet_name || tx.outletName || 'Outlet Utama',
+            item_name: item.name || item.item_name,
+            qty: item.qty || item.quantity || 1,
+            unit_price: item.price || item.unit_price || 0,
+            total_price: item.subtotal || (item.qty * item.price) || 0,
+            payment_method: tx.payment_method || tx.paymentMethod || 'Cash',
+            cashier: tx.cashier || tx.cashier_name || 'Kasir'
+          });
+        }
       });
-    }
+    });
 
     return matchedHistory;
   };

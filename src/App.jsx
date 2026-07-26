@@ -24,7 +24,7 @@ import AndroidPosRegister from './components/mobile/AndroidPosRegister';
 import CustomerSelfRegistrationPage from './components/mobile/CustomerSelfRegistrationPage';
 
 import { initialMasterData } from './data/initialMasterData';
-import { X } from 'lucide-react';
+import { X, Lock, Key, ShieldCheck } from 'lucide-react';
 
 export default function App() {
   // Check if current URL is Customer Self Registration route
@@ -33,22 +33,48 @@ export default function App() {
     window.location.search.includes('register_customer') ||
     window.location.hash.includes('register-customer')
   );
-  // User Authenticated Session State (Default null so login gate is enforced for Management)
+  // User Authentication State (null = belum login, tampilkan LoginPage)
   const [userSession, setUserSession] = useState(() => {
-    const saved = localStorage.getItem('mris_user_session');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mris_user_session');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
     }
     return null;
   });
+
+  // App View Mode: 'admin' | 'mobile'
+  const [viewMode, setViewMode] = useState('admin');
+
+  // Handle login success dari LoginPage
+  const handleLoginSuccess = (session, targetMode) => {
+    const sessionWithTime = { ...session, loggedInAt: new Date().toISOString() };
+    localStorage.setItem('mris_user_session', JSON.stringify(sessionWithTime));
+    setUserSession(sessionWithTime);
+    setViewMode(targetMode || 'admin');
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('mris_user_session');
     setUserSession(null);
   };
 
-  // App View Mode: 'admin' | 'mobile' (Default to Mobile POS for immediate preview)
-  const [viewMode, setViewMode] = useState('mobile');
+  // Modal peringatan saat POS Mobile mencoba beralih ke Web Admin
+  const [showSwitchWarning, setShowSwitchWarning] = useState(false);
+
+  // Perpindahan: dari Web Admin → POS Mobile langsung (bebas hambatan)
+  // dari POS Mobile → Web Admin: harus keluar dulu
+  const handleRequestSwitchToMode = (targetMode) => {
+    if (viewMode === 'mobile' && targetMode === 'admin') {
+      setShowSwitchWarning(true); // tampilkan modal peringatan
+    } else {
+      setViewMode(targetMode);
+    }
+  };
+
+  const handleRequestSwitchToMobile = () => setViewMode('mobile');
+  const handleRequestSwitchToAdmin = () => setViewMode('admin');
 
   // Admin Active Menu: 'dashboard' | 'data' | 'costs' | 'stock' | 'approved' | 'reports' | 'terms' | 'settings'
   const [adminTab, setAdminTab] = useState('dashboard');
@@ -63,16 +89,34 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     try {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v22_clean_slate_superadmin_only') {
+      if (versionKey !== 'v37_clean_slate_no_mock_data') {
         localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v22_clean_slate_superadmin_only');
+        localStorage.removeItem('mris_user_session');
+        localStorage.setItem('mris_version', 'v37_clean_slate_no_mock_data');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          return { ...initialMasterData, ...parsed };
+          return {
+            ...initialMasterData,
+            ...parsed,
+            webAdminAccounts: parsed.webAdminAccounts !== undefined ? parsed.webAdminAccounts : initialMasterData.webAdminAccounts,
+            mobileAccounts: parsed.mobileAccounts !== undefined ? parsed.mobileAccounts : initialMasterData.mobileAccounts,
+            salesTransactions: parsed.salesTransactions || [],
+            closedShifts: parsed.closedShifts || parsed.shift_closings || [],
+            approvedFinanceDaily: parsed.approvedFinanceDaily || [],
+            manualEntryRecords: parsed.manualEntryRecords || [],
+            cogsExpenses: parsed.cogsExpenses || [],
+            productionExpenses: parsed.productionExpenses || [],
+            otherExpenses: parsed.otherExpenses || [],
+            stockOpname: parsed.stockOpname || [],
+            stockMovement: parsed.stockMovement || [],
+            approvedLogistics: parsed.approvedLogistics || [],
+            cashFlow: parsed.cashFlow || [],
+            customers: parsed.customers || []
+          };
         }
       }
     } catch (e) {
@@ -268,7 +312,7 @@ export default function App() {
     }}>
       <button
         type="button"
-        onClick={() => setViewMode('admin')}
+        onClick={() => handleRequestSwitchToMode('admin')}
         style={{
           padding: '7px 16px',
           borderRadius: '24px',
@@ -290,7 +334,7 @@ export default function App() {
 
       <button
         type="button"
-        onClick={() => setViewMode('mobile')}
+        onClick={() => handleRequestSwitchToMode('mobile')}
         style={{
           padding: '7px 16px',
           borderRadius: '24px',
@@ -312,39 +356,100 @@ export default function App() {
     </div>
   );
 
+  // MODAL PERINGATAN: Keluar dulu dari POS Mobile sebelum ke Web Admin
+  const renderSwitchWarningModal = () => {
+    if (!showSwitchWarning) return null;
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999999, padding: '20px'
+      }}>
+        <div style={{
+          width: '100%', maxWidth: '420px',
+          background: 'rgba(15, 23, 42, 0.97)',
+          border: '1.5px solid rgba(248,113,113,0.4)',
+          borderRadius: '20px', padding: '32px 28px',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+          textAlign: 'center', fontFamily: "'Inter', sans-serif"
+        }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🔒</div>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: '0 0 10px' }}>
+            Keluar dari POS Mobile Terlebih Dahulu
+          </h3>
+          <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: '1.6', margin: '0 0 24px' }}>
+            Anda sedang aktif di <strong style={{ color: '#60a5fa' }}>📱 POS Mobile APK</strong>.<br />
+            Untuk beralih ke <strong style={{ color: '#a5b4fc' }}>💻 Web Based Admin</strong>, silakan keluar dari akun terlebih dahulu, kemudian pilih akses Web Based Admin.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowSwitchWarning(false);
+                handleLogout(); // keluar akun → kembali ke papan login
+              }}
+              style={{
+                padding: '12px', borderRadius: '12px', border: 'none',
+                background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+                color: '#ffffff', fontSize: '0.88rem', fontWeight: '800',
+                cursor: 'pointer', boxShadow: '0 4px 16px rgba(220,38,38,0.4)'
+              }}
+            >
+              🚪 Keluar dari Akun POS Mobile
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSwitchWarning(false)}
+              style={{
+                padding: '11px', borderRadius: '12px',
+                border: '1.5px solid rgba(148,163,184,0.25)',
+                background: 'transparent', color: '#94a3b8',
+                fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer'
+              }}
+            >
+              Tetap di POS Mobile APK
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // RENDER LOGIN PAGE jika belum ada sesi aktif
+  if (!userSession && !isSelfRegPath) {
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        masterData={masterData}
+      />
+    );
+  }
+
+  // RENDER WARNING MODAL (di atas semua view)
+  const switchWarningModal = renderSwitchWarningModal();
+
   // RENDER WEB ADMIN DESKTOP VIEW
   if (viewMode === 'admin') {
-    // If not authenticated, show Login Gate Screen (Papan Login)
-    if (!userSession) {
-      return (
-        <>
-          {renderPreviewToggleBar()}
-          <LoginPage 
-            onLoginSuccess={setUserSession} 
-            onSwitchToMobile={() => setViewMode('mobile')} 
-            masterData={masterData}
-          />
-        </>
-      );
-    }
-
     return (
       <>
+        {switchWarningModal}
         {renderPreviewToggleBar()}
         <AdminLayout
           activeTab={adminTab}
           setActiveTab={setAdminTab}
-        selectedBranch={selectedBranch}
-        setSelectedBranch={setSelectedBranch}
-        outlets={masterData.outlets}
-        pendingCount={stats.pendingApprovals}
-        onSwitchToMobile={() => setViewMode('mobile')}
-        onOpenAddTransaction={() => {
-          setAdminTab('manual_entry');
-          setTriggerOpenManualModal(Date.now());
-        }}
-        onLogout={handleLogout}
-      >
+          selectedBranch={selectedBranch}
+          setSelectedBranch={setSelectedBranch}
+          outlets={masterData.outlets}
+          pendingCount={stats.pendingApprovals}
+          onSwitchToMobile={handleRequestSwitchToMobile}
+          onOpenAddTransaction={() => {
+            setAdminTab('manual_entry');
+            setTriggerOpenManualModal(Date.now());
+          }}
+          onLogout={handleLogout}
+          userSession={userSession}
+        >
         {/* 1. DASHBOARD */}
         {adminTab === 'dashboard' && (
           <FinancialOverview
@@ -507,6 +612,7 @@ export default function App() {
   // RENDER NATIVE ANDROID POS KASIR VIEW (GOBIZ / MOKA STYLE 2-TAP)
   return (
     <>
+      {switchWarningModal}
       {renderPreviewToggleBar()}
       <AndroidPosRegister
         masterData={masterData}
@@ -514,10 +620,11 @@ export default function App() {
         selectedBranch={selectedBranch}
         setSelectedBranch={setSelectedBranch}
         onShiftCloseClick={() => {
-          setViewMode('admin');
+          handleRequestSwitchToMode('admin');
           setAdminTab('approved');
         }}
-        onSwitchToAdmin={() => setViewMode('admin')}
+        onSwitchToAdmin={() => handleRequestSwitchToMode('admin')}
+        onLogout={handleLogout}
       />
     </>
   );

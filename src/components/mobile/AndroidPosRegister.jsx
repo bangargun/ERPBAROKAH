@@ -8,6 +8,7 @@ import {
   QrCode, 
   CreditCard, 
   CheckCircle2, 
+  CheckCircle,
   Trash2, 
   Plus, 
   Minus, 
@@ -50,7 +51,9 @@ import {
   Sliders,
   Scan,
   MessageCircle,
-  Edit2
+  Edit2,
+  Smartphone,
+  Edit3
 } from 'lucide-react';
 
 export default function AndroidPosRegister({ 
@@ -59,7 +62,8 @@ export default function AndroidPosRegister({
   selectedBranch, 
   setSelectedBranch, 
   onShiftCloseClick,
-  onSwitchToAdmin
+  onSwitchToAdmin,
+  onLogout
 }) {
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
   const [activeNavTab, setActiveNavTab] = useState('kasir');
@@ -241,6 +245,7 @@ export default function AndroidPosRegister({
 
   // Transfer Produk Form States
   const [showAddTransferModal, setShowAddTransferModal] = useState(false);
+  const [editingTransferId, setEditingTransferId] = useState(null);
   const [previewTransferReport, setPreviewTransferReport] = useState(null);
   const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0]);
   const [transferNo, setTransferNo] = useState(`TRF-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
@@ -256,25 +261,117 @@ export default function AndroidPosRegister({
 
   // Barang Rusak (Waste) Form States
   const [showAddWasteModal, setShowAddWasteModal] = useState(false);
+  const [editingWasteId, setEditingWasteId] = useState(null);
   const [previewWasteReport, setPreviewWasteReport] = useState(null);
   const [wasteDate, setWasteDate] = useState(new Date().toISOString().split('T')[0]);
   const [wasteNo, setWasteNo] = useState(`WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [wasteOutletId, setWasteOutletId] = useState(1);
   const [wasteSubmittedBy, setWasteSubmittedBy] = useState('Master Super Admin');
+  const [wasteBatchRows, setWasteBatchRows] = useState([
+    { id: Date.now(), item_name: 'Daging Ayam Fillet', custom_item_name: '', qty: 1, unit: 'kg', reason: 'Terlalu kecil', notes: '' }
+  ]);
   const [wasteItemName, setWasteItemName] = useState('Daging Ayam Fillet');
   const [wasteCustomItemName, setWasteCustomItemName] = useState('');
   const [wasteQty, setWasteQty] = useState(2);
   const [wasteUnit, setWasteUnit] = useState('kg');
-  const [wasteReason, setWasteReason] = useState('Terlalu kecil'); // 'Terlalu kecil' | 'Terlalu besar' | 'Berbau' | 'Tidak utuh' | 'Tidak layak jual' | 'Dan lain lain'
+  const [wasteReason, setWasteReason] = useState('Terlalu kecil');
   const [wasteNotes, setWasteNotes] = useState('');
+  const [wasteEditingNotes, setWasteEditingNotes] = useState('');
+  const [showWastePreviewFormModal, setShowWastePreviewFormModal] = useState(false);
   const [wasteStatus, setWasteStatus] = useState('ditunda');
+
+  const handleSaveWasteFinal = () => {
+    const ingredientsList = masterData.ingredients || [];
+    const outletTarget = (masterData.outlets || []).find(o => String(o.id) === String(wasteOutletId) || Number(o.id) === Number(wasteOutletId)) || currentOutlet || { id: 1, name: 'APS TT' };
+
+    const createdRecords = wasteBatchRows.map((row, idx) => {
+      const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Kustom') : row.item_name;
+      const matchedIng = ingredientsList.find(i => i.name === finalItemName);
+      const skuVal = row.sku || matchedIng?.sku || `SKU-POS-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const finalReason = (row.reason === 'Dan lain lain' || row.reason === 'Lain-lain')
+        ? (row.reason_custom ? `Dan lain lain: ${row.reason_custom}` : (row.reason || 'Dan lain lain'))
+        : (row.reason || 'Terlalu kecil');
+
+      const notesParts = [];
+      if (wasteEditingNotes) notesParts.push(`[Edit: ${wasteEditingNotes}]`);
+      if (wasteNotes) notesParts.push(`[Catatan: ${wasteNotes}]`);
+      if (row.notes) notesParts.push(row.notes);
+      if (notesParts.length === 0) notesParts.push(finalReason);
+
+      const finalNotesStr = notesParts.join(' - ');
+
+      return {
+        id: `${wasteNo}-${idx + 1}-${Math.random().toString(36).substr(2, 4)}`,
+        report_no: wasteNo,
+        date: wasteDate,
+        tanggal_waktu: new Date().toISOString(),
+        outlet_id: wasteOutletId || currentOutlet.id || 1,
+        branch_name: outletTarget.name || currentOutlet?.name || 'APS TT',
+        type: 'WASTE',
+        nama_barang: finalItemName,
+        item_name: finalItemName,
+        sku: skuVal,
+        jumlah_rusak: Number(row.qty || 1),
+        qty: Number(row.qty || 1),
+        stok_rusak: Number(row.qty || 1),
+        unit: row.unit || matchedIng?.unit || 'kg',
+        alasan_rusak: finalReason,
+        damage_reason: finalReason,
+        reason: finalReason,
+        input_by: wasteSubmittedBy,
+        submitted_by: wasteSubmittedBy,
+        created_by: wasteSubmittedBy,
+        author_name: wasteSubmittedBy,
+        sumber_input: 'pos',
+        status_keterangan: 'by approved',
+        type_input: 'by approval',
+        status: 'pending',
+        is_approved: false,
+        editing_notes: wasteEditingNotes || '',
+        notes: finalNotesStr,
+        created_at: new Date().toISOString()
+      };
+    });
+
+    const filterOld = (arr = []) => arr.filter(x => String(x.report_no || x.id) !== String(wasteNo) && String(x.id) !== String(editingWasteId));
+
+    setMasterData(prev => {
+      const updatedIngredients = (prev.ingredients || []).map(ing => {
+        const matchRecord = createdRecords.find(r => 
+          (r.item_name || r.nama_barang || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim() &&
+          (!ing.outlet_id || String(r.outlet_id) === String(ing.outlet_id) || Number(r.outlet_id) === Number(ing.outlet_id))
+        );
+        if (matchRecord) {
+          const currentStok = Number(ing.stok || ing.stock || ing.qty || 0);
+          const newStok = Math.max(0, currentStok - Number(matchRecord.qty || 1));
+          return { ...ing, stok: newStok, stock: newStok };
+        }
+        return ing;
+      });
+
+      return {
+        ...prev,
+        ingredients: updatedIngredients,
+        damagedGoods: [...createdRecords, ...filterOld(prev.damagedGoods)],
+        approvedWaste: [...createdRecords, ...filterOld(prev.approvedWaste)],
+        stockMovement: [...createdRecords, ...filterOld(prev.stockMovement)]
+      };
+    });
+
+    alert(`✅ Laporan Barang Rusak ${wasteNo} (${wasteBatchRows.length} Bahan Baku) berhasil disimpan!\nStatus PENDING terkirim otomatis ke Web Admin untuk persetujuan (ACC).`);
+    setShowWastePreviewFormModal(false);
+    setShowAddWasteModal(false);
+    setEditingWasteId(null);
+    setWasteEditingNotes('');
+  };
 
   // Stok Opname Summary Preview State (Data sent from Web Admin)
   const [previewOpnameSummaryRecord, setPreviewOpnameSummaryRecord] = useState(null);
 
   // Sidebar Lain-lain (Reservasi & SOP) States
   // MULTI-STEP LOGIN BOARD STATES (Halaman 1: Super Admin/Owner/Resto -> Halaman 2: Nama User -> Halaman 3: Username & Password)
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(false); // default to false (Papan Login aktif saat aplikasi dibuka)
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(true); // bypass Papan Login - langsung masuk POS
   const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
   const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
   const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
@@ -285,8 +382,8 @@ export default function AndroidPosRegister({
   const [currentUserSession, setCurrentUserSession] = useState({
     name: 'Kasir Utama',
     role: 'Kasir',
-    outlet: 'Kopi MRIS - Cabang Jakarta Pusat',
-    username: 'andi_kasir'
+    outlet: 'Restoran Utama',
+    username: 'kasir'
   });
 
   // Settings Page Sub-Tab & Preferences States (Matching User Screenshot 100%)
@@ -443,47 +540,7 @@ export default function AndroidPosRegister({
   };
   
   // 1. Reservasi States
-  const [reservationsList, setReservationsList] = useState([
-    {
-      id: 'RSV-20260723-01',
-      date: '2026-07-23',
-      time: '18:30 WIB',
-      customer_name: 'Bpk. Hendra Wijaya',
-      phone: '0812-3456-7890',
-      pax_count: 6,
-      table_no: 'Meja 04 (Indoor VIP)',
-      dp_amount: 150000,
-      payment_method: 'QRIS Statis',
-      status: 'confirmed', // 'confirmed' | 'pending' | 'completed' | 'cancelled'
-      notes: 'Reservasi Ulang Tahun Keluarga. Minta 1 kursi bayi.'
-    },
-    {
-      id: 'RSV-20260723-02',
-      date: '2026-07-23',
-      time: '19:00 WIB',
-      customer_name: 'Ibu Rina Susanti',
-      phone: '0813-9876-5432',
-      pax_count: 4,
-      table_no: 'Meja 08 (Outdoor Garden)',
-      dp_amount: 100000,
-      payment_method: 'Transfer Bank',
-      status: 'pending',
-      notes: 'Acara Reuni Alumni SMU'
-    },
-    {
-      id: 'RSV-20260722-03',
-      date: '2026-07-22',
-      time: '12:30 WIB',
-      customer_name: 'Dr. Ahmad Fauzi',
-      phone: '0852-1122-3344',
-      pax_count: 8,
-      table_no: 'Meja 01 (Indoor AC)',
-      dp_amount: 200000,
-      payment_method: 'Cash / Tunai',
-      status: 'completed',
-      notes: 'Meeting Makan Siang Bisnis'
-    }
-  ]);
+  const [reservationsList, setReservationsList] = useState(masterData?.reservations || []);
   const [showAddReservationModal, setShowAddReservationModal] = useState(false);
   const [previewReservationRecord, setPreviewReservationRecord] = useState(null);
   
@@ -800,6 +857,11 @@ export default function AndroidPosRegister({
   const [logisticsQty, setLogisticsQty] = useState('');
   const [logisticsUnit, setLogisticsUnit] = useState('kg');
   const [logisticsNotes, setLogisticsNotes] = useState('');
+
+  const [transferBatchRows, setTransferBatchRows] = useState([
+    { id: 1, item_name: 'Daging Ayam Fillet', custom_item_name: '', qty: 10, unit: 'kg' }
+  ]);
+  const [pendingTransferDraft, setPendingTransferDraft] = useState(null);
 
   const formatRupiah = (val) => {
     return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
@@ -1296,23 +1358,43 @@ export default function AndroidPosRegister({
     // Auto-save new customer into Web Master Data (masterData.customers) if not registered yet
     const rawCustomerName = (selectedCustomer || 'Pelanggan Umum').trim();
     const finalCustomerName = rawCustomerName === '' ? 'Pelanggan Umum' : rawCustomerName;
+    const finalTotalAmount = cartTotal;
 
-    const customerExists = (masterData?.customers || []).some(
-      c => c.name?.toLowerCase() === finalCustomerName.toLowerCase()
-    );
+    const pointRatio = masterData?.loyaltyPointRatio || 100000;
+    const earnedPoints = Math.floor((finalTotalAmount || 0) / pointRatio);
+    const pointsDeducted = methodName === 'Pembayaran Poin' ? Math.ceil(finalTotalAmount / 1000) : 0;
 
     let updatedCustomersList = masterData?.customers || [];
-    if (!customerExists && finalCustomerName !== 'Pelanggan Umum') {
-      const newCustomerObj = {
-        id: Date.now(),
-        name: finalCustomerName,
-        phone: '-',
-        email: '-',
-        customer_type: 'Pelanggan POS (Auto-Saved)',
-        total_orders: 1,
-        join_date: currentDate
-      };
-      updatedCustomersList = [newCustomerObj, ...updatedCustomersList];
+    if (finalCustomerName !== 'Pelanggan Umum') {
+      const existingIdx = updatedCustomersList.findIndex(c => c.name?.toLowerCase() === finalCustomerName.toLowerCase());
+      if (existingIdx !== -1) {
+        updatedCustomersList = updatedCustomersList.map((c, idx) => {
+          if (idx === existingIdx) {
+            const currentPts = c.points || 0;
+            const updatedPts = Math.max(0, currentPts + earnedPoints - pointsDeducted);
+            return {
+              ...c,
+              total_spend: (c.total_spend || 0) + finalTotalAmount,
+              points: updatedPts,
+              total_orders: (c.total_orders || 0) + 1
+            };
+          }
+          return c;
+        });
+      } else {
+        const newCustomerObj = {
+          id: Date.now(),
+          name: finalCustomerName,
+          phone: '-',
+          email: '-',
+          customer_type: 'Pelanggan POS (Auto-Saved)',
+          total_orders: 1,
+          total_spend: finalTotalAmount,
+          points: Math.max(0, earnedPoints - pointsDeducted),
+          join_date: currentDate
+        };
+        updatedCustomersList = [newCustomerObj, ...updatedCustomersList];
+      }
     }
 
     // GENERATE STOCK OUTFLOW LOGISTIC MOVEMENTS & PRODUCT/INGREDIENT STOCK DEDUCTION
@@ -1443,17 +1525,11 @@ export default function AndroidPosRegister({
     alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
   };
 
-  // MULTI-STEP PAPAN LOGIN MOBILE APK (Halaman 1: Super Admin/Owner/Resto -> Halaman 2: Nama User -> Halaman 3: Username & Password)
+  // MULTI-STEP PAPAN LOGIN MOBILE APK
   if (!isAppLoggedIn) {
-    const registeredUsers = masterData?.userAccounts || masterData?.userRights || [
-      { id: 1, name: 'Budi Santoso (Super Admin)', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
-      { id: 2, name: 'Pak Hendra (Owner)', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' },
-      { id: 3, name: 'Andi Kasir', outlet: 'Kopi MRIS - Cabang Jakarta Pusat', username: 'andi_kasir', password: '123', role: 'Kasir', status: 'Aktif' },
-      { id: 4, name: 'Siti Supervisor', outlet: 'Kopi MRIS - Cabang Jakarta Pusat', username: 'siti_spv', password: '123', role: 'SPV', status: 'Aktif' },
-      { id: 5, name: 'Rian Dapur & Logistik', outlet: 'Kopi MRIS - Cabang Jakarta Pusat', username: 'rian_logistik', password: '123', role: 'Logistik', status: 'Aktif' },
-      { id: 6, name: 'Agus Kepala Cabang', outlet: 'Kopi MRIS - Cabang Bandung', username: 'agus_kabeng', password: '123', role: 'Kepala Cabang', status: 'Aktif' },
-      { id: 7, name: 'Dewi Admin Operasional', outlet: 'Kopi MRIS - Cabang Bandung', username: 'dewi_admin', password: '123', role: 'Admin', status: 'Aktif' }
-    ];
+    const registeredUsers = (masterData?.mobileAccounts && masterData.mobileAccounts.length > 0)
+      ? masterData.mobileAccounts
+      : (masterData?.webAdminAccounts || []);
 
     let step2FilteredUsers = registeredUsers.filter(u => u.status === 'Aktif');
     if (selectedLoginCategory === 'super_admin') {
@@ -2103,13 +2179,17 @@ export default function AndroidPosRegister({
 
             <button
               onClick={() => {
-                setIsAppLoggedIn(false);
-                setLoginStep(1);
+                if (onLogout) {
+                  onLogout();
+                } else {
+                  setIsAppLoggedIn(false);
+                  setLoginStep(1);
+                }
               }}
-              style={{ background: 'rgba(254,202,202,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#fca5a5', padding: '5px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#fca5a5', padding: '5px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <User size={15} />
-              <span>🔒 Ganti User / Lock</span>
+              <span>🚪 Keluar dari Akun</span>
             </button>
           </div>
         </header>
@@ -3333,55 +3413,14 @@ export default function AndroidPosRegister({
                 transactions: outletTransactions || []
               };
 
-              const pastShifts = [
-                {
-                  id: 'SHIFT-20260722-02',
-                  username: 'siti_kasir',
-                  user_name: 'Siti Rahma',
-                  role: 'Kasir Senior',
-                  outlet_name: currentOutlet.name || 'Restoran Utama',
-                  status: 'SELESAI',
-                  login_time: '22 Jul 2026, 15:00 WIB',
-                  logout_time: '22 Jul 2026, 23:00 WIB',
-                  duration_label: '8 Jam 00 Menit',
-                  total_receipts: 42,
-                  total_sales: 3250000,
-                  cash_sales: 1950000,
-                  qris_sales: 850000,
-                  edc_sales: 450000,
-                  initial_cash: 500000,
-                  transactions: [
-                    { id: 'TRX-1092', date: '22 Jul 2026', time: '15:30 WIB', customer_name: 'Pelanggan Umum', payment_method: 'Cash', amount: 85000 },
-                    { id: 'TRX-1093', date: '22 Jul 2026', time: '16:15 WIB', customer_name: 'Budi Santoso', payment_method: 'QRIS', amount: 140000 },
-                    { id: 'TRX-1094', date: '22 Jul 2026', time: '17:40 WIB', customer_name: 'Nurnita', payment_method: 'EDC', amount: 210000 }
-                  ]
-                },
-                {
-                  id: 'SHIFT-20260722-01',
-                  username: 'budi_kasir',
-                  user_name: 'Budi Kurniawan',
-                  role: 'Kasir Pagi',
-                  outlet_name: currentOutlet.name || 'Restoran Utama',
-                  status: 'SELESAI',
-                  login_time: '22 Jul 2026, 07:00 WIB',
-                  logout_time: '22 Jul 2026, 15:00 WIB',
-                  duration_label: '8 Jam 00 Menit',
-                  total_receipts: 28,
-                  total_sales: 2100000,
-                  cash_sales: 1200000,
-                  qris_sales: 600000,
-                  edc_sales: 300000,
-                  initial_cash: 500000,
-                  transactions: [
-                    { id: 'TRX-1080', date: '22 Jul 2026', time: '07:45 WIB', customer_name: 'Pelanggan Umum', payment_method: 'Cash', amount: 45000 },
-                    { id: 'TRX-1081', date: '22 Jul 2026', time: '08:30 WIB', customer_name: 'Andi Supriatna', payment_method: 'QRIS', amount: 95000 }
-                  ]
-                }
-              ];
+              const pastShifts = masterData?.shiftLogs || masterData?.closedShifts || [];
+              const rawShiftList = (pastShifts.length > 0 || activeShiftTxCount > 0)
+                ? [activeUserShift, ...pastShifts]
+                : [];
 
-              const shiftList = [activeUserShift, ...pastShifts].filter(s => {
+              const shiftList = rawShiftList.filter(s => {
                 const q = shiftUserSearchFilter.toLowerCase();
-                return s.user_name.toLowerCase().includes(q) || s.username.toLowerCase().includes(q) || s.role.toLowerCase().includes(q);
+                return (s.user_name || '').toLowerCase().includes(q) || (s.username || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q);
               });
 
               return (
@@ -3408,7 +3447,14 @@ export default function AndroidPosRegister({
                         </tr>
                       </thead>
                       <tbody>
-                        {shiftList.map((row, rIdx) => {
+                        {shiftList.length === 0 ? (
+                          <tr>
+                            <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
+                              Belum ada histori shift pengguna terdaftar (Data Kosong).
+                            </td>
+                          </tr>
+                        ) : (
+                          shiftList.map((row, rIdx) => {
                           const isAct = row.status === 'AKTIF BERLANGSUNG';
                           return (
                             <tr
@@ -3482,7 +3528,7 @@ export default function AndroidPosRegister({
                               </td>
                             </tr>
                           );
-                        })}
+                        }))}
                       </tbody>
                     </table>
                   </div>
@@ -3728,6 +3774,7 @@ export default function AndroidPosRegister({
                     Pencatatan Waste, Retur, & Kerusakan Bahan
                   </p>
                 </div>
+
                 {/* CARD 6: LAPORAN STOK OPNAME */}
                 <div
                   onClick={() => setActiveLaporanSubView('stok_opname_summary')}
@@ -3802,14 +3849,22 @@ export default function AndroidPosRegister({
                         </tr>
                       </thead>
                       <tbody>
-                        {(outletTransactions || []).map((t, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.id}</td>
-                            <td style={{ padding: '10px', color: '#ffffff' }}>{t.customer_name || 'Pelanggan Umum'}</td>
-                            <td style={{ padding: '10px', color: '#34d399', fontWeight: '800' }}>{t.payment_method || 'Cash'}</td>
-                            <td style={{ padding: '10px', textAlign: 'right', color: '#ffffff', fontWeight: '900' }}>{formatRupiah(t.amount)}</td>
+                        {(!outletTransactions || outletTransactions.length === 0) ? (
+                          <tr>
+                            <td colSpan="4" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                              Belum ada rincian omset per transaksi struk (Data Kosong).
+                            </td>
                           </tr>
-                        ))}
+                        ) : (
+                          (outletTransactions || []).map((t, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.id}</td>
+                              <td style={{ padding: '10px', color: '#ffffff' }}>{t.customer_name || 'Pelanggan Umum'}</td>
+                              <td style={{ padding: '10px', color: '#34d399', fontWeight: '800' }}>{t.payment_method || 'Cash'}</td>
+                              <td style={{ padding: '10px', textAlign: 'right', color: '#ffffff', fontWeight: '900' }}>{formatRupiah(t.amount)}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -3858,39 +3913,37 @@ export default function AndroidPosRegister({
                             { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
                           ];
 
-                      const default5Cogs = Array.from({ length: 5 }).map((_, idx) => {
-                        const ing = ingredientsList[idx % ingredientsList.length];
-                        return {
-                          id: Date.now() + idx + Math.random(),
-                          ingredient_id: ing.id,
-                          name: ing.name,
-                          qty: 1,
-                          unit: ing.unit || 'kg',
-                          price_unit: ing.cost || 10000,
-                          amount: ing.cost || 10000
-                        };
-                      });
+                      const masterIngs = (masterData.ingredients && masterData.ingredients.length > 0)
+                        ? masterData.ingredients.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || ing.price || 15000 }))
+                        : [
+                            { id: 'ing-1', name: 'Beras Pandan Wangi', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'kg', cost: 14000 },
+                            { id: 'ing-2', name: 'Minyak Goreng Bimoli', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'liter', cost: 18000 },
+                            { id: 'ing-3', name: 'Telur Ayam Negeri', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'butir', cost: 2000 }
+                          ];
 
-                      const default5Expenses = Array.from({ length: 5 }).map((_, idx) => {
-                        const exp = expenseMasterList[idx % expenseMasterList.length];
-                        return {
-                          id: Date.now() + 100 + idx + Math.random(),
-                          expense_id: exp.id,
-                          name: exp.name,
-                          category: exp.category || 'Biaya Operasional (OPEX)',
-                          amount: 50000
-                        };
-                      });
+                      const masterAccs = ((masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).length > 0)
+                        ? (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts).map(acc => ({ id: `acc-${acc.id}`, name: acc.name || acc.account_name, item_type: 'Biaya Operasional', category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)', unit: 'paket', cost: acc.amount || acc.cost || 50000 }))
+                        : [
+                            { id: 'acc-1', name: 'Biaya Listrik & Air', item_type: 'Biaya Operasional', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)', unit: 'paket', cost: 150000 },
+                            { id: 'acc-2', name: 'Biaya Gas LPG Dapur', item_type: 'Biaya Operasional', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)', unit: 'tabung', cost: 220000 }
+                          ];
+
+                      // TOTAL 3 BARIS DEFAULT INITIALIZATION
+                      const default3ExpenseRows = [
+                        { id: Date.now() + 1, name: masterIngs[0]?.name || 'Beras Pandan Wangi', category: masterIngs[0]?.category || 'HPP Dapur (Bahan Mentah)', item_type: 'Bahan Baku', qty: 1, unit: masterIngs[0]?.unit || 'kg', price_unit: masterIngs[0]?.cost || 14000, amount: masterIngs[0]?.cost || 14000 },
+                        { id: Date.now() + 2, name: masterIngs[1]?.name || 'Minyak Goreng Bimoli', category: masterIngs[1]?.category || 'HPP Dapur (Bahan Mentah)', item_type: 'Bahan Baku', qty: 1, unit: masterIngs[1]?.unit || 'liter', price_unit: masterIngs[1]?.cost || 18000, amount: masterIngs[1]?.cost || 18000 },
+                        { id: Date.now() + 3, name: masterAccs[0]?.name || 'Biaya Listrik & Air', category: masterAccs[0]?.category || 'Biaya Utilitas (Gas LPG, Air & Listrik)', item_type: 'Biaya Operasional', qty: 1, unit: 'paket', price_unit: masterAccs[0]?.cost || 150000, amount: masterAccs[0]?.cost || 150000 }
+                      ];
 
                       setManualRepDate(todayStr);
                       setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setManualRepOutletId(currentOutlet.id || 1);
-                      setManualRepAuthor('Master Super Admin');
+                      setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || 'Master Super Admin');
                       setManualRepNetSales(totalSalesGross || 1940000);
                       setManualRepNonCash(750000);
                       setManualRepDebtPayment(0);
-                      setManualCogsRows(default5Cogs);
-                      setManualExpenseRows(default5Expenses);
+                      setManualCogsRows(default3ExpenseRows.filter(r => r.item_type === 'Bahan Baku'));
+                      setManualExpenseRows(default3ExpenseRows.filter(r => r.item_type !== 'Bahan Baku'));
                       setManualCogsSearch('');
                       setManualExpenseSearch('');
                       setManualRepStatus('pending');
@@ -3930,40 +3983,19 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {(() => {
-                          const defaultManualRecords = [
-                            {
-                              id: 'LAP-20260723-001',
-                              report_no: 'LAP-20260723-001',
-                              date: '2026-07-23',
-                              branch_name: currentOutlet.name || 'Restoran Utama',
-                              author_name: 'Siti Rahma (Kasir)',
-                              net_sales: 1940000,
-                              non_cash_sales: 750000,
-                              total_expense: 150000,
-                              cash_physical: 1040000,
-                              status: 'pending',
-                              notes: 'Laporan harian kasir shift siang'
-                            },
-                            {
-                              id: 'LAP-20260722-002',
-                              report_no: 'LAP-20260722-002',
-                              date: '2026-07-22',
-                              branch_name: currentOutlet.name || 'Restoran Utama',
-                              author_name: 'Budi Kurniawan (Kasir)',
-                              net_sales: 3250000,
-                              non_cash_sales: 1300000,
-                              total_expense: 250000,
-                              cash_physical: 1700000,
-                              status: 'approved',
-                              notes: 'Setoran harian verified oleh manager'
-                            }
-                          ];
-
                           const combinedRecords = (masterData.approvedFinanceDaily && masterData.approvedFinanceDaily.length > 0)
                             ? masterData.approvedFinanceDaily
-                            : ((masterData.manualEntryRecords && masterData.manualEntryRecords.length > 0)
-                                ? masterData.manualEntryRecords
-                                : defaultManualRecords);
+                            : (masterData.manualEntryRecords || []);
+
+                          if (combinedRecords.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan="10" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                  Belum ada log laporan keuangan harian kasir terdaftar.
+                                </td>
+                              </tr>
+                            );
+                          }
 
                           return combinedRecords.map((item, idx) => {
                             const isApproved = item.status === 'approved' || item.status === 'ok';
@@ -4125,57 +4157,53 @@ export default function AndroidPosRegister({
                           <th style={{ padding: '10px 12px' }}>Nama Item</th>
                           <th style={{ padding: '10px 8px', textAlign: 'right' }}>Awal</th>
                           <th style={{ padding: '10px 8px', textAlign: 'right' }}>Masuk</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Keluar (Penjualan)</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#a78bfa' }}>Trf In/Out</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399' }}>Transfer Stok In</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Transfer Stok Out</th>
                           <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Rusak</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Stok Sistem</th>
                           <th style={{ padding: '10px 8px', textAlign: 'right', color: '#38bdf8' }}>Stok Fisik</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Keterangan Audit</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Harga Satuan</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Denda Stok</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399' }}>Jumlah Total</th>
                           <th style={{ padding: '10px 10px', textAlign: 'center' }}>Status</th>
                           <th style={{ padding: '10px 10px', textAlign: 'center' }}>Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(() => {
-                          const defaultOpnameRecords = [
-                            {
-                              id: 'LOG-20260723-001',
-                              report_no: 'LOG-20260723-001',
-                              date: '2026-07-23',
-                              submitted_by: 'Siti Rahma (Kasir)',
-                              outlet_id: currentOutlet.id || 1,
-                              branch_name: currentOutlet.name || 'Restoran Utama',
-                              item_name: 'Daging Ayam Fillet',
-                              unit: 'kg',
-                              stok_awal: 50,
-                              stok_masuk: 20,
-                              stok_keluar: 5,
-                              transfer_keluar: 0,
-                              transfer_masuk: 0,
-                              stok_rusak: 2,
-                              stok_fisik: 63,
-                              status: 'ACC'
-                            }
-                          ];
-
                           const combinedOpname = (masterData.approvedLogistics && masterData.approvedLogistics.length > 0)
                             ? masterData.approvedLogistics
-                            : ((masterData.stockOpname && masterData.stockOpname.length > 0)
-                                ? masterData.stockOpname
-                                : defaultOpnameRecords);
+                            : (masterData.stockOpname || []);
 
                           const filteredOpname = combinedOpname.filter(op => 
                             !op.outlet_id || Number(op.outlet_id) === Number(currentOutlet.id) || op.branch_name === currentOutlet.name
                           );
 
+                          if (filteredOpname.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan="11" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                  Belum ada log laporan stock opname harian terdaftar.
+                                </td>
+                              </tr>
+                            );
+                          }
+
                           return filteredOpname.map((item, idx) => {
                             const isApproved = item.status === 'ACC' || item.status === 'ok' || item.status === 'approved' || item.status === 'Approved';
                             const stokKeluarPenjualan = Number(item.stok_keluar || 0);
-                            const stokSistem = (Number(item.stok_awal || 0) + Number(item.stok_masuk || 0) + Number(item.transfer_masuk || 0)) - 
-                              (stokKeluarPenjualan + Number(item.transfer_keluar || 0) + Number(item.stok_rusak || 0));
+
+                            const rawTransfers = [...(masterData.stockTransfer || []), ...(masterData.approvedTransfers || [])];
+                            const realTransferMasuk = rawTransfers
+                              .filter(t => (t.status === 'ok' || t.status === 'Approved' || t.status === 'approved' || t.status === 'Terkirim' || t.sent_to_apk || t.is_approved) &&
+                                           (Number(t.to_outlet_id || t.toOutletId) === Number(currentOutlet.id) || t.to_outlet_name === currentOutlet.name) &&
+                                           (t.item_name || t.itemName || '').toLowerCase().trim() === (item.item_name || '').toLowerCase().trim())
+                              .reduce((sum, t) => sum + Number(t.qty || 0), 0) || Number(item.transfer_masuk || 0);
+
+                            const realTransferKeluar = rawTransfers
+                              .filter(t => (t.status === 'ok' || t.status === 'Approved' || t.status === 'approved' || t.status === 'Terkirim' || t.sent_to_apk || t.is_approved) &&
+                                           (Number(t.from_outlet_id || t.fromOutletId) === Number(currentOutlet.id) || t.from_outlet_name === currentOutlet.name) &&
+                                           (t.item_name || t.itemName || '').toLowerCase().trim() === (item.item_name || '').toLowerCase().trim())
+                              .reduce((sum, t) => sum + Number(t.qty || 0), 0) || Number(item.transfer_keluar || 0);
+
+                            const stokSistem = (Number(item.stok_awal || 0) + Number(item.stok_masuk || 0) + realTransferMasuk) - 
+                              (stokKeluarPenjualan + realTransferKeluar + Number(item.stok_rusak || 0));
                             const stokFisik = Number(item.stok_fisik || 0);
                             
                             // Keterangan Audit Formula:
@@ -4220,45 +4248,17 @@ export default function AndroidPosRegister({
                                 <td style={{ padding: '10px 12px', fontWeight: '900', color: '#34d399' }}>📦 {item.item_name}</td>
                                 <td style={{ padding: '10px 8px', textAlign: 'right', color: '#cbd5e1' }}>{item.stok_awal || 0} {item.unit}</td>
                                 <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>+{item.stok_masuk || 0} {item.unit}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
-                                  {isApproved ? `-${stokKeluarPenjualan} ${item.unit}` : '(Pending ACC)'}
+                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>
+                                  +{realTransferMasuk} {item.unit}
                                 </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#a78bfa', fontSize: '0.74rem' }}>
-                                  +{item.transfer_masuk || 0} / -{item.transfer_keluar || 0} {item.unit}
+                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
+                                  -{realTransferKeluar} {item.unit}
                                 </td>
                                 <td style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
                                   -{item.stok_rusak || 0} {item.unit}
                                 </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '800', color: '#cbd5e1' }}>
-                                  {stokSistem} {item.unit}
-                                </td>
                                 <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.88rem' }}>
                                   {stokFisik} {item.unit}
-                                </td>
-
-                                {/* KETERANGAN AUDIT */}
-                                <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                                  <span style={{
-                                    padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900',
-                                    color: auditKet.color, background: auditKet.bg, border: `1px solid ${auditKet.border}`
-                                  }}>
-                                    {auditKet.text}
-                                  </span>
-                                </td>
-
-                                {/* HARGA SATUAN */}
-                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>
-                                  {formatRupiah(hargaSatuan)}
-                                </td>
-
-                                {/* DENDA STOK */}
-                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '900', color: dendaStok > 0 ? '#fb7185' : '#64748b' }}>
-                                  {dendaStok > 0 ? formatRupiah(dendaStok) : '-'}
-                                </td>
-
-                                {/* JUMLAH TOTAL */}
-                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '900', color: '#34d399' }}>
-                                  {formatRupiah(jumlahTotalFisik)}
                                 </td>
 
                                 {/* STATUS APPROVAL */}
@@ -4313,14 +4313,8 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients
-                        : [
-                            { id: 1, name: 'Daging Ayam Fillet', unit: 'kg' },
-                            { id: 2, name: 'Beras Pandan Wangi', unit: 'kg' },
-                            { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter' }
-                          ];
-                      const firstIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                      const ingredientsList = masterData.ingredients || [];
+                      const firstIng = ingredientsList[0] || { name: 'Bahan Baku', unit: 'kg' };
 
                       setTransferDate(todayStr);
                       setTransferNo(`TRF-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
@@ -4333,6 +4327,15 @@ export default function AndroidPosRegister({
                       setTransferUnit(firstIng.unit || 'kg');
                       setTransferNotes('Transfer pengiriman bahan baku antarcabang');
                       setTransferStatus('ditunda');
+                      setTransferBatchRows([
+                        {
+                          id: Date.now(),
+                          item_name: firstIng.name,
+                          custom_item_name: '',
+                          qty: 10,
+                          unit: firstIng.unit || 'kg'
+                        }
+                      ]);
                       setShowAddTransferModal(true);
                     }}
                     style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(167,139,250,0.35)' }}
@@ -4350,71 +4353,88 @@ export default function AndroidPosRegister({
                     </div>
                   </div>
 
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
+                  <div style={{ width: '100%', overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155', background: '#0f172a' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem' }}>
-                          <th style={{ padding: '12px 14px' }}>Tanggal</th>
-                          <th style={{ padding: '12px 14px' }}>No Laporan</th>
-                          <th style={{ padding: '12px 14px' }}>Pengaju / Dibuat Oleh</th>
-                          <th style={{ padding: '12px 14px' }}>Outlet Asal</th>
-                          <th style={{ padding: '12px 14px' }}>Outlet Tujuan</th>
-                          <th style={{ padding: '12px 14px' }}>Nama Produk Item</th>
-                          <th style={{ padding: '12px 14px', textAlign: 'right' }}>Jumlah Transfer</th>
-                          <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
-                          <th style={{ padding: '12px 14px', textAlign: 'center' }}>Aksi</th>
+                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.70rem', whiteSpace: 'nowrap' }}>
+                          <th style={{ padding: '10px 8px' }}>Tanggal</th>
+                          <th style={{ padding: '10px 8px' }}>No Laporan</th>
+                          <th style={{ padding: '10px 8px' }}>Pengaju / Dibuat Oleh</th>
+                          <th style={{ padding: '10px 8px' }}>Tipe Input</th>
+                          <th style={{ padding: '10px 8px', color: '#34d399' }}>📥 Transfer In (Outlet Penerima)</th>
+                          <th style={{ padding: '10px 8px', color: '#fb7185' }}>📤 Transfer Out (Outlet Pengirim)</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Satuan</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Status</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(() => {
-                          const defaultTransfers = [
-                            {
-                              id: 'TRF-20260723-001',
-                              report_no: 'TRF-20260723-001',
-                              date: '2026-07-23',
-                              submitted_by: 'Siti Rahma (Kasir)',
-                              from_outlet_name: currentOutlet.name || 'Restoran Utama',
-                              to_outlet_name: 'Cabang Senopati',
-                              item_name: 'Daging Ayam Fillet',
-                              qty: 15,
-                              unit: 'kg',
-                              status: 'ditunda',
-                              notes: 'Transfer stok untuk persiapan weekend'
-                            },
-                            {
-                              id: 'TRF-20260722-002',
-                              report_no: 'TRF-20260722-002',
-                              date: '2026-07-22',
-                              submitted_by: 'Budi Kurniawan (Kasir)',
-                              from_outlet_name: currentOutlet.name || 'Restoran Utama',
-                              to_outlet_name: 'Cabang Kemang',
-                              item_name: 'Beras Pandan Wangi',
-                              qty: 25,
-                              unit: 'kg',
-                              status: 'ok',
-                              notes: 'Transfer beras antar cabang disetujui manager'
-                            }
-                          ];
+                          const list = (() => {
+                            const l1 = masterData.stockTransfer || [];
+                            const l2 = masterData.approvedTransfers || [];
+                            const res = [...l1];
+                            const ids = new Set(res.map(x => String(x.id || x.report_no)));
+                            l2.forEach(x => {
+                              const key = String(x.id || x.report_no);
+                              if (key && !ids.has(key)) res.push(x);
+                            });
+                            return res;
+                          })();
 
-                          const list = (masterData.approvedTransfers && masterData.approvedTransfers.length > 0)
-                            ? masterData.approvedTransfers
-                            : defaultTransfers;
+                          if (list.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={9} style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                                  Belum ada data laporan transfer stok antarcabang. Klik "+ Tambah Transfer Bahan Baku" di atas untuk membuat laporan.
+                                </td>
+                              </tr>
+                            );
+                          }
 
                           return list.map((item, idx) => {
-                            const isApproved = item.status === 'ok' || item.status === 'approved' || item.status === 'Approved';
+                            const isApproved = item.status === 'ok' || item.status === 'approved' || item.status === 'Approved' || item.status === 'ACC' || item.status === 'Terkirim' || item.sent_to_apk || item.is_approved;
+                            const toOutletName = item.to_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(item.to_outlet_id || item.toOutletId))?.name || 'Outlet Tujuan';
+                            const fromOutletName = item.from_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(item.from_outlet_id || item.fromOutletId))?.name || currentOutlet.name;
 
                             return (
                               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '12px 14px', color: '#94a3b8', fontWeight: '700' }}>{item.date}</td>
-                                <td style={{ padding: '12px 14px', fontWeight: '900', color: '#38bdf8' }}>{item.report_no || item.id}</td>
-                                <td style={{ padding: '12px 14px', color: '#ffffff' }}>👤 {item.submitted_by || item.created_by}</td>
-                                <td style={{ padding: '12px 14px', color: '#cbd5e1' }}>🏢 {item.from_outlet_name || currentOutlet.name}</td>
-                                <td style={{ padding: '12px 14px', color: '#a78bfa', fontWeight: '800' }}>➡️ {item.to_outlet_name || 'Cabang Senopati'}</td>
-                                <td style={{ padding: '12px 14px', fontWeight: '900', color: '#34d399' }}>📦 {item.item_name}</td>
-                                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: '900', color: '#a78bfa' }}>{item.qty} {item.unit}</td>
-                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                <td style={{ padding: '8px 8px', color: '#94a3b8', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.date}</td>
+                                <td style={{ padding: '8px 8px', fontWeight: '900', color: '#38bdf8', whiteSpace: 'nowrap' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewTransferReport(item)}
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer', fontWeight: '900', fontSize: '0.78rem' }}
+                                    title="Klik untuk lihat pratinjau laporan"
+                                  >
+                                    📋 {item.report_no || item.id} 👁️
+                                  </button>
+                                </td>
+                                <td style={{ padding: '8px 8px', color: '#ffffff', whiteSpace: 'nowrap' }}>👤 {item.submitted_by || item.created_by}</td>
+                                <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
                                   <span style={{
-                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
+                                    padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
+                                    background: item.type_input === 'manual' ? 'rgba(129, 140, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                    color: item.type_input === 'manual' ? '#818cf8' : '#fbbf24',
+                                    border: '1px solid',
+                                    borderColor: item.type_input === 'manual' ? 'rgba(129, 140, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)',
+                                    textTransform: 'uppercase'
+                                  }}>
+                                    {item.type_input === 'manual' ? 'manual' : 'by approval'}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '8px 8px', color: '#34d399', fontWeight: '800', whiteSpace: 'nowrap' }}>
+                                  🟢 {toOutletName}
+                                </td>
+                                <td style={{ padding: '8px 8px', color: '#fb7185', fontWeight: '800', whiteSpace: 'nowrap' }}>
+                                  🔴 {fromOutletName}
+                                </td>
+                                <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '900', color: '#c084fc', whiteSpace: 'nowrap' }}>
+                                  🏷️ {item.unit}
+                                </td>
+                                <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  <span style={{
+                                    padding: '3px 8px', borderRadius: '10px', fontSize: '0.68rem', fontWeight: '900',
                                     background: isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
                                     color: isApproved ? '#34d399' : '#fbbf24',
                                     border: `1px solid ${isApproved ? '#34d399' : '#fbbf24'}`
@@ -4422,13 +4442,65 @@ export default function AndroidPosRegister({
                                     {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
                                   </span>
                                 </td>
-                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                                <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                   <button
                                     type="button"
-                                    onClick={() => setPreviewTransferReport(item)}
-                                    style={{ padding: '5px 10px', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                                    onClick={() => {
+                                      const itemCreatedAt = item.created_at || item.createdAt || item.timestamp;
+                                      let diffH = 0;
+                                      if (itemCreatedAt) {
+                                        diffH = (Date.now() - new Date(itemCreatedAt).getTime()) / (1000 * 60 * 60);
+                                      } else if (item.date) {
+                                        diffH = (Date.now() - new Date(item.date).getTime()) / (1000 * 60 * 60);
+                                      }
+
+                                      if (diffH > 12) {
+                                        alert(`⚠️ Akses Edit Kadaluarsa!\nLaporan transfer (${item.report_no || item.id}) ini diinput lebih dari 12 jam yang lalu (${diffH.toFixed(1)} jam yang lalu). Tombol Edit hanya dapat diakses maksimal 12 jam dari waktu input data.`);
+                                        return;
+                                      }
+
+                                      setEditingTransferId(item.id || item.report_no);
+                                      setTransferNo(item.report_no || item.id);
+                                      setTransferDate(item.date || new Date().toISOString().split('T')[0]);
+                                      setTransferSubmittedBy(item.submitted_by || item.created_by || 'Master Super Admin');
+                                      setTransferFromOutletId(item.from_outlet_id || item.fromOutletId || 1);
+                                      setTransferToOutletId(item.to_outlet_id || item.toOutletId || 2);
+                                      setTransferNotes(item.notes || '');
+
+                                      const matchingBatch = (masterData.stockTransfer || []).filter(x => (x.report_no && x.report_no === item.report_no) || x.id === item.id);
+                                      if (matchingBatch.length > 0) {
+                                        setTransferBatchRows(matchingBatch.map((b, i) => ({
+                                          id: b.id || (Date.now() + i),
+                                          item_name: b.item_name,
+                                          custom_item_name: '',
+                                          qty: b.qty,
+                                          unit: b.unit
+                                        })));
+                                      } else {
+                                        setTransferBatchRows([{
+                                          id: item.id || Date.now(),
+                                          item_name: item.item_name,
+                                          custom_item_name: '',
+                                          qty: item.qty,
+                                          unit: item.unit
+                                        }]);
+                                      }
+
+                                      setShowAddTransferModal(true);
+                                    }}
+                                    style={{
+                                      padding: '4px 10px',
+                                      background: 'rgba(56, 189, 248, 0.15)',
+                                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                                      color: '#38bdf8',
+                                      borderRadius: '6px',
+                                      fontSize: '0.74rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Edit Laporan (Maksimal 12 jam dari waktu input)"
                                   >
-                                    👁️ Preview
+                                    ✏️ Edit
                                   </button>
                                 </td>
                               </tr>
@@ -4460,26 +4532,21 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients
-                        : [
-                            { id: 1, name: 'Daging Ayam Fillet', unit: 'kg' },
-                            { id: 2, name: 'Beras Pandan Wangi', unit: 'kg' },
-                            { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter' }
-                          ];
-                      const firstIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                      const currentUser = currentUserSession?.name || currentUserSession?.username || currentOutlet?.name || 'Kasir';
 
+                      setEditingWasteId(null);
                       setWasteDate(todayStr);
                       setWasteNo(`WST-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setWasteOutletId(currentOutlet.id || 1);
-                      setWasteSubmittedBy('Master Super Admin');
-                      setWasteItemName(firstIng.name);
+                      setWasteSubmittedBy(currentUser);
+                      setWasteItemName('');
                       setWasteCustomItemName('');
-                      setWasteQty(2);
-                      setWasteUnit(firstIng.unit || 'kg');
-                      setWasteReason('Terlalu kecil');
-                      setWasteNotes('Daging ayam bagian dada terpotong terlalu kecil');
-                      setWasteStatus('ditunda');
+                      setWasteQty('');
+                      setWasteUnit('kg');
+                      setWasteReason('');
+                      setWasteNotes('');
+                      setWasteEditingNotes('');
+                      setWasteBatchRows([{ id: Date.now(), item_name: '', custom_item_name: '', qty: '', unit: 'kg', reason: '', notes: '' }]);
                       setShowAddWasteModal(true);
                     }}
                     style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(251,113,133,0.35)' }}
@@ -4498,84 +4565,253 @@ export default function AndroidPosRegister({
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem', minWidth: '720px' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem' }}>
-                          <th style={{ padding: '12px 14px' }}>Tanggal</th>
-                          <th style={{ padding: '12px 14px' }}>No Laporan</th>
-                          <th style={{ padding: '12px 14px' }}>Diisi Oleh</th>
-                          <th style={{ padding: '12px 14px' }}>Outlet Cabang</th>
-                          <th style={{ padding: '12px 14px' }}>Nama Produk Item</th>
-                          <th style={{ padding: '12px 14px', textAlign: 'right' }}>Jumlah Rusak</th>
-                          <th style={{ padding: '12px 14px' }}>Alasan Rusak</th>
-                          <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
-                          <th style={{ padding: '12px 14px', textAlign: 'center' }}>Aksi</th>
+                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.05em' }}>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📅 Tanggal</th>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📋 No Laporan</th>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>👤 Pengaju / Dibuat Oleh</th>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>🏢 Nama Outlet</th>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>🌾 Nama Bahan Baku</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>⚖️ Jumlah Rusak</th>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📝 Alasan Rusak</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>🔖 Tipe Input</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>🔖 Status</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>⚙️ Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(() => {
-                          const defaultWaste = [
-                            {
-                              id: 'WST-20260723-001',
-                              report_no: 'WST-20260723-001',
-                              date: '2026-07-23',
-                              submitted_by: 'Siti Rahma (Kasir)',
-                              branch_name: currentOutlet.name || 'Restoran Utama',
-                              item_name: 'Daging Ayam Fillet',
-                              qty: 2,
-                              unit: 'kg',
-                              damage_reason: 'Terlalu kecil',
-                              notes: 'Potongan ayam terlalu kecil',
-                              status: 'ditunda'
-                            },
-                            {
-                              id: 'WST-20260722-002',
-                              report_no: 'WST-20260722-002',
-                              date: '2026-07-22',
-                              submitted_by: 'Budi Kurniawan (Kasir)',
-                              branch_name: currentOutlet.name || 'Restoran Utama',
-                              item_name: 'Minyak Goreng Bimoli',
-                              qty: 1,
-                              unit: 'liter',
-                              damage_reason: 'Tidak utuh',
-                              notes: 'Bungkus minyak goreng bocor di gudang',
-                              status: 'ok'
-                            }
-                          ];
+                          const l1 = masterData.damagedGoods || [];
+                          const l2 = masterData.approvedWaste || [];
+                          const l3 = (masterData.stockMovement || []).filter(m => m.type === 'WASTE');
 
-                          const list = (masterData.approvedWaste && masterData.approvedWaste.length > 0)
-                            ? masterData.approvedWaste
-                            : defaultWaste;
+                          const combinedMap = new Map();
+                          [...l1, ...l2, ...l3].forEach(item => {
+                            const key = String(item.report_no || item.id);
+                            if (key) {
+                              if (!combinedMap.has(key)) {
+                                combinedMap.set(key, item);
+                              } else {
+                                const incomingApproved = item.status === 'ok' || item.status === 'approved' || item.status === 'Approved' || item.status === 'ACC' || item.status === 'Terkirim' || item.sent_to_apk || item.is_approved;
+                                if (incomingApproved) {
+                                  combinedMap.set(key, item);
+                                }
+                              }
+                            }
+                          });
+
+                          const seenReports = new Set();
+                          const list = Array.from(combinedMap.values())
+                            .filter(item => {
+                              const rNo = item.report_no || item.id;
+                              if (seenReports.has(rNo)) return false;
+                              seenReports.add(rNo);
+                              return true;
+                            })
+                            .sort((a, b) => {
+                              const tA = new Date(a.tanggal_waktu || a.created_at || a.date || 0).getTime();
+                              const tB = new Date(b.tanggal_waktu || b.created_at || b.date || 0).getTime();
+                              return tB - tA;
+                            });
+
+                          if (list.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={10} style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                                  Belum ada data laporan barang rusak. Klik "+ Tambah Barang Rusak" di atas untuk membuat laporan.
+                                </td>
+                              </tr>
+                            );
+                          }
 
                           return list.map((item, idx) => {
-                            const isApproved = item.status === 'ok' || item.status === 'approved' || item.status === 'Approved';
+                            const isApproved = item.status === 'ok' || item.status === 'approved' || item.status === 'Approved' || item.status === 'ACC' || item.status === 'Terkirim' || item.sent_to_apk || item.is_approved;
+                            const isWebAdminInput = item.sumber_input === 'web_admin' || item.status_keterangan === 'by manual' || item.type_input === 'manual';
+
+                            const displayDate = item.tanggal_waktu
+                              ? new Date(item.tanggal_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : (item.date || '-');
+                            const displayTime = item.tanggal_waktu
+                              ? new Date(item.tanggal_waktu).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                              : '';
+
+                            const rawItems = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])].filter(x => (x.report_no && x.report_no === (item.report_no || item.id)) || x.id === item.id);
+                            const uniqueItemsMap = new Map();
+                            rawItems.forEach(x => {
+                              const itemKey = x.id || `${x.item_name || x.nama_barang}-${x.qty || x.stok_rusak}-${x.unit}`;
+                              if (!uniqueItemsMap.has(itemKey)) {
+                                uniqueItemsMap.set(itemKey, x);
+                              }
+                            });
+                            const reportItems = Array.from(uniqueItemsMap.values());
+                            const itemCount = reportItems.length || 1;
+
+                            const displayItemName = reportItems.length > 0
+                              ? reportItems.map(r => r.item_name || r.nama_barang || 'Bahan Baku').join(', ')
+                              : (item.item_name || item.nama_barang || 'Bahan Baku');
+                            const displayQty = reportItems.length > 0
+                              ? reportItems.map(r => `${r.qty || r.stok_rusak || 1} ${r.unit || 'kg'}`).join(', ')
+                              : `${item.qty || item.stok_rusak || 1} ${item.unit || 'kg'}`;
+                            const displayReason = reportItems.length > 0
+                              ? reportItems.map(r => r.alasan_rusak || r.reason || r.damage_reason || 'Terlalu kecil').filter((v, i, a) => a.indexOf(v) === i).join(', ')
+                              : (item.alasan_rusak || item.reason || item.damage_reason || '-');
+
+                            const itemCreatedAt = item.tanggal_waktu || item.created_at || item.createdAt || item.timestamp || item.date;
+                            let diffHours = 0;
+                            if (itemCreatedAt) {
+                              diffHours = (Date.now() - new Date(itemCreatedAt).getTime()) / (1000 * 60 * 60);
+                            }
+                            const canEdit = diffHours <= 12;
 
                             return (
-                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '12px 14px', color: '#94a3b8', fontWeight: '700' }}>{item.date}</td>
-                                <td style={{ padding: '12px 14px', fontWeight: '900', color: '#38bdf8' }}>{item.report_no || item.id}</td>
-                                <td style={{ padding: '12px 14px', color: '#ffffff' }}>👤 {item.submitted_by || item.created_by}</td>
-                                <td style={{ padding: '12px 14px', color: '#cbd5e1' }}>🏢 {item.branch_name || currentOutlet.name}</td>
-                                <td style={{ padding: '12px 14px', fontWeight: '900', color: '#34d399' }}>📦 {item.item_name}</td>
-                                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{item.qty || item.stok_rusak} {item.unit}</td>
-                                <td style={{ padding: '12px 14px', color: '#fb7185', fontWeight: '700' }}>⚠️ {item.damage_reason || item.reason || 'Lainnya'}</td>
-                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                              <tr
+                                key={idx}
+                                style={{
+                                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                  color: '#f8fafc',
+                                  background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)',
+                                  transition: 'background 0.15s'
+                                }}
+                              >
+                                {/* Tanggal & Waktu */}
+                                <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                                    <span style={{ color: '#f8fafc', fontWeight: '700', fontSize: '0.8rem' }}>{displayDate}</span>
+                                    {displayTime && <span style={{ color: '#64748b', fontSize: '0.68rem' }}>{displayTime} WIB</span>}
+                                  </div>
+                                </td>
+
+                                {/* No Laporan */}
+                                <td style={{ padding: '10px 12px', fontWeight: '900', whiteSpace: 'nowrap' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPreviewWasteReport(item);
+                                      }}
+                                      style={{ background: 'rgba(251, 113, 133, 0.12)', border: '1px solid rgba(251, 113, 133, 0.3)', padding: '4px 10px', borderRadius: '6px', color: '#fb7185', cursor: 'pointer', fontWeight: '900', fontSize: '0.78rem', textAlign: 'left', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                      title="Klik untuk lihat pratinjau detail laporan barang rusak"
+                                    >
+                                      📋 {item.report_no || item.id} 👁️
+                                    </button>
+                                    <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '600' }}>{itemCount} item bahan baku</span>
+                                  </div>
+                                </td>
+
+                                {/* Pengaju / Dibuat Oleh */}
+                                <td style={{ padding: '10px 12px', color: '#ffffff', whiteSpace: 'nowrap', fontWeight: '700', fontSize: '0.8rem' }}>
+                                  👤 {item.input_by || item.submitted_by || item.created_by || 'Kasir'}
+                                </td>
+
+                                {/* Nama Outlet */}
+                                <td style={{ padding: '10px 12px', color: '#94a3b8', whiteSpace: 'nowrap', fontSize: '0.78rem', fontWeight: '700' }}>
+                                  🏢 {(masterData.outlets || []).find(o => String(o.id) === String(item.outlet_id) || Number(o.id) === Number(item.outlet_id))?.name || item.branch_name || currentOutlet?.name || 'Outlet Cabang'}
+                                </td>
+
+                                {/* Nama Bahan Baku */}
+                                <td style={{ padding: '10px 12px', color: '#38bdf8', whiteSpace: 'nowrap', fontSize: '0.8rem', fontWeight: '800' }}>
+                                  {displayItemName}
+                                </td>
+
+                                {/* Jumlah Rusak */}
+                                <td style={{ padding: '10px 12px', color: '#fb7185', whiteSpace: 'nowrap', fontSize: '0.8rem', fontWeight: '900', textAlign: 'right' }}>
+                                  {displayQty}
+                                </td>
+
+                                {/* Alasan Rusak */}
+                                <td style={{ padding: '10px 12px', color: '#fbbf24', whiteSpace: 'nowrap', fontSize: '0.78rem', fontWeight: '700' }}>
+                                  {displayReason}
+                                </td>
+
+                                {/* Tipe Input */}
+                                <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                   <span style={{
-                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
-                                    background: isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
-                                    color: isApproved ? '#34d399' : '#fbbf24',
-                                    border: `1px solid ${isApproved ? '#34d399' : '#fbbf24'}`
+                                    padding: '2px 8px', borderRadius: '4px', fontSize: '0.64rem', fontWeight: '900',
+                                    background: isWebAdminInput ? 'rgba(129, 140, 248, 0.2)' : 'rgba(52, 211, 153, 0.2)',
+                                    color: isWebAdminInput ? '#818cf8' : '#34d399',
+                                    border: `1px solid ${isWebAdminInput ? 'rgba(129,140,248,0.4)' : 'rgba(52,211,153,0.4)'}`
                                   }}>
-                                    {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
+                                    {isWebAdminInput ? 'By manual' : 'By approved'}
                                   </span>
                                 </td>
-                                <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+
+                                {/* Status Approval */}
+                                <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                  <span style={{
+                                    padding: '4px 10px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: '900', display: 'inline-block',
+                                    background: isApproved ? 'rgba(52, 211, 153, 0.15)' : 'rgba(251, 191, 36, 0.15)',
+                                    color: isApproved ? '#34d399' : '#fbbf24',
+                                    border: `1px solid ${isApproved ? 'rgba(52,211,153,0.4)' : 'rgba(251,191,36,0.4)'}`
+                                  }}>
+                                    {isApproved ? '✅ APPROVED' : '⏳ PENDING'}
+                                  </span>
+                                </td>
+
+                                {/* Aksi Edit (Maks 12 Jam) */}
+                                <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                   <button
                                     type="button"
-                                    onClick={() => setPreviewWasteReport(item)}
-                                    style={{ padding: '5px 10px', background: 'rgba(251,113,133,0.15)', border: '1px solid rgba(251,113,133,0.3)', color: '#fb7185', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                                    onClick={() => {
+                                      if (!canEdit) {
+                                        alert(`⚠️ Akses Edit Kadaluarsa!\nLaporan (${item.report_no || item.id}) dibuat ${diffHours.toFixed(1)} jam lalu.\nEdit hanya dapat dilakukan maksimal 12 jam dari waktu input.`);
+                                        return;
+                                      }
+
+                                      setEditingWasteId(item.id || item.report_no);
+                                      setWasteNo(item.report_no || item.id);
+                                      setWasteDate(item.date || new Date().toISOString().split('T')[0]);
+                                      setWasteSubmittedBy(item.submitted_by || item.created_by || item.input_by || 'Kasir');
+                                      setWasteOutletId(item.outlet_id || currentOutlet.id || 1);
+                                      setWasteNotes(item.notes || '');
+                                      setWasteEditingNotes(item.editing_notes || '');
+
+                                      const allWaste = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])];
+                                      const matchingBatch = allWaste.filter(x =>
+                                        item.report_no ? (x.report_no === item.report_no) : (x.id === item.id)
+                                      );
+                                      if (matchingBatch.length > 0) {
+                                        setWasteBatchRows(matchingBatch.map((b, i) => ({
+                                          id: b.id || (Date.now() + i),
+                                          item_name: b.item_name || b.nama_barang || b.itemName || '',
+                                          custom_item_name: '',
+                                          qty: b.qty || b.stok_rusak || b.jumlah_rusak || 1,
+                                          unit: b.unit || 'kg',
+                                          reason: b.alasan_rusak || b.damage_reason || b.reason || 'Terlalu kecil',
+                                          notes: b.notes || ''
+                                        })));
+                                      } else {
+                                        setWasteBatchRows([{
+                                          id: item.id || Date.now(),
+                                          item_name: item.item_name || item.nama_barang || '',
+                                          custom_item_name: '',
+                                          qty: item.qty || item.stok_rusak || item.jumlah_rusak || 1,
+                                          unit: item.unit || 'kg',
+                                          reason: item.alasan_rusak || item.damage_reason || item.reason || 'Terlalu kecil',
+                                          notes: item.notes || ''
+                                        }]);
+                                      }
+
+                                      setShowAddWasteModal(true);
+                                    }}
+                                    style={{
+                                      padding: '5px 12px',
+                                      background: canEdit ? 'rgba(251,113,133,0.15)' : 'rgba(100,116,139,0.2)',
+                                      border: `1px solid ${canEdit ? 'rgba(251,113,133,0.4)' : 'rgba(100,116,139,0.4)'}`,
+                                      color: canEdit ? '#fb7185' : '#64748b',
+                                      borderRadius: '6px',
+                                      fontSize: '0.74rem',
+                                      fontWeight: '800',
+                                      cursor: canEdit ? 'pointer' : 'not-allowed',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      opacity: canEdit ? 1 : 0.6
+                                    }}
+                                    title={canEdit ? 'Edit Laporan Barang Rusak (Maksimal 12 Jam)' : 'Akses edit kadaluarsa (> 12 jam)'}
                                   >
-                                    👁️ Preview
+                                    ✏️ {canEdit ? 'Edit' : 'Kadaluarsa'}
                                   </button>
                                 </td>
                               </tr>
@@ -4588,6 +4824,10 @@ export default function AndroidPosRegister({
                 </div>
               </div>
             )}
+
+
+
+
 
             {/* DETAILED SUB-VIEW 6: LAPORAN STOK OPNAME */}
             {activeLaporanSubView === 'stok_opname_summary' && (
@@ -4803,12 +5043,12 @@ export default function AndroidPosRegister({
                           <th style={{ padding: '12px 10px' }}>Tanggal Audit</th>
                           <th style={{ padding: '12px 10px' }}>No Laporan</th>
                           <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>
-                          <th style={{ padding: '12px 10px' }}>Outlet</th>
                           <th style={{ padding: '12px 10px' }}>Nama Stok Item</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Awal</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Masuk (+)</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', background: 'rgba(251, 113, 133, 0.1)' }}>🔴 Stok Keluar (Web Admin)</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right' }}>Trans In/Out</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399' }}>Transfer Stok In</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>Transfer Stok Out</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Rusak (-)</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>🔢 Stok Sistem</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>⚖️ Stok Fisik</th>
@@ -4906,7 +5146,6 @@ export default function AndroidPosRegister({
                                     </span>
                                   </div>
                                 </td>
-                                <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>🏢 {op.branch_name || currentOutlet.name}</td>
                                 <td style={{ padding: '12px 10px', fontWeight: '900', color: '#34d399' }}>📦 {op.item_name}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: '#94a3b8' }}>{op.stok_awal || 0} {op.unit || 'kg'}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8', fontWeight: '700' }}>+{op.stok_masuk || 0}</td>
@@ -4916,8 +5155,11 @@ export default function AndroidPosRegister({
                                   -{op.stok_keluar || 0} {op.unit || 'kg'}
                                 </td>
 
-                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#a78bfa' }}>
-                                  +{op.transfer_masuk || 0} / -{op.transfer_keluar || 0}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>
+                                  +{op.transfer_masuk || 0} {op.unit || 'kg'}
+                                </td>
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
+                                  -{op.transfer_keluar || 0} {op.unit || 'kg'}
                                 </td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>-{op.stok_rusak || 0}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#cbd5e1' }}>{sSistem}</td>
@@ -7990,21 +8232,34 @@ export default function AndroidPosRegister({
               </button>
             </div>
 
-            <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '10px', border: '1px solid #334155', marginBottom: '16px' }}>
-              <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Pelanggan Terpilih:</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#fbbf24', margin: '2px 0' }}>👤 {selectedCustomer || 'Pelanggan Umum'}</div>
-              <div style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800' }}>Tersedia: 350 Poin (Nilai: Rp 35.000)</div>
-            </div>
+            {(() => {
+              const matchedCust = (masterData?.customers || []).find(c => c.name?.toLowerCase() === (selectedCustomer || '').toLowerCase());
+              const availablePoints = matchedCust ? (matchedCust.points || 0) : 350;
+              const valueRupiah = availablePoints * 1000;
+
+              return (
+                <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '10px', border: '1px solid #334155', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Pelanggan Terpilih:</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#fbbf24', margin: '2px 0' }}>👤 {selectedCustomer || 'Pelanggan Umum'}</div>
+                  <div style={{ fontSize: '0.80rem', color: '#34d399', fontWeight: '800', marginTop: '4px' }}>
+                    Tersedia: {availablePoints} Poin (Nilai Pembayaran: {formatRupiah(valueRupiah)})
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
-                Jumlah Poin Ditukarkan (1 Poin = Rp 100)
+              <label style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>
+                Jumlah Poin Ditukarkan (1 Poin = Rp 1.000 / Setiap Rp 1.000 Menu = 1 Poin)
               </label>
+              <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '8px' }}>
+                Dapat digunakan sebagai pembayaran lunas atau potongan harga pesanan menu.
+              </span>
               <input
                 type="number"
                 value={pointsToRedeem}
                 onChange={e => setPointsToRedeem(e.target.value)}
-                placeholder="Contoh: 100"
+                placeholder="Contoh: 10, 50, 100 Poin..."
                 style={{
                   width: '100%', padding: '12px 14px', borderRadius: '10px',
                   border: '1px solid #334155', background: '#0f172a', color: '#ffffff',
@@ -8012,8 +8267,8 @@ export default function AndroidPosRegister({
                 }}
               />
               {pointsToRedeem && (
-                <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}>
-                  💡 Potongan harga diskon: - {formatRupiah(Number(pointsToRedeem || 0) * 100)}
+                <div style={{ marginTop: '8px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800', background: 'rgba(251, 191, 36, 0.12)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
+                  💡 Nilai Pembayaran / Diskon Poin: <strong>{formatRupiah(Number(pointsToRedeem || 0) * 1000)}</strong> ({Number(pointsToRedeem || 0)} Poin)
                 </div>
               )}
             </div>
@@ -8031,10 +8286,10 @@ export default function AndroidPosRegister({
                     alert('Mohon masukkan jumlah poin yang ingin ditukarkan.');
                     return;
                   }
-                  const discRp = Number(pointsToRedeem) * 100;
+                  const discRp = Number(pointsToRedeem) * 1000;
                   setDiscountValue(discRp.toString());
                   setDiscountMode('nominal');
-                  alert(`Berhasil menukarkan ${pointsToRedeem} poin menjadi Diskon ${formatRupiah(discRp)}!`);
+                  alert(`Berhasil menukarkan ${pointsToRedeem} poin menjadi Pembayaran / Diskon ${formatRupiah(discRp)}!`);
                   setShowTukarPoinModal(false);
                 }}
                 style={{ flex: 1, padding: '12px', background: '#fbbf24', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
@@ -8427,6 +8682,7 @@ export default function AndroidPosRegister({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                 {[
                   { id: 'Cash', label: 'Cash' },
+                  { id: 'Pembayaran Poin', label: '⭐ Pembayaran Poin' },
                   { id: 'Transfer Bank', label: 'Transfer Bank' },
                   { id: 'Grab-Food', label: 'Grab-Food' },
                   { id: 'QRIS LINK AJA', label: 'QRIS LINK AJA' },
@@ -8465,6 +8721,33 @@ export default function AndroidPosRegister({
                   );
                 })}
               </div>
+
+              {/* PEMBAYARAN POIN INFO PANEL */}
+              {selectedPaymentMethod === 'Pembayaran Poin' && (() => {
+                const matchedCust = (masterData?.customers || []).find(c => c.name?.toLowerCase() === (selectedCustomer || '').toLowerCase());
+                const custPoints = matchedCust ? (matchedCust.points || 0) : 350;
+                const requiredPoints = Math.ceil(cartTotal / 1000);
+                const isPointsSufficient = custPoints >= requiredPoints;
+
+                return (
+                  <div style={{ background: '#0f172a', padding: '14px 16px', borderRadius: '14px', border: '1px solid #a855f7', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '900', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>⭐ Pembayaran Menggunakan Poin Loyalty</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                      • Perolehan Poin: <strong style={{ color: '#34d399' }}>Setiap Belanja Rp 100.000 = 1 Poin (Kelipatan)</strong><br/>
+                      • Kurs Pembayaran Poin: <strong style={{ color: '#fbbf24' }}>1 Poin = Rp 1.000 (Setiap Rp 1.000 Menu = 1 Poin)</strong><br/>
+                      • Dibutuhkan untuk Total {formatRupiah(cartTotal)}: <strong style={{ color: '#38bdf8' }}>{requiredPoints} Poin</strong><br/>
+                      • Saldo Poin {selectedCustomer || 'Pelanggan'}: <strong style={{ color: isPointsSufficient ? '#34d399' : '#ef4444' }}>{custPoints} Poin</strong>
+                    </div>
+                    {!isPointsSufficient && (
+                      <div style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: '700', background: 'rgba(239,68,68,0.15)', padding: '6px 10px', borderRadius: '6px' }}>
+                        ⚠️ Saldo poin belum cukup untuk bayar lunas ({requiredPoints} Poin). Anda dapat menggunakan tombol Tukar Poin sebagai diskon parsial.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* CASH TENDERED QUICK PRESET BAR (IF CASH IS SELECTED) */}
               {selectedPaymentMethod === 'Cash' && (
@@ -8994,6 +9277,16 @@ export default function AndroidPosRegister({
                     { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
                   ];
 
+              const masterIngs = (masterData.ingredients && masterData.ingredients.length > 0)
+                ? masterData.ingredients.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || ing.price || 15000 }))
+                : ingredientsList.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || 15000 }));
+
+              const masterAccs = ((masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).length > 0)
+                ? (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts).map(acc => ({ id: `acc-${acc.id}`, name: acc.name || acc.account_name, item_type: 'Biaya Operasional', category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)', unit: 'paket', cost: acc.amount || acc.cost || 50000 }))
+                : expenseMasterList.map(exp => ({ id: `acc-${exp.id}`, name: exp.name, item_type: 'Biaya Operasional', category: exp.category || 'Biaya Operasional (OPEX)', unit: 'paket', cost: 50000 }));
+
+              const allMasterSuggestions = [...masterIngs, ...masterAccs];
+
               const suppliersList = (masterData.suppliers && masterData.suppliers.length > 0)
                 ? masterData.suppliers
                 : [
@@ -9097,19 +9390,23 @@ export default function AndroidPosRegister({
                     </div>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>🏢 Nama Outlet *</label>
-                      <select value={manualRepOutletId} onChange={e => setManualRepOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '40px' }}>
-                        {(masterData.outlets || [currentOutlet]).map(o => (
-                          <option key={o.id} value={o.id}>{o.name}</option>
-                        ))}
-                      </select>
+                      <input
+                        type="text"
+                        readOnly
+                        value={currentOutlet?.name || (masterData.outlets || []).find(o => o.id === manualRepOutletId)?.name || 'Restoran Utama'}
+                        className="form-input"
+                        style={{ width: '100%', height: '40px', background: '#0f172a', color: '#38bdf8', fontWeight: '800', border: '1px solid #334155', cursor: 'not-allowed' }}
+                      />
                     </div>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>👤 Dibuat Oleh *</label>
-                      <select value={manualRepAuthor} onChange={e => setManualRepAuthor(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }}>
-                        {adminList.map(a => (
-                          <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
-                        ))}
-                      </select>
+                      <input
+                        type="text"
+                        readOnly
+                        value={manualRepAuthor || masterData?.currentUser?.name || masterData?.user?.name || 'Master Super Admin'}
+                        className="form-input"
+                        style={{ width: '100%', height: '40px', background: '#0f172a', color: '#34d399', fontWeight: '800', border: '1px solid #334155', cursor: 'not-allowed' }}
+                      />
                     </div>
                   </div>
 
@@ -9148,174 +9445,210 @@ export default function AndroidPosRegister({
                           <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155', textAlign: 'left', textTransform: 'uppercase', fontSize: '0.74rem' }}>
                             <th style={{ padding: '8px 6px', width: '35px', textAlign: 'center' }}>#</th>
                             <th style={{ padding: '8px 6px' }}>Bahan Baku / Biaya</th>
-                            <th style={{ padding: '8px 6px', width: '150px' }}>Jenis Pengeluaran</th>
-                            <th style={{ padding: '8px 6px', width: '160px' }}>Supplier</th>
-                            <th style={{ padding: '8px 6px', width: '70px', textAlign: 'center' }}>Jumlah</th>
+                            <th style={{ padding: '8px 6px', width: '220px' }}>Jenis Pengeluaran (Otomatis)</th>
+                            <th style={{ padding: '8px 6px', width: '75px', textAlign: 'center' }}>Jumlah</th>
                             <th style={{ padding: '8px 6px', textAlign: 'right', width: '120px' }}>Harga Satuan</th>
                             <th style={{ padding: '8px 6px', textAlign: 'right', width: '130px' }}>Total Harga</th>
                             <th style={{ padding: '8px 6px', textAlign: 'center', width: '40px' }}>Aksi</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {manualCogsRows.map((r, idx) => (
-                            <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                              <td style={{ padding: '6px', textAlign: 'center', color: '#94a3b8', fontWeight: '700' }}>{idx + 1}</td>
-                              
-                              {/* Bahan Baku Dropdown */}
-                              <td style={{ padding: '6px' }}>
-                                <select
-                                  value={r.name}
-                                  onChange={e => {
-                                    const selectedIng = ingredientsList.find(ing => ing.name === e.target.value) || { name: e.target.value, unit: 'kg', cost: 10000 };
-                                    setManualCogsRows(prev => prev.map(row => row.id === r.id ? { ...row, name: selectedIng.name, unit: selectedIng.unit || 'kg', price_unit: selectedIng.cost || row.price_unit, amount: row.qty * (selectedIng.cost || row.price_unit) } : row));
-                                  }}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', fontSize: '0.80rem', fontWeight: '700', color: '#fb7185' }}
-                                >
-                                  {ingredientsList.map(ing => (
-                                    <option key={ing.id} value={ing.name}>{ing.name}</option>
-                                  ))}
-                                </select>
-                              </td>
+                          {/* 1. ROW COGS BAHAN BAKU */}
+                          {manualCogsRows.map((r, idx) => {
+                            const currentMatch = allMasterSuggestions.find(m => m.name.toLowerCase() === (r.name || '').toLowerCase());
+                            return (
+                              <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '6px', textAlign: 'center', color: '#94a3b8', fontWeight: '700' }}>{idx + 1}</td>
+                                
+                                {/* Input Autocomplete Sugesti Bahan Baku / Biaya */}
+                                <td style={{ padding: '6px' }}>
+                                  <input
+                                    type="text"
+                                    list={`suggest-list-${r.id}`}
+                                    value={r.name}
+                                    onChange={e => {
+                                      const typed = e.target.value;
+                                      const matchedItem = allMasterSuggestions.find(m => m.name.toLowerCase() === typed.toLowerCase());
+                                      setManualCogsRows(prev => prev.map(row => {
+                                        if (row.id === r.id) {
+                                          if (matchedItem) {
+                                            return {
+                                              ...row,
+                                              name: matchedItem.name,
+                                              category: matchedItem.category,
+                                              item_type: matchedItem.item_type,
+                                              unit: matchedItem.unit || row.unit,
+                                              price_unit: matchedItem.cost || row.price_unit,
+                                              amount: (row.qty || 1) * (matchedItem.cost || row.price_unit)
+                                            };
+                                          }
+                                          return { ...row, name: typed };
+                                        }
+                                        return row;
+                                      }));
+                                    }}
+                                    placeholder="Ketik/Pilih Bahan Baku..."
+                                    className="form-input"
+                                    style={{ width: '100%', height: '34px', fontSize: '0.80rem', fontWeight: '800', color: '#fb7185' }}
+                                  />
+                                  <datalist id={`suggest-list-${r.id}`}>
+                                    {allMasterSuggestions.map((m, mIdx) => (
+                                      <option key={mIdx} value={m.name}>
+                                        {m.item_type === 'Bahan Baku' ? '🌾' : '📊'} {m.name} ({m.category})
+                                      </option>
+                                    ))}
+                                  </datalist>
+                                </td>
 
-                              {/* Jenis Pengeluaran Auto-Generated */}
-                              <td style={{ padding: '6px' }}>
-                                <span style={{ padding: '3px 6px', borderRadius: '4px', fontSize: '0.70rem', fontWeight: '800', background: 'rgba(251, 113, 133, 0.15)', color: '#fb7185', border: '1px solid #fb7185' }}>
-                                  HPP Dapur (Bahan Mentah)
-                                </span>
-                              </td>
+                                {/* Jenis Pengeluaran OTOMATIS */}
+                                <td style={{ padding: '6px' }}>
+                                  <span style={{
+                                    padding: '4px 8px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: '800',
+                                    background: 'rgba(251, 113, 133, 0.15)', color: '#fb7185', border: '1px solid #fb7185',
+                                    display: 'inline-block'
+                                  }}>
+                                    {r.category || currentMatch?.category || 'HPP Dapur (Bahan Mentah)'}
+                                  </span>
+                                </td>
 
-                              {/* Supplier Dropdown */}
-                              <td style={{ padding: '6px' }}>
-                                <select
-                                  value={r.supplier || suppliersList[0]?.name}
-                                  onChange={e => {
-                                    const supVal = e.target.value;
-                                    setManualCogsRows(prev => prev.map(row => row.id === r.id ? { ...row, supplier: supVal } : row));
-                                  }}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', fontSize: '0.76rem' }}
-                                >
-                                  {suppliersList.map(s => (
-                                    <option key={s.id} value={s.name}>{s.name}</option>
-                                  ))}
-                                </select>
-                              </td>
+                                {/* Qty */}
+                                <td style={{ padding: '6px' }}>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={r.qty}
+                                    onChange={e => {
+                                      const q = Number(e.target.value) || 0;
+                                      setManualCogsRows(prev => prev.map(row => row.id === r.id ? { ...row, qty: q, amount: q * row.price_unit } : row));
+                                    }}
+                                    className="form-input"
+                                    style={{ width: '100%', height: '34px', fontSize: '0.80rem', textAlign: 'center' }}
+                                  />
+                                </td>
 
-                              {/* Qty */}
-                              <td style={{ padding: '6px' }}>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={r.qty}
-                                  onChange={e => {
-                                    const q = Number(e.target.value) || 0;
-                                    setManualCogsRows(prev => prev.map(row => row.id === r.id ? { ...row, qty: q, amount: q * row.price_unit } : row));
-                                  }}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', fontSize: '0.80rem', textAlign: 'center' }}
-                                />
-                              </td>
+                                {/* Harga Satuan */}
+                                <td style={{ padding: '6px' }}>
+                                  <input
+                                    type="number"
+                                    value={r.price_unit}
+                                    onChange={e => {
+                                      const p = Number(e.target.value) || 0;
+                                      setManualCogsRows(prev => prev.map(row => row.id === r.id ? { ...row, price_unit: p, amount: row.qty * p } : row));
+                                    }}
+                                    className="form-input"
+                                    style={{ width: '100%', height: '34px', fontSize: '0.80rem', textAlign: 'right' }}
+                                  />
+                                </td>
 
-                              {/* Harga Satuan */}
-                              <td style={{ padding: '6px' }}>
-                                <input
-                                  type="number"
-                                  value={r.price_unit}
-                                  onChange={e => {
-                                    const p = Number(e.target.value) || 0;
-                                    setManualCogsRows(prev => prev.map(row => row.id === r.id ? { ...row, price_unit: p, amount: row.qty * p } : row));
-                                  }}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', fontSize: '0.80rem', textAlign: 'right' }}
-                                />
-                              </td>
+                                {/* Total Harga */}
+                                <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>
+                                  {formatRupiah(r.amount)}
+                                </td>
 
-                              {/* Total Harga */}
-                              <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>
-                                {formatRupiah(r.amount)}
-                              </td>
+                                {/* Aksi */}
+                                <td style={{ padding: '6px', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setManualCogsRows(prev => prev.filter(row => row.id !== r.id))}
+                                    style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '900' }}
+                                  >
+                                    ✕
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
 
-                              {/* Aksi */}
-                              <td style={{ padding: '6px', textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setManualCogsRows(prev => prev.filter(row => row.id !== r.id))}
-                                  style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}
-                                >
-                                  ✕
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {/* 2. ROW BIAYA OPERASIONAL */}
+                          {manualExpenseRows.map((r, idx) => {
+                            const currentMatch = allMasterSuggestions.find(m => m.name.toLowerCase() === (r.name || '').toLowerCase());
+                            return (
+                              <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '6px', textAlign: 'center', color: '#94a3b8', fontWeight: '700' }}>{manualCogsRows.length + idx + 1}</td>
+                                
+                                {/* Input Autocomplete Sugesti Biaya Operasional / Akuntansi */}
+                                <td style={{ padding: '6px' }}>
+                                  <input
+                                    type="text"
+                                    list={`suggest-exp-list-${r.id}`}
+                                    value={r.name}
+                                    onChange={e => {
+                                      const typed = e.target.value;
+                                      const matchedItem = allMasterSuggestions.find(m => m.name.toLowerCase() === typed.toLowerCase());
+                                      setManualExpenseRows(prev => prev.map(row => {
+                                        if (row.id === r.id) {
+                                          if (matchedItem) {
+                                            return {
+                                              ...row,
+                                              name: matchedItem.name,
+                                              category: matchedItem.category,
+                                              amount: matchedItem.cost || row.amount
+                                            };
+                                          }
+                                          return { ...row, name: typed };
+                                        }
+                                        return row;
+                                      }));
+                                    }}
+                                    placeholder="Ketik/Pilih Biaya..."
+                                    className="form-input"
+                                    style={{ width: '100%', height: '34px', fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8' }}
+                                  />
+                                  <datalist id={`suggest-exp-list-${r.id}`}>
+                                    {allMasterSuggestions.map((m, mIdx) => (
+                                      <option key={mIdx} value={m.name}>
+                                        {m.item_type === 'Bahan Baku' ? '🌾' : '📊'} {m.name} ({m.category})
+                                      </option>
+                                    ))}
+                                  </datalist>
+                                </td>
 
-                          {manualExpenseRows.map((r, idx) => (
-                            <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                              <td style={{ padding: '6px', textAlign: 'center', color: '#94a3b8', fontWeight: '700' }}>{manualCogsRows.length + idx + 1}</td>
-                              
-                              {/* Biaya Dropdown */}
-                              <td style={{ padding: '6px' }}>
-                                <select
-                                  value={r.name}
-                                  onChange={e => {
-                                    const selectedExp = expenseMasterList.find(exp => exp.name === e.target.value) || { name: e.target.value, category: 'OPEX' };
-                                    setManualExpenseRows(prev => prev.map(row => row.id === r.id ? { ...row, name: selectedExp.name, category: selectedExp.category || 'OPEX' } : row));
-                                  }}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', fontSize: '0.80rem', fontWeight: '700', color: '#38bdf8' }}
-                                >
-                                  {expenseMasterList.map(exp => (
-                                    <option key={exp.id} value={exp.name}>{exp.name}</option>
-                                  ))}
-                                </select>
-                              </td>
+                                {/* Jenis Pengeluaran OTOMATIS */}
+                                <td style={{ padding: '6px' }}>
+                                  <span style={{
+                                    padding: '4px 8px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: '800',
+                                    background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid #38bdf8',
+                                    display: 'inline-block'
+                                  }}>
+                                    {r.category || currentMatch?.category || 'Biaya Operasional (OPEX)'}
+                                  </span>
+                                </td>
 
-                              {/* Jenis Pengeluaran Auto-Generated */}
-                              <td style={{ padding: '6px' }}>
-                                <span style={{ padding: '3px 6px', borderRadius: '4px', fontSize: '0.70rem', fontWeight: '800', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid #38bdf8' }}>
-                                  {r.category || 'Biaya Operasional (OPEX)'}
-                                </span>
-                              </td>
+                                {/* Qty (1) */}
+                                <td style={{ padding: '6px', textAlign: 'center', color: '#cbd5e1', fontWeight: '700' }}>1</td>
 
-                              {/* Supplier (Kosong / '-' for Biaya) */}
-                              <td style={{ padding: '6px', color: '#64748b', fontSize: '0.78rem', fontStyle: 'italic', paddingLeft: '8px' }}>
-                                -
-                              </td>
+                                {/* Harga Satuan */}
+                                <td style={{ padding: '6px' }}>
+                                  <input
+                                    type="number"
+                                    value={r.amount}
+                                    onChange={e => {
+                                      const val = Number(e.target.value) || 0;
+                                      setManualExpenseRows(prev => prev.map(row => row.id === r.id ? { ...row, amount: val } : row));
+                                    }}
+                                    className="form-input"
+                                    style={{ width: '100%', height: '34px', fontSize: '0.80rem', textAlign: 'right' }}
+                                  />
+                                </td>
 
-                              {/* Qty (1) */}
-                              <td style={{ padding: '6px', textAlign: 'center', color: '#cbd5e1' }}>1</td>
+                                {/* Total Harga */}
+                                <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>
+                                  {formatRupiah(r.amount)}
+                                </td>
 
-                              {/* Harga Satuan */}
-                              <td style={{ padding: '6px' }}>
-                                <input
-                                  type="number"
-                                  value={r.amount}
-                                  onChange={e => {
-                                    const val = Number(e.target.value) || 0;
-                                    setManualExpenseRows(prev => prev.map(row => row.id === r.id ? { ...row, amount: val } : row));
-                                  }}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', fontSize: '0.80rem', textAlign: 'right' }}
-                                />
-                              </td>
-
-                              {/* Total Harga */}
-                              <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>
-                                {formatRupiah(r.amount)}
-                              </td>
-
-                              {/* Aksi */}
-                              <td style={{ padding: '6px', textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setManualExpenseRows(prev => prev.filter(row => row.id !== r.id))}
-                                  style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}
-                                >
-                                  ✕
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                                {/* Aksi */}
+                                <td style={{ padding: '6px', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setManualExpenseRows(prev => prev.filter(row => row.id !== r.id))}
+                                    style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '900' }}
+                                  >
+                                    ✕
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -9325,8 +9658,8 @@ export default function AndroidPosRegister({
                       <button
                         type="button"
                         onClick={() => {
-                          const firstIng = ingredientsList[0] || { name: 'Bahan Baku Baru', cost: 15000, unit: 'kg' };
-                          setManualCogsRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstIng.name, qty: 1, unit: firstIng.unit || 'kg', price_unit: firstIng.cost || 15000, amount: firstIng.cost || 15000, supplier: suppliersList[0]?.name || 'PT Sembako Nusantara' }]);
+                          const firstIng = masterIngs[0] || { name: 'Bahan Baku Baru', cost: 15000, unit: 'kg', category: 'HPP Dapur (Bahan Mentah)' };
+                          setManualCogsRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstIng.name, qty: 1, unit: firstIng.unit || 'kg', price_unit: firstIng.cost || 15000, amount: firstIng.cost || 15000, category: firstIng.category }]);
                         }}
                         style={{ background: 'none', border: 'none', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
@@ -9337,8 +9670,8 @@ export default function AndroidPosRegister({
                       <button
                         type="button"
                         onClick={() => {
-                          const firstExp = expenseMasterList[0] || { name: 'Biaya Baru', category: 'Biaya OPEX' };
-                          setManualExpenseRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstExp.name, category: firstExp.category || 'Biaya OPEX', amount: 50000 }]);
+                          const firstExp = masterAccs[0] || { name: 'Biaya Baru', category: 'Biaya Operasional (OPEX)', cost: 50000 };
+                          setManualExpenseRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstExp.name, category: firstExp.category || 'Biaya Operasional (OPEX)', amount: firstExp.cost || 50000 }]);
                         }}
                         style={{ background: 'none', border: 'none', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
@@ -9717,7 +10050,8 @@ export default function AndroidPosRegister({
                           <th style={{ padding: '10px 12px' }}>Bahan Baku & Satuan</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center', width: '110px' }}>Stok Awal (Manual)</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center', color: '#34d399' }}>Stok Masuk</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#38bdf8' }}>Trf In / Out</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#34d399' }}>Transfer Stok In</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#fb7185' }}>Transfer Stok Out</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center', color: '#fb7185' }}>Stok Rusak</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center', color: '#38bdf8', width: '120px' }}>Sisa Stok Fisik *</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center', width: '90px' }}>Aksi</th>
@@ -9726,7 +10060,7 @@ export default function AndroidPosRegister({
                       <tbody>
                         {opnameBatchRows.length === 0 ? (
                           <tr>
-                            <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                            <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
                               Belum ada bahan baku. Klik <strong>+ Tambah Baris Bahan Baku</strong> di atas.
                             </td>
                           </tr>
@@ -9788,9 +10122,14 @@ export default function AndroidPosRegister({
                                 +{row.stok_masuk || 0}
                               </td>
 
-                              {/* Trf In / Out (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', fontSize: '0.74rem' }}>
-                                <span style={{ color: '#38bdf8', fontWeight: '700' }}>+{row.transfer_masuk || 0}</span> / <span style={{ color: '#a78bfa', fontWeight: '700' }}>-{row.transfer_keluar || 0}</span>
+                              {/* Transfer Stok In (Otomatis) */}
+                              <td style={{ padding: '8px', textAlign: 'center', color: '#34d399', fontWeight: '800' }}>
+                                +{row.transfer_masuk || 0}
+                              </td>
+
+                              {/* Transfer Stok Out (Otomatis) */}
+                              <td style={{ padding: '8px', textAlign: 'center', color: '#fb7185', fontWeight: '800' }}>
+                                -{row.transfer_keluar || 0}
                               </td>
 
                               {/* Stok Rusak (Otomatis) */}
@@ -9934,27 +10273,42 @@ export default function AndroidPosRegister({
       {showAddTransferModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto',
-            padding: '24px', background: '#1e293b', border: '1px solid #a78bfa', borderRadius: '18px',
-            display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '880px', maxHeight: '92vh', overflowY: 'auto',
+            background: '#1e293b', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '20px',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)', padding: '24px',
+            display: 'flex', flexDirection: 'column', gap: '20px',
+            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Truck size={24} color="#a78bfa" />
+            {/* Header Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ padding: '10px', background: 'rgba(167, 139, 250, 0.15)', borderRadius: '12px', border: '1px solid rgba(167, 139, 250, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Truck size={24} color="#a78bfa" />
+                </div>
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
                     🚚 Buat Laporan Transfer Produk Antarcabang
                   </h3>
-                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '0.80rem', color: '#94a3b8', margin: '3px 0 0 0' }}>
                     Formulir mutasi & pengiriman persediaan stok antarcabang restoran
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowAddTransferModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+              <button 
+                onClick={() => setShowAddTransferModal(false)} 
+                style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#94a3b8', borderRadius: '10px', width: '36px', height: '36px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', fontSize: '1.1rem', fontWeight: '700', transition: 'all 0.2s'
+                }}
+              >
+                ✕
+              </button>
             </div>
 
             {(() => {
@@ -9969,68 +10323,106 @@ export default function AndroidPosRegister({
               const outletsList = (masterData.outlets && masterData.outlets.length > 0)
                 ? masterData.outlets
                 : [
-                    { id: 1, name: 'Restoran Utama' },
-                    { id: 2, name: 'Cabang Senopati' },
-                    { id: 3, name: 'Cabang Kemang' },
-                    { id: 4, name: 'Cabang Dago' }
+                    { id: 1, name: currentOutlet.name || 'Restoran Utama' },
+                    { id: 2, name: 'Outlet Cabang 2' }
                   ];
 
-              const adminList = [
-                { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                { id: 2, name: 'Siti Rahma', role: 'Kasir Senior' },
-                { id: 3, name: 'Budi Kurniawan', role: 'Kasir Pagi' }
-              ];
+              const adminList = (masterData.userRights && masterData.userRights.length > 0)
+                ? masterData.userRights
+                : (masterData.users && masterData.users.length > 0)
+                  ? masterData.users
+                  : [
+                      { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
+                      { id: 2, name: 'Supervisor Operasional', role: 'Supervisor' },
+                      { id: 3, name: 'Kasir POS', role: 'Kasir Utama' }
+                    ];
+
+              const handleAddTransferRow = () => {
+                const defaultIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                setTransferBatchRows(prev => [
+                  ...prev,
+                  {
+                    id: Date.now() + Math.random(),
+                    item_name: defaultIng.name,
+                    custom_item_name: '',
+                    qty: 1,
+                    unit: defaultIng.unit || 'kg'
+                  }
+                ]);
+              };
+
+              const handleUpdateTransferRow = (id, field, value) => {
+                setTransferBatchRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+              };
+
+              const handleDeleteTransferRow = (id) => {
+                if (transferBatchRows.length <= 1) return;
+                setTransferBatchRows(prev => prev.filter(r => r.id !== id));
+              };
 
               return (
                 <form onSubmit={e => {
                   e.preventDefault();
-                  const finalItemName = transferItemName === '__OTHER__' ? (transferCustomItemName || 'Item Kustom') : transferItemName;
-                  const toOutletObj = outletsList.find(o => o.id === Number(transferToOutletId)) || { name: 'Cabang Senopati' };
-                  
-                  const newTransferRecord = {
-                    id: transferNo,
+                  if (transferBatchRows.length === 0) {
+                    alert('Mohon tambahkan minimal 1 bahan baku/produk untuk ditransfer.');
+                    return;
+                  }
+
+                  const fromOutletObj = outletsList.find(o => Number(o.id) === Number(transferFromOutletId)) || currentOutlet;
+                  const toOutletObj = outletsList.find(o => Number(o.id) === Number(transferToOutletId)) || outletsList.find(o => Number(o.id) !== Number(currentOutlet.id)) || { name: 'Outlet Tujuan' };
+
+                  const newRecords = [];
+                  transferBatchRows.forEach((row, idx) => {
+                    const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Baru') : row.item_name;
+                    const recId = transferBatchRows.length > 1 ? `${transferNo}-${idx + 1}` : transferNo;
+
+                    newRecords.push({
+                      id: recId,
+                      report_no: transferNo,
+                      date: transferDate,
+                      from_outlet_id: currentOutlet.id || 1,
+                      from_outlet_name: fromOutletObj.name || currentOutlet.name || 'Restoran Utama',
+                      to_outlet_id: Number(transferToOutletId),
+                      to_outlet_name: toOutletObj.name || 'Outlet Tujuan',
+                      submitted_by: transferSubmittedBy,
+                      created_by: transferSubmittedBy,
+                      author_name: transferSubmittedBy,
+                      item_name: finalItemName,
+                      qty: Number(row.qty || 0),
+                      unit: row.unit || 'kg',
+                      notes: transferNotes || 'Transfer stok antarcabang',
+                      status: 'ditunda',
+                      is_approved: false
+                    });
+                  });
+
+                  setPendingTransferDraft({
                     report_no: transferNo,
                     date: transferDate,
-                    from_outlet_id: currentOutlet.id || 1,
-                    from_outlet_name: currentOutlet.name || 'Restoran Utama',
-                    to_outlet_id: Number(transferToOutletId),
-                    to_outlet_name: toOutletObj.name,
                     submitted_by: transferSubmittedBy,
-                    created_by: transferSubmittedBy,
-                    author_name: transferSubmittedBy,
-                    item_name: finalItemName,
-                    qty: Number(transferQty || 0),
-                    unit: transferUnit || 'kg',
-                    notes: transferNotes || 'Transfer stok antarcabang',
-                    status: transferStatus
-                  };
+                    from_outlet_name: fromOutletObj.name || currentOutlet.name || 'Restoran Utama',
+                    to_outlet_name: toOutletObj.name || 'Outlet Tujuan',
+                    items: newRecords,
+                    notes: transferNotes || 'Transfer stok antarcabang'
+                  });
+                }} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-                  setMasterData(prev => ({
-                    ...prev,
-                    approvedTransfers: [newTransferRecord, ...(prev.approvedTransfers || [])],
-                    stockMovement: [newTransferRecord, ...(prev.stockMovement || [])]
-                  }));
-
-                  alert(`Laporan Transfer Produk ${transferNo} (${finalItemName} -> ${toOutletObj.name}) berhasil disimpan & tersinkronisasi ke Persetujuan Transfer Stok!`);
-                  setShowAddTransferModal(false);
-                }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-                  {/* Row 1: Tanggal & No Laporan */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  {/* KARTU 1: Tanggal & Nomor Laporan */}
+                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Transfer *</label>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📅 Tanggal Transfer *</label>
                       <input type="date" required value={transferDate} onChange={e => setTransferDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan Transfer *</label>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📋 Nomor Laporan Transfer *</label>
                       <input type="text" required value={transferNo} onChange={e => setTransferNo(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#a78bfa' }} />
                     </div>
                   </div>
 
-                  {/* Row 2: Diisi Oleh, Outlet Asal & Outlet Tujuan */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  {/* KARTU 2: Diisi Oleh, Outlet Asal & Outlet Tujuan */}
+                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Pengaju / Dibuat Oleh *</label>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>👤 Pengaju / Dibuat Oleh *</label>
                       <select value={transferSubmittedBy} onChange={e => setTransferSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }}>
                         {adminList.map(a => (
                           <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
@@ -10039,16 +10431,16 @@ export default function AndroidPosRegister({
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>🏢 Outlet Asal (Pengirim)</label>
-                      <div style={{ width: '100%', height: '40px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '8px', padding: '0 10px', color: '#34d399', fontWeight: '800', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🏢 {currentOutlet.name || 'Restoran Utama'}</span>
+                      <label style={{ fontSize: '0.78rem', color: '#fb7185', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🔴 Outlet Asal (Pengirim)</label>
+                      <div style={{ width: '100%', height: '40px', background: '#1e293b', border: '1px solid #fb7185', borderRadius: '8px', padding: '0 12px', color: '#fb7185', fontWeight: '800', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>🔴 {currentOutlet.name || 'Restoran Utama'}</span>
                         <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>(Akun Login)</span>
                       </div>
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: '800', display: 'block', marginBottom: '4px' }}>➡️ Outlet Tujuan (Penerima) *</label>
-                      <select value={transferToOutletId} onChange={e => setTransferToOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#a78bfa' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🟢 Outlet Tujuan (Penerima) *</label>
+                      <select value={transferToOutletId} onChange={e => setTransferToOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#34d399', border: '1px solid #34d399' }}>
                         {outletsList.filter(o => o.id !== (currentOutlet.id || 1)).map(o => (
                           <option key={o.id} value={o.id}>{o.name}</option>
                         ))}
@@ -10056,78 +10448,364 @@ export default function AndroidPosRegister({
                     </div>
                   </div>
 
-                  {/* Row 3: Nama Produk Item & Jumlah Transfer */}
-                  <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800', display: 'block', marginBottom: '4px' }}>📦 Nama Produk / Stok Item *</label>
-                        <select
-                          value={transferItemName}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setTransferItemName(val);
-                            if (val !== '__OTHER__') {
-                              const found = ingredientsList.find(i => i.name === val);
-                              if (found) setTransferUnit(found.unit || 'kg');
-                            }
-                          }}
-                          className="form-input"
-                          style={{ width: '100%', height: '40px', fontWeight: '800', color: '#34d399' }}
-                        >
-                          {ingredientsList.map(ing => (
-                            <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
-                          ))}
-                          <option value="__OTHER__">➕ + Buat / Tentukan Nama Produk Baru...</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Jumlah Qty *</label>
-                        <input type="number" required value={transferQty} onChange={e => setTransferQty(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '900', color: '#a78bfa' }} />
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Satuan (Unit)</label>
-                        <input type="text" value={transferUnit} onChange={e => setTransferUnit(e.target.value)} placeholder="kg, pcs" className="form-input" style={{ width: '100%', height: '40px' }} />
-                      </div>
+                  {/* KARTU 3: DETAIL BAHAN BAKU / PRODUK YANG DITRANSFER (MULTI-ITEM) */}
+                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <label style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>📦 Detail Bahan Baku / Produk Yang Ditransfer ({transferBatchRows.length} Item)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddTransferRow}
+                        style={{
+                          padding: '6px 14px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8',
+                          border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '10px',
+                          fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s'
+                        }}
+                      >
+                        <PlusCircle size={15} />
+                        <span>+ Tambahkan Bahan Baku</span>
+                      </button>
                     </div>
 
-                    {transferItemName === '__OTHER__' && (
-                      <div>
-                        <label style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Tentukan Nama Produk Baru (Custom):</label>
-                        <input type="text" required placeholder="Masukkan nama barang / produk kustom..." value={transferCustomItemName} onChange={e => setTransferCustomItemName(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#fbbf24' }} />
-                      </div>
-                    )}
+                    {/* Format Tabel Proposional */}
+                    <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                        <thead>
+                          <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.74rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                            <th style={{ padding: '12px 14px', width: '40px', textAlign: 'center' }}>No</th>
+                            <th style={{ padding: '12px 14px', minWidth: '220px' }}>Nama Produk / Stok Item *</th>
+                            <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Out (Outlet Pengirim) *</th>
+                            <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#34d399' }}>📥 Transfer In (Outlet Penerima) *</th>
+                            <th style={{ padding: '12px 14px', width: '120px', textAlign: 'center' }}>Satuan / Unit (Data Master)</th>
+                            <th style={{ padding: '12px 14px', width: '45px', textAlign: 'center' }}>Hapus</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {transferBatchRows.map((row, idx) => {
+                            const foundIng = ingredientsList.find(i => i.name === row.item_name);
+                            const autoUnit = foundIng?.unit || row.unit || 'kg';
+
+                            return (
+                              <React.Fragment key={row.id || idx}>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.5)' : '#0f172a' }}>
+                                  {/* 1. Index */}
+                                  <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>
+                                    {idx + 1}
+                                  </td>
+
+                                  {/* 2. Nama Bahan Baku */}
+                                  <td style={{ padding: '10px 14px' }}>
+                                    <select
+                                      value={row.item_name}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        handleUpdateTransferRow(row.id, 'item_name', val);
+                                        if (val !== '__OTHER__') {
+                                          const found = ingredientsList.find(i => i.name === val);
+                                          if (found) handleUpdateTransferRow(row.id, 'unit', found.unit || 'kg');
+                                        }
+                                      }}
+                                      className="form-input"
+                                      style={{ width: '100%', height: '38px', fontWeight: '800', color: '#34d399', fontSize: '0.82rem', borderRadius: '8px' }}
+                                    >
+                                      {ingredientsList.map(ing => (
+                                        <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
+                                      ))}
+                                      <option value="__OTHER__">➕ + Buat / Tentukan Nama Bahan Baku Baru...</option>
+                                    </select>
+                                  </td>
+
+                                  {/* 3. Transfer Out Input */}
+                                  <td style={{ padding: '10px 14px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                      <span style={{ color: '#fb7185', fontWeight: '900', fontSize: '0.9rem' }}>-</span>
+                                      <input
+                                        type="number"
+                                        required
+                                        step="any"
+                                        min="0"
+                                        placeholder="0"
+                                        value={row.qty}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
+                                        className="form-input"
+                                        style={{ width: '85px', height: '38px', fontWeight: '900', color: '#fb7185', fontSize: '0.85rem', textAlign: 'right', borderRadius: '8px', border: '1px solid rgba(251, 113, 133, 0.4)' }}
+                                      />
+                                    </div>
+                                  </td>
+
+                                  {/* 4. Transfer In Input */}
+                                  <td style={{ padding: '10px 14px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                      <span style={{ color: '#34d399', fontWeight: '900', fontSize: '0.9rem' }}>+</span>
+                                      <input
+                                        type="number"
+                                        required
+                                        step="any"
+                                        min="0"
+                                        placeholder="0"
+                                        value={row.qty}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
+                                        className="form-input"
+                                        style={{ width: '85px', height: '38px', fontWeight: '900', color: '#34d399', fontSize: '0.85rem', textAlign: 'right', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.4)' }}
+                                      />
+                                    </div>
+                                  </td>
+
+                                  {/* 5. Satuan Unit Automatis */}
+                                  <td style={{ padding: '10px 14px' }}>
+                                    {row.item_name === '__OTHER__' ? (
+                                      <input
+                                        type="text"
+                                        value={row.unit}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'unit', e.target.value)}
+                                        placeholder="kg/liter"
+                                        className="form-input"
+                                        style={{ width: '100%', height: '38px', fontSize: '0.82rem', borderRadius: '8px', textAlign: 'center' }}
+                                      />
+                                    ) : (
+                                      <div style={{
+                                        height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        background: 'rgba(167, 139, 250, 0.1)', border: '1px solid rgba(167, 139, 250, 0.3)',
+                                        borderRadius: '8px', color: '#c084fc', fontWeight: '800', fontSize: '0.82rem'
+                                      }}>
+                                        🏷️ {autoUnit}
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* 6. Hapus */}
+                                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTransferRow(row.id)}
+                                      disabled={transferBatchRows.length <= 1}
+                                      style={{
+                                        background: transferBatchRows.length <= 1 ? 'rgba(255,255,255,0.03)' : 'rgba(244,63,94,0.15)',
+                                        border: '1px solid',
+                                        borderColor: transferBatchRows.length <= 1 ? 'transparent' : 'rgba(244,63,94,0.3)',
+                                        color: transferBatchRows.length <= 1 ? '#475569' : '#fb7185',
+                                        borderRadius: '8px',
+                                        width: '34px',
+                                        height: '34px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justify: 'center',
+                                        cursor: transferBatchRows.length <= 1 ? 'not-allowed' : 'pointer'
+                                      }}
+                                      title="Hapus baris ini"
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </td>
+                                </tr>
+
+                                {/* Custom Item Row */}
+                                {row.item_name === '__OTHER__' && (
+                                  <tr style={{ background: 'rgba(251, 191, 36, 0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <td colSpan={6} style={{ padding: '10px 14px 12px 14px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <label style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: '800', whiteSpace: 'nowrap' }}>
+                                          ✏️ Nama Bahan Baku Kustom:
+                                        </label>
+                                        <input
+                                          type="text"
+                                          required
+                                          placeholder="Masukkan nama bahan baku kustom..."
+                                          value={row.custom_item_name || ''}
+                                          onChange={e => handleUpdateTransferRow(row.id, 'custom_item_name', e.target.value)}
+                                          className="form-input"
+                                          style={{ flex: 1, height: '36px', fontWeight: '800', color: '#fbbf24', fontSize: '0.80rem', borderRadius: '8px' }}
+                                        />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
-                  {/* Catatan & Status */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Catatan / Alasan Transfer Bahan Baku</label>
-                      <input type="text" placeholder="Masukkan keterangan transfer stok..." value={transferNotes} onChange={e => setTransferNotes(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} />
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Status Approval</label>
-                      <select value={transferStatus} onChange={e => setTransferStatus(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }}>
-                        <option value="ditunda">⏳ Pending / Ditunda Verification</option>
-                        <option value="ok">🟢 Approved / OK by Manager</option>
-                      </select>
-                    </div>
+                  {/* KARTU 4: Catatan / Alasan Transfer */}
+                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                      <span>📝 Catatan / Alasan Transfer Bahan Baku</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Contoh: Stok bahan baku menipis untuk persiapan weekend..." 
+                      value={transferNotes} 
+                      onChange={e => setTransferNotes(e.target.value)} 
+                      className="form-input" 
+                      style={{ width: '100%', height: '42px', fontSize: '0.85rem', borderRadius: '10px' }} 
+                    />
                   </div>
 
-                  {/* Buttons */}
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '6px' }}>
-                    <button type="button" onClick={() => setShowAddTransferModal(false)} style={{ padding: '12px 20px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+                  {/* Footer Buttons */}
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAddTransferModal(false)} 
+                      style={{
+                        padding: '12px 22px', background: '#334155', color: '#ffffff',
+                        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
+                        fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s'
+                      }}
+                    >
                       Batal
                     </button>
-                    <button type="submit" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(167,139,250,0.4)' }}>
+                    <button 
+                      type="submit" 
+                      style={{
+                        padding: '12px 28px', background: 'linear-gradient(135deg, #c084fc 0%, #7c3aed 100%)',
+                        color: '#ffffff', border: 'none', borderRadius: '10px',
+                        fontWeight: '800', fontSize: '0.88rem', cursor: 'pointer',
+                        boxShadow: '0 4px 16px rgba(167,139,250,0.4)', transition: 'all 0.2s'
+                      }}
+                    >
                       💾 Simpan & Kirim Transfer Bahan Baku
                     </button>
                   </div>
                 </form>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* PAPAN INFORMASI PERSETUJUAN TRANSFER BAHAN BAKU */}
+      {pendingTransferDraft && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.88)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '100%', maxWidth: '640px', background: '#0f172a',
+            border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '20px',
+            padding: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.6)',
+            display: 'flex', flexDirection: 'column', gap: '18px'
+          }}>
+            {/* Header Modal */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+              <div style={{ padding: '10px', background: 'rgba(56, 189, 248, 0.15)', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                <Truck size={24} color="#38bdf8" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                  🚚 Papan Informasi Persetujuan Transfer Bahan Baku
+                </h3>
+                <span style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: '800' }}>
+                  ⏳ Status: Pending (Membutuhkan Persetujuan Logistik Pusat)
+                </span>
+              </div>
+            </div>
+
+            {/* Content Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ background: '#1e293b', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.82rem' }}>
+                <div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.75rem', display: 'block' }}>📋 No. Laporan:</span>
+                  <span style={{ fontWeight: '800', color: '#38bdf8' }}>{pendingTransferDraft.report_no}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.75rem', display: 'block' }}>📅 Tanggal:</span>
+                  <span style={{ fontWeight: '800', color: '#ffffff' }}>{pendingTransferDraft.date}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#94a3b8', fontSize: '0.75rem', display: 'block' }}>👤 Dibuat Oleh:</span>
+                  <span style={{ fontWeight: '800', color: '#ffffff' }}>{pendingTransferDraft.submitted_by}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#fb7185', fontSize: '0.75rem', display: 'block', fontWeight: '800' }}>🔴 Outlet Asal (Pengirim):</span>
+                  <span style={{ fontWeight: '800', color: '#fb7185' }}>🏬 {pendingTransferDraft.from_outlet_name}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#34d399', fontSize: '0.75rem', display: 'block', fontWeight: '800' }}>🟢 Outlet Tujuan (Penerima):</span>
+                  <span style={{ fontWeight: '800', color: '#34d399' }}>🏬 {pendingTransferDraft.to_outlet_name}</span>
+                </div>
+              </div>
+
+              {/* Rincian Bahan Baku Table */}
+              <div>
+                <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: '800', display: 'block', marginBottom: '8px' }}>
+                  📦 Rincian Bahan Baku Yang Ditransfer ({pendingTransferDraft.items.length} Item):
+                </span>
+                <div style={{ background: '#1e293b', borderRadius: '10px', border: '1px solid #334155', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+                    <thead>
+                      <tr style={{ background: '#0f172a', color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase', borderBottom: '1px solid #334155' }}>
+                        <th style={{ padding: '8px 12px', textAlign: 'center', width: '40px' }}>No</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Nama Produk / Stok Item</th>
+                        <th style={{ padding: '8px 12px', color: '#34d399' }}>📥 Transfer In (Outlet Penerima)</th>
+                        <th style={{ padding: '8px 12px', color: '#fb7185' }}>📤 Transfer Out (Outlet Pengirim)</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'center', width: '100px' }}>Satuan / Unit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingTransferDraft.items.map((it, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', color: '#64748b', fontWeight: '700' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px 12px', color: '#38bdf8', fontWeight: '800' }}>🌾 {it.item_name}</td>
+                          <td style={{ padding: '8px 12px', color: '#34d399', fontWeight: '900' }}>🟢 {pendingTransferDraft.to_outlet_name} (+{it.qty} {it.unit})</td>
+                          <td style={{ padding: '8px 12px', color: '#fb7185', fontWeight: '900' }}>🔴 {pendingTransferDraft.from_outlet_name} (-{it.qty} {it.unit})</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', color: '#c084fc', fontWeight: '900' }}>🏷️ {it.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons: Edit Kembali vs Simpan */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button 
+                type="button" 
+                onClick={() => setPendingTransferDraft(null)} 
+                style={{
+                  padding: '11px 22px', background: '#334155', color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
+                  fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s'
+                }}
+              >
+                <Edit2 size={15} />
+                <span>✏️ Edit Kembali</span>
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setMasterData(prev => {
+                    const filterOld = (arr) => (arr || []).filter(x => x.id !== editingTransferId && String(x.report_no) !== String(pendingTransferDraft.report_no));
+                    return {
+                      ...prev,
+                      stockTransfer: [...pendingTransferDraft.items, ...filterOld(prev.stockTransfer)],
+                      approvedTransfers: [...pendingTransferDraft.items, ...filterOld(prev.approvedTransfers)],
+                      stockMovement: [...pendingTransferDraft.items, ...filterOld(prev.stockMovement)]
+                    };
+                  });
+                  alert(`Laporan Transfer ${pendingTransferDraft.report_no} (${pendingTransferDraft.items.length} Item) berhasil disimpan & terdaftar dengan status Pending untuk persetujuan Admin Logistik!`);
+                  setEditingTransferId(null);
+                  setPendingTransferDraft(null);
+                  setShowAddTransferModal(false);
+                }} 
+                style={{
+                  padding: '11px 26px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+                  color: '#ffffff', border: 'none', borderRadius: '10px',
+                  fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(52,211,153,0.4)',
+                  display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s'
+                }}
+              >
+                <CheckCircle size={15} />
+                <span>💾 Simpan</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -10171,7 +10849,7 @@ export default function AndroidPosRegister({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#94a3b8' }}>Outlet Tujuan:</span>
-                <span style={{ fontWeight: '800', color: '#a78bfa' }}>➡️ {previewTransferReport.to_outlet_name || 'Cabang Senopati'}</span>
+                <span style={{ fontWeight: '800', color: '#a78bfa' }}>➡️ {previewTransferReport.to_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(previewTransferReport.to_outlet_id || previewTransferReport.toOutletId))?.name || 'Outlet Tujuan'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#94a3b8' }}>Nama Produk Item:</span>
@@ -10196,7 +10874,7 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* 17. MODAL FORM "+ BUAT LAPORAN BARANG RUSAK" */}
+      {/* 17. MODAL FORM "LAPORKAN STOK RUSAK / WASTE" (MATCHING WEB ADMIN EXACTLY) */}
       {showAddWasteModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -10205,184 +10883,281 @@ export default function AndroidPosRegister({
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto',
-            padding: '24px', background: '#1e293b', border: '1px solid #fb7185', borderRadius: '18px',
+            padding: '24px', background: '#1e293b', border: '1px solid #f43f5e', borderRadius: '18px',
             display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Trash2 size={24} color="#fb7185" />
+                <Trash2 size={24} color="#f43f5e" />
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
-                    🗑️ Buat Laporan Barang Rusak (Waste)
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                    Laporkan Stok Rusak / Waste
                   </h3>
                   <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
                     Formulir pencatatan waste, retur, expired, & kerusakan bahan baku
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowAddWasteModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+              <button onClick={() => { setShowAddWasteModal(false); setEditingWasteId(null); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
             </div>
 
             {(() => {
-              const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients
-                : [
-                    { id: 1, name: 'Daging Ayam Fillet', unit: 'kg' },
-                    { id: 2, name: 'Beras Pandan Wangi', unit: 'kg' },
-                    { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter' }
-                  ];
+              const ingredientsList = masterData.ingredients || [];
 
-              const adminList = [
-                { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                { id: 2, name: 'Siti Rahma', role: 'Kasir Senior' },
-                { id: 3, name: 'Budi Kurniawan', role: 'Kasir Pagi' }
-              ];
+              const userList = (masterData.userAccounts && masterData.userAccounts.length > 0)
+                ? masterData.userAccounts
+                : (masterData.userRights && masterData.userRights.length > 0)
+                  ? masterData.userRights
+                  : [{ id: 1, name: 'Master Super Admin', role: 'Super Admin' }];
 
               return (
                 <form onSubmit={e => {
                   e.preventDefault();
-                  const finalItemName = wasteItemName === '__OTHER__' ? (wasteCustomItemName || 'Item Kustom') : wasteItemName;
-                  
-                  const newWasteRecord = {
-                    id: wasteNo,
-                    report_no: wasteNo,
-                    date: wasteDate,
-                    outlet_id: currentOutlet.id || 1,
-                    branch_name: currentOutlet.name || 'Restoran Utama',
-                    submitted_by: wasteSubmittedBy,
-                    created_by: wasteSubmittedBy,
-                    author_name: wasteSubmittedBy,
-                    item_name: finalItemName,
-                    qty: Number(wasteQty || 0),
-                    stok_rusak: Number(wasteQty || 0),
-                    unit: wasteUnit || 'kg',
-                    damage_reason: wasteReason,
-                    reason: wasteReason,
-                    notes: wasteNotes ? `${wasteReason}: ${wasteNotes}` : wasteReason,
-                    status: wasteStatus
-                  };
-
-                  setMasterData(prev => ({
-                    ...prev,
-                    approvedWaste: [newWasteRecord, ...(prev.approvedWaste || [])],
-                    stockMovement: [newWasteRecord, ...(prev.stockMovement || [])]
-                  }));
-
-                  alert(`Laporan Barang Rusak ${wasteNo} (${finalItemName}) berhasil disimpan & tersinkronisasi ke Persetujuan Stok Rusak!`);
-                  setShowAddWasteModal(false);
+                  if (wasteBatchRows.length === 0 || wasteBatchRows.some(r => !r.item_name || !r.qty)) {
+                    alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
+                    return;
+                  }
+                  setShowWastePreviewFormModal(true);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                  {/* Row 1: Tanggal & No Laporan */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Pencatatan *</label>
-                      <input type="date" required value={wasteDate} onChange={e => setWasteDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} />
+                  {/* Row 1: Tanggal Kejadian & Dibuat Oleh */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Kejadian *</span>
+                      <input type="date" required value={wasteDate} onChange={e => setWasteDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
                     </div>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan Waste *</label>
-                      <input type="text" required value={wasteNo} onChange={e => setWasteNo(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#fb7185' }} />
-                    </div>
-                  </div>
 
-                  {/* Row 2: Diisi Oleh & Outlet */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Diisi Oleh (Kasir / Petugas) *</label>
-                      <select value={wasteSubmittedBy} onChange={e => setWasteSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }}>
-                        {adminList.map(a => (
-                          <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh *</span>
+                      <select value={wasteSubmittedBy} onChange={e => setWasteSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        {userList.map(a => (
+                          <option key={a.id} value={a.name}>{a.name} ({a.role || 'Staf Restoran'})</option>
                         ))}
                       </select>
                     </div>
+                  </div>
 
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>🏢 Cabang Outlet (Otomatis Terisi Sesuai Akun Login)</label>
-                      <div style={{ width: '100%', height: '40px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '8px', padding: '0 10px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🏢 {currentOutlet.name || 'Restoran Utama'}</span>
-                        <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>(Akun Login)</span>
-                      </div>
+                  {/* Row 2: Nama Outlet Cabang */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Nama Outlet Cabang</span>
+                    <div style={{ width: '100%', height: '40px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '6px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>🏢 {(masterData.outlets || []).find(o => Number(o.id) === Number(wasteOutletId))?.name || currentOutlet?.name || 'Outlet Cabang'}</span>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>(Akun Login POS)</span>
                     </div>
                   </div>
 
-                  {/* Row 3: Nama Produk Item & Jumlah Rusak */}
-                  <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800', display: 'block', marginBottom: '4px' }}>📦 Nama Produk / Item Rusak *</label>
-                        <select
-                          value={wasteItemName}
+                   {/* Catatan Editing jika dalam mode Edit */}
+                  {editingWasteId && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(251,191,36,0.08)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.3)' }}>
+                      <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}>📝 Catatan Editing (Wajib saat Edit Data) *</span>
+                      <textarea
+                        required
+                        placeholder="Tuliskan catatan perbaikan atau alasan pengeditan data ini..."
+                        value={wasteEditingNotes}
+                        onChange={e => setWasteEditingNotes(e.target.value)}
+                        rows={2}
+                        className="form-input"
+                        style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fbbf24', fontSize: '0.80rem' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Dynamic Item Rows Section */}
+                  <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.82rem', color: '#f43f5e', fontWeight: '800' }}>
+                        🥬 Cari & Pilih Nama Item (Bahan Baku Rusak):
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWasteBatchRows(prev => [
+                            ...prev,
+                            { id: Date.now(), item_name: '', custom_item_name: '', qty: '', unit: 'kg', reason: '', notes: '' }
+                          ]);
+                        }}
+                        style={{
+                          padding: '6px 12px', background: 'rgba(244, 63, 94, 0.2)', border: '1px solid #f43f5e',
+                          color: '#f43f5e', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                        }}
+                      >
+                        <PlusCircle size={14} />
+                        <span>+ Tambahkan Bahan Baku</span>
+                      </button>
+                    </div>
+
+                    {wasteBatchRows.map((row, idx) => (
+                      <div key={row.id || idx} style={{ background: '#1e293b', padding: '12px', borderRadius: '10px', border: '1px solid #475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 36px', gap: '8px', alignItems: 'end' }}>
+                          <div>
+                            <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                              Item Bahan Baku *
+                            </span>
+                            <select
+                              value={row.item_name}
+                              onChange={e => {
+                                const val = e.target.value;
+                                const updated = [...wasteBatchRows];
+                                updated[idx].item_name = val;
+                                if (val !== '__OTHER__' && val !== '') {
+                                  const found = ingredientsList.find(i => i.name === val);
+                                  if (found) updated[idx].unit = found.unit || 'kg';
+                                }
+                                setWasteBatchRows(updated);
+                              }}
+                              required
+                              className="form-input"
+                              style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '800', color: row.item_name ? '#38bdf8' : '#64748b', padding: '6px' }}
+                            >
+                              <option value="" disabled>-- Pilih Bahan Baku --</option>
+                              {ingredientsList.map(ing => (
+                                <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
+                              ))}
+                              <option value="__OTHER__">➕ + Nama Bahan Baku Lainnya...</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.72rem', color: '#fb7185', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                              Jumlah Qty Rusak *
+                            </span>
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="any"
+                              required
+                              placeholder="Isi Qty..."
+                              value={row.qty}
+                              onChange={e => {
+                                const updated = [...wasteBatchRows];
+                                updated[idx].qty = e.target.value;
+                                setWasteBatchRows(updated);
+                              }}
+                              className="form-input"
+                              style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '900', color: '#fb7185', padding: '6px' }}
+                            />
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                              Satuan (Otomatis)
+                            </span>
+                            <input
+                              type="text"
+                              readOnly
+                              value={row.unit}
+                              className="form-input"
+                              style={{ width: '100%', height: '36px', fontSize: '0.80rem', background: '#0f172a', color: '#94a3b8', padding: '6px' }}
+                            />
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.72rem', color: '#fb7185', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                              Pilihan Alasan *
+                            </span>
+                            <select
+                              value={row.reason}
+                              onChange={e => {
+                                const updated = [...wasteBatchRows];
+                                updated[idx].reason = e.target.value;
+                                setWasteBatchRows(updated);
+                              }}
+                              required
+                              className="form-input"
+                              style={{ width: '100%', height: '36px', fontSize: '0.78rem', fontWeight: '800', color: row.reason ? '#fb7185' : '#64748b', padding: '6px' }}
+                            >
+                              <option value="" disabled>-- Pilih Alasan --</option>
+                              <option value="Terlalu kecil">Terlalu kecil</option>
+                              <option value="Terlalu besar">Terlalu besar</option>
+                              <option value="Berbau">Berbau</option>
+                              <option value="Tidak standar">Tidak standar</option>
+                              <option value="Dan lain lain">Dan lain lain</option>
+                            </select>
+
+                            {row.reason === 'Dan lain lain' && (
+                              <input
+                                type="text"
+                                placeholder="Tulis alasan spesifik..."
+                                value={row.reason_custom || ''}
+                                onChange={e => {
+                                  const updated = [...wasteBatchRows];
+                                  updated[idx].reason_custom = e.target.value;
+                                  setWasteBatchRows(updated);
+                                }}
+                                className="form-input"
+                                style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '700', marginTop: '4px' }}
+                              />
+                            )}
+                          </div>
+
+                          {wasteBatchRows.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWasteBatchRows(prev => prev.filter((_, i) => i !== idx));
+                              }}
+                              style={{ height: '36px', width: '36px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer', fontWeight: '900' }}
+                              title="Hapus baris ini"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {row.item_name === '__OTHER__' && (
+                          <input
+                            type="text"
+                            required
+                            placeholder="Tentukan Nama Bahan Baku Baru..."
+                            value={row.custom_item_name}
+                            onChange={e => {
+                              const updated = [...wasteBatchRows];
+                              updated[idx].custom_item_name = e.target.value;
+                              setWasteBatchRows(updated);
+                            }}
+                            className="form-input"
+                            style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800', marginTop: '4px' }}
+                          />
+                        )}
+
+                        {/* Catatan tambahan per item */}
+                        <input
+                          type="text"
+                          placeholder="Catatan tambahan (opsional)..."
+                          value={row.notes || ''}
                           onChange={e => {
-                            const val = e.target.value;
-                            setWasteItemName(val);
-                            if (val !== '__OTHER__') {
-                              const found = ingredientsList.find(i => i.name === val);
-                              if (found) setWasteUnit(found.unit || 'kg');
-                            }
+                            const updated = [...wasteBatchRows];
+                            updated[idx].notes = e.target.value;
+                            setWasteBatchRows(updated);
                           }}
                           className="form-input"
-                          style={{ width: '100%', height: '40px', fontWeight: '800', color: '#34d399' }}
-                        >
-                          {ingredientsList.map(ing => (
-                            <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
-                          ))}
-                          <option value="__OTHER__">➕ + Buat / Tentukan Nama Barang Baru...</option>
-                        </select>
+                          style={{ width: '100%', height: '32px', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '6px 10px' }}
+                        />
                       </div>
-
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#fb7185', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Jumlah Rusak *</label>
-                        <input type="number" required value={wasteQty} onChange={e => setWasteQty(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '900', color: '#fb7185' }} />
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Satuan (Unit)</label>
-                        <input type="text" value={wasteUnit} onChange={e => setWasteUnit(e.target.value)} placeholder="kg, pcs" className="form-input" style={{ width: '100%', height: '40px' }} />
-                      </div>
-                    </div>
-
-                    {wasteItemName === '__OTHER__' && (
-                      <div>
-                        <label style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Tentukan Nama Barang Baru (Custom):</label>
-                        <input type="text" required placeholder="Masukkan nama barang rusak..." value={wasteCustomItemName} onChange={e => setWasteCustomItemName(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#fbbf24' }} />
-                      </div>
-                    )}
+                    ))}
                   </div>
 
-                  {/* Dropdown Alasan Rusak & Catatan */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#fb7185', fontWeight: '800', display: 'block', marginBottom: '4px' }}>⚠️ Pilihan Alasan Rusak (Dropdown) *</label>
-                      <select value={wasteReason} onChange={e => setWasteReason(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#fb7185' }}>
-                        <option value="Terlalu kecil">Terlalu kecil</option>
-                        <option value="Terlalu besar">Terlalu besar</option>
-                        <option value="Berbau">Berbau</option>
-                        <option value="Tidak utuh">Tidak utuh</option>
-                        <option value="Tidak layak jual">Tidak layak jual</option>
-                        <option value="Dan lain lain">Dan lain lain</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Status Approval</label>
-                      <select value={wasteStatus} onChange={e => setWasteStatus(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }}>
-                        <option value="ditunda">⏳ Pending / Ditunda Verification</option>
-                        <option value="ok">🟢 Approved / OK by Manager</option>
-                      </select>
-                    </div>
+                  {/* Catatan Laporan (global) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Catatan Laporan (Opsional)</span>
+                    <textarea
+                      placeholder="Tambahkan catatan umum untuk laporan ini..."
+                      value={wasteNotes}
+                      onChange={e => setWasteNotes(e.target.value)}
+                      rows={2}
+                      className="form-input"
+                      style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.80rem', resize: 'vertical' }}
+                    />
                   </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Keterangan / Catatan Tambahan Kerusakan</label>
-                    <input type="text" placeholder="Detail fisik kerusakan atau penyebab..." value={wasteNotes} onChange={e => setWasteNotes(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} />
-                  </div>
-
-                  {/* Buttons */}
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '6px' }}>
-                    <button type="button" onClick={() => setShowAddWasteModal(false)} style={{ padding: '12px 20px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+                  {/* Footer Buttons */}
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '6px', borderTop: '1px solid #334155', paddingTop: '14px' }}>
+                    <button type="button" onClick={() => { setShowAddWasteModal(false); setEditingWasteId(null); }} style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
                       Batal
                     </button>
-                    <button type="submit" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(251,113,133,0.4)' }}>
-                      💾 Simpan & Laporkan Barang Rusak
+                    <button type="submit" style={{ padding: '9px 22px', background: 'linear-gradient(135deg, #f43f5e, #e11d48)', border: 'none', color: 'white', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(244,63,94,0.35)' }}>
+                      <Trash2 size={15} />
+                      <span>Lanjut ke Pratinjau (OK)</span>
                     </button>
                   </div>
                 </form>
@@ -10392,66 +11167,197 @@ export default function AndroidPosRegister({
         </div>
       )}
 
+      {/* PAPAN PREVIEW MODAL STOK RUSAK POS MOBILE */}
+      {showWastePreviewFormModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: '#1e293b', border: '1px solid #34d399', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle size={22} color="#34d399" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  📋 Papan Pratinjau Laporan Barang Rusak (POS Mobile)
+                </h3>
+              </div>
+              <button onClick={() => setShowWastePreviewFormModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.82rem', color: '#f8fafc', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>No Laporan:</span>
+                <span style={{ fontWeight: '900', color: '#fb7185' }}>{wasteNo}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Tanggal Kejadian:</span>
+                <span style={{ fontWeight: '800' }}>{wasteDate}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Pengaju / Dibuat Oleh:</span>
+                <span style={{ fontWeight: '800' }}>👤 {wasteSubmittedBy}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
+                <span style={{ fontWeight: '800', color: '#34d399' }}>🏢 {(masterData.outlets || []).find(o => Number(o.id) === Number(wasteOutletId))?.name || currentOutlet?.name || 'Outlet Cabang'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Tipe Input & Status:</span>
+                <span style={{ fontWeight: '800', color: '#34d399' }}>🟢 By approved (PENDING)</span>
+              </div>
+              {editingWasteId && wasteEditingNotes && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(251,191,36,0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.3)' }}>
+                  <span style={{ color: '#fbbf24', fontWeight: '800', fontSize: '0.75rem' }}>📝 Catatan Editing:</span>
+                  <span style={{ color: '#f8fafc', fontSize: '0.78rem' }}>{wasteEditingNotes}</span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '0.80rem', color: '#94a3b8', fontWeight: '800' }}>📦 Rincian Bahan Baku Rusak:</span>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                    <th style={{ padding: '8px' }}>Bahan Baku</th>
+                    <th style={{ padding: '8px', textAlign: 'center' }}>Jumlah Qty</th>
+                    <th style={{ padding: '8px' }}>Alasan Rusak</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wasteBatchRows.map((row, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '8px', fontWeight: '800', color: '#38bdf8' }}>{row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Kustom') : row.item_name}</td>
+                      <td style={{ padding: '8px', textAlign: 'center', fontWeight: '900', color: '#fb7185' }}>{row.qty} {row.unit}</td>
+                      <td style={{ padding: '8px', color: '#cbd5e1' }}>{row.reason === 'Dan lain lain' ? (row.reason_custom || row.reason) : row.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid #334155', paddingTop: '14px' }}>
+              <button
+                type="button"
+                onClick={() => setShowWastePreviewFormModal(false)}
+                style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
+              >
+                ✏️ Edit Lagi
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveWasteFinal}
+                style={{ padding: '9px 24px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
+              >
+                💾 Simpan Laporan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PREVIEW BARANG RUSAK */}
       {previewWasteReport && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '540px', padding: '24px', background: '#1e293b', border: '1px solid #fb7185', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '540px', padding: '24px', background: '#1e293b', border: '1px solid #fb7185', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Trash2 size={22} color="#fb7185" />
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                  Pratinjau Laporan Barang Rusak
+                  Pratinjau Laporan Barang Rusak {previewWasteReport.report_no || previewWasteReport.id}
                 </h3>
               </div>
-              <button onClick={() => setPreviewWasteReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900' }}>✕</button>
+              <button onClick={() => setPreviewWasteReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Nomor Laporan:</span>
-                <span style={{ fontWeight: '900', color: '#fb7185' }}>{previewWasteReport.report_no || previewWasteReport.id}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewWasteReport.date}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Diisi Oleh:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewWasteReport.submitted_by || previewWasteReport.created_by}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
-                <span style={{ fontWeight: '800', color: '#cbd5e1' }}>🏢 {previewWasteReport.branch_name || currentOutlet.name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Nama Produk Item:</span>
-                <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewWasteReport.item_name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Jumlah Rusak:</span>
-                <span style={{ fontWeight: '900', color: '#fb7185', fontSize: '1rem' }}>-{previewWasteReport.qty || previewWasteReport.stok_rusak} {previewWasteReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Alasan Kerusakan:</span>
-                <span style={{ fontWeight: '800', color: '#fb7185' }}>⚠️ {previewWasteReport.damage_reason || previewWasteReport.reason || 'N/A'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Status Approval:</span>
-                <span style={{ fontWeight: '900', color: (previewWasteReport.status === 'ok' || previewWasteReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
-                  {(previewWasteReport.status === 'ok' || previewWasteReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
-                </span>
-              </div>
-            </div>
+            {(() => {
+              const reportNo = previewWasteReport.report_no || previewWasteReport.id;
+              const allWasteList = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || []), ...(masterData.stockMovement || []).filter(m => m.type === 'WASTE')];
+              const matchingItems = allWasteList.filter(
+                x => (x.report_no && String(x.report_no) === String(reportNo)) || String(x.id) === String(previewWasteReport.id)
+              );
+              const uniqueMap = new Map();
+              matchingItems.forEach(x => {
+                const itemKey = x.id || `${x.item_name || x.nama_barang}-${x.qty || x.stok_rusak}-${x.unit}`;
+                if (!uniqueMap.has(itemKey)) {
+                  uniqueMap.set(itemKey, x);
+                }
+              });
+              const itemsList = uniqueMap.size > 0 ? Array.from(uniqueMap.values()) : [previewWasteReport];
+              const isApproved = previewWasteReport.status === 'ok' || previewWasteReport.status === 'approved' || previewWasteReport.status === 'Approved' || previewWasteReport.status === 'ACC' || previewWasteReport.status === 'Terkirim' || previewWasteReport.sent_to_apk || previewWasteReport.is_approved;
 
-            <button onClick={() => setPreviewWasteReport(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
-              Tutup Pratinjau
-            </button>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>Nomor Laporan:</span>
+                    <span style={{ fontWeight: '900', color: '#fb7185' }}>{reportNo}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>Tanggal Pencatatan:</span>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: '800', color: '#ffffff' }}>
+                        {previewWasteReport.tanggal_waktu
+                          ? new Date(previewWasteReport.tanggal_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+                          : previewWasteReport.date || '-'
+                        }
+                      </div>
+                      {previewWasteReport.tanggal_waktu && (
+                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                          {new Date(previewWasteReport.tanggal_waktu).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>Diisi Oleh:</span>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontWeight: '800', color: '#ffffff' }}>👤 {previewWasteReport.input_by || previewWasteReport.submitted_by || previewWasteReport.created_by || 'Kasir'}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
+                    <span style={{ fontWeight: '800', color: '#cbd5e1' }}>🏢 {previewWasteReport.branch_name || currentOutlet.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>Status Persetujuan:</span>
+                    <span style={{ fontWeight: '900', color: isApproved ? '#34d399' : '#fbbf24' }}>
+                      {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
+                    </span>
+                  </div>
+
+                  {/* List Item Bahan Baku */}
+                  <div style={{ background: '#0f172a', borderRadius: '10px', padding: '10px', border: '1px solid #334155', marginTop: '6px' }}>
+                    <div style={{ fontWeight: '800', color: '#fb7185', marginBottom: '8px', fontSize: '0.80rem' }}>
+                      🥬 Rincian Bahan Baku Rusak ({itemsList.length} Item):
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                      <thead>
+                        <tr style={{ background: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                          <th style={{ padding: '6px', textAlign: 'left' }}>Bahan Baku</th>
+                          <th style={{ padding: '6px', textAlign: 'right' }}>Jumlah</th>
+                          <th style={{ padding: '6px', textAlign: 'left' }}>Alasan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itemsList.map((row, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#ffffff' }}>
+                            <td style={{ padding: '6px', fontWeight: '800', color: '#38bdf8' }}>📦 {row.item_name}</td>
+                            <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{row.qty || row.stok_rusak} {row.unit}</td>
+                            <td style={{ padding: '6px', color: '#fb7185' }}>⚠️ {row.damage_reason || row.reason || 'Lainnya'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <button onClick={() => setPreviewWasteReport(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', marginTop: '10px' }}>
+                    Tutup Pratinjau
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

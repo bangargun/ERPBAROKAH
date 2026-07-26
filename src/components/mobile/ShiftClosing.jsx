@@ -70,37 +70,35 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
   const [previewingRecord, setPreviewingRecord] = useState(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
-  // INITIALIZE 5 DEFAULT OPEN ROWS ON MOUNT
   useEffect(() => {
-    // 5 Default Open HPP Fields
-    const default5Cogs = Array.from({ length: 5 }).map((_, idx) => {
-      const ing = ingredientsList[idx % ingredientsList.length] || { id: idx + 1, name: `Bahan Mentah ${idx + 1}`, unit: 'kg', cost: 10000 };
-      return {
+    if (ingredientsList && ingredientsList.length > 0) {
+      const default5Cogs = ingredientsList.slice(0, 5).map((ing, idx) => ({
         id: Date.now() + idx + Math.random(),
         ingredient_id: ing.id,
         name: ing.name,
         qty: 1,
         unit: ing.unit || 'kg',
-        price_unit: ing.cost || 10000,
-        amount: ing.cost || 10000
-      };
-    });
+        price_unit: ing.cost || 0,
+        amount: ing.cost || 0
+      }));
+      setCogsRows(default5Cogs);
+    } else {
+      setCogsRows([]);
+    }
 
-    // 5 Default Open Expense Fields
-    const default5Expenses = Array.from({ length: 5 }).map((_, idx) => {
-      const exp = expenseMasterList[idx % expenseMasterList.length] || { id: idx + 1, name: `Biaya Operasional ${idx + 1}`, category: 'Biaya Operasional (OPEX)' };
-      return {
+    if (expenseMasterList && expenseMasterList.length > 0) {
+      const default5Expenses = expenseMasterList.slice(0, 5).map((exp, idx) => ({
         id: Date.now() + 100 + idx + Math.random(),
         expense_id: exp.id,
         name: exp.name,
         category: exp.category || 'Biaya Operasional (OPEX)',
-        amount: 50000
-      };
-    });
-
-    setCogsRows(default5Cogs);
-    setExpenseRows(default5Expenses);
-  }, []);
+        amount: 0
+      }));
+      setExpenseRows(default5Expenses);
+    } else {
+      setExpenseRows([]);
+    }
+  }, [ingredientsList, expenseMasterList]);
 
   // AUTO FETCH INCOME FROM POS TRANSACTIONS
   useEffect(() => {

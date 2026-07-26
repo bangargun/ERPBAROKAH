@@ -24,44 +24,25 @@ export default function CustomerAnalyticsDetailModal({ customer, masterData, onC
     const rawSales = masterData?.salesTransactions || masterData?.transactions || [];
     let matchedHistory = [];
 
-    const sampleOutlets = outletsList.map(o => o.name);
-    const sampleMonths = ['Juli 2026', 'Juni 2026', 'Mei 2026', 'April 2026'];
-    const samplePayments = ['QRIS BCA', 'Cash', 'Transfer Mandiri', 'Debit BRI'];
-    const sampleMenuList = masterData?.products || [
-      { name: 'Espresso Single', price: 25000 },
-      { name: 'Chicken Katsu Rice', price: 45000 },
-      { name: 'Iced Palm Sugar Latte', price: 30000 },
-      { name: 'Ramen Tonkotsu', price: 55000 }
-    ];
-
-    for (let i = 1; i <= 12; i++) {
-      const menu1 = sampleMenuList[(i - 1) % sampleMenuList.length];
-      const menu2 = sampleMenuList[i % sampleMenuList.length];
-      const qty1 = (i % 3) + 1;
-      const qty2 = i % 2;
-      
-      const totalQty = qty1 + (qty2 > 0 ? qty2 : 0);
-      const totalAmount = (qty1 * (menu1.price || 30000)) + (qty2 * (menu2.price || 40000));
-      const itemsStr = qty2 > 0 ? `${menu1.name} (x${qty1}), ${menu2.name} (x${qty2})` : `${menu1.name} (x${qty1})`;
-
-      const day = 24 - i;
-      const monthIndex = i % sampleMonths.length;
-      const monthStr = sampleMonths[monthIndex];
-      const outletStr = sampleOutlets[i % sampleOutlets.length];
-
+    // Filter real raw sales for this customer
+    rawSales.filter(tx => 
+      tx.customer_id === customer.id || 
+      tx.customer_name === customer.name || 
+      tx.customer === customer.name
+    ).forEach(tx => {
       matchedHistory.push({
-        id: `cust-tx-${customer.id}-${i}`,
-        receipt_no: `#TRX-2026${String(7 - monthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(400 + i)}`,
-        date: `${day} ${monthStr.split(' ')[0]} 2026, ${13 + (i % 6)}:${15 + (i * 7) % 45} WIB`,
-        month_year: monthStr,
-        outlet_name: outletStr,
-        items_summary: itemsStr,
-        total_qty: totalQty,
-        total_amount: totalAmount,
-        payment_method: samplePayments[i % samplePayments.length],
-        points_earned: Math.floor(totalAmount / 1000)
+        id: tx.id || `tx-${Math.random()}`,
+        receipt_no: tx.receipt_no || tx.receiptNo || `#TRX-${tx.id}`,
+        date: tx.date || tx.createdAt || tx.timestamp,
+        month_year: tx.month_year || tx.monthYear || 'Tahun 2026',
+        outlet_name: tx.outlet_name || tx.outletName || 'Outlet Utama',
+        items_summary: (tx.items || []).map(i => `${i.name} (x${i.qty || 1})`).join(', ') || 'Item Transaksi',
+        total_qty: (tx.items || []).reduce((s, i) => s + (i.qty || 1), 0),
+        total_amount: tx.grand_total || tx.totalAmount || tx.total || 0,
+        payment_method: tx.payment_method || tx.paymentMethod || 'Cash',
+        points_earned: Math.floor((tx.grand_total || tx.total_amount || tx.amount || 0) / (masterData?.loyaltyPointRatio || 100000))
       });
-    }
+    });
 
     return matchedHistory;
   };

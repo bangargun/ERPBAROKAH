@@ -47,23 +47,10 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const [pageSizeFinance, setPageSizeFinance] = useState(25);
 
   // Master Data fallbacks
-  const ingredientsList = masterData.ingredients && masterData.ingredients.length > 0 
-    ? masterData.ingredients 
-    : [
-        { id: 1, name: 'Beras Pandan Wangi', unit: 'kg' },
-        { id: 2, name: 'Minyak Goreng Bimoli', unit: 'liter' },
-        { id: 3, name: 'Telur Ayam Negeri', unit: 'butir' },
-        { id: 4, name: 'Daging Ayam Fillet', unit: 'kg' },
-        { id: 5, name: 'Cabai Rawit Merah', unit: 'kg' },
-        { id: 6, name: 'Bawang Merah', unit: 'kg' }
-      ];
-
-  const userRightsList = masterData.userRights || [
-    { id: 1, name: 'Budi Santoso', role: 'Super Admin / Owner' },
-    { id: 2, name: 'Siti Aminah', role: 'Manajer Cabang (Branch Manager)' },
-    { id: 3, name: 'Adi Wijaya', role: 'Kasir / Staf Keuangan' },
-    { id: 4, name: 'Rian Kurnia', role: 'Kepala Dapur / Head Chef' }
-  ];
+  const ingredientsList = masterData.ingredients || [];
+  const userRightsList = (masterData.userAccounts && masterData.userAccounts.length > 0)
+    ? masterData.userAccounts
+    : (masterData.userRights || []);
 
   // LOGISTICS FILTER & VISIBILITY STATES
   const [logisticsOutletFilter, setLogisticsOutletFilter] = useState('ALL');
@@ -159,7 +146,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
   // 1. DATA LOGISTICS OPNAME APPROVALS (CLEAN FROM MASTER DATA)
   const getLogisticsApprovals = () => {
-    return (masterData.approvedLogistics || []).filter(l => !l.id?.startsWith('LOG-2026-00'));
+    return masterData.approvedLogistics || [];
   };
 
   const getFilteredLogistics = () => {

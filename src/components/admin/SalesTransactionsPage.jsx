@@ -1216,11 +1216,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // Helper for Omzet Outlet Comparison (Table & Line Chart per Month)
   const getOmzetOutletComparisonData = () => {
-    const activeOutlets = outlets.length > 0 ? outlets : [
-      { id: 1, name: 'Kopi MRIS - Cabang Jakarta Pusat' },
-      { id: 2, name: 'Kopi MRIS - Cabang Bandung' },
-      { id: 3, name: 'Barokah Fried Chicken - Surabaya' }
-    ];
+    const activeOutlets = outlets;
 
     const monthStr = selectedOmzetMonth || '2026-07';
     const [yearStr, monthNumStr] = monthStr.split('-');
@@ -1254,13 +1250,6 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         let gross = otlTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
         let disc = otlTxs.reduce((sum, t) => sum + Number(t.discount || 0), 0);
         let net = gross - disc;
-
-        if (dayTxs.length === 0) {
-          const seed = (day * 17 + Number(otl.id) * 31) % 100;
-          gross = 1800000 + (seed * 95000);
-          disc = seed > 60 ? (seed * 4200) : 0;
-          net = gross - disc;
-        }
 
         outletData[otl.id] = { gross, net };
         chartItem[otl.name] = net;
@@ -1404,31 +1393,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // Detailed Menu Sales Aggregation for Tables & Top 5 Cards
   const getDetailedMenuSalesData = () => {
-    const activeOutlets = outlets.length > 0 ? outlets : [
-      { id: 1, name: 'Kopi MRIS - Cabang Jakarta Pusat' },
-      { id: 2, name: 'Kopi MRIS - Cabang Bandung' },
-      { id: 3, name: 'Barokah Fried Chicken - Surabaya' }
-    ];
+    const activeOutlets = outlets || [];
 
     const filteredOutlets = catSelectedOutletIds.includes('ALL') 
       ? activeOutlets 
       : activeOutlets.filter(o => catSelectedOutletIds.includes(o.id));
 
-    const menuItems = products.length > 0 ? products : [
-      { id: 1, name: 'Teh Manis Dingin / Hangat', price: 8000 },
-      { id: 2, name: 'Es Jeruk Peras Segar', price: 12000 },
-      { id: 3, name: 'Kopi Susu Gula Aren', price: 25000 },
-      { id: 4, name: 'Americano Double Shot', price: 22000 },
-      { id: 5, name: 'Ayam Goreng Barokah Combo', price: 35000 },
-      { id: 6, name: 'Nasi Goreng Special MRIS', price: 32000 },
-      { id: 7, name: 'Mie Goreng Jawa Spesial', price: 28000 },
-      { id: 8, name: 'Croissant Butter Original', price: 18000 },
-      { id: 9, name: 'Ice Cream Vanilla Scoop', price: 15000 },
-      { id: 10, name: 'Air Mineral 600ml', price: 5000 }
-    ];
+    const menuItems = products || [];
 
-    const start = catStartDate || '2026-07-01';
-    const end = catEndDate || '2026-07-31';
+    const start = catStartDate || '';
+    const end = catEndDate || '';
 
     const menuRows = menuItems.map((item, idx) => {
       const outletMap = {};
@@ -1437,11 +1411,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       let totalQtyAll = 0;
 
       filteredOutlets.forEach(otl => {
-        const seed = (idx * 29 + Number(otl.id) * 43) % 90;
-        const itemPrice = item.price || (15000 + idx * 3000);
-        const qty = 85 + seed * 4;
-        const gross = qty * itemPrice;
-        const disc = seed > 50 ? Math.round(gross * 0.06) : 0;
+        const itemTxs = (salesTransactions || []).filter(t => 
+          Number(t.outlet_id) === Number(otl.id) &&
+          (t.item_name === item.name || t.product_name === item.name || (t.items && t.items.some(i => i.name === item.name)))
+        );
+        const qty = itemTxs.reduce((sum, t) => sum + Number(t.qty || t.quantity || 1), 0);
+        const gross = itemTxs.reduce((sum, t) => sum + Number(t.amount || t.price || 0), 0);
+        const disc = itemTxs.reduce((sum, t) => sum + Number(t.discount || 0), 0);
         const net = gross - disc;
 
         outletMap[otl.id] = { gross, net, qty };
@@ -1501,9 +1477,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       };
 
       activeOutlets.forEach(otl => {
-        const seed = ((i + 1) * 13 + Number(otl.id) * 31 + activeMenuName.length * 7) % 70;
-        const baseVal = selectedMenuFilter === 'ALL' ? 1800000 : 450000;
-        const net = baseVal + (seed * 25000);
+        const dayTxs = (salesTransactions || []).filter(t => 
+          Number(t.outlet_id) === Number(otl.id) &&
+          (t.date === formattedDate || t.date === `${yearNum}-${monthPad}-${dayPad}`) &&
+          (selectedMenuFilter === 'ALL' || t.item_name === activeMenuName || t.product_name === activeMenuName)
+        );
+        const net = dayTxs.reduce((sum, t) => sum + (Number(t.amount || 0) - Number(t.discount || 0)), 0);
         chartItem[otl.name] = net;
       });
 

@@ -6,7 +6,9 @@ import {
   AlertTriangle, 
   CheckSquare, 
   CheckCircle2,
+  CheckCircle,
   Plus, 
+  PlusCircle,
   Printer, 
   FileSpreadsheet, 
   ChevronDown, 
@@ -87,10 +89,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     fromOutlet: true,
     toOutlet: true,
     itemName: true,
-    qty: true,
-    unit: true,
+    qty: false,
+    unit: false,
     status: true,
-    notes: true,
     returnStatus: true
   });
 
@@ -174,35 +175,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [priceValues, setPriceValues] = useState({});
   const [priceNotes, setPriceNotes] = useState('');
 
-  // MASTER DATA LISTS WITH FALLBACKS
-  const ingredientsList = masterData.ingredients && masterData.ingredients.length > 0 
-    ? masterData.ingredients 
-    : [
-        { id: 1, name: 'Beras Pandan Wangi', unit: 'kg' },
-        { id: 2, name: 'Minyak Goreng Bimoli', unit: 'liter' },
-        { id: 3, name: 'Telur Ayam Negeri', unit: 'butir' },
-        { id: 4, name: 'Daging Ayam Fillet', unit: 'kg' },
-        { id: 5, name: 'Cabai Rawit Merah', unit: 'kg' },
-        { id: 6, name: 'Bawang Merah', unit: 'kg' },
-        { id: 7, name: 'Teh Celup Premium', unit: 'pcs' },
-        { id: 8, name: 'Gula Pasir Putih', unit: 'kg' }
-      ];
-
-  const suppliersList = masterData.suppliers && masterData.suppliers.length > 0
-    ? masterData.suppliers
-    : [
-        { id: 1, name: 'PT Sembako Nusantara' },
-        { id: 2, name: 'UD Sayur Segar Jaya' },
-        { id: 3, name: 'PT Pangan Mandiri' },
-        { id: 4, name: 'Toko Bumbu Lestari' }
-      ];
-
-  const userRightsList = masterData.userRights || [
-    { id: 1, name: 'Budi Santoso', role: 'Super Admin / Owner', status: 'Aktif' },
-    { id: 2, name: 'Siti Aminah', role: 'Manajer Cabang (Branch Manager)', status: 'Aktif' },
-    { id: 3, name: 'Adi Wijaya', role: 'Kasir / Staf Keuangan', status: 'Aktif' },
-    { id: 4, name: 'Rian Kurnia', role: 'Kepala Dapur / Head Chef', status: 'Aktif' }
-  ];
+  // MASTER DATA LISTS (PURE REAL DATA ONLY - NO FAKE FALLBACKS)
+  const ingredientsList = masterData.ingredients || [];
+  const suppliersList = masterData.suppliers || [];
+  const userRightsList = (masterData.userAccounts && masterData.userAccounts.length > 0)
+    ? masterData.userAccounts
+    : ((masterData.userRights && masterData.userRights.length > 0)
+      ? masterData.userRights
+      : []);
 
   // LOGISTIC DATA (AUTOMATICALLY STREAMED FROM MASTER DATA & LAPORAN KEUANGAN)
   const getMovementsList = () => {
@@ -269,7 +249,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   const getTransfersList = () => {
-    return masterData.stockTransfer || [];
+    const l1 = masterData.stockTransfer || [];
+    const l2 = masterData.approvedTransfers || [];
+    const res = [...l1];
+    const ids = new Set(res.map(x => String(x.id || x.report_no)));
+    l2.forEach(x => {
+      const key = String(x.id || x.report_no);
+      if (key && !ids.has(key)) res.push(x);
+    });
+    return res;
   };
 
   const getOpnameList = () => {
@@ -289,13 +277,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     (masterData.stockOpname || []).forEach(o => { if (o.date) dateSet.add(o.date); });
 
     const sortedDates = Array.from(dateSet).sort();
-    const targetOutlets = outlets.length > 0 ? outlets : [{ id: 1, name: 'Gourmet Bistro - Senopati' }];
-
-    const targetIngredients = ingredientsList.length > 0 ? ingredientsList : [
-      { id: 1, name: 'Daging Ayam Fillet', unit: 'kg' },
-      { id: 2, name: 'Beras Pandan Wangi', unit: 'kg' },
-      { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter' }
-    ];
+    const targetOutlets = outlets || [];
+    const targetIngredients = ingredientsList || [];
 
     const prevEndingStockMap = {};
     const allCalculatedRows = [];
@@ -316,20 +299,20 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             .filter(s => String(s.outletId || s.branch_id || 1) === String(out.id) && s.itemName === ing.name && s.date === dateStr)
             .reduce((sum, s) => sum + Math.abs(Number(s.qty || 0)), 0);
 
+          const transfersList = getTransfersList();
+
           // 3. Transfer Stok In (Penerimaan)
-          const transferInQty = (masterData.stockTransfer || [])
-            .filter(t => (Number(t.to_outlet_id || t.toOutletId) === Number(out.id) || t.toOutletName === out.name) && (t.item_name || t.itemName) === ing.name && t.date === dateStr)
+          const transferInQty = transfersList
+            .filter(t => (Number(t.to_outlet_id || t.toOutletId) === Number(out.id) || t.to_outlet_name === out.name || t.toOutletName === out.name) && (t.item_name || t.itemName) === ing.name && t.date === dateStr)
             .reduce((sum, t) => sum + Number(t.qty || 0), 0);
 
           // 4. Transfer Stok Out (Pengiriman)
-          const transferOutQty = (masterData.stockTransfer || [])
-            .filter(t => (Number(t.from_outlet_id || t.fromOutletId) === Number(out.id) || t.fromOutletName === out.name) && (t.item_name || t.itemName) === ing.name && t.date === dateStr)
+          const transferOutQty = transfersList
+            .filter(t => (Number(t.from_outlet_id || t.fromOutletId) === Number(out.id) || t.from_outlet_name === out.name || t.fromOutletName === out.name) && (t.item_name || t.itemName) === ing.name && t.date === dateStr)
             .reduce((sum, t) => sum + Number(t.qty || 0), 0);
 
           // 5. Stok Rusak
-          const rusakQty = (masterData.damagedGoods || [])
-            .filter(d => (Number(d.outletId || d.outlet_id || 1) === Number(out.id) || d.outletName === out.name) && (d.itemName || d.item_name) === ing.name && d.date === dateStr)
-            .reduce((sum, d) => sum + Number(d.qty || 0), 0);
+          const rusakQty = getAutoWasteForIngredient(ing.name, out.id, dateStr);
 
           // 6. Stok Awal: Manual Override > Previous Ending Stock > Default
           let stokAwal = 0;
@@ -467,7 +450,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   // CHECK LOGISTICS ALERT FOR H+1 NO DATA ENTRY
   const checkLogisticsAlert = () => {
     const masukRecords = getMovementsList().filter(m => m.type === 'IN');
-    if (masukRecords.length === 0) return true;
+    if (masukRecords.length === 0) return false;
 
     const dates = masukRecords.map(m => new Date(m.date));
     const latestDate = new Date(Math.max(...dates));
@@ -536,16 +519,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [transferUnit, setTransferUnit] = useState(ingredientsList[0] ? ingredientsList[0].unit : 'kg');
   const [transferStatus, setTransferStatus] = useState('Terkirim');
   const [transferNotes, setTransferNotes] = useState('');
+  const [transferNo, setTransferNo] = useState(`TRF-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-001`);
+  const [transferBatchRows, setTransferBatchRows] = useState([
+    { id: 1, item_name: ingredientsList[0] ? ingredientsList[0].name : 'Daging Ayam Fillet', custom_item_name: '', qty: 1, unit: ingredientsList[0] ? ingredientsList[0].unit : 'kg' }
+  ]);
+  const [previewTransferModalData, setPreviewTransferModalData] = useState(null);
+  const [previewWasteModalData, setPreviewWasteModalData] = useState(null);
 
   // Stok Rusak Form States
   const [rusakDate, setRusakDate] = useState(new Date().toISOString().split('T')[0]);
+  const [rusakNo, setRusakNo] = useState(`WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [rusakCreatedBy, setRusakCreatedBy] = useState(userRightsList[0] ? userRightsList[0].name : 'Admin');
   const [rusakOutletId, setRusakOutletId] = useState(1);
+  const [rusakBatchRows, setRusakBatchRows] = useState([
+    { id: Date.now(), item_name: ingredientsList[0] ? ingredientsList[0].name : 'Daging Ayam Fillet', custom_item_name: '', qty: 1, unit: ingredientsList[0] ? ingredientsList[0].unit : 'kg', reason: 'Terlalu kecil', notes: '' }
+  ]);
   const [rusakSearchQuery, setRusakSearchQuery] = useState('');
   const [rusakIngredientId, setRusakIngredientId] = useState(ingredientsList[0] ? ingredientsList[0].id : 1);
   const [rusakQty, setRusakQty] = useState('');
   const [rusakUnit, setRusakUnit] = useState(ingredientsList[0] ? ingredientsList[0].unit : 'kg');
   const [rusakNotes, setRusakNotes] = useState('');
+  const [rusakEditingNotes, setRusakEditingNotes] = useState('');
+  const [showRusakPreviewFormModal, setShowRusakPreviewFormModal] = useState(false);
 
   // Stok Opname Form States
   const [deletedOutflowIds, setDeletedOutflowIds] = useState(masterData.deletedOutflowIds || []);
@@ -566,9 +561,20 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [opnameNotes, setOpnameNotes] = useState('');
 
   // HELPER FUNCTIONS
-  const getOutletName = (id) => {
-    const found = masterData.outlets.find(o => o.id === Number(id));
-    return found ? found.name : `Outlet #${id}`;
+  const getOutletName = (id, explicitName) => {
+    const outletsList = masterData.outlets || outlets || [];
+    const found = outletsList.find(o => String(o.id) === String(id) || Number(o.id) === Number(id));
+    if (found && found.name) return found.name;
+    if (explicitName && explicitName !== `Outlet #${id}` && explicitName !== 'Restoran Utama') {
+      const explicitFound = outletsList.find(o => o.name === explicitName);
+      if (explicitFound) return explicitFound.name;
+      return explicitName;
+    }
+    if (outletsList.length > 0 && outletsList[0]?.name) {
+      const fallback = outletsList.find(o => Number(o.id) === Number(id)) || outletsList[0];
+      if (fallback && fallback.name) return fallback.name;
+    }
+    return id ? `Outlet #${id}` : 'Semua Outlet';
   };
 
   const getSelisihStatus = (sistem, fisik) => {
@@ -732,21 +738,6 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         return;
       }
 
-      // FALLBACK DETERMINISTIC DEDUCTION FOR IMPLICIT TRANSACTIONS
-      let remainingAmount = tx.amount || 0;
-      let seed = (typeof tx.id === 'number' ? tx.id : 1234) * 17;
-      const sortedProducts = [...activeProducts].sort((a,b) => b.price - a.price);
-
-      sortedProducts.forEach((p, idx) => {
-        if (remainingAmount <= 0) return;
-
-        const pSeed = (seed + idx * 9) % 10;
-        if (pSeed < 6 && remainingAmount >= p.price) {
-          const qtySold = Math.floor(remainingAmount / p.price) || 1;
-          remainingAmount -= qtySold * p.price;
-          mapItemToRawMaterials(p.name, qtySold, `${tx.id}-${p.id}`);
-        }
-      });
     });
 
     return deductions.filter(d => !deletedOutflowIds.includes(d.id) && d.itemType === 'Bahan Baku');
@@ -781,12 +772,34 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   const getFilteredRusak = () => {
-    return getMovementsList().filter(m => {
-      if (m.type !== 'WASTE') return false;
+    const l1 = masterData.damagedGoods || [];
+    const l2 = masterData.approvedWaste || [];
+    const l3 = getMovementsList().filter(m => m.type === 'WASTE');
+
+    const combined = [...l1];
+    const ids = new Set(combined.map(x => String(x.report_no || x.id)));
+
+    [...l2, ...l3].forEach(x => {
+      const key = String(x.report_no || x.id);
+      if (key && !ids.has(key)) {
+        combined.push(x);
+        ids.add(key);
+      }
+    });
+
+    const filtered = combined.filter(m => {
       if (logStartDate && m.date < logStartDate) return false;
       if (logEndDate && m.date > logEndDate) return false;
       if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(m.outlet_id)) return false;
       if (selectedBranch && m.outlet_id !== selectedBranch) return false;
+      return true;
+    });
+
+    const seen = new Set();
+    return filtered.filter(m => {
+      const rNo = String(m.report_no || m.id);
+      if (seen.has(rNo)) return false;
+      seen.add(rNo);
       return true;
     });
   };
@@ -858,30 +871,63 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   // DELETE LOGISTIC RECORD
-  const handleDeleteRecord = (id, tabType) => {
+  const handleDeleteRecord = (id, tabType, reportNo = null) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data logistik ini secara permanen?')) return;
 
-    if (tabType === 'stok_masuk' || tabType === 'stok_rusak') {
+    const targetReportNo = reportNo || id;
+
+    if (tabType === 'stok_masuk') {
       setMasterData(prev => ({
         ...prev,
-        stockMovement: (prev.stockMovement || []).filter(item => item.id !== id)
+        stockMovement: (prev.stockMovement || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
+        stockIn: (prev.stockIn || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
+        purchases: (prev.purchases || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
+      }));
+    } else if (tabType === 'stok_rusak') {
+      setMasterData(prev => ({
+        ...prev,
+        damagedGoods: (prev.damagedGoods || []).filter(item => 
+          String(item.id) !== String(id) && 
+          String(item.report_no || '') !== String(targetReportNo)
+        ),
+        approvedWaste: (prev.approvedWaste || []).filter(item => 
+          String(item.id) !== String(id) && 
+          String(item.report_no || '') !== String(targetReportNo)
+        ),
+        stockMovement: (prev.stockMovement || []).filter(item => 
+          String(item.id) !== String(id) && 
+          String(item.report_no || '') !== String(targetReportNo)
+        )
       }));
     } else if (tabType === 'stok_keluar') {
-      const updated = [...deletedOutflowIds, id];
+      const updated = [...deletedOutflowIds, id, targetReportNo].filter(Boolean);
       setDeletedOutflowIds(updated);
       setMasterData(prev => ({
         ...prev,
-        deletedOutflowIds: updated
+        deletedOutflowIds: updated,
+        stockMovement: (prev.stockMovement || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
       }));
     } else if (tabType === 'transfer_stok') {
       setMasterData(prev => ({
         ...prev,
-        stockTransfer: (prev.stockTransfer || []).filter(item => item.id !== id)
+        stockTransfer: (prev.stockTransfer || []).filter(item => 
+          String(item.id) !== String(id) && 
+          String(item.report_no || '') !== String(targetReportNo)
+        ),
+        approvedTransfers: (prev.approvedTransfers || []).filter(item => 
+          String(item.id) !== String(id) && 
+          String(item.report_no || '') !== String(targetReportNo)
+        ),
+        stockMovement: (prev.stockMovement || []).filter(item => 
+          String(item.id) !== String(id) && 
+          String(item.report_no || '') !== String(targetReportNo)
+        )
       }));
     } else if (tabType === 'stok_opname') {
       setMasterData(prev => ({
         ...prev,
-        stockOpname: (prev.stockOpname || []).filter(item => item.id !== id)
+        stockOpname: (prev.stockOpname || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
+        approvedOpname: (prev.approvedOpname || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
       }));
     }
   };
@@ -894,6 +940,26 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       (!outletId || Number(d.outletId || d.outlet_id) === Number(outletId))
     );
     return itemOutflows.reduce((sum, d) => sum + Number(d.qty || 0), 0);
+  };
+
+  // GET AUTO WASTE / STOK RUSAK FOR INGREDIENT
+  const getAutoWasteForIngredient = (itemName, outletId, dateStr) => {
+    const rawList = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || []), ...(masterData.stockMovement || []).filter(m => m.type === 'WASTE')];
+    const uniqueMap = new Map();
+    rawList.forEach(w => {
+      const key = w.id || `${w.report_no}-${w.item_name || w.nama_barang}-${w.qty || w.stok_rusak}`;
+      if (!uniqueMap.has(key)) uniqueMap.set(key, w);
+    });
+    const deduplicated = Array.from(uniqueMap.values());
+    return deduplicated
+      .filter(d => {
+        const matchName = (d.item_name || d.nama_barang || d.itemName || '').toLowerCase().trim() === (itemName || '').toLowerCase().trim();
+        const matchOutlet = !outletId || String(d.outlet_id || d.outletId) === String(outletId) || d.branch_name === outletId || d.outletName === outletId || Number(d.outlet_id || d.outletId) === Number(outletId);
+        const dDate = d.date || (d.tanggal_waktu ? d.tanggal_waktu.split('T')[0] : '');
+        const matchDate = !dateStr || dDate === dateStr;
+        return matchName && matchOutlet && matchDate;
+      })
+      .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || d.jumlah_rusak || 0), 0);
   };
 
   // ACC / APPROVE OPNAME REPORT FROM OUTLET
@@ -930,14 +996,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   // SEND TO MOBILE APK (REQUIRES ACC FIRST)
   const handleSendToMobileAPK = (recordName, recordObj = null) => {
     if (recordObj) {
-      if (recordObj.status !== 'ACC') {
+      if (recordObj.status !== 'ACC' && recordObj.status !== 'Approved' && recordObj.status !== 'ok') {
         alert(`⚠️ Laporan Stok Opname (${recordName}) harus disetujui (ACC) terlebih dahulu oleh Admin sebelum dapat dikirim ke Mobile APK!`);
         return;
       }
 
       const updatedObj = {
         ...recordObj,
-        status: 'ACC',
+        status: 'Approved',
         sent_to_apk: true,
         type_input: 'Report Outlet (Disetujui)'
       };
@@ -956,7 +1022,133 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         };
       });
     }
-    alert(`🚀 Berhasil mengirim Laporan Stok Opname (${recordName}) yang telah di-ACC ke Mobile APK Kasir! Data kini langsung ter-sync di Halaman Logistik Mobile APK.`);
+    alert(`🚀 Berhasil mengirim Laporan Stok Opname (${recordName}) ke Mobile APK Kasir! Status laporan kini berubah menjadi 🟢 APPROVED.`);
+  };
+
+  // 2-STEP TRANSFER APPROVAL & APK DISTRIBUTION TO POS MOBILE
+  const handleApproveTransferRecord = (targetRecord) => {
+    const targetReportNo = targetRecord.report_no || targetRecord.id;
+
+    setMasterData(prev => {
+      const list1 = prev.stockTransfer || [];
+      const list2 = prev.approvedTransfers || [];
+
+      const updateItem = (item) => {
+        if (item.id === targetRecord.id || (item.report_no && String(item.report_no) === String(targetReportNo))) {
+          return {
+            ...item,
+            status: 'Approved',
+            is_approved: true
+          };
+        }
+        return item;
+      };
+
+      const updatedList1 = list1.map(updateItem);
+      const updatedList2 = list2.map(updateItem);
+
+      return {
+        ...prev,
+        stockTransfer: updatedList1,
+        approvedTransfers: updatedList2
+      };
+    });
+
+    alert(`✅ Laporan Transfer Stok ${targetReportNo} telah disetujui (ACC)! Silakan klik tombol 'Kirim APK' untuk menghubungkan data langsung ke Mobile APK Kasir (POS).`);
+  };
+
+  const handleApproveWasteRecord = (targetRecord) => {
+    const targetReportNo = targetRecord.report_no || targetRecord.id;
+
+    setMasterData(prev => {
+      const updateItem = (item) => {
+        if (item.id === targetRecord.id || (item.report_no && String(item.report_no) === String(targetReportNo))) {
+          return {
+            ...item,
+            status: 'Approved',
+            type_input: 'by approval',
+            status_keterangan: 'by approved',
+            sumber_input: item.sumber_input || 'web_admin',
+            is_approved: true
+          };
+        }
+        return item;
+      };
+
+      return {
+        ...prev,
+        damagedGoods: (prev.damagedGoods || []).map(updateItem),
+        approvedWaste: (prev.approvedWaste || []).map(updateItem),
+        stockMovement: (prev.stockMovement || []).map(updateItem)
+      };
+    });
+
+    alert(`✅ Laporan Barang Rusak ${targetReportNo} telah disetujui (ACC)! Status laporan ini di POS Mobile kini berubah menjadi 🟢 APPROVED.`);
+  };
+
+  const handleSendWasteToAPK = (targetRecord) => {
+    const targetReportNo = targetRecord.report_no || targetRecord.id;
+
+    setMasterData(prev => {
+      const updateItem = (item) => {
+        if (item.id === targetRecord.id || (item.report_no && String(item.report_no) === String(targetReportNo))) {
+          return {
+            ...item,
+            status: 'Approved',
+            sent_to_apk: true,
+            type_input: 'by approval',
+            status_keterangan: 'by approved',
+            sumber_input: item.sumber_input || 'web_admin',
+            is_approved: true
+          };
+        }
+        return item;
+      };
+
+      return {
+        ...prev,
+        damagedGoods: (prev.damagedGoods || []).map(updateItem),
+        approvedWaste: (prev.approvedWaste || []).map(updateItem),
+        stockMovement: (prev.stockMovement || []).map(updateItem)
+      };
+    });
+
+    alert(`🚀 Laporan Barang Rusak ${targetReportNo} berhasil dikirim ke Mobile APK Kasir! Status berubah menjadi 🟢 APPROVED.`);
+  };
+
+  const handleSendTransferToAPK = (targetRecord) => {
+    const targetReportNo = targetRecord.report_no || targetRecord.id;
+
+    setMasterData(prev => {
+      const list1 = prev.stockTransfer || [];
+      const list2 = prev.approvedTransfers || [];
+      const list3 = prev.stockMovement || [];
+
+      const updateItem = (item) => {
+        if (item.id === targetRecord.id || (item.report_no && String(item.report_no) === String(targetReportNo))) {
+          return {
+            ...item,
+            status: 'Approved',
+            sent_to_apk: true,
+            is_approved: true
+          };
+        }
+        return item;
+      };
+
+      const updatedList1 = list1.map(updateItem);
+      const updatedList2 = list2.map(updateItem);
+      const updatedList3 = list3.map(updateItem);
+
+      return {
+        ...prev,
+        stockTransfer: updatedList1,
+        approvedTransfers: updatedList2,
+        stockMovement: updatedList3
+      };
+    });
+
+    alert(`🚀 Laporan Transfer Stok ${targetReportNo} berhasil dikirim ke Mobile APK Kasir! Status berubah menjadi 🟢 APPROVED.`);
   };
 
   // OPEN SINGLE RECORD EDIT MODAL
@@ -976,6 +1168,37 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       setEditPriceUnit(m.price_unit || '');
     } else if (type === 'waste') {
       setEditOutletId(m.outlet_id);
+      setRusakNo(m.report_no || m.id);
+      setRusakDate(m.date || new Date().toISOString().split('T')[0]);
+      setRusakCreatedBy(m.created_by || m.submitted_by || m.input_by || 'Admin');
+      setRusakOutletId(m.outlet_id || 1);
+      setRusakEditingNotes(m.editing_notes || m.notes || '');
+
+      const allRusak = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])];
+      const matchingBatch = allRusak.filter(x => (x.report_no && x.report_no === m.report_no) || x.id === m.id);
+      if (matchingBatch.length > 0) {
+        setRusakBatchRows(matchingBatch.map((b, i) => ({
+          id: b.id || (Date.now() + i),
+          item_name: b.item_name || b.nama_barang || '',
+          custom_item_name: '',
+          qty: b.qty || b.stok_rusak || b.jumlah_rusak || 1,
+          unit: b.unit || 'kg',
+          reason: b.alasan_rusak || b.damage_reason || b.reason || 'Terlalu kecil',
+          notes: b.notes || ''
+        })));
+      } else {
+        setRusakBatchRows([{
+          id: m.id || Date.now(),
+          item_name: m.item_name || m.nama_barang || '',
+          custom_item_name: '',
+          qty: m.qty || m.stok_rusak || m.jumlah_rusak || 1,
+          unit: m.unit || 'kg',
+          reason: m.alasan_rusak || m.damage_reason || m.reason || 'Terlalu kecil',
+          notes: m.notes || ''
+        }]);
+      }
+      setShowAddModal('rusak');
+      return;
     } else if (type === 'opname') {
       setEditOutletId(m.outlet_id);
       setEditStokAwal(m.stok_awal || 0);
@@ -1149,35 +1372,99 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   const handleSaveRusak = (e) => {
     e.preventDefault();
-    if (!rusakQty) {
-      alert('Kuantitas (Qty) wajib diisi');
+    if (rusakBatchRows.length === 0 || rusakBatchRows.some(r => !r.item_name || !r.qty)) {
+      alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
       return;
     }
+    // Opens Papan Preview Modal for user review
+    setShowRusakPreviewFormModal(true);
+  };
 
-    const selectedIng = ingredientsList.find(i => i.id === Number(rusakIngredientId)) || { name: 'Item', unit: 'pcs' };
+  const handleSaveRusakFinal = () => {
+    const reportNo = rusakNo || `WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
+    const ingredientsList = masterData.ingredients || [];
+    const outletTarget = outlets.find(o => String(o.id) === String(rusakOutletId) || Number(o.id) === Number(rusakOutletId)) || outlets[0] || { id: 1, name: 'Restoran Utama' };
 
-    const newRecord = {
-      id: `mv-${Date.now()}`,
-      date: rusakDate,
-      outlet_id: Number(rusakOutletId),
-      type: 'WASTE',
-      item_name: selectedIng.name,
-      qty: Number(rusakQty),
-      unit: selectedIng.unit || 'pcs',
-      created_by: rusakCreatedBy,
-      type_input: 'manual',
-      notes: rusakNotes || '-'
-    };
+    const createdRecords = rusakBatchRows.map((row, idx) => {
+      const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Kustom') : row.item_name;
+      const matchedIng = ingredientsList.find(i => i.name === finalItemName);
+      const skuVal = row.sku || matchedIng?.sku || `SKU-WST-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    setMasterData(prev => ({
-      ...prev,
-      stockMovement: [...(prev.stockMovement || []), newRecord]
-    }));
+      const finalReason = (row.reason === 'Dan lain lain' || row.reason === 'Lain-lain')
+        ? (row.reason_custom ? `Dan lain lain: ${row.reason_custom}` : (row.reason || 'Dan lain lain'))
+        : (row.reason || 'Terlalu kecil');
 
-    setRusakQty('');
-    setRusakNotes('');
-    setRusakSearchQuery('');
+      const notesParts = [];
+      if (rusakEditingNotes) notesParts.push(`[Edit: ${rusakEditingNotes}]`);
+      if (rusakNotes) notesParts.push(`[Catatan: ${rusakNotes}]`);
+      if (row.notes) notesParts.push(row.notes);
+      if (notesParts.length === 0) notesParts.push(finalReason);
+
+      const finalNotesStr = notesParts.join(' - ');
+
+      return {
+        id: `${reportNo}-${idx + 1}-${Math.random().toString(36).substr(2, 4)}`,
+        report_no: reportNo,
+        date: rusakDate,
+        tanggal_waktu: new Date().toISOString(),
+        outlet_id: rusakOutletId || (outlets[0]?.id) || 1,
+        branch_name: outletTarget.name || (outlets[0]?.name) || 'Restoran Utama',
+        type: 'WASTE',
+        nama_barang: finalItemName,
+        item_name: finalItemName,
+        sku: skuVal,
+        jumlah_rusak: Number(row.qty || 1),
+        qty: Number(row.qty || 1),
+        stok_rusak: Number(row.qty || 1),
+        unit: row.unit || matchedIng?.unit || 'kg',
+        alasan_rusak: finalReason,
+        damage_reason: finalReason,
+        reason: finalReason,
+        input_by: rusakCreatedBy,
+        submitted_by: rusakCreatedBy,
+        created_by: rusakCreatedBy,
+        author_name: rusakCreatedBy,
+        sumber_input: 'web_admin',
+        status_keterangan: 'by manual',
+        type_input: 'manual',
+        status: 'pending',
+        is_approved: false,
+        editing_notes: rusakEditingNotes || '',
+        notes: finalNotesStr,
+        created_at: new Date().toISOString()
+      };
+    });
+
+    const filterOld = (arr = []) => arr.filter(x => String(x.report_no || x.id) !== String(reportNo) && String(x.id) !== String(editingRecord?.id || ''));
+
+    setMasterData(prev => {
+      const updatedIngredients = (prev.ingredients || []).map(ing => {
+        const matchRecord = createdRecords.find(r => 
+          (r.item_name || r.nama_barang || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim() &&
+          (!ing.outlet_id || String(r.outlet_id) === String(ing.outlet_id) || Number(r.outlet_id) === Number(ing.outlet_id))
+        );
+        if (matchRecord) {
+          const currentStok = Number(ing.stok || ing.stock || ing.qty || 0);
+          const newStok = Math.max(0, currentStok - Number(matchRecord.qty || 1));
+          return { ...ing, stok: newStok, stock: newStok };
+        }
+        return ing;
+      });
+
+      return {
+        ...prev,
+        ingredients: updatedIngredients,
+        damagedGoods: [...createdRecords, ...filterOld(prev.damagedGoods)],
+        approvedWaste: [...createdRecords, ...filterOld(prev.approvedWaste)],
+        stockMovement: [...createdRecords, ...filterOld(prev.stockMovement)]
+      };
+    });
+
+    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Bahan Baku) berhasil disimpan!\nKeterangan "by manual" aktif. Silakan klik ACC & Kirim APK jika ingin menghubungkan ke POS Mobile APK.`);
+    setShowRusakPreviewFormModal(false);
     setShowAddModal(null);
+    setEditingRecord(null);
+    setRusakEditingNotes('');
   };
 
   const handleSaveOpname = (e) => {
@@ -1542,7 +1829,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         </div>
 
         {/* Global Action Add Button for Active SubTab */}
-        {activeSubTab !== 'stok_keluar' && (
+        {activeSubTab !== 'stok_keluar' && activeSubTab !== 'stok_rusak' && (
           <button 
             onClick={() => {
               if (activeSubTab === 'perbandingan_harga') {
@@ -1558,7 +1845,6 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             <span>
               {activeSubTab === 'stok_masuk' ? 'Tambah Logistik Manual' : 
                activeSubTab === 'transfer_stok' ? 'Kirim Transfer Stok' :
-               activeSubTab === 'stok_rusak' ? 'Laporkan Barang Rusak' :
                activeSubTab === 'perbandingan_harga' ? 'Tambah Perbandingan Harga' : 'Mulai Audit Opname'}
             </span>
           </button>
@@ -1686,7 +1972,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                      key === 'variance' ? '📈 Selisih' :
                      key === 'stokAwal' ? '📦 Stok Awal' :
                      key === 'stokMasuk' ? '📥 Stok Masuk' :
-                     key === 'stokKeluar' ? '📤 Stok Keluar (Penjualan)' :
+                     key === 'stokKeluar' ? '📤 Stok Keluar' :
                      key === 'transferMasuk' ? '📥 Transfer Penerima' :
                      key === 'transferKeluar' ? '📤 Transfer Pemberi' :
                      key === 'stokRusak' ? '⚠️ Stok Rusak' :
@@ -1704,42 +1990,80 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         )}
       </div>
 
-      {/* Sub-Tab Navigation Bar */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', background: '#1e293b', padding: '6px', borderRadius: '12px', border: '1px solid #334155' }}>
-        {[
-          { id: 'stok_masuk', label: '📥 Stok Masuk', color: '#38bdf8' },
-          { id: 'stok_keluar', label: '📤 Stok Keluar (Penjualan)', color: '#fb7185' },
-          { id: 'transfer_stok', label: '🚚 Transfer Stok', color: '#fbbf24' },
-          { id: 'stok_rusak', label: '⚠️ Stok Rusak (Waste)', color: '#f43f5e' },
-          { id: 'stok_opname_system', label: '🤖 Stock Opname by Sistem', color: '#34d399' },
-          { id: 'stok_opname_report', label: '📱 Stok Opname by Report Outlet', color: '#a78bfa' },
-          { id: 'perbandingan_harga', label: '🏷️ Perbandingan Harga', color: '#c084fc' }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setActiveSubTab(tab.id);
-              setLogShowColumnDropdown(false);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeSubTab === tab.id ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-              color: activeSubTab === tab.id ? '#818cf8' : '#94a3b8',
-              fontWeight: activeSubTab === tab.id ? '800' : '600',
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <span style={{ color: activeSubTab === tab.id ? '#818cf8' : tab.color }}>●</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+      {/* Sub-Tab Navigation Bar (2 Proportional Rows) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#1e293b', padding: '10px', borderRadius: '14px', border: '1px solid #334155' }}>
+        {/* Row 1: 4 Tabs */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+          {[
+            { id: 'stok_masuk', label: '📥 Stok Masuk', color: '#38bdf8' },
+            { id: 'stok_keluar', label: '📤 Stok Keluar', color: '#fb7185' },
+            { id: 'transfer_stok', label: '🚚 Transfer Stok', color: '#fbbf24' },
+            { id: 'stok_rusak', label: '⚠️ Stok Rusak (Waste)', color: '#f43f5e' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveSubTab(tab.id);
+                setLogShowColumnDropdown(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: activeSubTab === tab.id ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid rgba(255,255,255,0.05)',
+                background: activeSubTab === tab.id ? 'rgba(99, 102, 241, 0.2)' : '#0f172a',
+                color: activeSubTab === tab.id ? '#ffffff' : '#94a3b8',
+                fontWeight: activeSubTab === tab.id ? '800' : '600',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: activeSubTab === tab.id ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none'
+              }}
+            >
+              <span style={{ color: activeSubTab === tab.id ? '#818cf8' : tab.color }}>●</span>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Row 2: 3 Tabs */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+          {[
+            { id: 'stok_opname_system', label: '🤖 Stock Opname by Sistem', color: '#34d399' },
+            { id: 'stok_opname_report', label: '📱 Stok Opname by Report Outlet', color: '#a78bfa' },
+            { id: 'perbandingan_harga', label: '🏷️ Perbandingan Harga', color: '#c084fc' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveSubTab(tab.id);
+                setLogShowColumnDropdown(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: activeSubTab === tab.id ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid rgba(255,255,255,0.05)',
+                background: activeSubTab === tab.id ? 'rgba(99, 102, 241, 0.2)' : '#0f172a',
+                color: activeSubTab === tab.id ? '#ffffff' : '#94a3b8',
+                fontWeight: activeSubTab === tab.id ? '800' : '600',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                boxShadow: activeSubTab === tab.id ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none'
+              }}
+            >
+              <span style={{ color: activeSubTab === tab.id ? '#818cf8' : tab.color }}>●</span>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* RENDER ACTIVE TAB TABLE */}
@@ -1767,6 +2091,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     {visibleColsMasuk.priceUnit && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Harga Satuan</th>}
                     {visibleColsMasuk.totalPrice && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Total Harga</th>}
                     {visibleColsMasuk.typeInput && <th style={{ padding: '12px 10px' }}>Tipe Input</th>}
+                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1778,7 +2103,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     if (paginatedMasuk.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                          <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
                             Tidak ada log stok masuk untuk outlet / tanggal terpilih.
                           </td>
                         </tr>
@@ -1810,6 +2135,17 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </span>
                           </td>
                         )}
+                        <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleDeleteRecord(m.id, 'stok_masuk', m.report_no || m.id)}
+                            style={{
+                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                            }}
+                          >
+                            <Trash2 size={12} />
+                            <span>Hapus</span>
+                          </button>
+                        </td>
                       </tr>
                     ));
                   })()}
@@ -1912,40 +2248,57 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <span>Log Transfer Stok Antar Cabang Restoran</span>
             </h3>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {visibleColsTransfer.date && <th style={{ padding: '12px 10px' }}>Tanggal</th>}
-                    {visibleColsTransfer.createdBy && <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>}
-                    {visibleColsTransfer.typeInput && <th style={{ padding: '12px 10px' }}>Tipe Input</th>}
-                    {visibleColsTransfer.fromOutlet && <th style={{ padding: '12px 10px' }}>Outlet Asal</th>}
-                    {visibleColsTransfer.toOutlet && <th style={{ padding: '12px 10px' }}>Outlet Tujuan</th>}
-                    {visibleColsTransfer.itemName && <th style={{ padding: '12px 10px' }}>Nama Item</th>}
-                    {visibleColsTransfer.qty && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Qty</th>}
-                    {visibleColsTransfer.unit && <th style={{ padding: '12px 10px' }}>Satuan</th>}
-                    {visibleColsTransfer.status && <th style={{ padding: '12px 10px' }}>Status</th>}
-                    {visibleColsTransfer.notes && <th style={{ padding: '12px 10px' }}>Catatan</th>}
-                    {visibleColsTransfer.returnStatus && <th style={{ padding: '12px 10px' }}>Analisis Pengembalian</th>}
-                    <th style={{ padding: '12px 10px', textAlign: 'center', width: '150px' }}>Aksi</th>
+                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.70rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                    {visibleColsTransfer.date && <th style={{ padding: '10px 8px' }}>Tanggal</th>}
+                    {visibleColsTransfer.itemName && <th style={{ padding: '10px 8px' }}>No. Laporan</th>}
+                    {visibleColsTransfer.createdBy && <th style={{ padding: '10px 8px' }}>Dibuat Oleh</th>}
+                    {visibleColsTransfer.typeInput && <th style={{ padding: '10px 8px' }}>Tipe Input</th>}
+                    {visibleColsTransfer.fromOutlet && <th style={{ padding: '10px 8px', color: '#fb7185' }}>Outlet Asal (Pengirim)</th>}
+                    {visibleColsTransfer.transferOut && <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Out</th>}
+                    {visibleColsTransfer.toOutlet && <th style={{ padding: '10px 8px', color: '#34d399' }}>Outlet Tujuan (Penerima)</th>}
+                    {visibleColsTransfer.transferIn && <th style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399' }}>📥 Transfer In</th>}
+                    {visibleColsTransfer.status && <th style={{ padding: '10px 8px' }}>Status</th>}
+                    {visibleColsTransfer.returnStatus && <th style={{ padding: '10px 8px' }}>Analisis Pengembalian</th>}
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {getFilteredTransfer().length === 0 ? (
                     <tr>
-                      <td colSpan={12} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
                         Tidak ada log transfer stok untuk outlet terpilih.
                       </td>
                     </tr>
                   ) : (
                     getFilteredTransfer().map(t => (
                       <tr key={t.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        {visibleColsTransfer.date && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{t.date}</td>}
-                        {visibleColsTransfer.createdBy && <td style={{ padding: '12px 10px', color: '#cbd5e1', fontWeight: '600' }}>👤 {t.created_by || 'Admin'}</td>}
+                        {visibleColsTransfer.date && <td style={{ padding: '8px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{t.date}</td>}
+                        {visibleColsTransfer.itemName && (
+                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewTransferModalData(t)}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)',
+                                borderRadius: '6px', padding: '3px 8px', color: '#38bdf8', fontWeight: '900',
+                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                fontSize: '0.78rem'
+                              }}
+                              title="Klik untuk melihat pratinjau detail laporan"
+                            >
+                              <span>📋 {t.report_no || t.id}</span>
+                              <span style={{ fontSize: '0.68rem' }}>👁️</span>
+                            </button>
+                          </td>
+                        )}
+                        {visibleColsTransfer.createdBy && <td style={{ padding: '8px 8px', color: '#cbd5e1', fontWeight: '600', whiteSpace: 'nowrap' }}>👤 {t.created_by || t.submitted_by || 'Admin'}</td>}
                         {visibleColsTransfer.typeInput && (
-                          <td style={{ padding: '12px 10px' }}>
+                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
                             <span style={{
-                              padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700',
+                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
                               background: t.type_input === 'manual' ? 'rgba(129, 140, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
                               color: t.type_input === 'manual' ? '#818cf8' : '#fbbf24',
                               border: '1px solid',
@@ -1956,15 +2309,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </span>
                           </td>
                         )}
-                        {visibleColsTransfer.fromOutlet && <td style={{ padding: '12px 10px', fontWeight: '700', color: '#fb7185' }}>📤 {getOutletName(t.from_outlet_id)}</td>}
-                        {visibleColsTransfer.toOutlet && <td style={{ padding: '12px 10px', fontWeight: '700', color: '#34d399' }}>📥 {getOutletName(t.to_outlet_id)}</td>}
-                        {visibleColsTransfer.itemName && <td style={{ padding: '12px 10px', fontWeight: '800' }}>{t.item_name}</td>}
-                        {visibleColsTransfer.qty && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800' }}>{t.qty}</td>}
-                        {visibleColsTransfer.unit && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{t.unit}</td>}
+                        {visibleColsTransfer.fromOutlet && <td style={{ padding: '8px 8px', fontWeight: '700', color: '#fb7185', whiteSpace: 'nowrap' }}>🔴 {getOutletName(t.from_outlet_id || t.fromOutletId, t.from_outlet_name || t.fromOutletName)}</td>}
+                        {visibleColsTransfer.transferOut && <td style={{ padding: '8px 8px', textAlign: 'right', fontWeight: '800', color: '#fb7185', whiteSpace: 'nowrap' }}>-{t.qty} {t.unit}</td>}
+                        {visibleColsTransfer.toOutlet && <td style={{ padding: '8px 8px', fontWeight: '700', color: '#34d399', whiteSpace: 'nowrap' }}>🟢 {getOutletName(t.to_outlet_id || t.toOutletId, t.to_outlet_name || t.toOutletName)}</td>}
+                        {visibleColsTransfer.transferIn && <td style={{ padding: '8px 8px', textAlign: 'right', fontWeight: '800', color: '#34d399', whiteSpace: 'nowrap' }}>+{t.qty} {t.unit}</td>}
                         {visibleColsTransfer.status && (
-                          <td style={{ padding: '12px 10px' }}>
+                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
                             <span style={{
-                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '700',
+                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
                               background: t.status === 'Terkirim' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
                               color: t.status === 'Terkirim' ? '#34d399' : '#fbbf24'
                             }}>
@@ -1972,76 +2324,82 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </span>
                           </td>
                         )}
-                        {visibleColsTransfer.notes && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{t.notes}</td>}
                         
                         {/* Analisis Pengembalian */}
                         {visibleColsTransfer.returnStatus && (
-                          <td style={{ padding: '12px 10px' }}>
+                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
                             {t.is_returned ? (
-                              <span style={{ color: '#34d399', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                🟢 Sudah Kembali (Lunas)
+                              <span style={{ color: '#34d399', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
+                                🟢 Sudah Kembali
                               </span>
                             ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <span style={{ color: '#fb7185', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ color: '#fb7185', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
                                   ⚠️ Belum Dikembalikan
-                                </span>
-                                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                                  Harus dikembalikan: {t.qty} {t.unit}
                                 </span>
                               </div>
                             )}
                           </td>
                         )}
 
-                        {/* Aksi Edit & Tandai Lunas */}
-                        <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                        {/* Aksi Edit, ACC, Kirim APK & Hapus */}
+                        <td style={{ padding: '8px 8px', display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', whiteSpace: 'nowrap' }}>
                           <button
                             onClick={() => handleOpenEditRecord(t, 'transfer')}
                             style={{
-                              background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
+                              background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '3px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.70rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px'
                             }}
                           >
-                            <Edit3 size={12} />
+                            <Edit3 size={11} />
                             <span>Edit</span>
                           </button>
+
+                          {/* Tombol ACC (Jika Belum Approved/Terkirim) */}
+                          {t.status !== 'Approved' && t.status !== 'Terkirim' && !t.is_approved && (
+                            <button
+                              onClick={() => handleApproveTransferRecord(t)}
+                              style={{
+                                background: 'rgba(251, 191, 36, 0.2)', border: '1px solid #fbbf24', color: '#fbbf24', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.70rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '3px'
+                              }}
+                              title="Setujui Laporan Transfer Stok"
+                            >
+                              <CheckCircle size={11} />
+                              <span>ACC</span>
+                            </button>
+                          )}
+
+                          {/* Tombol Kirim APK (Jika Sudah ACC / Approved) */}
+                          {(t.status === 'Approved' || t.is_approved) && t.status !== 'Terkirim' && !t.sent_to_apk && (
+                            <button
+                              onClick={() => handleSendTransferToAPK(t)}
+                              style={{
+                                background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(52,211,153,0.3)'
+                              }}
+                              title="Kirim status Terkirim & distribusikan data ke Mobile APK Kasir"
+                            >
+                              <Smartphone size={12} />
+                              <span>Kirim APK</span>
+                            </button>
+                          )}
+
+                          {/* Indicator Terkirim ke APK */}
+                          {(t.status === 'Terkirim' || t.sent_to_apk) && (
+                            <span style={{
+                              background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px'
+                            }}>
+                              🟢 Terkirim
+                            </span>
+                          )}
+
                           <button
-                            onClick={() => handleDeleteRecord(t.id, 'transfer_stok')}
+                            onClick={() => handleDeleteRecord(t.id, 'transfer_stok', t.report_no || t.id)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
+                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
                             }}
                           >
                             <Trash2 size={12} />
                             <span>Hapus</span>
                           </button>
-                          <button
-                            onClick={() => handleSendToMobileAPK(t.item_name)}
-                            style={{
-                              background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.3)', color: '#34d399', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                            title="Kirim data logistik ke Mobile APK Kasir"
-                          >
-                            <Smartphone size={12} />
-                            <span>Kirim APK</span>
-                          </button>
-                          {!t.is_returned && (
-                            <button
-                              onClick={() => {
-                                const updatedTransfers = getTransfersList().map(itemTx => {
-                                  if (itemTx.id === t.id) {
-                                    return { ...itemTx, is_returned: true };
-                                  }
-                                  return itemTx;
-                                });
-                                setMasterData(prev => ({ ...prev, stockTransfer: updatedTransfers }));
-                              }}
-                              style={{
-                                background: 'rgba(251, 191, 36, 0.15)', border: '1px solid rgba(251, 191, 36, 0.3)', color: '#fbbf24', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700'
-                              }}
-                            >
-                              Retur
-                            </button>
-                          )}
                         </td>
                       </tr>
                     ))
@@ -2052,94 +2410,207 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           </div>
         )}
 
+
+
         {/* SUBTAB 4: STOK RUSAK */}
         {activeSubTab === 'stok_rusak' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Trash2 size={18} color="#f43f5e" />
-              <span>Log Barang Rusak & Waste Inventoris</span>
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Trash2 size={18} color="#f43f5e" />
+                  <span>Daftar Log Laporan Barang Rusak (Waste & Retur Bahan Baku)</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                  Pencatatan waste, retur, expired, & kerusakan bahan baku terintegrasi dua arah dengan POS Mobile APK
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    setEditingRecord(null);
+                    setRusakDate(todayStr);
+                    setRusakNo(`WST-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
+                    setRusakCreatedBy(userRightsList[0] ? userRightsList[0].name : 'Admin Logistik');
+                    setRusakOutletId(selectedBranch || (outlets[0] ? outlets[0].id : 1));
+                    setRusakBatchRows([{ id: Date.now(), item_name: ingredientsList[0] ? ingredientsList[0].name : '', custom_item_name: '', qty: 1, unit: ingredientsList[0] ? ingredientsList[0].unit : 'kg', reason: 'Terlalu kecil', notes: '' }]);
+                    setRusakEditingNotes('');
+                    setShowAddModal('rusak');
+                  }}
+                  style={{
+                    padding: '8px 16px', background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+                    color: '#ffffff', border: 'none', borderRadius: '8px',
+                    fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    boxShadow: '0 4px 12px rgba(244,63,94,0.3)'
+                  }}
+                >
+                  <PlusCircle size={15} />
+                  <span>+ Tambah Stok Rusak</span>
+                </button>
+              </div>
+            </div>
             
             <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {visibleColsRusak.date && <th style={{ padding: '12px 10px' }}>Tanggal</th>}
-                    {visibleColsRusak.createdBy && <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>}
-                    {visibleColsRusak.typeInput && <th style={{ padding: '12px 10px' }}>Tipe Input</th>}
-                    {visibleColsRusak.outletId && <th style={{ padding: '12px 10px' }}>Outlet</th>}
-                    {visibleColsRusak.itemName && <th style={{ padding: '12px 10px' }}>Nama Item</th>}
-                    {visibleColsRusak.qty && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Qty Rusak</th>}
-                    {visibleColsRusak.unit && <th style={{ padding: '12px 10px' }}>Satuan</th>}
-                    {visibleColsRusak.notes && <th style={{ padding: '12px 10px' }}>Catatan Alasan</th>}
-                    <th style={{ padding: '12px 10px', textAlign: 'center', width: '100px' }}>Aksi</th>
+                    <th style={{ padding: '12px 10px' }}>Tanggal</th>
+                    <th style={{ padding: '12px 10px' }}>No Laporan</th>
+                    <th style={{ padding: '12px 10px' }}>Pengaju / Dibuat Oleh</th>
+                    <th style={{ padding: '12px 10px' }}>Nama Outlet</th>
+                    <th style={{ padding: '12px 10px' }}>Nama Bahan Baku</th>
+                    <th style={{ padding: '12px 10px', textAlign: 'right' }}>Jumlah Rusak</th>
+                    <th style={{ padding: '12px 10px' }}>Alasan Rusak</th>
+                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Tipe Input</th>
+                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Status</th>
+                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {getFilteredRusak().length === 0 ? (
                     <tr>
                       <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                        Tidak ada log stok rusak / waste untuk outlet terpilih.
+                        Belum ada log laporan barang rusak / waste untuk outlet terpilih. Klik "+ Tambah Stok Rusak" untuk membuat laporan.
                       </td>
                     </tr>
                   ) : (
-                    getFilteredRusak().map(m => (
-                      <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        {visibleColsRusak.date && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{m.date}</td>}
-                        {visibleColsRusak.createdBy && <td style={{ padding: '12px 10px', color: '#cbd5e1', fontWeight: '600' }}>👤 {m.created_by || 'Admin'}</td>}
-                        {visibleColsRusak.typeInput && (
-                          <td style={{ padding: '12px 10px' }}>
+                    getFilteredRusak().map(m => {
+                      const isSent = m.status === 'Terkirim' || m.sent_to_apk;
+                      const isApproved = isSent || m.status === 'ok' || m.status === 'approved' || m.status === 'Approved' || m.status === 'ACC' || m.is_approved;
+                      const isWebAdminInput = m.sumber_input === 'web_admin' || m.status_keterangan === 'by manual' || m.type_input === 'manual';
+
+                      const rawItems = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])].filter(x => (x.report_no && x.report_no === (m.report_no || m.id)) || x.id === m.id);
+                      const uniqueItemsMap = new Map();
+                      rawItems.forEach(x => {
+                        const itemKey = x.id || `${x.item_name || x.nama_barang}-${x.qty || x.stok_rusak}-${x.unit}`;
+                        if (!uniqueItemsMap.has(itemKey)) {
+                          uniqueItemsMap.set(itemKey, x);
+                        }
+                      });
+                      const reportItems = Array.from(uniqueItemsMap.values());
+
+                      const displayItemName = reportItems.length > 0
+                        ? reportItems.map(r => r.item_name || r.nama_barang || 'Bahan Baku').join(', ')
+                        : (m.item_name || m.nama_barang || 'Bahan Baku');
+                      const displayQty = reportItems.length > 0
+                        ? reportItems.map(r => `${r.qty || r.stok_rusak || 1} ${r.unit || 'kg'}`).join(', ')
+                        : `${m.qty || m.stok_rusak || 1} ${m.unit || 'kg'}`;
+                      const displayReason = reportItems.length > 0
+                        ? reportItems.map(r => r.alasan_rusak || r.reason || r.damage_reason || 'Terlalu kecil').filter((v, i, a) => a.indexOf(v) === i).join(', ')
+                        : (m.alasan_rusak || m.reason || m.damage_reason || '-');
+
+                      return (
+                        <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                          <td style={{ padding: '12px 10px', color: '#94a3b8', fontWeight: '700' }}>{m.date}</td>
+                          <td style={{ padding: '12px 10px', fontWeight: '900', color: '#fb7185' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewWasteModalData(m);
+                              }}
+                              style={{ background: 'rgba(251, 113, 133, 0.12)', border: '1px solid rgba(251, 113, 133, 0.3)', padding: '4px 10px', borderRadius: '6px', color: '#fb7185', cursor: 'pointer', fontWeight: '900', fontSize: '0.80rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Klik untuk lihat pratinjau rincian barang rusak"
+                            >
+                              📋 {m.report_no || m.id} 👁️
+                            </button>
+                          </td>
+                          <td style={{ padding: '12px 10px', color: '#cbd5e1', fontWeight: '600' }}>
+                            👤 {m.input_by || m.submitted_by || m.created_by || 'Admin Logistik'}
+                          </td>
+                          <td style={{ padding: '12px 10px', fontWeight: '700', color: '#cbd5e1' }}>🏢 {getOutletName(m.outlet_id, m.branch_name)}</td>
+                          <td style={{ padding: '12px 10px', fontWeight: '800', color: '#38bdf8' }}>{displayItemName}</td>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>{displayQty}</td>
+                          <td style={{ padding: '12px 10px', color: '#fbbf24', fontSize: '0.80rem', fontWeight: '700' }}>{displayReason}</td>
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                             <span style={{
-                              padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700',
-                              background: m.type_input === 'manual' ? 'rgba(129, 140, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                              color: m.type_input === 'manual' ? '#818cf8' : '#fbbf24',
-                              border: '1px solid',
-                              borderColor: m.type_input === 'manual' ? 'rgba(129, 140, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)',
-                              textTransform: 'uppercase'
+                              padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '800',
+                              background: isWebAdminInput ? 'rgba(129, 140, 248, 0.15)' : 'rgba(52, 211, 153, 0.15)',
+                              color: isWebAdminInput ? '#818cf8' : '#34d399',
+                              border: `1px solid ${isWebAdminInput ? 'rgba(129, 140, 248, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`
                             }}>
-                              {m.type_input === 'manual' ? 'manual' : 'by approval'}
+                              {isWebAdminInput ? 'By manual' : 'By approved'}
                             </span>
                           </td>
-                        )}
-                        {visibleColsRusak.outletId && <td style={{ padding: '12px 10px', fontWeight: '700' }}>🏢 {getOutletName(m.outlet_id)}</td>}
-                        {visibleColsRusak.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: '#f43f5e' }}>{m.item_name}</td>}
-                        {visibleColsRusak.qty && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>-{m.qty}</td>}
-                        {visibleColsRusak.unit && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{m.unit}</td>}
-                        {visibleColsRusak.notes && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{m.notes}</td>}
-                        
-                        {/* Aksi Edit, Delete & Kirim APK */}
-                        <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                          <button
-                            onClick={() => handleOpenEditRecord(m, 'waste')}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            <Edit3 size={12} />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteRecord(m.id, 'stok_rusak')}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            <Trash2 size={12} />
-                            <span>Hapus</span>
-                          </button>
-                          <button
-                            onClick={() => handleSendToMobileAPK(m.item_name)}
-                            style={{
-                              background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.3)', color: '#34d399', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                            title="Kirim data logistik ke Mobile APK Kasir"
-                          >
-                            <Smartphone size={12} />
-                            <span>Kirim APK</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '3px 10px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: '900',
+                              background: isSent ? 'rgba(16, 185, 129, 0.25)' : (isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)'),
+                              color: isSent ? '#10b981' : (isApproved ? '#34d399' : '#fbbf24'),
+                              border: `1px solid ${isSent ? '#10b981' : (isApproved ? '#34d399' : '#fbbf24')}`
+                            }}>
+                              {isSent ? '🟢 TERKIRIM' : (isApproved ? '🟢 APPROVED' : '⏳ PENDING')}
+                            </span>
+                          </td>
+                          
+                          {/* Aksi ACC, Edit, Delete & Kirim APK */}
+                          <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                            {/* Tombol ACC (HANYA untuk laporan dari POS Mobile yang belum disetujui) */}
+                            {!isWebAdminInput && !isApproved && !isSent && (
+                              <button
+                                onClick={() => handleApproveWasteRecord(m)}
+                                style={{
+                                  background: 'rgba(251, 191, 36, 0.2)', border: '1px solid #fbbf24', color: '#fbbf24', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px'
+                                }}
+                                title="Setujui Laporan Barang Rusak dari POS Mobile"
+                              >
+                                <CheckCircle size={12} />
+                                <span>ACC</span>
+                              </button>
+                            )}
+
+                            {/* Tombol Kirim APK (Untuk Web Admin Input langsung muncul, atau POS input setelah di-ACC) */}
+                            {((isWebAdminInput && !isSent) || (!isWebAdminInput && isApproved && !isSent)) && (
+                              <button
+                                onClick={() => handleSendWasteToAPK(m)}
+                                style={{
+                                  background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(52,211,153,0.3)'
+                                }}
+                                title="Kirim data ke Mobile APK Kasir"
+                              >
+                                <Smartphone size={12} />
+                                <span>Kirim APK</span>
+                              </button>
+                            )}
+
+                            {/* Indicator Terkirim ke APK */}
+                            {isSent && (
+                              <span style={{
+                                background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px'
+                              }}>
+                                🟢 Terkirim
+                              </span>
+                            )}
+
+                            {/* Edit button */}
+                            <button
+                              onClick={() => handleOpenEditRecord(m, 'waste')}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
+                              }}
+                            >
+                              <Edit3 size={12} />
+                              <span>Edit</span>
+                            </button>
+
+                            {/* Hapus */}
+                            <button
+                              onClick={() => handleDeleteRecord(m.id, 'stok_rusak', m.report_no || m.id)}
+                              style={{
+                                background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
+                              }}
+                            >
+                              <Trash2 size={12} />
+                              <span>Hapus</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -2311,10 +2782,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                         const todayStr = new Date().toISOString().split('T')[0];
                         if (op.date !== todayStr) return acc;
                         const autoSalesKeluar = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
+                        const autoWasteQty = getAutoWasteForIngredient(op.item_name, op.outlet_id, op.date);
                         const currentStokKeluar = (op.status === 'ACC' || op.status === 'ok' || op.status === 'approved') 
                           ? (op.stok_keluar !== undefined ? op.stok_keluar : autoSalesKeluar) 
-                          : (op.stok_keluar || 0);
-                        const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - (currentStokKeluar + (op.stok_rusak || 0) + (op.transfer_keluar || 0));
+                          : (op.stok_keluar || autoSalesKeluar);
+                        const currentStokRusak = (op.stok_rusak !== undefined && op.stok_rusak > 0) ? op.stok_rusak : autoWasteQty;
+
+                        const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - (currentStokKeluar + currentStokRusak + (op.transfer_keluar || 0));
                         const isDefisit = (op.stok_fisik || 0) < sSistem;
                         const activePrice = getItemPriceFromStokMasuk(op.item_name) || op.harga_satuan || 0;
                         const dendaVal = isDefisit ? Math.abs(sSistem - (op.stok_fisik || 0)) * activePrice : 0;
@@ -2331,10 +2805,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     {formatRupiah(
                       getFilteredOpname().reduce((acc, op) => {
                         const autoSalesKeluar = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
+                        const autoWasteQty = getAutoWasteForIngredient(op.item_name, op.outlet_id, op.date);
                         const currentStokKeluar = (op.status === 'ACC' || op.status === 'ok' || op.status === 'approved') 
                           ? (op.stok_keluar !== undefined ? op.stok_keluar : autoSalesKeluar) 
-                          : (op.stok_keluar || 0);
-                        const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - (currentStokKeluar + (op.stok_rusak || 0) + (op.transfer_keluar || 0));
+                          : (op.stok_keluar || autoSalesKeluar);
+                        const currentStokRusak = (op.stok_rusak !== undefined && op.stok_rusak > 0) ? op.stok_rusak : autoWasteQty;
+
+                        const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - (currentStokKeluar + currentStokRusak + (op.transfer_keluar || 0));
                         const isDefisit = (op.stok_fisik || 0) < sSistem;
                         const activePrice = getItemPriceFromStokMasuk(op.item_name) || op.harga_satuan || 0;
                         const dendaVal = isDefisit ? Math.abs(sSistem - (op.stok_fisik || 0)) * activePrice : 0;
@@ -2379,9 +2856,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   ) : (
                     getFilteredOpname().map(op => {
                       const autoSalesKeluar = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
+                      const autoWasteQty = getAutoWasteForIngredient(op.item_name, op.outlet_id, op.date);
                       const currentStokKeluar = op.stok_keluar !== undefined && op.stok_keluar > 0 ? op.stok_keluar : autoSalesKeluar;
+                      const currentStokRusak = op.stok_rusak !== undefined && op.stok_rusak > 0 ? op.stok_rusak : autoWasteQty;
 
-                      const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - (currentStokKeluar + (op.stok_rusak || 0) + (op.transfer_keluar || 0));
+                      const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - (currentStokKeluar + currentStokRusak + (op.transfer_keluar || 0));
                       const diffVal = (op.stok_fisik || 0) - sSistem;
                       const selisihStatus = getSelisihStatus(sSistem, op.stok_fisik || 0);
                       const activePrice = getItemPriceFromStokMasuk(op.item_name) || op.harga_satuan || 0;
@@ -2413,7 +2892,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           )}
                           {visibleColsOpname.transferMasuk && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399' }}>+{op.transfer_masuk || 0}</td>}
                           {visibleColsOpname.transferKeluar && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>-{op.transfer_keluar || 0}</td>}
-                          {visibleColsOpname.stokRusak && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>-{op.stok_rusak || 0}</td>}
+                          {visibleColsOpname.stokRusak && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>-{currentStokRusak}</td>}
                           {visibleColsOpname.stokSistem && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '700' }}>{sSistem}</td>}
                           {visibleColsOpname.stokFisik && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{op.stok_fisik || 0}</td>}
                           {visibleColsOpname.selisih && (
@@ -2437,41 +2916,61 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           
                           {/* Aksi ACC & Kirim APK */}
                           <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                            {!isACC ? (
-                              <button
-                                onClick={() => handleApproveOpnameReport(op)}
-                                style={{
-                                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                  border: 'none', color: '#ffffff', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
-                                }}
-                                title="ACC / Setujui Laporan & Hitung Otomatis Stok Keluar Penjualan"
-                              >
-                                <CheckCircle2 size={13} />
-                                <span>ACC</span>
-                              </button>
-                            ) : (
-                              <span style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.4)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800' }}>
-                                ✅ ACC
+                            {(op.sent_to_apk || op.status === 'Approved' || op.status === 'APPROVED') ? (
+                              <span style={{
+                                background: 'rgba(52, 211, 153, 0.2)',
+                                color: '#34d399',
+                                border: '1px solid #34d399',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.74rem',
+                                fontWeight: '900',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                🟢 Approved
                               </span>
-                            )}
+                            ) : (
+                              <>
+                                {!isACC ? (
+                                  <button
+                                    onClick={() => handleApproveOpnameReport(op)}
+                                    style={{
+                                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                      border: 'none', color: '#ffffff', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                                    }}
+                                    title="ACC / Setujui Laporan & Hitung Otomatis Stok Keluar Penjualan"
+                                  >
+                                    <CheckCircle2 size={13} />
+                                    <span>ACC</span>
+                                  </button>
+                                ) : (
+                                  <span style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.4)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800' }}>
+                                    ✅ ACC
+                                  </span>
+                                )}
 
-                            <button
-                              onClick={() => handleSendToMobileAPK(op.item_name, op)}
-                              disabled={!isACC}
-                              style={{
-                                background: isACC ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.1)',
-                                border: `1px solid ${isACC ? 'rgba(56, 189, 248, 0.4)' : 'rgba(148, 163, 184, 0.2)'}`,
-                                color: isACC ? '#38bdf8' : '#64748b',
-                                padding: '5px 10px', borderRadius: '6px',
-                                cursor: isACC ? 'pointer' : 'not-allowed',
-                                fontSize: '0.75rem', fontWeight: '800',
-                                display: 'flex', alignItems: 'center', gap: '4px'
-                              }}
-                              title={isACC ? "Kirim data logistik ter-ACC ke Mobile APK Kasir" : "Laporan harus di-ACC terlebih dahulu sebelum dapat dikirim ke Mobile APK"}
-                            >
-                              <Smartphone size={13} />
-                              <span>Kirim APK</span>
-                            </button>
+                                <button
+                                  onClick={() => handleSendToMobileAPK(op.item_name, op)}
+                                  disabled={!isACC}
+                                  style={{
+                                    background: isACC ? 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)' : 'rgba(148, 163, 184, 0.1)',
+                                    border: `1px solid ${isACC ? 'rgba(56, 189, 248, 0.4)' : 'rgba(148, 163, 184, 0.2)'}`,
+                                    color: isACC ? '#ffffff' : '#64748b',
+                                    padding: '5px 12px', borderRadius: '6px',
+                                    cursor: isACC ? 'pointer' : 'not-allowed',
+                                    fontSize: '0.75rem', fontWeight: '900',
+                                    display: 'flex', alignItems: 'center', gap: '4px',
+                                    boxShadow: isACC ? '0 2px 8px rgba(56,189,248,0.3)' : 'none'
+                                  }}
+                                  title={isACC ? "Kirim data logistik ter-ACC ke Mobile APK Kasir" : "Laporan harus di-ACC terlebih dahulu sebelum dapat dikirim ke Mobile APK"}
+                                >
+                                  <Smartphone size={13} />
+                                  <span>Kirim APK</span>
+                                </button>
+                              </>
+                            )}
 
                             <button
                               onClick={() => handleDeleteRecord(op.id, 'stok_opname')}
@@ -3218,243 +3717,706 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         </div>
       )}
 
-      {/* 2. Modal Transfer Stok */}
+      {/* 2. Modal Kirim Transfer Stok Antar Cabang (SAME AS POS MOBILE 100% - FIT TO PAGE) */}
       {showAddModal === 'transfer_stok' && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <form onSubmit={handleSaveTransfer} className="glass-card animate-fade-in" style={{ padding: '24px', width: '480px', border: '1px solid #fbbf24', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', borderBottom: '1px solid #334155', paddingBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Truck size={20} color="#fbbf24" />
-              <span>Kirim Transfer Stok Antar Cabang</span>
-            </h3>
-
-            {/* Tanggal & Dibuat Oleh */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Pengiriman</span>
-                <input 
-                  type="date" 
-                  value={transferDate} 
-                  onChange={e => setTransferDate(e.target.value)} 
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} 
-                />
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '12px'
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '95vw', maxWidth: '960px', maxHeight: '94vh', overflowY: 'auto',
+            padding: '18px', background: '#1e293b', border: '1px solid #a78bfa', borderRadius: '18px',
+            display: 'flex', flexDirection: 'column', gap: '12px'
+          }}>
+            {/* Header Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', background: 'rgba(167, 139, 250, 0.15)', borderRadius: '10px', border: '1px solid rgba(167, 139, 250, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Truck size={22} color="#a78bfa" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
+                    🚚 Buat Laporan Transfer Produk Antarcabang
+                  </h3>
+                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                    Formulir mutasi & pengiriman persediaan stok antarcabang restoran
+                  </p>
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh</span>
-                <select
-                  value={transferCreatedBy}
-                  onChange={e => setTransferCreatedBy(e.target.value)}
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
-                >
-                  {userRightsList.map(u => <option key={u.id} value={u.name}>{u.name} ({u.role})</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Pengirim & Penerima */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#fb7185', fontWeight: '700' }}>📤 Cabang Pengirim</span>
-                <select 
-                  value={transferFromOutletId} 
-                  onChange={e => setTransferFromOutletId(Number(e.target.value))} 
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
-                >
-                  {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '700' }}>📥 Cabang Penerima</span>
-                <select 
-                  value={transferToOutletId} 
-                  onChange={e => setTransferToOutletId(Number(e.target.value))} 
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
-                >
-                  {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Nama Item (Searchable) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Cari & Pilih Nama Item (Bahan Baku)</span>
-              <input
-                type="text"
-                placeholder="Ketik untuk mencari bahan baku..."
-                value={transferSearchQuery}
-                onChange={e => setTransferSearchQuery(e.target.value)}
-                style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px 6px 0 0', color: 'white', fontSize: '0.82rem' }}
-              />
-              <select
-                value={transferIngredientId}
-                onChange={e => {
-                  const val = Number(e.target.value);
-                  setTransferIngredientId(val);
-                  const found = ingredientsList.find(i => i.id === val);
-                  if (found) setTransferUnit(found.unit || 'pcs');
+              <button 
+                onClick={() => setShowAddModal(null)} 
+                style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#94a3b8', borderRadius: '8px', width: '32px', height: '32px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', fontSize: '1.0rem', fontWeight: '700', transition: 'all 0.2s'
                 }}
-                style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderTop: 'none', borderRadius: '0 0 6px 6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
               >
-                {ingredientsList.filter(i => i.name.toLowerCase().includes(transferSearchQuery.toLowerCase())).map(i => (
-                  <option key={i.id} value={i.id}>{i.name}</option>
-                ))}
-              </select>
+                ✕
+              </button>
             </div>
 
-            {/* Qty & Satuan */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Jumlah (Qty)</span>
-                <input 
-                  type="number" 
-                  placeholder="Isi Qty transfer..." 
-                  value={transferQty} 
-                  onChange={e => setTransferQty(e.target.value)} 
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} 
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Satuan (Otomatis)</span>
-                <input 
-                  type="text" 
-                  readOnly 
-                  value={transferUnit} 
-                  style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.82rem' }} 
-                />
-              </div>
-            </div>
+            {(() => {
+              const handleAddTransferRow = () => {
+                const defaultIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                setTransferBatchRows(prev => [
+                  ...prev,
+                  {
+                    id: Date.now() + Math.random(),
+                    item_name: defaultIng.name,
+                    custom_item_name: '',
+                    qty: 1,
+                    unit: defaultIng.unit || 'kg'
+                  }
+                ]);
+              };
 
-            {/* Catatan */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Catatan Transfer</span>
-              <input 
-                type="text" 
-                placeholder="Tulis alasan / keperluan transfer..." 
-                value={transferNotes} 
-                onChange={e => setTransferNotes(e.target.value)} 
-                style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} 
-              />
-            </div>
+              const handleUpdateTransferRow = (id, field, value) => {
+                setTransferBatchRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+              };
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-              <button type="button" onClick={() => setShowAddModal(null)} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Batal</button>
-              <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: '#fbbf24', color: '#0f172a' }}>Simpan Transfer</button>
-            </div>
-          </form>
+              const handleDeleteTransferRow = (id) => {
+                if (transferBatchRows.length <= 1) return;
+                setTransferBatchRows(prev => prev.filter(r => r.id !== id));
+              };
+
+              return (
+                <form onSubmit={e => {
+                  e.preventDefault();
+                  if (transferBatchRows.length === 0) {
+                    alert('Mohon tambahkan minimal 1 bahan baku/produk untuk ditransfer.');
+                    return;
+                  }
+
+                  const fromOutletObj = outlets.find(o => Number(o.id) === Number(transferFromOutletId)) || outlets[0] || { name: 'Restoran Utama' };
+                  const toOutletObj = outlets.find(o => Number(o.id) === Number(transferToOutletId)) || outlets.find(o => Number(o.id) !== Number(transferFromOutletId)) || { name: 'Outlet Tujuan' };
+
+                  const newRecords = [];
+                  transferBatchRows.forEach((row, idx) => {
+                    const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Baru') : row.item_name;
+                    const recId = transferBatchRows.length > 1 ? `${transferNo}-${idx + 1}` : transferNo;
+
+                    newRecords.push({
+                      id: recId,
+                      report_no: transferNo,
+                      date: transferDate,
+                      from_outlet_id: Number(transferFromOutletId),
+                      from_outlet_name: fromOutletObj.name,
+                      to_outlet_id: Number(transferToOutletId),
+                      to_outlet_name: toOutletObj.name,
+                      submitted_by: transferCreatedBy,
+                      created_by: transferCreatedBy,
+                      author_name: transferCreatedBy,
+                      item_name: finalItemName,
+                      qty: Number(row.qty || 0),
+                      unit: row.unit || 'kg',
+                      notes: transferNotes || 'Transfer stok antarcabang',
+                      status: 'Approved',
+                      is_approved: true,
+                      type_input: 'manual'
+                    });
+                  });
+
+                  setMasterData(prev => ({
+                    ...prev,
+                    stockTransfer: [...newRecords, ...(prev.stockTransfer || [])],
+                    approvedTransfers: [...newRecords, ...(prev.approvedTransfers || [])],
+                    stockMovement: [...newRecords, ...(prev.stockMovement || [])]
+                  }));
+
+                  alert(`Berhasil membuat & menyimpan Laporan Transfer Stok ${transferNo} (${newRecords.length} Item)!\nStatus: Approved (Siap Dikirim ke Mobile APK).`);
+                  setShowAddModal(null);
+                }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+                  {/* KARTU 1: Tanggal & Nomor Laporan */}
+                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Transfer *</label>
+                      <input type="date" required value={transferDate} onChange={e => setTransferDate(e.target.value)} className="form-input" style={{ width: '100%', height: '36px', fontSize: '0.80rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan Transfer *</label>
+                      <input type="text" required value={transferNo} onChange={e => setTransferNo(e.target.value)} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: '#a78bfa', fontSize: '0.80rem' }} />
+                    </div>
+                  </div>
+
+                  {/* KARTU 2: Diisi Oleh, Outlet Asal & Outlet Tujuan */}
+                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Pengaju / Dibuat Oleh *</label>
+                      <select value={transferCreatedBy} onChange={e => setTransferCreatedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '36px', fontSize: '0.80rem' }}>
+                        {userRightsList.map(a => (
+                          <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.74rem', color: '#fb7185', fontWeight: '800', display: 'block', marginBottom: '4px' }}>🔴 Outlet Asal (Pengirim) *</label>
+                      <select value={transferFromOutletId} onChange={e => setTransferFromOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: '#fb7185', border: '1px solid #fb7185', fontSize: '0.80rem' }}>
+                        {outlets.map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: '800', display: 'block', marginBottom: '4px' }}>🟢 Outlet Tujuan (Penerima) *</label>
+                      <select value={transferToOutletId} onChange={e => setTransferToOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: '#34d399', border: '1px solid #34d399', fontSize: '0.80rem' }}>
+                        {outlets.filter(o => o.id !== Number(transferFromOutletId)).map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* KARTU 3: DETAIL BAHAN BAKU / PRODUK YANG DITRANSFER (MULTI-ITEM FIT TO PAGE) */}
+                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>📦 Detail Bahan Baku / Produk Yang Ditransfer ({transferBatchRows.length} Item)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddTransferRow}
+                        style={{
+                          padding: '5px 12px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8',
+                          border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px',
+                          fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s'
+                        }}
+                      >
+                        <PlusCircle size={14} />
+                        <span>+ Tambahkan Bahan Baku</span>
+                      </button>
+                    </div>
+
+                    {/* Format Tabel Fit To Page Proposional */}
+                    <div style={{ width: '100%', overflowX: 'auto', borderRadius: '10px', border: '1px solid #334155' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+                        <thead>
+                          <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.70rem', fontWeight: '800', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                            <th style={{ padding: '8px 10px', width: '35px', textAlign: 'center' }}>No</th>
+                            <th style={{ padding: '8px 10px', minWidth: '180px' }}>Nama Produk / Stok Item *</th>
+                            <th style={{ padding: '8px 10px', width: '130px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Out (Outlet Pengirim) *</th>
+                            <th style={{ padding: '8px 10px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Transfer In (Outlet Penerima) *</th>
+                            <th style={{ padding: '8px 10px', width: '110px', textAlign: 'center' }}>Satuan / Unit</th>
+                            <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Hapus</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {transferBatchRows.map((row, idx) => {
+                            const foundIng = ingredientsList.find(i => i.name === row.item_name);
+                            const autoUnit = foundIng?.unit || row.unit || 'kg';
+
+                            return (
+                              <React.Fragment key={row.id || idx}>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.5)' : '#0f172a' }}>
+                                  {/* 1. Index */}
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                    {idx + 1}
+                                  </td>
+
+                                  {/* 2. Nama Bahan Baku */}
+                                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                    <select
+                                      value={row.item_name}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        handleUpdateTransferRow(row.id, 'item_name', val);
+                                        if (val !== '__OTHER__') {
+                                          const found = ingredientsList.find(i => i.name === val);
+                                          if (found) handleUpdateTransferRow(row.id, 'unit', found.unit || 'kg');
+                                        }
+                                      }}
+                                      className="form-input"
+                                      style={{ width: '100%', height: '34px', fontWeight: '800', color: '#34d399', fontSize: '0.78rem', borderRadius: '6px' }}
+                                    >
+                                      {ingredientsList.map(ing => (
+                                        <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
+                                      ))}
+                                      <option value="__OTHER__">➕ + Buat / Tentukan Nama Bahan Baku Baru...</option>
+                                    </select>
+                                  </td>
+
+                                  {/* 3. Transfer Out Input */}
+                                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                      <span style={{ color: '#fb7185', fontWeight: '900', fontSize: '0.85rem' }}>-</span>
+                                      <input
+                                        type="number"
+                                        required
+                                        step="any"
+                                        min="0"
+                                        placeholder="0"
+                                        value={row.qty}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
+                                        className="form-input"
+                                        style={{ width: '75px', height: '34px', fontWeight: '900', color: '#fb7185', fontSize: '0.80rem', textAlign: 'right', borderRadius: '6px', border: '1px solid rgba(251, 113, 133, 0.4)' }}
+                                      />
+                                    </div>
+                                  </td>
+
+                                  {/* 4. Transfer In Input */}
+                                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                      <span style={{ color: '#34d399', fontWeight: '900', fontSize: '0.85rem' }}>+</span>
+                                      <input
+                                        type="number"
+                                        required
+                                        step="any"
+                                        min="0"
+                                        placeholder="0"
+                                        value={row.qty}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
+                                        className="form-input"
+                                        style={{ width: '75px', height: '34px', fontWeight: '900', color: '#34d399', fontSize: '0.80rem', textAlign: 'right', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.4)' }}
+                                      />
+                                    </div>
+                                  </td>
+
+                                  {/* 5. Satuan Unit Automatis */}
+                                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                    {row.item_name === '__OTHER__' ? (
+                                      <input
+                                        type="text"
+                                        value={row.unit}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'unit', e.target.value)}
+                                        placeholder="kg/liter"
+                                        className="form-input"
+                                        style={{ width: '100%', height: '34px', fontSize: '0.78rem', borderRadius: '6px', textAlign: 'center' }}
+                                      />
+                                    ) : (
+                                      <div style={{
+                                        height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        background: 'rgba(167, 139, 250, 0.1)', border: '1px solid rgba(167, 139, 250, 0.3)',
+                                        borderRadius: '6px', color: '#c084fc', fontWeight: '800', fontSize: '0.78rem'
+                                      }}>
+                                        🏷️ {autoUnit}
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* 6. Hapus */}
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTransferRow(row.id)}
+                                      disabled={transferBatchRows.length <= 1}
+                                      style={{
+                                        background: transferBatchRows.length <= 1 ? 'transparent' : 'rgba(244, 63, 94, 0.15)',
+                                        border: `1px solid ${transferBatchRows.length <= 1 ? 'rgba(255,255,255,0.1)' : 'rgba(244, 63, 94, 0.3)'}`,
+                                        color: transferBatchRows.length <= 1 ? '#475569' : '#f43f5e',
+                                        borderRadius: '6px', width: '28px', height: '28px',
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        cursor: transferBatchRows.length <= 1 ? 'not-allowed' : 'pointer'
+                                      }}
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </td>
+                                </tr>
+
+                                {/* Sub-row custom item input */}
+                                {row.item_name === '__OTHER__' && (
+                                  <tr style={{ background: 'rgba(56, 189, 248, 0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <td colSpan={6} style={{ padding: '8px 10px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: '800' }}>✏️ Nama Bahan Baku Baru:</span>
+                                        <input
+                                          type="text"
+                                          required
+                                          placeholder="Ketikkan nama bahan baku baru..."
+                                          value={row.custom_item_name}
+                                          onChange={e => handleUpdateTransferRow(row.id, 'custom_item_name', e.target.value)}
+                                          className="form-input"
+                                          style={{ flex: 1, height: '32px', fontWeight: '800', color: '#fbbf24', fontSize: '0.78rem', borderRadius: '6px' }}
+                                        />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* KARTU 4: Catatan / Alasan Transfer */}
+                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <span>📝 Catatan / Alasan Transfer Bahan Baku</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Contoh: Stok bahan baku menipis untuk persiapan weekend..." 
+                      value={transferNotes} 
+                      onChange={e => setTransferNotes(e.target.value)} 
+                      className="form-input" 
+                      style={{ width: '100%', height: '36px', fontSize: '0.80rem', borderRadius: '8px' }} 
+                    />
+                  </div>
+
+                  {/* Footer Buttons */}
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAddModal(null)} 
+                      style={{
+                        padding: '10px 20px', background: '#334155', color: '#ffffff',
+                        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
+                        fontWeight: '700', fontSize: '0.80rem', cursor: 'pointer', transition: 'all 0.2s'
+                      }}
+                    >
+                      Batal
+                    </button>
+                    <button 
+                      type="submit" 
+                      style={{
+                        padding: '10px 24px', background: 'linear-gradient(135deg, #c084fc 0%, #7c3aed 100%)',
+                        color: '#ffffff', border: 'none', borderRadius: '8px',
+                        fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(167,139,250,0.4)', transition: 'all 0.2s'
+                      }}
+                    >
+                      💾 Simpan & Kirim Transfer Bahan Baku
+                    </button>
+                  </div>
+                </form>
+              );
+            })()}
+          </div>
         </div>
       )}
 
-      {/* 3. Modal Stok Rusak */}
+      {/* 3. Modal Stok Rusak (MATCHING POS MOBILE EXACTLY) */}
       {showAddModal === 'rusak' && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <form onSubmit={handleSaveRusak} className="glass-card animate-fade-in" style={{ padding: '24px', width: '480px', border: '1px solid #f43f5e', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', borderBottom: '1px solid #334155', paddingBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Trash2 size={20} color="#f43f5e" />
-              <span>Laporkan Stok Rusak / Waste</span>
-            </h3>
-
-            {/* Tanggal & Dibuat Oleh */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Kejadian</span>
-                <input 
-                  type="date" 
-                  value={rusakDate} 
-                  onChange={e => setRusakDate(e.target.value)} 
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} 
-                />
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto',
+            padding: '24px', background: '#1e293b', border: '1px solid #f43f5e', borderRadius: '18px',
+            display: 'flex', flexDirection: 'column', gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Trash2 size={24} color="#f43f5e" />
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                    Laporkan Stok Rusak / Waste
+                  </h3>
+                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                    Formulir pencatatan waste, retur, expired, & kerusakan bahan baku
+                  </p>
+                </div>
               </div>
+              <button onClick={() => { setShowAddModal(null); setEditingRecord(null); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveRusak} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              {/* Row 1: Tanggal Kejadian & Dibuat Oleh */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Kejadian *</span>
+                  <input type="date" required value={rusakDate} onChange={e => setRusakDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh *</span>
+                  <select value={rusakCreatedBy} onChange={e => setRusakCreatedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
+                    {userRightsList.map(u => (
+                      <option key={u.id} value={u.name}>{u.name} ({u.role || 'Staf Restoran'})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 2: Nama Outlet Cabang */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh</span>
-                <select
-                  value={rusakCreatedBy}
-                  onChange={e => setRusakCreatedBy(e.target.value)}
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Nama Outlet Cabang</span>
+                <select 
+                  value={rusakOutletId} 
+                  onChange={e => setRusakOutletId(e.target.value)} 
+                  className="form-input"
+                  style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '6px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
                 >
-                  {userRightsList.map(u => <option key={u.id} value={u.name}>{u.name} ({u.role})</option>)}
+                  {outlets.map(o => <option key={o.id} value={o.id}>🏢 {o.name}</option>)}
                 </select>
               </div>
-            </div>
 
-            {/* Nama Outlet */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Nama Outlet Cabang</span>
-              <select 
-                value={rusakOutletId} 
-                onChange={e => setRusakOutletId(Number(e.target.value))} 
-                style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
-              >
-                {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-              </select>
-            </div>
+              {/* Catatan Editing jika dalam mode Edit */}
+              {editingRecord && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(251,191,36,0.08)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.3)' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}>📝 Catatan Editing (Wajib saat Edit Data) *</span>
+                  <textarea
+                    required
+                    placeholder="Tuliskan catatan perbaikan atau alasan pengeditan data ini..."
+                    value={rusakEditingNotes}
+                    onChange={e => setRusakEditingNotes(e.target.value)}
+                    rows={2}
+                    className="form-input"
+                    style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fbbf24', fontSize: '0.80rem' }}
+                  />
+                </div>
+              )}
 
-            {/* Nama Item (Searchable) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Cari & Pilih Nama Item (Bahan Baku)</span>
-              <input
-                type="text"
-                placeholder="Ketik untuk mencari bahan baku..."
-                value={rusakSearchQuery}
-                onChange={e => setRusakSearchQuery(e.target.value)}
-                style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px 6px 0 0', color: 'white', fontSize: '0.82rem' }}
-              />
-              <select
-                value={rusakIngredientId}
-                onChange={e => {
-                  const val = Number(e.target.value);
-                  setRusakIngredientId(val);
-                  const found = ingredientsList.find(i => i.id === val);
-                  if (found) setRusakUnit(found.unit || 'pcs');
-                }}
-                style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderTop: 'none', borderRadius: '0 0 6px 6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
-              >
-                {ingredientsList.filter(i => i.name.toLowerCase().includes(rusakSearchQuery.toLowerCase())).map(i => (
-                  <option key={i.id} value={i.id}>{i.name}</option>
+              {/* Dynamic Item Rows Section */}
+              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#f43f5e', fontWeight: '800' }}>
+                    🥬 Cari & Pilih Nama Item (Bahan Baku Rusak):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                      setRusakBatchRows(prev => [
+                        ...prev,
+                        { id: Date.now(), item_name: firstIng.name, custom_item_name: '', qty: 1, unit: firstIng.unit || 'kg', reason: 'Terlalu kecil', notes: '' }
+                      ]);
+                    }}
+                    style={{
+                      padding: '6px 12px', background: 'rgba(244, 63, 94, 0.2)', border: '1px solid #f43f5e',
+                      color: '#f43f5e', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                    }}
+                  >
+                    <PlusCircle size={14} />
+                    <span>+ Tambahkan Bahan Baku</span>
+                  </button>
+                </div>
+
+                {rusakBatchRows.map((row, idx) => (
+                  <div key={row.id || idx} style={{ background: '#1e293b', padding: '12px', borderRadius: '10px', border: '1px solid #475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 36px', gap: '8px', alignItems: 'end' }}>
+                      <div>
+                        <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                          Item Bahan Baku *
+                        </span>
+                        <select
+                          value={row.item_name}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const updated = [...rusakBatchRows];
+                            updated[idx].item_name = val;
+                            if (val !== '__OTHER__') {
+                              const found = ingredientsList.find(i => i.name === val);
+                              if (found) updated[idx].unit = found.unit || 'kg';
+                            }
+                            setRusakBatchRows(updated);
+                          }}
+                          className="form-input"
+                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8', padding: '6px' }}
+                        >
+                          {ingredientsList.map(ing => (
+                            <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
+                          ))}
+                          <option value="__OTHER__">➕ + Nama Bahan Baku Lainnya...</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <span style={{ fontSize: '0.72rem', color: '#fb7185', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                          Jumlah Qty Rusak *
+                        </span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          required
+                          placeholder="Isi Qty..."
+                          value={row.qty}
+                          onChange={e => {
+                            const updated = [...rusakBatchRows];
+                            updated[idx].qty = e.target.value;
+                            setRusakBatchRows(updated);
+                          }}
+                          className="form-input"
+                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '900', color: '#fb7185', padding: '6px' }}
+                        />
+                      </div>
+
+                      <div>
+                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                          Satuan (Otomatis)
+                        </span>
+                        <input
+                          type="text"
+                          readOnly
+                          value={row.unit}
+                          className="form-input"
+                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', background: '#0f172a', color: '#94a3b8', padding: '6px' }}
+                        />
+                      </div>
+
+                      <div>
+                        <span style={{ fontSize: '0.72rem', color: '#fb7185', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                          Pilihan Alasan *
+                        </span>
+                        <select
+                          value={row.reason}
+                          onChange={e => {
+                            const updated = [...rusakBatchRows];
+                            updated[idx].reason = e.target.value;
+                            setRusakBatchRows(updated);
+                          }}
+                          className="form-input"
+                          style={{ width: '100%', height: '36px', fontSize: '0.78rem', fontWeight: '800', color: '#fb7185', padding: '6px' }}
+                        >
+                          <option value="Terlalu kecil">Terlalu kecil</option>
+                          <option value="Terlalu besar">Terlalu besar</option>
+                          <option value="Berbau">Berbau</option>
+                          <option value="Tidak standar">Tidak standar</option>
+                          <option value="Dan lain lain">Dan lain lain</option>
+                        </select>
+
+                        {row.reason === 'Dan lain lain' && (
+                          <input
+                            type="text"
+                            placeholder="Tulis alasan spesifik..."
+                            value={row.reason_custom || ''}
+                            onChange={e => {
+                              const updated = [...rusakBatchRows];
+                              updated[idx].reason_custom = e.target.value;
+                              setRusakBatchRows(updated);
+                            }}
+                            className="form-input"
+                            style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '700', marginTop: '4px' }}
+                          />
+                        )}
+                      </div>
+
+                      {rusakBatchRows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRusakBatchRows(prev => prev.filter((_, i) => i !== idx));
+                          }}
+                          style={{ height: '36px', width: '36px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer', fontWeight: '900' }}
+                          title="Hapus baris ini"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {row.item_name === '__OTHER__' && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Tentukan Nama Bahan Baku Baru..."
+                        value={row.custom_item_name}
+                        onChange={e => {
+                          const updated = [...rusakBatchRows];
+                          updated[idx].custom_item_name = e.target.value;
+                          setRusakBatchRows(updated);
+                        }}
+                        className="form-input"
+                        style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}
+                      />
+                    )}
+                  </div>
                 ))}
-              </select>
-            </div>
-
-            {/* Qty & Satuan */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Jumlah Qty Rusak</span>
-                <input 
-                  type="number" 
-                  placeholder="Isi Qty rusak..." 
-                  value={rusakQty} 
-                  onChange={e => setRusakQty(e.target.value)} 
-                  style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} 
-                />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Satuan (Otomatis)</span>
-                <input 
-                  type="text" 
-                  readOnly 
-                  value={rusakUnit} 
-                  style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.82rem' }} 
-                />
+
+              {/* Footer Buttons */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button type="button" onClick={() => { setShowAddModal(null); setEditingRecord(null); }} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
+                  Batal
+                </button>
+                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: '#f43f5e', color: 'white', fontWeight: '800' }}>
+                  Lanjut ke Pratinjau (OK)
+                </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* PAPAN PREVIEW MODAL STOK RUSAK WEB ADMIN */}
+      {showRusakPreviewFormModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: '#1e293b', border: '1px solid #34d399', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle size={22} color="#34d399" />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  📋 Papan Pratinjau Laporan Barang Rusak
+                </h3>
+              </div>
+              <button onClick={() => setShowRusakPreviewFormModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
             </div>
 
-
-
-            {/* Catatan Alasan */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Catatan Stok Rusak (Alasan)</span>
-              <input 
-                type="text" 
-                placeholder="Busuk, pecah, expired..." 
-                value={rusakNotes} 
-                onChange={e => setRusakNotes(e.target.value)} 
-                style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} 
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.82rem', color: '#f8fafc', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>No Laporan:</span>
+                <span style={{ fontWeight: '900', color: '#fb7185' }}>{rusakNo}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Tanggal Kejadian:</span>
+                <span style={{ fontWeight: '800' }}>{rusakDate}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Pengaju / Dibuat Oleh:</span>
+                <span style={{ fontWeight: '800' }}>👤 {rusakCreatedBy}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
+                <span style={{ fontWeight: '800', color: '#34d399' }}>🏢 {getOutletName(rusakOutletId)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Tipe Input & Status:</span>
+                <span style={{ fontWeight: '800', color: '#818cf8' }}>🔵 By manual (PENDING)</span>
+              </div>
+              {editingRecord && rusakEditingNotes && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(251,191,36,0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.3)' }}>
+                  <span style={{ color: '#fbbf24', fontWeight: '800', fontSize: '0.75rem' }}>📝 Catatan Editing:</span>
+                  <span style={{ color: '#f8fafc', fontSize: '0.78rem' }}>{rusakEditingNotes}</span>
+                </div>
+              )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-              <button type="button" onClick={() => setShowAddModal(null)} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Batal</button>
-              <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: '#f43f5e', color: 'white' }}>Laporkan Rusak</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '0.80rem', color: '#94a3b8', fontWeight: '800' }}>📦 Rincian Bahan Baku Rusak:</span>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                    <th style={{ padding: '8px' }}>Bahan Baku</th>
+                    <th style={{ padding: '8px', textAlign: 'center' }}>Jumlah Qty</th>
+                    <th style={{ padding: '8px' }}>Alasan Rusak</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rusakBatchRows.map((row, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '8px', fontWeight: '800', color: '#38bdf8' }}>{row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Kustom') : row.item_name}</td>
+                      <td style={{ padding: '8px', textAlign: 'center', fontWeight: '900', color: '#fb7185' }}>{row.qty} {row.unit}</td>
+                      <td style={{ padding: '8px', color: '#cbd5e1' }}>{row.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </form>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid #334155', paddingTop: '14px' }}>
+              <button
+                type="button"
+                onClick={() => setShowRusakPreviewFormModal(false)}
+                style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
+              >
+                ✏️ Edit Lagi
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveRusakFinal}
+                style={{ padding: '9px 24px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
+              >
+                💾 Simpan Laporan
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -3658,6 +4620,171 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#c084fc', color: '#0f172a' }}>Simpan Perbandingan</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PREVIEW LOG TRANSFER STOK */}
+      {previewTransferModalData && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '100%', maxWidth: '580px', background: '#1e293b',
+            border: '1px solid #38bdf8', borderRadius: '18px', padding: '24px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', background: 'rgba(56, 189, 248, 0.15)', borderRadius: '10px' }}>
+                  <Truck size={22} color="#38bdf8" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                    Pratinjau Laporan Transfer {previewTransferModalData.report_no || previewTransferModalData.id}
+                  </h3>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Detail Mutasi Stok Antarcabang Restoran</span>
+                </div>
+              </div>
+              <button onClick={() => setPreviewTransferModalData(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '800' }}>✕</button>
+            </div>
+
+            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>📋 No. Laporan:</span>
+                <span style={{ fontWeight: '900', color: '#38bdf8' }}>{previewTransferModalData.report_no || previewTransferModalData.id}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>📅 Tanggal:</span>
+                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewTransferModalData.date}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>👤 Pengaju / Dibuat Oleh:</span>
+                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewTransferModalData.submitted_by || previewTransferModalData.created_by || 'Admin'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>🌾 Nama Produk / Stok Item:</span>
+                <span style={{ fontWeight: '900', color: '#38bdf8' }}>{previewTransferModalData.item_name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#fb7185', fontWeight: '800' }}>🔴 Outlet Asal (Pengirim):</span>
+                <span style={{ fontWeight: '800', color: '#fb7185' }}>{getOutletName(previewTransferModalData.from_outlet_id || previewTransferModalData.fromOutletId, previewTransferModalData.from_outlet_name || previewTransferModalData.fromOutletName)} (-{previewTransferModalData.qty} {previewTransferModalData.unit})</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#34d399', fontWeight: '800' }}>🟢 Outlet Tujuan (Penerima):</span>
+                <span style={{ fontWeight: '800', color: '#34d399' }}>{getOutletName(previewTransferModalData.to_outlet_id || previewTransferModalData.toOutletId, previewTransferModalData.to_outlet_name || previewTransferModalData.toOutletName)} (+{previewTransferModalData.qty} {previewTransferModalData.unit})</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>🏷️ Satuan / Unit:</span>
+                <span style={{ fontWeight: '800', color: '#c084fc' }}>{previewTransferModalData.unit}</span>
+              </div>
+              {previewTransferModalData.notes && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>📝 Catatan:</span>
+                  <span style={{ fontWeight: '600', color: '#cbd5e1' }}>{previewTransferModalData.notes}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '8px' }}>
+                <span style={{ color: '#94a3b8' }}>⚡ Status Approval:</span>
+                <span style={{ fontWeight: '900', color: (previewTransferModalData.status === 'Terkirim' || previewTransferModalData.status === 'Approved' || previewTransferModalData.status === 'ok') ? '#34d399' : '#fbbf24' }}>
+                  {(previewTransferModalData.status === 'Terkirim' || previewTransferModalData.status === 'Approved' || previewTransferModalData.status === 'ok') ? '🟢 APPROVED / TERKIRIM' : '⏳ PENDING'}
+                </span>
+              </div>
+            </div>
+
+            <button onClick={() => setPreviewTransferModalData(null)} style={{ padding: '10px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer' }}>
+              Tutup Pratinjau
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 6. MODAL PRATINJAU BARANG RUSAK (PREVIEW WASTE REPORT) */}
+      {previewWasteModalData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '520px', background: '#1e293b', border: '1px solid #f43f5e', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={20} color="#f43f5e" />
+                <span>Pratinjau Laporan Barang Rusak {previewWasteModalData.report_no || previewWasteModalData.id}</span>
+              </h3>
+              <button onClick={() => setPreviewWasteModalData(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            {(() => {
+              const reportNo = previewWasteModalData.report_no || previewWasteModalData.id;
+              const allWasteList = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || []), ...(masterData.stockMovement || []).filter(m => m.type === 'WASTE')];
+              const matchingItems = allWasteList.filter(
+                x => (x.report_no && String(x.report_no) === String(reportNo)) || String(x.id) === String(previewWasteModalData.id)
+              );
+              const uniqueMap = new Map();
+              matchingItems.forEach(x => {
+                const itemKey = x.id || `${x.item_name || x.nama_barang}-${x.qty || x.stok_rusak}-${x.unit}`;
+                if (!uniqueMap.has(itemKey)) {
+                  uniqueMap.set(itemKey, x);
+                }
+              });
+              const itemsList = uniqueMap.size > 0 ? Array.from(uniqueMap.values()) : [previewWasteModalData];
+              const isApproved = previewWasteModalData.status === 'ok' || previewWasteModalData.status === 'approved' || previewWasteModalData.status === 'Approved' || previewWasteModalData.status === 'ACC' || previewWasteModalData.is_approved;
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>📋 No. Laporan:</span>
+                    <span style={{ fontWeight: '900', color: '#fb7185' }}>{reportNo}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>📅 Tanggal Pencatatan:</span>
+                    <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewWasteModalData.date}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>👤 Diisi Oleh:</span>
+                    <span style={{ fontWeight: '800', color: '#ffffff' }}>👤 {previewWasteModalData.submitted_by || previewWasteModalData.created_by || 'Admin'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>🏢 Outlet Cabang:</span>
+                    <span style={{ fontWeight: '800', color: '#cbd5e1' }}>🏢 {getOutletName(previewWasteModalData.outlet_id)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>⚡ Status Persetujuan:</span>
+                    <span style={{ fontWeight: '900', color: isApproved ? '#34d399' : '#fbbf24' }}>
+                      {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
+                    </span>
+                  </div>
+
+                  {/* List Item Bahan Baku */}
+                  <div style={{ background: '#0f172a', borderRadius: '10px', padding: '12px', border: '1px solid #334155', marginTop: '4px' }}>
+                    <div style={{ fontWeight: '800', color: '#fb7185', marginBottom: '8px', fontSize: '0.80rem' }}>
+                      🥬 Rincian Bahan Baku Rusak ({itemsList.length} Item):
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+                      <thead>
+                        <tr style={{ background: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                          <th style={{ padding: '6px', textAlign: 'left' }}>Bahan Baku</th>
+                          <th style={{ padding: '6px', textAlign: 'right' }}>Jumlah</th>
+                          <th style={{ padding: '6px', textAlign: 'left' }}>Alasan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itemsList.map((row, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#ffffff' }}>
+                            <td style={{ padding: '6px', fontWeight: '800', color: '#38bdf8' }}>📦 {row.item_name}</td>
+                            <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{row.qty || row.stok_rusak} {row.unit}</td>
+                            <td style={{ padding: '6px', color: '#fb7185' }}>⚠️ {row.damage_reason || row.reason || 'Lainnya'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <button onClick={() => setPreviewWasteModalData(null)} style={{ padding: '10px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', marginTop: '6px' }}>
+                    Tutup Pratinjau
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

@@ -16,40 +16,28 @@ export default function OutletAnalyticsDetailModal({ outlet, masterData, onClose
     const rawSales = masterData?.salesTransactions || masterData?.transactions || [];
     let matchedHistory = [];
 
-    const sampleMonths = ['Juli 2026', 'Juni 2026', 'Mei 2026', 'April 2026'];
-    const samplePayments = ['QRIS BCA', 'Cash', 'Transfer Mandiri', 'Debit BRI'];
-    const sampleCashiers = ['Andi Kasir', 'Siti Supervisor', 'Budi Kasir', 'Dewi Admin'];
-    const sampleMenuList = masterData?.products || [
-      { name: 'Espresso Single', price: 25000 },
-      { name: 'Chicken Katsu Rice', price: 45000 },
-      { name: 'Iced Palm Sugar Latte', price: 30000 },
-      { name: 'Ramen Tonkotsu', price: 55000 }
-    ];
-
-    for (let i = 1; i <= 20; i++) {
-      const menuObj = sampleMenuList[(i - 1) % sampleMenuList.length];
-      const qty = (i % 4) + 1;
-      const unitPrice = menuObj.price || 35000;
-      const totalPrice = qty * unitPrice;
-
-      const day = 24 - (i % 22);
-      const monthIndex = i % sampleMonths.length;
-      const monthStr = sampleMonths[monthIndex];
-
-      matchedHistory.push({
-        id: `otl-sales-${outlet.id}-${i}`,
-        receipt_no: `#TRX-2026${String(7 - monthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(500 + i)}`,
-        date: `${day} ${monthStr.split(' ')[0]} 2026, ${10 + (i % 11)}:${10 + (i * 6) % 45} WIB`,
-        month_year: monthStr,
-        outlet_name: outlet.name,
-        menu_name: menuObj.name,
-        qty: qty,
-        unit_price: unitPrice,
-        total_price: totalPrice,
-        payment_method: samplePayments[i % samplePayments.length],
-        cashier: sampleCashiers[i % sampleCashiers.length]
+    // Filter real raw sales for this outlet
+    rawSales.filter(tx => 
+      tx.outlet_id === outlet.id || 
+      tx.outlet_name === outlet.name || 
+      tx.outlet === outlet.name
+    ).forEach(tx => {
+      (tx.items || []).forEach(item => {
+        matchedHistory.push({
+          id: tx.id || `tx-${Math.random()}`,
+          receipt_no: tx.receipt_no || tx.receiptNo || `#TRX-${tx.id}`,
+          date: tx.date || tx.createdAt || tx.timestamp,
+          month_year: tx.month_year || tx.monthYear || 'Tahun 2026',
+          outlet_name: outlet.name,
+          menu_name: item.name || item.item_name,
+          qty: item.qty || item.quantity || 1,
+          unit_price: item.price || item.unit_price || 0,
+          total_price: item.subtotal || ((item.qty || 1) * (item.price || 0)),
+          payment_method: tx.payment_method || tx.paymentMethod || 'Cash',
+          cashier: tx.cashier || tx.cashier_name || 'Kasir'
+        });
       });
-    }
+    });
 
     return matchedHistory;
   };

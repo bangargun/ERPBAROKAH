@@ -49,43 +49,8 @@ const formatDate = (daysAgo) => {
 
 // Seed Transactions if empty
 let txIdCounter = 1;
-const paymentMethods = ['Cash', 'QRIS', 'Transfer', 'EDC'];
-
-for (let i = 0; i < 15; i++) {
-  const dateStr = formatDate(i);
-  
-  // Senopati
-  initialDb.transactions.push({ id: txIdCounter++, branch_id: 1, type: 'income', category: 'Penjualan Dine-in', amount: 14500000 + (i * 300000 % 4000000), description: 'Omset Penjualan Restoran Harian', payment_method: paymentMethods[i % 4], date: dateStr, created_by: 'Kasir Senopati', receipt_url: null, status: 'approved' });
-  initialDb.transactions.push({ id: txIdCounter++, branch_id: 1, type: 'income', category: 'Penjualan Takeaway / Online', amount: 4200000 + (i * 200000 % 2000000), description: 'GrabFood & GoFood Revenue', payment_method: 'Transfer', date: dateStr, created_by: 'Kasir Senopati', receipt_url: null, status: 'approved' });
-  initialDb.transactions.push({ id: txIdCounter++, branch_id: 1, type: 'expense', category: 'Bahan Baku & Dapur (COGS)', amount: 6800000 + (i * 150000 % 1500000), description: 'Pembelian Daging, Sayur & Bumbu Segar', payment_method: 'Transfer', date: dateStr, created_by: 'Chef Senopati', receipt_url: null, status: 'approved' });
-  
-  // Kemang
-  initialDb.transactions.push({ id: txIdCounter++, branch_id: 2, type: 'income', category: 'Penjualan Dine-in', amount: 9800000 + (i * 250000 % 3000000), description: 'Omset Dine-In Ramen', payment_method: paymentMethods[(i + 1) % 4], date: dateStr, created_by: 'Kasir Kemang', receipt_url: null, status: 'approved' });
-  initialDb.transactions.push({ id: txIdCounter++, branch_id: 2, type: 'expense', category: 'Bahan Baku & Dapur (COGS)', amount: 4200000 + (i * 100000 % 1000000), description: 'Stok Mi Ramen & Kuah Kaldu', payment_method: 'Cash', date: dateStr, created_by: 'Siti Rahma', receipt_url: null, status: 'approved' });
-
-  // PIK
-  initialDb.transactions.push({ id: txIdCounter++, branch_id: 3, type: 'income', category: 'Penjualan Dine-in', amount: 7200000 + (i * 200000 % 2000000), description: 'Omset Kopi & Makanan', payment_method: paymentMethods[(i + 2) % 4], date: dateStr, created_by: 'Barista PIK', receipt_url: null, status: 'approved' });
-  initialDb.transactions.push({ id: txIdCounter++, branch_id: 3, type: 'expense', category: 'Bahan Baku & Dapur (COGS)', amount: 2500000 + (i * 50000 % 500000), description: 'Beans Kopi Specialty & Susu Fresh', payment_method: 'Transfer', date: dateStr, created_by: 'Kevin Wijaya', receipt_url: null, status: 'approved' });
-}
-
-// Fixed Monthly Expenses
-initialDb.transactions.push({ id: txIdCounter++, branch_id: 1, type: 'expense', category: 'Gaji & Bonus Karyawan', amount: 35000000, description: 'Gaji 8 Staf Senopati Bulan Ini', payment_method: 'Transfer', date: formatDate(2), created_by: 'Budi Santoso', receipt_url: null, status: 'approved' });
-initialDb.transactions.push({ id: txIdCounter++, branch_id: 1, type: 'expense', category: 'Listrik, Air & Gas', amount: 8500000, description: 'Tagihan PLN & PGN Senopati', payment_method: 'Transfer', date: formatDate(5), created_by: 'Budi Santoso', receipt_url: null, status: 'approved' });
-initialDb.transactions.push({ id: txIdCounter++, branch_id: 2, type: 'expense', category: 'Gaji & Bonus Karyawan', amount: 24000000, description: 'Gaji 6 Staf Kemang Bulan Ini', payment_method: 'Transfer', date: formatDate(2), created_by: 'Siti Rahma', receipt_url: null, status: 'approved' });
-initialDb.transactions.push({ id: txIdCounter++, branch_id: 3, type: 'expense', category: 'Gaji & Bonus Karyawan', amount: 18000000, description: 'Gaji 4 Barista & Cook PIK', payment_method: 'Transfer', date: formatDate(2), created_by: 'Kevin Wijaya', receipt_url: null, status: 'approved' });
-
-// Pending Approvals from Mobile App
-initialDb.transactions.push({ id: txIdCounter++, branch_id: 1, type: 'expense', category: 'Peralatan & Operational Smallware', amount: 4500000, description: 'Penggantian Mixer & Blender Rusak Dapur', payment_method: 'Cash', date: formatDate(0), created_by: 'Manajer Senopati', receipt_url: 'receipt_sample_1.jpg', status: 'pending' });
-initialDb.transactions.push({ id: txIdCounter++, branch_id: 2, type: 'expense', category: 'Marketing & Promosi', amount: 2500000, description: 'Cetak Banner & Feed Ads Instagram Promo Weekend', payment_method: 'Transfer', date: formatDate(0), created_by: 'Siti Rahma', receipt_url: 'receipt_sample_2.jpg', status: 'pending' });
-initialDb.transactions.push({ id: txIdCounter++, branch_id: 3, type: 'expense', category: 'Sewa Tempat & Maintenance', amount: 1800000, description: 'Perbaikan Service AC Ruang Makan Utama', payment_method: 'Cash', date: formatDate(1), created_by: 'Kevin Wijaya', receipt_url: 'receipt_sample_3.jpg', status: 'pending' });
-
-// Shift Closings
-initialDb.shift_closings = [
-  { id: 1, branch_id: 1, shift_date: formatDate(0), shift_name: 'Shift Siang (09:00 - 17:00)', cashier_name: 'Rina Putri', system_sales: 8500000, actual_cash: 3200000, qris_sales: 2800000, edc_sales: 2500000, variance: 0, notes: 'Shift aman, fisik kasir sesuai laporan POS.' },
-  { id: 2, branch_id: 1, shift_date: formatDate(0), shift_name: 'Shift Malam (17:00 - 23:00)', cashier_name: 'Agus Setiawan', system_sales: 10200000, actual_cash: 4100000, qris_sales: 3500000, edc_sales: 2600000, variance: 0, notes: 'Shift malam ramai lancar.' },
-  { id: 3, branch_id: 2, shift_date: formatDate(0), shift_name: 'Shift Full-Day', cashier_name: 'Dewi Lestari', system_sales: 12900000, actual_cash: 5000000, qris_sales: 4200000, edc_sales: 3700000, variance: 0, notes: 'Semua transaksi cocok.' },
-  { id: 4, branch_id: 3, shift_date: formatDate(0), shift_name: 'Shift Malam', cashier_name: 'Dimas Anggara', system_sales: 6800000, actual_cash: 2500000, qris_sales: 2300000, edc_sales: 1980000, variance: -20000, notes: 'Selisih Rp 20.000 kekurangan kembalian.' }
-];
+initialDb.transactions = [];
+initialDb.shift_closings = [];
 
 // Initialize Database File if not exists
 if (!fs.existsSync(DB_FILE)) {

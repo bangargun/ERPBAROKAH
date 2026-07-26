@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
+import { FileSpreadsheet } from 'lucide-react';
+import ExcelMasterImportModal from './ExcelMasterImportModal';
 
 export default function ProductManagement({ masterData, setMasterData, selectedBranch }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,6 +31,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
   const [showFormModal, setShowFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showExcelImportModal, setShowExcelImportModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedMenuDetail, setSelectedMenuDetail] = useState(null);
@@ -407,6 +410,28 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               />
             </div>
 
+            {/* Excel Download & Upload Button */}
+            <button
+              onClick={() => setShowExcelImportModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '0.78rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(2,132,199,0.3)'
+              }}
+            >
+              <FileSpreadsheet size={15} />
+              <span>📥 Template & Upload Excel</span>
+            </button>
+
             {/* Teal Add Product Button */}
             <button
               onClick={handleOpenAddForm}
@@ -558,6 +583,28 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       {/* 8. AKSI (Tombol Edit & Delete) */}
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMenuDetail(p)}
+                            title="Lihat Riwayat History Penjualan Detail"
+                            style={{
+                              background: 'rgba(56, 189, 248, 0.15)',
+                              color: '#38bdf8',
+                              border: '1px solid rgba(56, 189, 248, 0.3)',
+                              padding: '5px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Eye size={14} color="#38bdf8" />
+                            <span>History</span>
+                          </button>
+
                           <button
                             onClick={() => handleOpenEditForm(p)}
                             title="Edit Produk"
@@ -1264,6 +1311,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           onClose={() => setSelectedMenuDetail(null)}
         />
       )}
+
+      {/* EXCEL IMPORT & TEMPLATE MODAL */}
+      <ExcelMasterImportModal
+        isOpen={showExcelImportModal}
+        onClose={() => setShowExcelImportModal(false)}
+        moduleType="products"
+        masterData={masterData}
+        setMasterData={setMasterData}
+      />
     </div>
   );
 }

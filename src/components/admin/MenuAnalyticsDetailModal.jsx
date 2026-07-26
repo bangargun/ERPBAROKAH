@@ -19,7 +19,7 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
-  // Generate comprehensive sales history for this menu item based on actual sales transactions or deterministic seed dataset
+  // Generate comprehensive sales history for this menu item based on actual sales transactions
   const generateSalesHistory = () => {
     const rawSales = masterData?.salesTransactions || masterData?.transactions || [];
     let matchedHistory = [];
@@ -27,57 +27,45 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
     // Search inside actual sales transactions
     rawSales.forEach((trx, idx) => {
       const trxItems = trx.items || [];
-      const matchedItem = trxItems.find(i => 
-        (i.name && i.name.toLowerCase() === menuItem.name.toLowerCase()) || 
-        (i.product_id === menuItem.id)
-      );
+      const matchedItem = trxItems.find(i => {
+        if (!i) return false;
+        // 1. Match by Product ID / ID
+        if (i.product_id && (Number(i.product_id) === Number(menuItem.id) || String(i.product_id) === String(menuItem.id))) return true;
+        if (i.id && (Number(i.id) === Number(menuItem.id) || String(i.id) === String(menuItem.id))) return true;
+        
+        // 2. Match by SKU / Code
+        if (i.sku && menuItem.sku && i.sku.toLowerCase() === menuItem.sku.toLowerCase()) return true;
+
+        // 3. Match by Product Name (case-insensitive & substring match)
+        if (i.name && menuItem.name) {
+          const iName = i.name.trim().toLowerCase();
+          const mName = menuItem.name.trim().toLowerCase();
+          if (iName === mName) return true;
+          if (iName.startsWith(mName) || mName.startsWith(iName)) return true;
+          if (iName.includes(mName) || mName.includes(iName)) return true;
+        }
+        return false;
+      });
 
       if (matchedItem) {
+        const itemQty = Number(matchedItem.qty || matchedItem.quantity || 1);
+        const unitPrice = Number(matchedItem.price || matchedItem.price_unit || menuItem.price || 0);
+        const totalPrice = Number(matchedItem.amount || matchedItem.total_price || (itemQty * unitPrice));
+
         matchedHistory.push({
           id: trx.id || idx + 1,
-          receipt_no: trx.receipt_no || trx.code || `#TRX-202607${String(idx + 1).padStart(3, '0')}`,
-          date: trx.date || '23 Juli 2026, 13:45 WIB',
-          month_year: trx.month_year || 'Juli 2026',
-          outlet_name: trx.outlet_name || trx.branch_name || (outletsList[idx % outletsList.length]?.name || 'Gourmet Bistro - Senopati'),
-          qty: matchedItem.qty || matchedItem.quantity || 1,
-          unit_price: matchedItem.price || menuItem.price || 25000,
-          total_price: (matchedItem.qty || 1) * (matchedItem.price || menuItem.price || 25000),
-          payment_method: trx.payment_method || (idx % 2 === 0 ? 'QRIS' : 'Cash'),
-          cashier: trx.cashier || (idx % 3 === 0 ? 'Andi Kasir' : idx % 3 === 1 ? 'Budi Kasir' : 'Siti SPV')
+          receipt_no: trx.receipt_no || trx.code || trx.id || `#TRX-${String(idx + 1).padStart(3, '0')}`,
+          date: trx.date ? `${trx.date}${trx.time ? `, ${trx.time}` : ''}` : (trx.created_at || 'Baru Saja'),
+          month_year: trx.month_year || (trx.date ? new Date(trx.date).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : 'Juli 2026'),
+          outlet_name: trx.branch_name || trx.outlet_name || (outletsList[idx % outletsList.length]?.name || 'Gourmet Bistro - Senopati'),
+          qty: itemQty,
+          unit_price: unitPrice,
+          total_price: totalPrice,
+          payment_method: trx.payment_method || 'Cash',
+          cashier: trx.cashier || 'Kasir POS'
         });
       }
     });
-
-    // If no sales found in raw state yet, generate sample historical transactions for realistic preview analytics
-    if (matchedHistory.length === 0) {
-      const sampleOutlets = outletsList.map(o => o.name);
-      const sampleMonths = ['Juli 2026', 'Juni 2026', 'Mei 2026', 'April 2026'];
-      const samplePayments = ['QRIS BCA', 'Cash', 'Transfer Mandiri', 'Debit BRI'];
-      const sampleCashiers = ['Andi Kasir', 'Siti Supervisor', 'Budi Kasir', 'Dewi Admin'];
-
-      const basePrice = menuItem.price || 25000;
-
-      for (let i = 1; i <= 14; i++) {
-        const qty = (i % 4) + 1;
-        const day = 24 - i;
-        const monthIndex = i % sampleMonths.length;
-        const monthStr = sampleMonths[monthIndex];
-        const outletStr = sampleOutlets[i % sampleOutlets.length];
-
-        matchedHistory.push({
-          id: `seed-${menuItem.id}-${i}`,
-          receipt_no: `#TRX-2026${String(7 - monthIndex).padStart(2, '0')}${String(day).padStart(2, '0')}-${String(100 + i)}`,
-          date: `${day} ${monthStr.split(' ')[0]} 2026, ${10 + (i % 10)}:${15 + (i * 3) % 45} WIB`,
-          month_year: monthStr,
-          outlet_name: outletStr,
-          qty: qty,
-          unit_price: basePrice,
-          total_price: qty * basePrice,
-          payment_method: samplePayments[i % samplePayments.length],
-          cashier: sampleCashiers[i % sampleCashiers.length]
-        });
-      }
-    }
 
     return matchedHistory;
   };
