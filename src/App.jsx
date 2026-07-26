@@ -1,19 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import AdminLayout from './components/admin/AdminLayout';
-import FinancialOverview from './components/admin/FinancialOverview';
-import MasterDataManagement from './components/admin/MasterDataManagement';
-import SalesTransactionsPage from './components/admin/SalesTransactionsPage';
-import LoyaltyProgramPage from './components/admin/LoyaltyProgramPage';
-import CostsManagement from './components/admin/CostsManagement';
-
-import StockManagement from './components/admin/StockManagement';
-import FinancialReportsFull from './components/admin/FinancialReportsFull';
-import TermsAndPolicies from './components/admin/TermsAndPolicies';
-import SystemSettings from './components/admin/SystemSettings';
-import ManualFinancialEntryPage from './components/admin/ManualFinancialEntryPage';
-import ActivityLogPage from './components/admin/ActivityLogPage';
-import TransactionHistoryPage from './components/admin/TransactionHistoryPage';
-import SopManagementPage from './components/admin/SopManagementPage';
 import LoginPage from './components/admin/LoginPage';
 
 import MobileLayout from './components/mobile/MobileLayout';
