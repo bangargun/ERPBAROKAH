@@ -375,6 +375,109 @@ const defaultMasterData = {
 };
 
 // 8. Full Master Data Sync Endpoints
+// MySQL Enterprise Storage Connection & Auto-Mirroring Engine
+let mysqlPool = null;
+
+const initMySQLPool = async () => {
+  try {
+    const mysql = await import('mysql2/promise');
+    mysqlPool = mysql.createPool({
+      host: process.env.MYSQL_HOST || '127.0.0.1',
+      user: process.env.MYSQL_USER || 'root',
+      password: process.env.MYSQL_PASSWORD || '',
+      database: process.env.MYSQL_DATABASE || 'mris_db',
+      port: Number(process.env.MYSQL_PORT) || 3306,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    });
+    console.log('✅ MySQL Pool Initialized for Hostinger mris_db Storage');
+  } catch (err) {
+    // MySQL driver optional fallback
+  }
+};
+initMySQLPool();
+
+const syncToMySQL = async (masterData) => {
+  if (!mysqlPool || !masterData || typeof masterData !== 'object') return;
+
+  try {
+    const transactions = masterData.salesTransactions || masterData.transactions || [];
+    for (const t of transactions) {
+      if (!t || !t.id) continue;
+      const txId = String(t.id);
+      const txDate = t.date || new Date().toISOString().split('T')[0];
+      const txTime = t.time || '00:00:00';
+      const outletId = Number(t.outlet_id || t.branch_id || 1);
+      const branchName = t.branch_name || t.outlet || 'Gourmet Bistro - Senopati';
+      const customerName = t.customer_name || t.customer || 'Pelanggan Umum';
+      const tableNumber = t.table_number || t.table || '';
+      const orderType = t.order_type || t.type || 'Dine In';
+      const amount = Number(t.amount || t.total || 0);
+      const paidAmount = Number(t.paid_amount || t.paid || amount);
+      const changeAmount = Number(t.change_amount || t.change || 0);
+      const paymentMethod = t.payment_method || 'Cash';
+      const cashier = t.cashier || t.author || 'Kasir';
+      const notes = t.notes || '';
+      const status = t.status || 'approved';
+
+      await mysqlPool.execute(`
+        INSERT INTO sales_transactions 
+          (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
+        ON DUPLICATE KEY UPDATE
+          amount = VALUES(amount),
+          paid_amount = VALUES(paid_amount),
+          payment_method = VALUES(payment_method),
+          status = VALUES(status)
+      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status]);
+    }
+
+    const shiftClosings = masterData.shiftClosings || masterData.closedShifts || masterData.approvedFinanceDaily || [];
+    for (const sc of shiftClosings) {
+      if (!sc || !sc.id) continue;
+      await mysqlPool.execute(`
+        INSERT INTO shift_closings 
+          (id, date, outlet_id, branch_name, author_name, opening_float, net_sales, cash_sales, non_cash_sales, total_expense, expected_cash, cash_physical, cash_variance, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          net_sales = VALUES(net_sales),
+          cash_physical = VALUES(cash_physical),
+          status = VALUES(status)
+      `, [
+        String(sc.id),
+        sc.date || new Date().toISOString().split('T')[0],
+        Number(sc.outlet_id || 1),
+        sc.branch_name || 'Gourmet Bistro - Senopati',
+        sc.author_name || sc.cashier || 'Kasir',
+        Number(sc.opening_float || 0),
+        Number(sc.net_sales || 0),
+        Number(sc.cash_sales || 0),
+        Number(sc.non_cash_sales || 0),
+        Number(sc.total_expense || 0),
+        Number(sc.expected_cash || 0),
+        Number(sc.cash_physical || 0),
+        Number(sc.cash_variance || 0),
+        sc.status || 'ditunda'
+      ]);
+    }
+  } catch (err) {
+    // Non-blocking log
+  }
+};
+
+app.get('/api/mysql-status', async (req, res) => {
+  if (!mysqlPool) {
+    return res.json({ status: 'standalone', message: 'Engine 1 (JSON Fast Store Active). MySQL pool inactive.' });
+  }
+  try {
+    const [rows] = await mysqlPool.query('SELECT COUNT(*) as tx_count FROM sales_transactions');
+    res.json({ status: 'connected', database: 'mris_db', sales_transaction_count: rows[0]?.tx_count || 0 });
+  } catch (err) {
+    res.json({ status: 'error', error: err.message });
+  }
+});
+
 app.get('/api/master-data', (req, res) => {
   try {
     const db = readDb();
@@ -407,6 +510,12 @@ app.post('/api/master-data', (req, res) => {
     };
     db.lastUpdated = new Date().toISOString();
     saveDb(db);
+    
+    // Async Background Mirroring to MySQL Enterprise Database
+    setTimeout(() => {
+      syncToMySQL(db.masterData);
+    }, 50);
+
     res.json({ success: true, message: 'Data master terpusat berhasil diperbarui', timestamp: db.lastUpdated, _lastUpdated: nowTs });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menyinkronkan data master ke server' });
