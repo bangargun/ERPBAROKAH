@@ -84,10 +84,22 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
   // ------------------------------------------------------------------
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const todayTx = allSalesTx.filter(t => (!selectedBranch || Number(t.outlet_id) === Number(selectedBranch)) && (t.date === todayStr || !t.date));
+  // Branch Match Helper
+  const matchesBranch = (item, targetBranch) => {
+    if (!targetBranch || targetBranch === 'ALL') return true;
+    const bId = Number(targetBranch);
+    return (
+      Number(item.outlet_id) === bId ||
+      Number(item.branch_id) === bId ||
+      item.outlet === targetBranch ||
+      item.branch_name === targetBranch
+    );
+  };
+
+  const todayTx = allSalesTx.filter(t => matchesBranch(t, selectedBranch) && (t.date === todayStr || !t.date));
   const todayIncomeTx = todayTx.reduce((sum, t) => sum + (t.amount || 0), 0);
 
-  const todayManualInc = allApprovedFinance.filter(f => (!selectedBranch || Number(f.outlet_id) === Number(selectedBranch)) && (f.date === todayStr || !f.date)).reduce((sum, f) => sum + (f.net_sales || 0), 0);
+  const todayManualInc = allApprovedFinance.filter(f => matchesBranch(f, selectedBranch) && (f.date === todayStr || !f.date)).reduce((sum, f) => sum + (f.net_sales || 0), 0);
   const todayIncome = Math.max(todayIncomeTx, todayManualInc);
 
   const todayExpManual = allApprovedFinance.filter(f => (!selectedBranch || Number(f.outlet_id) === Number(selectedBranch)) && (f.date === todayStr || !f.date)).reduce((sum, f) => sum + (f.cogs || 0) + (f.operational || 0) + (f.gaji || 0) + (f.other_costs || 0), 0);

@@ -1355,9 +1355,13 @@ export default function AndroidPosRegister({
       date: currentDate,
       time: currentTime,
       outlet_id: Number(currentOutlet.id),
+      branch_id: Number(currentOutlet.id),
+      outlet: currentOutlet.name,
       branch_name: currentOutlet.name,
       customer_name: selectedCustomer,
       order_type: orderType,
+      type: 'income',
+      category: orderType === 'Dine In' ? 'Penjualan Dine-in' : 'Penjualan Takeaway / Online',
       table_number: orderType === 'Dine In' ? selectedTableObj.number : 'N/A (Take Away)',
       items: cart.map(item => ({
         name: item.name,
@@ -1374,9 +1378,9 @@ export default function AndroidPosRegister({
       paid_amount: paidVal,
       change_amount: Math.max(0, paidVal - cartTotal),
       payment_method: methodName,
-      cashier: 'master (Superadmin POS)',
+      cashier: currentUserSession?.name || 'Kasir Mobile',
       notes: `${orderType} (${orderType === 'Dine In' ? selectedTableObj.number : 'Take Away'}) - Pembayaran ${methodName}`,
-      status: 'Success'
+      status: 'approved'
     };
 
     // Auto-save new customer into Web Master Data (masterData.customers) if not registered yet
@@ -1456,10 +1460,12 @@ export default function AndroidPosRegister({
     // Save transaction, stock movements, updated products & customers directly into Web Master Data
     setMasterData(prev => ({
       ...prev,
+      _lastUpdated: Date.now(),
       customers: updatedCustomersList,
       products: updatedProducts,
       stockMovement: [...(prev?.stockMovement || []), ...newStockMovements],
-      salesTransactions: [newTx, ...(prev?.salesTransactions || [])]
+      salesTransactions: [newTx, ...(prev?.salesTransactions || [])],
+      transactions: [newTx, ...(prev?.transactions || [])]
     }));
 
     // Reset Table status back to Available (Kosong)
