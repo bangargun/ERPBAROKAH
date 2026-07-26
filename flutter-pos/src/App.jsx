@@ -29,15 +29,15 @@ export default function App() {
     return null;
   });
 
-  // App View Mode: 'admin' | 'mobile'
-  const [viewMode, setViewMode] = useState('admin');
+  // App View Mode: 'mobile' (Murni 100% POS Kasir Mobile Tablet APK)
+  const [viewMode, setViewMode] = useState('mobile');
 
   // Handle login success dari LoginPage
-  const handleLoginSuccess = (session, targetMode) => {
+  const handleLoginSuccess = (session) => {
     const sessionWithTime = { ...session, loggedInAt: new Date().toISOString() };
     localStorage.setItem('mris_user_session', JSON.stringify(sessionWithTime));
     setUserSession(sessionWithTime);
-    setViewMode(targetMode || 'admin');
+    setViewMode('mobile');
   };
 
   const handleLogout = () => {
