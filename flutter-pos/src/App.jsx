@@ -94,23 +94,50 @@ export default function App() {
     return () => clearTimeout(syncTimer);
   }, [masterData]);
 
+  // Helper to merge local and server arrays by ID without dropping newly added items
+  const mergeById = (localArr = [], serverArr = []) => {
+    const map = new Map();
+    (serverArr || []).forEach(item => { if (item && item.id != null) map.set(String(item.id), item); });
+    (localArr || []).forEach(item => { if (item && item.id != null) map.set(String(item.id), item); });
+    return Array.from(map.values());
+  };
+
   // 2. REAL-TIME 2-WAY LIVE POLLING SYNC WITH VPS CLOUD SERVER (EVERY 3 SECONDS)
   useEffect(() => {
     const fetchLatestFromServer = () => {
       fetch(getApiUrl('/api/master-data'))
         .then(res => res.ok ? res.json() : null)
         .then(serverData => {
-          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets) && serverData.outlets.length > 0) {
+          if (serverData && typeof serverData === 'object') {
             setMasterData(prev => {
-              const prevJson = JSON.stringify(prev);
-              const serverJson = JSON.stringify(serverData);
-              if (prevJson === serverJson) return prev;
-              return {
+              const updated = {
                 ...prev,
                 ...serverData,
-                webAdminAccounts: serverData.webAdminAccounts !== undefined ? serverData.webAdminAccounts : prev.webAdminAccounts,
-                mobileAccounts: serverData.mobileAccounts !== undefined ? serverData.mobileAccounts : prev.mobileAccounts
+                outlets: mergeById(prev?.outlets, serverData?.outlets),
+                categories: mergeById(prev?.categories, serverData?.categories),
+                products: mergeById(prev?.products, serverData?.products),
+                customers: mergeById(prev?.customers, serverData?.customers),
+                salesTransactions: mergeById(prev?.salesTransactions, serverData?.salesTransactions),
+                tables: mergeById(prev?.tables, serverData?.tables),
+                paymentMethods: mergeById(prev?.paymentMethods, serverData?.paymentMethods),
+                suppliers: mergeById(prev?.suppliers, serverData?.suppliers),
+                units: mergeById(prev?.units, serverData?.units),
+                expenseMaster: mergeById(prev?.expenseMaster, serverData?.expenseMaster),
+                ingredients: mergeById(prev?.ingredients, serverData?.ingredients),
+                cogsExpenses: mergeById(prev?.cogsExpenses, serverData?.cogsExpenses),
+                productionExpenses: mergeById(prev?.productionExpenses, serverData?.productionExpenses),
+                otherExpenses: mergeById(prev?.otherExpenses, serverData?.otherExpenses),
+                stockMovement: mergeById(prev?.stockMovement, serverData?.stockMovement),
+                stockOpname: mergeById(prev?.stockOpname, serverData?.stockOpname),
+                shiftClosings: mergeById(prev?.shiftClosings, serverData?.shiftClosings),
+                sopDocuments: mergeById(prev?.sopDocuments, serverData?.sopDocuments),
+                webAdminAccounts: serverData.webAdminAccounts && serverData.webAdminAccounts.length > 0 ? serverData.webAdminAccounts : (prev?.webAdminAccounts || []),
+                mobileAccounts: serverData.mobileAccounts && serverData.mobileAccounts.length > 0 ? serverData.mobileAccounts : (prev?.mobileAccounts || [])
               };
+              const prevJson = JSON.stringify(prev);
+              const updatedJson = JSON.stringify(updated);
+              if (prevJson === updatedJson) return prev;
+              return updated;
             });
           }
         })
