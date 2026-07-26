@@ -145,12 +145,12 @@ export default function App() {
       }).catch(() => {
         // Offline-first fallback
       });
-    }, 1500);
+    }, 1200);
 
     return () => clearTimeout(syncTimer);
   }, [masterData]);
 
-  // Real-time Live Polling Sync with VPS Central Cloud Server (Every 3 Seconds)
+  // Real-time Live Polling Sync with VPS Central Cloud Server (Every 2 Seconds)
   useEffect(() => {
     const fetchLatestFromServer = () => {
       fetch(getApiUrl('/api/master-data'))
@@ -161,7 +161,12 @@ export default function App() {
               const prevJson = JSON.stringify(prev);
               const serverJson = JSON.stringify(serverData);
               if (prevJson === serverJson) return prev;
-              return { ...prev, ...serverData };
+              return {
+                ...prev,
+                ...serverData,
+                webAdminAccounts: serverData.webAdminAccounts !== undefined ? serverData.webAdminAccounts : prev.webAdminAccounts,
+                mobileAccounts: serverData.mobileAccounts !== undefined ? serverData.mobileAccounts : prev.mobileAccounts
+              };
             });
           }
         })
@@ -169,7 +174,7 @@ export default function App() {
     };
 
     fetchLatestFromServer();
-    const livePollTimer = setInterval(fetchLatestFromServer, 3000);
+    const livePollTimer = setInterval(fetchLatestFromServer, 2000);
     return () => clearInterval(livePollTimer);
   }, []);
 

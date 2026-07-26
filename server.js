@@ -351,10 +351,15 @@ app.post('/api/master-data', (req, res) => {
       return res.status(400).json({ error: 'Payload tidak valid' });
     }
     const db = readDb();
-    db.masterData = payload;
+    const nowTs = Date.now();
+    db.masterData = {
+      ...(db.masterData || {}),
+      ...payload,
+      _lastUpdated: nowTs
+    };
     db.lastUpdated = new Date().toISOString();
     saveDb(db);
-    res.json({ success: true, message: 'Data master terpusat berhasil diperbarui', timestamp: db.lastUpdated });
+    res.json({ success: true, message: 'Data master terpusat berhasil diperbarui', timestamp: db.lastUpdated, _lastUpdated: nowTs });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menyinkronkan data master ke server' });
   }
