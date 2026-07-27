@@ -48,7 +48,7 @@ const ingredients = masterData?.ingredients || [
 - **APK Android**: React + Vite → Capacitor → Android (`flutter-pos/`)
 - **Backend/API**: Node.js Express (`server.js` + `pos-backend/`)
 - **Web Admin**: React (`web_admin/`)
-- **Data Storage**: `masterData` JSON di server, diakses via `/api/master-data`
+- **Data Storage**: MySQL `mris_db` (`mris_master_data` table) sebagai Primary Storage, diakses via `/api/master-data` (dengan JSON fallback backup)
 
 ### Alur Data (SATU ARAH)
 ```
@@ -100,7 +100,7 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 ## 🔢 VERSIONING
 
 - Format versi: `vX.X.Y` — increment `Y` setiap perbaikan kecil, `X.Y` setiap fitur baru
-- Versi saat ini: **v2.0.19**
+- Versi saat ini: **v2.0.26**
 - Nama file APK: `MRIS_vX.X.Y_Build_YYYYMMDD_HHMM.apk`
 - Commit message format: `Jenis: deskripsi singkat (vX.X.Y)`
 
