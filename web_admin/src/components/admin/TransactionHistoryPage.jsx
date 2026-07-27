@@ -138,6 +138,11 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [previewRecord, setPreviewRecord] = useState(null);
 
+  // DELETE MODAL STATES WITH REQUIRED NOTES REASON
+  const [deleteRecord, setDeleteRecord] = useState(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+
   // FILTER STATES
   const [statusFilterPreset, setStatusFilterPreset] = useState('Semua');
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
@@ -391,8 +396,40 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     }
   };
 
+  const handleOpenDeleteModal = (item) => {
+    setDeleteRecord(item);
+    setDeleteReason('');
+    setDeleteError('');
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteReason.trim()) {
+      setDeleteError('Catatan alasan penghapusan wajib diisi sebelum transaksi dapat dihapus.');
+      return;
+    }
+    if (!deleteRecord) return;
+
+    const targetId = deleteRecord.id;
+    const updatedList = transactions.filter(t => t.id !== targetId);
+    if (setMasterData) {
+      setMasterData({
+        ...masterData,
+        _lastUpdated: Date.now(),
+        salesTransactions: updatedList,
+        transactions: updatedList
+      });
+    }
+
+    setDeleteRecord(null);
+    setDeleteReason('');
+    setDeleteError('');
+  };
+
   const handleDeleteTransaction = (id) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${id}?`)) {
+    const item = transactions.find(t => t.id === id);
+    if (item) {
+      handleOpenDeleteModal(item);
+    } else {
       const updatedList = transactions.filter(t => t.id !== id);
       if (setMasterData) {
         setMasterData({
@@ -873,17 +910,31 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                       </span>
                     </td>
 
-                    {/* Aksi (PURPLE UBAH BUTTON MATCHING DARK THEME) */}
+                    {/* Aksi (Ubah & Hapus) */}
                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <button 
-                        onClick={() => handleOpenEditModal(item)}
-                        style={{
-                          background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 18px', borderRadius: '16px',
-                          fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
-                        }}
-                      >
-                        Ubah
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                        <button 
+                          onClick={() => handleOpenEditModal(item)}
+                          style={{
+                            background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 14px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                          title="Ubah Data Transaksi Ini"
+                        >
+                          Ubah
+                        </button>
+                        <button 
+                          onClick={() => handleOpenDeleteModal(item)}
+                          style={{
+                            background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '6px 12px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                          }}
+                          title="Hapus / Void Transaksi Penjualan Ini"
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
@@ -1206,6 +1257,114 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               </button>
               <button onClick={() => setPreviewRecord(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', borderRadius: '8px' }}>
                 Tutup Struk
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL PAPAN INFORMASI KONFIRMASI HAPUS TRANSAKSI PENJUALAN  */}
+      {/* ========================================================= */}
+      {deleteRecord && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 160
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '100%', maxWidth: '480px', padding: '24px', background: '#0f172a',
+            border: '1px solid rgba(244,63,94,0.4)', borderRadius: '20px',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.8)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fb7185', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={20} color="#fb7185" />
+                <span>Konfirmasi Penghapusan Transaksi</span>
+              </h3>
+              <button type="button" onClick={() => setDeleteRecord(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Papan Informasi Transaksi */}
+            <div style={{ background: '#1e293b', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', fontSize: '0.82rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>No Struk / ID Transaksi:</span>
+                <strong style={{ color: '#38bdf8', fontFamily: 'monospace' }}>{deleteRecord.id}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Tanggal & Waktu:</span>
+                <span style={{ color: '#cbd5e1' }}>📅 {deleteRecord.date} {deleteRecord.time || ''}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#94a3b8' }}>Pelanggan / Outlet:</span>
+                <span style={{ color: '#f8fafc', fontWeight: '700' }}>👤 {deleteRecord.customer_name || 'Pelanggan Umum'} · {deleteRecord.branch_name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #334155', paddingTop: '6px', marginTop: '2px' }}>
+                <span style={{ color: '#94a3b8' }}>Total Nominal Penjualan:</span>
+                <strong style={{ color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(deleteRecord.amount || 0)}</strong>
+              </div>
+            </div>
+
+            {/* Field Catatan Alasan Penghapusan (Wajib Diisi) */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#f8fafc', display: 'block', marginBottom: '6px' }}>
+                📝 Catatan Alasan Penghapusan (Wajib Diisi): <span style={{ color: '#fb7185' }}>*</span>
+              </label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Tuliskan alasan/catatan penghapusan transaksi (contoh: Salah input pesanan / pelanggan membatalkan order)..."
+                value={deleteReason}
+                onChange={e => {
+                  setDeleteReason(e.target.value);
+                  if (e.target.value.trim()) setDeleteError('');
+                }}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: '10px',
+                  border: deleteError ? '1px solid #ef4444' : (deleteReason.trim() ? '1px solid #34d399' : '1px solid #475569'),
+                  background: '#0f172a', color: '#ffffff', fontSize: '0.85rem',
+                  boxSizing: 'border-box', resize: 'vertical'
+                }}
+              />
+              {deleteError ? (
+                <div style={{ color: '#fb7185', fontSize: '0.75rem', marginTop: '4px', fontWeight: '700' }}>
+                  ⚠️ {deleteError}
+                </div>
+              ) : (
+                <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginTop: '4px' }}>
+                  💡 Tombol <strong>OK / Konfirmasi Hapus</strong> hanya aktif jika catatan alasan telah diisi.
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setDeleteRecord(null)}
+                style={{
+                  padding: '8px 16px', borderRadius: '10px', border: '1px solid #475569',
+                  background: '#0f172a', color: '#cbd5e1', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer'
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={!deleteReason.trim()}
+                onClick={handleConfirmDelete}
+                style={{
+                  padding: '8px 20px', borderRadius: '10px', border: 'none',
+                  background: deleteReason.trim() ? 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)' : '#334155',
+                  color: deleteReason.trim() ? '#ffffff' : '#64748b', fontSize: '0.82rem', fontWeight: '800',
+                  cursor: deleteReason.trim() ? 'pointer' : 'not-allowed',
+                  opacity: deleteReason.trim() ? 1 : 0.6,
+                  boxShadow: deleteReason.trim() ? '0 4px 14px rgba(225,29,72,0.4)' : 'none'
+                }}
+              >
+                OK / Konfirmasi Hapus
               </button>
             </div>
 
