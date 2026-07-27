@@ -66,6 +66,16 @@ export default function AndroidPosRegister({
   onSwitchToAdmin,
   onLogout
 }) {
+  const getApiUrl = (pathStr) => {
+    if (typeof window !== 'undefined') {
+      const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
+      if (isNativeApp) {
+        return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
+      }
+    }
+    return pathStr;
+  };
+
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
   const [activeNavTab, setActiveNavTab] = useState('kasir');
 
@@ -351,6 +361,11 @@ export default function AndroidPosRegister({
 
     const filterOld = (arr = []) => arr.filter(x => String(x.report_no || x.id) !== String(wasteNo) && String(x.id) !== String(editingWasteId));
 
+    setShowWastePreviewFormModal(false);
+    setShowAddWasteModal(false);
+    setEditingWasteId(null);
+    setWasteEditingNotes('');
+
     setMasterData(prev => {
       const now = Date.now();
       const updatedIngredients = (prev.ingredients || []).map(ing => {
@@ -376,7 +391,7 @@ export default function AndroidPosRegister({
         stockMovement: [...createdRecords, ...filterOld(prev.stockMovement)]
       };
 
-      fetch('/api/master-data', {
+      fetch(getApiUrl('/api/master-data'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMaster)
@@ -384,12 +399,6 @@ export default function AndroidPosRegister({
 
       return newMaster;
     });
-
-    alert(`✅ Laporan Barang Rusak ${wasteNo} (${wasteBatchRows.length} Bahan Baku) berhasil disimpan!\nStatus PENDING terkirim otomatis ke Web Admin untuk persetujuan (ACC).`);
-    setShowWastePreviewFormModal(false);
-    setShowAddWasteModal(false);
-    setEditingWasteId(null);
-    setWasteEditingNotes('');
   };
 
   // Stok Opname Summary Preview State (Data sent from Web Admin)
@@ -9425,6 +9434,8 @@ export default function AndroidPosRegister({
                     sisa_uang_kas: sisaUangDiKas
                   };
 
+                  setShowAddManualReportModal(false);
+
                   setMasterData(prev => {
                     const now = Date.now();
                     const manualList = prev.manualEntryRecords || [];
@@ -9443,7 +9454,7 @@ export default function AndroidPosRegister({
                       closedShifts: [newReportObj, ...closedList.filter(i => String(i.id) !== String(newReportObj.id))]
                     };
 
-                    fetch('/api/master-data', {
+                    fetch(getApiUrl('/api/master-data'), {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newMaster)
@@ -9451,9 +9462,6 @@ export default function AndroidPosRegister({
 
                     return newMaster;
                   });
-
-                  alert(`Laporan Keuangan Harian (${manualRepNo}) Berhasil Disimpan & Tersinkronisasi!\nStatus: ${manualRepStatus.toUpperCase()}\n📈 Laba Kotor: ${formatRupiah(labaKotor)}\n💵 Uang di Laci: ${formatRupiah(uangDiLaci)}`);
-                  setShowAddManualReportModal(false);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
                   {/* 1. HEADER INFORMATION */}
@@ -10064,6 +10072,8 @@ export default function AndroidPosRegister({
                     status: 'ditunda'
                   }));
 
+                  setShowAddLogisticsModal(false);
+
                   setMasterData(prev => {
                     const now = Date.now();
                     const newMaster = {
@@ -10075,7 +10085,7 @@ export default function AndroidPosRegister({
                       stockMovement: [...newRecords, ...(prev.stockMovement || [])]
                     };
 
-                    fetch('/api/master-data', {
+                    fetch(getApiUrl('/api/master-data'), {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newMaster)
@@ -10083,9 +10093,6 @@ export default function AndroidPosRegister({
 
                     return newMaster;
                   });
-
-                  alert(`Berhasil menyimpan Audit Stok Opname ${logNo} untuk ${newRecords.length} bahan baku! Status: Pending (Butuh Persetujuan).`);
-                  setShowAddLogisticsModal(false);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                   {/* Header Form: Tanggal, No Laporan, Diisi Oleh, Cabang Outlet */}
@@ -10868,6 +10875,10 @@ export default function AndroidPosRegister({
               <button 
                 type="button" 
                 onClick={() => {
+                  setShowAddTransferModal(false);
+                  setEditingTransferId(null);
+                  setPendingTransferDraft(null);
+
                   setMasterData(prev => {
                     const now = Date.now();
                     const filterOld = (arr) => (arr || []).filter(x => String(x.id) !== String(editingTransferId) && String(x.report_no) !== String(pendingTransferDraft.report_no));
@@ -10880,7 +10891,7 @@ export default function AndroidPosRegister({
                       stockMovement: [...pendingTransferDraft.items, ...filterOld(prev.stockMovement)]
                     };
 
-                    fetch('/api/master-data', {
+                    fetch(getApiUrl('/api/master-data'), {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(newMaster)
@@ -10888,10 +10899,6 @@ export default function AndroidPosRegister({
 
                     return newMaster;
                   });
-                  alert(`Laporan Transfer ${pendingTransferDraft.report_no} (${pendingTransferDraft.items.length} Item) berhasil disimpan & terdaftar dengan status Pending untuk persetujuan Admin Logistik!`);
-                  setEditingTransferId(null);
-                  setPendingTransferDraft(null);
-                  setShowAddTransferModal(false);
                 }} 
                 style={{
                   padding: '11px 26px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)',

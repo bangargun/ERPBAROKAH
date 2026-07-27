@@ -409,10 +409,10 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
       };
     });
 
+    setShowDailyReportModal(false);
     setToastMessage(`Laporan Keuangan Harian (${repNo}) Berhasil Disimpan & ACC! Laba Kotor: ${formatRupiah(labaKotor)}`);
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 2500);
-    setShowDailyReportModal(false);
   };
 
   const [finFormDate, setFinFormDate] = useState(new Date().toISOString().split('T')[0]);
