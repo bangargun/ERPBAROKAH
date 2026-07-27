@@ -9,5 +9,16 @@ export default defineConfig({
     strictPort: false,
     allowedHosts: true,
     cors: true
+  },
+  build: {
+    chunkSizeWarningLimit: 2500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          icons: ['lucide-react']
+        }
+      }
+    }
   }
 });
