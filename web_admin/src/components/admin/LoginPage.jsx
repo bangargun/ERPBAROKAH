@@ -44,10 +44,10 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
     setTimeout(() => setMounted(true), 50);
   }, []);
 
-  const webAdminAccounts = masterData?.webAdminAccounts !== undefined
+  const webAdminAccounts = (masterData?.webAdminAccounts && masterData.webAdminAccounts.length > 0)
     ? masterData.webAdminAccounts : DEFAULT_WEB_ADMIN_ACCOUNTS;
 
-  const mobileAccountsList = masterData?.mobileAccounts !== undefined
+  const mobileAccountsList = (masterData?.mobileAccounts && masterData.mobileAccounts.length > 0)
     ? masterData.mobileAccounts : DEFAULT_MOBILE_ACCOUNTS;
 
   const outlets = masterData?.outlets || [];

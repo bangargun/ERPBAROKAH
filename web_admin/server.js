@@ -564,9 +564,18 @@ const sanitizeMasterDataPayload = (data) => {
   if (Array.isArray(clean.pushedSopToMobile)) {
     clean.pushedSopToMobile = clean.pushedSopToMobile.filter(sop => sop.id !== 1);
   }
-  clean.webAdminAccounts = [];
-  clean.mobileAccounts = [];
-  clean.userAccounts = [];
+  if (!Array.isArray(clean.webAdminAccounts) || clean.webAdminAccounts.length === 0) {
+    clean.webAdminAccounts = [
+      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '1234', role: 'Super Admin', status: 'Aktif' },
+      { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
+    ];
+  }
+  if (!Array.isArray(clean.mobileAccounts) || clean.mobileAccounts.length === 0) {
+    clean.mobileAccounts = [
+      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '1234', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '1234' },
+      { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
+    ];
+  }
   
   return clean;
 };
