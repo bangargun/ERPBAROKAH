@@ -7,8 +7,8 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   const [aiReportText, setAiReportText] = useState(null);
 
   // P&L, NERACA & ARUS KAS FILTERS & MODAL STATES
-  const [startDate, setStartDate] = useState('2026-07-01');
-  const [endDate, setEndDate] = useState('2026-07-31');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [selectedOutlets, setSelectedOutlets] = useState([]); // Empty array = All Outlets
   const [showOutletDropdown, setShowOutletDropdown] = useState(false);
   const [accountDetailModal, setAccountDetailModal] = useState(null);
@@ -89,31 +89,56 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
 
   // Quick Date Preset Handlers
   const handleQuickPreset = (preset) => {
+    const d = new Date();
+    const currentYearStr = String(d.getFullYear());
+    const currentMonthStr = String(d.getMonth() + 1).padStart(2, '0');
+    
     if (preset === 'this_month') {
-      setStartDate('2026-07-01');
-      setEndDate('2026-07-31');
+      setStartDate(`${currentYearStr}-${currentMonthStr}-01`);
+      setEndDate(`${currentYearStr}-${currentMonthStr}-31`);
     } else if (preset === 'last_7_days') {
-      setStartDate('2026-07-24');
-      setEndDate('2026-07-31');
+      const past7 = new Date(d);
+      past7.setDate(past7.getDate() - 7);
+      setStartDate(past7.toISOString().split('T')[0]);
+      setEndDate(d.toISOString().split('T')[0]);
     } else if (preset === 'last_30_days') {
-      setStartDate('2026-07-01');
-      setEndDate('2026-07-31');
+      const past30 = new Date(d);
+      past30.setDate(past30.getDate() - 30);
+      setStartDate(past30.toISOString().split('T')[0]);
+      setEndDate(d.toISOString().split('T')[0]);
     } else if (preset === 'all') {
       setStartDate('');
       setEndDate('');
     }
   };
 
-  // Filtered Approved Finance Reports
-  const approvedReports = (masterData.approvedFinanceDaily || []).filter(f => 
-    isOutletMatch(f.outlet_id) && 
-    isDateMatch(f.date || f.created_at) &&
-    (f.status === 'ok' || f.status === 'approved')
+  // Filtered All Shift Closing Reports (Real-time from POS Mobile & Web Admin)
+  const rawShiftReports = [
+    ...(masterData.shiftClosings || []),
+    ...(masterData.closedShifts || []),
+    ...(masterData.approvedFinanceDaily || [])
+  ];
+  const approvedReportsMap = new Map();
+  rawShiftReports.forEach(r => {
+    if (r && r.id != null) approvedReportsMap.set(String(r.id), r);
+  });
+  const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
+    isOutletMatch(f.outlet_id || f.branch_id) && 
+    isDateMatch(f.date || f.created_at)
   );
 
-  // Filtered Sales Transactions
-  const salesTransactions = (masterData.salesTransactions || []).filter(t => 
-    isOutletMatch(t.outlet_id) && 
+  // Filtered All Sales Transactions (Real-time from POS Mobile & Web Admin)
+  const rawSalesTx = [
+    ...(masterData.salesTransactions || []),
+    ...(masterData.transactions || []),
+    ...(masterData.outletTransactions || [])
+  ];
+  const salesTxMap = new Map();
+  rawSalesTx.forEach(t => {
+    if (t && t.id != null) salesTxMap.set(String(t.id), t);
+  });
+  const salesTransactions = Array.from(salesTxMap.values()).filter(t => 
+    isOutletMatch(t.outlet_id || t.branch_id) && 
     isDateMatch(t.date || t.timestamp || t.created_at)
   );
 
