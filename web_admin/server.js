@@ -394,7 +394,7 @@ const defaultMasterData = {
 
 // 8. Full Master Data Sync Endpoints
 // MySQL Enterprise Storage Connection & Auto-Mirroring Engine
-let mysqlPool = null;
+let mysqlInitError = null;
 
 const initMySQLPool = async () => {
   try {
@@ -409,9 +409,10 @@ const initMySQLPool = async () => {
       connectionLimit: 10,
       queueLimit: 0
     });
+    mysqlInitError = null;
     console.log('✅ MySQL Pool Initialized for Hostinger mris_db Storage');
   } catch (err) {
-    // MySQL driver optional fallback
+    mysqlInitError = err.message;
   }
 };
 initMySQLPool();
@@ -486,7 +487,7 @@ const syncToMySQL = async (masterData) => {
 
 app.get('/api/mysql-status', async (req, res) => {
   if (!mysqlPool) {
-    return res.json({ status: 'standalone', message: 'Engine 1 (JSON Fast Store Active). MySQL pool inactive.' });
+    return res.json({ status: 'standalone', message: 'Engine 1 (JSON Fast Store Active). MySQL driver notice: ' + (mysqlInitError || 'mysql2 pool inactive') });
   }
   try {
     const [rows] = await mysqlPool.query('SELECT COUNT(*) as tx_count FROM sales_transactions');
