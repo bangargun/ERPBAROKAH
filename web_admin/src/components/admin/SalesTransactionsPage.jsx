@@ -1049,11 +1049,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     { id: 'monthly_comparison', name: '9. Perbandingan Bulanan', icon: TrendingUp }
   ];
 
-  const transactions = masterData.salesTransactions || [];
-  const outlets = masterData.outlets || [];
-  const customers = masterData.customers || [];
-  const categories = masterData.categories || [];
-  const products = masterData.products || [];
+  const transactions = masterData?.salesTransactions || masterData?.transactions || [];
+  const salesTransactions = transactions;
+  const outlets = masterData?.outlets || [];
+  const customers = masterData?.customers || [];
+  const categories = masterData?.categories || [];
+  const products = masterData?.products || [];
 
   const formatRupiah = (num) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num || 0);
