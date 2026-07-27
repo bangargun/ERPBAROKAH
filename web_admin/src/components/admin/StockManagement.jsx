@@ -967,7 +967,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       ...op,
       stok_keluar: autoStokKeluarPenjualan,
       harga_satuan: activePrice,
-      status: 'ACC',
+      status: 'Approved',
+      sent_to_apk: true,
       approved_at: new Date().toISOString(),
       approved_by: 'Admin Web'
     };
@@ -981,12 +982,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
       return {
         ...prev,
+        _lastUpdated: Date.now(),
         approvedLogistics: updatedApp.some(item => item.id === op.id) ? updatedApp : [updatedRecord, ...updatedApp],
         stockOpname: updatedOp.some(item => item.id === op.id) ? updatedOp : [updatedRecord, ...updatedOp]
       };
     });
 
-    alert(`✅ Laporan Stok Opname (${op.item_name}) berhasil disetujui (ACC)!\nStok Keluar Penjualan otomatis terisi dari Web Admin: ${autoStokKeluarPenjualan} ${op.unit || 'kg'}.\nKini Anda dapat menekan tombol "Kirim APK".`);
+    alert(`✅ Laporan Stok Opname (${op.item_name}) BERHASIL DI-ACC & APPROVED!\nStok Keluar Penjualan otomatis terisi (${autoStokKeluarPenjualan} ${op.unit || 'kg'}).\nStatus di POS Mobile APK kini langsung berubah dari PENDING menjadi 🟢 APPROVED.`);
   };
 
   // SEND TO MOBILE APK (REQUIRES ACC FIRST)
