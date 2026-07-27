@@ -86,6 +86,9 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
   const handleModeSelect = (m) => {
     resetForm();
     setMode(m);
+    if (m === 'admin') {
+      setSelectedUsername('superadmin');
+    }
   };
 
   const handleLogin = () => {
