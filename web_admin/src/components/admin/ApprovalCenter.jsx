@@ -99,7 +99,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const [formOutletId, setFormOutletId] = useState(1);
   const [formSubmitter, setFormSubmitter] = useState('');
   const [formIngredientId, setFormIngredientId] = useState(ingredientsList[0]?.id || 1);
-  const [formItemName, setFormItemName] = useState(ingredientsList[0]?.name || 'Beras Pandan Wangi');
+  const [formItemName, setFormItemName] = useState(ingredientsList[0]?.name || '');
   const [formUnit, setFormUnit] = useState(ingredientsList[0]?.unit || 'kg');
   const [formSearchQuery, setFormSearchQuery] = useState('');
 
@@ -185,7 +185,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     setFormDate(log.date || new Date().toISOString().split('T')[0]);
     setFormOutletId(log.outlet_id || 1);
     setFormSubmitter(log.submitted_by || 'Adi Wijaya (Kasir POS)');
-    setFormItemName(log.item_name || 'Beras Pandan Wangi');
+    setFormItemName(log.item_name || '');
     setFormUnit(log.unit || 'kg');
     setFormStokAwal(log.stok_awal || '0');
     setFormStokMasuk(log.stok_masuk || '0');
@@ -206,7 +206,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     setFormDate(log.date || new Date().toISOString().split('T')[0]);
     setFormOutletId(log.outlet_id || 1);
     setFormSubmitter(log.submitted_by || 'Adi Wijaya (Kasir POS)');
-    setFormItemName(log.item_name || 'Beras Pandan Wangi');
+    setFormItemName(log.item_name || '');
     setFormUnit(log.unit || 'kg');
     setFormStokAwal(log.stok_awal || '0');
     setFormStokMasuk(log.stok_masuk || '0');
@@ -244,7 +244,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       stok_rusak: Number(formStokRusak || 0),
       stok_fisik: Number(formStokFisik || 0),
       status: 'ok',
-      approved_by: 'Budi Santoso (Admin)',
+      approved_by: '',
       notes: formNotes || 'Disetujui & diselaraskan dari Approval Center'
     };
 
@@ -465,7 +465,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       total_expense: totalExp,
       actual_cash: calculatedFisikKas,
       status: 'ok',
-      approved_by: 'Budi Santoso (Admin)',
+      approved_by: '',
       notes: finFormNotes || 'Penutupan keuangan kasir disetujui & didistribusikan'
     };
 
@@ -825,7 +825,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     const item = list.find(t => t.id === id);
     if (item) {
       item.status = 'ok';
-      item.approved_by = 'Budi Santoso';
+      item.approved_by = '';
 
       const newTransfer = {
         id: `tx-app-${Date.now()}`,
@@ -855,7 +855,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     const item = list.find(w => w.id === id);
     if (item) {
       item.status = 'ok';
-      item.approved_by = 'Budi Santoso';
+      item.approved_by = '';
 
       const newWaste = {
         id: `mv-app-wst-${Date.now()}`,

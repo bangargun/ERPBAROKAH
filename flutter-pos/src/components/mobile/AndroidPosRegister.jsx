@@ -243,7 +243,7 @@ export default function AndroidPosRegister({
   // Manual Financial Entry Form States (Matching Web-Based ManualFinancialEntryPage.jsx 100%)
   const [manualRepDate, setManualRepDate] = useState(new Date().toISOString().split('T')[0]);
   const [manualRepNo, setManualRepNo] = useState(`LAP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
-  const [manualRepAuthor, setManualRepAuthor] = useState('Master Super Admin');
+  const [manualRepAuthor, setManualRepAuthor] = useState(userSession?.name || '');
   const [manualRepOutletId, setManualRepOutletId] = useState(1);
   const [manualRepNetSales, setManualRepNetSales] = useState(0);
   const [manualRepNonCash, setManualRepNonCash] = useState(0);
@@ -265,7 +265,7 @@ export default function AndroidPosRegister({
 
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [logNo, setLogNo] = useState(`LOG-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
-  const [logSubmittedBy, setLogSubmittedBy] = useState('Master Super Admin');
+  const [logSubmittedBy, setLogSubmittedBy] = useState(userSession?.name || '');
   const [logOutletId, setLogOutletId] = useState(1);
   const [logItemName, setLogItemName] = useState('');
   const [logCustomItemName, setLogCustomItemName] = useState('');
@@ -292,7 +292,7 @@ export default function AndroidPosRegister({
   const [transferNo, setTransferNo] = useState(`TRF-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [transferFromOutletId, setTransferFromOutletId] = useState(1);
   const [transferToOutletId, setTransferToOutletId] = useState(2);
-  const [transferSubmittedBy, setTransferSubmittedBy] = useState('Master Super Admin');
+  const [transferSubmittedBy, setTransferSubmittedBy] = useState(userSession?.name || '');
   const [transferItemName, setTransferItemName] = useState('');
   const [transferCustomItemName, setTransferCustomItemName] = useState('');
   const [transferQty, setTransferQty] = useState(0);
@@ -307,7 +307,7 @@ export default function AndroidPosRegister({
   const [wasteDate, setWasteDate] = useState(new Date().toISOString().split('T')[0]);
   const [wasteNo, setWasteNo] = useState(`WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [wasteOutletId, setWasteOutletId] = useState(1);
-  const [wasteSubmittedBy, setWasteSubmittedBy] = useState('Master Super Admin');
+  const [wasteSubmittedBy, setWasteSubmittedBy] = useState(userSession?.name || '');
   const [wasteBatchRows, setWasteBatchRows] = useState([]);
   const [wasteItemName, setWasteItemName] = useState('');
   const [wasteCustomItemName, setWasteCustomItemName] = useState('');
@@ -629,110 +629,7 @@ export default function AndroidPosRegister({
   const [sopSearchQuery, setSopSearchQuery] = useState('');
   const [selectedSopDetail, setSelectedSopDetail] = useState(null);
 
-  const sopDocuments = masterData?.pushedSopToMobile || masterData?.sopDocuments || [
-    {
-      id: 'SOP-001',
-      title: 'SOP Persiapan Opening Restoran & Kasir POS',
-      category: 'opening',
-      categoryLabel: '🌅 Persiapan Opening',
-      estimatedTime: '30 Menit (07:30 - 08:00 WIB)',
-      updatedAt: '2026-07-20',
-      author: 'Manager Operasional',
-      summary: 'Panduan standar pemeriksaan mesin kasir POS, pengisian modal kas kecil Rp 500.000, dan kesiapan area makan.',
-      steps: [
-        'Pastikan koneksi Wi-Fi tablet POS Mobile dalam kondisi aktif dan stabil.',
-        'Buka kasir di POS Mobile dan masukkan modal kas kecil sebesar Rp 500.000 ke laci cash drawer.',
-        'Periksa ketersediaan kertas thermal printer di mesin printer kasir dan printer dapur.',
-        'Lakukan pemeriksaan kebersihan area kasir, meja makan, dan peralatan menyaji.',
-        'Nyalakan lampu utama, AC/Kipas, dan papan petunjuk restoran BUKA.'
-      ]
-    },
-    {
-      id: 'SOP-002',
-      title: 'SOP Prosedur Penerimaan Pembayaran (Cash, QRIS & EDC)',
-      category: 'kasir',
-      categoryLabel: '💳 Kasir & Pembayaran',
-      estimatedTime: 'Setiap Transaksi (2-3 Menit)',
-      updatedAt: '2026-07-18',
-      author: 'Supervisor Kasir',
-      summary: 'Prosedur standar konfirmasi nominal pesanan, transaksi pembayaran tunai/non-tunai, dan penyerahan kembalian.',
-      steps: [
-        'Konfirmasikan ulang daftar pesanan dan total harga akhir kepada pelanggan secara ramah.',
-        'Untuk pembayaran Tunai: Dapatkan uang tunai, hitung di depan pelanggan, masukkan ke cash drawer, dan serahkan kembalian pas.',
-        'Untuk pembayaran QRIS: Arahkan pelanggan memindai QRIS Statis/Dinamis, dan pastikan notifikasi sukses di layar POS sebelum menyerahkan struk.',
-        'Untuk pembayaran Card EDC: Gesek/tap kartu di EDC, pastikan resi EDC tercetak sukses (APPROVED).',
-        'Serahkan struk belanja resmi dan ucapkan salam terima kasih kepada pelanggan.'
-      ]
-    },
-    {
-      id: 'SOP-003',
-      title: 'SOP Kebersihan, Higiene & Keamanan Pangan',
-      category: 'kebersihan',
-      categoryLabel: '🧹 Kebersihan & Higiene',
-      estimatedTime: 'Rutin Setiap Shift',
-      updatedAt: '2026-07-15',
-      author: 'Tim Quality Control',
-      summary: 'Standar kebersihan staf kasir, sanitasi peralatan touch screen, dan penerapan higiene makanan.',
-      steps: [
-        'Staf kasir dan pramusaji wajib mencuci tangan menggunakan sabun antiseptik setiap 30 menit atau setelah menangani sampah/uang tunai.',
-        'Wajib menggunakan pakaian seragam bersih, celemek, dan penutup rambut saat bertugas.',
-        'Bersihkan permukaan layar POS Tablet dan meja kasir menggunakan cairan disinfektan food-grade secara berkala.',
-        'Pastikan tidak ada bahan makanan terbuka yang diletakkan di area sekitar mesin kasir.',
-        'Selalu cek tanggal kadaluarsa bahan baku minuman dan bumbu pelengkap.'
-      ]
-    },
-    {
-      id: 'SOP-004',
-      title: 'SOP Penanganan Komplain & Retur Pelanggan',
-      category: 'komplain',
-      categoryLabel: '🤝 Pelayanan Pelanggan',
-      estimatedTime: 'Penanganan Langsung (< 5 Menit)',
-      updatedAt: '2026-07-19',
-      author: 'Customer Relation Manager',
-      summary: 'Langkah standar mendengarkan keluhan pelanggan dengan 3S dan pembuatan laporan barang rusak/retur di POS Mobile.',
-      steps: [
-        'Terapkan 3S (Senyum, Sapa, Salam) dan dengarkan keluhan pelanggan dengan tenang tanpa memotong pembicaraan.',
-        'Ucapkan permohonan maaf atas ketidaknyamanan yang dialami pelanggan.',
-        'Apabila makanan/minuman tidak sesuai atau rusak, segera ganti dengan porsi baru yang segar.',
-        'Buka menu Laporan di POS Mobile -> pilih "Buat Laporan Barang Rusak (Waste)" untuk menginput barang retur.',
-        'Laporkan kejadian komplain kepada Supervisor/Manager shift untuk evaluasi dapur.'
-      ]
-    },
-    {
-      id: 'SOP-005',
-      title: 'SOP Shift Closing & Setor Tunai Harian',
-      category: 'closing',
-      categoryLabel: '🌙 Penutupan / Closing',
-      estimatedTime: '45 Menit (21:30 - 22:15 WIB)',
-      updatedAt: '2026-07-21',
-      author: 'Head Accountant',
-      summary: 'Prosedur penutupan shift kasir, pencetakan laporan closing, dan penyetoran uang tunai ke brankas/manager.',
-      steps: [
-        'Buka menu Shift Closing di POS Mobile dan lakukan perhitungan fisik seluruh uang tunai yang ada di laci kasir.',
-        'Hitung dan pisahkan modal awal kas kecil (Rp 500.000) dari hasil penjualan tunai harian.',
-        'Cocokkan jumlah kas fisik tunai dengan total omzet cash yang terdaftar di sistem POS Mobile.',
-        'Cetak Struk Rekap Closing Kasir dan mintalah tanda tangan verifikasi dari Supervisor/Manager shift.',
-        'Masukkan uang setor tunai beserta laporan fisik ke dalam amplop tertutup dan simpan di brankas aman.'
-      ]
-    },
-    {
-      id: 'SOP-006',
-      title: 'SOP Penanganan Stok Opname & Kerusakan Barang',
-      category: 'stok',
-      categoryLabel: '📦 Logistik & Stok Opname',
-      estimatedTime: 'Setiap Akhir Hari / Mingguan',
-      updatedAt: '2026-07-22',
-      author: 'Head Logistik Pusat',
-      summary: 'Panduan perhitungan fisik persediaan bahan baku dan pelaporan stok opname ke Web-Based Admin.',
-      steps: [
-        'Lakukan penimbangan dan perhitungan sisa stok fisik seluruh bahan baku (daging, beras, minyak, bumbu) di ruang penyimpanan.',
-        'Catat sisa stok fisik secara teliti ke dalam lembar kerja audit.',
-        'Buka menu Laporan -> "Buat Laporan Logistik" atau "Laporan Stok Opname" di POS Mobile.',
-        'Input sisa stok fisik dan pastikan selisih (surplus/defisit) teranalisis otomatis oleh sistem.',
-        'Kirimkan laporan opname untuk mendapatkan persetujuan (approval) dari Web Admin Logistik Pusat.'
-      ]
-    }
-  ];
+  const sopDocuments = masterData?.pushedSopToMobile || masterData?.sopDocuments || [];
 
   // Form States for Customer Add/Edit
   const [custFormName, setCustFormName] = useState('');
@@ -3226,7 +3123,7 @@ export default function AndroidPosRegister({
             {/* RIGHT PANEL: DETAIL PELANGGAN (55% WIDTH)                    */}
             {/* ----------------------------------------------------------- */}
             {(() => {
-              const activeCust = (masterData.customers || []).find(c => c.id === selectedCustomerIdForDetail) || masterData.customers?.[0] || { id: 2, name: 'Budi Santoso', phone: '08123456789' };
+              const activeCust = (masterData.customers || []).find(c => c.id === selectedCustomerIdForDetail) || masterData.customers?.[0] || null;
               const custCode = activeCust.code || `000${activeCust.id} - BMJ`;
               const custOutletName = activeCust.outlet_name || (masterData.outlets || []).find(o => o.id === activeCust.outlet_id)?.name || currentOutlet.name || 'Restoran Utama';
 
@@ -3511,7 +3408,7 @@ export default function AndroidPosRegister({
               const activeUserShift = {
                 id: 'SHIFT-NOW-01',
                 username: 'master',
-                user_name: 'Master Super Admin',
+                user_name: userSession?.name || '',
                 role: 'Super Admin / Owner',
                 outlet_name: currentOutlet.name || 'Restoran Utama',
                 status: 'AKTIF BERLANGSUNG',
@@ -4026,7 +3923,7 @@ export default function AndroidPosRegister({
                       setManualRepDate(todayStr);
                       setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setManualRepOutletId(currentOutlet.id || 1);
-                      setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || 'Master Super Admin');
+                      setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || userSession?.name || '');
                       setManualRepNetSales(totalSalesGross || 0);
                       setManualRepNonCash(0);
                       setManualRepDebtPayment(0);
@@ -4206,7 +4103,7 @@ export default function AndroidPosRegister({
                       setOpnameBatchRows(initialBatchRows);
                       setLogDate(todayStr);
                       setLogNo(`SO-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
-                      setLogSubmittedBy('Master Super Admin');
+                      setLogSubmittedBy(userSession?.name || '');
                       setLogOutletId(currentOutlet.id || 1);
                       setShowAddLogisticsModal(true);
                     }}
@@ -4399,7 +4296,7 @@ export default function AndroidPosRegister({
                       setTransferNo(`TRF-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setTransferFromOutletId(currentOutlet.id || 1);
                       setTransferToOutletId(2);
-                      setTransferSubmittedBy('Master Super Admin');
+                      setTransferSubmittedBy(userSession?.name || '');
                       setTransferItemName(firstIng.name);
                       setTransferCustomItemName('');
                       setTransferQty(10);
@@ -4541,7 +4438,7 @@ export default function AndroidPosRegister({
                                       setEditingTransferId(item.id || item.report_no);
                                       setTransferNo(item.report_no || item.id);
                                       setTransferDate(item.date || new Date().toISOString().split('T')[0]);
-                                      setTransferSubmittedBy(item.submitted_by || item.created_by || 'Master Super Admin');
+                                      setTransferSubmittedBy(item.submitted_by || item.created_by || userSession?.name || '');
                                       setTransferFromOutletId(item.from_outlet_id || item.fromOutletId || 1);
                                       setTransferToOutletId(item.to_outlet_id || item.toOutletId || 2);
                                       setTransferNotes(item.notes || '');
@@ -5011,28 +4908,7 @@ export default function AndroidPosRegister({
                 {/* KPI SUMMARY CARDS BAR: TOTAL DENDA HARI INI & DENDA PER STOK */}
                 {(() => {
                   const todayStr = new Date().toISOString().split('T')[0];
-                  const allOpnames = (masterData.stockOpname && masterData.stockOpname.length > 0)
-                    ? masterData.stockOpname
-                    : [
-                        {
-                          id: 'OPN-20260723-001',
-                          report_no: 'OPN-20260723-001',
-                          date: '2026-07-23',
-                          created_by: 'Admin Logistik Pusat',
-                          outlet_id: currentOutlet.id || 1,
-                          branch_name: currentOutlet.name,
-                          item_name: 'Daging Ayam Fillet',
-                          unit: 'kg',
-                          stok_awal: 100,
-                          stok_masuk: 50,
-                          stok_keluar: 35,
-                          transfer_masuk: 10,
-                          transfer_keluar: 5,
-                          stok_rusak: 2,
-                          stok_fisik: 110,
-                          status: 'ACC'
-                        }
-                      ];
+                  const allOpnames = masterData?.stockOpname || [];
 
                   const filteredOpnames = allOpnames.filter(op => {
                     if (opnameSummaryStartDate && op.date < opnameSummaryStartDate) return false;
@@ -5139,29 +5015,7 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {(() => {
-                          const opnameList = (masterData.stockOpname && masterData.stockOpname.length > 0)
-                            ? masterData.stockOpname
-                            : [
-                                {
-                                  id: 'OPN-20260723-001',
-                                  report_no: 'OPN-20260723-001',
-                                  date: '2026-07-23',
-                                  created_by: 'Admin Logistik Pusat',
-                                  outlet_id: currentOutlet.id || 1,
-                                  branch_name: currentOutlet.name,
-                                  item_name: 'Daging Ayam Fillet',
-                                  unit: 'kg',
-                                  stok_awal: 100,
-                                  stok_masuk: 50,
-                                  stok_keluar: 35,
-                                  transfer_masuk: 10,
-                                  transfer_keluar: 5,
-                                  stok_rusak: 2,
-                                  stok_fisik: 110,
-                                  status: 'ACC',
-                                  notes: 'Audit fisik outlet'
-                                }
-                              ];
+                          const opnameList = masterData?.stockOpname || [];
 
                           // Filter by Date Range
                           const filteredOpnameList = opnameList.filter(op => {
@@ -6739,13 +6593,7 @@ export default function AndroidPosRegister({
 
               {/* FILTERED MASTER DATA CUSTOMERS & LIVE TYPING SUGGESTIONS */}
               {(() => {
-                const customersList = (masterData?.customers && masterData.customers.length > 0)
-                  ? masterData.customers
-                  : [
-                      { id: 's1', name: 'Budi Santoso', phone: '0812-3456-7890', customer_type: 'Member VIP' },
-                      { id: 's2', name: 'Dewi Lestari', phone: '0857-8901-2345', customer_type: 'Pelanggan Setia' },
-                      { id: 's3', name: 'Rudi Hermawan', phone: '0819-0123-4567', customer_type: 'Pelanggan Reguler' }
-                    ];
+                const customersList = masterData?.customers || [];
 
                 const filtered = customersList.filter(c => 
                   c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
@@ -9478,7 +9326,7 @@ export default function AndroidPosRegister({
                       <input
                         type="text"
                         readOnly
-                        value={manualRepAuthor || masterData?.currentUser?.name || masterData?.user?.name || 'Master Super Admin'}
+                        value={manualRepAuthor || masterData?.currentUser?.name || masterData?.user?.name || userSession?.name || ''}
                         className="form-input"
                         style={{ width: '100%', height: '40px', background: '#0f172a', color: '#34d399', fontWeight: '800', border: '1px solid #334155', cursor: 'not-allowed' }}
                       />
@@ -10389,33 +10237,14 @@ export default function AndroidPosRegister({
             </div>
 
             {(() => {
-              const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients
-                : [
-                    { id: 1, name: 'Daging Ayam Fillet', unit: 'kg' },
-                    { id: 2, name: 'Beras Pandan Wangi', unit: 'kg' },
-                    { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter' }
-                  ];
+              const ingredientsList = masterData?.ingredients || [];
 
-              const outletsList = (masterData.outlets && masterData.outlets.length > 0)
-                ? masterData.outlets
-                : [
-                    { id: 1, name: currentOutlet.name || 'Restoran Utama' },
-                    { id: 2, name: 'Outlet Cabang 2' }
-                  ];
+              const outletsList = masterData?.outlets || [];
 
-              const adminList = (masterData.userRights && masterData.userRights.length > 0)
-                ? masterData.userRights
-                : (masterData.users && masterData.users.length > 0)
-                  ? masterData.users
-                  : [
-                      { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                      { id: 2, name: 'Supervisor Operasional', role: 'Supervisor' },
-                      { id: 3, name: 'Kasir POS', role: 'Kasir Utama' }
-                    ];
+              const adminList = masterData?.userRights || masterData?.users || [];
 
               const handleAddTransferRow = () => {
-                const defaultIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                const defaultIng = ingredientsList[0] || null;
                 setTransferBatchRows(prev => [
                   ...prev,
                   {
@@ -10992,11 +10821,7 @@ export default function AndroidPosRegister({
             {(() => {
               const ingredientsList = masterData.ingredients || [];
 
-              const userList = (masterData.userAccounts && masterData.userAccounts.length > 0)
-                ? masterData.userAccounts
-                : (masterData.userRights && masterData.userRights.length > 0)
-                  ? masterData.userRights
-                  : [{ id: 1, name: 'Master Super Admin', role: 'Super Admin' }];
+              const userList = masterData?.userAccounts || masterData?.userRights || [];
 
               return (
                 <form onSubmit={e => {

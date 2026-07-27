@@ -2062,10 +2062,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}
                 >
                   <option value="Semua Outlet (Central)">Semua Outlet (Central / Pusat)</option>
-                  {(masterData.outlets || [
-                    { name: 'Kopi MRIS - Cabang Jakarta Pusat' },
-                    { name: 'Kopi MRIS - Cabang Bandung' }
-                  ]).map((o, idx) => (
+                  {(masterData.outlets || []).map((o, idx) => (
                     <option key={idx} value={o.name}>{o.name}</option>
                   ))}
                 </select>

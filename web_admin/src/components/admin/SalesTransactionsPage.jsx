@@ -2213,7 +2213,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const takeAwayPct = sumNet > 0 ? ((takeAwayGross / sumNet) * 100).toFixed(1) : '35.0';
 
   // Payment Method Breakdown
-  const paymentMethodsList = masterData.paymentMethods || [{ name: 'Cash' }, { name: 'QRIS BCA' }, { name: 'Transfer' }, { name: 'E-Wallet' }];
+  const paymentMethodsList = masterData?.paymentMethods || [];
   const paymentMethodSummary = paymentMethodsList.map(pm => {
     const pmTxs = filteredSummaryTxs.filter(t => t.payment_method === pm.name);
     const amount = pmTxs.reduce((acc, t) => acc + (t.amount - (t.discount || 0)), 0);

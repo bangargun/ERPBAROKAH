@@ -72,7 +72,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
     setEditingSupplier(item);
     setName(item.name);
     setOutletId(item.outlet_id || masterData.outlets?.[0]?.id || 1);
-    setSupplyTypes(item.supply_types || ['Bahan Kering']);
+    setSupplyTypes(item.supply_types || []);
     setStatus(item.status || 'Aktif');
     setShowAddModal(true);
   };
@@ -196,7 +196,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
               ) : (
                 paginatedSuppliers.map(sup => {
                   const isAktif = (sup.status || 'Aktif') === 'Aktif';
-                  const types = sup.supply_types || ['Bahan Kering'];
+                  const types = sup.supply_types || [];
 
                   return (
                     <tr key={sup.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>

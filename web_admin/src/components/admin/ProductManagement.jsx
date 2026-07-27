@@ -127,7 +127,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       // Initialize default per-outlet prices for this new variant
       const initPrices = {};
       masterData.outlets.forEach(o => {
-        initPrices[o.id] = 35000;
+        initPrices[o.id] = 0;
       });
       setVariantPrices(prev => ({ ...prev, [newV]: initPrices }));
     }
@@ -164,7 +164,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
   // 3. Add Composition Row
   const handleAddCompositionRow = () => {
-    const defaultIng = masterData.ingredients?.[0] || { id: 1, name: 'Daging Ayam Segar', unit: 'Gram' };
+    const defaultIng = masterData.ingredients?.[0] || null;
     const defaultUnit = masterData.units?.[0]?.symbol || 'Gram';
 
     setCompositions([
@@ -213,7 +213,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setSelectedOutletIds(defaultOutletIds);
     setVariantPrices({});
     const initStdPrices = {};
-    (masterData.outlets || []).forEach(o => { initStdPrices[o.id] = 35000; });
+    (masterData.outlets || []).forEach(o => { initStdPrices[o.id] = 0; });
     setStandardPrices(initStdPrices);
     setCompositions([]);
     setShowFormModal(true);
@@ -250,7 +250,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
     setSelectedOutletIds(activeOutletIds);
     setVariantPrices(vPrices);
-    setStandardPrices(Object.keys(stdPrices).length > 0 ? stdPrices : (masterData.outlets || []).reduce((acc, o) => ({ ...acc, [o.id]: product.price || 35000 }), {}));
+    setStandardPrices(Object.keys(stdPrices).length > 0 ? stdPrices : (masterData.outlets || []).reduce((acc, o) => ({ ...acc, [o.id]: product.price || 0 }), {}));
     setCompositions(product.compositions || []);
     setShowFormModal(true);
   };
@@ -289,7 +289,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       variants.forEach((vName, idx) => {
         const pMap = variantPrices[vName] || {};
         selectedOutletIds.forEach(outId => {
-          if (pMap[outId] === undefined) pMap[outId] = 35000;
+          if (pMap[outId] === undefined) pMap[outId] = 0;
         });
 
         generatedPriceCombinations.push({
@@ -302,7 +302,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       });
     }
 
-    const firstPriceVal = Object.values(standardPrices)[0] || Object.values(variantPrices[variants[0]] || {})[0] || 35000;
+    const firstPriceVal = Object.values(standardPrices)[0] || Object.values(variantPrices[variants[0]] || {})[0] || 0;
 
     const productPayload = {
       id: editingProductId || Date.now(),
@@ -311,8 +311,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       name: prodName.trim(),
       category_id: parseInt(prodCategoryId),
       category_name: categoryObj ? categoryObj.name : 'Makanan Utama',
-      price: parseFloat(firstPriceVal) || 35000,
-      cost: (parseFloat(firstPriceVal) || 35000) * 0.4,
+      price: parseFloat(firstPriceVal) || 0,
+      cost: (parseFloat(firstPriceVal) || 0) * 0.4,
       unit: 'Pcs',
       stock: 100,
       min_stock: 10,

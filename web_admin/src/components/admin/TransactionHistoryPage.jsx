@@ -44,15 +44,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   };
   
   // MASTER DATA PELANGGAN
-  const customerList = (masterData?.customers && masterData.customers.length > 0)
-    ? masterData.customers
-    : [
-        { id: 1, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', phone: '0812-3456-7890', tier: 'Gold' },
-        { id: 2, name: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', phone: '0811-9876-5432', tier: 'Silver' },
-        { id: 3, name: 'AYAM PECAK 2001 SEAFOOD KISARAN', phone: '0813-1122-3344', tier: 'Platinum' },
-        { id: 4, name: 'AYAM BAKAR SURABAYA TEBING TINGGI', phone: '0815-6677-8899', tier: 'Gold' },
-        { id: 5, name: 'Default Customer', phone: '-', tier: 'Reguler' }
-      ];
+  const customerList = masterData?.customers || [];
 
   // EXTRACT DYNAMIC VARIANT & PRICE PER OUTLET FROM MASTER DATA PRODUK
   const getVariantOutletProducts = (targetOutletId = null) => {
@@ -69,7 +61,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
               const outObj = outletsList.find(o => Number(o.id) === Number(outId));
               const outName = outObj ? outObj.name : `Outlet #${outId}`;
-              const price = combo.outletPrices?.[outId] !== undefined ? combo.outletPrices[outId] : (p.price || 35000);
+              const price = combo.outletPrices?.[outId] !== undefined ? combo.outletPrices[outId] : (p.price || 0);
               
               items.push({
                 id: `${p.id}-${combo.id}-${outId}`,
@@ -96,7 +88,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
           const outObj = outletsList.find(o => Number(o.id) === Number(outId));
           const outName = outObj ? outObj.name : `Outlet #${outId}`;
-          const basePrice = p.price || 35000;
+          const basePrice = p.price || 0;
 
           if (p.variants && p.variants.length > 0) {
             p.variants.forEach(vName => {
@@ -188,7 +180,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formTime, setFormTime] = useState('12:00');
   const [formOutletId, setFormOutletId] = useState(1);
-  const [formCashier, setFormCashier] = useState(adminList[0]?.name || 'Rina Kasir');
+  const [formCashier, setFormCashier] = useState(adminList[0]?.name || '');
   const [formCustomerName, setFormCustomerName] = useState('Pelanggan Umum');
   const [formOrderType, setFormOrderType] = useState('Dine In');
   const [formItemRows, setFormItemRows] = useState([]);
@@ -213,22 +205,22 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     setFormDate(new Date().toISOString().split('T')[0]);
     setFormTime(new Date().toTimeString().substring(0, 5));
     setFormOutletId(selectedBranch || 1);
-    setFormCashier(adminList[0]?.name || 'Rina Kasir');
+    setFormCashier(adminList[0]?.name || '');
     setFormCustomerName('Default Customer');
     setFormOrderType('Dine In');
     setFormPaymentMethod('Cash');
     setFormNotes('');
 
-    const firstProduct = menuProducts[0] || { name: 'AYAM BAKAR / SAMBAL PENYET', price: 35000, sku: '000987' };
+    const firstProduct = menuProducts[0] || null;
     setFormItemRows([
       {
         id: Date.now(),
-        name: firstProduct.name,
-        sku: firstProduct.sku || 'SKU-1',
+        name: firstProduct?.name || '',
+        sku: firstProduct?.sku || '',
         unit: 'PORSI',
         qty: 1,
-        price_unit: firstProduct.price || 35000,
-        amount: firstProduct.price || 35000
+        price_unit: firstProduct?.price || 0,
+        amount: firstProduct?.price || 0
       }
     ]);
     setShowModal(true);
@@ -240,7 +232,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     setFormDate(item.date || new Date().toISOString().split('T')[0]);
     setFormTime(item.time || '12:00');
     setFormOutletId(item.outlet_id || 1);
-    setFormCashier(item.cashier || adminList[0]?.name || 'Rina Kasir');
+    setFormCashier(item.cashier || adminList[0]?.name || '');
     setFormCustomerName(item.customer_name || 'Default Customer');
     setFormOrderType(item.order_type || 'Dine In');
     setFormPaymentMethod(item.payment_method || 'Cash');
@@ -253,19 +245,19 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         sku: it.sku || `SKU-${idx + 1}`,
         unit: it.unit || 'PORSI',
         qty: it.qty || 1,
-        price_unit: it.price_unit || 35000,
-        amount: (it.qty || 1) * (it.price_unit || 35000)
+        price_unit: it.price_unit || 0,
+        amount: (it.qty || 1) * (it.price_unit || 0)
       })));
     } else {
       setFormItemRows([
         {
           id: Date.now(),
-          name: item.item_name || menuProducts[0]?.name || 'AYAM BAKAR / SAMBAL PENYET',
-          sku: '000987',
+          name: item.item_name || menuProducts[0]?.name || '',
+          sku: '',
           unit: 'PORSI',
           qty: item.qty || 1,
-          price_unit: item.price_unit || 35000,
-          amount: item.amount || 35000
+          price_unit: item.price_unit || 0,
+          amount: item.amount || 0
         }
       ]);
     }
@@ -276,15 +268,15 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const handleAddBlankItemRow = () => {
     const currentOutletProducts = getVariantOutletProducts(formOutletId);
     const nextIdx = formItemRows.length;
-    const p = currentOutletProducts[nextIdx % currentOutletProducts.length] || { name: 'Item Produk Baru', price: 25000, sku: 'SKU-NEW' };
+    const p = currentOutletProducts[nextIdx % currentOutletProducts.length] || null;
     const newRow = {
       id: Date.now() + Math.random(),
-      name: p.name,
-      sku: p.sku || 'SKU-NEW',
+      name: p?.name || '',
+      sku: p?.sku || '',
       unit: 'PORSI',
       qty: 1,
-      price_unit: p.price || 25000,
-      amount: p.price || 25000
+      price_unit: p?.price || 0,
+      amount: p?.price || 0
     };
     setFormItemRows([...formItemRows, newRow]);
   };
@@ -451,7 +443,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     const inv = selectedInvoice;
     const itemList = inv.items && inv.items.length > 0 
       ? inv.items 
-      : [{ name: inv.item_name || 'AYAM BAKAR / SAMBAL PENYET', sku: '000987', qty: inv.qty || 1, unit: 'PORSI', price_unit: inv.amount || 35000, amount: inv.amount || 35000 }];
+      : [{ name: inv.item_name || '', sku: '', qty: inv.qty || 1, unit: 'PORSI', price_unit: inv.amount || 0, amount: inv.amount || 0 }];
     
     const totalQtyCount = itemList.reduce((sum, it) => sum + Number(it.qty || 1), 0);
 
@@ -1167,7 +1159,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 </div>
 
                 {(previewRecord.items && previewRecord.items.length > 0 ? previewRecord.items : [
-                  { name: previewRecord.item_name || 'Nasi Goreng Spesial', qty: previewRecord.qty || 1, price_unit: previewRecord.price_unit || 35000, amount: previewRecord.amount || 35000 }
+                  { name: previewRecord.item_name || '', qty: previewRecord.qty || 1, price_unit: previewRecord.price_unit || 0, amount: previewRecord.amount || 0 }
                 ]).map((it, idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#f8fafc' }}>
                     <div>
