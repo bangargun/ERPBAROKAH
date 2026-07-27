@@ -353,14 +353,8 @@ const defaultMasterData = {
   stockOpname: [],
   shiftClosings: [],
   sopDocuments: [],
-  webAdminAccounts: [
-    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
-    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
-  ],
-  mobileAccounts: [
-    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '888', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' },
-    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
-  ],
+  webAdminAccounts: [],
+  mobileAccounts: [],
   _lastUpdated: Date.now()
 };
 
@@ -401,7 +395,7 @@ const syncToMySQL = async (masterData) => {
       const txDate = t.date || new Date().toISOString().split('T')[0];
       const txTime = t.time || '00:00:00';
       const outletId = Number(t.outlet_id || t.branch_id || 1);
-      const branchName = t.branch_name || t.outlet || 'Gourmet Bistro - Senopati';
+      const branchName = t.branch_name || t.outlet || '';
       const customerName = t.customer_name || t.customer || 'Pelanggan Umum';
       const tableNumber = t.table_number || t.table || '';
       const orderType = t.order_type || t.type || 'Dine In';
@@ -440,7 +434,7 @@ const syncToMySQL = async (masterData) => {
         String(sc.id),
         sc.date || new Date().toISOString().split('T')[0],
         Number(sc.outlet_id || 1),
-        sc.branch_name || 'Gourmet Bistro - Senopati',
+        sc.branch_name || '',
         sc.author_name || sc.cashier || 'Kasir',
         Number(sc.opening_float || 0),
         Number(sc.net_sales || 0),
