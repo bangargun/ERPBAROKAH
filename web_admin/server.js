@@ -39,41 +39,13 @@ app.use(express.json({ limit: '10mb' }));
 // Persistent JSON Store Path
 const DB_FILE = path.join(__dirname, 'mris_finance.json');
 
-// Initial Data Structure
+// Initial Data Structure (100% Clean Slate - Murni Data Pengguna)
 const initialDb = {
-  outlets: [
-    { id: 1, code: 'RST-001', name: 'Gourmet Bistro - Senopati', location: 'Jl. Senopati No. 45, Jakarta Selatan', manager_name: 'Budi Santoso', phone: '0812-3456-7890', monthly_budget: 120000000, status: 'Active', color: '#6366f1' },
-    { id: 2, code: 'RST-002', name: 'Ramen Haus - Kemang', location: 'Jl. Kemang Raya No. 12, Jakarta Selatan', manager_name: 'Siti Rahma', phone: '0813-9876-5432', monthly_budget: 85000000, status: 'Active', color: '#ec4899' },
-    { id: 3, code: 'RST-003', name: 'Kopi & Kitchen - PIK', location: 'Ruko Crown Golf Blok B No. 8, Pantai Indah Kapuk', manager_name: 'Kevin Wijaya', phone: '0811-2233-4455', monthly_budget: 65000000, status: 'Active', color: '#10b981' }
-  ],
-  categories: [
-    { id: 1, name: 'Penjualan Dine-in', type: 'income', icon: 'Utensils' },
-    { id: 2, name: 'Penjualan Takeaway / Online', type: 'income', icon: 'ShoppingBag' },
-    { id: 3, name: 'Layanan Catering & Event', type: 'income', icon: 'Calendar' },
-    { id: 4, name: 'Pendapatan Lain-lain', type: 'income', icon: 'TrendingUp' },
-    { id: 5, name: 'Bahan Baku & Dapur (COGS)', type: 'expense', icon: 'ShoppingBasket' },
-    { id: 6, name: 'Gaji & Bonus Karyawan', type: 'expense', icon: 'Users' },
-    { id: 7, name: 'Listrik, Air & Gas', type: 'expense', icon: 'Zap' },
-    { id: 8, name: 'Sewa Tempat & Maintenance', type: 'expense', icon: 'Home' },
-    { id: 9, name: 'Marketing & Promosi', type: 'expense', icon: 'Megaphone' },
-    { id: 10, name: 'Peralatan & Operational Smallware', type: 'expense', icon: 'Wrench' }
-  ],
+  outlets: [],
+  categories: [],
   transactions: [],
   shift_closings: []
 };
-
-// Seed Helper Dates
-const today = new Date();
-const formatDate = (daysAgo) => {
-  const d = new Date(today);
-  d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split('T')[0];
-};
-
-// Seed Transactions if empty
-let txIdCounter = 1;
-initialDb.transactions = [];
-initialDb.shift_closings = [];
 
 // Initialize Database File if not exists
 if (!fs.existsSync(DB_FILE)) {

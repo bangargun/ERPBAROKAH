@@ -1,201 +1,11 @@
 {
-  "outlets": [
-    {
-      "id": 1,
-      "code": "RST-001",
-      "name": "Gourmet Bistro - Senopati",
-      "location": "Jl. Senopati No. 45, Jakarta Selatan",
-      "manager_name": "Budi Santoso",
-      "phone": "0812-3456-7890",
-      "monthly_budget": 120000000,
-      "status": "Active",
-      "color": "#6366f1"
-    },
-    {
-      "id": 2,
-      "code": "RST-002",
-      "name": "Ramen Haus - Kemang",
-      "location": "Jl. Kemang Raya No. 12, Jakarta Selatan",
-      "manager_name": "Siti Rahma",
-      "phone": "0813-9876-5432",
-      "monthly_budget": 85000000,
-      "status": "Active",
-      "color": "#ec4899"
-    },
-    {
-      "id": 3,
-      "code": "RST-003",
-      "name": "Kopi & Kitchen - PIK",
-      "location": "Ruko Crown Golf Blok B No. 8, Pantai Indah Kapuk",
-      "manager_name": "Kevin Wijaya",
-      "phone": "0811-2233-4455",
-      "monthly_budget": 65000000,
-      "status": "Active",
-      "color": "#10b981"
-    }
-  ],
-  "categories": [
-    {
-      "id": 1,
-      "name": "Penjualan Dine-in",
-      "type": "income",
-      "icon": "Utensils"
-    },
-    {
-      "id": 2,
-      "name": "Penjualan Takeaway / Online",
-      "type": "income",
-      "icon": "ShoppingBag"
-    },
-    {
-      "id": 3,
-      "name": "Layanan Catering & Event",
-      "type": "income",
-      "icon": "Calendar"
-    },
-    {
-      "id": 4,
-      "name": "Pendapatan Lain-lain",
-      "type": "income",
-      "icon": "TrendingUp"
-    },
-    {
-      "id": 5,
-      "name": "Bahan Baku & Dapur (COGS)",
-      "type": "expense",
-      "icon": "ShoppingBasket"
-    },
-    {
-      "id": 6,
-      "name": "Gaji & Bonus Karyawan",
-      "type": "expense",
-      "icon": "Users"
-    },
-    {
-      "id": 7,
-      "name": "Listrik, Air & Gas",
-      "type": "expense",
-      "icon": "Zap"
-    },
-    {
-      "id": 8,
-      "name": "Sewa Tempat & Maintenance",
-      "type": "expense",
-      "icon": "Home"
-    },
-    {
-      "id": 9,
-      "name": "Marketing & Promosi",
-      "type": "expense",
-      "icon": "Megaphone"
-    },
-    {
-      "id": 10,
-      "name": "Peralatan & Operational Smallware",
-      "type": "expense",
-      "icon": "Wrench"
-    }
-  ],
+  "outlets": [],
+  "categories": [],
   "transactions": [],
   "shift_closings": [],
   "masterData": {
-    "outlets": [
-      {
-        "id": 1,
-        "code": "RST-001",
-        "name": "Gourmet Bistro - Senopati",
-        "location": "Jl. Senopati No. 45, Jakarta Selatan",
-        "manager_name": "Budi Santoso",
-        "phone": "0812-3456-7890",
-        "monthly_budget": 120000000,
-        "status": "Active",
-        "color": "#6366f1"
-      },
-      {
-        "id": 2,
-        "code": "RST-002",
-        "name": "Ramen Haus - Kemang",
-        "location": "Jl. Kemang Raya No. 12, Jakarta Selatan",
-        "manager_name": "Siti Rahma",
-        "phone": "0813-9876-5432",
-        "monthly_budget": 85000000,
-        "status": "Active",
-        "color": "#ec4899"
-      },
-      {
-        "id": 3,
-        "code": "RST-003",
-        "name": "Kopi & Kitchen - PIK",
-        "location": "Ruko Crown Golf Blok B No. 8, Pantai Indah Kapuk",
-        "manager_name": "Kevin Wijaya",
-        "phone": "0811-2233-4455",
-        "monthly_budget": 65000000,
-        "status": "Active",
-        "color": "#10b981"
-      }
-    ],
-    "categories": [
-      {
-        "id": 1,
-        "name": "Penjualan Dine-in",
-        "type": "income",
-        "icon": "Utensils"
-      },
-      {
-        "id": 2,
-        "name": "Penjualan Takeaway / Online",
-        "type": "income",
-        "icon": "ShoppingBag"
-      },
-      {
-        "id": 3,
-        "name": "Layanan Catering & Event",
-        "type": "income",
-        "icon": "Calendar"
-      },
-      {
-        "id": 4,
-        "name": "Pendapatan Lain-lain",
-        "type": "income",
-        "icon": "TrendingUp"
-      },
-      {
-        "id": 5,
-        "name": "Bahan Baku & Dapur (COGS)",
-        "type": "expense",
-        "icon": "ShoppingBasket"
-      },
-      {
-        "id": 6,
-        "name": "Gaji & Bonus Karyawan",
-        "type": "expense",
-        "icon": "Users"
-      },
-      {
-        "id": 7,
-        "name": "Listrik, Air & Gas",
-        "type": "expense",
-        "icon": "Zap"
-      },
-      {
-        "id": 8,
-        "name": "Sewa Tempat & Maintenance",
-        "type": "expense",
-        "icon": "Home"
-      },
-      {
-        "id": 9,
-        "name": "Marketing & Promosi",
-        "type": "expense",
-        "icon": "Megaphone"
-      },
-      {
-        "id": 10,
-        "name": "Peralatan & Operational Smallware",
-        "type": "expense",
-        "icon": "Wrench"
-      }
-    ],
+    "outlets": [],
+    "categories": [],
     "products": [],
     "customers": [],
     "salesTransactions": [],
@@ -372,7 +182,55 @@
     "transactions": [],
     "shift_closings": [],
     "approvedTransfers": [],
-    "approvedWaste": []
+    "approvedWaste": [],
+    "webAdminAccounts": [
+      {
+        "id": 1,
+        "name": "Super Admin Restoran",
+        "outlet": "Semua Outlet (Central)",
+        "username": "superadmin",
+        "password": "888",
+        "role": "Super Admin",
+        "status": "Aktif"
+      },
+      {
+        "id": 2,
+        "name": "Owner Restoran",
+        "outlet": "Semua Outlet (Central)",
+        "username": "owner",
+        "password": "999",
+        "role": "Owner",
+        "status": "Aktif"
+      }
+    ],
+    "mobileAccounts": [
+      {
+        "id": 1,
+        "name": "Super Admin Restoran",
+        "outlet": "Semua Outlet (Central)",
+        "username": "superadmin",
+        "mobileLoginPassword": "888",
+        "role": "Super Admin / Owner",
+        "status": "Aktif",
+        "canAccessMobileReports": true,
+        "mobileReportPassword": "8888"
+      },
+      {
+        "id": 2,
+        "name": "Owner Restoran",
+        "outlet": "Semua Outlet (Central)",
+        "username": "owner",
+        "mobileLoginPassword": "999",
+        "role": "Super Admin / Owner",
+        "status": "Aktif",
+        "canAccessMobileReports": true,
+        "mobileReportPassword": "9999"
+      }
+    ],
+    "closedShifts": [],
+    "manualEntryRecords": [],
+    "_lastUpdated": 1785116589166,
+    "shiftClosings": []
   },
-  "lastUpdated": "2026-07-24T23:43:30.973Z"
+  "lastUpdated": "2026-07-27T08:47:00.000Z"
 }
