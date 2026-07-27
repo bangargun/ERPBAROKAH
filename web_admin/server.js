@@ -521,19 +521,44 @@ app.get('/api/mysql-status', async (req, res) => {
   }
 });
 
+// Sanitizer otomatis untuk membuang semua legacy fake data dari payload/storage
+const sanitizeMasterDataPayload = (data) => {
+  if (!data || typeof data !== 'object') return data;
+  const clean = { ...data };
+  
+  if (Array.isArray(clean.categories)) {
+    clean.categories = clean.categories.filter(c => !(typeof c.id === 'number' && c.id <= 10));
+  }
+  if (Array.isArray(clean.outlets)) {
+    clean.outlets = clean.outlets.filter(o => ![1, 2, 3].includes(o.id) && !['RST-001', 'RST-002', 'RST-003'].includes(o.code));
+  }
+  if (Array.isArray(clean.suppliers)) {
+    clean.suppliers = clean.suppliers.filter(s => ![1, 2, 3].includes(s.id));
+  }
+  if (Array.isArray(clean.sopDocuments)) {
+    clean.sopDocuments = clean.sopDocuments.filter(sop => sop.id !== 1);
+  }
+  if (Array.isArray(clean.pushedSopToMobile)) {
+    clean.pushedSopToMobile = clean.pushedSopToMobile.filter(sop => sop.id !== 1);
+  }
+  clean.webAdminAccounts = [];
+  clean.mobileAccounts = [];
+  clean.userAccounts = [];
+  
+  return clean;
+};
+
 // GET /api/master-data — MySQL PRIMARY, JSON fallback
 app.get('/api/master-data', async (req, res) => {
   try {
-    // Coba baca dari MySQL dulu
     const mysqlData = await getMasterDataFromMySQL();
     if (mysqlData && typeof mysqlData === 'object') {
-      return res.json(mysqlData);
+      return res.json(sanitizeMasterDataPayload(mysqlData));
     }
-
-    // Fallback: baca dari JSON file
+    // Fallback ke JSON
     const db = readDb();
     const jsonData = (db.masterData && typeof db.masterData === 'object') ? db.masterData : defaultMasterData;
-    res.json(jsonData);
+    res.json(sanitizeMasterDataPayload(jsonData));
   } catch (err) {
     console.error('GET /api/master-data error:', err.message);
     res.status(500).json({ error: 'Gagal mengambil data master terpusat' });
@@ -558,11 +583,8 @@ app.post('/api/master-data', async (req, res) => {
       existing = (db.masterData && typeof db.masterData === 'object') ? db.masterData : defaultMasterData;
     }
 
-    const newMasterData = {
-      ...existing,
-      ...payload,
-      _lastUpdated: nowTs
-    };
+    const sanitizedPayload = sanitizeMasterDataPayload(payload);
+    const newMasterData = sanitizeMasterDataPayload({ ...existing, ...sanitizedPayload, _lastUpdated: nowTs });
 
     // Simpan ke MySQL (primary)
     const mysqlOk = await saveMasterDataToMySQL(newMasterData);

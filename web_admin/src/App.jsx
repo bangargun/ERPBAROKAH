@@ -89,21 +89,23 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     try {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v38_no_fake_data') {
+      if (versionKey !== 'v40_force_clean_slate_no_mock_data') {
         localStorage.removeItem('mris_master_data');
         localStorage.removeItem('mris_user_session');
-        localStorage.setItem('mris_version', 'v38_no_fake_data');
+        localStorage.setItem('mris_version', 'v40_force_clean_slate_no_mock_data');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
+          const cleanCategories = (parsed.categories || []).filter(c => !(typeof c.id === 'number' && c.id <= 10));
           return {
             ...initialMasterData,
             ...parsed,
-            webAdminAccounts: parsed.webAdminAccounts !== undefined ? parsed.webAdminAccounts : initialMasterData.webAdminAccounts,
-            mobileAccounts: parsed.mobileAccounts !== undefined ? parsed.mobileAccounts : initialMasterData.mobileAccounts,
+            categories: cleanCategories,
+            webAdminAccounts: [],
+            mobileAccounts: [],
             salesTransactions: parsed.salesTransactions || [],
             closedShifts: parsed.closedShifts || parsed.shift_closings || [],
             approvedFinanceDaily: parsed.approvedFinanceDaily || [],
