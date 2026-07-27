@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
   ShoppingBag, 
   History, 
@@ -56,7 +56,21 @@ import {
   Edit3
 } from 'lucide-react';
 
-export default function AndroidPosRegister({ 
+// ─────────────────────────────────────────────────────────────
+// PERFORMANCE: useDebounce — tunda state update saat mengetik
+// Mencegah re-render berulang setiap huruf di search input
+// ─────────────────────────────────────────────────────────────
+function useDebounce(value, delay = 300) {
+  const [debouncedValue, setDebouncedValue] = React.useState(value);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+
+export default function AndroidPosRegister({
   userSession,
   masterData, 
   setMasterData, 
@@ -199,6 +213,7 @@ export default function AndroidPosRegister({
   // Customer Detail & Management Page States (Matching User's Screenshot 100%)
   const [selectedCustomerIdForDetail, setSelectedCustomerIdForDetail] = useState(37);
   const [custSearchFilter, setCustSearchFilter] = useState('');
+  const debouncedCustSearch = useDebounce(custSearchFilter, 300);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [editingCustomerData, setEditingCustomerData] = useState(null);
   const [showQrSelfRegModal, setShowQrSelfRegModal] = useState(false);
@@ -208,6 +223,7 @@ export default function AndroidPosRegister({
   // Shift & Application User Session Management States
   const [selectedShiftDetailModal, setSelectedShiftDetailModal] = useState(null);
   const [shiftUserSearchFilter, setShiftUserSearchFilter] = useState('');
+  const debouncedShiftUserSearch = useDebounce(shiftUserSearchFilter, 300);
   const [shiftStartDate, setShiftStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [shiftEndDate, setShiftEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [shiftDatePreset, setShiftDatePreset] = useState('all'); // 'all' | 'today' | '7days' | 'custom'
@@ -947,30 +963,50 @@ export default function AndroidPosRegister({
     return list;
   }, [tableStatusMap, tables]);
 
-  // Outlet Sales Transactions (Robust Branch Matching for String/Number IDs)
-  const outletTransactions = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
-    if (!selectedBranch || selectedBranch === 'ALL') return true;
-    if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
-      const bId = Number(selectedBranch);
-      return Number(t.outlet_id) === bId || Number(t.branch_id) === bId;
-    }
-    // If selectedBranch is outlet name string (e.g. 'Gourmet Bistro - Senopati')
-    return (
-      t.branch_name === selectedBranch ||
-      t.outlet === selectedBranch ||
-      t.outlet_name === selectedBranch ||
-      (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
-    );
-  });
+  // Outlet Sales Transactions — useMemo: hanya dihitung ulang jika masterData atau selectedBranch berubah
+  const outletTransactions = useMemo(() => {
+    const txList = masterData?.salesTransactions || masterData?.transactions || [];
+    return txList.filter(t => {
+      if (!selectedBranch || selectedBranch === 'ALL') return true;
+      if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
+        const bId = Number(selectedBranch);
+        return Number(t.outlet_id) === bId || Number(t.branch_id) === bId;
+      }
+      return (
+        t.branch_name === selectedBranch ||
+        t.outlet === selectedBranch ||
+        t.outlet_name === selectedBranch ||
+        (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
+      );
+    });
+  }, [masterData?.salesTransactions, masterData?.transactions, selectedBranch, currentOutlet?.id]);
 
-  // Derived Financials for Selected Outlet
-  const totalSalesGross = outletTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
-  const totalPettyExpense = pettyExpenses.reduce((acc, e) => acc + e.amount, 0);
-  const expectedCashInDrawer = initialCash + totalSalesGross - totalPettyExpense;
+  // Derived Financials — useMemo: tidak dihitung ulang saat ketikan input
+  const totalSalesGross = useMemo(() =>
+    outletTransactions.reduce((acc, t) => acc + (t.amount || 0), 0),
+    [outletTransactions]
+  );
+  const totalPettyExpense = useMemo(() =>
+    pettyExpenses.reduce((acc, e) => acc + (e.amount || 0), 0),
+    [pettyExpenses]
+  );
+  const expectedCashInDrawer = useMemo(() =>
+    initialCash + totalSalesGross - totalPettyExpense,
+    [initialCash, totalSalesGross, totalPettyExpense]
+  );
 
-  const cashSales = outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('cash')).reduce((a, t) => a + (t.amount || 0), 0);
-  const qrisSales = outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('qris')).reduce((a, t) => a + (t.amount || 0), 0);
-  const edcSales = outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('edc')).reduce((a, t) => a + (t.amount || 0), 0);
+  const cashSales = useMemo(() =>
+    outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('cash')).reduce((a, t) => a + (t.amount || 0), 0),
+    [outletTransactions]
+  );
+  const qrisSales = useMemo(() =>
+    outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('qris')).reduce((a, t) => a + (t.amount || 0), 0),
+    [outletTransactions]
+  );
+  const edcSales = useMemo(() =>
+    outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('edc')).reduce((a, t) => a + (t.amount || 0), 0),
+    [outletTransactions]
+  );
 
   // TAP 1: ADD ITEM TO CART
   const handleAddToCart = (product) => {
@@ -1016,8 +1052,15 @@ export default function AndroidPosRegister({
     }));
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const totalItemDiscounts = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
+  // Cart calculations — useMemo: hanya dihitung ulang jika cart/diskon berubah
+  const cartSubtotal = useMemo(() =>
+    cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+    [cart]
+  );
+  const totalItemDiscounts = useMemo(() =>
+    cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0),
+    [cart]
+  );
   const overallSummaryDiscount = discountValue !== '' ? Number(discountValue) : 0;
   const discountAmount = totalItemDiscounts + overallSummaryDiscount;
 
@@ -3113,7 +3156,7 @@ export default function AndroidPosRegister({
               <div style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                   {(masterData.customers || []).filter(c => {
-                    const q = custSearchFilter.toLowerCase();
+                    const q = debouncedCustSearch.toLowerCase();
                     return (c.name || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q);
                   }).map(c => {
                     const isSelected = selectedCustomerIdForDetail === c.id;
@@ -3490,7 +3533,7 @@ export default function AndroidPosRegister({
                 : [];
 
               const shiftList = rawShiftList.filter(s => {
-                const q = shiftUserSearchFilter.toLowerCase();
+                const q = debouncedShiftUserSearch.toLowerCase();
                 return (s.user_name || '').toLowerCase().includes(q) || (s.username || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q);
               });
 
