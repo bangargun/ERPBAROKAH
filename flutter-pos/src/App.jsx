@@ -77,7 +77,7 @@ export default function App() {
     return defaultBranch;
   });
 
-  // 1. AUTO SYNC FLUSH TO VPS CLOUD SERVER ON EVERY DATA CHANGE
+  // 1. AUTO SYNC FLUSH TO VPS CLOUD SERVER ON EVERY DATA CHANGE (Instant 50ms Flush)
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
 
@@ -86,15 +86,25 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(masterData)
-      }).catch(() => {
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data._lastUpdated) {
+          setMasterData(prev => ({
+            ...prev,
+            _lastUpdated: data._lastUpdated
+          }));
+        }
+      })
+      .catch(() => {
         // Offline-first fallback
       });
-    }, 1000);
+    }, 50);
 
     return () => clearTimeout(syncTimer);
   }, [masterData]);
 
-  // Helper to merge local and server arrays by ID without dropping newly added items
+  // Helper for merging arrays by ID
   const mergeById = (localArr = [], serverArr = []) => {
     const map = new Map();
     (serverArr || []).forEach(item => { if (item && item.id != null) map.set(String(item.id), item); });
@@ -113,8 +123,8 @@ export default function App() {
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
 
-              // If server has newer or equal timestamp, trust server state authoritative snapshot
-              if (serverUpdated >= clientUpdated) {
+              // Adopt server state only if server has a strictly newer timestamp
+              if (serverUpdated > clientUpdated) {
                 const prevJson = JSON.stringify(prev);
                 const serverJson = JSON.stringify(serverData);
                 if (prevJson === serverJson) return prev;
@@ -123,36 +133,7 @@ export default function App() {
                   ...serverData
                 };
               }
-
-              // Otherwise client has un-pushed local mutations; merge by ID
-              const updated = {
-                ...prev,
-                ...serverData,
-                outlets: mergeById(prev?.outlets, serverData?.outlets),
-                categories: mergeById(prev?.categories, serverData?.categories),
-                products: mergeById(prev?.products, serverData?.products),
-                customers: mergeById(prev?.customers, serverData?.customers),
-                salesTransactions: mergeById(prev?.salesTransactions, serverData?.salesTransactions),
-                tables: mergeById(prev?.tables, serverData?.tables),
-                paymentMethods: mergeById(prev?.paymentMethods, serverData?.paymentMethods),
-                suppliers: mergeById(prev?.suppliers, serverData?.suppliers),
-                units: mergeById(prev?.units, serverData?.units),
-                expenseMaster: mergeById(prev?.expenseMaster, serverData?.expenseMaster),
-                ingredients: mergeById(prev?.ingredients, serverData?.ingredients),
-                cogsExpenses: mergeById(prev?.cogsExpenses, serverData?.cogsExpenses),
-                productionExpenses: mergeById(prev?.productionExpenses, serverData?.productionExpenses),
-                otherExpenses: mergeById(prev?.otherExpenses, serverData?.otherExpenses),
-                stockMovement: mergeById(prev?.stockMovement, serverData?.stockMovement),
-                stockOpname: mergeById(prev?.stockOpname, serverData?.stockOpname),
-                shiftClosings: mergeById(prev?.shiftClosings, serverData?.shiftClosings),
-                sopDocuments: mergeById(prev?.sopDocuments, serverData?.sopDocuments),
-                webAdminAccounts: serverData.webAdminAccounts && serverData.webAdminAccounts.length > 0 ? serverData.webAdminAccounts : (prev?.webAdminAccounts || []),
-                mobileAccounts: serverData.mobileAccounts && serverData.mobileAccounts.length > 0 ? serverData.mobileAccounts : (prev?.mobileAccounts || [])
-              };
-              const prevJson = JSON.stringify(prev);
-              const updatedJson = JSON.stringify(updated);
-              if (prevJson === updatedJson) return prev;
-              return updated;
+              return prev;
             });
           }
         })
