@@ -7,7 +7,7 @@ import { Monitor, Smartphone, Lock, Eye, EyeOff, Store, AlertCircle, ChevronRigh
 // DEFAULT ACCOUNTS - WEB BASED ADMIN
 // =====================================================================
 const DEFAULT_WEB_ADMIN_ACCOUNTS = [
-  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
+  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '1234', role: 'Super Admin', status: 'Aktif' },
   { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
 ];
 
@@ -15,7 +15,7 @@ const DEFAULT_WEB_ADMIN_ACCOUNTS = [
 // DEFAULT ACCOUNTS - POS MOBILE APK
 // =====================================================================
 const DEFAULT_MOBILE_ACCOUNTS = [
-  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '888', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' },
+  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '1234', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '1234' },
   { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
 ];
 

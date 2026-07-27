@@ -290,7 +290,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
   // === WEB ADMIN ACCOUNTS (terpisah dari Mobile) ===
   const getWebAdminList = () => {
     return masterData?.webAdminAccounts?.length ? masterData.webAdminAccounts : [
-      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
+      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '1234', role: 'Super Admin', status: 'Aktif' },
       { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
     ];
   };
@@ -298,7 +298,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
   // === MOBILE ACCOUNTS (terpisah dari Web Admin) ===
   const getMobileList = () => {
     return masterData?.mobileAccounts?.length ? masterData.mobileAccounts : [
-      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '888', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' },
+      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '1234', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '1234' },
       { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
     ];
   };
