@@ -342,6 +342,7 @@ export default function AndroidPosRegister({
     const filterOld = (arr = []) => arr.filter(x => String(x.report_no || x.id) !== String(wasteNo) && String(x.id) !== String(editingWasteId));
 
     setMasterData(prev => {
+      const now = Date.now();
       const updatedIngredients = (prev.ingredients || []).map(ing => {
         const matchRecord = createdRecords.find(r => 
           (r.item_name || r.nama_barang || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim() &&
@@ -355,13 +356,23 @@ export default function AndroidPosRegister({
         return ing;
       });
 
-      return {
+      const newMaster = {
         ...prev,
+        _lastUpdated: now,
+        clientUpdated: now,
         ingredients: updatedIngredients,
         damagedGoods: [...createdRecords, ...filterOld(prev.damagedGoods)],
         approvedWaste: [...createdRecords, ...filterOld(prev.approvedWaste)],
         stockMovement: [...createdRecords, ...filterOld(prev.stockMovement)]
       };
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
     });
 
     alert(`✅ Laporan Barang Rusak ${wasteNo} (${wasteBatchRows.length} Bahan Baku) berhasil disimpan!\nStatus PENDING terkirim otomatis ke Web Admin untuk persetujuan (ACC).`);
@@ -9405,13 +9416,30 @@ export default function AndroidPosRegister({
                   };
 
                   setMasterData(prev => {
+                    const now = Date.now();
                     const manualList = prev.manualEntryRecords || [];
                     const financeList = prev.approvedFinanceDaily || [];
-                    return {
+                    const shiftList = prev.shiftClosings || prev.shift_closings || [];
+                    const closedList = prev.closedShifts || [];
+
+                    const newMaster = {
                       ...prev,
-                      manualEntryRecords: [newReportObj, ...manualList.filter(i => i.id !== newReportObj.id)],
-                      approvedFinanceDaily: [newReportObj, ...financeList.filter(i => i.id !== newReportObj.id)]
+                      _lastUpdated: now,
+                      clientUpdated: now,
+                      manualEntryRecords: [newReportObj, ...manualList.filter(i => String(i.id) !== String(newReportObj.id))],
+                      approvedFinanceDaily: [newReportObj, ...financeList.filter(i => String(i.id) !== String(newReportObj.id))],
+                      shiftClosings: [newReportObj, ...shiftList.filter(i => String(i.id) !== String(newReportObj.id))],
+                      shift_closings: [newReportObj, ...shiftList.filter(i => String(i.id) !== String(newReportObj.id))],
+                      closedShifts: [newReportObj, ...closedList.filter(i => String(i.id) !== String(newReportObj.id))]
                     };
+
+                    fetch('/api/master-data', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(newMaster)
+                    }).catch(() => {});
+
+                    return newMaster;
                   });
 
                   alert(`Laporan Keuangan Harian (${manualRepNo}) Berhasil Disimpan & Tersinkronisasi!\nStatus: ${manualRepStatus.toUpperCase()}\n📈 Laba Kotor: ${formatRupiah(labaKotor)}\n💵 Uang di Laci: ${formatRupiah(uangDiLaci)}`);
@@ -10026,11 +10054,25 @@ export default function AndroidPosRegister({
                     status: 'ditunda'
                   }));
 
-                  setMasterData(prev => ({
-                    ...prev,
-                    approvedLogistics: [...newRecords, ...(prev.approvedLogistics || [])],
-                    stockOpname: [...newRecords, ...(prev.stockOpname || [])]
-                  }));
+                  setMasterData(prev => {
+                    const now = Date.now();
+                    const newMaster = {
+                      ...prev,
+                      _lastUpdated: now,
+                      clientUpdated: now,
+                      approvedLogistics: [...newRecords, ...(prev.approvedLogistics || [])],
+                      stockOpname: [...newRecords, ...(prev.stockOpname || [])],
+                      stockMovement: [...newRecords, ...(prev.stockMovement || [])]
+                    };
+
+                    fetch('/api/master-data', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(newMaster)
+                    }).catch(() => {});
+
+                    return newMaster;
+                  });
 
                   alert(`Berhasil menyimpan Audit Stok Opname ${logNo} untuk ${newRecords.length} bahan baku! Status: Pending (Butuh Persetujuan).`);
                   setShowAddLogisticsModal(false);
@@ -10817,13 +10859,24 @@ export default function AndroidPosRegister({
                 type="button" 
                 onClick={() => {
                   setMasterData(prev => {
-                    const filterOld = (arr) => (arr || []).filter(x => x.id !== editingTransferId && String(x.report_no) !== String(pendingTransferDraft.report_no));
-                    return {
+                    const now = Date.now();
+                    const filterOld = (arr) => (arr || []).filter(x => String(x.id) !== String(editingTransferId) && String(x.report_no) !== String(pendingTransferDraft.report_no));
+                    const newMaster = {
                       ...prev,
+                      _lastUpdated: now,
+                      clientUpdated: now,
                       stockTransfer: [...pendingTransferDraft.items, ...filterOld(prev.stockTransfer)],
                       approvedTransfers: [...pendingTransferDraft.items, ...filterOld(prev.approvedTransfers)],
                       stockMovement: [...pendingTransferDraft.items, ...filterOld(prev.stockMovement)]
                     };
+
+                    fetch('/api/master-data', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(newMaster)
+                    }).catch(() => {});
+
+                    return newMaster;
                   });
                   alert(`Laporan Transfer ${pendingTransferDraft.report_no} (${pendingTransferDraft.items.length} Item) berhasil disimpan & terdaftar dengan status Pending untuk persetujuan Admin Logistik!`);
                   setEditingTransferId(null);
