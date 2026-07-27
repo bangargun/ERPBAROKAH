@@ -1447,7 +1447,6 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 <button
                   type="button"
                   onClick={handleOpenAddUserModal}
-                  className="btn-primary"
                   style={{
                     padding: '6px 14px',
                     display: 'flex',
@@ -1456,11 +1455,39 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     fontSize: '0.78rem',
                     fontWeight: '800',
                     borderRadius: '10px',
-                    boxShadow: '0 4px 12px rgba(99,102,241,0.25)'
+                    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
                   }}
+                  title="Tambah akun pengguna baru khusus untuk akses Web Based Admin"
                 >
                   <Plus size={15} />
-                  <span>+ Tambah User Baru</span>
+                  <span>💻 + Tambah User Web Admin</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddMobileModal}
+                  style={{
+                    padding: '6px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.78rem',
+                    fontWeight: '800',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
+                  }}
+                  title="Tambah otentikasi akun pengguna baru khusus untuk akses Aplikasi Kasir (Mobile APK)"
+                >
+                  <Plus size={15} />
+                  <span>📱 + Tambah User Mobile Kasir</span>
                 </button>
               </div>
             </div>
@@ -1546,17 +1573,39 @@ export default function SystemSettings({ masterData, setMasterData }) {
             {/* TABEL 1: 💻 MANAJEMEN AKUN PENGGUNA WEB BASED ADMIN */}
             {/* ========================================================================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8' }}>
-                  💻 1. Manajemen Akun Pengguna Web Based Admin
-                </span>
-                <span style={{ fontSize: '0.70rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                  Akses Dashboard, Data Master, Akuntansi & Laporan Web
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8' }}>
+                    💻 1. Manajemen Akun Pengguna Web Based Admin
+                  </span>
+                  <span style={{ fontSize: '0.70rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                    Akses Dashboard, Data Master, Akuntansi & Laporan Web
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddUserModal}
+                  style={{
+                    padding: '5px 12px',
+                    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '800',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>+ Tambah User Web Admin</span>
+                </button>
               </div>
 
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#0f172a', width: '100%' }}>
-                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
+              <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
+                <table style={{ width: '100%', minWidth: '780px', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
                   <thead>
                     <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                       <th style={{ padding: '8px 4px', width: '22%' }}>Nama Pengguna</th>
@@ -1726,17 +1775,39 @@ export default function SystemSettings({ masterData, setMasterData }) {
             {/* TABEL 2: 📱 OTENTIKASI AKSES AKUN POS MOBILE APK */}
             {/* ========================================================================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#34d399' }}>
-                  📱 2. Otentikasi Akses Akun POS Mobile APK (Tablet POS)
-                </span>
-                <span style={{ fontSize: '0.70rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                  Akses Transaksi Kasir, Void, Diskon, Shift & Laporan Mobile
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#34d399' }}>
+                    📱 2. Otentikasi Akses Akun POS Mobile APK (Tablet POS)
+                  </span>
+                  <span style={{ fontSize: '0.70rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
+                    Akses Transaksi Kasir, Void, Diskon, Shift & Laporan Mobile
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddMobileModal}
+                  style={{
+                    padding: '5px 12px',
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '800',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>+ Tambah User Mobile Kasir</span>
+                </button>
               </div>
 
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#0f172a', width: '100%' }}>
-                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
+              <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
+                <table style={{ width: '100%', minWidth: '780px', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
                   <thead>
                     <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                       <th style={{ padding: '8px 4px', width: '18%' }}>Nama Pengguna</th>
