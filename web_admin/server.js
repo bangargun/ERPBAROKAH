@@ -378,11 +378,65 @@ const initMySQLPool = async () => {
     });
     mysqlInitError = null;
     console.log('✅ MySQL Pool Initialized for Hostinger mris_db Storage');
+    // Auto-create master data table jika belum ada
+    await ensureMasterDataTable();
   } catch (err) {
     mysqlInitError = err.message;
   }
 };
 initMySQLPool();
+
+// Auto-create tabel mris_master_data jika belum ada
+const ensureMasterDataTable = async () => {
+  if (!mysqlPool) return;
+  try {
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS mris_master_data (
+        id INT PRIMARY KEY DEFAULT 1,
+        data LONGTEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Tabel mris_master_data siap');
+  } catch (err) {
+    console.error('❌ Gagal membuat tabel mris_master_data:', err.message);
+  }
+};
+
+// Baca masterData dari MySQL
+const getMasterDataFromMySQL = async () => {
+  if (!mysqlPool) return null;
+  try {
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('MySQL read timeout')), 3000)
+    );
+    const queryPromise = mysqlPool.execute('SELECT data FROM mris_master_data WHERE id = 1');
+    const [rows] = await Promise.race([queryPromise, timeoutPromise]);
+    if (rows && rows.length > 0 && rows[0].data) {
+      return JSON.parse(rows[0].data);
+    }
+    return null;
+  } catch (err) {
+    console.error('MySQL read error:', err.message);
+    return null;
+  }
+};
+
+// Simpan masterData ke MySQL
+const saveMasterDataToMySQL = async (masterData) => {
+  if (!mysqlPool) return false;
+  try {
+    const json = JSON.stringify(masterData);
+    await mysqlPool.execute(`
+      INSERT INTO mris_master_data (id, data) VALUES (1, ?)
+      ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP
+    `, [json]);
+    return true;
+  } catch (err) {
+    console.error('MySQL write error:', err.message);
+    return false;
+  }
+};
 
 const syncToMySQL = async (masterData) => {
   if (!mysqlPool || !masterData || typeof masterData !== 'object') return;
@@ -467,46 +521,75 @@ app.get('/api/mysql-status', async (req, res) => {
   }
 });
 
-app.get('/api/master-data', (req, res) => {
+// GET /api/master-data — MySQL PRIMARY, JSON fallback
+app.get('/api/master-data', async (req, res) => {
   try {
-    const db = readDb();
-    if (!db.masterData || typeof db.masterData !== 'object' || !Array.isArray(db.masterData.products)) {
-      db.masterData = {
-        ...defaultMasterData,
-        ...(db.masterData || {})
-      };
-      saveDb(db);
+    // Coba baca dari MySQL dulu
+    const mysqlData = await getMasterDataFromMySQL();
+    if (mysqlData && typeof mysqlData === 'object') {
+      return res.json(mysqlData);
     }
-    res.json(db.masterData);
+
+    // Fallback: baca dari JSON file
+    const db = readDb();
+    const jsonData = (db.masterData && typeof db.masterData === 'object') ? db.masterData : defaultMasterData;
+    res.json(jsonData);
   } catch (err) {
+    console.error('GET /api/master-data error:', err.message);
     res.status(500).json({ error: 'Gagal mengambil data master terpusat' });
   }
 });
 
-app.post('/api/master-data', (req, res) => {
+// POST /api/master-data — MySQL PRIMARY, JSON fallback
+app.post('/api/master-data', async (req, res) => {
   try {
     const payload = req.body;
     if (!payload || typeof payload !== 'object') {
       return res.status(400).json({ error: 'Payload tidak valid' });
     }
-    const db = readDb();
+
     const nowTs = Date.now();
-    const existing = (db.masterData && typeof db.masterData === 'object') ? db.masterData : defaultMasterData;
-    db.masterData = {
+
+    // Baca data existing dari MySQL
+    let existing = await getMasterDataFromMySQL();
+    if (!existing || typeof existing !== 'object') {
+      // Fallback ke JSON jika MySQL kosong
+      const db = readDb();
+      existing = (db.masterData && typeof db.masterData === 'object') ? db.masterData : defaultMasterData;
+    }
+
+    const newMasterData = {
       ...existing,
       ...payload,
       _lastUpdated: nowTs
     };
-    db.lastUpdated = new Date().toISOString();
-    saveDb(db);
-    
-    // Async Background Mirroring to MySQL Enterprise Database
-    setTimeout(() => {
-      syncToMySQL(db.masterData);
-    }, 50);
 
-    res.json({ success: true, message: 'Data master terpusat berhasil diperbarui', timestamp: db.lastUpdated, _lastUpdated: nowTs });
+    // Simpan ke MySQL (primary)
+    const mysqlOk = await saveMasterDataToMySQL(newMasterData);
+
+    // Simpan ke JSON juga sebagai backup
+    try {
+      const db = readDb();
+      db.masterData = newMasterData;
+      db.lastUpdated = new Date().toISOString();
+      saveDb(db);
+    } catch (jsonErr) {
+      // JSON backup gagal — tidak masalah kalau MySQL berhasil
+    }
+
+    // Mirror transaksi ke MySQL tabel terpisah (background)
+    setTimeout(() => { syncToMySQL(newMasterData); }, 50);
+
+    const timestamp = new Date().toISOString();
+    res.json({
+      success: true,
+      message: mysqlOk ? 'Data master tersimpan ke MySQL' : 'Data master tersimpan ke JSON (MySQL unavailable)',
+      storage: mysqlOk ? 'mysql' : 'json',
+      timestamp,
+      _lastUpdated: nowTs
+    });
   } catch (err) {
+    console.error('POST /api/master-data error:', err.message);
     res.status(500).json({ error: 'Gagal menyinkronkan data master ke server' });
   }
 });
