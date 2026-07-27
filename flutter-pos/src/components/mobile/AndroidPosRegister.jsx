@@ -3963,41 +3963,22 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients
-                        : [
-                            { id: 1, name: 'Beras Pandan Wangi', unit: 'kg', cost: 14000 },
-                            { id: 2, name: 'Minyak Goreng Bimoli', unit: 'liter', cost: 18000 },
-                            { id: 3, name: 'Telur Ayam Negeri', unit: 'butir', cost: 2000 },
-                            { id: 4, name: 'Daging Ayam Fillet', unit: 'kg', cost: 48000 },
-                            { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', cost: 65000 },
-                            { id: 6, name: 'Bawang Merah', unit: 'kg', cost: 35000 }
-                          ];
+                      // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+                      const ingredientsList = masterData.ingredients || [];
+                      const expenseMasterList = masterData.expenseMaster || [];
 
-                      const expenseMasterList = (masterData.expenseMaster && masterData.expenseMaster.length > 0)
-                        ? masterData.expenseMaster
-                        : [
-                            { id: 1, code: 'BIA-001', name: 'Biaya Listrik & Air', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                            { id: 2, code: 'BIA-002', name: 'Biaya Gas LPG Dapur', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                            { id: 3, code: 'BIA-003', name: 'Biaya Alat Kebersihan & Sabun', category: 'Biaya Operasional (OPEX)' },
-                            { id: 4, code: 'BIA-004', name: 'Biaya Promo & Brosur Lokal', category: 'Biaya Pemasaran (Marketing & Promo)' },
-                            { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
-                          ];
+                      const masterIngs = (masterData.ingredients || []).map(ing => ({
+                        id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku',
+                        category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg',
+                        cost: ing.cost || ing.price || 0
+                      }));
 
-                      const masterIngs = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || ing.price || 15000 }))
-                        : [
-                            { id: 'ing-1', name: 'Beras Pandan Wangi', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'kg', cost: 14000 },
-                            { id: 'ing-2', name: 'Minyak Goreng Bimoli', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'liter', cost: 18000 },
-                            { id: 'ing-3', name: 'Telur Ayam Negeri', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'butir', cost: 2000 }
-                          ];
-
-                      const masterAccs = ((masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).length > 0)
-                        ? (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts).map(acc => ({ id: `acc-${acc.id}`, name: acc.name || acc.account_name, item_type: 'Biaya Operasional', category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)', unit: 'paket', cost: acc.amount || acc.cost || 50000 }))
-                        : [
-                            { id: 'acc-1', name: 'Biaya Listrik & Air', item_type: 'Biaya Operasional', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)', unit: 'paket', cost: 150000 },
-                            { id: 'acc-2', name: 'Biaya Gas LPG Dapur', item_type: 'Biaya Operasional', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)', unit: 'tabung', cost: 220000 }
-                          ];
+                      const masterAccs = (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).map(acc => ({
+                        id: `acc-${acc.id}`, name: acc.name || acc.account_name,
+                        item_type: 'Biaya Operasional',
+                        category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)',
+                        unit: 'paket', cost: acc.amount || acc.cost || 0
+                      }));
 
                       setManualRepDate(todayStr);
                       setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
@@ -4129,18 +4110,9 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      const rawIngredients = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients
-                        : [
-                            { id: 1, name: 'Daging Ayam Fillet', unit: 'kg', stock: 50 },
-                            { id: 2, name: 'Beras Pandan Wangi', unit: 'kg', stock: 100 },
-                            { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter', stock: 30 },
-                            { id: 4, name: 'Telur Ayam Negeri', unit: 'butir', stock: 200 },
-                            { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', stock: 15 },
-                            { id: 6, name: 'Bawang Merah', unit: 'kg', stock: 20 }
-                          ];
-
-                      const activeIngs = rawIngredients.filter(ing => 
+                      // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+                      const rawIngredients = masterData.ingredients || [];
+                      const activeIngs = rawIngredients.filter(ing =>
                         ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
                       );
 
@@ -9320,51 +9292,31 @@ export default function AndroidPosRegister({
             </div>
 
             {(() => {
-              const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients
-                : [
-                    { id: 1, name: 'Beras Pandan Wangi', unit: 'kg', cost: 14000 },
-                    { id: 2, name: 'Minyak Goreng Bimoli', unit: 'liter', cost: 18000 },
-                    { id: 3, name: 'Telur Ayam Negeri', unit: 'butir', cost: 2000 },
-                    { id: 4, name: 'Daging Ayam Fillet', unit: 'kg', cost: 48000 },
-                    { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', cost: 65000 },
-                    { id: 6, name: 'Bawang Merah', unit: 'kg', cost: 35000 }
-                  ];
+              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+              const ingredientsList = masterData.ingredients || [];
+              const expenseMasterList = masterData.expenseMaster || [];
 
-              const expenseMasterList = (masterData.expenseMaster && masterData.expenseMaster.length > 0)
-                ? masterData.expenseMaster
-                : [
-                    { id: 1, code: 'BIA-001', name: 'Biaya Listrik & Air', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                    { id: 2, code: 'BIA-002', name: 'Biaya Gas LPG Dapur', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                    { id: 3, code: 'BIA-003', name: 'Biaya Alat Kebersihan & Sabun', category: 'Biaya Operasional (OPEX)' },
-                    { id: 4, code: 'BIA-004', name: 'Biaya Promo & Brosur Lokal', category: 'Biaya Pemasaran (Marketing & Promo)' },
-                    { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
-                  ];
+              const masterIngs = ingredientsList.map(ing => ({
+                id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku',
+                category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg',
+                cost: ing.cost || ing.price || 0
+              }));
 
-              const masterIngs = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || ing.price || 15000 }))
-                : ingredientsList.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || 15000 }));
-
-              const masterAccs = ((masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).length > 0)
-                ? (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts).map(acc => ({ id: `acc-${acc.id}`, name: acc.name || acc.account_name, item_type: 'Biaya Operasional', category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)', unit: 'paket', cost: acc.amount || acc.cost || 50000 }))
-                : expenseMasterList.map(exp => ({ id: `acc-${exp.id}`, name: exp.name, item_type: 'Biaya Operasional', category: exp.category || 'Biaya Operasional (OPEX)', unit: 'paket', cost: 50000 }));
+              const masterAccs = (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).map(acc => ({
+                id: `acc-${acc.id}`, name: acc.name || acc.account_name,
+                item_type: 'Biaya Operasional',
+                category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)',
+                unit: 'paket', cost: acc.amount || acc.cost || 0
+              }));
 
               const allMasterSuggestions = [...masterIngs, ...masterAccs];
 
-              const suppliersList = (masterData.suppliers && masterData.suppliers.length > 0)
-                ? masterData.suppliers
-                : [
-                    { id: 1, name: 'PT Sembako Nusantara' },
-                    { id: 2, name: 'UD Sayur Segar Jaya' },
-                    { id: 3, name: 'PT Pangan Mandiri' },
-                    { id: 4, name: 'Toko Bumbu Lestari' }
-                  ];
+              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+              const suppliersList = masterData.suppliers || [];
 
-              const adminList = [
-                { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                { id: 2, name: 'Siti Rahma', role: 'Kasir Senior' },
-                { id: 3, name: 'Budi Kurniawan', role: 'Kasir Pagi' }
-              ];
+              const adminList = (masterData.webAdminAccounts || masterData.mobileAccounts || []).map(acc => ({
+                id: acc.id, name: acc.name, role: acc.role || acc.jabatan || 'Kasir'
+              }));
 
               // AUTO-GENERATED SALES COMPUTATION FOR SELECTED DATE UNTIL 23:59:59
               const matchedSales = (outletTransactions || masterData.salesTransactions || []).filter(t => !t.date || t.date === manualRepDate);
@@ -9994,26 +9946,15 @@ export default function AndroidPosRegister({
             </div>
 
             {(() => {
-              const rawIngredients = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients
-                : [
-                    { id: 1, name: 'Daging Ayam Fillet', unit: 'kg', stock: 50 },
-                    { id: 2, name: 'Beras Pandan Wangi', unit: 'kg', stock: 100 },
-                    { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter', stock: 30 },
-                    { id: 4, name: 'Telur Ayam Negeri', unit: 'butir', stock: 200 },
-                    { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', stock: 15 },
-                    { id: 6, name: 'Bawang Merah', unit: 'kg', stock: 20 }
-                  ];
-
-              const ingredientsList = rawIngredients.filter(ing => 
+              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+              const rawIngredients = masterData.ingredients || [];
+              const ingredientsList = rawIngredients.filter(ing =>
                 ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
               );
 
-              const adminList = [
-                { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                { id: 2, name: 'Siti Rahma', role: 'Kasir Senior' },
-                { id: 3, name: 'Budi Kurniawan', role: 'Kasir Pagi' }
-              ];
+              const adminList = (masterData.webAdminAccounts || masterData.mobileAccounts || []).map(acc => ({
+                id: acc.id, name: acc.name, role: acc.role || acc.jabatan || 'Kasir'
+              }));
 
               const handleUpdateRow = (id, field, value) => {
                 setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
