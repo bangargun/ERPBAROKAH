@@ -405,8 +405,9 @@ const initMySQLPool = async () => {
       password: process.env.MYSQL_PASSWORD || '',
       database: process.env.MYSQL_DATABASE || 'mris_db',
       port: Number(process.env.MYSQL_PORT) || 3306,
-      waitForConnections: true,
-      connectionLimit: 10,
+      waitForConnections: false,
+      connectionLimit: 5,
+      connectTimeout: 2500,
       queueLimit: 0
     });
     mysqlInitError = null;
@@ -490,10 +491,13 @@ app.get('/api/mysql-status', async (req, res) => {
     return res.json({ status: 'standalone', message: 'Engine 1 (JSON Fast Store Active). MySQL driver notice: ' + (mysqlInitError || 'mysql2 pool inactive') });
   }
   try {
-    const [rows] = await mysqlPool.query('SELECT COUNT(*) as tx_count FROM sales_transactions');
+    const queryPromise = mysqlPool.query('SELECT COUNT(*) as tx_count FROM sales_transactions');
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('MySQL connection timeout (2500ms)')), 2500));
+    
+    const [rows] = await Promise.race([queryPromise, timeoutPromise]);
     res.json({ status: 'connected', database: 'mris_db', sales_transaction_count: rows[0]?.tx_count || 0 });
   } catch (err) {
-    res.json({ status: 'error', error: err.message });
+    res.json({ status: 'standalone', message: 'Engine 1 (JSON Fast Store Active). MySQL notice: ' + err.message });
   }
 });
 
