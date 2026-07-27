@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -519,6 +520,28 @@ app.get('/api/mysql-status', async (req, res) => {
   } catch (err) {
     res.json({ status: 'standalone', message: 'Engine 1 (JSON Fast Store Active). MySQL notice: ' + err.message });
   }
+});
+
+// Auto-Deploy Webhook Endpoint for Instant VPS Deployment
+app.all('/api/webhook/deploy', (req, res) => {
+  const secret = req.query.secret || req.body?.secret || req.headers['x-deploy-secret'];
+  const DEPLOY_SECRET = process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026';
+
+  if (secret !== DEPLOY_SECRET) {
+    return res.status(403).json({ error: 'Unauthorized deploy secret' });
+  }
+
+  res.json({ success: true, message: '🚀 Deployment command triggered on VPS in background...' });
+
+  const deployCmd = `cd /var/www/MRIS_TECH && git fetch origin && git reset --hard origin/main && cd web_admin && npm run build && cd .. && pm2 restart mris-app-tech`;
+
+  exec(deployCmd, (error, stdout, stderr) => {
+    if (error) {
+      console.error('❌ Auto-deploy failed:', error.message);
+      return;
+    }
+    console.log('✅ Auto-deploy output:\n', stdout);
+  });
 });
 
 // Sanitizer otomatis untuk membuang semua legacy fake data dari payload/storage
