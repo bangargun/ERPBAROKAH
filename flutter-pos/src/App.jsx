@@ -1,15 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LoginPage from './components/admin/LoginPage';
-
-import MobileLayout from './components/mobile/MobileLayout';
-import DailyTransactionEntry from './components/mobile/DailyTransactionEntry';
-import ShiftClosing from './components/mobile/ShiftClosing';
-import MobileBranchSummary from './components/mobile/MobileBranchSummary';
 import AndroidPosRegister from './components/mobile/AndroidPosRegister';
 import CustomerSelfRegistrationPage from './components/mobile/CustomerSelfRegistrationPage';
-
 import { initialMasterData } from './data/initialMasterData';
-import { X, Lock, Key, ShieldCheck } from 'lucide-react';
 
 export default function App() {
   // Check if current URL is Customer Self Registration route
@@ -20,17 +13,27 @@ export default function App() {
   );
 
   // Helper untuk URL VPS Backend Cloud API
+  // Di Capacitor APK: protocol = 'file:' → selalu pakai URL absolut VPS
+  // Di Browser (web) yang di-host di VPS: pakai URL relatif
   const getApiUrl = (pathStr) => {
     if (typeof window !== 'undefined') {
+      const proto = window.location.protocol;
       const host = window.location.hostname;
-      if (host && host !== 'localhost' && host !== '127.0.0.1' && !host.includes('http')) {
-        return `${window.location.protocol}//${host}${window.location.port ? ':' + window.location.port : ''}${pathStr}`;
+      const isCapacitorOrLocal = (
+        proto === 'file:' ||
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        !host
+      );
+      if (isCapacitorOrLocal) {
+        return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
       }
+      return pathStr;
     }
     return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
   };
 
-  // User Authentication State (null = belum login, tampilkan LoginPage)
+  // User Authentication State
   const [userSession, setUserSession] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mris_user_session');
@@ -41,7 +44,6 @@ export default function App() {
     return null;
   });
 
-  // Handle login success dari LoginPage
   const handleLoginSuccess = (session) => {
     const sessionWithTime = { ...session, loggedInAt: new Date().toISOString() };
     localStorage.setItem('mris_user_session', JSON.stringify(sessionWithTime));
@@ -53,15 +55,34 @@ export default function App() {
     setUserSession(null);
   };
 
-  // Master Data State
+  // Master Data State — diinisialisasi dari localStorage, fallback ke initialMasterData
   const [masterData, setMasterData] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mris_master_data');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === 'object' && Array.isArray(parsed.outlets)) {
-            return parsed;
+          if (parsed && typeof parsed === 'object') {
+            return {
+              ...initialMasterData,
+              ...parsed,
+              salesTransactions: parsed.salesTransactions || [],
+              closedShifts: parsed.closedShifts || parsed.shift_closings || [],
+              approvedFinanceDaily: parsed.approvedFinanceDaily || [],
+              manualEntryRecords: parsed.manualEntryRecords || [],
+              cogsExpenses: parsed.cogsExpenses || [],
+              productionExpenses: parsed.productionExpenses || [],
+              otherExpenses: parsed.otherExpenses || [],
+              stockOpname: parsed.stockOpname || [],
+              stockMovement: parsed.stockMovement || [],
+              approvedLogistics: parsed.approvedLogistics || [],
+              cashFlow: parsed.cashFlow || [],
+              customers: parsed.customers || [],
+              damagedGoods: parsed.damagedGoods || [],
+              approvedWaste: parsed.approvedWaste || [],
+              stockTransfer: parsed.stockTransfer || [],
+              approvedTransfers: parsed.approvedTransfers || [],
+            };
           }
         } catch (e) {}
       }
@@ -69,34 +90,27 @@ export default function App() {
     return initialMasterData;
   });
 
-  const [selectedBranch, setSelectedBranch] = useState(() => {
-    if (userSession && userSession.outlet && userSession.outlet !== 'Semua Outlet (Central)') {
-      const match = (masterData?.outlets || []).find(o => o.name === userSession.outlet || String(o.id) === String(userSession.outlet_id));
-      if (match) return match.id;
-      return userSession.outlet;
-    }
-    return masterData?.outlets?.[0]?.id || masterData?.outlets?.[0]?.name || '';
-  });
+  // Selected branch — ikut outlet milik user yang login
+  const [selectedBranch, setSelectedBranch] = useState(null);
 
   useEffect(() => {
     if (userSession && userSession.outlet && userSession.outlet !== 'Semua Outlet (Central)') {
-      const match = (masterData?.outlets || []).find(o => o.name === userSession.outlet || String(o.id) === String(userSession.outlet_id));
-      if (match) {
-        setSelectedBranch(match.id);
-      } else {
-        setSelectedBranch(userSession.outlet);
-      }
+      const match = (masterData?.outlets || []).find(
+        o => o.name === userSession.outlet || String(o.id) === String(userSession.outlet_id)
+      );
+      setSelectedBranch(match ? match.id : userSession.outlet);
+    } else {
+      setSelectedBranch(null); // Super Admin / Owner: akses semua outlet
     }
   }, [userSession, masterData?.outlets]);
 
-  // Ref flag to distinguish local mutations (add/edit/delete) from remote GET polling updates
+  // Ref flag: bedakan mutasi lokal vs update dari polling server
   const isRemoteUpdateRef = useRef(true);
 
-  // 1. SYNC MASTER DATA TO LOCAL STORAGE & CENTRAL SERVER (LOCAL MUTATIONS ONLY)
+  // 1. SYNC ke localStorage & VPS server (hanya saat mutasi lokal)
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
-    
-    // Ignore automatic POST if this state update came from server GET polling
+
     if (isRemoteUpdateRef.current) {
       isRemoteUpdateRef.current = false;
       return;
@@ -112,29 +126,16 @@ export default function App() {
       .then(data => {
         if (data && data._lastUpdated) {
           isRemoteUpdateRef.current = true;
-          setMasterData(prev => ({
-            ...prev,
-            _lastUpdated: data._lastUpdated
-          }));
+          setMasterData(prev => ({ ...prev, _lastUpdated: data._lastUpdated }));
         }
       })
-      .catch(() => {
-        // Offline-first fallback
-      });
+      .catch(() => {});
     }, 50);
 
     return () => clearTimeout(syncTimer);
   }, [masterData]);
 
-  // Helper for merging arrays by ID
-  const mergeById = (localArr = [], serverArr = []) => {
-    const map = new Map();
-    (serverArr || []).forEach(item => { if (item && item.id != null) map.set(String(item.id), item); });
-    (localArr || []).forEach(item => { if (item && item.id != null) map.set(String(item.id), item); });
-    return Array.from(map.values());
-  };
-
-  // 2. REAL-TIME 2-WAY LIVE POLLING SYNC WITH VPS CLOUD SERVER (EVERY 3 SECONDS)
+  // 2. LIVE POLLING dari VPS server setiap 3 detik
   useEffect(() => {
     const fetchLatestFromServer = () => {
       fetch(getApiUrl('/api/master-data'))
@@ -144,17 +145,11 @@ export default function App() {
             setMasterData(prev => {
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
-
-              // Adopt server state only if server has a strictly newer timestamp
               if (serverUpdated > clientUpdated) {
-                const prevJson = JSON.stringify(prev);
-                const serverJson = JSON.stringify(serverData);
-                if (prevJson === serverJson) return prev;
+                const nextData = { ...prev, ...serverData };
+                if (JSON.stringify(prev) === JSON.stringify(nextData)) return prev;
                 isRemoteUpdateRef.current = true;
-                return {
-                  ...prev,
-                  ...serverData
-                };
+                return nextData;
               }
               return prev;
             });
@@ -168,7 +163,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // RENDER PUBLIC CUSTOMER SELF-REGISTRATION WEB PAGE
+  // RENDER: Customer Self-Registration (QR scan publik)
   if (isSelfRegPath) {
     return (
       <CustomerSelfRegistrationPage
@@ -183,7 +178,7 @@ export default function App() {
     );
   }
 
-  // RENDER LOGIN PAGE jika belum ada sesi aktif
+  // RENDER: Login page jika belum ada sesi
   if (!userSession) {
     return (
       <LoginPage
@@ -193,7 +188,7 @@ export default function App() {
     );
   }
 
-  // RENDER NATIVE ANDROID POS KASIR VIEW (PURE POS MOBILE KASIR)
+  // RENDER: POS Mobile Kasir (satu-satunya view setelah login di APK)
   return (
     <AndroidPosRegister
       userSession={userSession}
@@ -202,6 +197,7 @@ export default function App() {
       selectedBranch={selectedBranch}
       setSelectedBranch={setSelectedBranch}
       onShiftCloseClick={() => {}}
+      onSwitchToAdmin={() => {}}
       onLogout={handleLogout}
     />
   );
