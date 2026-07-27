@@ -1394,6 +1394,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   // Detailed Menu Sales Aggregation for Tables & Top 5 Cards
   const getDetailedMenuSalesData = () => {
     const activeOutlets = outlets || [];
+    const salesTransactions = masterData?.salesTransactions || masterData?.transactions || [];
 
     const filteredOutlets = catSelectedOutletIds.includes('ALL') 
       ? activeOutlets 
