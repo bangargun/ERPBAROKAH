@@ -517,12 +517,12 @@ app.post('/api/master-data', (req, res) => {
   }
 });
 
-// Serve Static Production Bundle
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve Web Admin UI (web_admin/dist)
+app.use(express.static(path.join(__dirname, 'web_admin', 'dist')));
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) return;
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
 });
 
 // Start Server
