@@ -77,69 +77,16 @@ export const initialMasterData = {
     lastSecurityScan: '2026-07-25 08:00:00 WIB'
   },
 
-  // HAK USER & AKUN PENGGUNA - WEB BASED ADMIN (terpisah dari POS Mobile)
-  webAdminAccounts: [
-    {
-      id: 1,
-      name: 'Super Admin Restoran',
-      outlet: 'Semua Outlet (Central)',
-      username: 'superadmin',
-      password: '888',
-      role: 'Super Admin',
-      status: 'Aktif'
-    },
-    {
-      id: 2,
-      name: 'Owner Restoran',
-      outlet: 'Semua Outlet (Central)',
-      username: 'owner',
-      password: '999',
-      role: 'Owner',
-      status: 'Aktif'
-    }
-  ],
+  // HAK USER & AKUN PENGGUNA - WEB BASED ADMIN (dari masterData server)
+  webAdminAccounts: [],
 
-  // OTENTIKASI AKSES AKUN - POS MOBILE APK (terpisah dari Web Admin)
-  mobileAccounts: [
-    {
-      id: 1,
-      name: 'Super Admin Restoran',
-      outlet: 'Semua Outlet (Central)',
-      username: 'superadmin',
-      mobileLoginPassword: '888',
-      role: 'Super Admin / Owner',
-      status: 'Aktif',
-      canAccessMobileReports: true,
-      mobileReportPassword: '8888'
-    },
-    {
-      id: 2,
-      name: 'Owner Restoran',
-      outlet: 'Semua Outlet (Central)',
-      username: 'owner',
-      mobileLoginPassword: '999',
-      role: 'Super Admin / Owner',
-      status: 'Aktif',
-      canAccessMobileReports: true,
-      mobileReportPassword: '9999'
-    }
-  ],
+  // OTENTIKASI AKSES AKUN - POS MOBILE APK (dari masterData server)
+  mobileAccounts: [],
 
   // (Legacy - tidak digunakan lagi, digantikan webAdminAccounts & mobileAccounts)
   userAccounts: [],
 
 
-  // DOKUMEN SOP RESTORAN
-  sopDocuments: [
-    {
-      id: 1,
-      title: 'SOP Pembukaan & Penutupan Shift Kasir POS',
-      category: 'Operasional Kasir',
-      version: 'v2.1',
-      lastUpdated: '2026-07-25',
-      author: 'Super Admin Restoran',
-      status: 'Aktif',
-      content: '1. Hitung fisik modal awal kas kecil sebelum membuka register POS.\n2. Pastikan Kertas Thermal Printer terpasang.\n3. Lakukan penutupan shift dan cetak rekapitulasi uang laci di akhir jam kerja.'
-    }
-  ]
+  // DOKUMEN SOP RESTORAN (dari masterData server)
+  sopDocuments: []
 };
