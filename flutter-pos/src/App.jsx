@@ -70,12 +70,24 @@ export default function App() {
   });
 
   const [selectedBranch, setSelectedBranch] = useState(() => {
-    const defaultBranch = masterData?.outlets?.[0]?.name || 'Gourmet Bistro - Senopati';
     if (userSession && userSession.outlet && userSession.outlet !== 'Semua Outlet (Central)') {
+      const match = (masterData?.outlets || []).find(o => o.name === userSession.outlet || String(o.id) === String(userSession.outlet_id));
+      if (match) return match.id;
       return userSession.outlet;
     }
-    return defaultBranch;
+    return masterData?.outlets?.[0]?.id || masterData?.outlets?.[0]?.name || '';
   });
+
+  useEffect(() => {
+    if (userSession && userSession.outlet && userSession.outlet !== 'Semua Outlet (Central)') {
+      const match = (masterData?.outlets || []).find(o => o.name === userSession.outlet || String(o.id) === String(userSession.outlet_id));
+      if (match) {
+        setSelectedBranch(match.id);
+      } else {
+        setSelectedBranch(userSession.outlet);
+      }
+    }
+  }, [userSession, masterData?.outlets]);
 
   // 1. AUTO SYNC FLUSH TO VPS CLOUD SERVER ON EVERY DATA CHANGE (Instant 50ms Flush)
   useEffect(() => {
@@ -173,6 +185,7 @@ export default function App() {
   // RENDER NATIVE ANDROID POS KASIR VIEW (PURE POS MOBILE KASIR)
   return (
     <AndroidPosRegister
+      userSession={userSession}
       masterData={masterData}
       setMasterData={setMasterData}
       selectedBranch={selectedBranch}

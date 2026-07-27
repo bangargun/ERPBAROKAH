@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 
 export default function AndroidPosRegister({ 
+  userSession,
   masterData, 
   setMasterData, 
   selectedBranch, 
@@ -69,7 +70,16 @@ export default function AndroidPosRegister({
   const [activeNavTab, setActiveNavTab] = useState('kasir');
 
   const outlets = masterData?.outlets || [];
-  const currentOutlet = outlets.find(o => o.id === selectedBranch) || outlets[0] || { id: 1, name: 'Restoran Utama' };
+  const userOutletName = userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
+
+  const currentOutlet = outlets.find(o => 
+    o.id === selectedBranch || 
+    String(o.id) === String(selectedBranch) || 
+    o.name === selectedBranch || 
+    (userOutletName && o.name === userOutletName)
+  ) || (userOutletName ? { id: userSession?.outlet_id || 1, name: userOutletName } : null)
+    || outlets[0] 
+    || { id: 1, name: 'Outlet Utama' };
 
   // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
@@ -287,7 +297,7 @@ export default function AndroidPosRegister({
 
   const handleSaveWasteFinal = () => {
     const ingredientsList = masterData.ingredients || [];
-    const outletTarget = (masterData.outlets || []).find(o => String(o.id) === String(wasteOutletId) || Number(o.id) === Number(wasteOutletId)) || currentOutlet || { id: 1, name: 'APS TT' };
+    const outletTarget = (masterData.outlets || []).find(o => String(o.id) === String(wasteOutletId) || Number(o.id) === Number(wasteOutletId)) || currentOutlet || { id: 1, name: currentOutlet?.name || 'Outlet Pusat' };
 
     const createdRecords = wasteBatchRows.map((row, idx) => {
       const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Kustom') : row.item_name;
@@ -312,7 +322,7 @@ export default function AndroidPosRegister({
         date: wasteDate,
         tanggal_waktu: new Date().toISOString(),
         outlet_id: wasteOutletId || currentOutlet.id || 1,
-        branch_name: outletTarget.name || currentOutlet?.name || 'APS TT',
+        branch_name: outletTarget.name || currentOutlet?.name || 'Outlet Pusat',
         type: 'WASTE',
         nama_barang: finalItemName,
         item_name: finalItemName,
