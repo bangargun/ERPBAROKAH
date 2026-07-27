@@ -251,17 +251,17 @@ export default function AndroidPosRegister({
   const [logNo, setLogNo] = useState(`LOG-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [logSubmittedBy, setLogSubmittedBy] = useState('Master Super Admin');
   const [logOutletId, setLogOutletId] = useState(1);
-  const [logItemName, setLogItemName] = useState('Daging Ayam Fillet');
+  const [logItemName, setLogItemName] = useState('');
   const [logCustomItemName, setLogCustomItemName] = useState('');
   const [logUnit, setLogUnit] = useState('kg');
-  const [logStokAwal, setLogStokAwal] = useState(50);
-  const [logStokMasuk, setLogStokMasuk] = useState(20);
+  const [logStokAwal, setLogStokAwal] = useState(0);
+  const [logStokMasuk, setLogStokMasuk] = useState(0);
   const [logTransferKeluar, setLogTransferKeluar] = useState(0);
   const [logTransferMasuk, setLogTransferMasuk] = useState(0);
-  const [logStokRusak, setLogStokRusak] = useState(2);
+  const [logStokRusak, setLogStokRusak] = useState(0);
   const [logDamageReason, setLogDamageReason] = useState('Terlalu kecil'); // 'Terlalu kecil' | 'Terlalu besar' | 'Berbau' | 'Tidak utuh' | 'Tidak layak jual' | 'Dan lain lain'
   const [logDamageNotes, setLogDamageNotes] = useState('');
-  const [logStokFisik, setLogStokFisik] = useState(68);
+  const [logStokFisik, setLogStokFisik] = useState(0);
   const [logStatus, setLogStatus] = useState('ditunda');
   const [opnameBatchRows, setOpnameBatchRows] = useState([]);
   const [opnameSummaryStartDate, setOpnameSummaryStartDate] = useState('');
@@ -277,9 +277,9 @@ export default function AndroidPosRegister({
   const [transferFromOutletId, setTransferFromOutletId] = useState(1);
   const [transferToOutletId, setTransferToOutletId] = useState(2);
   const [transferSubmittedBy, setTransferSubmittedBy] = useState('Master Super Admin');
-  const [transferItemName, setTransferItemName] = useState('Daging Ayam Fillet');
+  const [transferItemName, setTransferItemName] = useState('');
   const [transferCustomItemName, setTransferCustomItemName] = useState('');
-  const [transferQty, setTransferQty] = useState(10);
+  const [transferQty, setTransferQty] = useState(0);
   const [transferUnit, setTransferUnit] = useState('kg');
   const [transferNotes, setTransferNotes] = useState('');
   const [transferStatus, setTransferStatus] = useState('ditunda');
@@ -292,12 +292,10 @@ export default function AndroidPosRegister({
   const [wasteNo, setWasteNo] = useState(`WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [wasteOutletId, setWasteOutletId] = useState(1);
   const [wasteSubmittedBy, setWasteSubmittedBy] = useState('Master Super Admin');
-  const [wasteBatchRows, setWasteBatchRows] = useState([
-    { id: Date.now(), item_name: 'Daging Ayam Fillet', custom_item_name: '', qty: 1, unit: 'kg', reason: 'Terlalu kecil', notes: '' }
-  ]);
-  const [wasteItemName, setWasteItemName] = useState('Daging Ayam Fillet');
+  const [wasteBatchRows, setWasteBatchRows] = useState([]);
+  const [wasteItemName, setWasteItemName] = useState('');
   const [wasteCustomItemName, setWasteCustomItemName] = useState('');
-  const [wasteQty, setWasteQty] = useState(2);
+  const [wasteQty, setWasteQty] = useState(0);
   const [wasteUnit, setWasteUnit] = useState('kg');
   const [wasteReason, setWasteReason] = useState('Terlalu kecil');
   const [wasteNotes, setWasteNotes] = useState('');

@@ -132,11 +132,20 @@ export default function App() {
     return `${baseUrl}${pathStr}`;
   };
 
-  // Sync Master Data to localStorage & Central VPS Cloud API
+  // Ref flag to distinguish local mutations (add/edit/delete) from remote GET polling updates
+  const isRemoteUpdateRef = useRef(true);
+
+  // Sync Master Data to localStorage & Central VPS Cloud API (Local Mutations Only)
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
     
-    // Auto Sync to Central Server API on VPS (Instant 50ms Flush)
+    // Ignore automatic POST if this state update came from server GET polling
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
+
+    // Auto Sync local mutation to Central Server API on VPS (Instant 50ms Flush)
     const syncTimer = setTimeout(() => {
       fetch(getApiUrl('/api/master-data'), {
         method: 'POST',
@@ -146,6 +155,7 @@ export default function App() {
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data._lastUpdated) {
+          isRemoteUpdateRef.current = true;
           setMasterData(prev => ({
             ...prev,
             _lastUpdated: data._lastUpdated
@@ -159,14 +169,6 @@ export default function App() {
 
     return () => clearTimeout(syncTimer);
   }, [masterData]);
-
-  // Helper to merge local and server arrays by ID without dropping newly added items
-  const mergeById = (localArr = [], serverArr = []) => {
-    const map = new Map();
-    (serverArr || []).forEach(item => { if (item && item.id != null) map.set(String(item.id), item); });
-    (localArr || []).forEach(item => { if (item && item.id != null) map.set(String(item.id), item); });
-    return Array.from(map.values());
-  };
 
   // Real-time Live Polling Sync with VPS Central Cloud Server (Every 3 Seconds)
   useEffect(() => {
@@ -184,6 +186,7 @@ export default function App() {
                 const prevJson = JSON.stringify(prev);
                 const serverJson = JSON.stringify(serverData);
                 if (prevJson === serverJson) return prev;
+                isRemoteUpdateRef.current = true;
                 return {
                   ...prev,
                   ...serverData

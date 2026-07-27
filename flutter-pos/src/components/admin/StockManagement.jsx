@@ -520,9 +520,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [transferStatus, setTransferStatus] = useState('Terkirim');
   const [transferNotes, setTransferNotes] = useState('');
   const [transferNo, setTransferNo] = useState(`TRF-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-001`);
-  const [transferBatchRows, setTransferBatchRows] = useState([
-    { id: 1, item_name: ingredientsList[0] ? ingredientsList[0].name : 'Daging Ayam Fillet', custom_item_name: '', qty: 1, unit: ingredientsList[0] ? ingredientsList[0].unit : 'kg' }
-  ]);
+  const [transferBatchRows, setTransferBatchRows] = useState([]);
   const [previewTransferModalData, setPreviewTransferModalData] = useState(null);
   const [previewWasteModalData, setPreviewWasteModalData] = useState(null);
 
@@ -531,11 +529,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [rusakNo, setRusakNo] = useState(`WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [rusakCreatedBy, setRusakCreatedBy] = useState(userRightsList[0] ? userRightsList[0].name : 'Admin');
   const [rusakOutletId, setRusakOutletId] = useState(1);
-  const [rusakBatchRows, setRusakBatchRows] = useState([
-    { id: Date.now(), item_name: ingredientsList[0] ? ingredientsList[0].name : 'Daging Ayam Fillet', custom_item_name: '', qty: 1, unit: ingredientsList[0] ? ingredientsList[0].unit : 'kg', reason: 'Terlalu kecil', notes: '' }
-  ]);
+  const [rusakBatchRows, setRusakBatchRows] = useState([]);
   const [rusakSearchQuery, setRusakSearchQuery] = useState('');
-  const [rusakIngredientId, setRusakIngredientId] = useState(ingredientsList[0] ? ingredientsList[0].id : 1);
+  const [rusakIngredientId, setRusakIngredientId] = useState(ingredientsList[0] ? ingredientsList[0].id : '');
   const [rusakQty, setRusakQty] = useState('');
   const [rusakUnit, setRusakUnit] = useState(ingredientsList[0] ? ingredientsList[0].unit : 'kg');
   const [rusakNotes, setRusakNotes] = useState('');

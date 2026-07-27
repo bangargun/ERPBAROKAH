@@ -89,9 +89,18 @@ export default function App() {
     }
   }, [userSession, masterData?.outlets]);
 
-  // 1. AUTO SYNC FLUSH TO VPS CLOUD SERVER ON EVERY DATA CHANGE (Instant 50ms Flush)
+  // Ref flag to distinguish local mutations (add/edit/delete) from remote GET polling updates
+  const isRemoteUpdateRef = useRef(true);
+
+  // 1. SYNC MASTER DATA TO LOCAL STORAGE & CENTRAL SERVER (LOCAL MUTATIONS ONLY)
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
+    
+    // Ignore automatic POST if this state update came from server GET polling
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
 
     const syncTimer = setTimeout(() => {
       fetch(getApiUrl('/api/master-data'), {
@@ -102,6 +111,7 @@ export default function App() {
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data._lastUpdated) {
+          isRemoteUpdateRef.current = true;
           setMasterData(prev => ({
             ...prev,
             _lastUpdated: data._lastUpdated
@@ -140,6 +150,7 @@ export default function App() {
                 const prevJson = JSON.stringify(prev);
                 const serverJson = JSON.stringify(serverData);
                 if (prevJson === serverJson) return prev;
+                isRemoteUpdateRef.current = true;
                 return {
                   ...prev,
                   ...serverData
