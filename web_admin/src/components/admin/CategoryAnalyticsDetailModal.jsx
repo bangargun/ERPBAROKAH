@@ -8,11 +8,7 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
   if (!category) return null;
 
   // Retrieve outlets list
-  const outletsList = masterData?.outlets || [
-    { name: 'Gourmet Bistro - Senopati' },
-    { name: 'Ramen Haus - Kemang' },
-    { name: 'Kopi & Kitchen - PIK' }
-  ];
+  const outletsList = masterData?.outlets || [];
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {
@@ -41,7 +37,7 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
             receipt_no: tx.receipt_no || tx.receiptNo || `#TRX-${tx.id}`,
             date: tx.date || tx.createdAt || tx.timestamp,
             month_year: tx.month_year || tx.monthYear || 'Tahun 2026',
-            outlet_name: tx.outlet_name || tx.outletName || 'Outlet Utama',
+            outlet_name: tx.outlet_name || tx.outletName || '',
             item_name: item.name || item.item_name,
             qty: item.qty || item.quantity || 1,
             unit_price: item.price || item.unit_price || 0,

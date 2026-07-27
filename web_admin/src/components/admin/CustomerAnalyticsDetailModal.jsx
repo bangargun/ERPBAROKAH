@@ -8,11 +8,7 @@ export default function CustomerAnalyticsDetailModal({ customer, masterData, onC
   if (!customer) return null;
 
   // Retrieve outlets list
-  const outletsList = masterData?.outlets || [
-    { name: 'Gourmet Bistro - Senopati' },
-    { name: 'Ramen Haus - Kemang' },
-    { name: 'Kopi & Kitchen - PIK' }
-  ];
+  const outletsList = masterData?.outlets || [];
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {
@@ -35,7 +31,7 @@ export default function CustomerAnalyticsDetailModal({ customer, masterData, onC
         receipt_no: tx.receipt_no || tx.receiptNo || `#TRX-${tx.id}`,
         date: tx.date || tx.createdAt || tx.timestamp,
         month_year: tx.month_year || tx.monthYear || 'Tahun 2026',
-        outlet_name: tx.outlet_name || tx.outletName || 'Outlet Utama',
+        outlet_name: tx.outlet_name || tx.outletName || '',
         items_summary: (tx.items || []).map(i => `${i.name} (x${i.qty || 1})`).join(', ') || 'Item Transaksi',
         total_qty: (tx.items || []).reduce((s, i) => s + (i.qty || 1), 0),
         total_amount: tx.grand_total || tx.totalAmount || tx.total || 0,

@@ -8,11 +8,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
   if (!ingredient) return null;
 
   // Retrieve outlets list
-  const outletsList = masterData?.outlets || [
-    { name: 'Gourmet Bistro - Senopati' },
-    { name: 'Ramen Haus - Kemang' },
-    { name: 'Kopi & Kitchen - PIK' }
-  ];
+  const outletsList = masterData?.outlets || [];
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {
@@ -194,7 +190,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           receipt_no: w.report_no || `#WST-${w.id}`,
           date: w.date || '2026-07-24',
           month_year: 'Juli 2026',
-          outlet_name: w.outletName || (outletsList.find(o => Number(o.id) === Number(w.outletId))?.name || 'Outlet Utama'),
+          outlet_name: w.outletName || (outletsList.find(o => Number(o.id) === Number(w.outletId))?.name || ''),
           ordered_menu: `🗑️ Barang Rusak / Waste (${w.notes || 'Kerusakan Stok'})`,
           used_qty: -qtyNum,
           unit: w.unit || ingUnit,

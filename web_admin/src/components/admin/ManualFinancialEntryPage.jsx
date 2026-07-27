@@ -282,7 +282,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
   const handleSaveDailyReportModal = (e) => {
     e.preventDefault();
     const repNo = `LAP-${dailyRepDate.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
-    const selectedOutletObj = outlets.find(o => Number(o.id) === Number(dailyRepOutletId)) || { name: 'Restoran Utama' };
+    const selectedOutletObj = outlets.find(o => Number(o.id) === Number(dailyRepOutletId)) || { name: '' };
 
     const cogsItems = dailyExpenseRows
       .filter(r => r.itemType === 'Bahan Baku')
@@ -904,7 +904,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
   const grossProfit = Number(netSales || 0) - grandTotalExpense;
   const cashInDrawer = grossProfit - Number(debtPayment || 0) - Number(nonCashSales || 0);
 
-  const selectedOutletObj = outlets.find(o => Number(o.id) === Number(entryOutletId)) || { name: 'Restoran Senopati (HQ)' };
+  const selectedOutletObj = outlets.find(o => Number(o.id) === Number(entryOutletId)) || { name: '' };
 
   // PREVIEW DRAFT BEFORE SAVE FROM MODAL FORM
   const handlePreviewFormDraft = () => {
