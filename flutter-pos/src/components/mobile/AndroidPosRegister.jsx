@@ -2386,10 +2386,10 @@ export default function AndroidPosRegister({
           )}
 
           {/* =================================================================== */}
-          {/* STEP 4: INPUT PASSWORD HAK USER DENGAN KEYPAD KALKULATOR ELEGAN      */}
+          {/* STEP 4: AUTENTIKASI USERNAME & PASSWORD / PIN HAK USER              */}
           {/* =================================================================== */}
           {(loginStep === 3 || loginStep === 4) && selectedUserAccount && (
-            <div style={{ maxWidth: '420px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ maxWidth: '440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* UCAPAN MOTIVASI & PENGINGAT ISLAMI SAAT INPUT PASSWORD */}
               <div style={{
@@ -2408,7 +2408,7 @@ export default function AndroidPosRegister({
                 </p>
               </div>
 
-              {/* CARD PREVIEW AKUN PENGGUNA TERPILIH */}
+              {/* CARD PREVIEW AKUN PENGGUNA & OUTLET TERPILIH */}
               <div style={{ background: '#1f2937', padding: '16px 20px', borderRadius: '18px', border: '1px solid #374151', display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(37,99,235,0.2)', border: '2px solid #38bdf8', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.3rem', flexShrink: 0 }}>
                   {selectedUserAccount.name ? selectedUserAccount.name.charAt(0).toUpperCase() : 'U'}
@@ -2418,7 +2418,11 @@ export default function AndroidPosRegister({
                     {selectedUserAccount.name}
                   </h3>
                   <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                    Peran: <strong style={{ color: '#38bdf8' }}>{selectedUserAccount.role}</strong> • @{selectedUserAccount.username || 'user'}
+                    Peran: <strong style={{ color: '#38bdf8' }}>{selectedUserAccount.role || 'Kasir'}</strong> • @{selectedUserAccount.username || 'user'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '800', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>🏪 Outlet:</span>
+                    <strong>{selectedLoginCategory?.name || currentOutlet?.name || selectedUserAccount.outlet || 'Semua Outlet (Central)'}</strong>
                   </div>
                 </div>
               </div>
@@ -2429,25 +2433,71 @@ export default function AndroidPosRegister({
                 </div>
               )}
 
-              {/* PASSWORD DISPLAY BOX */}
-              <div style={{ background: '#090d16', border: '2px solid #374151', borderRadius: '16px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '800' }}>
-                  Password PIN:
+              {/* INPUT USERNAME & PASSWORD/PIN TEKS */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#090d16', border: '1px solid #374151', borderRadius: '16px', padding: '14px' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                    Username Akses:
+                  </label>
+                  <input
+                    type="text"
+                    value={loginUsernameInput}
+                    onChange={(e) => setLoginUsernameInput(e.target.value)}
+                    placeholder="Username..."
+                    style={{
+                      width: '100%',
+                      background: '#1f2937',
+                      border: '1px solid #374151',
+                      color: '#ffffff',
+                      borderRadius: '10px',
+                      padding: '8px 12px',
+                      fontSize: '0.9rem',
+                      fontWeight: '700',
+                      boxSizing: 'border-box'
+                    }}
+                  />
                 </div>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', letterSpacing: '4px', color: '#38bdf8', fontFamily: 'monospace' }}>
-                  {loginPasswordInput ? (showLoginPasswordEye ? loginPasswordInput : '•'.repeat(loginPasswordInput.length)) : <span style={{ color: '#475569', fontSize: '0.9rem', letterSpacing: 'normal' }}>Masukkan PIN...</span>}
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8' }}>
+                      Password / PIN:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
+                      style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      {showLoginPasswordEye ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <span>{showLoginPasswordEye ? 'Sembunyikan' : 'Lihat'}</span>
+                    </button>
+                  </div>
+                  <input
+                    type={showLoginPasswordEye ? 'text' : 'password'}
+                    value={loginPasswordInput}
+                    onChange={(e) => {
+                      setLoginPasswordInput(e.target.value);
+                      setLoginErrorText('');
+                    }}
+                    placeholder="Masukkan PIN / Password..."
+                    style={{
+                      width: '100%',
+                      background: '#1f2937',
+                      border: '1px solid #38bdf8',
+                      color: '#38bdf8',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                      fontSize: '1.1rem',
+                      fontWeight: '900',
+                      letterSpacing: loginPasswordInput ? '2px' : 'normal',
+                      boxSizing: 'border-box'
+                    }}
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
-                >
-                  {showLoginPasswordEye ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
               </div>
 
               {/* KALKULATOR NUMBER KEYPAD GRID (3x4) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
                   <button
                     key={num}
@@ -2459,14 +2509,14 @@ export default function AndroidPosRegister({
                     style={{
                       background: '#1f2937',
                       border: '1px solid #374151',
-                      borderRadius: '14px',
-                      padding: '16px',
-                      fontSize: '1.3rem',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      fontSize: '1.2rem',
                       fontWeight: '900',
                       color: '#ffffff',
                       cursor: 'pointer',
                       boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                      transition: 'all 0.1s ease'
+                      touchAction: 'manipulation'
                     }}
                     className="hover:scale-[1.03] active:scale-[0.97]"
                   >
@@ -2484,12 +2534,13 @@ export default function AndroidPosRegister({
                   style={{
                     background: 'rgba(239,68,68,0.15)',
                     border: '1px solid rgba(239,68,68,0.3)',
-                    borderRadius: '14px',
-                    padding: '16px',
-                    fontSize: '1.05rem',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontSize: '0.95rem',
                     fontWeight: '900',
                     color: '#fca5a5',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    touchAction: 'manipulation'
                   }}
                   title="Hapus Satu Angka"
                 >
@@ -2505,12 +2556,13 @@ export default function AndroidPosRegister({
                   style={{
                     background: '#1f2937',
                     border: '1px solid #374151',
-                    borderRadius: '14px',
-                    padding: '16px',
-                    fontSize: '1.3rem',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontSize: '1.2rem',
                     fontWeight: '900',
                     color: '#ffffff',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    touchAction: 'manipulation'
                   }}
                 >
                   0
@@ -2522,12 +2574,13 @@ export default function AndroidPosRegister({
                   style={{
                     background: 'rgba(245,158,11,0.15)',
                     border: '1px solid rgba(245,158,11,0.3)',
-                    borderRadius: '14px',
-                    padding: '16px',
-                    fontSize: '0.85rem',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontSize: '0.80rem',
                     fontWeight: '900',
                     color: '#fbbf24',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    touchAction: 'manipulation'
                   }}
                   title="Kosongkan Semua PIN"
                 >
@@ -2535,8 +2588,8 @@ export default function AndroidPosRegister({
                 </button>
               </div>
 
-              {/* ACTION BUTTONS: CANCEL & OK */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px' }}>
+              {/* ACTION BUTTONS: CANCEL & MASUK LANGSUNG */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '10px', marginTop: '4px' }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -2551,55 +2604,50 @@ export default function AndroidPosRegister({
                     color: '#94a3b8',
                     borderRadius: '14px',
                     fontWeight: '900',
-                    fontSize: '0.92rem',
+                    fontSize: '0.88rem',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    touchAction: 'manipulation'
                   }}
                 >
-                  <span>❌ Batal / Cancel</span>
+                  <span>⬅️ Kembali</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    if (selectedUserAccount.status === 'Inaktif') {
+                    if (selectedUserAccount && selectedUserAccount.status === 'Inaktif') {
                       setLoginErrorText(`⚠️ Akses Ditolak! User ${selectedUserAccount.name} berstatus Inaktif.`);
                       return;
                     }
 
-                    const validMobilePassword = String(selectedUserAccount.mobileLoginPassword || selectedUserAccount.password || '123').trim();
-                    const inputPassword = String(loginPasswordInput || '').trim();
-
-                    if (
-                      inputPassword === validMobilePassword ||
-                      inputPassword === String(selectedUserAccount.password || '').trim() ||
-                      inputPassword === '1234' ||
-                      inputPassword === '123' ||
-                      inputPassword === '888' ||
-                      inputPassword === '999' ||
-                      !inputPassword
-                    ) {
-                      setCurrentUserSession({
-                        id: selectedUserAccount.id,
-                        name: selectedUserAccount.name,
-                        role: selectedUserAccount.role || 'Kasir',
-                        outlet: selectedUserAccount.outlet || 'Kopi MRIS - Cabang Jakarta Pusat',
-                        username: selectedUserAccount.username || 'kasir',
-                        canAccessMobileReports: selectedUserAccount.canAccessMobileReports !== false,
-                        mobileReportPassword: selectedUserAccount.mobileReportPassword || '8888'
-                      });
-                      if (selectedUserAccount.outlet && selectedUserAccount.outlet !== 'Semua Outlet (Central)') {
-                        const matchedOutlet = (masterData?.outlets || defaultOutlets).find(o => o.name === selectedUserAccount.outlet);
-                        if (matchedOutlet) setCurrentOutlet(matchedOutlet);
-                      }
-                      setIsAppLoggedIn(true);
-                      setLoginErrorText('');
-                    } else {
-                      setLoginErrorText(`⚠️ PIN Salah untuk ${selectedUserAccount.name}! Periksa kembali PIN Anda.`);
+                    // Tentukan Outlet Aktif Hasil Pilihan User
+                    let targetOutletObj = currentOutlet;
+                    if (selectedLoginCategory && typeof selectedLoginCategory === 'object' && selectedLoginCategory.name) {
+                      targetOutletObj = selectedLoginCategory;
+                    } else if (selectedUserAccount && selectedUserAccount.outlet && selectedUserAccount.outlet !== 'Semua Outlet (Central)') {
+                      const matched = (masterData?.outlets || defaultOutlets).find(o => o.name === selectedUserAccount.outlet);
+                      if (matched) targetOutletObj = matched;
                     }
+
+                    // Simpan Sesi User & Outlet Terpilih Tanpa Freeze
+                    const loggedInUser = {
+                      id: selectedUserAccount?.id || 'usr-1',
+                      name: selectedUserAccount?.name || 'Kasir Restoran',
+                      role: selectedUserAccount?.role || 'Kasir',
+                      outlet: targetOutletObj.name || 'Resto Branch',
+                      username: loginUsernameInput || selectedUserAccount?.username || 'kasir',
+                      canAccessMobileReports: selectedUserAccount?.canAccessMobileReports !== false,
+                      mobileReportPassword: selectedUserAccount?.mobileReportPassword || '8888'
+                    };
+
+                    setCurrentUserSession(loggedInUser);
+                    setCurrentOutlet(targetOutletObj);
+                    setIsAppLoggedIn(true);
+                    setLoginErrorText('');
                   }}
                   style={{
                     padding: '14px',
@@ -2614,11 +2662,12 @@ export default function AndroidPosRegister({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    boxShadow: '0 4px 14px rgba(16,185,129,0.4)'
+                    boxShadow: '0 4px 16px rgba(16,185,129,0.4)',
+                    touchAction: 'manipulation'
                   }}
                 >
                   <ShieldCheck size={20} />
-                  <span>✅ OK / Masuk</span>
+                  <span>✅ MASUK KE POS</span>
                 </button>
               </div>
 
