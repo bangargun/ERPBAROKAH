@@ -110,6 +110,18 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
       title: 'Riwayat Transaksi Penjualan',
       filename: 'Template_Import_Penjualan_MRIS.csv',
       headers: ['No Struk', 'Tanggal (YYYY-MM-DD)', 'Jam (HH:MM)', 'Nama Outlet', 'Pelanggan', 'Metode Bayar', 'Total Nilai Transaksi (IDR)', 'Metode Layanan', 'Status Pembayaran', 'Item Penjualan'],
+      columnGuide: [
+        { col: 'A', name: 'No Struk', required: true, format: 'TRX-20260728-001', desc: 'Nomor invoice unik. Jika kosong diisi otomatis oleh sistem.' },
+        { col: 'B', name: 'Tanggal (YYYY-MM-DD)', required: false, format: '2026-07-28', desc: 'Tanggal transaksi format YYYY-MM-DD. Jika kosong diisi tanggal hari ini.' },
+        { col: 'C', name: 'Jam (HH:MM)', required: false, format: '14:30', desc: 'Jam waktu transaksi.' },
+        { col: 'D', name: 'Nama Outlet', required: false, format: 'Outlet Sudirman', desc: 'Nama cabang resto tempat transaksi terjadi.' },
+        { col: 'E', name: 'Pelanggan', required: false, format: 'Pelanggan Umum', desc: 'Nama pembeli / member.' },
+        { col: 'F', name: 'Metode Bayar', required: false, format: 'Cash / QRIS / Transfer', desc: 'Metode bayar (Cash, QRIS BCA, Transfer, Debit EDC, E-Wallet).' },
+        { col: 'G', name: 'Total Nilai Transaksi (IDR)', required: true, format: '75000', desc: 'Total nominal omset penjualan angka murni tanpa Rp / titik / koma.' },
+        { col: 'H', name: 'Metode Layanan', required: false, format: 'Dine In / Take Away', desc: 'Dine In, Take Away, GoFood, GrabFood, ShopeeFood.' },
+        { col: 'I', name: 'Status Pembayaran', required: false, format: 'Terbayar / Draft', desc: 'Terbayar, Draft, atau Dibatalkan.' },
+        { col: 'J', name: 'Item Penjualan', required: false, format: '2x Nasi Goreng; 1x Es Teh', desc: 'Rincian menu terpilih dipisah tanda titik koma (;).' }
+      ],
       instructions: [
         '1. [Wajib] No Struk: Nomor invoice unik (contoh: TRX-20260728-001). Jika kosong diisi otomatis.',
         '2. Tanggal & Jam: Format YYYY-MM-DD & HH:MM (contoh: 2026-07-28 & 14:30). Jika kosong diisi waktu saat ini.',
@@ -550,17 +562,56 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
             </button>
           </div>
 
-          <div style={{ background: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-            <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: '700', marginBottom: '6px' }}>
-              📋 Panduan & Cara Pengisian Kolom:
+          <div style={{ background: '#0f172a', padding: '14px', borderRadius: '10px', border: '1px solid #1e293b', overflowX: 'auto' }}>
+            <div style={{ fontSize: '0.80rem', color: '#38bdf8', fontWeight: '800', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📊 Struktur & Panduan Kolom Excel (Kolom A s/d J):</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-              {config.instructions.map((inst, idx) => (
-                <div key={idx} style={{ fontSize: '0.70rem', color: '#94a3b8', lineHeight: '1.3' }}>
-                  • {inst}
-                </div>
-              ))}
-            </div>
+            
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#1e293b', color: '#cbd5e1', borderBottom: '2px solid #334155' }}>
+                  <th style={{ padding: '8px 10px', width: '50px', textAlign: 'center' }}>Kolom</th>
+                  <th style={{ padding: '8px 10px', minWidth: '160px' }}>Nama Header Kolom</th>
+                  <th style={{ padding: '8px 10px', width: '90px', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '8px 10px', minWidth: '140px' }}>Format / Contoh</th>
+                  <th style={{ padding: '8px 10px' }}>Keterangan & Panduan Pengisian</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(config.columnGuide || config.headers.map((h, i) => ({
+                  col: String.fromCharCode(65 + i),
+                  name: h,
+                  required: i === 0 || h.toLowerCase().includes('total') || h.toLowerCase().includes('harga') || h.toLowerCase().includes('nama'),
+                  format: config.sampleRows?.[0]?.[i] || '-',
+                  desc: config.instructions[i] || '-'
+                }))).map((cg, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                    <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '900', color: '#fbbf24' }}>
+                      {cg.col || String.fromCharCode(65 + idx)}
+                    </td>
+                    <td style={{ padding: '8px 10px', fontWeight: '800', color: '#f8fafc' }}>
+                      {cg.name}
+                    </td>
+                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                      <span style={{
+                        padding: '2px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800',
+                        background: cg.required ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.15)',
+                        color: cg.required ? '#fca5a5' : '#cbd5e1',
+                        border: cg.required ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(148,163,184,0.3)'
+                      }}>
+                        {cg.required ? 'Wajib' : 'Opsional'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: '#38bdf8', fontWeight: '700' }}>
+                      {cg.format}
+                    </td>
+                    <td style={{ padding: '8px 10px', color: '#94a3b8', lineHeight: '1.3' }}>
+                      {cg.desc}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
