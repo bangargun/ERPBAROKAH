@@ -760,8 +760,8 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
           </div>
         </div>
 
-        {/* "+ TAMBAH BARU" & "📥 UPLOAD EXCEL" BUTTONS */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        {/* "+ TAMBAH BARU", "📥 UPLOAD EXCEL", & "📄 UPLOAD PDF" BUTTONS */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           <button 
             onClick={() => setShowExcelImportModal(true)} 
             style={{ 
@@ -777,10 +777,31 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               border: '1px solid #38bdf8',
               cursor: 'pointer'
             }}
-            title="Import Transaksi Penjualan dari File Excel (.csv / .xlsx)"
+            title="Unduh Template & Upload File Excel Transaksi Penjualan (.csv / .xlsx)"
           >
             <FileSpreadsheet size={16} color="#38bdf8" />
             <span>📥 Template & Upload Excel</span>
+          </button>
+
+          <button 
+            onClick={() => setShowExcelImportModal(true)} 
+            style={{ 
+              padding: '8px 16px', 
+              fontSize: '0.85rem', 
+              fontWeight: '700',
+              display: 'flex', 
+              alignItems: 'center',
+              gap: '8px', 
+              background: '#1e293b', 
+              color: '#f472b6',
+              borderRadius: '8px',
+              border: '1px solid #f472b6',
+              cursor: 'pointer'
+            }}
+            title="Import Rekap Transaksi Penjualan dari Dokumen PDF (.pdf)"
+          >
+            <FileText size={16} color="#f472b6" />
+            <span>📄 Upload PDF Transaksi</span>
           </button>
 
           <button 
