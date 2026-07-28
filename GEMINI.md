@@ -136,3 +136,6 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 4. **Jika ada file dengan data fake** di server, GitHub, atau lokal → **hapus langsung**
 5. **`currentUserSession`** harus dari `userSession` prop, bukan hardcoded default
 6. **`adminList`** harus dari `masterData.users` atau `masterData.userRights`, bukan hardcoded
+7. **Deploy Live Server Otomatis**: AI dapat dan HARUS memicu update live server VPS (`mris-admin.barokahgroupindonesia.tech`) secara otomatis setiap kali selesai melalukan `git push origin main` dengan memanggil webhook:
+   `curl -s "https://mris-admin.barokahgroupindonesia.tech/api/webhook/deploy?secret=mris_deploy_secret_2026"`
+   (Command yang berjalan di VPS: `cd /var/www/MRIS_TECH && git fetch origin && git reset --hard origin/main && cd web_admin && npm run build && cp -r dist/* ../dist/ && pm2 restart mris-app-tech`).
