@@ -1118,6 +1118,10 @@ export default function AndroidPosRegister({
     }).filter(Boolean));
   };
 
+  const handleRemoveCartItem = (productId) => {
+    setCart(cart.filter(item => item.id !== productId));
+  };
+
   const handleClearCart = () => {
     setCart([]);
     setDiscountValue('');
@@ -2961,18 +2965,56 @@ export default function AndroidPosRegister({
 
                         return (
                           <div key={item.id} style={{ background: T.bgCard, padding: '10px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${T.border}` }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {/* Circle Index Badge */}
-                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2563eb', color: 'var(--pos-txt-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: '900' }}>
+                            {/* Left: Index & Item Name */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, paddingRight: '6px' }}>
+                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2563eb', color: 'var(--pos-txt-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: '900', flexShrink: 0 }}>
                                 {idx + 1}
                               </div>
-                              <div>
-                                <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary }}>{item.name}</div>
+                              <div style={{ overflow: 'hidden' }}>
+                                <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
                                 {item.notes && <div style={{ fontSize: '0.70rem', color: isLight ? '#1d4ed8' : '#60a5fa' }}>{item.notes}</div>}
                               </div>
                             </div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtPrimary }}>
-                              {formatRupiah(itemLineTotal)}
+
+                            {/* Right: Quantity Controls (- QTY +), Subtotal, Delete Button */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              {/* Quantity Adjustment Buttons */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: T.bgApp, padding: '2px 4px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateQty(item.id, -1)}
+                                  title="Kurangi 1"
+                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: 'none', background: '#ef4444', color: '#ffffff', fontSize: '0.90rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}
+                                >
+                                  -
+                                </button>
+                                <span style={{ fontSize: '0.82rem', fontWeight: '900', color: T.txtPrimary, minWidth: '20px', textAlign: 'center' }}>
+                                  {item.qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateQty(item.id, 1)}
+                                  title="Tambah 1"
+                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: 'none', background: '#10b981', color: '#ffffff', fontSize: '0.90rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              {/* Line Total Price */}
+                              <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, minWidth: '60px', textAlign: 'right' }}>
+                                {formatRupiah(itemLineTotal)}
+                              </div>
+
+                              {/* Delete Item Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCartItem(item.id)}
+                                title="Hapus Orderan"
+                                style={{ width: '24px', height: '24px', borderRadius: '6px', border: 'none', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontSize: '0.80rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '2px' }}
+                              >
+                                🗑️
+                              </button>
                             </div>
                           </div>
                         );
@@ -9021,12 +9063,43 @@ export default function AndroidPosRegister({
                 {/* Itemized List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
                   {cart.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: '700', width: '24px' }}>x{item.qty}</span>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--pos-bg-card)', fontWeight: '800', letterSpacing: '0.3px' }}>{item.name.toUpperCase()}</span>
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 10px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: '6px' }}>
+                        {/* Qty Adjustment Controls */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQty(item.id, -1)}
+                            title="Kurangi 1"
+                            style={{ width: '22px', height: '22px', borderRadius: '4px', border: 'none', background: '#ef4444', color: '#ffffff', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            -
+                          </button>
+                          <span style={{ fontSize: '0.82rem', color: '#1e293b', fontWeight: '800', minWidth: '18px', textAlign: 'center' }}>{item.qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQty(item.id, 1)}
+                            title="Tambah 1"
+                            style={{ width: '22px', height: '22px', borderRadius: '4px', border: 'none', background: '#10b981', color: '#ffffff', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <span style={{ fontSize: '0.84rem', color: '#1e293b', fontWeight: '800', letterSpacing: '0.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
                       </div>
-                      <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '700' }}>{formatRupiah(item.price * item.qty)}</span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: '800' }}>{formatRupiah(item.price * item.qty)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCartItem(item.id)}
+                          title="Hapus Orderan"
+                          style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
