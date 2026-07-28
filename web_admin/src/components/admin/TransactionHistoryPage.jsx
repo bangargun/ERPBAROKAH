@@ -26,9 +26,12 @@ import {
   ChevronDown,
   RefreshCw,
   SlidersHorizontal,
-  MoreVertical
+  MoreVertical,
+  FileSpreadsheet,
+  UploadCloud
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
+import ExcelMasterImportModal from './ExcelMasterImportModal';
 
 export default function TransactionHistoryPage({ masterData, setMasterData, selectedBranch }) {
   const outlets = masterData?.outlets || [];
@@ -137,6 +140,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [viewMode, setViewMode] = useState('list');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [previewRecord, setPreviewRecord] = useState(null);
+  const [showExcelImportModal, setShowExcelImportModal] = useState(false);
 
   // DELETE MODAL STATES WITH REQUIRED NOTES REASON
   const [deleteRecord, setDeleteRecord] = useState(null);
@@ -756,8 +760,29 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
           </div>
         </div>
 
-        {/* "+ TAMBAH BARU" PURPLE BUTTON */}
+        {/* "+ TAMBAH BARU" & "📥 UPLOAD EXCEL" BUTTONS */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            onClick={() => setShowExcelImportModal(true)} 
+            style={{ 
+              padding: '8px 16px', 
+              fontSize: '0.85rem', 
+              fontWeight: '700',
+              display: 'flex', 
+              alignItems: 'center',
+              gap: '8px', 
+              background: '#1e293b', 
+              color: '#38bdf8',
+              borderRadius: '8px',
+              border: '1px solid #38bdf8',
+              cursor: 'pointer'
+            }}
+            title="Import Transaksi Penjualan dari File Excel (.csv / .xlsx)"
+          >
+            <FileSpreadsheet size={16} color="#38bdf8" />
+            <span>📥 Template & Upload Excel</span>
+          </button>
+
           <button 
             onClick={handleOpenAddModal} 
             style={{ 
@@ -982,6 +1007,25 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 <X size={20} />
               </button>
             </div>
+
+            {!editingRecord && (
+              <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid #38bdf8', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: '700' }}>
+                  💡 Memiliki rekap file Excel / CSV banyak transaksi penjualan?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    setShowExcelImportModal(true);
+                  }}
+                  style={{ background: '#0284c7', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <FileSpreadsheet size={14} />
+                  <span>📥 Upload Excel</span>
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSaveTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1371,6 +1415,15 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
           </div>
         </div>
       )}
+
+      {/* MODAL IMPORT EXCEL TRANSAKSI PENJUALAN */}
+      <ExcelMasterImportModal 
+        isOpen={showExcelImportModal} 
+        onClose={() => setShowExcelImportModal(false)} 
+        moduleType="sales_transactions" 
+        masterData={masterData} 
+        setMasterData={setMasterData} 
+      />
 
     </div>
   );

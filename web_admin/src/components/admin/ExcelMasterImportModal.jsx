@@ -105,6 +105,26 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
         ['OTL-001', 'Outlet Utama Sudirman', 'Jl. Jend. Sudirman No. 100, Jakarta Pusat', 'Jakarta Pusat', '021-5551234', 'Hendrik Wijaya', 'Aktif'],
         ['OTL-002', 'Outlet Branch Senopati', 'Jl. Senopati No. 22, Kebayoran Baru', 'Jakarta Selatan', '021-5555678', 'Sisca Amanda', 'Aktif']
       ]
+    },
+    sales_transactions: {
+      title: 'Riwayat Transaksi Penjualan',
+      filename: 'Template_Import_Penjualan_MRIS.csv',
+      headers: ['No Struk', 'Tanggal (YYYY-MM-DD)', 'Jam (HH:MM)', 'Nama Outlet', 'Pelanggan', 'Metode Bayar', 'Total Nilai Transaksi (IDR)', 'Metode Layanan', 'Status Pembayaran', 'Item Penjualan'],
+      instructions: [
+        '1. [Wajib] No Struk: Nomor invoice unik (contoh: TRX-20260728-001). Jika kosong diisi otomatis.',
+        '2. Tanggal & Jam: Format YYYY-MM-DD & HH:MM (contoh: 2026-07-28 & 14:30). Jika kosong diisi waktu saat ini.',
+        '3. Nama Outlet: Nama outlet cabang tempat transaksi terjadi (contoh: Outlet Central Sudirman).',
+        '4. Pelanggan: Nama pembeli/pelanggan (contoh: Pelanggan Umum, Budi Santoso).',
+        '5. Metode Bayar: Cash, QRIS BCA, Transfer, Debit EDC, E-Wallet (default: Cash).',
+        '6. [Wajib] Total Nilai Transaksi (IDR): Nilai gross omset angka murni tanpa titik/koma (contoh: 75000).',
+        '7. Metode Layanan: Dine In, Take Away, GoFood, GrabFood, ShopeeFood (default: Dine In).',
+        '8. Status Pembayaran: Terbayar, Draft, Dibatalkan (default: Terbayar).',
+        '9. Item Penjualan: Rincian item dengan format "2x Nasi Goreng; 1x Es Teh" (opsional).'
+      ],
+      sampleRows: [
+        ['TRX-20260728-001', '2026-07-28', '12:15', 'Outlet Central Sudirman', 'Pelanggan Umum', 'Cash', '45000', 'Dine In', 'Terbayar', '1x Nasi Goreng Spesial; 1x Es Teh Manis'],
+        ['TRX-20260728-002', '2026-07-28', '13:40', 'Outlet Branch Senopati', 'Siti Rahmawati', 'QRIS BCA', '85000', 'Take Away', 'Terbayar', '2x Ayam Bakar Madu; 2x Es Jeruk Segar']
+      ]
     }
   };
 
@@ -302,6 +322,51 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
           } else {
             itemsToImport.push({ id: Date.now() + idx, code, name, address, city, phone, manager, status });
           }
+        } else if (moduleType === 'sales_transactions' || moduleType === 'sales') {
+          const invoiceNo = row[0] || `TRX-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
+          const date = row[1] || new Date().toISOString().slice(0,10);
+          const time = row[2] || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+          const branchName = row[3] || (masterData?.outlets?.[0]?.name || 'Outlet Utama');
+          const customerName = row[4] || 'Pelanggan Umum';
+          const paymentMethod = row[5] || 'Cash';
+          const amount = parseFloat(row[6]) || 0;
+          const orderType = row[7] || 'Dine In';
+          const status = row[8] || 'Terbayar';
+          const rawItemsStr = row[9] || '';
+
+          let parsedItems = [];
+          if (rawItemsStr) {
+            parsedItems = rawItemsStr.split(';').map((itStr, i) => {
+              const match = itStr.trim().match(/^(\d+)x?\s*(.+)$/i);
+              if (match) {
+                const qty = parseInt(match[1]) || 1;
+                const name = match[2].trim();
+                return { id: i + 1, name, qty, price_unit: 0, amount: 0 };
+              }
+              return { id: i + 1, name: itStr.trim(), qty: 1, price_unit: 0, amount: 0 };
+            });
+          }
+
+          if (!amount && amount !== 0) {
+            errors.push(`Baris #${idx + 1}: Total Nilai Transaksi kosong`);
+          } else {
+            itemsToImport.push({
+              id: invoiceNo,
+              receipt_no: invoiceNo,
+              date,
+              time,
+              branch_name: branchName,
+              outlet_name: branchName,
+              customer_name: customerName,
+              payment_method: paymentMethod,
+              amount,
+              gross_amount: amount,
+              order_type: orderType,
+              status,
+              items: parsedItems.length > 0 ? parsedItems : [{ id: 1, name: 'Penjualan Impor Excel', qty: 1, price_unit: amount, amount }],
+              created_at: `${date} ${time}`
+            });
+          }
         }
       });
 
@@ -338,6 +403,9 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
       updated.customers = [...updated.customers, ...parsedData];
     } else if (moduleType === 'outlets') {
       updated.outlets = [...updated.outlets, ...parsedData];
+    } else if (moduleType === 'sales_transactions' || moduleType === 'sales') {
+      updated.transactions = [...parsedData, ...(updated.transactions || [])];
+      updated.salesTransactions = [...parsedData, ...(updated.salesTransactions || [])];
     }
 
     setMasterData(updated);
