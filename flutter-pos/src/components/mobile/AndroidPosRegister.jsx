@@ -429,7 +429,7 @@ export default function AndroidPosRegister({
 
   // Sidebar Lain-lain (Reservasi & SOP) States
   // MULTI-STEP LOGIN BOARD STATES (Halaman 1: Super Admin/Owner/Resto -> Halaman 2: Nama User -> Halaman 3: Username & Password)
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(true); // bypass Papan Login - langsung masuk POS
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(false); // Default Papan Login Aktif
   const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
   const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
   const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
