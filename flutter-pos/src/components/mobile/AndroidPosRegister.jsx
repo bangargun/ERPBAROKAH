@@ -1977,7 +1977,7 @@ export default function AndroidPosRegister({
 
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60a5fa', padding: '6px 18px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '900', marginBottom: '12px' }}>
               <Store size={16} />
-              <span>POS RESTAURANT MULTI-BRANCH SYSTEM (MOBILE APK)</span>
+              <span>POS RESTAURANT MULTI-BRANCH SYSTEM (MOBILE APK v2.0.44)</span>
             </div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
               {loginStep === 1 && '🔑 Papan Login Akses Restoran'}
@@ -1993,6 +1993,61 @@ export default function AndroidPosRegister({
               {(loginStep === 2 || loginStep === 3) && 'Halaman 3: Pilih Thumbnail Akun Pengguna Terdaftar'}
               {loginStep === 4 && 'Halaman 4: Masukkan Username & Password Hak User'}
             </p>
+
+            {/* TOMBOL PINTAS DARURAT: MASUK LANGSUNG / BYPASS & RESET CACHE TABLET */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentUserSession({
+                    id: 'usr-central',
+                    name: 'Kasir Utama',
+                    role: 'Kasir',
+                    outlet: currentOutlet?.name || 'Semua Outlet (Central)',
+                    username: 'kasir'
+                  });
+                  setIsAppLoggedIn(true);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: '12px',
+                  fontWeight: '800',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
+                  touchAction: 'manipulation'
+                }}
+              >
+                ⚡ Masuk Langsung Ke POS Kasir
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                  } catch (e) {}
+                  window.location.reload();
+                }}
+                style={{
+                  padding: '8px 16px',
+                  background: 'rgba(239,68,68,0.2)',
+                  border: '1px solid rgba(239,68,68,0.4)',
+                  color: '#fca5a5',
+                  borderRadius: '12px',
+                  fontWeight: '800',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  touchAction: 'manipulation'
+                }}
+              >
+                🔄 Reset Cache & Refresh Tablet
+              </button>
+            </div>
           </div>
 
           {/* UCAPAN MOTIVASI & REMINDER ISLAMI */}
