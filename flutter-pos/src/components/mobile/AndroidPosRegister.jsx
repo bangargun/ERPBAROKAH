@@ -1088,6 +1088,61 @@ export default function AndroidPosRegister({
     setShowReceiptModal(true);
   };
 
+  // RELIABLE IFRAME PRINTING ENGINE FOR MOBILE APK & DESKTOP (BEBAS POPUP BLOCKER)
+  const printHTMLContent = (htmlString) => {
+    try {
+      const oldIframe = document.getElementById('mris-print-frame');
+      if (oldIframe && oldIframe.parentNode) {
+        oldIframe.parentNode.removeChild(oldIframe);
+      }
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'mris-print-frame';
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0px';
+      iframe.style.height = '0px';
+      iframe.style.border = '0';
+      iframe.style.opacity = '0';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.zIndex = '-9999';
+
+      document.body.appendChild(iframe);
+
+      const frameDoc = iframe.contentWindow || iframe.contentDocument;
+      const doc = frameDoc.document || frameDoc;
+
+      doc.open();
+      doc.write(htmlString);
+      doc.close();
+
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }
+        } catch (printErr) {
+          console.error('⚠️ Print iframe focus error:', printErr);
+          window.print();
+        }
+
+        setTimeout(() => {
+          try {
+            const frameToRemove = document.getElementById('mris-print-frame');
+            if (frameToRemove && frameToRemove.parentNode) {
+              frameToRemove.parentNode.removeChild(frameToRemove);
+            }
+          } catch (e) {}
+        }, 2000);
+      }, 350);
+    } catch (err) {
+      console.error('⚠️ Print execution exception:', err);
+      window.print();
+    }
+  };
+
   // SINGLE-PASS UNIFIED THERMAL PRINT JOB FOR ALL SELECTED TICKETS (HANYA 1X PERMISI / POPUP CETAK BROWSER)
   const handleExecuteBatchPrint = (tx, selections) => {
     if (!tx) return;
@@ -1298,24 +1353,11 @@ export default function AndroidPosRegister({
     }
 
     printHTML += `
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
       </body>
       </html>
     `;
 
-    const printWin = window.open('', '_blank', 'width=450,height=600');
-    if (printWin) {
-      printWin.document.open();
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      window.print();
-    }
+    printHTMLContent(printHTML);
   };
 
   // DEDICATED SINGLE RECEIPT THERMAL PRINTING
@@ -1407,24 +1449,11 @@ export default function AndroidPosRegister({
           *** TERIMA KASIH ATAS KUNJUNGAN ANDA ***<br/>
           Selamat Menikmati Hidangan Kami
         </div>
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
       </body>
       </html>
     `;
 
-    const printWin = window.open('', '_blank', 'width=450,height=600');
-    if (printWin) {
-      printWin.document.open();
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      window.print();
-    }
+    printHTMLContent(printHTML);
   };
 
   // DEDICATED SHIFT CLOSING REPORT THERMAL PRINTING
