@@ -891,6 +891,14 @@ export default function AndroidPosRegister({
   const [pettyExpenses, setPettyExpenses] = useState([]);
   const [physicalCashDrawer, setPhysicalCashDrawer] = useState('');
 
+  // Waktu login shift — dicatat saat komponen pertama mount (saat user login ke POS)
+  const [shiftLoginTime] = useState(() => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${dateStr}, ${timeStr} WIB`;
+  });
+
   // Logistics Request State
   const [logisticsItemName, setLogisticsItemName] = useState('');
   const [logisticsQty, setLogisticsQty] = useState('');
@@ -3702,13 +3710,13 @@ export default function AndroidPosRegister({
               const activeShiftEdc = (outletTransactions || []).filter(tx => (tx.payment_method || '') === 'EDC').reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
               const activeUserShift = {
-                id: 'SHIFT-NOW-01',
-                username: 'master',
-                user_name: userSession?.name || '',
-                role: 'Super Admin / Owner',
-                outlet_name: currentOutlet.name || 'Restoran Utama',
+                id: `SHIFT-${userSession?.username || userSession?.user || 'USR'}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`,
+                username: userSession?.username || userSession?.user || userSession?.name || '',
+                user_name: userSession?.name || userSession?.full_name || '',
+                role: userSession?.role || userSession?.user_role || userSession?.level || 'Kasir',
+                outlet_name: currentOutlet?.name || '',
                 status: 'AKTIF BERLANGSUNG',
-                login_time: `${todayStr}, 08:00 WIB`,
+                login_time: shiftLoginTime,
                 logout_time: 'Masih Login (Shift Berjalan)',
                 duration_label: 'Sesuai Jam Berjalan',
                 total_receipts: activeShiftTxCount,
@@ -3716,7 +3724,7 @@ export default function AndroidPosRegister({
                 cash_sales: activeShiftCash,
                 qris_sales: activeShiftQris,
                 edc_sales: activeShiftEdc,
-                initial_cash: initialCash || 500000,
+                initial_cash: initialCash || 0,
                 transactions: outletTransactions || []
               };
 
