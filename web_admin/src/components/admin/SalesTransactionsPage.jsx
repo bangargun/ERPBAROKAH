@@ -1463,7 +1463,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const daysDiff = Math.max(1, Math.min(31, Math.round((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1));
 
     const chartData = [];
-    const activeMenuName = selectedMenuFilter === 'ALL' ? 'Teh Manis' : selectedMenuFilter;
+    const activeMenuName = selectedMenuFilter === 'ALL' ? 'Semua Menu Produk' : selectedMenuFilter;
 
     for (let i = 0; i < daysDiff; i++) {
       const curr = new Date(startDateObj);
@@ -3765,20 +3765,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   onChange={e => setSelectedMenuFilter(e.target.value)}
                   style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '0.88rem', fontWeight: '900', cursor: 'pointer', outline: 'none' }}
                 >
-                  <option value="ALL" style={{ background: '#1e293b' }}>☕ Teh Manis (Default)</option>
-                  {[
-                    'Teh Manis Dingin / Hangat',
-                    'Es Jeruk Peras Segar',
-                    'Kopi Susu Gula Aren',
-                    'Americano Double Shot',
-                    'Ayam Goreng Barokah Combo',
-                    'Nasi Goreng Special MRIS',
-                    'Mie Goreng Jawa Spesial',
-                    'Croissant Butter Original',
-                    'Ice Cream Vanilla Scoop',
-                    'Air Mineral 600ml'
-                  ].map((mName, i) => (
-                    <option key={i} value={mName} style={{ background: '#1e293b' }}>🍱 {mName}</option>
+                  <option value="ALL" style={{ background: '#1e293b' }}>☕ Semua Menu Produk</option>
+                  {(products || []).map((prod, i) => (
+                    <option key={prod.id || i} value={prod.name} style={{ background: '#1e293b' }}>🍱 {prod.name}</option>
                   ))}
                 </select>
               </div>
@@ -3860,7 +3849,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <TrendingUp size={22} color="#818cf8" />
-                  <span>Grafik Pergerakan Harian Menu: <span style={{ color: '#818cf8' }}>{selectedMenuFilter === 'ALL' ? 'Teh Manis Dingin / Hangat' : selectedMenuFilter}</span> ({catStartDate || '2026-07-01'} s/d {catEndDate || '2026-07-31'})</span>
+                  <span>Grafik Pergerakan Harian Menu: <span style={{ color: '#818cf8' }}>{selectedMenuFilter === 'ALL' ? 'Semua Menu Produk' : selectedMenuFilter}</span> ({catStartDate || '2026-07-01'} s/d {catEndDate || '2026-07-31'})</span>
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
                   Grafik garis perbandingan tren omzet penjualan harian untuk menu ini antar outlet cabang
