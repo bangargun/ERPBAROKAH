@@ -3750,10 +3750,10 @@ export default function AndroidPosRegister({
               const activeShiftEdc = (outletTransactions || []).filter(tx => (tx.payment_method || '') === 'EDC').reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
               const activeUserShift = {
-                id: `SHIFT-${userSession?.username || userSession?.user || 'USR'}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`,
-                username: userSession?.username || userSession?.user || userSession?.name || '',
-                user_name: userSession?.name || userSession?.full_name || '',
-                role: userSession?.role || userSession?.user_role || userSession?.level || 'Kasir',
+                id: `SHIFT-${currentUserSession?.username || userSession?.username || 'USR'}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`,
+                username: currentUserSession?.username || userSession?.username || '',
+                user_name: currentUserSession?.name || userSession?.name || currentUserSession?.username || userSession?.username || 'Kasir POS',
+                role: currentUserSession?.role || userSession?.role || 'Kasir',
                 outlet_name: currentOutlet?.name || '',
                 status: 'AKTIF BERLANGSUNG',
                 login_time: shiftLoginTime,
@@ -3768,14 +3768,23 @@ export default function AndroidPosRegister({
                 transactions: outletTransactions || []
               };
 
-              const pastShifts = masterData?.shiftLogs || masterData?.closedShifts || [];
-              const rawShiftList = (pastShifts.length > 0 || activeShiftTxCount > 0)
-                ? [activeUserShift, ...pastShifts]
-                : [];
+              const pastShifts = (masterData?.closedShifts || masterData?.shift_closings || masterData?.shiftLogs || []).filter(s => {
+                if (!currentOutlet?.id || currentOutlet?.id === 'central') return true;
+                return !s.outlet_id || String(s.outlet_id) === String(currentOutlet.id) || String(s.branch_name || '').toLowerCase().includes(String(currentOutlet.name || '').toLowerCase());
+              });
+
+              const hasActiveSession = !!(currentUserSession?.name || userSession?.name || currentUserSession?.username || userSession?.username);
+              const rawShiftList = [
+                ...(hasActiveSession ? [activeUserShift] : []),
+                ...pastShifts
+              ];
 
               const shiftList = rawShiftList.filter(s => {
                 const q = debouncedShiftUserSearch.toLowerCase();
-                return (s.user_name || '').toLowerCase().includes(q) || (s.username || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q);
+                const userNameStr = (s.user_name || s.cashier_name || s.author_name || s.submitted_by || s.cashier || s.name || '').toLowerCase();
+                const usernameStr = (s.username || '').toLowerCase();
+                const roleStr = (s.role || '').toLowerCase();
+                return userNameStr.includes(q) || usernameStr.includes(q) || roleStr.includes(q);
               });
 
               return (
@@ -3811,6 +3820,7 @@ export default function AndroidPosRegister({
                         ) : (
                           shiftList.map((row, rIdx) => {
                           const isAct = row.status === 'AKTIF BERLANGSUNG';
+                          const userNameDisplay = row.user_name || row.cashier_name || row.author_name || row.submitted_by || row.cashier || row.name || (row.username ? `@${row.username}` : 'Kasir POS');
                           return (
                             <tr
                               key={row.id}
@@ -3835,8 +3845,10 @@ export default function AndroidPosRegister({
                               </td>
 
                               <td style={{ padding: '14px 16px' }}>
-                                <div style={{ fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{row.user_name}</div>
-                                <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>{row.role} • @{row.username}</div>
+                                <div style={{ fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{userNameDisplay}</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>
+                                  {row.username ? `@${row.username}` : (row.role || 'Staf Kasir')}
+                                </div>
                               </td>
 
                               <td style={{ padding: '14px 16px' }}>
@@ -9440,7 +9452,7 @@ export default function AndroidPosRegister({
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Clock size={22} color="#38bdf8" />
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
-                  Rincian Sesi Shift - {selectedShiftDetailModal.user_name}
+                  Rincian Sesi Shift - {selectedShiftDetailModal.user_name || selectedShiftDetailModal.cashier_name || selectedShiftDetailModal.author_name || selectedShiftDetailModal.submitted_by || selectedShiftDetailModal.name || 'Pengguna POS'}
                 </h3>
               </div>
               <button onClick={() => setSelectedShiftDetailModal(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
@@ -9452,8 +9464,12 @@ export default function AndroidPosRegister({
             <div style={{ background: 'var(--pos-bg-app)', borderRadius: '14px', padding: '16px', border: '1px solid var(--pos-border-card)', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div>
-                  <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{selectedShiftDetailModal.user_name}</div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)' }}>{selectedShiftDetailModal.role} • @{selectedShiftDetailModal.username}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
+                    {selectedShiftDetailModal.user_name || selectedShiftDetailModal.cashier_name || selectedShiftDetailModal.author_name || selectedShiftDetailModal.submitted_by || selectedShiftDetailModal.name || 'Pengguna POS'}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)' }}>
+                    {selectedShiftDetailModal.username ? `@${selectedShiftDetailModal.username}` : (selectedShiftDetailModal.role || 'Staf Kasir')}
+                  </div>
                 </div>
                 <span style={{ fontSize: '0.70rem', fontWeight: '900', padding: '3px 10px', borderRadius: '12px', background: selectedShiftDetailModal.status === 'AKTIF BERLANGSUNG' ? 'rgba(56,189,248,0.2)' : 'rgba(148,163,184,0.15)', color: selectedShiftDetailModal.status === 'AKTIF BERLANGSUNG' ? '#38bdf8' : '#cbd5e1' }}>
                   {selectedShiftDetailModal.status}
