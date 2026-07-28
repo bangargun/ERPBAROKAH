@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Settings, Shield, Printer, Lock, CheckCircle2, RefreshCw, Users, Plus, Trash2, ShieldAlert, Eye, EyeOff, Edit3, X, Key, Building2 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 
