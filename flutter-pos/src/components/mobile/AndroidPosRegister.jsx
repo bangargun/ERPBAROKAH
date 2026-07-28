@@ -567,6 +567,75 @@ export default function AndroidPosRegister({
     }
   }, [userSession]);
 
+  // Otomatis simpan & perbarui riwayat login pengguna ke masterData.shiftLogs & closedShifts
+  React.useEffect(() => {
+    const sessionObj = currentUserSession || userSession;
+    if (!sessionObj) return;
+
+    const username = sessionObj.username || sessionObj.user || '';
+    const name = sessionObj.name || sessionObj.full_name || username || 'Pengguna POS';
+    const role = sessionObj.role || 'Kasir';
+    const outletName = sessionObj.outlet || currentOutlet?.name || 'Semua Outlet (Central)';
+    const outletId = sessionObj.outlet_id || currentOutlet?.id || null;
+
+    if (!username && !name) return;
+
+    const todayDateStr = new Date().toISOString().slice(0, 10);
+    const shiftId = `SHIFT-${username || 'USR'}-${todayDateStr.replace(/-/g, '')}`;
+
+    setMasterData(prev => {
+      if (!prev) return prev;
+      const existingLogs = prev.shiftLogs || prev.closedShifts || [];
+      const exists = existingLogs.some(s => s.id === shiftId || (s.username === username && s.login_date === todayDateStr && String(s.outlet_id || '') === String(outletId || '')));
+
+      if (exists) return prev;
+
+      const newShiftLog = {
+        id: shiftId,
+        login_date: todayDateStr,
+        date: todayDateStr,
+        username: username,
+        user_name: name,
+        cashier_name: name,
+        author_name: name,
+        submitted_by: name,
+        role: role,
+        outlet_id: outletId,
+        outlet_name: outletName,
+        branch_name: outletName,
+        status: 'AKTIF BERLANGSUNG',
+        login_time: shiftLoginTime || (new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'),
+        logout_time: 'Masih Login (Shift Berjalan)',
+        duration_label: 'Sesuai Jam Berjalan',
+        total_receipts: 0,
+        total_sales: 0,
+        cash_sales: 0,
+        qris_sales: 0,
+        edc_sales: 0,
+        initial_cash: initialCash || 0,
+        transactions: []
+      };
+
+      const updatedShiftLogs = [newShiftLog, ...existingLogs.filter(s => s.id !== shiftId)];
+      const updatedClosedShifts = prev.closedShifts ? [newShiftLog, ...prev.closedShifts.filter(s => s.id !== shiftId)] : [newShiftLog];
+
+      const newMaster = {
+        ...prev,
+        _lastUpdated: Date.now(),
+        shiftLogs: updatedShiftLogs,
+        closedShifts: updatedClosedShifts
+      };
+
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
+    });
+  }, [userSession, currentUserSession]);
+
   // Evaluasi Hak Akses Mobile (Mobile Permission Matrix) untuk Role Kasir yang Aktif
   const activeMobilePermissions = useMemo(() => {
     const defaultMatrix = [
@@ -9497,15 +9566,21 @@ export default function AndroidPosRegister({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
               <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Total Struk</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '2px' }}>{selectedShiftDetailModal.total_receipts} Struk</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '2px' }}>
+                  {selectedShiftDetailModal.total_receipts || selectedShiftDetailModal.total_transactions || (selectedShiftDetailModal.transactions ? selectedShiftDetailModal.transactions.length : 0)} Struk
+                </div>
               </div>
               <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Total Omset</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>{formatRupiah(selectedShiftDetailModal.total_sales)}</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>
+                  {formatRupiah(selectedShiftDetailModal.total_sales || selectedShiftDetailModal.net_sales || selectedShiftDetailModal.gross_sales || 0)}
+                </div>
               </div>
               <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Kas Tunai</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>{formatRupiah(selectedShiftDetailModal.cash_sales)}</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>
+                  {formatRupiah(selectedShiftDetailModal.cash_sales || selectedShiftDetailModal.actual_cash || selectedShiftDetailModal.cash_physical || 0)}
+                </div>
               </div>
             </div>
 
@@ -9514,7 +9589,7 @@ export default function AndroidPosRegister({
               Daftar Struk Transaksi Dalam Shift Ini:
             </div>
             <div style={{ background: 'var(--pos-bg-app)', borderRadius: '12px', border: '1px solid var(--pos-border-card)', maxHeight: '180px', overflowY: 'auto', marginBottom: '20px' }}>
-              {selectedShiftDetailModal.transactions.length === 0 ? (
+              {(!selectedShiftDetailModal.transactions || selectedShiftDetailModal.transactions.length === 0) ? (
                 <div style={{ padding: '16px', textAlign: 'center', color: 'var(--pos-txt-secondary)', fontSize: '0.78rem' }}>
                   Belum ada transaksi struk pada sesi shift ini.
                 </div>
@@ -9530,7 +9605,7 @@ export default function AndroidPosRegister({
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedShiftDetailModal.transactions.map((tx, tIdx) => (
+                    {(selectedShiftDetailModal.transactions || []).map((tx, tIdx) => (
                       <tr key={tIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                         <td style={{ padding: '8px 12px', fontWeight: '800', color: '#38bdf8' }}>{tx.id}</td>
                         <td style={{ padding: '8px 12px', color: 'var(--pos-txt-secondary)' }}>{tx.time || '10:00'}</td>
