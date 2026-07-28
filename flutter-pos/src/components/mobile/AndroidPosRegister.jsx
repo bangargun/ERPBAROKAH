@@ -1823,7 +1823,7 @@ export default function AndroidPosRegister({
       <div style={{ minHeight: '100vh', width: '100vw', background: '#090d16', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '880px', background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '36px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)' }}>
           {/* BRANDING HEADER & STEP INDICATOR */}
-          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60a5fa', padding: '6px 18px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '900', marginBottom: '12px' }}>
               <Store size={16} />
               <span>POS RESTAURANT MULTI-BRANCH SYSTEM (MOBILE APK)</span>
@@ -1838,9 +1838,27 @@ export default function AndroidPosRegister({
             <p style={{ fontSize: '0.84rem', color: '#94a3b8', marginTop: '6px' }}>
               {loginStep === 1 && 'Halaman 1: Pilih Kategori Akses (Manajemen Pusat vs Outlet Cabang)'}
               {loginStep === '2A' && 'Halaman 2: Pilih Peran Manajemen (Super Admin, Owner, Admin)'}
-              {loginStep === '2B' && 'Halaman 2: Pilih Cabang Restoran dari Data Master'}
-              {(loginStep === 2 || loginStep === 3) && 'Halaman 3: Daftar Akun Pengguna Terdaftar'}
+              {loginStep === '2B' && 'Halaman 2: Pilih Thumbnail Outlet Cabang Restoran'}
+              {(loginStep === 2 || loginStep === 3) && 'Halaman 3: Pilih Thumbnail Akun Pengguna Terdaftar'}
               {loginStep === 4 && 'Halaman 4: Masukkan Username & Password Hak User'}
+            </p>
+          </div>
+
+          {/* UCAPAN MOTIVASI & REMINDER ISLAMI */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.25) 100%)',
+            border: '1.5px solid rgba(52, 211, 153, 0.4)',
+            borderRadius: '16px',
+            padding: '12px 20px',
+            textAlign: 'center',
+            marginBottom: '24px',
+            boxShadow: '0 4px 16px rgba(16, 185, 129, 0.15)'
+          }}>
+            <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <span>✨ Selamat Bekerja!</span>
+            </div>
+            <p style={{ fontSize: '0.88rem', fontWeight: '700', color: '#f8fafc', margin: '4px 0 0 0', lineHeight: 1.4, fontStyle: 'italic' }}>
+              "Selamat bekerja, jangan lupa bismillah dan semua yang kita lakukan dalam pengawasan Alloh."
             </p>
           </div>
 
@@ -1914,7 +1932,7 @@ export default function AndroidPosRegister({
                     Resto Branch Access
                   </span>
                   <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4' }}>
-                    Pilih Cabang Restoran dari Halaman Data Master
+                    Tampilan Thumbnail Card Cabang Restoran
                   </p>
                 </div>
               </div>
@@ -1989,10 +2007,10 @@ export default function AndroidPosRegister({
           )}
 
           {/* =================================================================== */}
-          {/* STEP 2B: OUTLET CABANG (NAMA OUTLET DARI DATA MASTER)               */}
+          {/* STEP 2B: OUTLET CABANG (THUMBNAIL CARD INTERAKTIF)                  */}
           {/* =================================================================== */}
           {loginStep === '2B' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '680px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '780px', margin: '0 auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button
                   type="button"
@@ -2002,44 +2020,85 @@ export default function AndroidPosRegister({
                   <span>⬅️ Kembali Ke Pilihan Akses</span>
                 </button>
                 <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(56,189,248,0.3)' }}>
-                  Kategori: <strong>🏪 OUTLET CABANG</strong>
+                  Kategori: <strong>🏪 OUTLET CABANG (THUMBNAIL)</strong>
                 </span>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                {(masterData?.outlets || defaultOutlets).map((outlet, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      setSelectedLoginCategory(outlet);
-                      setLoginStep(2);
-                    }}
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(29,78,216,0.25) 100%)',
-                      border: '2px solid #2563eb',
-                      borderRadius: '20px',
-                      padding: '24px 20px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
-                      transition: 'all 0.2s ease'
-                    }}
-                    className="hover:scale-[1.02]"
-                  >
-                    <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(37,99,235,0.3)', border: '1px solid #60a5fa', color: '#93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Store size={28} />
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                        {outlet.name}
-                      </h3>
-                      <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: '800', marginTop: '4px', display: 'block' }}>
-                        Cabang Terdaftar #{outlet.id || idx + 1}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
+                {(masterData?.outlets || defaultOutlets).map((outlet, idx) => {
+                  const palette = [
+                    { border: '#38bdf8', bg: 'rgba(56,189,248,0.12)', badgeBg: 'rgba(56,189,248,0.2)' },
+                    { border: '#34d399', bg: 'rgba(52,211,153,0.12)', badgeBg: 'rgba(52,211,153,0.2)' },
+                    { border: '#f59e0b', bg: 'rgba(245,158,11,0.12)', badgeBg: 'rgba(245,158,11,0.2)' },
+                    { border: '#c084fc', bg: 'rgba(192,132,252,0.12)', badgeBg: 'rgba(192,132,252,0.2)' },
+                    { border: '#f472b6', bg: 'rgba(244,114,182,0.12)', badgeBg: 'rgba(244,114,182,0.2)' }
+                  ];
+                  const styleTheme = palette[idx % palette.length];
+
+                  return (
+                    <div
+                      key={outlet.id || idx}
+                      onClick={() => {
+                        setSelectedLoginCategory(outlet);
+                        setCurrentOutlet(outlet);
+                        setLoginStep(2);
+                      }}
+                      style={{
+                        background: '#1f2937',
+                        border: `2px solid ${styleTheme.border}`,
+                        borderRadius: '20px',
+                        padding: '24px 18px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        gap: '12px',
+                        transition: 'all 0.2s ease',
+                        boxShadow: `0 8px 20px ${styleTheme.border}20`
+                      }}
+                      className="hover:scale-[1.03]"
+                    >
+                      {/* OUTLET THUMBNAIL AVATAR */}
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: styleTheme.bg,
+                        border: `2px solid ${styleTheme.border}`,
+                        color: styleTheme.border,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.8rem',
+                        flexShrink: 0
+                      }}>
+                        🏪
+                      </div>
+
+                      <div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                          {outlet.name}
+                        </h3>
+                        <span style={{ fontSize: '0.74rem', color: styleTheme.border, fontWeight: '800', marginTop: '4px', display: 'block' }}>
+                          {outlet.code ? `Kode: ${outlet.code}` : `Cabang Terdaftar #${outlet.id || idx + 1}`}
+                        </span>
+                      </div>
+
+                      <span style={{
+                        fontSize: '0.70rem',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        background: styleTheme.badgeBg,
+                        color: styleTheme.border,
+                        fontWeight: '800',
+                        border: `1px solid ${styleTheme.border}40`
+                      }}>
+                        🟢 Pilih User Outlet
                       </span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
