@@ -4208,7 +4208,7 @@ export default function AndroidPosRegister({
                                 const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (name || '').toLowerCase());
                                 if (ing) priceFound = Number(ing.price || ing.buy_price || ing.unit_price || 0);
                               }
-                              return priceFound || 15000;
+                              return priceFound || 0;
                             };
 
                             const hargaSatuan = getItemPrice(item.item_name);
@@ -4935,7 +4935,7 @@ export default function AndroidPosRegister({
                       const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (op.item_name || '').toLowerCase());
                       if (ing) activePrice = Number(ing.price || ing.buy_price || ing.unit_price || 0);
                     }
-                    return Math.abs(diffVal) * (activePrice || 15000);
+                    return Math.abs(diffVal) * (activePrice || 0);
                   };
 
                   const totalDendaHariIni = allOpnames.filter(op => op.date === todayStr).reduce((acc, op) => acc + calcDenda(op), 0);
@@ -5058,7 +5058,7 @@ export default function AndroidPosRegister({
                                 const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (itemName || '').toLowerCase());
                                 if (ing) priceFound = Number(ing.price || ing.buy_price || ing.unit_price || 0);
                               }
-                              return priceFound || 15000;
+                              return priceFound || 0;
                             };
 
                             const hargaSatuanWeb = getHargaSatuanFromStokMasuk(op.item_name);
@@ -9581,8 +9581,8 @@ export default function AndroidPosRegister({
                       <button
                         type="button"
                         onClick={() => {
-                          const firstIng = masterIngs[0] || { name: 'Bahan Baku Baru', cost: 15000, unit: 'kg', category: 'HPP Dapur (Bahan Mentah)' };
-                          setManualCogsRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstIng.name, qty: 1, unit: firstIng.unit || 'kg', price_unit: firstIng.cost || 15000, amount: firstIng.cost || 15000, category: firstIng.category }]);
+                          const firstIng = masterIngs[0] || { name: 'Bahan Baku', cost: 0, unit: 'kg', category: 'HPP Dapur (Bahan Mentah)' };
+                          setManualCogsRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstIng.name, qty: 1, unit: firstIng.unit || 'kg', price_unit: firstIng.cost || 0, amount: firstIng.cost || 0, category: firstIng.category }]);
                         }}
                         style={{ background: 'none', border: 'none', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
