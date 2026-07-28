@@ -119,6 +119,15 @@ export default function AndroidPosRegister({
 
   // POS State
   const [activeCategory, setActiveCategory] = useState('🔥 Sering Diorder');
+  const [appTheme, setAppTheme] = useState(() => localStorage.getItem('mris_pos_theme') || 'dark'); // 'dark' | 'light'
+
+  const toggleAppTheme = (newTheme) => {
+    const selected = newTheme || (appTheme === 'dark' ? 'light' : 'dark');
+    setAppTheme(selected);
+    localStorage.setItem('mris_pos_theme', selected);
+  };
+
+  const isLight = appTheme === 'light';
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([]);
   const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
@@ -2500,10 +2509,32 @@ export default function AndroidPosRegister({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
+            {/* THEME TOGGLE BUTTON (MODE GELAP VS MODE TERANG) */}
+            <button
+              type="button"
+              onClick={() => toggleAppTheme()}
+              style={{
+                background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.1)',
+                border: isLight ? '1.5px solid #cbd5e1' : '1px solid rgba(255,255,255,0.2)',
+                color: isLight ? '#0f172a' : '#ffffff',
+                padding: '5px 12px',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: isLight ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
+              }}
+              title="Ganti Tema Tampilan (Mode Terang vs Mode Gelap)"
+            >
+              {isLight ? <span>☀️ Mode Terang</span> : <span>🌙 Mode Gelap</span>}
+            </button>
 
             <button
               onClick={() => setActiveNavTab('printer_setting')}
-              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', padding: '5px 12px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.1)', border: isLight ? '1.5px solid #cbd5e1' : '1px solid rgba(255,255,255,0.2)', color: isLight ? '#0f172a' : '#ffffff', padding: '5px 12px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <Printer size={15} />
               <span>Setting Printer</span>
@@ -5646,9 +5677,59 @@ export default function AndroidPosRegister({
                 {/* SUB-TAB 1: UMUM (MATCHING SCREENSHOT 100%) */}
                 {settingSubTab === 'umum' && (
                   <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                      Pengaturan Umum
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: isLight ? '#0f172a' : '#ffffff', margin: 0 }}>
+                      Pengaturan Umum POS Mobile
                     </h2>
+
+                    {/* PILIHAN TEMA TAMPILAN (MODE GELAP VS MODE TERANG) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <label style={{ fontSize: '0.90rem', fontWeight: '800', color: isLight ? '#0f172a' : '#f8fafc' }}>
+                        🎨 Tema Tampilan Aplikasi (Theme Mode)
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', maxWidth: '440px' }}>
+                        {/* MODE GELAP CARD */}
+                        <div
+                          onClick={() => toggleAppTheme('dark')}
+                          style={{
+                            background: !isLight ? 'linear-gradient(135deg, rgba(37,99,235,0.2) 0%, rgba(15,23,42,0.9) 100%)' : '#ffffff',
+                            border: !isLight ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                            borderRadius: '16px',
+                            padding: '18px 14px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            boxShadow: !isLight ? '0 8px 20px rgba(37,99,235,0.25)' : 'none'
+                          }}
+                        >
+                          <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>🌙</div>
+                          <div style={{ fontWeight: '900', color: !isLight ? '#ffffff' : '#0f172a', fontSize: '0.90rem' }}>Mode Gelap (Dark)</div>
+                          <span style={{ fontSize: '0.70rem', color: !isLight ? '#60a5fa' : '#64748b', fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
+                            {!isLight ? '✓ Aktif (Default)' : 'Sleek Dark Mode'}
+                          </span>
+                        </div>
+
+                        {/* MODE TERANG CARD */}
+                        <div
+                          onClick={() => toggleAppTheme('light')}
+                          style={{
+                            background: isLight ? 'linear-gradient(135deg, rgba(56,189,248,0.15) 0%, rgba(255,255,255,0.95) 100%)' : '#1f2937',
+                            border: isLight ? '2px solid #0284c7' : '1.5px solid #374151',
+                            borderRadius: '16px',
+                            padding: '18px 14px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            boxShadow: isLight ? '0 8px 20px rgba(2,132,199,0.2)' : 'none'
+                          }}
+                        >
+                          <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>☀️</div>
+                          <div style={{ fontWeight: '900', color: isLight ? '#0f172a' : '#ffffff', fontSize: '0.90rem' }}>Mode Terang (Light)</div>
+                          <span style={{ fontSize: '0.70rem', color: isLight ? '#0284c7' : '#94a3b8', fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
+                            {isLight ? '✓ Aktif' : 'Premium Light Mode'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
                     {/* CHECKBOX AUTO LOCK */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
