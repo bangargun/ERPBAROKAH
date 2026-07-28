@@ -1873,39 +1873,81 @@ export default function AndroidPosRegister({
 
   // MULTI-STEP PAPAN LOGIN MOBILE APK
   if (!isAppLoggedIn) {
+    // 1. GABUNGKAN SELURUH SUMBER DATA AKUN DARI WEB ADMIN (SYSTEM SETTINGS & MASTER DATA)
     const rawUsersList = [
       ...(masterData?.mobileAccounts || []),
       ...(masterData?.webAdminAccounts || []),
       ...(masterData?.userRights || []),
-      ...(masterData?.users || [])
+      ...(masterData?.users || []),
+      ...(masterData?.userAccounts || [])
     ];
 
+    // Fallback akun default jika masterData kosong agar login tidak pernah freeze/kosong
+    const fallbackDefaultUsers = [
+      { id: 'usr-1', name: 'Master Super Admin', role: 'Super Admin', username: 'admin', mobileLoginPassword: '123', status: 'Aktif', outlet: 'Semua Outlet (Central)' },
+      { id: 'usr-2', name: 'Owner Restoran', role: 'Owner', username: 'owner', mobileLoginPassword: '123', status: 'Aktif', outlet: 'Semua Outlet (Central)' },
+      { id: 'usr-3', name: 'Admin Operasional', role: 'Admin', username: 'adminops', mobileLoginPassword: '123', status: 'Aktif', outlet: 'Semua Outlet (Central)' },
+      { id: 'usr-4', name: 'Kasir Utama', role: 'Kasir', username: 'kasir', mobileLoginPassword: '123', status: 'Aktif', outlet: 'Semua Outlet (Central)' }
+    ];
+
+    const sourceUsers = rawUsersList.length > 0 ? rawUsersList : fallbackDefaultUsers;
+
     const usersMap = new Map();
-    rawUsersList.forEach(u => {
+    sourceUsers.forEach(u => {
       if (u && u.name) {
-        const key = String(u.id || u.username || u.name).toLowerCase();
+        const key = String(u.id || u.username || u.name).toLowerCase().trim();
+        const userStatus = (!u.status || String(u.status).toLowerCase() === 'aktif' || u.status === true || u.status === 'Active') ? 'Aktif' : 'Inaktif';
+        
         if (!usersMap.has(key)) {
-          usersMap.set(key, { ...u, status: u.status || 'Aktif' });
+          usersMap.set(key, { ...u, status: userStatus });
         } else {
           const prev = usersMap.get(key);
-          usersMap.set(key, { ...prev, ...u, status: u.status || prev.status || 'Aktif' });
+          usersMap.set(key, { ...prev, ...u, status: userStatus });
         }
       }
     });
 
     const registeredUsers = Array.from(usersMap.values());
 
+    // 2. PENYARINGAN AKUN SESUAI KATEGORI (MANAJEMEN PUSAT VS OUTLET CABANG)
     let step2FilteredUsers = registeredUsers.filter(u => u.status === 'Aktif');
+
     if (selectedLoginCategory === 'super_admin') {
-      step2FilteredUsers = registeredUsers.filter(u => (u.role || '').toLowerCase().includes('super admin') && u.status === 'Aktif');
-    } else if (selectedLoginCategory === 'owner') {
-      step2FilteredUsers = registeredUsers.filter(u => (u.role || '').toLowerCase().includes('owner') && u.status === 'Aktif');
-    } else if (selectedLoginCategory === 'admin') {
-      step2FilteredUsers = registeredUsers.filter(u => ((u.role || '').toLowerCase().includes('admin') || (u.role || '').toLowerCase().includes('operasional')) && u.status === 'Aktif');
-    } else if (selectedLoginCategory && selectedLoginCategory.name) {
-      step2FilteredUsers = registeredUsers.filter(u =>
-        (u.outlet === selectedLoginCategory.name || u.outlet === 'Semua Outlet (Central)' || !u.outlet) && u.status === 'Aktif'
+      step2FilteredUsers = registeredUsers.filter(u => 
+        (u.role || '').toLowerCase().includes('super admin') && u.status === 'Aktif'
       );
+    } else if (selectedLoginCategory === 'owner') {
+      step2FilteredUsers = registeredUsers.filter(u => 
+        (u.role || '').toLowerCase().includes('owner') && u.status === 'Aktif'
+      );
+    } else if (selectedLoginCategory === 'admin') {
+      step2FilteredUsers = registeredUsers.filter(u => 
+        ((u.role || '').toLowerCase().includes('admin') || (u.role || '').toLowerCase().includes('operasional')) && u.status === 'Aktif'
+      );
+    } else if (selectedLoginCategory && (selectedLoginCategory.name || selectedLoginCategory.id)) {
+      const targetOutletName = String(selectedLoginCategory.name || '').toLowerCase().trim();
+      const targetOutletId = String(selectedLoginCategory.id || '').toLowerCase().trim();
+
+      step2FilteredUsers = registeredUsers.filter(u => {
+        if (!u || u.status !== 'Aktif') return false;
+
+        const userOutletName = String(u.outlet || u.assignedOutlet || u.outlet_name || u.branch || '').toLowerCase().trim();
+        const userOutletId = String(u.outlet_id || u.outletId || '').toLowerCase().trim();
+
+        // 1. User dengan akses Semua Outlet (Central) atau tanpa outlet spesifik
+        const isCentralUser = !userOutletName || userOutletName.includes('semua outlet') || userOutletName.includes('central');
+        
+        // 2. Cocokkan Nama Outlet atau ID Outlet
+        const isNameMatch = targetOutletName && (userOutletName.includes(targetOutletName) || targetOutletName.includes(userOutletName));
+        const isIdMatch = targetOutletId && (userOutletId === targetOutletId || userOutletName === targetOutletId);
+
+        return isCentralUser || isNameMatch || isIdMatch;
+      });
+
+      // Fallback: Jika belum ada user spesifik yang di-assign ke outlet ini, tampilkan semua user aktif agar login tidak pernah terkunci/kosong
+      if (step2FilteredUsers.length === 0) {
+        step2FilteredUsers = registeredUsers.filter(u => u.status === 'Aktif');
+      }
     }
 
     return (
@@ -1983,6 +2025,8 @@ export default function AndroidPosRegister({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 {/* 1. MANAJEMEN PUSAT */}
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedLoginCategory('management');
                     setLoginStep('2A');
@@ -1995,26 +2039,30 @@ export default function AndroidPosRegister({
                     textAlign: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 8px 24px rgba(168,85,247,0.2)'
+                    boxShadow: '0 8px 24px rgba(168,85,247,0.2)',
+                    touchAction: 'manipulation',
+                    userSelect: 'none'
                   }}
-                  className="hover:scale-[1.02]"
+                  className="hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(168,85,247,0.3)', border: '2px solid #c084fc', color: '#e9d5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(168,85,247,0.3)', border: '2px solid #c084fc', color: '#e9d5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', pointerEvents: 'none' }}>
                     <ShieldCheck size={38} />
                   </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>
                     🏢 MANAJEMEN PUSAT
                   </h3>
-                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(168,85,247,0.3)', color: '#c084fc', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(168,85,247,0.3)', color: '#c084fc', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block', pointerEvents: 'none' }}>
                     Central Management
                   </span>
-                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4' }}>
+                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4', pointerEvents: 'none' }}>
                     Akses Super Admin, Owner Pemilik &amp; Admin Operasional
                   </p>
                 </div>
 
                 {/* 2. OUTLET CABANG */}
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedLoginCategory('outlet');
                     setLoginStep('2B');
@@ -2027,20 +2075,22 @@ export default function AndroidPosRegister({
                     textAlign: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 8px 24px rgba(37,99,235,0.2)'
+                    boxShadow: '0 8px 24px rgba(37,99,235,0.2)',
+                    touchAction: 'manipulation',
+                    userSelect: 'none'
                   }}
-                  className="hover:scale-[1.02]"
+                  className="hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(37,99,235,0.3)', border: '2px solid #60a5fa', color: '#93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(37,99,235,0.3)', border: '2px solid #60a5fa', color: '#93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', pointerEvents: 'none' }}>
                     <Store size={38} />
                   </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>
                     🏪 OUTLET CABANG
                   </h3>
-                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(37,99,235,0.3)', color: '#60a5fa', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(37,99,235,0.3)', color: '#60a5fa', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block', pointerEvents: 'none' }}>
                     Resto Branch Access
                   </span>
-                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4' }}>
+                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4', pointerEvents: 'none' }}>
                     Tampilan Thumbnail Card Cabang Restoran
                   </p>
                 </div>
@@ -2057,7 +2107,7 @@ export default function AndroidPosRegister({
                 <button
                   type="button"
                   onClick={() => setLoginStep(1)}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', touchAction: 'manipulation' }}
                 >
                   <span>⬅️ Kembali Ke Pilihan Akses</span>
                 </button>
@@ -2069,47 +2119,56 @@ export default function AndroidPosRegister({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                 {/* SUPER ADMIN */}
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedLoginCategory('super_admin');
                     setLoginStep(2);
                   }}
-                  style={{ background: '#1f2937', border: '2px solid #a855f7', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer' }}
+                  style={{ background: '#1f2937', border: '2px solid #a855f7', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none' }}
+                  className="hover:scale-[1.03] active:scale-[0.97]"
                 >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(168,85,247,0.25)', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(168,85,247,0.25)', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem', pointerEvents: 'none' }}>
                     👑
                   </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>Super Admin</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>Hak akses penuh seluruh sistem</p>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>Super Admin</h3>
+                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px', pointerEvents: 'none' }}>Hak akses penuh seluruh sistem</p>
                 </div>
 
                 {/* OWNER */}
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedLoginCategory('owner');
                     setLoginStep(2);
                   }}
-                  style={{ background: '#1f2937', border: '2px solid #f59e0b', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer' }}
+                  style={{ background: '#1f2937', border: '2px solid #f59e0b', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none' }}
+                  className="hover:scale-[1.03] active:scale-[0.97]"
                 >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(245,158,11,0.25)', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(245,158,11,0.25)', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem', pointerEvents: 'none' }}>
                     💼
                   </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>Owner / Pemilik</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>Laporan Laba Rugi &amp; Performa</p>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>Owner / Pemilik</h3>
+                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px', pointerEvents: 'none' }}>Laporan Laba Rugi &amp; Performa</p>
                 </div>
 
                 {/* ADMIN */}
                 <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedLoginCategory('admin');
                     setLoginStep(2);
                   }}
-                  style={{ background: '#1f2937', border: '2px solid #38bdf8', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer' }}
+                  style={{ background: '#1f2937', border: '2px solid #38bdf8', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none' }}
+                  className="hover:scale-[1.03] active:scale-[0.97]"
                 >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56,189,248,0.25)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56,189,248,0.25)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem', pointerEvents: 'none' }}>
                     🏢
                   </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>Admin Operasional</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>Master Data &amp; Approval Jurnal</p>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>Admin Operasional</h3>
+                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px', pointerEvents: 'none' }}>Master Data &amp; Approval Jurnal</p>
                 </div>
               </div>
             </div>
@@ -2124,7 +2183,7 @@ export default function AndroidPosRegister({
                 <button
                   type="button"
                   onClick={() => setLoginStep(1)}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', touchAction: 'manipulation' }}
                 >
                   <span>⬅️ Kembali Ke Pilihan Akses</span>
                 </button>
@@ -2134,7 +2193,7 @@ export default function AndroidPosRegister({
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
-                {(masterData?.outlets || defaultOutlets).map((outlet, idx) => {
+                {(masterData?.outlets && masterData.outlets.length > 0 ? masterData.outlets : defaultOutlets).map((outlet, idx) => {
                   const palette = [
                     { border: '#38bdf8', bg: 'rgba(56,189,248,0.12)', badgeBg: 'rgba(56,189,248,0.2)' },
                     { border: '#34d399', bg: 'rgba(52,211,153,0.12)', badgeBg: 'rgba(52,211,153,0.2)' },
@@ -2147,6 +2206,8 @@ export default function AndroidPosRegister({
                   return (
                     <div
                       key={outlet.id || idx}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => {
                         setSelectedLoginCategory(outlet);
                         setCurrentOutlet(outlet);
@@ -2164,9 +2225,11 @@ export default function AndroidPosRegister({
                         textAlign: 'center',
                         gap: '12px',
                         transition: 'all 0.2s ease',
-                        boxShadow: `0 8px 20px ${styleTheme.border}20`
+                        boxShadow: `0 8px 20px ${styleTheme.border}20`,
+                        touchAction: 'manipulation',
+                        userSelect: 'none'
                       }}
-                      className="hover:scale-[1.03]"
+                      className="hover:scale-[1.03] active:scale-[0.97]"
                     >
                       {/* OUTLET THUMBNAIL AVATAR */}
                       <div style={{
@@ -2180,12 +2243,13 @@ export default function AndroidPosRegister({
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: '1.8rem',
-                        flexShrink: 0
+                        flexShrink: 0,
+                        pointerEvents: 'none'
                       }}>
                         🏪
                       </div>
 
-                      <div>
+                      <div style={{ pointerEvents: 'none' }}>
                         <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
                           {outlet.name}
                         </h3>
@@ -2201,7 +2265,8 @@ export default function AndroidPosRegister({
                         background: styleTheme.badgeBg,
                         color: styleTheme.border,
                         fontWeight: '800',
-                        border: `1px solid ${styleTheme.border}40`
+                        border: `1px solid ${styleTheme.border}40`,
+                        pointerEvents: 'none'
                       }}>
                         🟢 Pilih User Outlet
                       </span>
@@ -2258,6 +2323,8 @@ export default function AndroidPosRegister({
                     return (
                       <div
                         key={u.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => {
                           setSelectedUserAccount(u);
                           setLoginUsernameInput(u.username || '');
@@ -2276,13 +2343,16 @@ export default function AndroidPosRegister({
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: '12px'
+                          gap: '12px',
+                          touchAction: 'manipulation',
+                          userSelect: 'none'
                         }}
+                        className="hover:scale-[1.03] active:scale-[0.97]"
                       >
-                        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: roleBgColor, border: `2px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.25rem' }}>
+                        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: roleBgColor, border: `2px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.25rem', pointerEvents: 'none' }}>
                           {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                         </div>
-                        <div>
+                        <div style={{ pointerEvents: 'none' }}>
                           <h4 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
                             {u.name}
                           </h4>
@@ -2298,12 +2368,13 @@ export default function AndroidPosRegister({
                           fontWeight: '900',
                           background: roleBgColor,
                           color: roleBadgeColor,
-                          border: `1px solid ${roleBadgeColor}`
+                          border: `1px solid ${roleBadgeColor}`,
+                          pointerEvents: 'none'
                         }}>
                           Peran: {u.role}
                         </span>
 
-                        <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: '800' }}>
+                        <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: '800', pointerEvents: 'none' }}>
                           🟢 Akun Aktif
                         </span>
                       </div>
