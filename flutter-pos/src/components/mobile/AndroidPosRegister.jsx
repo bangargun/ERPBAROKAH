@@ -1899,7 +1899,12 @@ export default function AndroidPosRegister({
       }
     });
     const registeredUsers = Array.from(usersMap.values());
-    const availableOutlets = masterData?.outlets && masterData.outlets.length > 0 ? masterData.outlets : defaultOutlets;
+    const fallbackOutlets = [
+      { id: 1, name: currentOutlet?.name || 'Restoran Utama (Pusat)', address: 'Pusat' }
+    ];
+    const availableOutlets = (masterData?.outlets && masterData.outlets.length > 0)
+      ? masterData.outlets
+      : fallbackOutlets;
 
     const handleDirectLogin = (userObj, outletObj) => {
       const selectedUser = userObj || registeredUsers[0] || fallbackDefaultUsers[0];
