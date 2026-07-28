@@ -92,3 +92,4 @@ mris_pos_kasir/.dart_tool/
 mris_pos_kasir/.idea/
 mris_pos_kasir/build/
 bin/
+*.apk
