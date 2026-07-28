@@ -544,39 +544,19 @@ app.all('/api/webhook/deploy', (req, res) => {
   });
 });
 
-// Sanitizer otomatis untuk membuang semua legacy fake data dari payload/storage
+// Sanitizer otomatis — menjamin data input pengguna 100% aman dan tidak terhapus
 const sanitizeMasterDataPayload = (data) => {
   if (!data || typeof data !== 'object') return data;
   const clean = { ...data };
-  
-  if (Array.isArray(clean.categories)) {
-    clean.categories = clean.categories.filter(c => !(typeof c.id === 'number' && c.id <= 10));
-  }
+
+  // Hanya bersihkan nama data fiktif legacy jika ada (JANGAN hapus ID numerik milik pengguna)
   if (Array.isArray(clean.outlets)) {
-    clean.outlets = clean.outlets.filter(o => ![1, 2, 3].includes(o.id) && !['RST-001', 'RST-002', 'RST-003'].includes(o.code));
+    clean.outlets = clean.outlets.filter(o => o && o.name !== 'Outlet Cabang 2' && o.code !== 'RST-DUMMY');
   }
   if (Array.isArray(clean.suppliers)) {
-    clean.suppliers = clean.suppliers.filter(s => ![1, 2, 3].includes(s.id));
+    clean.suppliers = clean.suppliers.filter(s => s && s.name !== 'PT Sembako Nusantara' && s.name !== 'UD Sayur Segar');
   }
-  if (Array.isArray(clean.sopDocuments)) {
-    clean.sopDocuments = clean.sopDocuments.filter(sop => sop.id !== 1);
-  }
-  if (Array.isArray(clean.pushedSopToMobile)) {
-    clean.pushedSopToMobile = clean.pushedSopToMobile.filter(sop => sop.id !== 1);
-  }
-  if (!Array.isArray(clean.webAdminAccounts) || clean.webAdminAccounts.length === 0) {
-    clean.webAdminAccounts = [
-      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '1234', role: 'Super Admin', status: 'Aktif' },
-      { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
-    ];
-  }
-  if (!Array.isArray(clean.mobileAccounts) || clean.mobileAccounts.length === 0) {
-    clean.mobileAccounts = [
-      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '1234', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '1234' },
-      { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
-    ];
-  }
-  
+
   return clean;
 };
 

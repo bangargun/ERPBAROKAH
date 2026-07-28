@@ -99,13 +99,12 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          const cleanCategories = (parsed.categories || []).filter(c => !(typeof c.id === 'number' && c.id <= 10));
           return {
             ...initialMasterData,
             ...parsed,
-            categories: cleanCategories,
-            webAdminAccounts: [],
-            mobileAccounts: [],
+            categories: parsed.categories || [],
+            webAdminAccounts: parsed.webAdminAccounts || [],
+            mobileAccounts: parsed.mobileAccounts || [],
             salesTransactions: parsed.salesTransactions || [],
             closedShifts: parsed.closedShifts || parsed.shift_closings || [],
             approvedFinanceDaily: parsed.approvedFinanceDaily || [],
