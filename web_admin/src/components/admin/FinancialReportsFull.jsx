@@ -112,7 +112,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
     }
   };
 
-  // Filtered All Shift Closing Reports (Real-time from POS Mobile & Web Admin)
+  // Filtered All Shift Closing Reports (Real-time from POS Mobile & Web Admin - ONLY APPROVED)
   const rawShiftReports = [
     ...(masterData.shiftClosings || []),
     ...(masterData.closedShifts || []),
@@ -120,7 +120,17 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   ];
   const approvedReportsMap = new Map();
   rawShiftReports.forEach(r => {
-    if (r && r.id != null) approvedReportsMap.set(String(r.id), r);
+    if (r && r.id != null) {
+      const isApproved = r.is_approved === true || 
+                         r.status === 'approved' || 
+                         r.status === 'Approved' || 
+                         r.status === 'disetujui' || 
+                         r.status === 'ACC' ||
+                         (masterData.approvedFinanceDaily && masterData.approvedFinanceDaily.some(a => String(a.id) === String(r.id)));
+      if (isApproved) {
+        approvedReportsMap.set(String(r.id), r);
+      }
+    }
   });
   const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
     isOutletMatch(f.outlet_id || f.branch_id) && 
