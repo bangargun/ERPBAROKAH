@@ -178,17 +178,7 @@ export default function App() {
     );
   }
 
-  // RENDER: Login page jika belum ada sesi
-  if (!userSession) {
-    return (
-      <LoginPage
-        onLoginSuccess={handleLoginSuccess}
-        masterData={masterData}
-      />
-    );
-  }
-
-  // RENDER: POS Mobile Kasir (satu-satunya view setelah login di APK)
+  // RENDER: POS Mobile Kasir (AndroidPosRegister mengelola Papan Login Akses Restoran, Sesi & Lock Screen)
   return (
     <AndroidPosRegister
       userSession={userSession}
