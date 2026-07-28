@@ -1309,6 +1309,274 @@ export default function AndroidPosRegister({
     }
   };
 
+  // DEDICATED SINGLE RECEIPT THERMAL PRINTING
+  const handlePrintSingleReceipt = (tx) => {
+    if (!tx) return;
+    const outletName = (currentOutlet?.name || 'MRIS POS RESTORAN').toUpperCase();
+
+    let printHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Struk Nota - ${tx.id || tx.receipt_no || ''}</title>
+        <style>
+          @page { size: 58mm auto; margin: 0; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 54mm;
+            margin: 0 auto;
+            padding: 4mm 2mm;
+            color: #000;
+            background: #fff;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .badge {
+            display: inline-block;
+            background: #000;
+            color: #fff;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 4px 0;
+          }
+          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
+          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
+          .row { display: flex; justify-content: space-between; }
+          .notes { font-size: 10px; font-style: italic; margin-left: 10px; color: #333; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center">
+          <div class="bold" style="font-size:14px;">${outletName}</div>
+          <div style="font-size:10px;">MRIS RESTAURANT POS SYSTEM</div>
+          <div class="badge">STRUK PEMBAYARAN LUNAS</div>
+        </div>
+        <div class="divider-dash"></div>
+        <div class="row"><span>No. Struk:</span><span class="bold">${tx.id || tx.receipt_no || '-'}</span></div>
+        <div class="row"><span>Waktu:</span><span>${tx.date || ''} ${tx.time || ''}</span></div>
+        <div class="row"><span>Tipe:</span><span>${tx.order_type || 'Dine In'}</span></div>
+        <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
+        <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
+        <div class="row"><span>Kasir:</span><span>${tx.cashier || userSession?.name || 'Kasir POS'}</span></div>
+        <div class="divider-dash"></div>
+        <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
+        <div class="divider-dash"></div>
+    `;
+
+    (tx.items || []).forEach(it => {
+      const itemLinePrice = (it.price || it.price_unit || 0) * (it.qty || 1);
+      printHTML += `
+        <div style="margin: 4px 0;">
+          <div class="row">
+            <span>${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}</span>
+            <span>${formatRupiah(itemLinePrice)}</span>
+          </div>
+          ${it.notes ? `<div class="notes">* ${it.notes}</div>` : ''}
+        </div>
+      `;
+    });
+
+    const amountVal = Number(tx.amount || 0);
+    const payVal = Number(tx.cash_paid || tx.amount || 0);
+    const changeVal = Math.max(0, payVal - amountVal);
+
+    printHTML += `
+        <div class="divider-double"></div>
+        <div class="row bold" style="font-size:13px;">
+          <span>TOTAL:</span>
+          <span>${formatRupiah(amountVal)}</span>
+        </div>
+        <div class="row"><span>Metode Bayar:</span><span>${tx.payment_method || 'Cash'}</span></div>
+        <div class="row"><span>Bayar Tunai:</span><span>${formatRupiah(payVal)}</span></div>
+        <div class="row"><span>Kembalian:</span><span>${formatRupiah(changeVal)}</span></div>
+        <div class="divider-dash"></div>
+        <div class="text-center bold" style="margin-top:8px; font-size:10px;">
+          *** TERIMA KASIH ATAS KUNJUNGAN ANDA ***<br/>
+          Selamat Menikmati Hidangan Kami
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWin = window.open('', '_blank', 'width=450,height=600');
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(printHTML);
+      printWin.document.close();
+    } else {
+      window.print();
+    }
+  };
+
+  // DEDICATED SHIFT CLOSING REPORT THERMAL PRINTING
+  const handlePrintShiftClosingReport = (shiftData) => {
+    if (!shiftData) return;
+    const outletName = (currentOutlet?.name || shiftData.branch_name || 'MRIS POS').toUpperCase();
+
+    let printHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Laporan Shift Closing - ${shiftData.id || shiftData.report_no || ''}</title>
+        <style>
+          @page { size: 58mm auto; margin: 0; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 54mm;
+            margin: 0 auto;
+            padding: 4mm 2mm;
+            color: #000;
+            background: #fff;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .badge {
+            display: inline-block;
+            background: #000;
+            color: #fff;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 4px 0;
+          }
+          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
+          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
+          .row { display: flex; justify-content: space-between; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center">
+          <div class="bold" style="font-size:14px;">${outletName}</div>
+          <div style="font-size:10px;">REKAP SHIFT CLOSING KASIR</div>
+          <div class="badge">REKAP KHUSUS KASIR</div>
+        </div>
+        <div class="divider-dash"></div>
+        <div class="row"><span>No. Laporan:</span><span class="bold">${shiftData.id || shiftData.report_no || '-'}</span></div>
+        <div class="row"><span>Tanggal:</span><span>${shiftData.date || ''}</span></div>
+        <div class="row"><span>Kasir:</span><span>${shiftData.user_name || shiftData.author_name || shiftData.cashier_name || 'Kasir'}</span></div>
+        <div class="divider-dash"></div>
+        <div class="row"><span>Modal Awal Kas:</span><span>${formatRupiah(shiftData.initial_cash || 0)}</span></div>
+        <div class="row"><span>Total Struk POS:</span><span>${shiftData.total_receipts || shiftData.tx_count || 0} Struk</span></div>
+        <div class="row bold"><span>Total Omset Bruto:</span><span>${formatRupiah(shiftData.gross_sales || shiftData.total_sales || 0)}</span></div>
+        <div class="row"><span>Penjualan Cash:</span><span>${formatRupiah(shiftData.cash_sales || 0)}</span></div>
+        <div class="row"><span>Penjualan Non-Cash:</span><span>${formatRupiah(shiftData.non_cash_sales || 0)}</span></div>
+        <div class="row"><span>Pengeluaran Kasir:</span><span>${formatRupiah(shiftData.total_expense || shiftData.petty_expense || 0)}</span></div>
+        <div class="divider-dash"></div>
+        <div class="row bold"><span>Kas Fisik di Laci:</span><span>${formatRupiah(shiftData.cash_physical || shiftData.physical_cash || 0)}</span></div>
+        <div class="row"><span>Selisih Kas:</span><span class="bold">${formatRupiah(shiftData.variance || 0)}</span></div>
+        <div class="divider-double"></div>
+        <div class="text-center bold" style="margin-top:8px; font-size:10px;">
+          *** HARAP DISIMPANKAN DI LACI / DOKUMEN KASIR ***
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWin = window.open('', '_blank', 'width=450,height=600');
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(printHTML);
+      printWin.document.close();
+    } else {
+      window.print();
+    }
+  };
+
+  // DEDICATED TEST PRINT RECEIPT FOR PRINTER SETTINGS
+  const handlePrintTestReceipt = () => {
+    const outletName = (currentOutlet?.name || 'MRIS POS RESTORAN').toUpperCase();
+
+    let printHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Test Print Thermal - ${printerSettings.printerName}</title>
+        <style>
+          @page { size: 58mm auto; margin: 0; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 54mm;
+            margin: 0 auto;
+            padding: 4mm 2mm;
+            color: #000;
+            background: #fff;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .badge {
+            display: inline-block;
+            background: #000;
+            color: #fff;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 4px;
+            margin: 4px 0;
+          }
+          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
+          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
+          .row { display: flex; justify-content: space-between; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center">
+          <div class="bold" style="font-size:14px;">=== TEST PRINT POS ===</div>
+          <div class="bold">${outletName}</div>
+          <div class="badge">PRINTER OK & CONNECTED</div>
+        </div>
+        <div class="divider-dash"></div>
+        <div class="row"><span>Printer:</span><span class="bold">${printerSettings.printerName}</span></div>
+        <div class="row"><span>Lebar Kertas:</span><span>${printerSettings.paperWidth || '58mm'}</span></div>
+        <div class="row"><span>Mode Cetak:</span><span>${printerSettings.printMode || 'sekaligus'}</span></div>
+        <div class="row"><span>Waktu Test:</span><span>${new Date().toLocaleString('id-ID')}</span></div>
+        <div class="divider-dash"></div>
+        <div class="text-center bold">1x SAMBAL PENYET (TEST) - Rp 15.000</div>
+        <div class="divider-double"></div>
+        <div class="text-center bold" style="font-size:10px;">
+          *** TEST PRINT SUCCESSFUL ***<br/>
+          Printer Siap Digunakan Transaksi Kasir
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    const printWin = window.open('', '_blank', 'width=450,height=600');
+    if (printWin) {
+      printWin.document.open();
+      printWin.document.write(printHTML);
+      printWin.document.close();
+    } else {
+      window.print();
+    }
+  };
+
   // CHECKOUT / OPEN OCCUPIED TABLE FROM BOARD
   const handleCheckoutOccupiedTable = (table) => {
     if (!table.pendingOrder) return;
@@ -6477,7 +6745,7 @@ export default function AndroidPosRegister({
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => window.print()} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', height: '42px', fontSize: '0.82rem' }}>
+                <button onClick={() => handlePrintSingleReceipt(lastCompletedTx)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', height: '42px', fontSize: '0.82rem' }}>
                   <Printer size={16} />
                   <span>Cetak Struk</span>
                 </button>
@@ -6518,7 +6786,7 @@ export default function AndroidPosRegister({
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setSelectedTxDetail(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Tutup</button>
-              <button onClick={() => window.print()} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+              <button onClick={() => handlePrintSingleReceipt(selectedTxDetail)} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
                 <Printer size={16} />
                 <span>Cetak Ulang</span>
               </button>
@@ -8439,7 +8707,13 @@ export default function AndroidPosRegister({
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => {
+                  if (ticketPreviewData?.selections) {
+                    handleExecuteBatchPrint(ticketPreviewData.tx || ticketPreviewData, ticketPreviewData.selections);
+                  } else {
+                    handlePrintSingleReceipt(ticketPreviewData?.tx || ticketPreviewData);
+                  }
+                }}
                 style={{ flex: 1, padding: '10px', background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
                 <Printer size={16} />
@@ -9139,9 +9413,7 @@ export default function AndroidPosRegister({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  alert(`Mencetak Laporan Shift untuk Kasir ${selectedShiftDetailModal.user_name}...\nTotal Struk: ${selectedShiftDetailModal.total_receipts}\nTotal Omset: Rp ${formatRupiah(selectedShiftDetailModal.total_sales)}`);
-                }}
+                onClick={() => handlePrintShiftClosingReport(selectedShiftDetailModal)}
                 style={{ flex: 1, padding: '12px', background: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
                 <Printer size={16} />
@@ -11801,6 +12073,10 @@ export default function AndroidPosRegister({
             </div>
 
             <div style={{ borderTop: '1px solid #334155', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => handlePrintTestReceipt()} style={{ padding: '10px 20px', background: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Printer size={16} />
+                <span>🖨️ Cetak Fisik Thermal</span>
+              </button>
               <button onClick={() => setShowTestPrintModal(false)} style={{ padding: '10px 20px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
                 Tutup Uji Coba
               </button>
