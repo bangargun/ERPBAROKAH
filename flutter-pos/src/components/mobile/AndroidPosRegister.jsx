@@ -2215,140 +2215,236 @@ export default function AndroidPosRegister({
           )}
 
           {/* =================================================================== */}
-          {/* STEP 4: INPUT USERNAME & PASSWORD HAK USER                           */}
+          {/* STEP 4: INPUT PASSWORD HAK USER DENGAN KEYPAD KALKULATOR ELEGAN      */}
           {/* =================================================================== */}
           {(loginStep === 3 || loginStep === 4) && selectedUserAccount && (
-            <div style={{ maxWidth: '460px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setLoginStep(2)}
-                  style={{ padding: '8px 16px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span>⬅️ Pilih User Lain</span>
-                </button>
+            <div style={{ maxWidth: '420px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+              {/* UCAPAN MOTIVASI & PENGINGAT ISLAMI SAAT INPUT PASSWORD */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.3) 100%)',
+                border: '1.5px solid rgba(52, 211, 153, 0.5)',
+                borderRadius: '16px',
+                padding: '12px 16px',
+                textAlign: 'center',
+                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.2)'
+              }}>
+                <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <span>✨ Pengawasan Alloh</span>
+                </div>
+                <p style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ffffff', margin: '4px 0 0 0', lineHeight: 1.3, fontStyle: 'italic' }}>
+                  "bismillah, aku bekerja atas pengawasan Alloh"
+                </p>
               </div>
 
-              {/* CARD PREVIEW AKUN PENGGUNA */}
-              <div style={{ background: '#1f2937', padding: '24px', borderRadius: '20px', border: '1px solid #374151', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'rgba(37,99,235,0.2)', border: '2px solid #38bdf8', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.5rem' }}>
+              {/* CARD PREVIEW AKUN PENGGUNA TERPILIH */}
+              <div style={{ background: '#1f2937', padding: '16px 20px', borderRadius: '18px', border: '1px solid #374151', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(37,99,235,0.2)', border: '2px solid #38bdf8', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.3rem', flexShrink: 0 }}>
                   {selectedUserAccount.name ? selectedUserAccount.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
                     {selectedUserAccount.name}
                   </h3>
-                  <div style={{ fontSize: '0.80rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Peran: <strong style={{ color: '#38bdf8' }}>{selectedUserAccount.role}</strong> • {selectedUserAccount.outlet || 'Central Outlet'}
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                    Peran: <strong style={{ color: '#38bdf8' }}>{selectedUserAccount.role}</strong> • @{selectedUserAccount.username || 'user'}
                   </div>
                 </div>
               </div>
 
               {loginErrorText && (
-                <div style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#fca5a5', padding: '12px 16px', borderRadius: '14px', fontSize: '0.84rem', fontWeight: '800', textAlign: 'center' }}>
+                <div style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#fca5a5', padding: '10px 14px', borderRadius: '12px', fontSize: '0.82rem', fontWeight: '800', textAlign: 'center' }}>
                   {loginErrorText}
                 </div>
               )}
 
-              {/* FORM INPUT USERNAME & PASSWORD */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
+              {/* PASSWORD DISPLAY BOX */}
+              <div style={{ background: '#090d16', border: '2px solid #374151', borderRadius: '16px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '800' }}>
+                  Password PIN:
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', letterSpacing: '4px', color: '#38bdf8', fontFamily: 'monospace' }}>
+                  {loginPasswordInput ? (showLoginPasswordEye ? loginPasswordInput : '•'.repeat(loginPasswordInput.length)) : <span style={{ color: '#475569', fontSize: '0.9rem', letterSpacing: 'normal' }}>Masukkan PIN...</span>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                >
+                  {showLoginPasswordEye ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
 
-                  if (selectedUserAccount.canLoginMobile === false) {
-                    setLoginErrorText(`⚠️ Akses Ditolak! Akun user (${selectedUserAccount.name}) tidak memiliki Hak Akses Login Mobile APK. Hubungi Admin Web.`);
-                    return;
-                  }
-
-                  const validMobilePassword = selectedUserAccount.mobileLoginPassword || selectedUserAccount.password || '123';
-
-                  if (
-                    loginUsernameInput.trim().toLowerCase() === (selectedUserAccount.username || '').toLowerCase() &&
-                    (loginPasswordInput === validMobilePassword || loginPasswordInput === selectedUserAccount.password || loginPasswordInput === '1234' || loginPasswordInput === '888' || loginPasswordInput === '999')
-                  ) {
-                    setCurrentUserSession({
-                      id: selectedUserAccount.id,
-                      name: selectedUserAccount.name,
-                      role: selectedUserAccount.role,
-                      outlet: selectedUserAccount.outlet || 'Kopi MRIS - Cabang Jakarta Pusat',
-                      username: selectedUserAccount.username,
-                      canAccessMobileReports: selectedUserAccount.canAccessMobileReports !== false,
-                      mobileReportPassword: selectedUserAccount.mobileReportPassword || '8888'
-                    });
-                    if (selectedUserAccount.outlet && selectedUserAccount.outlet !== 'Semua Outlet (Central)') {
-                      const matchedOutlet = (masterData?.outlets || defaultOutlets).find(o => o.name === selectedUserAccount.outlet);
-                      if (matchedOutlet) setCurrentOutlet(matchedOutlet);
-                    }
-                    setIsAppLoggedIn(true);
-                  } else {
-                    setLoginErrorText('⚠️ Username atau Password Salah! Silakan cek kembali data Hak User.');
-                  }
-                }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
-              >
-                <div>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
-                    Username Akses:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={loginUsernameInput}
-                    onChange={e => {
-                      setLoginUsernameInput(e.target.value);
+              {/* KALKULATOR NUMBER KEYPAD GRID (3x4) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => {
+                      setLoginPasswordInput(prev => prev + num);
                       setLoginErrorText('');
                     }}
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: '12px', border: '1px solid #374151', background: '#090d16', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.95rem', fontWeight: '700' }}
-                  />
-                </div>
+                    style={{
+                      background: '#1f2937',
+                      border: '1px solid #374151',
+                      borderRadius: '14px',
+                      padding: '16px',
+                      fontSize: '1.3rem',
+                      fontWeight: '900',
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                      transition: 'all 0.1s ease'
+                    }}
+                    className="hover:scale-[1.03] active:scale-[0.97]"
+                  >
+                    {num}
+                  </button>
+                ))}
 
-                <div>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
-                    Password Hak User:
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showLoginPasswordEye ? 'text' : 'password'}
-                      required
-                      placeholder="Masukkan Password..."
-                      value={loginPasswordInput}
-                      onChange={e => {
-                        setLoginPasswordInput(e.target.value);
-                        setLoginErrorText('');
-                      }}
-                      style={{ width: '100%', padding: '12px 42px 12px 14px', borderRadius: '12px', border: '1px solid #374151', background: '#090d16', color: '#ffffff', fontSize: '0.95rem' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                    >
-                      {showLoginPasswordEye ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
+                {/* ROW 4: CLEAR / BACKSPACE, 0, RESET */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginPasswordInput(prev => prev.slice(0, -1));
+                    setLoginErrorText('');
+                  }}
+                  style={{
+                    background: 'rgba(239,68,68,0.15)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: '14px',
+                    padding: '16px',
+                    fontSize: '1.05rem',
+                    fontWeight: '900',
+                    color: '#fca5a5',
+                    cursor: 'pointer'
+                  }}
+                  title="Hapus Satu Angka"
+                >
+                  ⌫ Hapus
+                </button>
 
                 <button
-                  type="submit"
-                  className="btn-primary"
+                  type="button"
+                  onClick={() => {
+                    setLoginPasswordInput(prev => prev + '0');
+                    setLoginErrorText('');
+                  }}
                   style={{
-                    width: '100%',
-                    padding: '14px',
-                    borderRadius: '12px',
-                    fontSize: '0.95rem',
+                    background: '#1f2937',
+                    border: '1px solid #374151',
+                    borderRadius: '14px',
+                    padding: '16px',
+                    fontSize: '1.3rem',
                     fontWeight: '900',
+                    color: '#ffffff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  0
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setLoginPasswordInput('')}
+                  style={{
+                    background: 'rgba(245,158,11,0.15)',
+                    border: '1px solid rgba(245,158,11,0.3)',
+                    borderRadius: '14px',
+                    padding: '16px',
+                    fontSize: '0.85rem',
+                    fontWeight: '900',
+                    color: '#fbbf24',
+                    cursor: 'pointer'
+                  }}
+                  title="Kosongkan Semua PIN"
+                >
+                  C Reset
+                </button>
+              </div>
+
+              {/* ACTION BUTTONS: CANCEL & OK */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginPasswordInput('');
+                    setLoginErrorText('');
+                    setLoginStep(2);
+                  }}
+                  style={{
+                    padding: '14px',
+                    background: '#1f2937',
+                    border: '1px solid #374151',
+                    color: '#94a3b8',
+                    borderRadius: '14px',
+                    fontWeight: '900',
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
-                    marginTop: '8px'
+                    gap: '6px'
+                  }}
+                >
+                  <span>❌ Batal / Cancel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedUserAccount.canLoginMobile === false) {
+                      setLoginErrorText(`⚠️ Akses Ditolak! User ${selectedUserAccount.name} tidak memiliki Hak Akses Login Mobile.`);
+                      return;
+                    }
+                    const validMobilePassword = selectedUserAccount.mobileLoginPassword || selectedUserAccount.password || '123';
+                    if (
+                      loginPasswordInput === validMobilePassword ||
+                      loginPasswordInput === selectedUserAccount.password ||
+                      loginPasswordInput === '1234' ||
+                      loginPasswordInput === '888' ||
+                      loginPasswordInput === '999'
+                    ) {
+                      setCurrentUserSession({
+                        id: selectedUserAccount.id,
+                        name: selectedUserAccount.name,
+                        role: selectedUserAccount.role,
+                        outlet: selectedUserAccount.outlet || 'Kopi MRIS - Cabang Jakarta Pusat',
+                        username: selectedUserAccount.username,
+                        canAccessMobileReports: selectedUserAccount.canAccessMobileReports !== false,
+                        mobileReportPassword: selectedUserAccount.mobileReportPassword || '8888'
+                      });
+                      if (selectedUserAccount.outlet && selectedUserAccount.outlet !== 'Semua Outlet (Central)') {
+                        const matchedOutlet = (masterData?.outlets || defaultOutlets).find(o => o.name === selectedUserAccount.outlet);
+                        if (matchedOutlet) setCurrentOutlet(matchedOutlet);
+                      }
+                      setIsAppLoggedIn(true);
+                    } else {
+                      setLoginErrorText('⚠️ Password PIN Salah! Silakan periksa kembali.');
+                    }
+                  }}
+                  style={{
+                    padding: '14px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    border: 'none',
+                    color: '#ffffff',
+                    borderRadius: '14px',
+                    fontWeight: '900',
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 14px rgba(16,185,129,0.4)'
                   }}
                 >
                   <ShieldCheck size={20} />
-                  <span>🚀 Otentikasi &amp; Masuk Ke POS Mobile</span>
+                  <span>✅ OK / Masuk</span>
                 </button>
-              </form>
+              </div>
+
             </div>
           )}
         </div>
@@ -2386,8 +2482,22 @@ export default function AndroidPosRegister({
       }}>
         {/* Top Logo / Outlet Badge */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.95rem', color: '#ffffff', boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
-            POS
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+            border: '2px solid #60a5fa',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: '900',
+            fontSize: '0.90rem',
+            color: '#ffffff',
+            letterSpacing: '1px',
+            boxShadow: '0 0 16px rgba(56,189,248,0.5), inset 0 0 10px rgba(255,255,255,0.3)'
+          }}>
+            MRIS
           </div>
           <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#60a5fa', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             {currentOutlet.name}
