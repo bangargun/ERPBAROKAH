@@ -100,7 +100,7 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 ## 🔢 VERSIONING
 
 - Format versi: `vX.X.Y` — increment `Y` setiap perbaikan kecil, `X.Y` setiap fitur baru
-- Versi saat ini: **v2.0.42**
+- Versi saat ini: **v2.0.46**
 - Nama file APK: `MRIS_vX.X.Y_Build_YYYYMMDD_HHMM.apk`
 - Commit message format: `Jenis: deskripsi singkat (vX.X.Y)`
 
@@ -139,3 +139,4 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 7. **Deploy Live Server Otomatis (Selektif)**: AI HANYA memicu update live server VPS (`mris-admin.barokahgroupindonesia.tech`) jika terdapat perubahan pada file **Web Admin (`web_admin/`)** atau **Backend Server (`server.js`, `pos-backend/`)**. Jika perubahan hanya terjadi pada Mobile APK (`flutter-pos/`), JANGAN memicu webhook VPS untuk menghemat bandwidth server:
    `curl -s "https://mris-admin.barokahgroupindonesia.tech/api/webhook/deploy?secret=mris_deploy_secret_2026"`
    (Command yang berjalan di VPS: `cd /var/www/MRIS_TECH && git fetch origin && git reset --hard origin/main && cd web_admin && npm run build && cp -r dist/* ../dist/ && pm2 restart mris-app-tech`).
+8. **Perlindungan Data Input User**: Data real/nyata yang di-input oleh user di database, Web Admin, maupun Mobile POS (misal: transaksi, produk, outlet, akun, laporan, master data) **DILARANG KERAS DIHAPUS, DI-RESET, ATAU DI-OVERWRITE DENGAN KOSONG** oleh AI. AI hanya boleh menghapus/cleansing data fake/mock/dummy hardcoded sebagaimana diatur dalam GEMINI.md. Penghapusan data real hanya dilakukan melalui aksi hapus manual dari user di UI/sistem.
