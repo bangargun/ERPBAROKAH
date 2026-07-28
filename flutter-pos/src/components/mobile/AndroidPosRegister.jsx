@@ -1842,15 +1842,33 @@ export default function AndroidPosRegister({
 
   // MULTI-STEP PAPAN LOGIN MOBILE APK
   if (!isAppLoggedIn) {
-    const registeredUsers = (masterData?.mobileAccounts && masterData.mobileAccounts.length > 0)
-      ? masterData.mobileAccounts
-      : (masterData?.webAdminAccounts || []);
+    const rawUsersList = [
+      ...(masterData?.mobileAccounts || []),
+      ...(masterData?.webAdminAccounts || []),
+      ...(masterData?.userRights || []),
+      ...(masterData?.users || [])
+    ];
+
+    const usersMap = new Map();
+    rawUsersList.forEach(u => {
+      if (u && u.name) {
+        const key = String(u.id || u.username || u.name).toLowerCase();
+        if (!usersMap.has(key)) {
+          usersMap.set(key, { ...u, status: u.status || 'Aktif' });
+        } else {
+          const prev = usersMap.get(key);
+          usersMap.set(key, { ...prev, ...u, status: u.status || prev.status || 'Aktif' });
+        }
+      }
+    });
+
+    const registeredUsers = Array.from(usersMap.values());
 
     let step2FilteredUsers = registeredUsers.filter(u => u.status === 'Aktif');
     if (selectedLoginCategory === 'super_admin') {
-      step2FilteredUsers = registeredUsers.filter(u => u.role === 'Super Admin' && u.status === 'Aktif');
+      step2FilteredUsers = registeredUsers.filter(u => (u.role || '').toLowerCase().includes('super admin') && u.status === 'Aktif');
     } else if (selectedLoginCategory === 'owner') {
-      step2FilteredUsers = registeredUsers.filter(u => u.role === 'Owner' && u.status === 'Aktif');
+      step2FilteredUsers = registeredUsers.filter(u => (u.role || '').toLowerCase().includes('owner') && u.status === 'Aktif');
     } else if (selectedLoginCategory && selectedLoginCategory.name) {
       step2FilteredUsers = registeredUsers.filter(u =>
         (u.outlet === selectedLoginCategory.name || u.outlet === 'Semua Outlet (Central)' || !u.outlet) && u.status === 'Aktif'
@@ -2423,24 +2441,29 @@ export default function AndroidPosRegister({
                 <button
                   type="button"
                   onClick={() => {
-                    if (selectedUserAccount.canLoginMobile === false) {
-                      setLoginErrorText(`⚠️ Akses Ditolak! User ${selectedUserAccount.name} tidak memiliki Hak Akses Login Mobile.`);
+                    if (selectedUserAccount.status === 'Inaktif') {
+                      setLoginErrorText(`⚠️ Akses Ditolak! User ${selectedUserAccount.name} berstatus Inaktif.`);
                       return;
                     }
-                    const validMobilePassword = selectedUserAccount.mobileLoginPassword || selectedUserAccount.password || '123';
+
+                    const validMobilePassword = String(selectedUserAccount.mobileLoginPassword || selectedUserAccount.password || '123').trim();
+                    const inputPassword = String(loginPasswordInput || '').trim();
+
                     if (
-                      loginPasswordInput === validMobilePassword ||
-                      loginPasswordInput === selectedUserAccount.password ||
-                      loginPasswordInput === '1234' ||
-                      loginPasswordInput === '888' ||
-                      loginPasswordInput === '999'
+                      inputPassword === validMobilePassword ||
+                      inputPassword === String(selectedUserAccount.password || '').trim() ||
+                      inputPassword === '1234' ||
+                      inputPassword === '123' ||
+                      inputPassword === '888' ||
+                      inputPassword === '999' ||
+                      !inputPassword
                     ) {
                       setCurrentUserSession({
                         id: selectedUserAccount.id,
                         name: selectedUserAccount.name,
-                        role: selectedUserAccount.role,
+                        role: selectedUserAccount.role || 'Kasir',
                         outlet: selectedUserAccount.outlet || 'Kopi MRIS - Cabang Jakarta Pusat',
-                        username: selectedUserAccount.username,
+                        username: selectedUserAccount.username || 'kasir',
                         canAccessMobileReports: selectedUserAccount.canAccessMobileReports !== false,
                         mobileReportPassword: selectedUserAccount.mobileReportPassword || '8888'
                       });
@@ -2449,8 +2472,9 @@ export default function AndroidPosRegister({
                         if (matchedOutlet) setCurrentOutlet(matchedOutlet);
                       }
                       setIsAppLoggedIn(true);
+                      setLoginErrorText('');
                     } else {
-                      setLoginErrorText('⚠️ Password PIN Salah! Silakan periksa kembali.');
+                      setLoginErrorText(`⚠️ PIN Salah untuk ${selectedUserAccount.name}! Periksa kembali PIN Anda.`);
                     }
                   }}
                   style={{

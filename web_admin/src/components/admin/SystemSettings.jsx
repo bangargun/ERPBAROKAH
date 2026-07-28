@@ -29,11 +29,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
   const [showModalMobileLoginPasswordEye, setShowModalMobileLoginPasswordEye] = useState(false);
   const [showModalMobileReportPasswordEye, setShowModalMobileReportPasswordEye] = useState(false);
 
-  // USER RIGHTS SEARCH & FILTER STATES
+  // USER RIGHTS SEARCH, FILTER & PREVIEW STATES
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userFilterOutlet, setUserFilterOutlet] = useState('Semua Outlet');
   const [userFilterRole, setUserFilterRole] = useState('Semua Peran');
   const [userFilterStatus, setUserFilterStatus] = useState('Semua Status');
+  const [previewUserAccount, setPreviewUserAccount] = useState(null);
 
   // PRINT & STRUK THERMAL EDITABLE STATES
   const [customHeaderLine1, setCustomHeaderLine1] = useState(masterData?.printSettings?.headerLine1 || '');
@@ -1555,7 +1556,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                   🟢 Filter Status Akun:
                 </label>
-                <select
+<select
                   value={userFilterStatus}
                   onChange={e => { setUserFilterStatus(e.target.value); setCurrentPage(1); }}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid #475569', color: '#ffffff', fontSize: '0.80rem', fontWeight: '700' }}
@@ -1580,38 +1581,16 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     Akses Dashboard, Data Master, Akuntansi & Laporan Web
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleOpenAddUserModal}
-                  style={{
-                    padding: '5px 12px',
-                    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '800',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <Plus size={14} />
-                  <span>+ Tambah User Web Admin</span>
-                </button>
               </div>
 
               <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
-                <table style={{ width: '100%', minWidth: '780px', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
+                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
                   <thead>
                     <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                      <th style={{ padding: '8px 4px', width: '22%' }}>Nama Pengguna</th>
-                      <th style={{ padding: '8px 4px', width: '20%' }}>Outlet Cabang</th>
-                      <th style={{ padding: '8px 4px', width: '24%' }}>Username &amp; Password Web</th>
-                      <th style={{ padding: '8px 4px', width: '16%' }}>Peran Web (Role)</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Status</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Aksi</th>
+                      <th style={{ padding: '8px 8px', width: '40%' }}>Nama Pengguna (Klik Detail)</th>
+                      <th style={{ padding: '8px 8px', width: '35%' }}>Outlet Cabang</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Status</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '13%' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1631,7 +1610,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       if (filteredWebList.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                            <td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
                               🔍 Tidak ada akun Web Admin yang sesuai dengan filter pencarian.
                             </td>
                           </tr>
@@ -1639,8 +1618,6 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       }
 
                       return filteredWebList.map(u => {
-                        const isVisible = showAllPasswords || !!showPasswordVisibility[u.id];
-
                         let roleBadgeColor = '#818cf8';
                         let roleBgColor = 'rgba(99,102,241,0.15)';
                         if (u.role === 'Super Admin') { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
@@ -1650,52 +1627,29 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
                         return (
                           <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                            <td style={{ padding: '8px 4px', fontWeight: '800', color: '#f8fafc' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <td style={{ padding: '8px 8px', fontWeight: '800', color: '#f8fafc' }}>
+                              <div
+                                onClick={() => setPreviewUserAccount(u)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(56,189,248,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.2)', transition: 'all 0.15s ease' }}
+                                className="hover:border-sky-400 hover:bg-sky-950/40"
+                                title="Klik untuk Pratinjau Detail Akses User Ini"
+                              >
                                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
                                   {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                                 </div>
-                                <span style={{ fontSize: '0.74rem' }}>{u.name}</span>
-                              </div>
-                            </td>
-                            <td style={{ padding: '8px 4px', color: '#cbd5e1', fontSize: '0.72rem' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <Building2 size={11} color="#94a3b8" />
-                                <span>{u.outlet || 'Semua Outlet (Central)'}</span>
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 4px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ fontFamily: 'monospace', fontWeight: '800', color: '#38bdf8', fontSize: '0.74rem' }}>@{u.username}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: isVisible ? '#34d399' : '#94a3b8', fontWeight: isVisible ? '800' : 'normal' }}>
-                                    {isVisible ? u.password : '••••••••'}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => togglePasswordVisibility(u.id)}
-                                    style={{ background: 'none', border: 'none', color: isVisible ? '#34d399' : '#94a3b8', cursor: 'pointer', padding: '1px' }}
-                                    title={isVisible ? 'Sembunyikan Password' : 'Tampilkan Password'}
-                                  >
-                                    {isVisible ? <EyeOff size={13} /> : <Eye size={13} />}
-                                  </button>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '900' }}>{u.name}</span>
+                                  <span style={{ fontSize: '0.66rem', color: '#38bdf8', fontWeight: '700' }}>🔍 Klik Preview Detail</span>
                                 </div>
                               </div>
                             </td>
-                            <td style={{ padding: '8px 4px' }}>
-                              <span style={{
-                                padding: '2px 7px',
-                                borderRadius: '6px',
-                                fontSize: '0.70rem',
-                                fontWeight: '900',
-                                background: roleBgColor,
-                                color: roleBadgeColor,
-                                border: `1px solid ${roleBadgeColor}`
-                              }}>
-                                {u.role}
+                            <td style={{ padding: '8px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <Building2 size={12} color="#94a3b8" />
+                                <span>{u.outlet || 'Semua Outlet (Central)'}</span>
                               </span>
                             </td>
-                            <td style={{ padding: '8px 2px', textAlign: 'center' }}>
+                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
                               <button
                                 type="button"
                                 onClick={() => handleToggleUserStatus(u.id)}
@@ -1714,7 +1668,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                                 {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
                               </button>
                             </td>
-                            <td style={{ padding: '8px 2px', textAlign: 'center' }}>
+                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                                 <button
                                   type="button"
@@ -1782,39 +1736,17 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     Akses Transaksi Kasir, Void, Diskon, Shift & Laporan Mobile
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleOpenAddMobileModal}
-                  style={{
-                    padding: '5px 12px',
-                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: '800',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <Plus size={14} />
-                  <span>+ Tambah User Mobile Kasir</span>
-                </button>
               </div>
 
               <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
-                <table style={{ width: '100%', minWidth: '780px', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
+                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
                   <thead>
                     <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                      <th style={{ padding: '8px 4px', width: '18%' }}>Nama Pengguna</th>
-                      <th style={{ padding: '8px 4px', width: '16%' }}>Outlet Cabang</th>
-                      <th style={{ padding: '8px 4px', width: '18%' }}>Akses Login Mobile APK</th>
-                      <th style={{ padding: '8px 4px', width: '20%' }}>Password Laporan Mobile</th>
-                      <th style={{ padding: '8px 4px', width: '14%' }}>Peran Mobile (Role)</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '5%' }}>Status</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Aksi</th>
+                      <th style={{ padding: '8px 8px', width: '38%' }}>Nama Pengguna (Klik Detail)</th>
+                      <th style={{ padding: '8px 8px', width: '30%' }}>Outlet Cabang</th>
+                      <th style={{ padding: '8px 8px', width: '17%' }}>Peran Mobile (Role)</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '8%' }}>Status</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1833,7 +1765,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       if (filteredMobileList.length === 0) {
                         return (
                           <tr>
-                            <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                            <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
                               🔍 Tidak ada otentikasi akun Mobile APK yang sesuai dengan filter pencarian.
                             </td>
                           </tr>
@@ -1841,8 +1773,6 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       }
 
                       return filteredMobileList.map(u => {
-                        const isVisible = showAllPasswords || !!showPasswordVisibility[u.id];
-
                         let roleBadgeColor = '#34d399';
                         let roleBgColor = 'rgba(52,211,153,0.15)';
                         if (u.role === 'Super Admin') { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
@@ -1852,63 +1782,29 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
                         return (
                           <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                            <td style={{ padding: '8px 4px', fontWeight: '800', color: '#f8fafc' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <td style={{ padding: '8px 8px', fontWeight: '800', color: '#f8fafc' }}>
+                              <div
+                                onClick={() => setPreviewUserAccount(u)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(52,211,153,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(52,211,153,0.2)', transition: 'all 0.15s ease' }}
+                                className="hover:border-emerald-400 hover:bg-emerald-950/40"
+                                title="Klik untuk Pratinjau Detail Otentikasi User Ini"
+                              >
                                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
                                   {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                                 </div>
-                                <span style={{ fontSize: '0.74rem' }}>{u.name}</span>
-                              </div>
-                            </td>
-                            <td style={{ padding: '8px 4px', color: '#cbd5e1', fontSize: '0.72rem' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <Building2 size={11} color="#94a3b8" />
-                                <span>{u.outlet || 'Semua Outlet (Central)'}</span>
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 4px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ fontSize: '0.72rem', fontWeight: '800', color: u.canLoginMobile !== false ? '#34d399' : '#fb7185' }}>
-                                  {u.canLoginMobile !== false ? '📱 ✅ Boleh Login' : '📱 ❌ Ditolak Login'}
-                                </span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: isVisible ? '#38bdf8' : '#94a3b8', fontWeight: isVisible ? '800' : 'normal' }}>
-                                    Pass: {isVisible ? (u.mobileLoginPassword || u.password || '123') : '••••'}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => togglePasswordVisibility(u.id)}
-                                    style={{ background: 'none', border: 'none', color: isVisible ? '#38bdf8' : '#94a3b8', cursor: 'pointer', padding: '1px' }}
-                                    title={isVisible ? 'Sembunyikan Password' : 'Tampilkan Password'}
-                                  >
-                                    {isVisible ? <EyeOff size={12} /> : <Eye size={12} />}
-                                  </button>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '900' }}>{u.name}</span>
+                                  <span style={{ fontSize: '0.66rem', color: '#34d399', fontWeight: '700' }}>🔍 Klik Preview Detail</span>
                                 </div>
                               </div>
                             </td>
-                            <td style={{ padding: '8px 4px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ fontSize: '0.72rem', fontWeight: '800', color: u.canAccessMobileReports !== false ? '#38bdf8' : '#fb7185' }}>
-                                  {u.canAccessMobileReports !== false ? '🔒 ✅ Boleh Laporan' : '🔒 ❌ Dibatasi Access'}
-                                </span>
-                                {u.canAccessMobileReports !== false && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', fontWeight: '900', color: isVisible ? '#facc15' : '#94a3b8' }}>
-                                      Pass: {isVisible ? (u.mobileReportPassword || '8888') : '••••'}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => togglePasswordVisibility(u.id)}
-                                      style={{ background: 'none', border: 'none', color: isVisible ? '#facc15' : '#94a3b8', cursor: 'pointer', padding: '1px' }}
-                                      title={isVisible ? 'Sembunyikan Password' : 'Tampilkan Password'}
-                                    >
-                                      {isVisible ? <EyeOff size={12} /> : <Eye size={12} />}
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                            <td style={{ padding: '8px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                <Building2 size={12} color="#94a3b8" />
+                                <span>{u.outlet || 'Semua Outlet (Central)'}</span>
+                              </span>
                             </td>
-                            <td style={{ padding: '8px 4px' }}>
+                            <td style={{ padding: '8px 8px' }}>
                               <span style={{
                                 padding: '2px 7px',
                                 borderRadius: '6px',
@@ -1921,7 +1817,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                                 {u.role}
                               </span>
                             </td>
-                            <td style={{ padding: '8px 2px', textAlign: 'center' }}>
+                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
                               <button
                                 type="button"
                                 onClick={() => handleToggleMobileStatus(u.id)}
@@ -1940,7 +1836,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                                 {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
                               </button>
                             </td>
-                            <td style={{ padding: '8px 2px', textAlign: 'center' }}>
+                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                                 <button
                                   type="button"
@@ -1958,7 +1854,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                                     alignItems: 'center',
                                     gap: '3px'
                                   }}
-                                  title="Edit Akses Mobile User Ini"
+                                  title="Edit Otentikasi User Ini"
                                 >
                                   <Edit3 size={12} />
                                   <span>Edit</span>
@@ -1979,7 +1875,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                                     alignItems: 'center',
                                     gap: '3px'
                                   }}
-                                  title="Hapus Akses Mobile User Ini"
+                                  title="Hapus Otentikasi User Ini"
                                 >
                                   <Trash2 size={12} />
                                   <span>Hapus</span>
@@ -2360,6 +2256,151 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* MODAL PREVIEW DETAIL AKUN PENGGUNA (TAMPIL SAAT NAMA DIKLIK)             */}
+      {/* ========================================================================= */}
+      {previewUserAccount && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px', background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
+            
+            {/* HEADER */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'rgba(56,189,248,0.2)', border: '2px solid #38bdf8', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.2rem' }}>
+                  {previewUserAccount.name ? previewUserAccount.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                    {previewUserAccount.name}
+                  </h3>
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    📍 {previewUserAccount.outlet || 'Semua Outlet (Central)'}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setPreviewUserAccount(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#ffffff', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* DETAIL CONTENT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.82rem' }}>
+              
+              {/* STATUS AKUN */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155' }}>
+                <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Status Operasional:</span>
+                <span style={{ fontWeight: '900', color: previewUserAccount.status === 'Aktif' ? '#34d399' : '#fb7185' }}>
+                  {previewUserAccount.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
+                </span>
+              </div>
+
+              {/* SECTION 1: WEB ADMIN ACCESS */}
+              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontWeight: '900', color: '#38bdf8', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  💻 Detail Akun Web Based Admin
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Username Web:</span>
+                  <span style={{ fontWeight: '800', color: '#ffffff', fontFamily: 'monospace' }}>@{previewUserAccount.username || '-'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Password Web:</span>
+                  <span style={{ fontWeight: '800', color: '#34d399', fontFamily: 'monospace' }}>{previewUserAccount.password || '••••'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Peran Web (Role):</span>
+                  <span style={{ fontWeight: '900', color: '#38bdf8' }}>{previewUserAccount.role || 'Kasir'}</span>
+                </div>
+              </div>
+
+              {/* SECTION 2: MOBILE APK ACCESS */}
+              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(52,211,153,0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📱 Detail Otentikasi POS Mobile APK (Tablet)
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Akses Login Mobile:</span>
+                  <span style={{ fontWeight: '800', color: previewUserAccount.canLoginMobile !== false ? '#34d399' : '#fb7185' }}>
+                    {previewUserAccount.canLoginMobile !== false ? '📱 ✅ Diberikan' : '📱 ❌ Dibatasi'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Password PIN Mobile:</span>
+                  <span style={{ fontWeight: '800', color: '#38bdf8', fontFamily: 'monospace' }}>
+                    {previewUserAccount.mobileLoginPassword || previewUserAccount.password || '123'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Akses Laporan Mobile:</span>
+                  <span style={{ fontWeight: '800', color: previewUserAccount.canAccessMobileReports !== false ? '#34d399' : '#fb7185' }}>
+                    {previewUserAccount.canAccessMobileReports !== false ? '🔒 ✅ Diberikan' : '🔒 ❌ Dibatasi'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Password Laporan Mobile:</span>
+                  <span style={{ fontWeight: '800', color: '#facc15', fontFamily: 'monospace' }}>
+                    {previewUserAccount.mobileReportPassword || '8888'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#94a3b8' }}>Peran Mobile:</span>
+                  <span style={{ fontWeight: '900', color: '#a78bfa' }}>{previewUserAccount.role || 'Kasir'}</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* FOOTER ACTION */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const acc = previewUserAccount;
+                  setPreviewUserAccount(null);
+                  handleOpenEditUserModal(acc);
+                }}
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  height: '42px',
+                  fontSize: '0.84rem',
+                  fontWeight: '900',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Edit3 size={16} />
+                <span>Edit User Ini</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewUserAccount(null)}
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  height: '42px',
+                  fontSize: '0.84rem',
+                  fontWeight: '800',
+                  background: '#334155',
+                  color: '#cbd5e1',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                Tutup
+              </button>
+            </div>
+
           </div>
         </div>
       )}
