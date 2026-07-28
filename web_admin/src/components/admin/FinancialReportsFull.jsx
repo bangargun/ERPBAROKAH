@@ -287,12 +287,12 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
     .reduce((s, t) => s + Number(t.amount || 0), 0);
 
   const rawMaterialInventoryValue = (masterData.ingredients || []).reduce((sum, ing) => {
-    return sum + ((Number(ing.stock) || 0) * (Number(ing.cost) || 10000));
+    return sum + ((Number(ing.stock) || 0) * (Number(ing.cost) || 0));
   }, 0);
 
-  const cadanganGaji = 267800000;
-  const cadanganSewa = 55600000;
-  const cadanganTHR = 5900000;
+  const cadanganGaji = 0;
+  const cadanganSewa = 0;
+  const cadanganTHR = 0;
   const totalOtherCurrentAsset = cadanganGaji + cadanganSewa + cadanganTHR;
 
   const totalAssetsVal = totalCashAndBank + piutangUsaha + rawMaterialInventoryValue + totalOtherCurrentAsset;
@@ -325,7 +325,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   const kasBersihKeuangan = 0;
 
   const kenaikanPenurunanKas = kasBersihOperasional + kasBersihInvestasi + kasBersihKeuangan;
-  const saldoAwalKas = Math.max(1288166577.60, totalCashAndBank - kenaikanPenurunanKas);
+  const saldoAwalKas = Math.max(0, totalCashAndBank - kenaikanPenurunanKas);
   const saldoAkhirKas = saldoAwalKas + kenaikanPenurunanKas;
 
   // DOWNLOAD EXCEL HANDLER (FOR P&L, BALANCE SHEET & CASH FLOW)
@@ -522,39 +522,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
     } else if (accountCode === '1301') {
       transactionsList = (masterData.ingredients || []).map((ing, idx) => ({
         id: ing.code || `BHN-${idx + 1}`,
-        date: '2026-07-23',
+        date: ing.date || new Date().toISOString().split('T')[0],
         outlet_name: getOutletName(selectedBranch || 1),
         cashier: 'Tim Logistik Dapur',
         description: `Stok Fisik Bahan Baku: ${ing.name} (${ing.stock} ${ing.unit})`,
-        amount: (Number(ing.stock) || 0) * (Number(ing.cost) || 10000)
+        amount: (Number(ing.stock) || 0) * (Number(ing.cost) || 0)
       }));
-    } else if (accountCode === '1431') {
-      transactionsList.push({
-        id: 'CAD-GAJI-202607',
-        date: '2026-07-01',
-        outlet_name: getOutletName(selectedBranch || 1),
-        cashier: 'Finance Central',
-        description: 'Alokasi Dana Cadangan Gaji Karyawan Bulanan Restoran',
-        amount: cadanganGaji
-      });
-    } else if (accountCode === '1432') {
-      transactionsList.push({
-        id: 'CAD-SEWA-202607',
-        date: '2026-07-01',
-        outlet_name: getOutletName(selectedBranch || 1),
-        cashier: 'Finance Central',
-        description: 'Alokasi Dana Cadangan Sewa Gedung & Bangunan Cabang',
-        amount: cadanganSewa
-      });
-    } else if (accountCode === '1433') {
-      transactionsList.push({
-        id: 'CAD-THR-202607',
-        date: '2026-07-01',
-        outlet_name: getOutletName(selectedBranch || 1),
-        cashier: 'Finance Central',
-        description: 'Alokasi Akumulasi Dana Cadangan Tunjangan Hari Raya (THR)',
-        amount: cadanganTHR
-      });
+    } else if (accountCode === '1431' || accountCode === '1432' || accountCode === '1433') {
+      transactionsList = [];
     } else if (accountCode === '2101') {
       transactionsList = approvedReports.filter(f => f.is_minus_drawer).map((f, idx) => ({
         id: `${f.report_no}-MINUS`,
@@ -638,16 +613,6 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
         }));
 
       transactionsList = [...txDiscounts, ...reportDiscounts];
-      if (transactionsList.length === 0 && accountTotal !== 0) {
-        transactionsList.push({
-          id: 'DISC-202607-001',
-          date: '2026-07-22',
-          outlet_name: getOutletName(selectedBranch || 1),
-          cashier: 'Kasir POS',
-          description: 'Potongan Diskon Promo Grand Opening Restoran',
-          amount: accountTotal
-        });
-      }
     } else if (accountCode.startsWith('5002')) {
       approvedReports.forEach((f, idx) => {
         if (f.cogs_items && f.cogs_items.length > 0) {
