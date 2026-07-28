@@ -1871,9 +1871,8 @@ export default function AndroidPosRegister({
     alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
   };
 
-  // MULTI-STEP PAPAN LOGIN MOBILE APK
+  // PAPAN LOGIN SEDERHANA 1-HALAMAN (DIRECT & SIMPLE ACCESS)
   if (!isAppLoggedIn) {
-    // 1. GABUNGKAN SELURUH SUMBER DATA AKUN DARI WEB ADMIN (SYSTEM SETTINGS & MASTER DATA)
     const rawUsersList = [
       ...(masterData?.mobileAccounts || []),
       ...(masterData?.webAdminAccounts || []),
@@ -1882,7 +1881,6 @@ export default function AndroidPosRegister({
       ...(masterData?.userAccounts || [])
     ];
 
-    // Fallback akun default jika masterData kosong agar login tidak pernah freeze/kosong
     const fallbackDefaultUsers = [
       { id: 'usr-1', name: 'Master Super Admin', role: 'Super Admin', username: 'admin', mobileLoginPassword: '123', status: 'Aktif', outlet: 'Semua Outlet (Central)' },
       { id: 'usr-2', name: 'Owner Restoran', role: 'Owner', username: 'owner', mobileLoginPassword: '123', status: 'Aktif', outlet: 'Semua Outlet (Central)' },
@@ -1891,843 +1889,214 @@ export default function AndroidPosRegister({
     ];
 
     const sourceUsers = rawUsersList.length > 0 ? rawUsersList : fallbackDefaultUsers;
-
     const usersMap = new Map();
     sourceUsers.forEach(u => {
       if (u && u.name) {
         const key = String(u.id || u.username || u.name).toLowerCase().trim();
-        const userStatus = (!u.status || String(u.status).toLowerCase() === 'aktif' || u.status === true || u.status === 'Active') ? 'Aktif' : 'Inaktif';
-        
         if (!usersMap.has(key)) {
-          usersMap.set(key, { ...u, status: userStatus });
-        } else {
-          const prev = usersMap.get(key);
-          usersMap.set(key, { ...prev, ...u, status: userStatus });
+          usersMap.set(key, { ...u, status: u.status || 'Aktif' });
         }
       }
     });
-
     const registeredUsers = Array.from(usersMap.values());
+    const availableOutlets = masterData?.outlets && masterData.outlets.length > 0 ? masterData.outlets : defaultOutlets;
 
-    // 2. PENYARINGAN AKUN SESUAI KATEGORI (MANAJEMEN PUSAT VS OUTLET CABANG)
-    let step2FilteredUsers = registeredUsers.filter(u => u.status === 'Aktif');
+    const handleDirectLogin = (userObj, outletObj) => {
+      const selectedUser = userObj || registeredUsers[0] || fallbackDefaultUsers[0];
+      const selectedOutlet = outletObj || currentOutlet || availableOutlets[0];
 
-    if (selectedLoginCategory === 'super_admin') {
-      step2FilteredUsers = registeredUsers.filter(u => 
-        (u.role || '').toLowerCase().includes('super admin') && u.status === 'Aktif'
-      );
-    } else if (selectedLoginCategory === 'owner') {
-      step2FilteredUsers = registeredUsers.filter(u => 
-        (u.role || '').toLowerCase().includes('owner') && u.status === 'Aktif'
-      );
-    } else if (selectedLoginCategory === 'admin') {
-      step2FilteredUsers = registeredUsers.filter(u => 
-        ((u.role || '').toLowerCase().includes('admin') || (u.role || '').toLowerCase().includes('operasional')) && u.status === 'Aktif'
-      );
-    } else if (selectedLoginCategory && (selectedLoginCategory.name || selectedLoginCategory.id)) {
-      const targetOutletName = String(selectedLoginCategory.name || '').toLowerCase().trim();
-      const targetOutletId = String(selectedLoginCategory.id || '').toLowerCase().trim();
-
-      step2FilteredUsers = registeredUsers.filter(u => {
-        if (!u || u.status !== 'Aktif') return false;
-
-        const userOutletName = String(u.outlet || u.assignedOutlet || u.outlet_name || u.branch || '').toLowerCase().trim();
-        const userOutletId = String(u.outlet_id || u.outletId || '').toLowerCase().trim();
-
-        // 1. User dengan akses Semua Outlet (Central) atau tanpa outlet spesifik
-        const isCentralUser = !userOutletName || userOutletName.includes('semua outlet') || userOutletName.includes('central');
-        
-        // 2. Cocokkan Nama Outlet atau ID Outlet
-        const isNameMatch = targetOutletName && (userOutletName.includes(targetOutletName) || targetOutletName.includes(userOutletName));
-        const isIdMatch = targetOutletId && (userOutletId === targetOutletId || userOutletName === targetOutletId);
-
-        return isCentralUser || isNameMatch || isIdMatch;
+      setCurrentUserSession({
+        id: selectedUser.id || 'usr-1',
+        name: selectedUser.name || 'Kasir POS',
+        role: selectedUser.role || 'Kasir',
+        outlet: selectedOutlet.name || 'Resto Branch',
+        username: selectedUser.username || 'kasir',
+        canAccessMobileReports: selectedUser.canAccessMobileReports !== false,
+        mobileReportPassword: selectedUser.mobileReportPassword || '8888'
       });
-
-      // Fallback: Jika belum ada user spesifik yang di-assign ke outlet ini, tampilkan semua user aktif agar login tidak pernah terkunci/kosong
-      if (step2FilteredUsers.length === 0) {
-        step2FilteredUsers = registeredUsers.filter(u => u.status === 'Aktif');
-      }
-    }
+      setCurrentOutlet(selectedOutlet);
+      setIsAppLoggedIn(true);
+    };
 
     return (
-      <div style={{ minHeight: '100vh', width: '100vw', background: '#090d16', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '880px', background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '36px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)' }}>
-          {/* BRANDING HEADER & STEP INDICATOR */}
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            {/* M-RIS MEWAH CIRCULAR GOLD LOGO BADGE */}
+      <div style={{ minHeight: '100vh', width: '100vw', background: '#090d16', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: '480px', background: '#111827', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', padding: '32px 24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
+
+          {/* HEADER LOGO & JUDUL */}
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <div style={{
-              width: '72px',
-              height: '72px',
+              width: '64px',
+              height: '64px',
               borderRadius: '50%',
               background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
               border: '3px solid #facc15',
-              boxShadow: '0 0 24px rgba(250,204,21,0.45)',
+              boxShadow: '0 0 20px rgba(250,204,21,0.4)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 14px'
+              margin: '0 auto 12px'
             }}>
-              <div style={{ fontSize: '1.20rem', fontWeight: '900', background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '1px' }}>
-                M-RIS
-              </div>
-              <span style={{ fontSize: '0.45rem', fontWeight: '800', color: '#94a3b8', letterSpacing: '1.5px', textTransform: 'uppercase' }}>SYSTEM</span>
+              <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#facc15' }}>MRIS</span>
             </div>
 
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60a5fa', padding: '6px 18px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '900', marginBottom: '12px' }}>
-              <Store size={16} />
-              <span>POS RESTAURANT MULTI-BRANCH SYSTEM (MOBILE APK v2.0.44)</span>
-            </div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-              {loginStep === 1 && '🔑 Papan Login Akses Restoran'}
-              {loginStep === '2A' && '🏛️ Akses Manajemen Pusat'}
-              {loginStep === '2B' && '🏪 Pilih Outlet Cabang Restoran'}
-              {(loginStep === 2 || loginStep === 3) && '👥 Pilih Nama User (Pengguna)'}
-              {loginStep === 4 && '🔐 Autentikasi Username & Password'}
-            </h1>
-            <p style={{ fontSize: '0.84rem', color: '#94a3b8', marginTop: '6px' }}>
-              {loginStep === 1 && 'Halaman 1: Pilih Kategori Akses (Manajemen Pusat vs Outlet Cabang)'}
-              {loginStep === '2A' && 'Halaman 2: Pilih Peran Manajemen (Super Admin, Owner, Admin)'}
-              {loginStep === '2B' && 'Halaman 2: Pilih Thumbnail Outlet Cabang Restoran'}
-              {(loginStep === 2 || loginStep === 3) && 'Halaman 3: Pilih Thumbnail Akun Pengguna Terdaftar'}
-              {loginStep === 4 && 'Halaman 4: Masukkan Username & Password Hak User'}
+            <h2 style={{ fontSize: '1.45rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+              🔑 Login Kasir POS Mobile
+            </h2>
+            <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
+              Pilih Pengguna & Outlet untuk Masuk Transaksi
             </p>
+            <div style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '700', fontStyle: 'italic', marginTop: '6px' }}>
+              "bismillah, aku bekerja atas pengawasan Alloh"
+            </div>
+          </div>
 
-            {/* TOMBOL PINTAS DARURAT: MASUK LANGSUNG / BYPASS & RESET CACHE TABLET */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentUserSession({
-                    id: 'usr-central',
-                    name: 'Kasir Utama',
-                    role: 'Kasir',
-                    outlet: currentOutlet?.name || 'Semua Outlet (Central)',
-                    username: 'kasir'
-                  });
-                  setIsAppLoggedIn(true);
+          {/* FORM USER & OUTLET SELECTION */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* 1. PILIH OUTLET */}
+            <div>
+              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                🏪 Pilih Outlet Cabang:
+              </label>
+              <select
+                value={currentOutlet?.id || availableOutlets[0]?.id}
+                onChange={(e) => {
+                  const found = availableOutlets.find(o => String(o.id) === String(e.target.value));
+                  if (found) setCurrentOutlet(found);
                 }}
                 style={{
-                  padding: '8px 16px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  border: 'none',
+                  width: '100%',
+                  background: '#1f2937',
+                  border: '1px solid #374151',
                   color: '#ffffff',
                   borderRadius: '12px',
+                  padding: '12px',
+                  fontSize: '0.92rem',
                   fontWeight: '800',
-                  fontSize: '0.78rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
-                  touchAction: 'manipulation'
+                  boxSizing: 'border-box'
                 }}
               >
-                ⚡ Masuk Langsung Ke POS Kasir
-              </button>
+                {availableOutlets.map(o => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    localStorage.clear();
-                    sessionStorage.clear();
-                  } catch (e) {}
-                  window.location.reload();
+            {/* 2. PILIH AKUN PENGGUNA */}
+            <div>
+              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                👤 Pilih Nama Pengguna (User):
+              </label>
+              <select
+                value={selectedUserAccount?.id || registeredUsers[0]?.id}
+                onChange={(e) => {
+                  const found = registeredUsers.find(u => String(u.id) === String(e.target.value));
+                  if (found) {
+                    setSelectedUserAccount(found);
+                    setLoginUsernameInput(found.username || '');
+                  }
                 }}
                 style={{
-                  padding: '8px 16px',
-                  background: 'rgba(239,68,68,0.2)',
-                  border: '1px solid rgba(239,68,68,0.4)',
-                  color: '#fca5a5',
+                  width: '100%',
+                  background: '#1f2937',
+                  border: '1px solid #374151',
+                  color: '#38bdf8',
                   borderRadius: '12px',
+                  padding: '12px',
+                  fontSize: '0.92rem',
                   fontWeight: '800',
-                  fontSize: '0.78rem',
-                  cursor: 'pointer',
-                  touchAction: 'manipulation'
+                  boxSizing: 'border-box'
                 }}
               >
-                🔄 Reset Cache & Refresh Tablet
-              </button>
-            </div>
-          </div>
-
-          {/* UCAPAN MOTIVASI & REMINDER ISLAMI */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.25) 100%)',
-            border: '1.5px solid rgba(52, 211, 153, 0.4)',
-            borderRadius: '16px',
-            padding: '12px 20px',
-            textAlign: 'center',
-            marginBottom: '24px',
-            boxShadow: '0 4px 16px rgba(16, 185, 129, 0.15)'
-          }}>
-            <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <span>✨ Selamat Bekerja!</span>
-            </div>
-            <p style={{ fontSize: '0.88rem', fontWeight: '700', color: '#f8fafc', margin: '4px 0 0 0', lineHeight: 1.4, fontStyle: 'italic' }}>
-              "Selamat bekerja, jangan lupa bismillah dan semua yang kita lakukan dalam pengawasan Alloh."
-            </p>
-          </div>
-
-          {/* =================================================================== */}
-          {/* STEP 1: HALAMAN PERTAMA (2 PILIHAN UTAMA: MANAJEMEN VS OUTLET)      */}
-          {/* =================================================================== */}
-          {loginStep === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '640px', margin: '0 auto' }}>
-              <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
-                Silakan Pilih Kategori Akses Masuk:
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                {/* 1. MANAJEMEN PUSAT */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedLoginCategory('management');
-                    setLoginStep('2A');
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(126,34,206,0.25) 100%)',
-                    border: '2px solid #a855f7',
-                    borderRadius: '24px',
-                    padding: '36px 20px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 8px 24px rgba(168,85,247,0.2)',
-                    touchAction: 'manipulation',
-                    userSelect: 'none'
-                  }}
-                  className="hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(168,85,247,0.3)', border: '2px solid #c084fc', color: '#e9d5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', pointerEvents: 'none' }}>
-                    <ShieldCheck size={38} />
-                  </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>
-                    🏢 MANAJEMEN PUSAT
-                  </h3>
-                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(168,85,247,0.3)', color: '#c084fc', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block', pointerEvents: 'none' }}>
-                    Central Management
-                  </span>
-                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4', pointerEvents: 'none' }}>
-                    Akses Super Admin, Owner Pemilik &amp; Admin Operasional
-                  </p>
-                </div>
-
-                {/* 2. OUTLET CABANG */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedLoginCategory('outlet');
-                    setLoginStep('2B');
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(16,185,129,0.25) 100%)',
-                    border: '2px solid #2563eb',
-                    borderRadius: '24px',
-                    padding: '36px 20px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 8px 24px rgba(37,99,235,0.2)',
-                    touchAction: 'manipulation',
-                    userSelect: 'none'
-                  }}
-                  className="hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(37,99,235,0.3)', border: '2px solid #60a5fa', color: '#93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', pointerEvents: 'none' }}>
-                    <Store size={38} />
-                  </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>
-                    🏪 OUTLET CABANG
-                  </h3>
-                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(37,99,235,0.3)', color: '#60a5fa', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block', pointerEvents: 'none' }}>
-                    Resto Branch Access
-                  </span>
-                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4', pointerEvents: 'none' }}>
-                    Tampilan Thumbnail Card Cabang Restoran
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 2A: MANAJEMEN PUSAT (SUPER ADMIN, OWNER, ADMIN)                */}
-          {/* =================================================================== */}
-          {loginStep === '2A' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '680px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setLoginStep(1)}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', touchAction: 'manipulation' }}
-                >
-                  <span>⬅️ Kembali Ke Pilihan Akses</span>
-                </button>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#c084fc', background: 'rgba(168,85,247,0.15)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(168,85,247,0.3)' }}>
-                  Kategori: <strong>🏢 MANAJEMEN PUSAT</strong>
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                {/* SUPER ADMIN */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedLoginCategory('super_admin');
-                    setLoginStep(2);
-                  }}
-                  style={{ background: '#1f2937', border: '2px solid #a855f7', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none' }}
-                  className="hover:scale-[1.03] active:scale-[0.97]"
-                >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(168,85,247,0.25)', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem', pointerEvents: 'none' }}>
-                    👑
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>Super Admin</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px', pointerEvents: 'none' }}>Hak akses penuh seluruh sistem</p>
-                </div>
-
-                {/* OWNER */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedLoginCategory('owner');
-                    setLoginStep(2);
-                  }}
-                  style={{ background: '#1f2937', border: '2px solid #f59e0b', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none' }}
-                  className="hover:scale-[1.03] active:scale-[0.97]"
-                >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(245,158,11,0.25)', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem', pointerEvents: 'none' }}>
-                    💼
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>Owner / Pemilik</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px', pointerEvents: 'none' }}>Laporan Laba Rugi &amp; Performa</p>
-                </div>
-
-                {/* ADMIN */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedLoginCategory('admin');
-                    setLoginStep(2);
-                  }}
-                  style={{ background: '#1f2937', border: '2px solid #38bdf8', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer', touchAction: 'manipulation', userSelect: 'none' }}
-                  className="hover:scale-[1.03] active:scale-[0.97]"
-                >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56,189,248,0.25)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem', pointerEvents: 'none' }}>
-                    🏢
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, pointerEvents: 'none' }}>Admin Operasional</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px', pointerEvents: 'none' }}>Master Data &amp; Approval Jurnal</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 2B: OUTLET CABANG (THUMBNAIL CARD INTERAKTIF)                  */}
-          {/* =================================================================== */}
-          {loginStep === '2B' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '780px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setLoginStep(1)}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', touchAction: 'manipulation' }}
-                >
-                  <span>⬅️ Kembali Ke Pilihan Akses</span>
-                </button>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(56,189,248,0.3)' }}>
-                  Kategori: <strong>🏪 OUTLET CABANG (THUMBNAIL)</strong>
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
-                {(masterData?.outlets && masterData.outlets.length > 0 ? masterData.outlets : defaultOutlets).map((outlet, idx) => {
-                  const palette = [
-                    { border: '#38bdf8', bg: 'rgba(56,189,248,0.12)', badgeBg: 'rgba(56,189,248,0.2)' },
-                    { border: '#34d399', bg: 'rgba(52,211,153,0.12)', badgeBg: 'rgba(52,211,153,0.2)' },
-                    { border: '#f59e0b', bg: 'rgba(245,158,11,0.12)', badgeBg: 'rgba(245,158,11,0.2)' },
-                    { border: '#c084fc', bg: 'rgba(192,132,252,0.12)', badgeBg: 'rgba(192,132,252,0.2)' },
-                    { border: '#f472b6', bg: 'rgba(244,114,182,0.12)', badgeBg: 'rgba(244,114,182,0.2)' }
-                  ];
-                  const styleTheme = palette[idx % palette.length];
-
-                  return (
-                    <div
-                      key={outlet.id || idx}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        setSelectedLoginCategory(outlet);
-                        setCurrentOutlet(outlet);
-                        setLoginStep(2);
-                      }}
-                      style={{
-                        background: '#1f2937',
-                        border: `2px solid ${styleTheme.border}`,
-                        borderRadius: '20px',
-                        padding: '24px 18px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                        gap: '12px',
-                        transition: 'all 0.2s ease',
-                        boxShadow: `0 8px 20px ${styleTheme.border}20`,
-                        touchAction: 'manipulation',
-                        userSelect: 'none'
-                      }}
-                      className="hover:scale-[1.03] active:scale-[0.97]"
-                    >
-                      {/* OUTLET THUMBNAIL AVATAR */}
-                      <div style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '50%',
-                        background: styleTheme.bg,
-                        border: `2px solid ${styleTheme.border}`,
-                        color: styleTheme.border,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1.8rem',
-                        flexShrink: 0,
-                        pointerEvents: 'none'
-                      }}>
-                        🏪
-                      </div>
-
-                      <div style={{ pointerEvents: 'none' }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                          {outlet.name}
-                        </h3>
-                        <span style={{ fontSize: '0.74rem', color: styleTheme.border, fontWeight: '800', marginTop: '4px', display: 'block' }}>
-                          {outlet.code ? `Kode: ${outlet.code}` : `Cabang Terdaftar #${outlet.id || idx + 1}`}
-                        </span>
-                      </div>
-
-                      <span style={{
-                        fontSize: '0.70rem',
-                        padding: '4px 12px',
-                        borderRadius: '8px',
-                        background: styleTheme.badgeBg,
-                        color: styleTheme.border,
-                        fontWeight: '800',
-                        border: `1px solid ${styleTheme.border}40`,
-                        pointerEvents: 'none'
-                      }}>
-                        🟢 Pilih User Outlet
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 2: PILIHAN NAMA USER (PENGGUNA TERDAFTAR HAK USER)             */}
-          {/* =================================================================== */}
-          {loginStep === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedLoginCategory === 'super_admin' || selectedLoginCategory === 'owner' || selectedLoginCategory === 'admin') {
-                      setLoginStep('2A');
-                    } else {
-                      setLoginStep('2B');
-                    }
-                  }}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <span>⬅️ Kembali</span>
-                </button>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '6px 14px', borderRadius: '10px' }}>
-                  Akses Dipilih: <strong style={{ color: '#38bdf8' }}>{selectedLoginCategory === 'super_admin' ? 'Super Admin' : selectedLoginCategory === 'owner' ? 'Owner' : selectedLoginCategory === 'admin' ? 'Admin Operasional' : selectedLoginCategory?.name || 'Cabang Resto'}</strong>
-                </span>
-              </div>
-
-              {step2FilteredUsers.length === 0 ? (
-                <div style={{ background: '#1f2937', padding: '40px', borderRadius: '20px', textAlign: 'center', color: '#94a3b8' }}>
-                  <Users size={48} style={{ marginBottom: '12px', color: '#60a5fa' }} />
-                  <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#ffffff' }}>Belum Ada Akun Pengguna Aktif</div>
-                  <div style={{ fontSize: '0.80rem', marginTop: '6px' }}>Tambahkan user baru di Web Admin ➔ Settings ➔ Hak User.</div>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                  {step2FilteredUsers.map((u) => {
-                    let roleBadgeColor = '#818cf8';
-                    let roleBgColor = 'rgba(99,102,241,0.15)';
-                    if (u.role === 'Super Admin') { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
-                    else if (u.role === 'Owner') { roleBadgeColor = '#fbbf24'; roleBgColor = 'rgba(251,191,36,0.2)'; }
-                    else if (u.role === 'Admin') { roleBadgeColor = '#38bdf8'; roleBgColor = 'rgba(56,189,248,0.2)'; }
-                    else if (u.role === 'Kasir') { roleBadgeColor = '#34d399'; roleBgColor = 'rgba(52,211,153,0.2)'; }
-                    else if (u.role === 'Kepala Cabang') { roleBadgeColor = '#f472b6'; roleBgColor = 'rgba(244,114,182,0.2)'; }
-                    else if (u.role === 'SPV') { roleBadgeColor = '#fb923c'; roleBgColor = 'rgba(251,146,60,0.2)'; }
-                    else if (u.role === 'Logistik') { roleBadgeColor = '#a78bfa'; roleBgColor = 'rgba(167,139,250,0.2)'; }
-
-                    return (
-                      <div
-                        key={u.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          setSelectedUserAccount(u);
-                          setLoginUsernameInput(u.username || '');
-                          setLoginPasswordInput('');
-                          setLoginErrorText('');
-                          setLoginStep(4);
-                        }}
-                        style={{
-                          background: '#1f2937',
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          borderRadius: '18px',
-                          padding: '24px 16px',
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '12px',
-                          touchAction: 'manipulation',
-                          userSelect: 'none'
-                        }}
-                        className="hover:scale-[1.03] active:scale-[0.97]"
-                      >
-                        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: roleBgColor, border: `2px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.25rem', pointerEvents: 'none' }}>
-                          {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                        </div>
-                        <div style={{ pointerEvents: 'none' }}>
-                          <h4 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                            {u.name}
-                          </h4>
-                          <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px', display: 'block', fontFamily: 'monospace' }}>
-                            @{u.username}
-                          </span>
-                        </div>
-
-                        <span style={{
-                          padding: '4px 12px',
-                          borderRadius: '10px',
-                          fontSize: '0.76rem',
-                          fontWeight: '900',
-                          background: roleBgColor,
-                          color: roleBadgeColor,
-                          border: `1px solid ${roleBadgeColor}`,
-                          pointerEvents: 'none'
-                        }}>
-                          Peran: {u.role}
-                        </span>
-
-                        <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: '800', pointerEvents: 'none' }}>
-                          🟢 Akun Aktif
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 4: AUTENTIKASI USERNAME & PASSWORD / PIN HAK USER              */}
-          {/* =================================================================== */}
-          {(loginStep === 3 || loginStep === 4) && selectedUserAccount && (
-            <div style={{ maxWidth: '440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-              {/* UCAPAN MOTIVASI & PENGINGAT ISLAMI SAAT INPUT PASSWORD */}
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.3) 100%)',
-                border: '1.5px solid rgba(52, 211, 153, 0.5)',
-                borderRadius: '16px',
-                padding: '12px 16px',
-                textAlign: 'center',
-                boxShadow: '0 4px 16px rgba(16, 185, 129, 0.2)'
-              }}>
-                <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <span>✨ Pengawasan Alloh</span>
-                </div>
-                <p style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ffffff', margin: '4px 0 0 0', lineHeight: 1.3, fontStyle: 'italic' }}>
-                  "bismillah, aku bekerja atas pengawasan Alloh"
-                </p>
-              </div>
-
-              {/* CARD PREVIEW AKUN PENGGUNA & OUTLET TERPILIH */}
-              <div style={{ background: '#1f2937', padding: '16px 20px', borderRadius: '18px', border: '1px solid #374151', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(37,99,235,0.2)', border: '2px solid #38bdf8', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.3rem', flexShrink: 0 }}>
-                  {selectedUserAccount.name ? selectedUserAccount.name.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                    {selectedUserAccount.name}
-                  </h3>
-                  <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                    Peran: <strong style={{ color: '#38bdf8' }}>{selectedUserAccount.role || 'Kasir'}</strong> • @{selectedUserAccount.username || 'user'}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '800', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span>🏪 Outlet:</span>
-                    <strong>{selectedLoginCategory?.name || currentOutlet?.name || selectedUserAccount.outlet || 'Semua Outlet (Central)'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              {loginErrorText && (
-                <div style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#fca5a5', padding: '10px 14px', borderRadius: '12px', fontSize: '0.82rem', fontWeight: '800', textAlign: 'center' }}>
-                  {loginErrorText}
-                </div>
-              )}
-
-              {/* INPUT USERNAME & PASSWORD/PIN TEKS */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#090d16', border: '1px solid #374151', borderRadius: '16px', padding: '14px' }}>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-                    Username Akses:
-                  </label>
-                  <input
-                    type="text"
-                    value={loginUsernameInput}
-                    onChange={(e) => setLoginUsernameInput(e.target.value)}
-                    placeholder="Username..."
-                    style={{
-                      width: '100%',
-                      background: '#1f2937',
-                      border: '1px solid #374151',
-                      color: '#ffffff',
-                      borderRadius: '10px',
-                      padding: '8px 12px',
-                      fontSize: '0.9rem',
-                      fontWeight: '700',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8' }}>
-                      Password / PIN:
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
-                      style={{ background: 'none', border: 'none', color: '#38bdf8', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      {showLoginPasswordEye ? <EyeOff size={14} /> : <Eye size={14} />}
-                      <span>{showLoginPasswordEye ? 'Sembunyikan' : 'Lihat'}</span>
-                    </button>
-                  </div>
-                  <input
-                    type={showLoginPasswordEye ? 'text' : 'password'}
-                    value={loginPasswordInput}
-                    onChange={(e) => {
-                      setLoginPasswordInput(e.target.value);
-                      setLoginErrorText('');
-                    }}
-                    placeholder="Masukkan PIN / Password..."
-                    style={{
-                      width: '100%',
-                      background: '#1f2937',
-                      border: '1px solid #38bdf8',
-                      color: '#38bdf8',
-                      borderRadius: '10px',
-                      padding: '10px 12px',
-                      fontSize: '1.1rem',
-                      fontWeight: '900',
-                      letterSpacing: loginPasswordInput ? '2px' : 'normal',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* KALKULATOR NUMBER KEYPAD GRID (3x4) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => {
-                      setLoginPasswordInput(prev => prev + num);
-                      setLoginErrorText('');
-                    }}
-                    style={{
-                      background: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      fontSize: '1.2rem',
-                      fontWeight: '900',
-                      color: '#ffffff',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                      touchAction: 'manipulation'
-                    }}
-                    className="hover:scale-[1.03] active:scale-[0.97]"
-                  >
-                    {num}
-                  </button>
+                {registeredUsers.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.role || 'Kasir'})
+                  </option>
                 ))}
-
-                {/* ROW 4: CLEAR / BACKSPACE, 0, RESET */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginPasswordInput(prev => prev.slice(0, -1));
-                    setLoginErrorText('');
-                  }}
-                  style={{
-                    background: 'rgba(239,68,68,0.15)',
-                    border: '1px solid rgba(239,68,68,0.3)',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    fontSize: '0.95rem',
-                    fontWeight: '900',
-                    color: '#fca5a5',
-                    cursor: 'pointer',
-                    touchAction: 'manipulation'
-                  }}
-                  title="Hapus Satu Angka"
-                >
-                  ⌫ Hapus
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginPasswordInput(prev => prev + '0');
-                    setLoginErrorText('');
-                  }}
-                  style={{
-                    background: '#1f2937',
-                    border: '1px solid #374151',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    fontSize: '1.2rem',
-                    fontWeight: '900',
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                    touchAction: 'manipulation'
-                  }}
-                >
-                  0
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setLoginPasswordInput('')}
-                  style={{
-                    background: 'rgba(245,158,11,0.15)',
-                    border: '1px solid rgba(245,158,11,0.3)',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    fontSize: '0.80rem',
-                    fontWeight: '900',
-                    color: '#fbbf24',
-                    cursor: 'pointer',
-                    touchAction: 'manipulation'
-                  }}
-                  title="Kosongkan Semua PIN"
-                >
-                  C Reset
-                </button>
-              </div>
-
-              {/* ACTION BUTTONS: CANCEL & MASUK LANGSUNG */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '10px', marginTop: '4px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginPasswordInput('');
-                    setLoginErrorText('');
-                    setLoginStep(2);
-                  }}
-                  style={{
-                    padding: '14px',
-                    background: '#1f2937',
-                    border: '1px solid #374151',
-                    color: '#94a3b8',
-                    borderRadius: '14px',
-                    fontWeight: '900',
-                    fontSize: '0.88rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    touchAction: 'manipulation'
-                  }}
-                >
-                  <span>⬅️ Kembali</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedUserAccount && selectedUserAccount.status === 'Inaktif') {
-                      setLoginErrorText(`⚠️ Akses Ditolak! User ${selectedUserAccount.name} berstatus Inaktif.`);
-                      return;
-                    }
-
-                    // Tentukan Outlet Aktif Hasil Pilihan User
-                    let targetOutletObj = currentOutlet;
-                    if (selectedLoginCategory && typeof selectedLoginCategory === 'object' && selectedLoginCategory.name) {
-                      targetOutletObj = selectedLoginCategory;
-                    } else if (selectedUserAccount && selectedUserAccount.outlet && selectedUserAccount.outlet !== 'Semua Outlet (Central)') {
-                      const matched = (masterData?.outlets || defaultOutlets).find(o => o.name === selectedUserAccount.outlet);
-                      if (matched) targetOutletObj = matched;
-                    }
-
-                    // Simpan Sesi User & Outlet Terpilih Tanpa Freeze
-                    const loggedInUser = {
-                      id: selectedUserAccount?.id || 'usr-1',
-                      name: selectedUserAccount?.name || 'Kasir Restoran',
-                      role: selectedUserAccount?.role || 'Kasir',
-                      outlet: targetOutletObj.name || 'Resto Branch',
-                      username: loginUsernameInput || selectedUserAccount?.username || 'kasir',
-                      canAccessMobileReports: selectedUserAccount?.canAccessMobileReports !== false,
-                      mobileReportPassword: selectedUserAccount?.mobileReportPassword || '8888'
-                    };
-
-                    setCurrentUserSession(loggedInUser);
-                    setCurrentOutlet(targetOutletObj);
-                    setIsAppLoggedIn(true);
-                    setLoginErrorText('');
-                  }}
-                  style={{
-                    padding: '14px',
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    border: 'none',
-                    color: '#ffffff',
-                    borderRadius: '14px',
-                    fontWeight: '900',
-                    fontSize: '0.95rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    boxShadow: '0 4px 16px rgba(16,185,129,0.4)',
-                    touchAction: 'manipulation'
-                  }}
-                >
-                  <ShieldCheck size={20} />
-                  <span>✅ MASUK KE POS</span>
-                </button>
-              </div>
-
+              </select>
             </div>
-          )}
+
+            {/* 3. INPUT PASSWORD / PIN */}
+            <div>
+              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                🔑 PIN / Password:
+              </label>
+              <input
+                type="password"
+                value={loginPasswordInput}
+                onChange={(e) => setLoginPasswordInput(e.target.value)}
+                placeholder="Password PIN (Contoh: 1234)..."
+                style={{
+                  width: '100%',
+                  background: '#1f2937',
+                  border: '1px solid #374151',
+                  color: '#ffffff',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            {/* TOMBOL UTAMA: MASUK KE POS KASIR */}
+            <button
+              type="button"
+              onClick={() => handleDirectLogin(selectedUserAccount, currentOutlet)}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                color: '#ffffff',
+                borderRadius: '14px',
+                fontWeight: '900',
+                fontSize: '1.05rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(16,185,129,0.4)',
+                marginTop: '8px',
+                touchAction: 'manipulation'
+              }}
+            >
+              🚀 MASUK KE MENU KASIR POS
+            </button>
+
+            {/* AKSES CEPAT 1-KLIK PERAN */}
+            <div style={{ marginTop: '16px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '800', textAlign: 'center', marginBottom: '10px' }}>
+                ⚡ Atau Masuk Cepat 1-Klik Dengan Peran:
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleDirectLogin({ name: 'Kasir POS', role: 'Kasir' }, currentOutlet)}
+                  style={{ padding: '10px 6px', background: '#1f2937', border: '1px solid #34d399', color: '#34d399', borderRadius: '10px', fontSize: '0.76rem', fontWeight: '900', cursor: 'pointer', touchAction: 'manipulation' }}
+                >
+                  🟢 Kasir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDirectLogin({ name: 'Admin Ops', role: 'Admin' }, currentOutlet)}
+                  style={{ padding: '10px 6px', background: '#1f2937', border: '1px solid #38bdf8', color: '#38bdf8', borderRadius: '10px', fontSize: '0.76rem', fontWeight: '900', cursor: 'pointer', touchAction: 'manipulation' }}
+                >
+                  🔵 Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDirectLogin({ name: 'Super Admin', role: 'Super Admin' }, currentOutlet)}
+                  style={{ padding: '10px 6px', background: '#1f2937', border: '1px solid #facc15', color: '#facc15', borderRadius: '10px', fontSize: '0.76rem', fontWeight: '900', cursor: 'pointer', touchAction: 'manipulation' }}
+                >
+                  🟡 Super Admin
+                </button>
+              </div>
+            </div>
+
+          </div>
+
         </div>
       </div>
     );
