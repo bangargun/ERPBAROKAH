@@ -1922,16 +1922,28 @@ export default function AndroidPosRegister({
     const handleDirectLogin = (userObj, outletObj) => {
       setLoginErrorText('');
       const selectedUser = userObj || activeSelectedUser;
-      const selectedOutlet = outletObj || activeOutletObj;
 
-      // Validasi: user dan outlet harus terpilih
+      // Validasi: user harus terpilih
       if (!selectedUser) {
         setLoginErrorText('❌ Tidak ada pengguna yang dapat dipilih. Tambahkan akun melalui Web Admin.');
         return;
       }
+
+      // Tentukan outlet: Super Admin/Owner bisa login meski outlets kosong
+      const userRole = String(selectedUser.role || '').toLowerCase();
+      const userOutletStr = String(selectedUser.outlet || selectedUser.assignedOutlet || '').toLowerCase();
+      const isCentralUser = userOutletStr.includes('semua outlet') || userOutletStr.includes('central') || userRole.includes('super admin') || userRole.includes('owner');
+
+      let selectedOutlet = outletObj || activeOutletObj;
+
       if (!selectedOutlet) {
-        setLoginErrorText('❌ Pilih outlet terlebih dahulu sebelum masuk.');
-        return;
+        if (isCentralUser) {
+          // Super Admin/Owner: buat outlet virtual "Semua Outlet"
+          selectedOutlet = { id: 'central', name: 'Semua Outlet (Central)' };
+        } else {
+          setLoginErrorText('❌ Pilih outlet terlebih dahulu sebelum masuk.');
+          return;
+        }
       }
 
       // Ambil password valid dari data user (TIDAK ada hardcoded default)
@@ -1945,7 +1957,7 @@ export default function AndroidPosRegister({
 
       const enteredPassword = String(loginPasswordInput || '').trim();
 
-      // Jika user belum punya password di masterData, izinkan masuk (password kosong)
+      // Validasi password
       if (validPassword) {
         if (!enteredPassword) {
           setLoginErrorText(`❌ Masukkan PIN / Password untuk ${selectedUser.name}.`);
@@ -1968,7 +1980,9 @@ export default function AndroidPosRegister({
         canAccessMobileReports: selectedUser.canAccessMobileReports === true,
         mobileReportPassword: selectedUser.mobileReportPassword || ''
       });
-      setSelectedBranch(selectedOutlet.id);
+      if (selectedOutlet.id !== 'central') {
+        setSelectedBranch(selectedOutlet.id);
+      }
       setLoginPasswordInput('');
       setLoginErrorText('');
       setIsAppLoggedIn(true);
@@ -2015,53 +2029,73 @@ export default function AndroidPosRegister({
               <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 🏪 Pilih Outlet Cabang:
               </label>
-  <select
-                value={activeOutletObj?.id || ''}
-                onChange={(e) => {
-                  const found = availableOutlets.find(o => String(o.id) === String(e.target.value));
-                  if (found) {
-                    setLoginSelectedOutlet(found);
-                    setLoginErrorText('');
-                    // Auto-select user pertama yang cocok untuk outlet ini
-                    const newOutletName = String(found.name || '').toLowerCase().trim();
-                    const matchedUser = registeredUsers.find(u => {
-                      const uOut = String(u.outlet || u.assignedOutlet || '').toLowerCase().trim();
-                      const uRole = String(u.role || '').toLowerCase();
-                      const isCentral = !uOut || uOut.includes('semua outlet') || uOut.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
-                      return !isCentral && (uOut.includes(newOutletName) || newOutletName.includes(uOut));
-                    }) || registeredUsers.find(u => {
-                      const uRole = String(u.role || '').toLowerCase();
-                      return uRole.includes('super admin') || uRole.includes('owner');
-                    });
-                    if (matchedUser) {
-                      setSelectedUserAccount(matchedUser);
-                    } else {
-                      setSelectedUserAccount(null);
+              {availableOutlets.length === 0 ? (
+                (() => {
+                  const selUserRole = String(activeSelectedUser?.role || '').toLowerCase();
+                  const selUserOutlet = String(activeSelectedUser?.outlet || '').toLowerCase();
+                  const isCentral = selUserOutlet.includes('semua outlet') || selUserOutlet.includes('central') || selUserRole.includes('super admin') || selUserRole.includes('owner');
+                  return (
+                    <div style={{
+                      background: isCentral ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                      border: `1.5px solid ${isCentral ? '#10b981' : '#f59e0b'}`,
+                      borderRadius: '12px',
+                      padding: '12px',
+                      fontSize: '0.82rem',
+                      fontWeight: '700',
+                      color: isCentral ? '#34d399' : '#fbbf24',
+                      textAlign: 'center'
+                    }}>
+                      {isCentral
+                        ? '✅ Akses Semua Outlet (Central) — Super Admin / Owner'
+                        : '⚠️ Belum ada outlet. Tambahkan di Web Admin → Master Data'}
+                    </div>
+                  );
+                })()
+              ) : (
+                <select
+                  value={activeOutletObj?.id || ''}
+                  onChange={(e) => {
+                    const found = availableOutlets.find(o => String(o.id) === String(e.target.value));
+                    if (found) {
+                      setLoginSelectedOutlet(found);
+                      setLoginErrorText('');
+                      // Auto-select user pertama yang cocok untuk outlet ini
+                      const newOutletName = String(found.name || '').toLowerCase().trim();
+                      const matchedUser = registeredUsers.find(u => {
+                        const uOut = String(u.outlet || u.assignedOutlet || '').toLowerCase().trim();
+                        const uRole = String(u.role || '').toLowerCase();
+                        const isCentral = !uOut || uOut.includes('semua outlet') || uOut.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
+                        return !isCentral && (uOut.includes(newOutletName) || newOutletName.includes(uOut));
+                      }) || registeredUsers.find(u => {
+                        const uRole = String(u.role || '').toLowerCase();
+                        return uRole.includes('super admin') || uRole.includes('owner');
+                      });
+                      if (matchedUser) {
+                        setSelectedUserAccount(matchedUser);
+                      } else {
+                        setSelectedUserAccount(null);
+                      }
                     }
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  background: '#1f2937',
-                  border: availableOutlets.length === 0 ? '1.5px solid #f59e0b' : '1px solid #374151',
-                  color: '#ffffff',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  fontSize: '0.92rem',
-                  fontWeight: '800',
-                  boxSizing: 'border-box'
-                }}
-              >
-                {availableOutlets.length === 0 ? (
-                  <option value="">— Belum ada outlet. Tambahkan di Web Admin —</option>
-                ) : (
-                  availableOutlets.map(o => (
+                  }}
+                  style={{
+                    width: '100%',
+                    background: '#1f2937',
+                    border: '1px solid #374151',
+                    color: '#ffffff',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontSize: '0.92rem',
+                    fontWeight: '800',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {availableOutlets.map(o => (
                     <option key={o.id} value={o.id}>
                       {o.name}
                     </option>
-                  ))
-                )}
-              </select>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* 2. PILIH AKUN PENGGUNA */}
