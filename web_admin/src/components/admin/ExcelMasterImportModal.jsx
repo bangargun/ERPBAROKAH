@@ -109,9 +109,9 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
     sales_transactions: {
       title: 'Riwayat Transaksi Penjualan',
       filename: 'Template_Import_Penjualan_MRIS.csv',
-      headers: ['No Struk', 'Tanggal (YYYY-MM-DD)', 'Jam (HH:MM)', 'Nama Outlet', 'Pelanggan', 'Metode Bayar', 'Total Nilai Transaksi (IDR)', 'Metode Layanan', 'Status Pembayaran', 'Item Penjualan'],
+      headers: ['No Struk', 'Tanggal (YYYY-MM-DD)', 'Jam (HH:MM)', 'Nama Outlet', 'Pelanggan', 'Metode Bayar', 'Total Nilai Transaksi (IDR)', 'Metode Layanan', 'Status Pembayaran', 'Nama Item Menu', 'Jumlah Qty', 'Harga Satuan (IDR)'],
       columnGuide: [
-        { col: 'A', name: 'No Struk', required: true, format: 'TRX-20260728-001', desc: 'Nomor invoice unik. Jika kosong diisi otomatis oleh sistem.' },
+        { col: 'A', name: 'No Struk', required: true, format: 'TRX-20260728-001', desc: 'Nomor invoice unik. Baris dengan No Struk yang sama akan otomatis digabung menjadi 1 invoice.' },
         { col: 'B', name: 'Tanggal (YYYY-MM-DD)', required: false, format: '2026-07-28', desc: 'Tanggal transaksi format YYYY-MM-DD. Jika kosong diisi tanggal hari ini.' },
         { col: 'C', name: 'Jam (HH:MM)', required: false, format: '14:30', desc: 'Jam waktu transaksi.' },
         { col: 'D', name: 'Nama Outlet', required: false, format: 'Outlet Sudirman', desc: 'Nama cabang resto tempat transaksi terjadi.' },
@@ -120,10 +120,12 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
         { col: 'G', name: 'Total Nilai Transaksi (IDR)', required: true, format: '75000', desc: 'Total nominal omset penjualan angka murni tanpa Rp / titik / koma.' },
         { col: 'H', name: 'Metode Layanan', required: false, format: 'Dine In / Take Away', desc: 'Dine In, Take Away, GoFood, GrabFood, ShopeeFood.' },
         { col: 'I', name: 'Status Pembayaran', required: false, format: 'Terbayar / Draft', desc: 'Terbayar, Draft, atau Dibatalkan.' },
-        { col: 'J', name: 'Item Penjualan', required: false, format: '2x Nasi Goreng; 1x Es Teh', desc: 'Rincian menu terpilih dipisah tanda titik koma (;).' }
+        { col: 'J', name: 'Nama Item Menu', required: false, format: 'Ikan Gurame Bakar', desc: 'Nama porsi/produk menu yang dibeli.' },
+        { col: 'K', name: 'Jumlah Qty', required: false, format: '1', desc: 'Jumlah porsi / unit item yang dibeli (contoh: 1, 2, 5).' },
+        { col: 'L', name: 'Harga Satuan (IDR)', required: false, format: '65000', desc: 'Harga per porsi angka murni tanpa titik/koma (opsional).' }
       ],
       instructions: [
-        '1. [Wajib] No Struk: Nomor invoice unik (contoh: TRX-20260728-001). Jika kosong diisi otomatis.',
+        '1. [Wajib] No Struk: Nomor invoice unik (contoh: TRX-20260728-001). Baris dengan No Struk sama akan digabung ke 1 nota.',
         '2. Tanggal & Jam: Format YYYY-MM-DD & HH:MM (contoh: 2026-07-28 & 14:30). Jika kosong diisi waktu saat ini.',
         '3. Nama Outlet: Nama outlet cabang tempat transaksi terjadi (contoh: Outlet Central Sudirman).',
         '4. Pelanggan: Nama pembeli/pelanggan (contoh: Pelanggan Umum, Budi Santoso).',
@@ -131,11 +133,15 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
         '6. [Wajib] Total Nilai Transaksi (IDR): Nilai gross omset angka murni tanpa titik/koma (contoh: 75000).',
         '7. Metode Layanan: Dine In, Take Away, GoFood, GrabFood, ShopeeFood (default: Dine In).',
         '8. Status Pembayaran: Terbayar, Draft, Dibatalkan (default: Terbayar).',
-        '9. Item Penjualan: Rincian item dengan format "2x Nasi Goreng; 1x Es Teh" (opsional).'
+        '9. Nama Item Menu: Nama item terpisah (contoh: Ikan Gurame Bakar).',
+        '10. Jumlah Qty: Jumlah porsi item (contoh: 1 atau 2).',
+        '11. Harga Satuan (IDR): Harga per porsi (contoh: 65000).'
       ],
       sampleRows: [
-        ['TRX-20260728-001', '2026-07-28', '12:15', 'Outlet Central Sudirman', 'Pelanggan Umum', 'Cash', '45000', 'Dine In', 'Terbayar', '1x Nasi Goreng Spesial; 1x Es Teh Manis'],
-        ['TRX-20260728-002', '2026-07-28', '13:40', 'Outlet Branch Senopati', 'Siti Rahmawati', 'QRIS BCA', '85000', 'Take Away', 'Terbayar', '2x Ayam Bakar Madu; 2x Es Jeruk Segar']
+        ['TRX-20260728-001', '2026-07-28', '12:15', 'Outlet Central Sudirman', 'Pelanggan Umum', 'Cash', '45000', 'Dine In', 'Terbayar', 'Nasi Goreng Spesial', '1', '35000'],
+        ['TRX-20260728-001', '2026-07-28', '12:15', 'Outlet Central Sudirman', 'Pelanggan Umum', 'Cash', '45000', 'Dine In', 'Terbayar', 'Es Teh Manis', '1', '10000'],
+        ['TRX-20260728-002', '2026-07-28', '13:40', 'Outlet Branch Senopati', 'Siti Rahmawati', 'QRIS BCA', '85000', 'Take Away', 'Terbayar', 'Ikan Gurame Bakar', '1', '65000'],
+        ['TRX-20260728-002', '2026-07-28', '13:40', 'Outlet Branch Senopati', 'Siti Rahmawati', 'QRIS BCA', '85000', 'Take Away', 'Terbayar', 'Es Jeruk Peras', '1', '20000']
       ]
     }
   };
@@ -382,50 +388,66 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
             itemsToImport.push({ id: Date.now() + idx, code, name, address, city, phone, manager, status });
           }
         } else if (moduleType === 'sales_transactions' || moduleType === 'sales') {
-          const invoiceNo = row[0] || `TRX-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
-          const date = row[1] || new Date().toISOString().slice(0,10);
-          const time = row[2] || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-          const branchName = row[3] || (masterData?.outlets?.[0]?.name || 'Outlet Utama');
-          const customerName = row[4] || 'Pelanggan Umum';
-          const paymentMethod = row[5] || 'Cash';
-          const amount = parseFloat(row[6]) || 0;
-          const orderType = row[7] || 'Dine In';
-          const status = row[8] || 'Terbayar';
-          const rawItemsStr = row[9] || '';
+          const transactionMap = {};
 
-          let parsedItems = [];
-          if (rawItemsStr) {
-            parsedItems = rawItemsStr.split(';').map((itStr, i) => {
-              const match = itStr.trim().match(/^(\d+)x?\s*(.+)$/i);
-              if (match) {
-                const qty = parseInt(match[1]) || 1;
-                const name = match[2].trim();
-                return { id: i + 1, name, qty, price_unit: 0, amount: 0 };
-              }
-              return { id: i + 1, name: itStr.trim(), qty: 1, price_unit: 0, amount: 0 };
-            });
-          }
+          rawRows.forEach((row, idx) => {
+            const invoiceNo = row[0] || `TRX-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
+            const date = row[1] || new Date().toISOString().slice(0,10);
+            const time = row[2] || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const branchName = row[3] || (masterData?.outlets?.[0]?.name || 'Outlet Utama');
+            const customerName = row[4] || 'Pelanggan Umum';
+            const paymentMethod = row[5] || 'Cash';
+            const amount = parseFloat(row[6]) || 0;
+            const orderType = row[7] || 'Dine In';
+            const status = row[8] || 'Terbayar';
+            const itemName = row[9] || '';
+            const itemQty = parseInt(row[10]) || 1;
+            const itemPrice = parseFloat(row[11]) || (itemName ? (amount / itemQty) : amount);
 
-          if (!amount && amount !== 0) {
-            errors.push(`Baris #${idx + 1}: Total Nilai Transaksi kosong`);
-          } else {
-            itemsToImport.push({
-              id: invoiceNo,
-              receipt_no: invoiceNo,
-              date,
-              time,
-              branch_name: branchName,
-              outlet_name: branchName,
-              customer_name: customerName,
-              payment_method: paymentMethod,
-              amount,
-              gross_amount: amount,
-              order_type: orderType,
-              status,
-              items: parsedItems.length > 0 ? parsedItems : [{ id: 1, name: 'Penjualan Impor Excel', qty: 1, price_unit: amount, amount }],
-              created_at: `${date} ${time}`
-            });
-          }
+            if (!transactionMap[invoiceNo]) {
+              transactionMap[invoiceNo] = {
+                id: invoiceNo,
+                receipt_no: invoiceNo,
+                date,
+                time,
+                branch_name: branchName,
+                outlet_name: branchName,
+                customer_name: customerName,
+                payment_method: paymentMethod,
+                amount,
+                gross_amount: amount,
+                order_type: orderType,
+                status,
+                items: [],
+                created_at: `${date} ${time}`
+              };
+            }
+
+            if (itemName) {
+              transactionMap[invoiceNo].items.push({
+                id: transactionMap[invoiceNo].items.length + 1,
+                name: itemName.trim(),
+                qty: itemQty,
+                price_unit: itemPrice,
+                amount: itemQty * itemPrice
+              });
+            }
+          });
+
+          const itemsToImport = Object.values(transactionMap);
+          itemsToImport.forEach(t => {
+            if (t.items.length === 0) {
+              t.items.push({ id: 1, name: 'Penjualan Impor Excel', qty: 1, price_unit: t.amount, amount: t.amount });
+            }
+          });
+
+          itemsToImport.forEach(item => {
+            itemsToImportArr.push(item);
+          });
+
+          setParsedData(itemsToImport);
+          setValidationErrors(errors);
+          return;
         }
       });
 
