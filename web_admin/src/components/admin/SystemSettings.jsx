@@ -288,6 +288,28 @@ export default function SystemSettings({ masterData, setMasterData }) {
     { role: 'Logistik', dashboard: false, masterData: false, costs: false, stock: true, approved: false, reports: false, policies: false, settings: false }
   ];
 
+  // Dynamic Web Admin Role Options (from permissionMatrix + defaults)
+  const webAdminRoles = useMemo(() => {
+    const defaultRoles = ['Super Admin', 'Owner', 'Admin', 'Kasir', 'Logistik', 'Kepala Cabang', 'SPV'];
+    const matrixRoles = (permissionMatrix || []).map(p => p.role).filter(Boolean);
+    return Array.from(new Set([...matrixRoles, ...defaultRoles]));
+  }, [permissionMatrix]);
+
+  // Dynamic Mobile Role Options (from mobilePermissionMatrix + defaults)
+  const mobileRoles = useMemo(() => {
+    const defaultRoles = ['Super Admin / Owner', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
+    const matrixRoles = (mobilePermissionMatrix || []).map(p => p.role).filter(Boolean);
+    return Array.from(new Set([...matrixRoles, ...defaultRoles]));
+  }, [mobilePermissionMatrix]);
+
+  // Combined Unique Roles for Filtering
+  const allFilterRoles = useMemo(() => {
+    const webRoles = (permissionMatrix || []).map(p => p.role).filter(Boolean);
+    const mobRoles = (mobilePermissionMatrix || []).map(p => p.role).filter(Boolean);
+    const defaults = ['Super Admin', 'Owner', 'Admin', 'Kasir', 'Logistik', 'Kepala Cabang', 'SPV', 'Super Admin / Owner', 'Kepala Cabang / SPV', 'Logistik & Dapur'];
+    return Array.from(new Set([...webRoles, ...mobRoles, ...defaults]));
+  }, [permissionMatrix, mobilePermissionMatrix]);
+
   // === WEB ADMIN ACCOUNTS (terpisah dari Mobile) ===
   const getWebAdminList = () => {
     return masterData?.webAdminAccounts?.length ? masterData.webAdminAccounts : [
@@ -313,7 +335,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
     setNewUserOutlet('Semua Outlet (Central)');
     setNewUserUsername('');
     setNewUserPassword('123');
-    setNewUserRole('Kasir');
+    setNewUserRole(webAdminRoles[0] || 'Super Admin');
     setNewUserStatus('Aktif');
     setNewCanLoginMobile(true);
     setNewMobileLoginPassword('123');
@@ -391,7 +413,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
   const handleOpenAddMobileModal = () => {
     setEditingMobileId(null);
     setNewMobileName(''); setNewMobileOutlet('Semua Outlet (Central)'); setNewMobileUsername('');
-    setNewMobilePwd('123'); setNewMobileRole2('Kasir'); setNewMobileStatus2('Aktif');
+    setNewMobilePwd('123'); setNewMobileRole2(mobileRoles[0] || 'Kasir'); setNewMobileStatus2('Aktif');
     setNewMobileCanReport(true); setNewMobileReportPwd2('8888');
     setShowAddMobileModal(true);
   };
@@ -1542,13 +1564,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid #475569', color: '#ffffff', fontSize: '0.80rem', fontWeight: '700' }}
                 >
                   <option value="Semua Peran">Semua Peran / Role</option>
-                  <option value="Super Admin">Super Admin</option>
-                  <option value="Owner">Owner</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Kasir">Kasir</option>
-                  <option value="Logistik">Logistik</option>
-                  <option value="Kepala Cabang">Kepala Cabang</option>
-                  <option value="SPV">SPV</option>
+                  {allFilterRoles.map((rName, idx) => (
+                    <option key={idx} value={rName}>{rName}</option>
+                  ))}
                 </select>
               </div>
 
@@ -2014,13 +2032,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     onChange={e => setNewUserRole(e.target.value)}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}
                   >
-                    <option value="Super Admin">Super Admin</option>
-                    <option value="Owner">Owner</option>
-                    <option value="Admin">Admin</option>
-                    <option value="Kasir">Kasir</option>
-                    <option value="Logistik">Logistik</option>
-                    <option value="Kepala Cabang">Kepala Cabang</option>
-                    <option value="SPV">SPV (Supervisor)</option>
+                    {webAdminRoles.map((rName, idx) => (
+                      <option key={idx} value={rName}>{rName}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -2212,10 +2226,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>Peran Mobile (Role):</label>
                   <select value={newMobileRole2} onChange={e => setNewMobileRole2(e.target.value)}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}>
-                    <option value="Super Admin / Owner">Super Admin / Owner</option>
-                    <option value="Kepala Cabang / SPV">Kepala Cabang / SPV</option>
-                    <option value="Kasir">Kasir</option>
-                    <option value="Logistik & Dapur">Logistik & Dapur</option>
+                    {mobileRoles.map((rName, idx) => (
+                      <option key={idx} value={rName}>{rName}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

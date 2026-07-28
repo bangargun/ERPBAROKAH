@@ -551,6 +551,46 @@ export default function AndroidPosRegister({
     };
   }, [isAppLoggedIn]);
 
+  // Sync currentUserSession with userSession prop when provided
+  React.useEffect(() => {
+    if (userSession && (userSession.name || userSession.username)) {
+      setCurrentUserSession(prev => ({
+        id: userSession.id || (prev ? prev.id : null),
+        name: userSession.name || userSession.full_name || (prev ? prev.name : 'Kasir POS'),
+        role: userSession.role || userSession.user_role || (prev ? prev.role : 'Kasir'),
+        outlet: userSession.outlet || userSession.outlet_name || (prev ? prev.outlet : ''),
+        outlet_id: userSession.outlet_id || (prev ? prev.outlet_id : null),
+        username: userSession.username || userSession.user || (prev ? prev.username : ''),
+        canAccessMobileReports: userSession.canAccessMobileReports !== false,
+        mobileReportPassword: userSession.mobileReportPassword || ''
+      }));
+    }
+  }, [userSession]);
+
+  // Evaluasi Hak Akses Mobile (Mobile Permission Matrix) untuk Role Kasir yang Aktif
+  const activeMobilePermissions = useMemo(() => {
+    const defaultMatrix = [
+      { role: 'Super Admin / Owner', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: true, shiftClosing: true, reservations: true, printerSetting: true },
+      { role: 'Kepala Cabang / SPV', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: true, shiftClosing: true, reservations: true, printerSetting: true },
+      { role: 'Kasir', posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, stockTransferOut: false, mobileReports: false, shiftClosing: true, reservations: true, printerSetting: true },
+      { role: 'Logistik & Dapur', posCashier: false, voidOrder: false, manualDiscount: false, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: false, shiftClosing: false, reservations: false, printerSetting: false }
+    ];
+    const matrix = (masterData?.mobilePermissionMatrix && masterData.mobilePermissionMatrix.length > 0)
+      ? masterData.mobilePermissionMatrix
+      : defaultMatrix;
+
+    const userRole = currentUserSession?.role || userSession?.role || 'Kasir';
+    const userRoleLower = String(userRole).toLowerCase().trim();
+
+    const matchedRole = matrix.find(m => String(m.role || '').toLowerCase().trim() === userRoleLower);
+    if (matchedRole) return matchedRole;
+
+    if (userRoleLower.includes('super') || userRoleLower.includes('owner') || userRoleLower.includes('admin') || userRoleLower.includes('spv') || userRoleLower.includes('kepala')) {
+      return { role: userRole, posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: true, shiftClosing: true, reservations: true, printerSetting: true };
+    }
+    return { role: userRole, posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, stockTransferOut: false, mobileReports: false, shiftClosing: true, reservations: true, printerSetting: true };
+  }, [masterData?.mobilePermissionMatrix, currentUserSession?.role, userSession?.role]);
+
   // Handle Manual Sync Button Click
   const handleTriggerSyncData = () => {
     setIsSyncingNow(true);
