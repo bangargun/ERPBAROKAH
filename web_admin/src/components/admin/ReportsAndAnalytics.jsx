@@ -17,10 +17,16 @@ export default function ReportsAndAnalytics({ masterData, selectedBranch, outlet
     ].filter(t => !selectedBranch || Number(t.outlet_id || t.branch_id) === Number(selectedBranch));
 
     const totalIncome = transactions.reduce((sum, t) => sum + Number(t.amount || t.total || 0), 0);
+
+    const dineInIncome = transactions
+      .filter(t => t.order_type !== 'Take Away' && t.order_type !== 'takeaway')
+      .reduce((sum, t) => sum + Number(t.amount || t.total || 0), 0);
+    const takeAwayIncome = totalIncome - dineInIncome;
     
     const financialRecords = (masterData?.financialRecords || []).filter(f => !selectedBranch || Number(f.outlet_id) === Number(selectedBranch));
-    const cogsTotal = (masterData?.ingredients || []).reduce((sum, i) => sum + (Number(i.stock || 0) * Number(i.unit_price || 0)), 0);
-    const totalExpense = financialRecords.reduce((sum, f) => sum + Number(f.amount || 0), 0) + cogsTotal;
+    const cogsTotal = (masterData?.ingredients || []).reduce((sum, i) => sum + (Number(i.stock || 0) * Number(i.unit_price || i.cost || 0)), 0);
+    const opexTotal = financialRecords.filter(f => f.type === 'expense').reduce((sum, f) => sum + Number(f.amount || 0), 0);
+    const totalExpense = opexTotal + cogsTotal;
     const netProfit = totalIncome - totalExpense;
 
     setReport({
@@ -28,12 +34,12 @@ export default function ReportsAndAnalytics({ masterData, selectedBranch, outlet
       totalExpense,
       netProfit,
       incomeByCategory: [
-        { category: 'Penjualan Dine-in & Takeaway', total: Math.round(totalIncome * 0.8) },
-        { category: 'Layanan Online & Catering', total: Math.round(totalIncome * 0.2) }
+        { category: 'Penjualan Dine-in (Makan di Tempat)', total: dineInIncome },
+        { category: 'Penjualan Takeaway & Online', total: takeAwayIncome }
       ],
       expenseByCategory: [
-        { category: 'Bahan Baku & Dapur (COGS)', total: cogsTotal || Math.round(totalExpense * 0.5) },
-        { category: 'Operational & General Expenses', total: Math.max(0, totalExpense - (cogsTotal || Math.round(totalExpense * 0.5))) }
+        { category: 'Bahan Baku & Dapur (COGS)', total: cogsTotal },
+        { category: 'Operational & General Expenses (OPEX)', total: opexTotal }
       ]
     });
   }, [masterData, selectedBranch]);

@@ -162,9 +162,9 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   
   // Breakdown of Pendapatan Usaha by Payment Method
   let cashRevenueVal = cashSalesTotal;
-  let qrisRevenueVal = Math.round(nonCashSalesTotal * 0.45);
-  let edcRevenueVal = Math.round(nonCashSalesTotal * 0.35);
-  let transferRevenueVal = nonCashSalesTotal - qrisRevenueVal - edcRevenueVal;
+  let qrisRevenueVal = 0;
+  let edcRevenueVal = 0;
+  let transferRevenueVal = nonCashSalesTotal;
 
   if (salesTxTotal > 0) {
     const cashTx = salesTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('cash') || (t.payment_type || '').toLowerCase().includes('cash')).reduce((s, t) => s + Number(t.amount || 0), 0);
@@ -172,19 +172,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
     const edcTx = salesTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('edc') || (t.payment_method || '').toLowerCase().includes('card') || (t.payment_type || '').toLowerCase().includes('card')).reduce((s, t) => s + Number(t.amount || 0), 0);
     const transferTx = salesTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('transfer') || (t.payment_type || '').toLowerCase().includes('transfer')).reduce((s, t) => s + Number(t.amount || 0), 0);
 
-    if (cashTx > 0 || qrisTx > 0 || edcTx > 0 || transferTx > 0) {
-      cashRevenueVal = cashTx > 0 ? cashTx : Math.round(rawSalesTotal * 0.4);
-      qrisRevenueVal = qrisTx > 0 ? qrisTx : Math.round(rawSalesTotal * 0.3);
-      edcRevenueVal = edcTx > 0 ? edcTx : Math.round(rawSalesTotal * 0.2);
-      transferRevenueVal = Math.max(0, rawSalesTotal - cashRevenueVal - qrisRevenueVal - edcRevenueVal);
-    }
+    cashRevenueVal = cashTx;
+    qrisRevenueVal = qrisTx;
+    edcRevenueVal = edcTx;
+    transferRevenueVal = transferTx;
   }
 
   if (cashRevenueVal === 0 && qrisRevenueVal === 0 && edcRevenueVal === 0 && transferRevenueVal === 0 && pendapatanUsaha > 0) {
-    cashRevenueVal = Math.round(pendapatanUsaha * 0.5);
-    qrisRevenueVal = Math.round(pendapatanUsaha * 0.3);
-    edcRevenueVal = Math.round(pendapatanUsaha * 0.15);
-    transferRevenueVal = pendapatanUsaha - cashRevenueVal - qrisRevenueVal - edcRevenueVal;
+    cashRevenueVal = pendapatanUsaha;
   }
 
   // Total Income = Pendapatan Usaha dikurangi Diskon Penjualan
@@ -207,9 +202,9 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   }, 0);
 
   const hppVal = cogsTotalApproved;
-  const hppUtamaVal = Math.round(hppVal * 0.60);
-  const hppBumbuVal = Math.round(hppVal * 0.25);
-  const hppMinumanVal = hppVal - hppUtamaVal - hppBumbuVal;
+  const hppUtamaVal = hppVal;
+  const hppBumbuVal = 0;
+  const hppMinumanVal = 0;
 
   const biayaPengiriman = approvedReports.reduce((s, f) => s + Number(f.shipping_fee || f.delivery_cost || 0), 0);
   const totalCogsVal = hppVal + biayaPengiriman;
