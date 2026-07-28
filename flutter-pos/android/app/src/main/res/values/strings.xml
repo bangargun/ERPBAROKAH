@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">MRIS Finance Mobile</string>
-    <string name="title_activity_main">MRIS Finance Mobile</string>
+    <string name="app_name">M-RIS System</string>
+    <string name="title_activity_main">M-RIS System</string>
     <string name="package_name">com.mris.finance</string>
     <string name="custom_url_scheme">com.mris.finance</string>
 </resources>
