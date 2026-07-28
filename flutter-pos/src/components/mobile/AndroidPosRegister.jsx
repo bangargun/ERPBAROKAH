@@ -500,8 +500,11 @@ export default function AndroidPosRegister({
         setIsAppLoggedIn(false);
         setLoginStep(1);
         setSelectedLoginCategory(null);
+        setLoginSelectedOutlet(null);
         setSelectedUserAccount(null);
         setLoginPasswordInput('');
+        setLoginUsernameInput('');
+        setCurrentUserSession(null);
         setLoginErrorText('🔒 Tablet POS tidak digunakan selama 15 menit. Sesi dikunci otomatis demi keamanan.');
       }, INACTIVITY_TIMEOUT_MS);
     };
@@ -2441,17 +2444,23 @@ export default function AndroidPosRegister({
 
             <button
               onClick={() => {
-                if (onLogout) {
-                  onLogout();
-                } else {
+                if (window.confirm('Yakin ingin keluar dari akun ini?')) {
+                  // Reset semua state login secara lengkap
                   setIsAppLoggedIn(false);
                   setLoginStep(1);
+                  setSelectedLoginCategory(null);
+                  setLoginSelectedOutlet(null);
+                  setSelectedUserAccount(null);
+                  setLoginPasswordInput('');
+                  setLoginUsernameInput('');
+                  setLoginErrorText('');
+                  setCurrentUserSession(null);
                 }
               }}
               style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#fca5a5', padding: '5px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <User size={15} />
-              <span>🚪 Keluar dari Akun</span>
+              <span>🚪 Keluar</span>
             </button>
           </div>
         </header>
