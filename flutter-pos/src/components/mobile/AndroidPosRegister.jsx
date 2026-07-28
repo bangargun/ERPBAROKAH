@@ -486,6 +486,37 @@ export default function AndroidPosRegister({
     };
   }, [autoSyncIntervalActive]);
 
+  // AUTOMATIC 15-MINUTE INACTIVITY AUTO-LOCK TO PAPAN LOGIN
+  React.useEffect(() => {
+    if (!isAppLoggedIn) return;
+
+    let inactivityTimer = null;
+    const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 menit (900.000 ms)
+
+    const handleUserActivityReset = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        setIsAppLoggedIn(false);
+        setLoginStep(1);
+        setSelectedLoginCategory(null);
+        setSelectedUserAccount(null);
+        setLoginPasswordInput('');
+        setLoginErrorText('🔒 Tablet POS tidak digunakan selama 15 menit. Sesi dikunci otomatis demi keamanan.');
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach(evt => window.addEventListener(evt, handleUserActivityReset, { passive: true }));
+
+    // Start timer upon login
+    handleUserActivityReset();
+
+    return () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      activityEvents.forEach(evt => window.removeEventListener(evt, handleUserActivityReset));
+    };
+  }, [isAppLoggedIn]);
+
   // Handle Manual Sync Button Click
   const handleTriggerSyncData = () => {
     setIsSyncingNow(true);
@@ -1869,6 +1900,8 @@ export default function AndroidPosRegister({
       step2FilteredUsers = registeredUsers.filter(u => (u.role || '').toLowerCase().includes('super admin') && u.status === 'Aktif');
     } else if (selectedLoginCategory === 'owner') {
       step2FilteredUsers = registeredUsers.filter(u => (u.role || '').toLowerCase().includes('owner') && u.status === 'Aktif');
+    } else if (selectedLoginCategory === 'admin') {
+      step2FilteredUsers = registeredUsers.filter(u => ((u.role || '').toLowerCase().includes('admin') || (u.role || '').toLowerCase().includes('operasional')) && u.status === 'Aktif');
     } else if (selectedLoginCategory && selectedLoginCategory.name) {
       step2FilteredUsers = registeredUsers.filter(u =>
         (u.outlet === selectedLoginCategory.name || u.outlet === 'Semua Outlet (Central)' || !u.outlet) && u.status === 'Aktif'
@@ -1880,6 +1913,26 @@ export default function AndroidPosRegister({
         <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '880px', background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '36px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)' }}>
           {/* BRANDING HEADER & STEP INDICATOR */}
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            {/* M-RIS MEWAH CIRCULAR GOLD LOGO BADGE */}
+            <div style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
+              border: '3px solid #facc15',
+              boxShadow: '0 0 24px rgba(250,204,21,0.45)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px'
+            }}>
+              <div style={{ fontSize: '1.20rem', fontWeight: '900', background: 'linear-gradient(135deg, #fef08a 0%, #eab308 50%, #ca8a04 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '1px' }}>
+                M-RIS
+              </div>
+              <span style={{ fontSize: '0.45rem', fontWeight: '800', color: '#94a3b8', letterSpacing: '1.5px', textTransform: 'uppercase' }}>SYSTEM</span>
+            </div>
+
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60a5fa', padding: '6px 18px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '900', marginBottom: '12px' }}>
               <Store size={16} />
               <span>POS RESTAURANT MULTI-BRANCH SYSTEM (MOBILE APK)</span>
