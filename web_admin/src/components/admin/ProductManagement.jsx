@@ -311,6 +311,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       name: prodName.trim(),
       category_id: parseInt(prodCategoryId),
       category_name: categoryObj ? categoryObj.name : 'Makanan Utama',
+      category: categoryObj ? categoryObj.name : 'Makanan Utama',
       price: parseFloat(firstPriceVal) || 0,
       cost: (parseFloat(firstPriceVal) || 0) * 0.4,
       unit: 'Pcs',

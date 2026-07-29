@@ -105,15 +105,32 @@ export default function AndroidPosRegister({
     || outlets[0] 
     || { id: 1, name: 'Outlet Utama' };
 
+  // Helper for extracting category name from product
+  const getProductCategoryName = (item) => {
+    if (!item) return 'Umum';
+    if (item.category && typeof item.category === 'string' && item.category.trim() !== '') return item.category.trim();
+    if (item.category_name && typeof item.category_name === 'string' && item.category_name.trim() !== '') return item.category_name.trim();
+    if (item.category_id && masterData?.categories) {
+      const catObj = masterData.categories.find(c => String(c.id) === String(item.category_id));
+      if (catObj && (catObj.name || catObj.category_name)) return (catObj.name || catObj.category_name).trim();
+    }
+    return 'Umum';
+  };
+
   // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
-  const products = rawProducts.filter(p => !p.outlet_id || p.outlet_id === currentOutlet.id || currentOutlet.id === 1);
+  const products = rawProducts.filter(p => 
+    !p.outlet_id || 
+    String(p.outlet_id) === String(currentOutlet.id) || 
+    String(currentOutlet.id) === '1' ||
+    String(p.outlet_id) === '1'
+  );
   const menuList = products;
   const masterCategoryNames = (masterData?.categories || [])
     .filter(c => !c.status || c.status === 'Aktif')
-    .map(c => c.name)
+    .map(c => c.name || c.category_name || c.title)
     .filter(Boolean);
-  const productCategoryNames = menuList.map(item => item.category || 'Umum').filter(Boolean);
+  const productCategoryNames = menuList.map(item => getProductCategoryName(item)).filter(Boolean);
   const allCategoryNames = Array.from(new Set([...masterCategoryNames, ...productCategoryNames]));
   const categories = ['🔥 Sering Diorder', 'Semua', ...allCategoryNames];
 
@@ -1029,7 +1046,7 @@ export default function AndroidPosRegister({
 
   // TAP 1: ADD ITEM TO CART
   const handleAddToCart = (product) => {
-    const existingIndex = cart.findIndex(item => item.id === product.id);
+    const existingIndex = cart.findIndex(item => item.id === product.id || String(item.id) === String(product.id));
     if (existingIndex >= 0) {
       const updatedCart = [...cart];
       updatedCart[existingIndex].qty += 1;
@@ -1041,12 +1058,16 @@ export default function AndroidPosRegister({
 
   const handleUpdateQty = (productId, delta) => {
     setCart(cart.map(item => {
-      if (item.id === productId) {
+      if (item.id === productId || String(item.id) === String(productId)) {
         const newQty = item.qty + delta;
         return newQty > 0 ? { ...item, qty: newQty } : null;
       }
       return item;
     }).filter(Boolean));
+  };
+
+  const handleRemoveCartItem = (productId) => {
+    setCart(cart.filter(item => item.id !== productId && String(item.id) !== String(productId)));
   };
 
   const handleClearCart = () => {
@@ -2317,7 +2338,8 @@ export default function AndroidPosRegister({
   }
 
   const filteredItems = menuList.filter(item => {
-    let matchesCat = activeCategory === 'Semua' || item.category === activeCategory;
+    const itemCatName = getProductCategoryName(item);
+    let matchesCat = activeCategory === 'Semua' || itemCatName.toLowerCase() === activeCategory.toLowerCase();
     if (activeCategory === '🔥 Sering Diorder') {
       const hasPopular = menuList.some(i => i.isPopular || i.is_popular || i.isFavorite);
       matchesCat = hasPopular ? !!(item.isPopular || item.is_popular || item.isFavorite) : true;
@@ -2880,6 +2902,21 @@ export default function AndroidPosRegister({
                 ) : (
                   /* Standard Cart Items List */
                   <div style={{ flex: 1, padding: '12px 16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', background: T.bgApp }}>
+                    {openedOriginalCart && (
+                      <div style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)', padding: '10px 14px', borderRadius: '10px', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #3b82f6', boxShadow: '0 2px 8px rgba(37,99,235,0.3)', flexShrink: 0 }}>
+                        <div>
+                          <div style={{ fontSize: '0.84rem', fontWeight: '900', color: '#93c5fd' }}>✏️ Edit Pesanan {selectedTableObj?.number || 'Gantung'}</div>
+                          <div style={{ fontSize: '0.74rem', opacity: 0.9 }}>Bebas tambah menu (+) atau kurangi (-) item di bawah ini</div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => { setCart([]); setOpenedOriginalCart(null); }}
+                          style={{ background: 'rgba(239,68,68,0.3)', border: '1px solid #ef4444', color: '#fca5a5', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                        >
+                          Batal Edit
+                        </button>
+                      </div>
+                    )}
                     {cart.length === 0 ? (
                       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: T.txtMuted }}>
                         <ShoppingBag size={40} strokeWidth={1} style={{ marginBottom: '8px', opacity: 0.4 }} />
