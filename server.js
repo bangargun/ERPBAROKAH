@@ -801,6 +801,58 @@ app.all('/api/webhook/deploy', (req, res) => {
   });
 });
 
+// Deep merge masterData protecting user input from being overwritten by empty arrays
+const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
+  const result = { ...existing };
+
+  Object.keys(incoming).forEach(key => {
+    const incVal = incoming[key];
+    const extVal = existing[key];
+
+    if (Array.isArray(extVal) && extVal.length > 0) {
+      if (Array.isArray(incVal)) {
+        if (incVal.length === 0) {
+          // DO NOT overwrite non-empty existing data with empty incoming array!
+          result[key] = extVal;
+        } else {
+          // Merge items by ID if items have IDs, or keep incoming if fully replacing
+          const itemMap = new Map();
+          extVal.forEach(item => {
+            if (item && item.id !== undefined) {
+              itemMap.set(String(item.id), item);
+            }
+          });
+
+          if (itemMap.size > 0) {
+            incVal.forEach(item => {
+              if (item && item.id !== undefined) {
+                const keyId = String(item.id);
+                const prev = itemMap.get(keyId) || {};
+                itemMap.set(keyId, { ...prev, ...item });
+              } else {
+                itemMap.set(Symbol(), item);
+              }
+            });
+            result[key] = Array.from(itemMap.values());
+          } else {
+            result[key] = incVal;
+          }
+        }
+      } else if (incVal === undefined || incVal === null) {
+        result[key] = extVal;
+      } else {
+        result[key] = incVal;
+      }
+    } else {
+      if (incVal !== undefined) {
+        result[key] = incVal;
+      }
+    }
+  });
+
+  return result;
+};
+
 // Sanitizer otomatis — menjamin data input pengguna 100% aman dan tidak terhapus
 const sanitizeMasterDataPayload = (data) => {
   if (!data || typeof data !== 'object') return data;
@@ -850,7 +902,8 @@ app.post('/api/master-data', async (req, res) => {
     }
 
     const sanitizedPayload = sanitizeMasterDataPayload(payload);
-    const newMasterData = sanitizeMasterDataPayload({ ...existing, ...sanitizedPayload, _lastUpdated: nowTs });
+    const mergedData = mergeMasterDataSafely(existing, sanitizedPayload);
+    const newMasterData = sanitizeMasterDataPayload({ ...mergedData, _lastUpdated: nowTs });
 
     const mysqlOk = await saveMasterDataToMySQL(newMasterData);
 
