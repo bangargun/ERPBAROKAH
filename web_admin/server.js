@@ -522,6 +522,37 @@ app.get('/api/mysql-status', async (req, res) => {
   }
 });
 
+// Database Inspector Endpoints (phpMyAdmin-style UI)
+app.get('/api/db/tables', async (req, res) => {
+  if (!mysqlPool) {
+    return res.json({ status: 'standalone', database: 'mris_db (JSON Fallback)', tables: [] });
+  }
+  try {
+    const [tables] = await mysqlPool.query("SHOW TABLES");
+    const tableList = [];
+    for (const row of tables) {
+      const tableName = Object.values(row)[0];
+      const [[cnt]] = await mysqlPool.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
+      tableList.push({ name: tableName, count: cnt.count });
+    }
+    res.json({ status: 'connected', database: 'mris_db', tables: tableList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/db/table/:name', async (req, res) => {
+  if (!mysqlPool) return res.status(400).json({ error: 'MySQL tidak aktif' });
+  const tableName = req.params.name;
+  try {
+    const [rows] = await mysqlPool.query(`SELECT * FROM \`${tableName}\` ORDER BY 1 DESC LIMIT 100`);
+    const [columns] = await mysqlPool.query(`SHOW COLUMNS FROM \`${tableName}\``);
+    res.json({ table: tableName, columns, rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Auto-Deploy Webhook Endpoint for Instant VPS Deployment
 app.all('/api/webhook/deploy', (req, res) => {
   const secret = req.query.secret || req.body?.secret || req.headers['x-deploy-secret'];
