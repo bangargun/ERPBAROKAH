@@ -573,7 +573,7 @@ app.post('/api/db/query', async (req, res) => {
 });
 
 // Standalone phpMyAdmin / Adminer Web Interface Route
-app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*'], (req, res) => {
+app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyadmin', '/api/phpmyadmin/*', '/api/db-explorer'], (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="id">
 <head>
