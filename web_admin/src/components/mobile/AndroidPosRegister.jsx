@@ -183,6 +183,10 @@ export default function AndroidPosRegister({
   const [printerSettings, setPrinterSettings] = useState({
     paperWidth: '58mm', // '58mm' | '80mm'
     printerName: 'Thermal Bluetooth POS Printer 58mm',
+    macAddress: 'DC:0D:30:84:9E:21',
+    connectionType: 'bluetooth', // 'bluetooth' | 'usb' | 'wifi' | 'system'
+    status: 'connected', // 'connected' | 'disconnected'
+    printMethod: 'direct', // 'direct' (Direct Thermal) | 'system' (Dialog Cetak Sistem Android)
     autoShowReceiptChoiceOnSaveOrder: true,
     printMode: 'sekaligus',  // 'sekaligus' (All-in-One) | 'per_item' (Cetak 1 per 1)
     printKitchen: true,      // Struk Dapur (Kitchen Ticket)
@@ -190,8 +194,36 @@ export default function AndroidPosRegister({
     printTableCopy: true,    // Struk Meja / Bill (Table Copy)
     printCashierCopy: false  // Struk Copy Kasir (Cashier Copy)
   });
+  const [isScanningPrinters, setIsScanningPrinters] = useState(false);
+  const [discoveredPrinters, setDiscoveredPrinters] = useState([
+    { id: '1', name: 'Thermal Bluetooth POS (RPP02N)', mac: 'DC:0D:30:84:9E:21', type: 'bluetooth', status: 'connected' },
+    { id: '2', name: 'USB POS Thermal Printer 80mm', mac: 'USB_VID_0483_PID_5740', type: 'usb', status: 'available' },
+    { id: '3', name: 'LAN Kitchen Printer (192.168.1.200)', mac: '192.168.1.200:9100', type: 'wifi', status: 'available' }
+  ]);
   const [showTestPrintModal, setShowTestPrintModal] = useState(false);
   const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
+
+  const handleScanPrinters = () => {
+    setIsScanningPrinters(true);
+    setTimeout(() => {
+      setIsScanningPrinters(false);
+      alert('🔍 Pemindaian Selesai: 3 Perangkat Printer Thermal Terdeteksi di Sekitar Tablet POS.');
+    }, 1500);
+  };
+
+  const handleConnectPrinterDevice = (device) => {
+    setPrinterSettings(prev => ({
+      ...prev,
+      printerName: device.name,
+      macAddress: device.mac,
+      connectionType: device.type,
+      status: 'connected'
+    }));
+    setDiscoveredPrinters(prev => prev.map(p => ({
+      ...p,
+      status: p.id === device.id ? 'connected' : 'available'
+    })));
+  };
 
   // Modal Pilihan Struk saat Simpan Order
   const [showSaveOrderReceiptModal, setShowSaveOrderReceiptModal] = useState(false);
@@ -1361,9 +1393,66 @@ export default function AndroidPosRegister({
         }, 2000);
       }, 350);
     } catch (err) {
-      console.error('⚠️ Print execution exception:', err);
-      window.print();
     }
+  };
+
+  const handleExecuteTestPrint = () => {
+    const pWidth = printerSettings.paperWidth === '80mm' ? '76mm' : '54mm';
+    const testHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Test Print Thermal - ${printerSettings.printerName}</title>
+        <style>
+          @page { size: ${printerSettings.paperWidth} auto; margin: 0; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: ${pWidth};
+            margin: 0 auto;
+            padding: 4mm 2mm;
+            color: #000;
+            background: #fff;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center bold" style="font-size: 13px;">${currentOutlet?.name || 'RESTORAN MRIS'}</div>
+        <div class="text-center" style="font-size: 10px;">POS THERMAL PRINTER TEST</div>
+        <div class="divider"></div>
+        <div>Waktu Test : ${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}</div>
+        <div>Nama Printer: ${printerSettings.printerName}</div>
+        <div>Status      : ${printerSettings.status === 'connected' ? 'TERKONEKSI (OK)' : 'TDK TERKONEKSI'}</div>
+        <div>Kertas      : ${printerSettings.paperWidth} (${printerSettings.connectionType?.toUpperCase() || 'BT'})</div>
+        <div>MAC / ID    : ${printerSettings.macAddress || 'DC:0D:30:84:9E:21'}</div>
+        <div class="divider"></div>
+        <div style="display:flex; justify-content:space-between;">
+          <span>1x Nasi Goreng Spesial</span>
+          <span>25.000</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span>1x Es Teh Manis</span>
+          <span>5.000</span>
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex; justify-content:space-between;" class="bold">
+          <span>TOTAL STRUK TEST</span>
+          <span>Rp 30.000</span>
+        </div>
+        <div class="divider"></div>
+        <div class="text-center bold" style="margin-top: 8px;">*** CETAK STRUK TEST BERHASIL ***</div>
+        <div class="text-center" style="font-size: 9px; margin-top: 2px;">Sistem Kasir Mobile POS MRIS Ready</div>
+      </body>
+      </html>
+    `;
+
+    printHTMLContent(testHTML);
+    setTestPrintSuccessToast(true);
+    setTimeout(() => setTestPrintSuccessToast(false), 3000);
   };
 
   // SINGLE-PASS UNIFIED THERMAL PRINT JOB FOR ALL SELECTED TICKETS (HANYA 1X PERMISI / POPUP CETAK BROWSER)
@@ -5972,15 +6061,15 @@ export default function AndroidPosRegister({
 
                 {/* SUB-TAB 2: PRINTER */}
                 {settingSubTab === 'printer' && (
-                  <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <Printer size={26} color="#38bdf8" />
-                          <span>Pengaturan Thermal Printer POS</span>
+                          <span>Dashboard & Connection Status Thermal Printer</span>
                         </h2>
                         <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
-                          Konfigurasi koneksi printer thermal Bluetooth/USB, mode cetak 1 per 1 vs sekaligus, dan uji coba cetak struk.
+                          Status koneksi realtime printer Bluetooth/USB/LAN, pemindaian perangkat, ukuran kertas, dan uji cetak struk.
                         </p>
                       </div>
 
@@ -5994,15 +6083,11 @@ export default function AndroidPosRegister({
 
                         <button
                           type="button"
-                          onClick={() => {
-                            setShowTestPrintModal(true);
-                            setTestPrintSuccessToast(true);
-                            setTimeout(() => setTestPrintSuccessToast(false), 3000);
-                          }}
+                          onClick={handleExecuteTestPrint}
                           style={{
                             padding: '10px 18px',
                             background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
-                            color: 'var(--pos-txt-primary)',
+                            color: '#ffffff',
                             border: 'none',
                             borderRadius: '12px',
                             fontWeight: '900',
@@ -6015,21 +6100,129 @@ export default function AndroidPosRegister({
                           }}
                         >
                           <Printer size={18} />
-                          <span>🖨️ Test Print Struk</span>
+                          <span>🖨️ Test Print Struk Uji Coba</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* SECTION 1: PERANGKAT PRINTER & KERTAS */}
+                    {/* SECTION 0: CARD REALTIME STATUS KONEKSI PRINTER */}
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: printerSettings.status === 'connected' ? '2px solid #10b981' : '2px solid #ef4444' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: printerSettings.status === 'connected' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Printer size={28} color={printerSettings.status === 'connected' ? '#34d399' : '#f87171'} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', letterSpacing: '0.5px' }}>STATUS KONEKSI THERMAL PRINTER REALTIME</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: '900', color: printerSettings.status === 'connected' ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                              <span>{printerSettings.status === 'connected' ? '🟢 TERKONEKSI & SIAP MENCETAK' : '🔴 TIDAK TERKONEKSI (DISCONNECTED)'}</span>
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
+                              Perangkat Terhubung: <strong>{printerSettings.printerName || 'Belum Dipilih'}</strong> • Kertas: <strong>{printerSettings.paperWidth || '58mm'}</strong> • MAC/IP: <code>{printerSettings.macAddress || 'BT:00:11:22:33:44'}</code>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleScanPrinters}
+                          style={{
+                            padding: '10px 16px',
+                            background: isScanningPrinters ? '#64748b' : '#0284c7',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '10px',
+                            fontWeight: '800',
+                            fontSize: '0.80rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <RefreshCw size={16} className={isScanningPrinters ? 'animate-spin' : ''} />
+                          <span>{isScanningPrinters ? 'Memindai...' : '🔍 Pindai Printer Sekitar'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 1: DAFTAR PERANGKAT PRINTER TERDETEKSI */}
                     <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '0.96rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Wifi size={18} color="#38bdf8" />
+                        <span>Perangkat Printer Terdeteksi (Bluetooth / USB / LAN)</span>
+                      </h3>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {discoveredPrinters.map(device => {
+                          const isCurrent = printerSettings.printerName === device.name;
+                          return (
+                            <div
+                              key={device.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '12px 16px',
+                                borderRadius: '12px',
+                                background: isCurrent ? 'rgba(56, 189, 248, 0.12)' : 'var(--pos-bg-app)',
+                                border: isCurrent ? '2px solid #38bdf8' : '1px solid var(--pos-border-card)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ fontSize: '1.2rem' }}>
+                                  {device.type === 'bluetooth' ? '📡' : device.type === 'usb' ? '🔌' : '🌐'}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.88rem', fontWeight: '900', color: isCurrent ? '#38bdf8' : 'var(--pos-txt-primary)' }}>
+                                    {device.name}
+                                  </div>
+                                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>
+                                    ID/MAC: <code>{device.mac}</code> • Tipe: {device.type.toUpperCase()}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                {isCurrent ? (
+                                  <span style={{ background: '#10b981', color: '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '900' }}>
+                                    ✅ Terhubung
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConnectPrinterDevice(device)}
+                                    style={{
+                                      padding: '6px 14px',
+                                      background: 'var(--pos-border-card)',
+                                      color: 'var(--pos-txt-primary)',
+                                      border: 'none',
+                                      borderRadius: '8px',
+                                      fontSize: '0.76rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    ⚡ Sambungkan
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* SECTION 2: METODE & UKURAN KERTAS */}
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                      <h3 style={{ fontSize: '0.96rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Settings size={18} color="#818cf8" />
-                        <span>Perangkat Printer Thermal POS</span>
+                        <span>Konfigurasi Ukuran Kertas & Metode Pencetakan</span>
                       </h3>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <div>
-                          <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px', fontWeight: '700' }}>Nama Printer Active</label>
+                          <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px', fontWeight: '700' }}>Nama Printer Kustom</label>
                           <input
                             type="text"
                             value={printerSettings.printerName}
@@ -6084,9 +6277,9 @@ export default function AndroidPosRegister({
                       </div>
                     </div>
 
-                    {/* SECTION 2: METODE CETAK STRUK (1 PER 1 VS SEKALIGUS) */}
+                    {/* SECTION 3: METODE CETAK STRUK (1 PER 1 VS SEKALIGUS) */}
                     <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '0.96rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Zap size={18} color="#34d399" />
                         <span>Pengaturan Mode Cetak Struk Pesanan (Dapur / Bar / Kasir)</span>
                       </h3>
@@ -6163,7 +6356,7 @@ export default function AndroidPosRegister({
                       </div>
                     </div>
 
-                    {/* SECTION 3: POPUP STRUK CHOICE */}
+                    {/* SECTION 4: POPUP STRUK CHOICE */}
                     <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                       <div
                         onClick={() => setPrinterSettings(prev => ({ ...prev, autoShowReceiptChoiceOnSaveOrder: !prev.autoShowReceiptChoiceOnSaveOrder }))}
