@@ -1288,6 +1288,12 @@ export default function AndroidPosRegister({
     } else {
       setLastCompletedTx(holdTx);
       setShowReceiptModal(true);
+      handleExecuteBatchPrint(holdTx, {
+        printKitchen: printerSettings.printKitchen,
+        printBar: printerSettings.printBar,
+        printTableCopy: printerSettings.printTableCopy,
+        printCashierCopy: printerSettings.printCashierCopy
+      });
     }
     setCart([]);
   };
@@ -1342,58 +1348,111 @@ export default function AndroidPosRegister({
 
     setLastCompletedTx(billTx);
     setShowReceiptModal(true);
+    handleExecuteBatchPrint(billTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
 
-  // RELIABLE IFRAME PRINTING ENGINE FOR MOBILE APK & DESKTOP (BEBAS POPUP BLOCKER)
+  // RELIABLE DUAL-ENGINE PRINTING FOR MOBILE APK (ANDROID WEBVIEW) & DESKTOP BROWSERS
   const printHTMLContent = (htmlString) => {
     try {
-      const oldIframe = document.getElementById('mris-print-frame');
-      if (oldIframe && oldIframe.parentNode) {
-        oldIframe.parentNode.removeChild(oldIframe);
+      // 1. Inject @media print CSS rules
+      let printStyle = document.getElementById('mris-print-style');
+      if (!printStyle) {
+        printStyle = document.createElement('style');
+        printStyle.id = 'mris-print-style';
+        printStyle.innerHTML = `
+          @media print {
+            body > *:not(#mris-printable-area) {
+              display: none !important;
+            }
+            #mris-printable-area {
+              display: block !important;
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              font-family: 'Courier New', Courier, monospace !important;
+            }
+          }
+          @media screen {
+            #mris-printable-area {
+              display: none !important;
+            }
+          }
+        `;
+        document.head.appendChild(printStyle);
       }
 
-      const iframe = document.createElement('iframe');
-      iframe.id = 'mris-print-frame';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0px';
-      iframe.style.height = '0px';
-      iframe.style.border = '0';
-      iframe.style.opacity = '0';
-      iframe.style.pointerEvents = 'none';
-      iframe.style.zIndex = '-9999';
+      // 2. Inject receipt HTML into main DOM printable container
+      let printArea = document.getElementById('mris-printable-area');
+      if (!printArea) {
+        printArea = document.createElement('div');
+        printArea.id = 'mris-printable-area';
+        document.body.appendChild(printArea);
+      }
+      printArea.innerHTML = htmlString;
 
-      document.body.appendChild(iframe);
-
-      const frameDoc = iframe.contentWindow || iframe.contentDocument;
-      const doc = frameDoc.document || frameDoc;
-
-      doc.open();
-      doc.write(htmlString);
-      doc.close();
-
-      setTimeout(() => {
-        try {
-          if (iframe.contentWindow) {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-          }
-        } catch (printErr) {
-          console.error('⚠️ Print iframe focus error:', printErr);
-          window.print();
+      // 3. Fallback iframe creation
+      try {
+        const oldIframe = document.getElementById('mris-print-frame');
+        if (oldIframe && oldIframe.parentNode) {
+          oldIframe.parentNode.removeChild(oldIframe);
         }
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'mris-print-frame';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '100px';
+        iframe.style.height = '100px';
+        iframe.style.border = '0';
+        iframe.style.opacity = '0.01';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.zIndex = '-9999';
+
+        document.body.appendChild(iframe);
+
+        const frameDoc = iframe.contentWindow || iframe.contentDocument;
+        const doc = frameDoc.document || frameDoc;
+
+        doc.open();
+        doc.write(htmlString);
+        doc.close();
 
         setTimeout(() => {
           try {
-            const frameToRemove = document.getElementById('mris-print-frame');
-            if (frameToRemove && frameToRemove.parentNode) {
-              frameToRemove.parentNode.removeChild(frameToRemove);
+            if (iframe.contentWindow) {
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
             }
           } catch (e) {}
-        }, 2000);
-      }, 350);
+        }, 150);
+      } catch (iframeErr) {}
+
+      // 4. Trigger main window.print() (Required for Android WebViews & Capacitor Mobile APK!)
+      setTimeout(() => {
+        try {
+          window.print();
+        } catch (printErr) {
+          console.error('⚠️ Main window.print error:', printErr);
+        }
+
+        setTimeout(() => {
+          if (printArea) printArea.innerHTML = '';
+          const iframeToRemove = document.getElementById('mris-print-frame');
+          if (iframeToRemove && iframeToRemove.parentNode) {
+            iframeToRemove.parentNode.removeChild(iframeToRemove);
+          }
+        }, 3000);
+      }, 250);
+
     } catch (err) {
+      console.error('⚠️ Print execution exception:', err);
+      try { window.print(); } catch (e) {}
     }
   };
 
@@ -2101,6 +2160,7 @@ export default function AndroidPosRegister({
     setLastCompletedTx(newTx);
     setCart([]);
     setShowReceiptModal(true);
+    handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
 
   // Handle Petty Expense Entry
