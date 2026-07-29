@@ -882,7 +882,7 @@ app.post('/api/master-data', async (req, res) => {
 app.use(express.static(path.join(__dirname, 'web_admin', 'dist')));
 
 app.get('*', (req, res) => {
-  if (req.path.startsWith('/api')) return;
+  if (req.path.startsWith('/api') || req.path.startsWith('/phpmyadmin') || req.path.startsWith('/adminer')) return;
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
 });
 
