@@ -787,7 +787,46 @@ app.post('/api/db/row/update', async (req, res) => {
     const values = keys.map(k => data[k]);
 
     await mysqlPool.execute(`UPDATE \`${table}\` SET ${setClause} WHERE \`${pkColumn}\` = ?`, [...values, id]);
-    res.json({ success: true, message: `Baris ID ${id} berhasil diperbarui di tabel ${table}` });
+
+    // SYNC BACK TO mris_master_data INSTANTLY
+    try {
+      let masterData = await getMasterDataFromMySQL();
+      if (masterData) {
+        const idStr = String(id);
+        const updateObjInArr = (arr = []) => arr.map(item => {
+          if (item && (String(item.id) === idStr || String(item.code) === idStr)) {
+            return { ...item, ...data };
+          }
+          return item;
+        });
+
+        if (table === 'sales_transactions' || table === 'transactions') {
+          masterData.salesTransactions = updateObjInArr(masterData.salesTransactions || []);
+          masterData.transactions = updateObjInArr(masterData.transactions || []);
+        } else if (table === 'outlets') {
+          masterData.outlets = updateObjInArr(masterData.outlets || []);
+        } else if (table === 'products') {
+          masterData.products = updateObjInArr(masterData.products || []);
+        } else if (table === 'categories') {
+          masterData.categories = updateObjInArr(masterData.categories || []);
+        } else if (table === 'users') {
+          masterData.users = updateObjInArr(masterData.users || []);
+          masterData.userAccounts = updateObjInArr(masterData.userAccounts || []);
+          masterData.webAdminAccounts = updateObjInArr(masterData.webAdminAccounts || []);
+          masterData.mobileAccounts = updateObjInArr(masterData.mobileAccounts || []);
+        } else if (table === 'shift_closings') {
+          masterData.shiftClosings = updateObjInArr(masterData.shiftClosings || []);
+          masterData.closedShifts = updateObjInArr(masterData.closedShifts || []);
+          masterData.shift_closings = updateObjInArr(masterData.shift_closings || []);
+        }
+        masterData._lastUpdated = Date.now();
+        await saveMasterDataToMySQL(masterData);
+      }
+    } catch (syncErr) {
+      console.error('sync back update error:', syncErr.message);
+    }
+
+    res.json({ success: true, message: `Baris ID ${id} berhasil diperbarui di tabel ${table} & mris_master_data` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1263,7 +1302,8 @@ app.post('/api/master-data', async (req, res) => {
       saveDb(db);
     } catch (jsonErr) {}
 
-    setTimeout(() => { syncToMySQL(newMasterData); }, 50);
+    // Sinkronisasi langsung ke tabel relasi MySQL (sales_transactions, outlets, products, dll)
+    await syncToMySQL(newMasterData);
 
     const timestamp = new Date().toISOString();
     res.json({
