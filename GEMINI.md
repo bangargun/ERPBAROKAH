@@ -140,3 +140,8 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
    `curl -s "https://mris-admin.barokahgroupindonesia.tech/api/webhook/deploy?secret=mris_deploy_secret_2026"`
    (Command yang berjalan di VPS: `cd /var/www/MRIS_TECH && git fetch origin && git reset --hard origin/main && cd web_admin && npm run build && cp -r dist/* ../dist/ && pm2 restart mris-app-tech`).
 8. **Perlindungan Data Input User**: Data real/nyata yang di-input oleh user di database, Web Admin, maupun Mobile POS (misal: transaksi, produk, outlet, akun, laporan, master data) **DILARANG KERAS DIHAPUS, DI-RESET, ATAU DI-OVERWRITE DENGAN KOSONG** saat melakukan update/build Mobile APK maupun Web-based Admin. AI hanya boleh menghapus/cleansing data fake/mock/dummy hardcoded sebagaimana diatur dalam GEMINI.md. Seluruh data real user wajib dipertahankan secara utuh dan aman. Penghapusan data real hanya dilakukan melalui aksi hapus manual dari user di UI/sistem.
+9. **Integrasi Thermal Printer Mobile**: Pemindaian printer thermal di POS Mobile wajib menggunakan Web Bluetooth API (`navigator.bluetooth.requestDevice`), **DILARANG** menggunakan dummy device array atau alert simulasi `setTimeout`.
+10. **Penanganan Null-Safety & Cache Clearing**:
+    - Selalu sertakan pengecekan null (`activeCust ? ... : null`) pada pembacaan objek dari `masterData` untuk mencegah `TypeError: Cannot read properties of null`.
+    - Apabila terdapat pembersihan cache lokal tanpa mengganggu database VPS, tingkatkan key `mris_version` di `App.jsx` (contoh: `v57_outlet_clean`).
+
