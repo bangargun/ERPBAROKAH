@@ -2201,8 +2201,15 @@ export default function AndroidPosRegister({
       // 1. Simpan Instan ke Cache Device (0ms Latency)
       try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
 
-      // 2. Jika offline, masukkan ke antrean pending
-      if (!isOnlineNow) {
+      // 2. Kirim INSTANT 0ms ke Server VPS & Web Admin jika online
+      if (isOnlineNow) {
+        fetch(getApiUrl('/api/master-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated)
+        }).catch(() => {});
+      } else {
+        // Jika offline, masukkan ke antrean pending
         try {
           const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
           const q = qRaw ? JSON.parse(qRaw) : [];
