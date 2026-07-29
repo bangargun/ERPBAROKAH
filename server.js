@@ -810,12 +810,6 @@ const sanitizeMasterDataPayload = (data) => {
   if (Array.isArray(clean.outlets)) {
     clean.outlets = clean.outlets.filter(o => o && o.name !== 'Outlet Cabang 2' && o.code !== 'RST-DUMMY');
   }
-  if (!Array.isArray(clean.outlets) || clean.outlets.length === 0) {
-    clean.outlets = [
-      { id: 1785114627783, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', code: 'OUT-01', status: 'Aktif' },
-      { id: 1, name: 'Restoran Utama', code: 'OUT-02', status: 'Aktif' }
-    ];
-  }
   if (Array.isArray(clean.suppliers)) {
     clean.suppliers = clean.suppliers.filter(s => s && s.name !== 'PT Sembako Nusantara' && s.name !== 'UD Sayur Segar');
   }

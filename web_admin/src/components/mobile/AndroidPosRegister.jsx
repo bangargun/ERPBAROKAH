@@ -1997,11 +1997,11 @@ export default function AndroidPosRegister({
     });
     const registeredUsers = Array.from(usersMap.values());
 
-    // Daftar outlet lengkap & terupdate (masterData + inferred branches)
+    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin (tanpa hardcoded name)
     const availableOutlets = (() => {
       const map = new Map();
 
-      // 1. Direct outlets from masterData.outlets
+      // 1. Direct outlets from masterData.outlets (Pengaturan Web Admin)
       (masterData?.outlets || []).forEach(o => {
         if (o && (o.name || o.branch_name)) {
           const id = String(o.id || o.outlet_id || Date.now());
@@ -2009,7 +2009,7 @@ export default function AndroidPosRegister({
         }
       });
 
-      // 2. Inferred from users
+      // 2. Outlets assigned to registered users in Pengaturan Web Admin
       (registeredUsers || []).forEach(u => {
         const uOut = u.outlet || u.assignedOutlet || u.branch || '';
         if (uOut && typeof uOut === 'string' && !uOut.toLowerCase().includes('semua') && !uOut.toLowerCase().includes('central')) {
@@ -2021,7 +2021,7 @@ export default function AndroidPosRegister({
         }
       });
 
-      // 3. Inferred from shift closings
+      // 3. Outlets present in shift closings / transaction records
       (masterData?.shiftClosings || masterData?.closedShifts || []).forEach(s => {
         const sOut = s.branch_name || s.outlet_name || s.outlet;
         if (sOut && typeof sOut === 'string' && sOut.trim()) {
@@ -2032,14 +2032,6 @@ export default function AndroidPosRegister({
           }
         }
       });
-
-      // Standard defaults if missing
-      if (!Array.from(map.values()).some(o => o.name.includes('PECAK'))) {
-        map.set('1785114627783', { id: 1785114627783, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', code: 'OUT-01' });
-      }
-      if (!Array.from(map.values()).some(o => o.name.includes('Utama') || o.name.includes('Pusat'))) {
-        map.set('1', { id: 1, name: 'Restoran Utama', code: 'OUT-02' });
-      }
 
       return Array.from(map.values());
     })();
@@ -2197,27 +2189,30 @@ export default function AndroidPosRegister({
                 })()
               ) : (
                 <select
-                  value={activeOutletObj?.id || ''}
+                  value={activeOutletObj?.id || 'ALL'}
                   onChange={(e) => {
-                    const found = availableOutlets.find(o => String(o.id) === String(e.target.value));
-                    if (found) {
-                      setLoginSelectedOutlet(found);
+                    const val = String(e.target.value);
+                    if (val === 'ALL') {
+                      setLoginSelectedOutlet({ id: 'ALL', name: 'Akses Semua Outlet (Central)', code: 'ALL' });
                       setLoginErrorText('');
-                      // Auto-select user pertama yang cocok untuk outlet ini
-                      const newOutletName = String(found.name || '').toLowerCase().trim();
-                      const matchedUser = registeredUsers.find(u => {
-                        const uOut = String(u.outlet || u.assignedOutlet || '').toLowerCase().trim();
-                        const uRole = String(u.role || '').toLowerCase();
-                        const isCentral = !uOut || uOut.includes('semua outlet') || uOut.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
-                        return !isCentral && (uOut.includes(newOutletName) || newOutletName.includes(uOut));
-                      }) || registeredUsers.find(u => {
-                        const uRole = String(u.role || '').toLowerCase();
-                        return uRole.includes('super admin') || uRole.includes('owner');
-                      });
-                      if (matchedUser) {
-                        setSelectedUserAccount(matchedUser);
-                      } else {
-                        setSelectedUserAccount(null);
+                    } else {
+                      const found = availableOutlets.find(o => String(o.id) === val);
+                      if (found) {
+                        setLoginSelectedOutlet(found);
+                        setLoginErrorText('');
+                        const newOutletName = String(found.name || '').toLowerCase().trim();
+                        const matchedUser = registeredUsers.find(u => {
+                          const uOut = String(u.outlet || u.assignedOutlet || '').toLowerCase().trim();
+                          const uRole = String(u.role || '').toLowerCase();
+                          const isCentral = !uOut || uOut.includes('semua outlet') || uOut.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
+                          return !isCentral && (uOut.includes(newOutletName) || newOutletName.includes(uOut));
+                        }) || registeredUsers.find(u => {
+                          const uRole = String(u.role || '').toLowerCase();
+                          return uRole.includes('super admin') || uRole.includes('owner');
+                        });
+                        if (matchedUser) {
+                          setSelectedUserAccount(matchedUser);
+                        }
                       }
                     }
                   }}
@@ -2233,9 +2228,10 @@ export default function AndroidPosRegister({
                     boxSizing: 'border-box'
                   }}
                 >
+                  <option value="ALL">🌐 Akses Semua Outlet (Central)</option>
                   {availableOutlets.map(o => (
                     <option key={o.id} value={o.id}>
-                      {o.name}
+                      📍 {o.name}
                     </option>
                   ))}
                 </select>
