@@ -519,20 +519,31 @@ export default function AndroidPosRegister({
   const [superAdminAuthError, setSuperAdminAuthError] = useState('');
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
 
-  // 3-Minute Auto-Sync Interval Effect (Otomatis Tersambung & Sync Setiap 3 Menit)
+  // Realtime Background Auto-Sync Effect (Fetch /api/master-data secara otomatis setiap 10s - 20s)
   React.useEffect(() => {
-    let timer = null;
-    if (autoSyncIntervalActive) {
-      timer = setInterval(() => {
-        const now = new Date();
-        const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
-        setLastSyncTime(formatted);
-      }, 180000); // 3 menit = 180.000 ms
-    }
-    return () => {
-      if (timer) clearInterval(timer);
+    const doSyncFetch = () => {
+      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => {
+          if (data && typeof data === 'object' && !data.error) {
+            setMasterData(prev => ({ ...prev, ...data }));
+            const now = new Date();
+            const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
+            setLastSyncTime(formatted);
+          }
+        })
+        .catch(() => {});
     };
-  }, [autoSyncIntervalActive]);
+
+    // Fetch awal saat komponen mount
+    doSyncFetch();
+
+    // Polling interval: 10s di login screen, 20s saat sedang aktif transaksi
+    const pollInterval = !isAppLoggedIn ? 10000 : 20000;
+    const timer = setInterval(doSyncFetch, pollInterval);
+
+    return () => clearInterval(timer);
+  }, [isAppLoggedIn]);
 
   // AUTOMATIC 15-MINUTE INACTIVITY AUTO-LOCK TO PAPAN LOGIN
   React.useEffect(() => {

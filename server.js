@@ -1015,6 +1015,9 @@ const sanitizeMasterDataPayload = (data) => {
 
 // GET /api/master-data — MySQL PRIMARY, JSON fallback
 app.get('/api/master-data', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   try {
     const mysqlData = await getMasterDataFromMySQL();
     if (mysqlData && typeof mysqlData === 'object') {
