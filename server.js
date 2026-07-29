@@ -1103,8 +1103,10 @@ app.post('/api/master-data', async (req, res) => {
 // Serve Web Admin UI (web_admin/dist)
 app.use(express.static(path.join(__dirname, 'web_admin', 'dist')));
 
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api') || req.path.startsWith('/phpmyadmin') || req.path.startsWith('/adminer')) return;
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/phpmyadmin') || req.path.startsWith('/adminer') || req.path.startsWith('/db-explorer')) {
+    return next();
+  }
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
 });
 
