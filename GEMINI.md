@@ -100,7 +100,7 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 ## 🔢 VERSIONING
 
 - Format versi: `vX.X.Y` — increment `Y` setiap perbaikan kecil, `X.Y` setiap fitur baru
-- Versi saat ini: **v2.0.56**
+- Versi saat ini: **v2.0.57**
 - Nama file APK: `MRIS_vX.X.Y_Build_YYYYMMDD_HHMM.apk`
 - Commit message format: `Jenis: deskripsi singkat (vX.X.Y)`
 
