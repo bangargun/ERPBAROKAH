@@ -891,12 +891,12 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
         const data = await res.json();
         const container = document.getElementById('tableList');
         if (data.tables && data.tables.length > 0) {
-          container.innerHTML = data.tables.map(t => \`
-            <div class="table-item \${t.name === activeTable ? 'active' : ''}" onclick="selectTable('\${t.name}')">
-              <span>📂 \${t.name}</span>
-              <span class="badge">\${t.count}</span>
-            </div>
-          \`).join('');
+          container.innerHTML = data.tables.map(function(t) {
+            return '<div class="table-item ' + (t.name === activeTable ? 'active' : '') + '" onclick="selectTable(\'' + t.name + '\')">' +
+              '<span>📂 ' + t.name + '</span>' +
+              '<span class="badge">' + t.count + '</span>' +
+            '</div>';
+          }).join('');
           if (!activeTable && data.tables.length > 0) {
             selectTable(data.tables[0].name);
           }
@@ -986,14 +986,12 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
 
     function renderSqlConsole() {
       const content = document.getElementById('contentArea');
-      content.innerHTML = \`
-        <div style="margin-bottom:15px;">
-          <h4 style="margin-bottom:8px; color:#38bdf8;">⚡ SQL Query Runner (SELECT / UPDATE / DELETE / INSERT / ALTER)</h4>
-          <textarea id="sqlQuery" class="sql-input">SELECT * FROM \${activeTable || 'sales_transactions'} LIMIT 50;</textarea>
-          <button class="run-btn" onclick="runSqlQuery()">Jalankan Perintah SQL</button>
-        </div>
-        <div id="sqlResult"></div>
-      \`;
+      content.innerHTML = '<div style="margin-bottom:15px;">' +
+        '<h4 style="margin-bottom:8px; color:#38bdf8;">⚡ SQL Query Runner (SELECT / UPDATE / DELETE / INSERT / ALTER)</h4>' +
+        '<textarea id="sqlQuery" class="sql-input">SELECT * FROM ' + (activeTable || 'sales_transactions') + ' LIMIT 50;</textarea>' +
+        '<button class="run-btn" onclick="runSqlQuery()">Jalankan Perintah SQL</button>' +
+      '</div>' +
+      '<div id="sqlResult"></div>';
     }
 
     async function runSqlQuery() {
@@ -1038,12 +1036,10 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
         let val = currentEditRow[c];
         if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
         const isPk = c === pkColName;
-        html += \`
-          <div class="modal-field">
-            <label>\${c} \${isPk ? '(PRIMARY KEY)' : ''}</label>
-            <input type="text" id="edit_col_\${c}" value="\${val !== null && val !== undefined ? String(val).replace(/"/g, '&quot;') : ''}" \${isPk ? 'disabled' : ''} />
-          </div>
-        \`;
+        html += '<div class="modal-field">' +
+          '<label>' + c + ' ' + (isPk ? '(PRIMARY KEY)' : '') + '</label>' +
+          '<input type="text" id="edit_col_' + c + '" value="' + (val !== null && val !== undefined ? String(val).replace(/"/g, '&quot;') : '') + '" ' + (isPk ? 'disabled' : '') + ' />' +
+        '</div>';
       });
 
       fieldsContainer.innerHTML = html;
