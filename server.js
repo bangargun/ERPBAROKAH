@@ -795,6 +795,9 @@ app.post('/api/db/row/update', async (req, res) => {
 
 // Standalone phpMyAdmin / Adminer Web Interface Route
 app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyadmin', '/api/phpmyadmin/*', '/api/db-explorer'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.send(`<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -886,10 +889,10 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     let pkColName = 'id';
 
     async function loadTables() {
+      const container = document.getElementById('tableList');
       try {
-        const res = await fetch('/api/db/tables');
+        const res = await fetch('/api/db/tables', { cache: 'no-store' });
         const data = await res.json();
-        const container = document.getElementById('tableList');
         if (data.tables && data.tables.length > 0) {
           container.innerHTML = data.tables.map(function(t) {
             return '<div class="table-item ' + (t.name === activeTable ? 'active' : '') + '" onclick="selectTable(\'' + t.name + '\')">' +
@@ -904,7 +907,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
           container.innerHTML = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel / Standalone JSON Mode</div>';
         }
       } catch (err) {
-        document.getElementById('tableList').innerHTML = '<div style="padding:15px; color:#ef4444;">Gagal memuat tabel</div>';
+        container.innerHTML = '<div style="padding:15px; color:#ef4444;">Gagal memuat: ' + (err.message || 'Error') + '</div>';
       }
     }
 
