@@ -89,10 +89,9 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     try {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v40_force_clean_slate_no_mock_data') {
+      if (versionKey !== 'v56_sync_fix') {
         localStorage.removeItem('mris_master_data');
-        localStorage.removeItem('mris_user_session');
-        localStorage.setItem('mris_version', 'v40_force_clean_slate_no_mock_data');
+        localStorage.setItem('mris_version', 'v56_sync_fix');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
@@ -101,22 +100,7 @@ export default function App() {
         if (parsed && typeof parsed === 'object') {
           return {
             ...initialMasterData,
-            ...parsed,
-            categories: parsed.categories || [],
-            webAdminAccounts: parsed.webAdminAccounts || [],
-            mobileAccounts: parsed.mobileAccounts || [],
-            salesTransactions: parsed.salesTransactions || [],
-            closedShifts: parsed.closedShifts || parsed.shift_closings || [],
-            approvedFinanceDaily: parsed.approvedFinanceDaily || [],
-            manualEntryRecords: parsed.manualEntryRecords || [],
-            cogsExpenses: parsed.cogsExpenses || [],
-            productionExpenses: parsed.productionExpenses || [],
-            otherExpenses: parsed.otherExpenses || [],
-            stockOpname: parsed.stockOpname || [],
-            stockMovement: parsed.stockMovement || [],
-            approvedLogistics: parsed.approvedLogistics || [],
-            cashFlow: parsed.cashFlow || [],
-            customers: parsed.customers || []
+            ...parsed
           };
         }
       }
@@ -179,18 +163,27 @@ export default function App() {
         .then(serverData => {
           if (serverData && typeof serverData === 'object') {
             setMasterData(prev => {
+              const prevStr = JSON.stringify(prev);
+              const serverStr = JSON.stringify(serverData);
+              if (prevStr === serverStr) return prev;
+
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
 
-              // Adopt server state only if server has a strictly newer timestamp
-              if (serverUpdated > clientUpdated) {
-                const prevJson = JSON.stringify(prev);
-                const serverJson = JSON.stringify(serverData);
-                if (prevJson === serverJson) return prev;
+              // Adopt server state if server is newer or client data missing
+              if (serverUpdated >= clientUpdated || !prev?.outlets?.length || !prev?.products?.length) {
                 isRemoteUpdateRef.current = true;
                 return {
+                  ...initialMasterData,
                   ...prev,
-                  ...serverData
+                  ...serverData,
+                  outlets: serverData.outlets || prev.outlets || [],
+                  products: serverData.products || prev.products || [],
+                  categories: serverData.categories || prev.categories || [],
+                  customers: serverData.customers || prev.customers || [],
+                  webAdminAccounts: serverData.webAdminAccounts || prev.webAdminAccounts || [],
+                  mobileAccounts: serverData.mobileAccounts || prev.mobileAccounts || [],
+                  salesTransactions: serverData.salesTransactions || prev.salesTransactions || []
                 };
               }
               return prev;

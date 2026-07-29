@@ -55,9 +55,15 @@ export default function App() {
     setUserSession(null);
   };
 
-  // Master Data State — diinisialisasi dari localStorage, fallback ke initialMasterData
+  // Master Data State — diinisialisasi dengan pembersihan cache versi baru & data terpusat
   const [masterData, setMasterData] = useState(() => {
     if (typeof window !== 'undefined') {
+      const versionKey = localStorage.getItem('mris_version');
+      if (versionKey !== 'v56_sync_fix') {
+        localStorage.removeItem('mris_master_data');
+        localStorage.setItem('mris_version', 'v56_sync_fix');
+        return initialMasterData;
+      }
       const saved = localStorage.getItem('mris_master_data');
       if (saved) {
         try {
@@ -65,23 +71,7 @@ export default function App() {
           if (parsed && typeof parsed === 'object') {
             return {
               ...initialMasterData,
-              ...parsed,
-              salesTransactions: parsed.salesTransactions || [],
-              closedShifts: parsed.closedShifts || parsed.shift_closings || [],
-              approvedFinanceDaily: parsed.approvedFinanceDaily || [],
-              manualEntryRecords: parsed.manualEntryRecords || [],
-              cogsExpenses: parsed.cogsExpenses || [],
-              productionExpenses: parsed.productionExpenses || [],
-              otherExpenses: parsed.otherExpenses || [],
-              stockOpname: parsed.stockOpname || [],
-              stockMovement: parsed.stockMovement || [],
-              approvedLogistics: parsed.approvedLogistics || [],
-              cashFlow: parsed.cashFlow || [],
-              customers: parsed.customers || [],
-              damagedGoods: parsed.damagedGoods || [],
-              approvedWaste: parsed.approvedWaste || [],
-              stockTransfer: parsed.stockTransfer || [],
-              approvedTransfers: parsed.approvedTransfers || [],
+              ...parsed
             };
           }
         } catch (e) {}
@@ -135,7 +125,7 @@ export default function App() {
     return () => clearTimeout(syncTimer);
   }, [masterData]);
 
-  // 2. LIVE POLLING dari VPS server setiap 3 detik
+  // 2. LIVE REALTIME POLLING DARI VPS SERVER (Setiap 3 Detik - Sinkronisasi 100% dengan Web Admin)
   useEffect(() => {
     const fetchLatestFromServer = () => {
       fetch(getApiUrl('/api/master-data'))
@@ -143,13 +133,28 @@ export default function App() {
         .then(serverData => {
           if (serverData && typeof serverData === 'object') {
             setMasterData(prev => {
+              const prevStr = JSON.stringify(prev);
+              const serverStr = JSON.stringify(serverData);
+              if (prevStr === serverStr) return prev;
+
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
-              if (serverUpdated > clientUpdated) {
-                const nextData = { ...prev, ...serverData };
-                if (JSON.stringify(prev) === JSON.stringify(nextData)) return prev;
+
+              // Adopsi data server jika server lebih baru atau data lokal belum lengkap
+              if (serverUpdated >= clientUpdated || !prev?.outlets?.length || !prev?.products?.length) {
                 isRemoteUpdateRef.current = true;
-                return nextData;
+                return {
+                  ...initialMasterData,
+                  ...prev,
+                  ...serverData,
+                  outlets: serverData.outlets || prev.outlets || [],
+                  products: serverData.products || prev.products || [],
+                  categories: serverData.categories || prev.categories || [],
+                  customers: serverData.customers || prev.customers || [],
+                  webAdminAccounts: serverData.webAdminAccounts || prev.webAdminAccounts || [],
+                  mobileAccounts: serverData.mobileAccounts || prev.mobileAccounts || [],
+                  salesTransactions: serverData.salesTransactions || prev.salesTransactions || []
+                };
               }
               return prev;
             });

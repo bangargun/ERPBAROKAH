@@ -54,7 +54,8 @@ import {
   MessageCircle,
   Edit2,
   Smartphone,
-  Edit3
+  Edit3,
+  HelpCircle
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
