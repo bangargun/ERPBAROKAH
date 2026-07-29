@@ -2066,10 +2066,52 @@ export default function AndroidPosRegister({
     });
     const registeredUsers = Array.from(usersMap.values());
 
-    // Daftar outlet hanya dari masterData — jika kosong tampilkan pesan
-    const availableOutlets = (masterData?.outlets && masterData.outlets.length > 0)
-      ? masterData.outlets
-      : [];
+    // Daftar outlet lengkap & terupdate (masterData + inferred branches)
+    const availableOutlets = (() => {
+      const map = new Map();
+
+      // 1. Direct outlets from masterData.outlets
+      (masterData?.outlets || []).forEach(o => {
+        if (o && (o.name || o.branch_name)) {
+          const id = String(o.id || o.outlet_id || Date.now());
+          map.set(id, { id: o.id || id, name: o.name || o.branch_name, code: o.code || 'OUTLET' });
+        }
+      });
+
+      // 2. Inferred from users
+      (registeredUsers || []).forEach(u => {
+        const uOut = u.outlet || u.assignedOutlet || u.branch || '';
+        if (uOut && typeof uOut === 'string' && !uOut.toLowerCase().includes('semua') && !uOut.toLowerCase().includes('central')) {
+          const exists = Array.from(map.values()).some(o => o.name.toLowerCase().trim() === uOut.toLowerCase().trim());
+          if (!exists) {
+            const newId = u.outlet_id || u.branch_id || (1000 + map.size);
+            map.set(String(newId), { id: newId, name: uOut.trim(), code: `OUT-${map.size + 1}` });
+          }
+        }
+      });
+
+      // 3. Inferred from shift closings
+      (masterData?.shiftClosings || masterData?.closedShifts || []).forEach(s => {
+        const sOut = s.branch_name || s.outlet_name || s.outlet;
+        if (sOut && typeof sOut === 'string' && sOut.trim()) {
+          const exists = Array.from(map.values()).some(o => o.name.toLowerCase().trim() === sOut.toLowerCase().trim());
+          if (!exists) {
+            const newId = s.outlet_id || (1000 + map.size);
+            map.set(String(newId), { id: newId, name: sOut.trim(), code: `OUT-${map.size + 1}` });
+          }
+        }
+      });
+
+      // Standard defaults if missing
+      if (!Array.from(map.values()).some(o => o.name.includes('PECAK'))) {
+        map.set('1785114627783', { id: 1785114627783, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', code: 'OUT-01' });
+      }
+      if (!Array.from(map.values()).some(o => o.name.includes('Utama') || o.name.includes('Pusat'))) {
+        map.set('1', { id: 1, name: 'Restoran Utama', code: 'OUT-02' });
+      }
+
+      return Array.from(map.values());
+    })();
 
     // Outlet aktif di form login (pakai loginSelectedOutlet state, fallback ke availableOutlets[0])
     const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
