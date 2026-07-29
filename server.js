@@ -444,6 +444,149 @@ const syncToMySQL = async (masterData) => {
   if (!mysqlPool || !masterData || typeof masterData !== 'object') return;
 
   try {
+    // 1. Sync Outlets to MySQL relational table
+    const outlets = masterData.outlets || [];
+    for (const o of outlets) {
+      if (!o || !o.id) continue;
+      await mysqlPool.execute(`
+        INSERT INTO outlets (id, code, name, address, location, manager_name, phone, target_omzet, employee_count, status, color)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          code = VALUES(code),
+          name = VALUES(name),
+          address = VALUES(address),
+          location = VALUES(location),
+          manager_name = VALUES(manager_name),
+          phone = VALUES(phone),
+          target_omzet = VALUES(target_omzet),
+          employee_count = VALUES(employee_count),
+          status = VALUES(status),
+          color = VALUES(color)
+      `, [
+        Number(o.id) || Date.now(),
+        String(o.code || `OUT-${o.id}`),
+        String(o.name || o.branch_name || 'Outlet Cabang'),
+        String(o.address || ''),
+        String(o.location || o.address || ''),
+        String(o.manager_name || o.manager || ''),
+        String(o.phone || ''),
+        Number(o.target_omzet || o.monthly_budget || 0),
+        Number(o.employee_count || 0),
+        String(o.status || 'Aktif'),
+        String(o.color || '#3b82f6')
+      ]);
+    }
+
+    // 2. Sync Users to MySQL relational table
+    const usersMap = new Map();
+    const userSources = [
+      ...(masterData.users || []),
+      ...(masterData.userAccounts || []),
+      ...(masterData.webAdminAccounts || []),
+      ...(masterData.mobileAccounts || [])
+    ];
+    userSources.forEach(u => {
+      if (u && (u.id || u.username)) {
+        const key = String(u.id || u.username);
+        usersMap.set(key, u);
+      }
+    });
+
+    for (const u of Array.from(usersMap.values())) {
+      const uId = Number(u.id) || Date.now();
+      const uName = String(u.name || u.username || 'User');
+      const uUsername = String(u.username || u.name || `user_${uId}`).toLowerCase().replace(/\s+/g, '_');
+      const uPassword = String(u.password || u.mobileLoginPassword || '1234');
+      const uRole = String(u.role || 'Kasir');
+      const uOutlet = String(u.outlet || u.assignedOutlet || 'Semua Outlet (Central)');
+      const uStatus = String(u.status || 'Aktif');
+      const canMobile = u.canLoginMobile !== false ? 1 : 0;
+      const mobPass = String(u.mobileLoginPassword || u.password || '');
+      const canReports = u.canAccessMobileReports ? 1 : 0;
+      const repPass = String(u.mobileReportPassword || '');
+
+      await mysqlPool.execute(`
+        INSERT INTO users (id, name, username, password, role, outlet, status, can_login_mobile, mobile_login_password, can_access_mobile_reports, mobile_report_password)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          name = VALUES(name),
+          username = VALUES(username),
+          password = VALUES(password),
+          role = VALUES(role),
+          outlet = VALUES(outlet),
+          status = VALUES(status),
+          can_login_mobile = VALUES(can_login_mobile),
+          mobile_login_password = VALUES(mobile_login_password),
+          can_access_mobile_reports = VALUES(can_access_mobile_reports),
+          mobile_report_password = VALUES(mobile_report_password)
+      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canMobile, mobPass, canReports, repPass]);
+    }
+
+    // 3. Sync Categories to MySQL relational table
+    const categories = masterData.categories || [];
+    for (const c of categories) {
+      if (!c || !c.name) continue;
+      const cId = Number(c.id) || Date.now();
+      await mysqlPool.execute(`
+        INSERT INTO categories (id, code, name, type, icon, status)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          code = VALUES(code),
+          name = VALUES(name),
+          type = VALUES(type),
+          icon = VALUES(icon),
+          status = VALUES(status)
+      `, [
+        cId,
+        String(c.code || `CAT-${cId}`),
+        String(c.name).trim(),
+        String(c.type || 'income'),
+        String(c.icon || 'Utensils'),
+        String(c.status || 'Aktif')
+      ]);
+    }
+
+    // 4. Sync Products to MySQL relational table
+    const products = masterData.products || [];
+    for (const p of products) {
+      if (!p || !p.name) continue;
+      const pId = Number(p.id) || Date.now();
+      await mysqlPool.execute(`
+        INSERT INTO products (id, sku, name, category_id, category_name, price, cost_price, stock, unit, outlet_id, selected_outlet_ids, image_url, description, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          sku = VALUES(sku),
+          name = VALUES(name),
+          category_id = VALUES(category_id),
+          category_name = VALUES(category_name),
+          price = VALUES(price),
+          cost_price = VALUES(cost_price),
+          stock = VALUES(stock),
+          unit = VALUES(unit),
+          outlet_id = VALUES(outlet_id),
+          selected_outlet_ids = VALUES(selected_outlet_ids),
+          image_url = VALUES(image_url),
+          description = VALUES(description),
+          status = VALUES(status)
+      `, [
+        pId,
+        String(p.sku || `PRD-${pId}`),
+        String(p.name).trim(),
+        p.category_id ? Number(p.category_id) : null,
+        String(p.category || p.category_name || ''),
+        Number(p.price || 0),
+        Number(p.cost_price || p.cost || 0),
+        Number(p.stock || 0),
+        String(p.unit || 'Porsi'),
+        p.outlet_id ? Number(p.outlet_id) : null,
+        Array.isArray(p.selected_outlet_ids) ? JSON.stringify(p.selected_outlet_ids) : String(p.selected_outlet_ids || ''),
+        String(p.image_url || p.image || ''),
+        String(p.description || ''),
+        String(p.status || 'Aktif')
+      ]);
+    }
+
+    // 5. Sync Transactions to MySQL relational table
     const transactions = masterData.salesTransactions || masterData.transactions || [];
     for (const t of transactions) {
       if (!t || !t.id) continue;
@@ -475,6 +618,7 @@ const syncToMySQL = async (masterData) => {
       `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status]);
     }
 
+    // 6. Sync Shift Closings to MySQL relational table
     const shiftClosings = masterData.shiftClosings || masterData.closedShifts || masterData.approvedFinanceDaily || [];
     for (const sc of shiftClosings) {
       if (!sc || !sc.id) continue;
@@ -504,7 +648,7 @@ const syncToMySQL = async (masterData) => {
       ]);
     }
   } catch (err) {
-    // Non-blocking log
+    console.error('syncToMySQL error:', err.message);
   }
 };
 
