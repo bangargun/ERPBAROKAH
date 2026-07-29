@@ -519,14 +519,84 @@ export default function AndroidPosRegister({
   const [superAdminAuthError, setSuperAdminAuthError] = useState('');
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
 
-  // Realtime Background Auto-Sync Effect (Fetch /api/master-data secara otomatis setiap 10s - 20s)
+  // Offline Network State & Queue Counter
+  const [isNetworkOnline, setIsNetworkOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  // 1. Initial 0ms Local Cache Startup (Memuat masterData instan dari device)
   React.useEffect(() => {
+    try {
+      const cached = localStorage.getItem('MRIS_POS_MASTER_DATA_CACHE');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') {
+          setMasterData(prev => ({ ...prev, ...parsed }));
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  // 2. Realtime Network & Offline Queue Auto-Flusher Effect
+  React.useEffect(() => {
+    const handleOnline = () => {
+      setIsNetworkOnline(true);
+      doFlushOfflineQueue();
+    };
+    const handleOffline = () => {
+      setIsNetworkOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const doFlushOfflineQueue = () => {
+      try {
+        const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+        const queue = queueRaw ? JSON.parse(queueRaw) : [];
+        if (!queue || queue.length === 0) return;
+
+        fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+          .then(res => res.json())
+          .then(serverMaster => {
+            if (!serverMaster || typeof serverMaster !== 'object') return;
+            const existingSales = serverMaster.salesTransactions || [];
+            const mergedSales = [...queue, ...existingSales];
+            const updatedMaster = { ...serverMaster, salesTransactions: mergedSales, transactions: mergedSales, _lastUpdated: Date.now() };
+
+            fetch(getApiUrl('/api/master-data'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatedMaster)
+            })
+            .then(r => r.json())
+            .then(resData => {
+              if (resData && resData.success) {
+                localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                setMasterData(curr => {
+                  const updatedList = (curr.salesTransactions || []).map(t => ({
+                    ...t,
+                    status: 'approved',
+                    is_offline_pending: false
+                  }));
+                  const nextState = { ...curr, salesTransactions: updatedList, transactions: updatedList };
+                  try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(nextState)); } catch (err) {}
+                  return nextState;
+                });
+              }
+            }).catch(() => {});
+          }).catch(() => {});
+      } catch (err) {}
+    };
+
     const doSyncFetch = () => {
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
           if (data && typeof data === 'object' && !data.error) {
-            setMasterData(prev => ({ ...prev, ...data }));
+            setMasterData(prev => {
+              const updated = { ...prev, ...data };
+              try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
+              return updated;
+            });
             const now = new Date();
             const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
             setLastSyncTime(formatted);
@@ -535,14 +605,22 @@ export default function AndroidPosRegister({
         .catch(() => {});
     };
 
-    // Fetch awal saat komponen mount
+    // Initial fetch & queue flush
     doSyncFetch();
+    doFlushOfflineQueue();
 
-    // Polling interval: 10s di login screen, 20s saat sedang aktif transaksi
+    // Polling interval: 10s di login screen, 20s saat transaksi aktif
     const pollInterval = !isAppLoggedIn ? 10000 : 20000;
-    const timer = setInterval(doSyncFetch, pollInterval);
+    const timer = setInterval(() => {
+      doSyncFetch();
+      if (navigator.onLine) doFlushOfflineQueue();
+    }, pollInterval);
 
-    return () => clearInterval(timer);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(timer);
+    };
   }, [isAppLoggedIn]);
 
   // AUTOMATIC 15-MINUTE INACTIVITY AUTO-LOCK TO PAPAN LOGIN
@@ -1887,16 +1965,40 @@ export default function AndroidPosRegister({
       });
     });
 
+    const isOnlineNow = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const finalTx = {
+      ...newTx,
+      status: isOnlineNow ? 'approved' : 'offline_pending',
+      is_offline_pending: !isOnlineNow
+    };
+
     // Save transaction, stock movements, updated products & customers directly into Web Master Data
-    setMasterData(prev => ({
-      ...prev,
-      _lastUpdated: Date.now(),
-      customers: updatedCustomersList,
-      products: updatedProducts,
-      stockMovement: [...(prev?.stockMovement || []), ...newStockMovements],
-      salesTransactions: [newTx, ...(prev?.salesTransactions || [])],
-      transactions: [newTx, ...(prev?.transactions || [])]
-    }));
+    setMasterData(prev => {
+      const updated = {
+        ...prev,
+        _lastUpdated: Date.now(),
+        customers: updatedCustomersList,
+        products: updatedProducts,
+        stockMovement: [...(prev?.stockMovement || []), ...newStockMovements],
+        salesTransactions: [finalTx, ...(prev?.salesTransactions || [])],
+        transactions: [finalTx, ...(prev?.transactions || [])]
+      };
+
+      // 1. Simpan Instan ke Cache Device (0ms Latency)
+      try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
+
+      // 2. Jika offline, masukkan ke antrean pending
+      if (!isOnlineNow) {
+        try {
+          const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+          const q = qRaw ? JSON.parse(qRaw) : [];
+          q.unshift(finalTx);
+          localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(q));
+        } catch (e) {}
+      }
+
+      return updated;
+    });
 
     // Reset Table status back to Available (Kosong)
     if (orderType === 'Dine In' && selectedTableId) {
@@ -3409,8 +3511,20 @@ export default function AndroidPosRegister({
                 {outletTransactions.map(tx => (
                   <div key={tx.id} style={{ background: 'var(--pos-bg-card)', padding: '14px 18px', borderRadius: '14px', border: '1px solid var(--pos-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '900', color: '#38bdf8' }}>{tx.id}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '900', color: '#38bdf8' }}>#{tx.id}</span>
+
+                        {/* BADGE STATUS TRANSAKSI */}
+                        {(tx.is_offline_pending || tx.status === 'offline_pending' || tx.status === 'ditunda') ? (
+                          <span style={{ fontSize: '0.68rem', padding: '2px 9px', borderRadius: '6px', background: 'rgba(245,158,11,0.2)', color: '#fbbf24', border: '1px solid #f59e0b', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            ⏳ Pending Sync (Offline)
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.68rem', padding: '2px 9px', borderRadius: '6px', background: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid #10b981', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            ✅ Approved / Tersinkron
+                          </span>
+                        )}
+
                         <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(16,185,129,0.2)', color: '#34d399', fontWeight: '800' }}>{tx.payment_method || 'Cash'}</span>
                         <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(99,102,241,0.2)', color: '#818cf8', fontWeight: '800' }}>{tx.order_type || 'Dine In'}</span>
                         {tx.table_number && <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: '700' }}>📍 {tx.table_number}</span>}
