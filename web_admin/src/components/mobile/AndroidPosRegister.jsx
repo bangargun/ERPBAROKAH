@@ -226,6 +226,120 @@ export default function AndroidPosRegister({
     })));
   };
 
+  // Default Printer Areas list (Main, Captain Order, Label, Dapur) - Matches Luna POS design
+  const [printerAreas, setPrinterAreas] = useState(() => {
+    try {
+      const saved = localStorage.getItem('MRIS_POS_PRINTER_AREAS');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [
+      { id: 'main', name: 'Main', type: 'Escpos', module: 'Bluetooth General', printerName: 'RPP02N', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: true, copies: 1, autoPrintOnPayment: true },
+      { id: 'captain', name: 'Captain Order', type: 'Escpos', module: 'Bluetooth General', printerName: '-', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: false, copies: 1, autoPrintOnPayment: false },
+      { id: 'label', name: 'Label', type: 'Escpos', module: 'Bluetooth General', printerName: '-', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: false, copies: 1, autoPrintOnPayment: false },
+    ];
+  });
+  const [showSelectPrinterModal, setShowSelectPrinterModal] = useState(false);
+  const [editingPrinterAreaIndex, setEditingPrinterAreaIndex] = useState(null);
+  const [tempAreaForm, setTempAreaForm] = useState({
+    name: 'Main', type: 'Escpos', module: 'Bluetooth General', printerName: 'RPP02N', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: true, copies: 1, autoPrintOnPayment: true
+  });
+
+  const handleOpenSelectPrinterModal = (index) => {
+    setEditingPrinterAreaIndex(index);
+    const area = printerAreas[index];
+    setTempAreaForm({ ...area });
+    setShowSelectPrinterModal(true);
+  };
+
+  const handleAddPrinterArea = () => {
+    const newAreaName = `Printer Area ${printerAreas.length + 1}`;
+    const newArea = {
+      id: `area_${Date.now()}`,
+      name: newAreaName,
+      type: 'Escpos',
+      module: 'Bluetooth General',
+      printerName: '-',
+      paperSize: '58',
+      feedCount: 0,
+      autoCut: '0',
+      disconnectAfter: true,
+      copies: 1,
+      autoPrintOnPayment: true
+    };
+    setEditingPrinterAreaIndex(printerAreas.length);
+    setTempAreaForm(newArea);
+    setShowSelectPrinterModal(true);
+  };
+
+  const handleSavePrinterAreaForm = () => {
+    if (editingPrinterAreaIndex !== null) {
+      const updated = [...printerAreas];
+      updated[editingPrinterAreaIndex] = { ...tempAreaForm };
+      setPrinterAreas(updated);
+      try {
+        localStorage.setItem('MRIS_POS_PRINTER_AREAS', JSON.stringify(updated));
+      } catch (e) {}
+      if (editingPrinterAreaIndex === 0) {
+        setPrinterSettings(prev => ({
+          ...prev,
+          printerName: tempAreaForm.printerName || 'RPP02N',
+          paperWidth: tempAreaForm.paperSize === '80' ? '80mm' : '58mm',
+          status: tempAreaForm.printerName && tempAreaForm.printerName !== '-' ? 'connected' : 'disconnected'
+        }));
+      }
+    }
+    setShowSelectPrinterModal(false);
+    setSaveSettingsSuccessToast(true);
+    setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
+  };
+
+  const handleDeletePrinterArea = (index) => {
+    const updated = printerAreas.filter((_, i) => i !== index);
+    setPrinterAreas(updated);
+    try {
+      localStorage.setItem('MRIS_POS_PRINTER_AREAS', JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const handleTestPrintArea = (area) => {
+    const testHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Test Print ${area.name}</title>
+        <style>
+          @page { size: ${area.paperSize || '58'}mm auto; margin: 0; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: ${area.paperSize === '80' ? '76mm' : '54mm'};
+            margin: 0 auto;
+            padding: 4mm 2mm;
+            color: #000;
+            background: #fff;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+          .text-center { text-align: center; }
+          .bold { font-weight: bold; }
+          .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center bold" style="font-size:14px;">TEST PRINT SUCCESS</div>
+        <div class="text-center" style="font-size:10px;">AREA: ${(area.name || '').toUpperCase()}</div>
+        <div class="divider"></div>
+        <div>Printer  : ${area.printerName || '-'}</div>
+        <div>Module   : ${area.module || 'Bluetooth General'}</div>
+        <div>Kertas   : ${area.paperSize || '58'} mm</div>
+        <div>Waktu    : ${new Date().toLocaleString('id-ID')}</div>
+        <div class="divider"></div>
+        <div class="text-center bold">*** PRINTER READY ***</div>
+      </body>
+      </html>
+    `;
+    printHTMLContent(testHTML);
+  };
+
   // Modal Pilihan Struk saat Simpan Order
   const [showSaveOrderReceiptModal, setShowSaveOrderReceiptModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -1351,108 +1465,56 @@ export default function AndroidPosRegister({
     handleExecuteBatchPrint(billTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
 
-  // RELIABLE DUAL-ENGINE PRINTING FOR MOBILE APK (ANDROID WEBVIEW) & DESKTOP BROWSERS
+  // SILENT BACKGROUND THERMAL PRINTING ENGINE (ZERO POPUPS / NO WINDOW PREVIEW OVERLAYS)
   const printHTMLContent = (htmlString) => {
     try {
-      // 1. Inject @media print CSS rules
-      let printStyle = document.getElementById('mris-print-style');
-      if (!printStyle) {
-        printStyle = document.createElement('style');
-        printStyle.id = 'mris-print-style';
-        printStyle.innerHTML = `
-          @media print {
-            body > *:not(#mris-printable-area) {
-              display: none !important;
-            }
-            #mris-printable-area {
-              display: block !important;
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
-              width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: #ffffff !important;
-              color: #000000 !important;
-              font-family: 'Courier New', Courier, monospace !important;
-            }
-          }
-          @media screen {
-            #mris-printable-area {
-              display: none !important;
-            }
-          }
-        `;
-        document.head.appendChild(printStyle);
+      let iframe = document.getElementById('mris-silent-print-frame');
+      if (iframe && iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe);
       }
 
-      // 2. Inject receipt HTML into main DOM printable container
-      let printArea = document.getElementById('mris-printable-area');
-      if (!printArea) {
-        printArea = document.createElement('div');
-        printArea.id = 'mris-printable-area';
-        document.body.appendChild(printArea);
-      }
-      printArea.innerHTML = htmlString;
+      iframe = document.createElement('iframe');
+      iframe.id = 'mris-silent-print-frame';
+      iframe.style.position = 'fixed';
+      iframe.style.left = '-9999px';
+      iframe.style.top = '-9999px';
+      iframe.style.width = '1px';
+      iframe.style.height = '1px';
+      iframe.style.border = '0';
+      iframe.style.opacity = '0';
+      iframe.style.pointerEvents = 'none';
 
-      // 3. Fallback iframe creation
-      try {
-        const oldIframe = document.getElementById('mris-print-frame');
-        if (oldIframe && oldIframe.parentNode) {
-          oldIframe.parentNode.removeChild(oldIframe);
+      document.body.appendChild(iframe);
+
+      const frameDoc = iframe.contentWindow || iframe.contentDocument;
+      const doc = frameDoc.document || frameDoc;
+
+      doc.open();
+      doc.write(htmlString);
+      doc.close();
+
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }
+        } catch (e) {
+          console.error('Silent print iframe error:', e);
         }
-
-        const iframe = document.createElement('iframe');
-        iframe.id = 'mris-print-frame';
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '100px';
-        iframe.style.height = '100px';
-        iframe.style.border = '0';
-        iframe.style.opacity = '0.01';
-        iframe.style.pointerEvents = 'none';
-        iframe.style.zIndex = '-9999';
-
-        document.body.appendChild(iframe);
-
-        const frameDoc = iframe.contentWindow || iframe.contentDocument;
-        const doc = frameDoc.document || frameDoc;
-
-        doc.open();
-        doc.write(htmlString);
-        doc.close();
 
         setTimeout(() => {
           try {
-            if (iframe.contentWindow) {
-              iframe.contentWindow.focus();
-              iframe.contentWindow.print();
+            const frameToRemove = document.getElementById('mris-silent-print-frame');
+            if (frameToRemove && frameToRemove.parentNode) {
+              frameToRemove.parentNode.removeChild(frameToRemove);
             }
           } catch (e) {}
-        }, 150);
-      } catch (iframeErr) {}
-
-      // 4. Trigger main window.print() (Required for Android WebViews & Capacitor Mobile APK!)
-      setTimeout(() => {
-        try {
-          window.print();
-        } catch (printErr) {
-          console.error('⚠️ Main window.print error:', printErr);
-        }
-
-        setTimeout(() => {
-          if (printArea) printArea.innerHTML = '';
-          const iframeToRemove = document.getElementById('mris-print-frame');
-          if (iframeToRemove && iframeToRemove.parentNode) {
-            iframeToRemove.parentNode.removeChild(iframeToRemove);
-          }
         }, 3000);
-      }, 250);
+      }, 150);
 
     } catch (err) {
-      console.error('⚠️ Print execution exception:', err);
-      try { window.print(); } catch (e) {}
+      console.error('⚠️ Silent print execution exception:', err);
     }
   };
 
@@ -6122,335 +6184,116 @@ export default function AndroidPosRegister({
                   </div>
                 )}
 
-                {/* SUB-TAB 2: PRINTER */}
+                {/* SUB-TAB 2: PRINTER (MATCHING USER SCREENSHOT 100%) */}
                 {settingSubTab === 'printer' && (
-                  <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ maxWidth: '850px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Printer size={26} color="#38bdf8" />
-                          <span>Dashboard & Connection Status Thermal Printer</span>
-                        </h2>
-                        <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
-                          Status koneksi realtime printer Bluetooth/USB/LAN, pemindaian perangkat, ukuran kertas, dan uji cetak struk.
-                        </p>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        {saveSettingsSuccessToast && (
-                          <div style={{ background: 'rgba(16,185,129,0.2)', border: '1px solid #10b981', color: '#34d399', padding: '8px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <CheckCircle2 size={16} />
-                            <span>Pengaturan Disimpan!</span>
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={handleExecuteTestPrint}
-                          style={{
-                            padding: '10px 18px',
-                            background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontWeight: '900',
-                            fontSize: '0.82rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            boxShadow: '0 4px 14px rgba(56,189,248,0.4)'
-                          }}
-                        >
-                          <Printer size={18} />
-                          <span>🖨️ Test Print Struk Uji Coba</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* SECTION 0: CARD REALTIME STATUS KONEKSI PRINTER */}
-                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: printerSettings.status === 'connected' ? '2px solid #10b981' : '2px solid #ef4444' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                          <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: printerSettings.status === 'connected' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Printer size={28} color={printerSettings.status === 'connected' ? '#34d399' : '#f87171'} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', letterSpacing: '0.5px' }}>STATUS KONEKSI THERMAL PRINTER REALTIME</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: '900', color: printerSettings.status === 'connected' ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                              <span>{printerSettings.status === 'connected' ? '🟢 TERKONEKSI & SIAP MENCETAK' : '🔴 TIDAK TERKONEKSI (DISCONNECTED)'}</span>
-                            </div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
-                              Perangkat Terhubung: <strong>{printerSettings.printerName || 'Belum Dipilih'}</strong> • Kertas: <strong>{printerSettings.paperWidth || '58mm'}</strong> • MAC/IP: <code>{printerSettings.macAddress || 'BT:00:11:22:33:44'}</code>
-                            </div>
-                          </div>
+                      <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                        Pengaturan Printer
+                      </h2>
+                      {saveSettingsSuccessToast && (
+                        <div style={{ background: 'rgba(16,185,129,0.2)', border: '1px solid #10b981', color: '#34d399', padding: '6px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800' }}>
+                          ✅ Pengaturan Disimpan!
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={handleScanPrinters}
-                          style={{
-                            padding: '10px 16px',
-                            background: isScanningPrinters ? '#64748b' : '#0284c7',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '10px',
-                            fontWeight: '800',
-                            fontSize: '0.80rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                        >
-                          <RefreshCw size={16} className={isScanningPrinters ? 'animate-spin' : ''} />
-                          <span>{isScanningPrinters ? 'Memindai...' : '🔍 Pindai Printer Sekitar'}</span>
-                        </button>
-                      </div>
+                      )}
                     </div>
 
-                    {/* SECTION 1: DAFTAR PERANGKAT PRINTER TERDETEKSI */}
-                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                      <h3 style={{ fontSize: '0.96rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Wifi size={18} color="#38bdf8" />
-                        <span>Perangkat Printer Terdeteksi (Bluetooth / USB / LAN)</span>
-                      </h3>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {discoveredPrinters.map(device => {
-                          const isCurrent = printerSettings.printerName === device.name;
-                          return (
-                            <div
-                              key={device.id}
+                    {/* PRINTER AREAS LIST (Main, Captain Order, Label, Custom Areas...) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {printerAreas.map((area, idx) => (
+                        <div key={area.id || idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <label style={{ fontSize: '0.9rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
+                            {area.name}
+                          </label>
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            {/* Clickable Printer Display Box */}
+                            <div 
+                              onClick={() => handleOpenSelectPrinterModal(idx)}
                               style={{
+                                flex: 1,
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
+                                gap: '10px',
                                 padding: '12px 16px',
-                                borderRadius: '12px',
-                                background: isCurrent ? 'rgba(56, 189, 248, 0.12)' : 'var(--pos-bg-app)',
-                                border: isCurrent ? '2px solid #38bdf8' : '1px solid var(--pos-border-card)'
+                                background: '#ffffff',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                color: '#1e293b'
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ fontSize: '1.2rem' }}>
-                                  {device.type === 'bluetooth' ? '📡' : device.type === 'usb' ? '🔌' : '🌐'}
-                                </div>
-                                <div>
-                                  <div style={{ fontSize: '0.88rem', fontWeight: '900', color: isCurrent ? '#38bdf8' : 'var(--pos-txt-primary)' }}>
-                                    {device.name}
-                                  </div>
-                                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>
-                                    ID/MAC: <code>{device.mac}</code> • Tipe: {device.type.toUpperCase()}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div>
-                                {isCurrent ? (
-                                  <span style={{ background: '#10b981', color: '#fff', padding: '6px 12px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '900' }}>
-                                    ✅ Terhubung
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleConnectPrinterDevice(device)}
-                                    style={{
-                                      padding: '6px 14px',
-                                      background: 'var(--pos-border-card)',
-                                      color: 'var(--pos-txt-primary)',
-                                      border: 'none',
-                                      borderRadius: '8px',
-                                      fontSize: '0.76rem',
-                                      fontWeight: '800',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    ⚡ Sambungkan
-                                  </button>
-                                )}
-                              </div>
+                              <Printer size={20} color="#64748b" />
+                              <span style={{ fontSize: '0.95rem', fontWeight: '600' }}>
+                                {area.printerName || '-'}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
 
-                    {/* SECTION 2: METODE & UKURAN KERTAS */}
-                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                      <h3 style={{ fontSize: '0.96rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Settings size={18} color="#818cf8" />
-                        <span>Konfigurasi Ukuran Kertas & Metode Pencetakan</span>
-                      </h3>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px', fontWeight: '700' }}>Nama Printer Kustom</label>
-                          <input
-                            type="text"
-                            value={printerSettings.printerName}
-                            onChange={e => setPrinterSettings(prev => ({ ...prev, printerName: e.target.value }))}
-                            className="form-input"
-                            placeholder="Contoh: POS Thermal Printer 58mm"
-                          />
-                        </div>
-
-                        <div>
-                          <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px', fontWeight: '700' }}>Ukuran Kertas Thermal</label>
-                          <div style={{ display: 'flex', gap: '12px' }}>
+                            {/* Test Print Button */}
                             <button
                               type="button"
-                              onClick={() => setPrinterSettings(prev => ({ ...prev, paperWidth: '58mm' }))}
+                              onClick={() => handleTestPrintArea(area)}
                               style={{
-                                flex: 1,
-                                padding: '10px',
-                                background: printerSettings.paperWidth === '58mm' ? 'rgba(99,102,241,0.2)' : 'var(--pos-bg-app)',
-                                border: '1px solid',
-                                borderColor: printerSettings.paperWidth === '58mm' ? '#6366f1' : 'var(--pos-border-card)',
-                                borderRadius: '10px',
-                                color: 'var(--pos-txt-primary)',
-                                fontWeight: '800',
-                                fontSize: '0.82rem',
-                                cursor: 'pointer'
+                                padding: '12px 24px',
+                                background: '#4c1d95',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: '700',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                minWidth: '120px'
                               }}
                             >
-                              📄 58 mm (Kecil)
+                              Test Print
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => setPrinterSettings(prev => ({ ...prev, paperWidth: '80mm' }))}
-                              style={{
-                                flex: 1,
-                                padding: '10px',
-                                background: printerSettings.paperWidth === '80mm' ? 'rgba(99,102,241,0.2)' : 'var(--pos-bg-app)',
-                                border: '1px solid',
-                                borderColor: printerSettings.paperWidth === '80mm' ? '#6366f1' : 'var(--pos-border-card)',
-                                borderRadius: '10px',
-                                color: 'var(--pos-txt-primary)',
-                                fontWeight: '800',
-                                fontSize: '0.82rem',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              📜 80 mm (Besar)
-                            </button>
+                            {/* Delete Button (if custom area) */}
+                            {idx >= 3 && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePrinterArea(idx)}
+                                style={{
+                                  padding: '12px 24px',
+                                  background: '#dc2626',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  fontWeight: '700',
+                                  fontSize: '0.9rem',
+                                  cursor: 'pointer',
+                                  minWidth: '100px'
+                                }}
+                              >
+                                Hapus
+                              </button>
+                            )}
                           </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
 
-                    {/* SECTION 3: METODE CETAK STRUK (1 PER 1 VS SEKALIGUS) */}
-                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                      <h3 style={{ fontSize: '0.96rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Zap size={18} color="#34d399" />
-                        <span>Pengaturan Mode Cetak Struk Pesanan (Dapur / Bar / Kasir)</span>
-                      </h3>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '16px' }}>
-                        Pilih apakah lembar struk pesanan dikeluarkan sekaligus dalam 1 lembar atau dipisah 1 per 1 per-item menu.
-                      </p>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                        {/* MODE 1: SEKALIGUS */}
-                        <div
-                          onClick={() => setPrinterSettings(prev => ({ ...prev, printMode: 'sekaligus' }))}
-                          style={{
-                            background: printerSettings.printMode === 'sekaligus' ? 'rgba(52, 211, 153, 0.15)' : 'var(--pos-bg-app)',
-                            border: '2px solid',
-                            borderColor: printerSettings.printMode === 'sekaligus' ? '#34d399' : 'var(--pos-border-card)',
-                            padding: '16px',
-                            borderRadius: '14px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.94rem', fontWeight: '900', color: printerSettings.printMode === 'sekaligus' ? '#34d399' : '#ffffff' }}>
-                              ⚡ Cetak Sekaligus (All-in-One)
-                            </span>
-                            <input
-                              type="radio"
-                              name="printModeRadio"
-                              checked={printerSettings.printMode === 'sekaligus'}
-                              onChange={() => {}}
-                              style={{ accentColor: '#34d399', width: '18px', height: '18px' }}
-                            />
-                          </div>
-                          <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: 0, lineHeight: '1.4' }}>
-                            Seluruh item pesanan (dapur, bar, kasir) dikelompokkan dan dicetak dalam 1 lembar struk panjang secara bersamaan.
-                          </p>
-                        </div>
-
-                        {/* MODE 2: 1 PER 1 */}
-                        <div
-                          onClick={() => setPrinterSettings(prev => ({ ...prev, printMode: 'per_item' }))}
-                          style={{
-                            background: printerSettings.printMode === 'per_item' ? 'rgba(56, 189, 248, 0.15)' : 'var(--pos-bg-app)',
-                            border: '2px solid',
-                            borderColor: printerSettings.printMode === 'per_item' ? '#38bdf8' : 'var(--pos-border-card)',
-                            padding: '16px',
-                            borderRadius: '14px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.94rem', fontWeight: '900', color: printerSettings.printMode === 'per_item' ? '#38bdf8' : '#ffffff' }}>
-                              📄 Cetak 1 per 1 (Per-Item Ticket)
-                            </span>
-                            <input
-                              type="radio"
-                              name="printModeRadio"
-                              checked={printerSettings.printMode === 'per_item'}
-                              onChange={() => {}}
-                              style={{ accentColor: '#38bdf8', width: '18px', height: '18px' }}
-                            />
-                          </div>
-                          <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: 0, lineHeight: '1.4' }}>
-                            Setiap item pesanan dicetak terpisah menjadi 1 lembar struk individual (cocok untuk dapur yang mengolah per-station).
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SECTION 4: POPUP STRUK CHOICE */}
-                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                      <div
-                        onClick={() => setPrinterSettings(prev => ({ ...prev, autoShowReceiptChoiceOnSaveOrder: !prev.autoShowReceiptChoiceOnSaveOrder }))}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                    {/* Add Printer Area Button */}
+                    <div style={{ marginTop: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={handleAddPrinterArea}
+                        style={{
+                          padding: '12px 24px',
+                          background: '#4c1d95',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
                       >
-                        <div>
-                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
-                            Tampilkan Pop-Up Pilihan Struk Setiap Kali 'Simpan Order'
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
-                            Jika diaktifkan, kasir dapat memilih/menceklis jenis struk sebelum mencetak.
-                          </div>
-                        </div>
-                        <div style={{ width: '48px', height: '26px', borderRadius: '13px', background: printerSettings.autoShowReceiptChoiceOnSaveOrder ? '#6366f1' : 'var(--pos-border-card)', padding: '3px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center' }}>
-                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#ffffff', transform: printerSettings.autoShowReceiptChoiceOnSaveOrder ? 'translateX(22px)' : 'translateX(0px)', transition: 'transform 0.2s ease' }}></div>
-                        </div>
-                      </div>
+                        <span>+ Tambah Printer Area</span>
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSaveSettingsSuccessToast(true);
-                        setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
-                      }}
-                      className="btn-primary"
-                      style={{ height: '48px', justifyContent: 'center', fontSize: '0.9rem', fontWeight: '900' }}
-                    >
-                      <Save size={18} />
-                      <span>SIMPAN PENGATURAN PRINTER</span>
-                    </button>
                   </div>
                 )}
 
@@ -7385,6 +7228,220 @@ export default function AndroidPosRegister({
                 <span>Cetak Ulang</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6.5. MODAL SELECT PRINTER (EXACT LUNA POS MATCH FROM USER SCREENSHOT 2) */}
+      {showSelectPrinterModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '16px'
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '580px', background: '#ffffff',
+            borderRadius: '12px', overflow: 'hidden',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
+            display: 'flex', flexDirection: 'column'
+          }}>
+            {/* Header Banner */}
+            <div style={{
+              background: '#4c1d95', color: '#ffffff', padding: '16px',
+              textAlign: 'center', fontWeight: '800', fontSize: '1.1rem',
+              letterSpacing: '0.3px'
+            }}>
+              Select Printer
+            </div>
+
+            {/* Form Content */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', color: '#1e293b' }}>
+              
+              {/* Row 1: Printer Type & Printer Module */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                    Printer Type
+                  </label>
+                  <select
+                    value={tempAreaForm.type || 'Escpos'}
+                    onChange={e => setTempAreaForm(prev => ({ ...prev, type: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
+                  >
+                    <option value="Escpos">Escpos</option>
+                    <option value="Text">Text</option>
+                    <option value="PDF">PDF</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                    Printer Module
+                  </label>
+                  <select
+                    value={tempAreaForm.module || 'Bluetooth General'}
+                    onChange={e => setTempAreaForm(prev => ({ ...prev, module: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
+                  >
+                    <option value="Bluetooth General">Bluetooth General</option>
+                    <option value="USB Direct">USB Direct</option>
+                    <option value="LAN / Network">LAN / Network</option>
+                    <option value="Sunmi Inner Printer">Sunmi Inner Printer</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 2: Printer Device Selection */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700' }}>
+                    Printer
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleScanPrinters}
+                    style={{ background: 'none', border: 'none', color: '#4c1d95', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <RefreshCw size={12} className={isScanningPrinters ? 'animate-spin' : ''} />
+                    <span>{isScanningPrinters ? 'Memindai...' : 'Pindai Perangkat'}</span>
+                  </button>
+                </div>
+                <select
+                  value={tempAreaForm.printerName || ''}
+                  onChange={e => setTempAreaForm(prev => ({ ...prev, printerName: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
+                >
+                  <option value="">-- Pilih Perangkat Printer --</option>
+                  <option value="RPP02N">RPP02N (Bluetooth Thermal)</option>
+                  <option value="POS-58">POS-58 (Bluetooth Thermal)</option>
+                  <option value="PT-210">PT-210 (Portable Thermal)</option>
+                  <option value="InnerPrinter">InnerPrinter (Sunmi Built-in)</option>
+                  {discoveredPrinters.map(dev => (
+                    <option key={dev.id} value={dev.name}>{dev.name} ({dev.mac})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Row 3: Paper Size, Feed After Print, Auto Cut Type */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                    Paper Size
+                  </label>
+                  <select
+                    value={tempAreaForm.paperSize || '58'}
+                    onChange={e => setTempAreaForm(prev => ({ ...prev, paperSize: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
+                  >
+                    <option value="58">58</option>
+                    <option value="80">80</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                    Feed After Print
+                  </label>
+                  <input
+                    type="number"
+                    value={tempAreaForm.feedCount !== undefined ? tempAreaForm.feedCount : 0}
+                    onChange={e => setTempAreaForm(prev => ({ ...prev, feedCount: Number(e.target.value) }))}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                    Auto Cut Type
+                  </label>
+                  <select
+                    value={tempAreaForm.autoCut !== undefined ? tempAreaForm.autoCut : '0'}
+                    onChange={e => setTempAreaForm(prev => ({ ...prev, autoCut: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
+                  >
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 4: Disconnect Setelah Print */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <input
+                  type="checkbox"
+                  id="chkDisconnect"
+                  checked={tempAreaForm.disconnectAfter || false}
+                  onChange={e => setTempAreaForm(prev => ({ ...prev, disconnectAfter: e.target.checked }))}
+                  style={{ width: '18px', height: '18px', accentColor: '#4c1d95', cursor: 'pointer' }}
+                />
+                <label htmlFor="chkDisconnect" style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Disconnect Setelah Print
+                  <HelpCircle size={16} color="#64748b" />
+                </label>
+              </div>
+
+              {/* Row 5: Jumlah Copy Stepper */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '6px 0' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155' }}>
+                  Jumlah copy {tempAreaForm.name || 'Main'} Yang akan dicetak
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setTempAreaForm(prev => ({ ...prev, copies: Math.max(1, (prev.copies || 1) - 1) }))}
+                    style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#4c1d95', color: '#fff', border: 'none', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    -
+                  </button>
+                  <span style={{ fontSize: '1rem', fontWeight: '800', width: '20px', textAlign: 'center' }}>
+                    {tempAreaForm.copies || 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTempAreaForm(prev => ({ ...prev, copies: (prev.copies || 1) + 1 }))}
+                    style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#4c1d95', color: '#fff', border: 'none', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 6: Cetak Otomatis Checkbox */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  id="chkAutoPrint"
+                  checked={tempAreaForm.autoPrintOnPayment || false}
+                  onChange={e => setTempAreaForm(prev => ({ ...prev, autoPrintOnPayment: e.target.checked }))}
+                  style={{ width: '18px', height: '18px', accentColor: '#4c1d95', cursor: 'pointer' }}
+                />
+                <label htmlFor="chkAutoPrint" style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
+                  Cetak otomatis receipt pada waktu pembayaran
+                </label>
+              </div>
+
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowSelectPrinterModal(false)}
+                style={{ padding: '10px 24px', background: '#ffffff', border: '1px solid #94a3b8', borderRadius: '8px', color: '#334155', fontWeight: '700', cursor: 'pointer', minWidth: '100px' }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePrinterAreaForm}
+                style={{ padding: '10px 24px', background: '#4c1d95', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '700', cursor: 'pointer', minWidth: '100px' }}
+              >
+                Simpan
+              </button>
+            </div>
+
           </div>
         </div>
       )}
