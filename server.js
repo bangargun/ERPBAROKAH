@@ -647,6 +647,28 @@ const syncToMySQL = async (masterData) => {
         sc.status || 'ditunda'
       ]);
     }
+
+    // 7. Sync Stock Movements & Opname Reports to MySQL relational table
+    const stockMovements = masterData.stockMovement || masterData.stockOpname || [];
+    for (const sm of stockMovements) {
+      if (!sm) continue;
+      const smDate = sm.date || new Date().toISOString().split('T')[0];
+      const smTime = sm.time || '00:00:00';
+      const smName = String(sm.item_name || sm.ingredient || sm.name || 'Bahan').trim();
+      const smType = String(sm.type || 'OUT');
+      const smQty = Number(sm.qty || sm.quantity || 0);
+      const smUnit = String(sm.unit || 'kg');
+      const smOutletId = sm.outlet_id ? Number(sm.outlet_id) : null;
+      const smSource = String(sm.source_outlet || sm.branch_name || '');
+      const smTarget = String(sm.target_outlet || '');
+      const smReason = String(sm.reason || sm.supplier || sm.notes || '');
+      const smUser = String(sm.created_by || sm.user_name || sm.requested_by || 'Staf');
+
+      await mysqlPool.execute(`
+        INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, target_outlet, reason, user_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [smDate, smTime, smName, smType, smQty, smUnit, smOutletId, smSource, smTarget, smReason, smUser]).catch(() => {});
+    }
   } catch (err) {
     console.error('syncToMySQL error:', err.message);
   }
