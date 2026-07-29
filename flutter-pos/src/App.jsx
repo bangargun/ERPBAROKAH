@@ -59,9 +59,10 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     if (typeof window !== 'undefined') {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v56_sync_fix') {
+      if (versionKey !== 'v57_outlet_clean') {
+        // Bersihkan localStorage lama yang bisa mengandung data outlet/data stale
         localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v56_sync_fix');
+        localStorage.setItem('mris_version', 'v57_outlet_clean');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');

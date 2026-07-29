@@ -197,34 +197,79 @@ export default function AndroidPosRegister({
     printCashierCopy: false  // Struk Copy Kasir (Cashier Copy)
   });
   const [isScanningPrinters, setIsScanningPrinters] = useState(false);
-  const [discoveredPrinters, setDiscoveredPrinters] = useState([
-    { id: '1', name: 'Thermal Bluetooth POS (RPP02N)', mac: 'DC:0D:30:84:9E:21', type: 'bluetooth', status: 'connected' },
-    { id: '2', name: 'USB POS Thermal Printer 80mm', mac: 'USB_VID_0483_PID_5740', type: 'usb', status: 'available' },
-    { id: '3', name: 'LAN Kitchen Printer (192.168.1.200)', mac: '192.168.1.200:9100', type: 'wifi', status: 'available' }
-  ]);
+  // Daftar printer hasil scan — KOSONG saat startup, diisi saat pengguna melakukan scan nyata
+  const [discoveredPrinters, setDiscoveredPrinters] = useState([]);
   const [showTestPrintModal, setShowTestPrintModal] = useState(false);
   const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
+  const [scanPrinterMsg, setScanPrinterMsg] = useState('');
 
-  const handleScanPrinters = () => {
+  // Scan printer via Web Bluetooth API (real, bukan simulasi)
+  const handleScanPrinters = async () => {
+    setScanPrinterMsg('');
     setIsScanningPrinters(true);
-    setTimeout(() => {
-      setIsScanningPrinters(false);
-      alert('🔍 Pemindaian Selesai: 3 Perangkat Printer Thermal Terdeteksi di Sekitar Tablet POS.');
-    }, 1500);
+    // Coba Web Bluetooth API (tersedia di Android Chrome / Capacitor)
+    if (navigator.bluetooth) {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          // Printer ESC/POS umumnya pakai Generic Access atau Serial Port Profile
+          acceptAllDevices: true,
+          optionalServices: [
+            '000018f0-0000-1000-8000-00805f9b34fb', // Generic Printer
+            '00001101-0000-1000-8000-00805f9b34fb', // Serial Port Profile (SPP)
+            'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // PrinterShare
+          ]
+        });
+        const newDevice = {
+          id: device.id || `bt_${Date.now()}`,
+          name: device.name || 'Printer Bluetooth Tidak Diketahui',
+          mac: device.id || '',
+          type: 'bluetooth',
+          status: 'available',
+          btDevice: device
+        };
+        setDiscoveredPrinters(prev => {
+          // Hindari duplikat
+          const exists = prev.find(p => p.id === newDevice.id);
+          return exists ? prev : [...prev, newDevice];
+        });
+        setScanPrinterMsg(`✅ Printer ditemukan: ${newDevice.name}`);
+      } catch (e) {
+        if (e.name === 'NotFoundError') {
+          setScanPrinterMsg('ℹ️ Tidak ada printer dipilih. Silakan coba lagi.');
+        } else if (e.name === 'NotSupportedError' || e.name === 'SecurityError') {
+          setScanPrinterMsg('⚠️ Bluetooth tidak didukung di browser ini. Gunakan Chrome di Android.');
+        } else {
+          setScanPrinterMsg(`⚠️ Gagal scan: ${e.message}`);
+        }
+      }
+    } else {
+      // Fallback: tampilkan instruksi manual jika Web Bluetooth tidak tersedia
+      setScanPrinterMsg('⚠️ Web Bluetooth tidak tersedia. Pastikan menggunakan Chrome di Android dan aktifkan Bluetooth.');
+    }
+    setIsScanningPrinters(false);
   };
 
   const handleConnectPrinterDevice = (device) => {
     setPrinterSettings(prev => ({
       ...prev,
       printerName: device.name,
-      macAddress: device.mac,
-      connectionType: device.type,
+      macAddress: device.mac || device.id,
+      connectionType: device.type || 'bluetooth',
       status: 'connected'
     }));
     setDiscoveredPrinters(prev => prev.map(p => ({
       ...p,
       status: p.id === device.id ? 'connected' : 'available'
     })));
+    // Simpan ke localStorage agar tetap tersimpan
+    try {
+      const saved = JSON.parse(localStorage.getItem('MRIS_POS_PRINTER_AREAS') || '[]');
+      if (saved.length > 0) {
+        saved[0].printerName = device.name;
+        saved[0].macAddress = device.mac || device.id;
+        localStorage.setItem('MRIS_POS_PRINTER_AREAS', JSON.stringify(saved));
+      }
+    } catch (e) {}
   };
 
   // Default Printer Areas list (Main, Captain Order, Label, Dapur) - Matches Luna POS design
@@ -3997,6 +4042,17 @@ export default function AndroidPosRegister({
             {/* ----------------------------------------------------------- */}
             {(() => {
               const activeCust = (masterData.customers || []).find(c => c.id === selectedCustomerIdForDetail) || masterData.customers?.[0] || null;
+              // Jika tidak ada pelanggan sama sekali, tampilkan placeholder kosong
+              if (!activeCust) {
+                return (
+                  <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--pos-bg-app)', padding: '24px' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '12px' }}>👤</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--pos-txt-secondary)', textAlign: 'center' }}>
+                      Belum ada data pelanggan.<br />Tambahkan pelanggan terlebih dahulu.
+                    </div>
+                  </div>
+                );
+              }
               const custCode = activeCust.code || `000${activeCust.id} - BMJ`;
               const custOutletName = activeCust.outlet_name || (masterData.outlets || []).find(o => o.id === activeCust.outlet_id)?.name || currentOutlet.name || 'Restoran Utama';
 
@@ -7416,12 +7472,28 @@ export default function AndroidPosRegister({
                   <button
                     type="button"
                     onClick={handleScanPrinters}
-                    style={{ background: 'none', border: 'none', color: '#4c1d95', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    disabled={isScanningPrinters}
+                    style={{ background: isScanningPrinters ? '#e0e7ff' : '#4c1d95', border: 'none', color: isScanningPrinters ? '#4c1d95' : '#ffffff', fontSize: '0.78rem', fontWeight: '800', cursor: isScanningPrinters ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px' }}
                   >
                     <RefreshCw size={12} className={isScanningPrinters ? 'animate-spin' : ''} />
-                    <span>{isScanningPrinters ? 'Memindai...' : 'Pindai Perangkat'}</span>
+                    <span>{isScanningPrinters ? 'Memindai Bluetooth...' : '🔍 Cari Printer Bluetooth'}</span>
                   </button>
                 </div>
+                {/* Pesan hasil scan Bluetooth */}
+                {scanPrinterMsg !== '' && (
+                  <div style={{
+                    marginBottom: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    background: scanPrinterMsg.startsWith('✅') ? 'rgba(16,185,129,0.12)' : 'rgba(251,191,36,0.12)',
+                    color: scanPrinterMsg.startsWith('✅') ? '#059669' : '#92400e',
+                    border: `1px solid ${scanPrinterMsg.startsWith('✅') ? '#10b981' : '#fbbf24'}`
+                  }}>
+                    {scanPrinterMsg}
+                  </div>
+                )}
                 <select
                   value={tempAreaForm.printerName || ''}
                   onChange={e => setTempAreaForm(prev => ({ ...prev, printerName: e.target.value }))}
@@ -7433,9 +7505,14 @@ export default function AndroidPosRegister({
                   <option value="PT-210">PT-210 (Portable Thermal)</option>
                   <option value="InnerPrinter">InnerPrinter (Sunmi Built-in)</option>
                   {discoveredPrinters.map(dev => (
-                    <option key={dev.id} value={dev.name}>{dev.name} ({dev.mac})</option>
+                    <option key={dev.id} value={dev.name}>{dev.name} [{dev.mac}] — via Bluetooth</option>
                   ))}
                 </select>
+                {discoveredPrinters.length === 0 && (
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>
+                    💡 Klik "Cari Printer Bluetooth" untuk memindai printer di sekitar perangkat.
+                  </div>
+                )}
               </div>
 
               {/* Row 3: Paper Size, Feed After Print, Auto Cut Type */}
@@ -9285,25 +9362,25 @@ export default function AndroidPosRegister({
                 Pilih atau Input Kode Kupon:
               </label>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                {[
-                  { code: 'DISKON10K', desc: 'Diskon Rp 10rb', type: 'nominal', val: 10000 },
-                  { code: 'PROMO50', desc: 'Diskon 50%', type: 'percent', val: 50 },
-                  { code: 'VIPULTAH', desc: 'Diskon Rp 25rb', type: 'nominal', val: 25000 }
-                ].map(c => (
+                {(masterData.coupons || []).length === 0 ? (
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                    Belum ada kupon tersedia. Tambahkan melalui Web Admin.
+                  </div>
+                ) : (masterData.coupons || []).map(c => (
                   <button
                     key={c.code}
                     onClick={() => {
                       setCouponCodeInput(c.code);
                       if (c.type === 'percent') {
                         setDiscountMode('percent');
-                        setDiscountInputVal(c.val.toString());
-                        const calcDisc = Math.round((cartSubtotal * c.val) / 100);
+                        setDiscountInputVal(String(c.val || c.value || 0));
+                        const calcDisc = Math.round((cartSubtotal * (c.val || c.value || 0)) / 100);
                         setDiscountValue(calcDisc.toString());
                       } else {
                         setDiscountMode('nominal');
-                        setDiscountValue(c.val.toString());
+                        setDiscountValue(String(c.val || c.value || 0));
                       }
-                      setCouponMsg({ type: 'success', text: `Kupon ${c.code} (${c.desc}) berhasil diterapkan!` });
+                      setCouponMsg({ type: 'success', text: `Kupon ${c.code} (${c.desc || c.description || ''}) berhasil diterapkan!` });
                     }}
                     style={{
                       padding: '6px 12px', background: couponCodeInput === c.code ? 'rgba(52,211,153,0.2)' : 'var(--pos-bg-app)',
