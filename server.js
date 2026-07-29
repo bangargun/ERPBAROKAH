@@ -725,14 +725,69 @@ app.post('/api/db/query', async (req, res) => {
   const { sql } = req.body;
   if (!sql || typeof sql !== 'string') return res.status(400).json({ error: 'Perintah SQL tidak boleh kosong' });
 
-  const trimmed = sql.trim().toUpperCase();
-  if (!trimmed.startsWith('SELECT') && !trimmed.startsWith('SHOW') && !trimmed.startsWith('DESCRIBE') && !trimmed.startsWith('EXPLAIN')) {
-    return res.status(403).json({ error: 'Hanya query pencarian (SELECT / SHOW / DESCRIBE) yang diizinkan untuk keamanan' });
-  }
-
   try {
     const [results] = await mysqlPool.query(sql);
     res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/db/row/delete', async (req, res) => {
+  if (!mysqlPool) return res.status(400).json({ error: 'MySQL server tidak terhubung' });
+  const { table, id, pkColumn = 'id' } = req.body;
+  if (!table || id === undefined) return res.status(400).json({ error: 'Table dan ID wajib diisi' });
+
+  try {
+    await mysqlPool.execute(`DELETE FROM \`${table}\` WHERE \`${pkColumn}\` = ?`, [id]);
+
+    // Sync back to masterData
+    try {
+      let masterData = await getMasterDataFromMySQL();
+      if (masterData) {
+        const idStr = String(id);
+        if (table === 'sales_transactions' || table === 'transactions') {
+          masterData.salesTransactions = (masterData.salesTransactions || []).filter(t => String(t.id) !== idStr);
+          masterData.transactions = (masterData.transactions || []).filter(t => String(t.id) !== idStr);
+        } else if (table === 'shift_closings') {
+          masterData.shiftClosings = (masterData.shiftClosings || []).filter(s => String(s.id) !== idStr);
+          masterData.closedShifts = (masterData.closedShifts || []).filter(s => String(s.id) !== idStr);
+        } else if (table === 'outlets') {
+          masterData.outlets = (masterData.outlets || []).filter(o => String(o.id) !== idStr);
+        } else if (table === 'users') {
+          masterData.userAccounts = (masterData.userAccounts || []).filter(u => String(u.id) !== idStr);
+          masterData.users = (masterData.users || []).filter(u => String(u.id) !== idStr);
+        } else if (table === 'products') {
+          masterData.products = (masterData.products || []).filter(p => String(p.id) !== idStr);
+        } else if (table === 'categories') {
+          masterData.categories = (masterData.categories || []).filter(c => String(c.id) !== idStr);
+        }
+        await saveMasterDataToMySQL(masterData);
+      }
+    } catch (syncErr) {}
+
+    res.json({ success: true, message: `Baris ID ${id} berhasil dihapus dari tabel ${table}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/db/row/update', async (req, res) => {
+  if (!mysqlPool) return res.status(400).json({ error: 'MySQL server tidak terhubung' });
+  const { table, id, pkColumn = 'id', data } = req.body;
+  if (!table || id === undefined || !data || typeof data !== 'object') {
+    return res.status(400).json({ error: 'Table, ID, dan Data wajib diisi' });
+  }
+
+  try {
+    const keys = Object.keys(data).filter(k => k !== pkColumn);
+    if (keys.length === 0) return res.status(400).json({ error: 'Tidak ada kolom yang diubah' });
+
+    const setClause = keys.map(k => `\`${k}\` = ?`).join(', ');
+    const values = keys.map(k => data[k]);
+
+    await mysqlPool.execute(`UPDATE \`${table}\` SET ${setClause} WHERE \`${pkColumn}\` = ?`, [...values, id]);
+    res.json({ success: true, message: `Baris ID ${id} berhasil diperbarui di tabel ${table}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -765,12 +820,21 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     .tab-btn.active { background: #0284c7; color: #fff; border-color: #0284c7; }
     .content-area { flex: 1; overflow: auto; padding: 20px; }
     table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; border: 1px solid #334155; }
-    th { background: #0f172a; color: #38bdf8; text-align: left; padding: 10px 14px; font-weight: 800; font-size: 12px; border-bottom: 1px solid #334155; position: sticky; top: 0; }
+    th { background: #0f172a; color: #38bdf8; text-align: left; padding: 10px 14px; font-weight: 800; font-size: 12px; border-bottom: 1px solid #334155; position: sticky; top: 0; z-index: 2; }
     td { padding: 10px 14px; border-bottom: 1px solid #334155; color: #cbd5e1; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     tr:hover td { background: rgba(56, 189, 248, 0.05); }
+    .btn-edit { background: #3b82f6; color: #fff; border: none; padding: 4px 10px; border-radius: 5px; font-weight: 700; font-size: 11px; cursor: pointer; margin-right: 4px; }
+    .btn-delete { background: #ef4444; color: #fff; border: none; padding: 4px 10px; border-radius: 5px; font-weight: 700; font-size: 11px; cursor: pointer; }
+    .btn-edit:hover { background: #2563eb; }
+    .btn-delete:hover { background: #dc2626; }
     .sql-input { width: 100%; height: 110px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #38bdf8; font-family: 'Fira Code', monospace; padding: 12px; font-size: 13px; outline: none; margin-bottom: 10px; resize: vertical; }
     .run-btn { background: #10b981; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 800; cursor: pointer; }
     .run-btn:hover { background: #059669; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; width: 500px; max-width: 90vw; max-height: 85vh; overflow-y: auto; color: #f8fafc; }
+    .modal-field { margin-bottom: 12px; }
+    .modal-field label { display: block; font-size: 11px; font-weight: 800; color: #38bdf8; margin-bottom: 4px; text-transform: uppercase; }
+    .modal-field input, .modal-field textarea { width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; outline: none; }
   </style>
 </head>
 <body>
@@ -787,7 +851,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     <div class="topbar">
       <div>
         <h3 id="currentTableTitle" style="font-size:1.1rem; font-weight:800; color:#f8fafc;">Pilih Tabel Database</h3>
-        <span id="dbStatus" style="font-size:11px; color:#10b981; font-weight:700;">🟢 Connected: MySQL Database (mris_db)</span>
+        <span id="dbStatus" style="font-size:11px; color:#10b981; font-weight:700;">🟢 Full Access: Edit & Hapus Aktif (mris_db)</span>
       </div>
       <div class="tabs">
         <button class="tab-btn active" id="btn-browse" onclick="switchTab('browse')">🔍 Browse Data</button>
@@ -798,7 +862,18 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     <div class="content-area" id="contentArea">
       <div style="padding: 50px; text-align: center; color: #94a3b8;">
         <h2>Selamat datang di phpMyAdmin / Database Manager (mris_db)</h2>
-        <p style="margin-top:10px;">Silakan pilih salah satu tabel di sebelah kiri untuk melihat isinya.</p>
+        <p style="margin-top:10px;">Akses penuh Edit, Hapus, dan Eksekusi SQL Aktif.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="editModalOverlay" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <h3 style="margin-bottom:16px; color:#38bdf8;">✏️ Edit Baris Data</h3>
+      <div id="modalFields"></div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+        <button onclick="closeEditModal()" style="background:#475569; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:700; cursor:pointer;">Batal</button>
+        <button onclick="submitRowUpdate()" style="background:#10b981; color:#fff; border:none; padding:8px 16px; border-radius:6px; font-weight:800; cursor:pointer;">Simpan Perubahan</button>
       </div>
     </div>
   </div>
@@ -807,6 +882,8 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     let activeTable = '';
     let activeTab = 'browse';
     let tableDataCache = {};
+    let currentEditRow = null;
+    let pkColName = 'id';
 
     async function loadTables() {
       try {
@@ -848,6 +925,9 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
         const data = await res.json();
         tableDataCache = data;
 
+        const primaryCol = (data.columns || []).find(c => c.Key === 'PRI');
+        pkColName = primaryCol ? primaryCol.Field : (data.columns?.[0]?.Field || 'id');
+
         if (activeTab === 'browse') renderBrowse(data);
         else if (activeTab === 'structure') renderStructure(data);
         else if (activeTab === 'sql') renderSqlConsole();
@@ -874,14 +954,21 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
         return;
       }
       const cols = data.columns.map(c => c.Field);
-      let html = '<div style="margin-bottom:12px; color:#94a3b8; font-weight:700;">Menampilkan ' + data.rows.length + ' baris terbaru:</div>';
-      html += '<table><thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
-      data.rows.forEach(row => {
-        html += '<tr>' + cols.map(c => {
+      let html = '<div style="margin-bottom:12px; color:#94a3b8; font-weight:700;">Menampilkan ' + data.rows.length + ' baris (Akses Edit & Hapus Aktif):</div>';
+      html += '<table><thead><tr><th style="width:110px;">Aksi</th>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+      data.rows.forEach((row, idx) => {
+        const rowId = row[pkColName] !== undefined ? row[pkColName] : row.id;
+        html += '<tr>';
+        html += '<td>';
+        html += '<button class="btn-edit" onclick="openEditModal(' + idx + ')">✏️ Edit</button>';
+        html += '<button class="btn-delete" onclick="confirmDeleteRow(\'' + rowId + '\')">🗑️ Hapus</button>';
+        html += '</td>';
+        html += cols.map(c => {
           let val = row[c];
           if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
           return '<td title="' + (val || '') + '">' + (val !== null && val !== undefined ? String(val) : '<i style="color:#64748b">NULL</i>') + '</td>';
-        }).join('') + '</tr>';
+        }).join('');
+        html += '</tr>';
       });
       html += '</tbody></table>';
       content.innerHTML = html;
@@ -901,7 +988,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
       const content = document.getElementById('contentArea');
       content.innerHTML = \`
         <div style="margin-bottom:15px;">
-          <h4 style="margin-bottom:8px; color:#38bdf8;">⚡ SQL Query Runner (SELECT / SHOW / DESCRIBE)</h4>
+          <h4 style="margin-bottom:8px; color:#38bdf8;">⚡ SQL Query Runner (SELECT / UPDATE / DELETE / INSERT / ALTER)</h4>
           <textarea id="sqlQuery" class="sql-input">SELECT * FROM \${activeTable || 'sales_transactions'} LIMIT 50;</textarea>
           <button class="run-btn" onclick="runSqlQuery()">Jalankan Perintah SQL</button>
         </div>
@@ -923,7 +1010,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
         const data = await res.json();
         if (data.error) {
           resContainer.innerHTML = '<div style="color:#ef4444; padding:10px; background:rgba(239,68,68,0.1); border-radius:6px;">❌ ' + data.error + '</div>';
-        } else if (data.results && data.results.length > 0) {
+        } else if (data.results && Array.isArray(data.results) && data.results.length > 0) {
           const cols = Object.keys(data.results[0]);
           let html = '<table style="margin-top:10px;"><thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
           data.results.forEach(row => {
@@ -932,10 +1019,103 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
           html += '</tbody></table>';
           resContainer.innerHTML = html;
         } else {
-          resContainer.innerHTML = '<div style="color:#10b981; padding:10px;">✅ Perintah berhasil dijalankan.</div>';
+          resContainer.innerHTML = '<div style="color:#10b981; padding:10px;">✅ Perintah SQL berhasil dijalankan.</div>';
+          loadTableData();
         }
       } catch (err) {
         resContainer.innerHTML = '<div style="color:#ef4444; padding:10px;">❌ Query Error</div>';
+      }
+    }
+
+    function openEditModal(rowIndex) {
+      if (!tableDataCache.rows || !tableDataCache.rows[rowIndex]) return;
+      currentEditRow = tableDataCache.rows[rowIndex];
+      const fieldsContainer = document.getElementById('modalFields');
+      const cols = tableDataCache.columns.map(c => c.Field);
+      
+      let html = '';
+      cols.forEach(c => {
+        let val = currentEditRow[c];
+        if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+        const isPk = c === pkColName;
+        html += \`
+          <div class="modal-field">
+            <label>\${c} \${isPk ? '(PRIMARY KEY)' : ''}</label>
+            <input type="text" id="edit_col_\${c}" value="\${val !== null && val !== undefined ? String(val).replace(/"/g, '&quot;') : ''}" \${isPk ? 'disabled' : ''} />
+          </div>
+        \`;
+      });
+
+      fieldsContainer.innerHTML = html;
+      document.getElementById('editModalOverlay').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModalOverlay').style.display = 'none';
+      currentEditRow = null;
+    }
+
+    async function submitRowUpdate() {
+      if (!currentEditRow) return;
+      const rowId = currentEditRow[pkColName];
+      const cols = tableDataCache.columns.map(c => c.Field);
+      const updateData = {};
+
+      cols.forEach(c => {
+        if (c !== pkColName) {
+          const inputEl = document.getElementById('edit_col_' + c);
+          if (inputEl) updateData[c] = inputEl.value;
+        }
+      });
+
+      try {
+        const res = await fetch('/api/db/row/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: activeTable,
+            id: rowId,
+            pkColumn: pkColName,
+            data: updateData
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          alert('✅ ' + result.message);
+          closeEditModal();
+          loadTableData();
+        } else {
+          alert('❌ Gagal memperbarui data: ' + (result.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('❌ Gagal mengirim update ke server');
+      }
+    }
+
+    async function confirmDeleteRow(rowId) {
+      if (!confirm('⚠️ YAKIN INGIN MENGHAPUS BARIS DENGAN ID "' + rowId + '" DARI TABEL ' + activeTable.toUpperCase() + '?')) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/db/row/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: activeTable,
+            id: rowId,
+            pkColumn: pkColName
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          alert('✅ ' + result.message);
+          loadTableData();
+        } else {
+          alert('❌ Gagal menghapus baris: ' + (result.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('❌ Gagal menghapus baris dari server');
       }
     }
 
