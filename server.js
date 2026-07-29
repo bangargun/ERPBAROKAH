@@ -554,6 +554,231 @@ app.get('/api/db/table/:name', async (req, res) => {
   }
 });
 
+app.post('/api/db/query', async (req, res) => {
+  if (!mysqlPool) return res.status(400).json({ error: 'MySQL server tidak terhubung' });
+  const { sql } = req.body;
+  if (!sql || typeof sql !== 'string') return res.status(400).json({ error: 'Perintah SQL tidak boleh kosong' });
+
+  const trimmed = sql.trim().toUpperCase();
+  if (!trimmed.startsWith('SELECT') && !trimmed.startsWith('SHOW') && !trimmed.startsWith('DESCRIBE') && !trimmed.startsWith('EXPLAIN')) {
+    return res.status(403).json({ error: 'Hanya query pencarian (SELECT / SHOW / DESCRIBE) yang diizinkan untuk keamanan' });
+  }
+
+  try {
+    const [results] = await mysqlPool.query(sql);
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Standalone phpMyAdmin / Adminer Web Interface Route
+app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*'], (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>phpMyAdmin - MRIS Database Manager (mris_db)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; height: 100vh; overflow: hidden; font-size: 13px; }
+    .sidebar { width: 270px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; background: #0f172a; }
+    .sidebar-header h2 { font-size: 0.95rem; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 6px; }
+    .table-list { flex: 1; overflow-y: auto; padding: 10px; }
+    .table-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: #94a3b8; font-weight: 600; transition: all 0.15s ease; margin-bottom: 3px; }
+    .table-item:hover { background: #334155; color: #f8fafc; }
+    .table-item.active { background: #0284c7; color: #ffffff; font-weight: 700; }
+    .badge { background: rgba(255,255,255,0.15); color: inherit; padding: 2px 7px; border-radius: 12px; font-size: 11px; font-weight: 800; }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #0f172a; }
+    .topbar { background: #1e293b; padding: 14px 20px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+    .tabs { display: flex; gap: 6px; }
+    .tab-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: #94a3b8; font-weight: 700; cursor: pointer; font-size: 12px; }
+    .tab-btn.active { background: #0284c7; color: #fff; border-color: #0284c7; }
+    .content-area { flex: 1; overflow: auto; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; border: 1px solid #334155; }
+    th { background: #0f172a; color: #38bdf8; text-align: left; padding: 10px 14px; font-weight: 800; font-size: 12px; border-bottom: 1px solid #334155; position: sticky; top: 0; }
+    td { padding: 10px 14px; border-bottom: 1px solid #334155; color: #cbd5e1; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tr:hover td { background: rgba(56, 189, 248, 0.05); }
+    .sql-input { width: 100%; height: 110px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #38bdf8; font-family: 'Fira Code', monospace; padding: 12px; font-size: 13px; outline: none; margin-bottom: 10px; resize: vertical; }
+    .run-btn { background: #10b981; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 800; cursor: pointer; }
+    .run-btn:hover { background: #059669; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>🗄️ phpMyAdmin <span>(mris_db)</span></h2>
+      <button onclick="loadTables()" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-size:14px;" title="Refresh">🔄</button>
+    </div>
+    <div class="table-list" id="tableList">
+      <div style="padding:15px; color:#94a3b8;">Memuat tabel...</div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h3 id="currentTableTitle" style="font-size:1.1rem; font-weight:800; color:#f8fafc;">Pilih Tabel Database</h3>
+        <span id="dbStatus" style="font-size:11px; color:#10b981; font-weight:700;">🟢 Connected: MySQL Database (mris_db)</span>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" id="btn-browse" onclick="switchTab('browse')">🔍 Browse Data</button>
+        <button class="tab-btn" id="btn-structure" onclick="switchTab('structure')">📐 Structure</button>
+        <button class="tab-btn" id="btn-sql" onclick="switchTab('sql')">⚡ SQL Console</button>
+      </div>
+    </div>
+    <div class="content-area" id="contentArea">
+      <div style="padding: 50px; text-align: center; color: #94a3b8;">
+        <h2>Selamat datang di phpMyAdmin / Database Manager (mris_db)</h2>
+        <p style="margin-top:10px;">Silakan pilih salah satu tabel di sebelah kiri untuk melihat isinya.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeTable = '';
+    let activeTab = 'browse';
+    let tableDataCache = {};
+
+    async function loadTables() {
+      try {
+        const res = await fetch('/api/db/tables');
+        const data = await res.json();
+        const container = document.getElementById('tableList');
+        if (data.tables && data.tables.length > 0) {
+          container.innerHTML = data.tables.map(t => \`
+            <div class="table-item \${t.name === activeTable ? 'active' : ''}" onclick="selectTable('\${t.name}')">
+              <span>📂 \${t.name}</span>
+              <span class="badge">\${t.count}</span>
+            </div>
+          \`).join('');
+          if (!activeTable && data.tables.length > 0) {
+            selectTable(data.tables[0].name);
+          }
+        } else {
+          container.innerHTML = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel / Standalone JSON Mode</div>';
+        }
+      } catch (err) {
+        document.getElementById('tableList').innerHTML = '<div style="padding:15px; color:#ef4444;">Gagal memuat tabel</div>';
+      }
+    }
+
+    async function selectTable(tableName) {
+      activeTable = tableName;
+      document.getElementById('currentTableTitle').innerText = 'Tabel: ' + tableName;
+      loadTables();
+      loadTableData();
+    }
+
+    async function loadTableData() {
+      if (!activeTable) return;
+      const content = document.getElementById('contentArea');
+      content.innerHTML = '<div style="padding:20px; color:#38bdf8;">Memuat data tabel '+activeTable+'...</div>';
+
+      try {
+        const res = await fetch('/api/db/table/' + activeTable);
+        const data = await res.json();
+        tableDataCache = data;
+
+        if (activeTab === 'browse') renderBrowse(data);
+        else if (activeTab === 'structure') renderStructure(data);
+        else if (activeTab === 'sql') renderSqlConsole();
+      } catch (err) {
+        content.innerHTML = '<div style="padding:20px; color:#ef4444;">Gagal mengambil data tabel</div>';
+      }
+    }
+
+    function switchTab(tabName) {
+      activeTab = tabName;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + tabName).classList.add('active');
+      if (activeTab === 'sql') renderSqlConsole();
+      else if (tableDataCache.table) {
+        if (activeTab === 'browse') renderBrowse(tableDataCache);
+        else if (activeTab === 'structure') renderStructure(tableDataCache);
+      }
+    }
+
+    function renderBrowse(data) {
+      const content = document.getElementById('contentArea');
+      if (!data.rows || data.rows.length === 0) {
+        content.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Tabel <b>' + data.table + '</b> masih kosong (0 records).</div>';
+        return;
+      }
+      const cols = data.columns.map(c => c.Field);
+      let html = '<div style="margin-bottom:12px; color:#94a3b8; font-weight:700;">Menampilkan ' + data.rows.length + ' baris terbaru:</div>';
+      html += '<table><thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+      data.rows.forEach(row => {
+        html += '<tr>' + cols.map(c => {
+          let val = row[c];
+          if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+          return '<td title="' + (val || '') + '">' + (val !== null && val !== undefined ? String(val) : '<i style="color:#64748b">NULL</i>') + '</td>';
+        }).join('') + '</tr>';
+      });
+      html += '</tbody></table>';
+      content.innerHTML = html;
+    }
+
+    function renderStructure(data) {
+      const content = document.getElementById('contentArea');
+      let html = '<table><thead><tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr></thead><tbody>';
+      data.columns.forEach(c => {
+        html += '<tr><td style="font-weight:700; color:#38bdf8;">' + c.Field + '</td><td>' + c.Type + '</td><td>' + c.Null + '</td><td>' + (c.Key || '-') + '</td><td>' + (c.Default || 'NULL') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      content.innerHTML = html;
+    }
+
+    function renderSqlConsole() {
+      const content = document.getElementById('contentArea');
+      content.innerHTML = \`
+        <div style="margin-bottom:15px;">
+          <h4 style="margin-bottom:8px; color:#38bdf8;">⚡ SQL Query Runner (SELECT / SHOW / DESCRIBE)</h4>
+          <textarea id="sqlQuery" class="sql-input">SELECT * FROM \${activeTable || 'sales_transactions'} LIMIT 50;</textarea>
+          <button class="run-btn" onclick="runSqlQuery()">Jalankan Perintah SQL</button>
+        </div>
+        <div id="sqlResult"></div>
+      \`;
+    }
+
+    async function runSqlQuery() {
+      const sql = document.getElementById('sqlQuery').value;
+      const resContainer = document.getElementById('sqlResult');
+      resContainer.innerHTML = '<div style="color:#38bdf8; padding:10px;">Menjalankan SQL...</div>';
+
+      try {
+        const res = await fetch('/api/db/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sql })
+        });
+        const data = await res.json();
+        if (data.error) {
+          resContainer.innerHTML = '<div style="color:#ef4444; padding:10px; background:rgba(239,68,68,0.1); border-radius:6px;">❌ ' + data.error + '</div>';
+        } else if (data.results && data.results.length > 0) {
+          const cols = Object.keys(data.results[0]);
+          let html = '<table style="margin-top:10px;"><thead><tr>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+          data.results.forEach(row => {
+            html += '<tr>' + cols.map(c => '<td>' + (row[c] !== null ? row[c] : 'NULL') + '</td>').join('') + '</tr>';
+          });
+          html += '</tbody></table>';
+          resContainer.innerHTML = html;
+        } else {
+          resContainer.innerHTML = '<div style="color:#10b981; padding:10px;">✅ Perintah berhasil dijalankan.</div>';
+        }
+      } catch (err) {
+        resContainer.innerHTML = '<div style="color:#ef4444; padding:10px;">❌ Query Error</div>';
+      }
+    }
+
+    loadTables();
+  </script>
+</body>
+</html>`);
+});
+
 // Auto-Deploy Webhook Endpoint for Instant VPS Deployment
 app.all('/api/webhook/deploy', (req, res) => {
   const secret = req.query.secret || req.body?.secret || req.headers['x-deploy-secret'];
