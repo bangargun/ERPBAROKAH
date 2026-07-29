@@ -34,6 +34,7 @@ import {
   AlertCircle,
   X,
   Settings,
+  Wifi,
   CheckSquare,
   Square,
   Percent,
