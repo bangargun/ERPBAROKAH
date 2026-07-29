@@ -1732,10 +1732,12 @@ export default function AndroidPosRegister({
     printHTMLContent(printHTML);
   };
 
-  // DEDICATED SINGLE RECEIPT THERMAL PRINTING
+  // DEDICATED SINGLE RECEIPT THERMAL PRINTING (CETAK ULANG RIWAYAT TRANSAKSI)
   const handlePrintSingleReceipt = (tx) => {
     if (!tx) return;
     const outletName = (currentOutlet?.name || 'MRIS POS RESTORAN').toUpperCase();
+    const paperWidth = printerSettings.paperWidth || '58mm';
+    const bodyWidth = paperWidth === '80mm' ? '76mm' : '54mm';
 
     let printHTML = `
       <!DOCTYPE html>
@@ -1743,10 +1745,10 @@ export default function AndroidPosRegister({
       <head>
         <title>Struk Nota - ${tx.id || tx.receipt_no || ''}</title>
         <style>
-          @page { size: 58mm auto; margin: 0; }
+          @page { size: ${paperWidth} auto; margin: 0; }
           body {
             font-family: 'Courier New', Courier, monospace;
-            width: 54mm;
+            width: ${bodyWidth};
             margin: 0 auto;
             padding: 4mm 2mm;
             color: #000;
@@ -1776,7 +1778,7 @@ export default function AndroidPosRegister({
         <div class="text-center">
           <div class="bold" style="font-size:14px;">${outletName}</div>
           <div style="font-size:10px;">MRIS RESTAURANT POS SYSTEM</div>
-          <div class="badge">STRUK PEMBAYARAN LUNAS</div>
+          <div class="badge">*** CETAK ULANG NOTA ***</div>
         </div>
         <div class="divider-dash"></div>
         <div class="row"><span>No. Struk:</span><span class="bold">${tx.id || tx.receipt_no || '-'}</span></div>
@@ -1819,7 +1821,7 @@ export default function AndroidPosRegister({
         <div class="divider-dash"></div>
         <div class="text-center bold" style="margin-top:8px; font-size:10px;">
           *** TERIMA KASIH ATAS KUNJUNGAN ANDA ***<br/>
-          Selamat Menikmati Hidangan Kami
+          [SALINAN CETAK ULANG NOTA PENJUALAN]
         </div>
       </body>
       </html>
