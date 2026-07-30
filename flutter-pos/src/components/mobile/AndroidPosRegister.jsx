@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
   History, 
@@ -55,7 +56,11 @@ import {
   Edit2,
   Smartphone,
   Edit3,
-  HelpCircle
+  HelpCircle,
+  Bluetooth,
+  BluetoothConnected,
+  BluetoothOff,
+  PrinterIcon
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -183,6 +188,67 @@ export default function AndroidPosRegister({
   const [selectedCustomer, setSelectedCustomer] = useState('Pelanggan Umum');
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
 
+  // ── BLUETOOTH PRINTER STATE ──
+  // MAC address & paper width disimpan di localStorage agar tetap tersimpan setelah reload
+  const [printerMac, setPrinterMac] = useState(() => localStorage.getItem('MRIS_PRINTER_MAC') || '');
+  const [printerPaperWidth, setPrinterPaperWidth] = useState(() => localStorage.getItem('MRIS_PRINTER_PAPER') || '58');
+  const [pairedDevices, setPairedDevices] = useState([]); // Hasil scan bonded devices Android
+  const [isScanningPaired, setIsScanningPaired] = useState(false);
+  const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
+  const [printStatusMsg, setPrintStatusMsg] = useState('');
+
+  // Scan bonded Bluetooth devices dari pengaturan Android (bukan scan aktif)
+  const handleScanPairedPrinters = useCallback(async () => {
+    setIsScanningPaired(true);
+    setPairedDevices([]);
+    try {
+      const devices = await scanPairedPrinters();
+      setPairedDevices(devices || []);
+      if (!devices || devices.length === 0) {
+        setPrintStatusMsg('⚠️ Tidak ada perangkat Bluetooth yang dipair. Pair printer dulu di Pengaturan Android → Bluetooth.');
+      } else {
+        setPrintStatusMsg(`✅ Ditemukan ${devices.length} perangkat paired.`);
+      }
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if (msg.includes('BLUETOOTH_DISABLED')) {
+        setPrintStatusMsg('❌ Bluetooth tidak aktif. Aktifkan Bluetooth di perangkat.');
+      } else if (msg.includes('not Capacitor') || !window.Capacitor?.isNativePlatform?.()) {
+        setPrintStatusMsg('ℹ️ Fitur scan hanya tersedia di APK Android. Di browser, gunakan input MAC manual.');
+      } else {
+        setPrintStatusMsg('❌ Gagal scan: ' + msg);
+      }
+    } finally {
+      setIsScanningPaired(false);
+    }
+  }, []);
+
+  // Simpan konfigurasi printer ke localStorage
+  const handleSavePrinterConfig = useCallback((mac, paperWidth) => {
+    const cleanMac = (mac || '').trim().toUpperCase();
+    const cleanWidth = paperWidth === '80' ? '80' : '58';
+    setPrinterMac(cleanMac);
+    setPrinterPaperWidth(cleanWidth);
+    try {
+      localStorage.setItem('MRIS_PRINTER_MAC', cleanMac);
+      localStorage.setItem('MRIS_PRINTER_PAPER', cleanWidth);
+    } catch (e) {}
+    setSaveSettingsSuccessToast(true);
+    setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
+  }, []);
+
+  // Helper: tampilkan status print toast sementara
+  const showPrintStatus = useCallback((status, msg) => {
+    setPrintStatus(status);
+    setPrintStatusMsg(msg);
+    if (status === 'success' || status === 'error') {
+      setTimeout(() => {
+        setPrintStatus(null);
+        setPrintStatusMsg('');
+      }, 4000);
+    }
+  }, []);
+
   // Modal Pilihan Struk saat Simpan Order
   const [showSaveOrderReceiptModal, setShowSaveOrderReceiptModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -194,6 +260,7 @@ export default function AndroidPosRegister({
   });
   const [currentSaveOrderTx, setCurrentSaveOrderTx] = useState(null);
   const [saveSettingsSuccessToast, setSaveSettingsSuccessToast] = useState(false);
+  const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
   const [selectedTxDetail, setSelectedTxDetail] = useState(null); // Detail transaksi di riwayat
 
   // Right Panel Sub Tabs ('ORDER' | 'TABLE' | 'MORE')
@@ -1367,591 +1434,162 @@ export default function AndroidPosRegister({
     handleExecuteBatchPrint(billTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
 
-  // SILENT BACKGROUND THERMAL PRINTING ENGINE (ZERO POPUPS / NO WINDOW PREVIEW OVERLAYS)
-  const printHTMLContent = (htmlString) => {
+  // THERMAL PRINTING ENGINE
+  // Di Capacitor (Android): kirim ESC/POS bytes ke hardware printer via Bluetooth RFCOMM
+  // Di browser (dev mode): fallback ke iframe window.print()
+  const printHTMLContent = useCallback(async (htmlString) => {
+    // Ini legacy wrapper — dipanggil dari tempat-tempat yang belum dimigrasi
+    // Langsung fallback ke browser print untuk HTML content
     try {
       let iframe = document.getElementById('mris-silent-print-frame');
-      if (iframe && iframe.parentNode) {
-        iframe.parentNode.removeChild(iframe);
-      }
-
+      if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
       iframe = document.createElement('iframe');
       iframe.id = 'mris-silent-print-frame';
-      iframe.style.position = 'fixed';
-      iframe.style.left = '-9999px';
-      iframe.style.top = '-9999px';
-      iframe.style.width = '1px';
-      iframe.style.height = '1px';
-      iframe.style.border = '0';
-      iframe.style.opacity = '0';
-      iframe.style.pointerEvents = 'none';
-
+      Object.assign(iframe.style, { position: 'fixed', left: '-9999px', top: '-9999px', width: '1px', height: '1px', border: '0', opacity: '0', pointerEvents: 'none' });
       document.body.appendChild(iframe);
-
-      const frameDoc = iframe.contentWindow || iframe.contentDocument;
-      const doc = frameDoc.document || frameDoc;
-
-      doc.open();
-      doc.write(htmlString);
-      doc.close();
-
+      const doc = (iframe.contentWindow || iframe.contentDocument).document || (iframe.contentWindow || iframe.contentDocument);
+      doc.open(); doc.write(htmlString); doc.close();
       setTimeout(() => {
-        try {
-          if (iframe.contentWindow) {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-          }
-        } catch (e) {
-          console.error('Silent print iframe error:', e);
-        }
-
-        setTimeout(() => {
-          try {
-            const frameToRemove = document.getElementById('mris-silent-print-frame');
-            if (frameToRemove && frameToRemove.parentNode) {
-              frameToRemove.parentNode.removeChild(frameToRemove);
-            }
-          } catch (e) {}
-        }, 3000);
+        try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) {}
+        setTimeout(() => { try { const f = document.getElementById('mris-silent-print-frame'); if (f?.parentNode) f.parentNode.removeChild(f); } catch(e){} }, 3000);
       }, 150);
-
     } catch (err) {
-      console.error('⚠️ Silent print execution exception:', err);
+      console.error('⚠️ Silent print exception:', err);
     }
-  };
+  }, []);
 
-  const handleExecuteTestPrint = () => {
-    const pWidth = printerSettings.paperWidth === '80mm' ? '76mm' : '54mm';
-    const testHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Test Print Thermal - ${printerSettings.printerName}</title>
-        <style>
-          @page { size: ${printerSettings.paperWidth} auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: ${pWidth};
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
+  // Print text langsung ke hardware Bluetooth printer
+  const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
+    if (!printerMac) {
+      // Tidak ada printer terkonfigurasi — fallback ke browser print dialog
+      console.warn('[BTPrinter] Tidak ada printer MAC tersimpan, fallback ke browser print.');
+      showPrintStatus('error', '⚠️ Printer belum dikonfigurasi. Buka Pengaturan → Koneksi Printer untuk menyambungkan printer.');
+      return;
+    }
+    showPrintStatus('printing', '🖨️ Mengirim data ke printer...');
+    try {
+      await printToBluetoothPrinter(
+        printerMac,
+        textContent,
+        printerPaperWidth,
+        () => showPrintStatus('success', '✅ Cetak berhasil!'),
+        (err) => {
+          const msg = err?.message || String(err);
+          if (msg.includes('BLUETOOTH_DISABLED')) {
+            showPrintStatus('error', '❌ Bluetooth tidak aktif. Aktifkan Bluetooth.');
+          } else if (msg.includes('CONNECTION_REFUSED')) {
+            showPrintStatus('error', '❌ Printer menolak koneksi. Pastikan printer menyala.');
+          } else if (msg.includes('DEVICE_BUSY')) {
+            showPrintStatus('error', '❌ Printer sedang sibuk. Coba lagi.');
+          } else {
+            showPrintStatus('error', '❌ Gagal cetak: ' + msg);
           }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .divider { border-top: 1px dashed #000; margin: 6px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center bold" style="font-size: 13px;">${currentOutlet?.name || 'RESTORAN MRIS'}</div>
-        <div class="text-center" style="font-size: 10px;">POS THERMAL PRINTER TEST</div>
-        <div class="divider"></div>
-        <div>Waktu Test : ${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}</div>
-        <div>Nama Printer: ${printerSettings.printerName}</div>
-        <div>Status      : ${printerSettings.status === 'connected' ? 'TERKONEKSI (OK)' : 'TDK TERKONEKSI'}</div>
-        <div>Kertas      : ${printerSettings.paperWidth} (${printerSettings.connectionType?.toUpperCase() || 'BT'})</div>
-        <div>MAC / ID    : ${printerSettings.macAddress || 'DC:0D:30:84:9E:21'}</div>
-        <div class="divider"></div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>1x Nasi Goreng Spesial</span>
-          <span>25.000</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>1x Es Teh Manis</span>
-          <span>5.000</span>
-        </div>
-        <div class="divider"></div>
-        <div style="display:flex; justify-content:space-between;" class="bold">
-          <span>TOTAL STRUK TEST</span>
-          <span>Rp 30.000</span>
-        </div>
-        <div class="divider"></div>
-        <div class="text-center bold" style="margin-top: 8px;">*** CETAK STRUK TEST BERHASIL ***</div>
-        <div class="text-center" style="font-size: 9px; margin-top: 2px;">Sistem Kasir Mobile POS MRIS Ready</div>
-      </body>
-      </html>
-    `;
+        }
+      );
+    } catch (err) {
+      console.error('[BTPrinter] printTextToBluetooth error:', err);
+    }
+  }, [printerMac, printerPaperWidth, showPrintStatus]);
 
-    printHTMLContent(testHTML);
-    setTestPrintSuccessToast(true);
-    setTimeout(() => setTestPrintSuccessToast(false), 3000);
-  };
+  // Test print ke hardware printer — kirim struk tes sederhana via Bluetooth
+  const handleExecuteTestPrint = useCallback(async () => {
+    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    showPrintStatus('printing', '🖨️ Mengirim test print...');
+    try {
+      await btTestPrint(printerMac, outletName, printerPaperWidth);
+      showPrintStatus('success', '✅ Test print berhasil dikirim ke printer!');
+      setTestPrintSuccessToast(true);
+      setTimeout(() => setTestPrintSuccessToast(false), 3000);
+    } catch (err) {
+      const msg = err?.message || String(err);
+      showPrintStatus('error', '❌ Test print gagal: ' + msg);
+    }
+  }, [printerMac, printerPaperWidth, currentOutlet, showPrintStatus]);
 
-  // SINGLE-PASS UNIFIED THERMAL PRINT JOB FOR ALL SELECTED TICKETS (HANYA 1X PERMISI / POPUP CETAK BROWSER)
-  const handleExecuteBatchPrint = (tx, selections) => {
+  // BLUETOOTH BATCH PRINT — Cetak semua tiket yang dipilih ke hardware printer
+  const handleExecuteBatchPrint = useCallback(async (tx, selections) => {
     if (!tx) return;
+    const outletName = currentOutlet?.name || 'MRIS POS';
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Struk Order - ${tx.id}</title>
-        <style>
-          @page { size: 80mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 76mm;
-            margin: 0 auto;
-            padding: 8mm 3mm;
-            color: #000;
-            background: #fff;
-            font-size: 12px;
-            line-height: 1.35;
-          }
-          .ticket-block {
-            page-break-after: always;
-            border-bottom: 2px dashed #000;
-            padding-bottom: 16px;
-            margin-bottom: 16px;
-          }
-          .ticket-block:last-child {
-            page-break-after: avoid;
-            border-bottom: none;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 3px 8px;
-            font-size: 11px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-          .notes { font-size: 10px; font-style: italic; margin-left: 14px; color: #333; }
-        </style>
-      </head>
-      <body>
-    `;
+    const printJobs = [];
 
-    const outletName = (currentOutlet?.name || 'MRIS POS').toUpperCase();
-
-    // 1. STRUK DAPUR (KITCHEN TICKET - TANPA HARGA)
     if (selections.printKitchen) {
-      const kitchenItems = filterItemsForTicketTarget(tx.items || [], 'KITCHEN');
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🍳 STRUK DAPUR (KITCHEN TICKET)</div>
-            <div class="bold" style="font-size:10px;">*** TAMPIL PRODUK TANPA HARGA ***</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>QTY  NAMA PRODUK</span></div>
-          <div class="divider-dash"></div>
-      `;
-      kitchenItems.forEach(it => {
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="bold">${it.qty}x  ${it.name.toUpperCase()}</div>
-            ${it.notes ? `<div class="notes">* Catatan: ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="text-center bold" style="font-size:10px;">*** UNTUK KOKI / DAPUR ***</div>
-        </div>
-      `;
+      const kitchenTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || 'KITCHEN') === 'KITCHEN') };
+      if (kitchenTx.items.length > 0) {
+        printJobs.push({ type: 'kitchen', text: buildReceiptText(kitchenTx, outletName, 'kitchen', printerPaperWidth, fmtRp) });
+      }
     }
 
-    // 2. STRUK BAR (BAR TICKET - TANPA HARGA)
     if (selections.printBar) {
-      const barItems = filterItemsForTicketTarget(tx.items || [], 'BAR');
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🍹 STRUK BAR (BAR TICKET)</div>
-            <div class="bold" style="font-size:10px;">*** TAMPIL MINUMAN TANPA HARGA ***</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>QTY  NAMA MINUMAN</span></div>
-          <div class="divider-dash"></div>
-      `;
-      barItems.forEach(it => {
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="bold">${it.qty}x  ${it.name.toUpperCase()}</div>
-            ${it.notes ? `<div class="notes">* Catatan: ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="text-center bold" style="font-size:10px;">*** UNTUK BARTENDER / BAR ***</div>
-        </div>
-      `;
+      const barTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || '') === 'BAR') };
+      if (barTx.items.length > 0) {
+        printJobs.push({ type: 'bar', text: buildReceiptText(barTx, outletName, 'bar', printerPaperWidth, fmtRp) });
+      }
     }
 
-    // 3. STRUK MEJA / BILL (TABLE COPY - DENGAN HARGA)
     if (selections.printTableCopy) {
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">📋 STRUK MEJA / BILL SEMENTARA</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-          <div class="divider-dash"></div>
-      `;
-      (tx.items || []).forEach(it => {
-        const itemLinePrice = (it.price || it.price_unit || 0) * it.qty;
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="row">
-              <span>${it.qty}x ${it.name.toUpperCase()}</span>
-              <span>${formatRupiah(itemLinePrice)}</span>
-            </div>
-            ${it.notes ? `<div class="notes">* ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="row bold" style="font-size:13px;">
-            <span>TOTAL BILL:</span>
-            <span>${formatRupiah(tx.amount || cartTotal)}</span>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="bold text-center" style="font-size: 9px; border: 1px dashed #000; padding: 6px; margin: 8px 0; line-height: 1.35;">
-            Struk ini hanya sebagai informasi tagihan BUKAN BUKTI PEMBAYARAN. Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir
-          </div>
-          <div class="text-center" style="font-size:10px;">Terima kasih atas kunjungan Anda</div>
-        </div>
-      `;
+      printJobs.push({ type: 'bill', text: buildReceiptText(tx, outletName, 'bill', printerPaperWidth, fmtRp) });
     }
 
-    // 4. STRUK COPY KASIR (CASHIER COPY - DENGAN HARGA)
     if (selections.printCashierCopy) {
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🧾 STRUK COPY KASIR (ARSIP LACI)</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-          <div class="divider-dash"></div>
-      `;
-      (tx.items || []).forEach(it => {
-        const itemLinePrice = (it.price || it.price_unit || 0) * it.qty;
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="row">
-              <span>${it.qty}x ${it.name.toUpperCase()}</span>
-              <span>${formatRupiah(itemLinePrice)}</span>
-            </div>
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="row bold" style="font-size:13px;">
-            <span>TOTAL STRUK:</span>
-            <span>${formatRupiah(tx.amount || cartTotal)}</span>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="bold text-center" style="font-size: 9px; border: 1px dashed #000; padding: 6px; margin: 8px 0; line-height: 1.35;">
-            Struk ini hanya sebagai informasi tagihan BUKAN BUKTI PEMBAYARAN. Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir
-          </div>
-          <div class="text-center" style="font-size:10px;">*** ARSIP LACI KASIR ***</div>
-        </div>
-      `;
+      printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp) });
     }
 
-    printHTML += `
-      </body>
-      </html>
-    `;
+    if (printJobs.length === 0) return;
 
-    printHTMLContent(printHTML);
-  };
+    // Gabung semua job dengan separator antar tiket
+    const separator = '\n[CUT]\n';
+    const combined = printJobs.map(j => j.text).join(separator);
 
-  // DEDICATED SINGLE RECEIPT THERMAL PRINTING (CETAK ULANG RIWAYAT TRANSAKSI)
-  const handlePrintSingleReceipt = (tx) => {
+    await printTextToBluetooth(combined);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
+
+  // CETAK ULANG RIWAYAT TRANSAKSI ke hardware Bluetooth printer
+  const handlePrintSingleReceipt = useCallback(async (tx) => {
     if (!tx) return;
-    const outletName = (currentOutlet?.name || 'MRIS POS RESTORAN').toUpperCase();
-    const paperWidth = printerSettings.paperWidth || '58mm';
-    const bodyWidth = paperWidth === '80mm' ? '76mm' : '54mm';
+    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+    const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp);
+    await printTextToBluetooth(text);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
 
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Struk Nota - ${tx.id || tx.receipt_no || ''}</title>
-        <style>
-          @page { size: ${paperWidth} auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: ${bodyWidth};
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 2px 6px;
-            font-size: 10px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-          .notes { font-size: 10px; font-style: italic; margin-left: 10px; color: #333; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center">
-          <div class="bold" style="font-size:14px;">${outletName}</div>
-          <div style="font-size:10px;">MRIS RESTAURANT POS SYSTEM</div>
-          <div class="badge">*** CETAK ULANG NOTA ***</div>
-        </div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>No. Struk:</span><span class="bold">${tx.id || tx.receipt_no || '-'}</span></div>
-        <div class="row"><span>Waktu:</span><span>${tx.date || ''} ${tx.time || ''}</span></div>
-        <div class="row"><span>Tipe:</span><span>${tx.order_type || 'Dine In'}</span></div>
-        <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-        <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-        <div class="row"><span>Kasir:</span><span>${tx.cashier || userSession?.name || 'Kasir POS'}</span></div>
-        <div class="divider-dash"></div>
-        <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-        <div class="divider-dash"></div>
-    `;
 
-    (tx.items || []).forEach(it => {
-      const itemLinePrice = (it.price || it.price_unit || 0) * (it.qty || 1);
-      printHTML += `
-        <div style="margin: 4px 0;">
-          <div class="row">
-            <span>${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}</span>
-            <span>${formatRupiah(itemLinePrice)}</span>
-          </div>
-          ${it.notes ? `<div class="notes">* ${it.notes}</div>` : ''}
-        </div>
-      `;
-    });
-
-    const amountVal = Number(tx.amount || 0);
-    const payVal = Number(tx.cash_paid || tx.amount || 0);
-    const changeVal = Math.max(0, payVal - amountVal);
-
-    printHTML += `
-        <div class="divider-double"></div>
-        <div class="row bold" style="font-size:13px;">
-          <span>TOTAL:</span>
-          <span>${formatRupiah(amountVal)}</span>
-        </div>
-        <div class="row"><span>Metode Bayar:</span><span>${tx.payment_method || 'Cash'}</span></div>
-        <div class="row"><span>Bayar Tunai:</span><span>${formatRupiah(payVal)}</span></div>
-        <div class="row"><span>Kembalian:</span><span>${formatRupiah(changeVal)}</span></div>
-        <div class="divider-dash"></div>
-        <div class="text-center bold" style="margin-top:8px; font-size:10px;">
-          *** TERIMA KASIH ATAS KUNJUNGAN ANDA ***<br/>
-          [SALINAN CETAK ULANG NOTA PENJUALAN]
-        </div>
-      </body>
-      </html>
-    `;
-
-    printHTMLContent(printHTML);
-  };
-
-  // DEDICATED SHIFT CLOSING REPORT THERMAL PRINTING
-  const handlePrintShiftClosingReport = (shiftData) => {
+  // LAPORAN SHIFT CLOSING ke hardware Bluetooth printer
+  const handlePrintShiftClosingReport = useCallback(async (shiftData) => {
     if (!shiftData) return;
     const outletName = (currentOutlet?.name || shiftData.branch_name || 'MRIS POS').toUpperCase();
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+    const charsPerLine = printerPaperWidth === '80' ? 48 : 32;
+    const div = '-'.repeat(charsPerLine);
+    const divd = '='.repeat(charsPerLine);
 
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Laporan Shift Closing - ${shiftData.id || shiftData.report_no || ''}</title>
-        <style>
-          @page { size: 58mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 54mm;
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 2px 6px;
-            font-size: 10px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center">
-          <div class="bold" style="font-size:14px;">${outletName}</div>
-          <div style="font-size:10px;">REKAP SHIFT CLOSING KASIR</div>
-          <div class="badge">REKAP KHUSUS KASIR</div>
-        </div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>No. Laporan:</span><span class="bold">${shiftData.id || shiftData.report_no || '-'}</span></div>
-        <div class="row"><span>Tanggal:</span><span>${shiftData.date || ''}</span></div>
-        <div class="row"><span>Kasir:</span><span>${shiftData.user_name || shiftData.author_name || shiftData.cashier_name || 'Kasir'}</span></div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>Modal Awal Kas:</span><span>${formatRupiah(shiftData.initial_cash || 0)}</span></div>
-        <div class="row"><span>Total Struk POS:</span><span>${shiftData.total_receipts || shiftData.tx_count || 0} Struk</span></div>
-        <div class="row bold"><span>Total Omset Bruto:</span><span>${formatRupiah(shiftData.gross_sales || shiftData.total_sales || 0)}</span></div>
-        <div class="row"><span>Penjualan Cash:</span><span>${formatRupiah(shiftData.cash_sales || 0)}</span></div>
-        <div class="row"><span>Penjualan Non-Cash:</span><span>${formatRupiah(shiftData.non_cash_sales || 0)}</span></div>
-        <div class="row"><span>Pengeluaran Kasir:</span><span>${formatRupiah(shiftData.total_expense || shiftData.petty_expense || 0)}</span></div>
-        <div class="divider-dash"></div>
-        <div class="row bold"><span>Kas Fisik di Laci:</span><span>${formatRupiah(shiftData.cash_physical || shiftData.physical_cash || 0)}</span></div>
-        <div class="row"><span>Selisih Kas:</span><span class="bold">${formatRupiah(shiftData.variance || 0)}</span></div>
-        <div class="divider-double"></div>
-        <div class="text-center bold" style="margin-top:8px; font-size:10px;">
-          *** HARAP DISIMPANKAN DI LACI / DOKUMEN KASIR ***
-        </div>
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
+    const lines = [
+      '[C][B]' + outletName,
+      '[C]REKAPITULASI SHIFT CLOSING KASIR',
+      '[C][B]REKAP KHUSUS KASIR',
+      div,
+      `No. Laporan : ${shiftData.id || shiftData.report_no || '-'}`,
+      `Tanggal     : ${shiftData.date || ''}`,
+      `Kasir       : ${shiftData.user_name || shiftData.author_name || shiftData.cashier_name || 'Kasir'}`,
+      div,
+      `Modal Awal Kas  : ${fmtRp(shiftData.initial_cash || 0)}`,
+      `Total Struk POS : ${shiftData.total_receipts || shiftData.tx_count || 0} Struk`,
+      '[B]' + `Total Omset     : ${fmtRp(shiftData.gross_sales || shiftData.total_sales || 0)}`,
+      `Penjualan Cash  : ${fmtRp(shiftData.cash_sales || 0)}`,
+      `Non-Cash        : ${fmtRp(shiftData.non_cash_sales || 0)}`,
+      `Pengeluaran     : ${fmtRp(shiftData.total_expense || shiftData.petty_expense || 0)}`,
+      div,
+      '[B]' + `Kas Fisik Laci  : ${fmtRp(shiftData.cash_physical || shiftData.physical_cash || 0)}`,
+      `Selisih Kas     : ${fmtRp(shiftData.variance || 0)}`,
+      divd,
+      '[C]*** HARAP DISIMPAN DI LACI KASIR ***',
+      '',
+      ''
+    ].join('\n');
 
-    const printWin = window.open('', '_blank', 'width=450,height=600');
-    if (printWin) {
-      printWin.document.open();
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      window.print();
-    }
-  };
-
-  // DEDICATED TEST PRINT RECEIPT FOR PRINTER SETTINGS
-  const handlePrintTestReceipt = () => {
-    const outletName = (currentOutlet?.name || 'MRIS POS RESTORAN').toUpperCase();
-
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Test Print Thermal - ${printerSettings.printerName}</title>
-        <style>
-          @page { size: 58mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 54mm;
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 2px 6px;
-            font-size: 10px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center">
-          <div class="bold" style="font-size:14px;">=== TEST PRINT POS ===</div>
-          <div class="bold">${outletName}</div>
-          <div class="badge">PRINTER OK & CONNECTED</div>
-        </div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>Printer:</span><span class="bold">${printerSettings.printerName}</span></div>
-        <div class="row"><span>Lebar Kertas:</span><span>${printerSettings.paperWidth || '58mm'}</span></div>
-        <div class="row"><span>Mode Cetak:</span><span>${printerSettings.printMode || 'sekaligus'}</span></div>
-        <div class="row"><span>Waktu Test:</span><span>${new Date().toLocaleString('id-ID')}</span></div>
-        <div class="divider-dash"></div>
-        <div class="text-center bold">1x SAMBAL PENYET (TEST) - Rp 15.000</div>
-        <div class="divider-double"></div>
-        <div class="text-center bold" style="font-size:10px;">
-          *** TEST PRINT SUCCESSFUL ***<br/>
-          Printer Siap Digunakan Transaksi Kasir
-        </div>
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
-
-    const printWin = window.open('', '_blank', 'width=450,height=600');
-    if (printWin) {
-      printWin.document.open();
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      window.print();
-    }
-  };
+    await printTextToBluetooth(lines);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
 
   // CHECKOUT / OPEN OCCUPIED TABLE FROM BOARD
   const handleCheckoutOccupiedTable = (table) => {
@@ -5938,7 +5576,8 @@ export default function AndroidPosRegister({
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {[
-                    { id: 'umum', label: 'Umum', icon: Settings },
+                  { id: 'umum', label: 'Umum', icon: Settings },
+                    { id: 'printer', label: 'Printer', icon: PrinterIcon },
                     { id: 'sistem', label: 'Sistem', icon: Sliders },
                     { id: 'akun', label: 'Akun', icon: User }
                   ].map(tab => {
@@ -6102,6 +5741,208 @@ export default function AndroidPosRegister({
                   </div>
                 )}
 
+
+                {/* SUB-TAB: PRINTER BLUETOOTH */}
+                {settingSubTab === 'printer' && (
+                  <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <PrinterIcon size={26} color="#6366f1" />
+                      <span>Koneksi Printer Bluetooth</span>
+                    </h2>
+
+                    {/* PRINT STATUS BANNER */}
+                    {printStatus && (
+                      <div style={{
+                        padding: '12px 16px',
+                        borderRadius: '12px',
+                        background: printStatus === 'success' ? 'rgba(52,211,153,0.15)' : printStatus === 'printing' ? 'rgba(99,102,241,0.15)' : 'rgba(244,63,94,0.15)',
+                        border: `1px solid ${printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#6366f1' : '#f43f5e'}`,
+                        color: printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#a5b4fc' : '#f87171',
+                        fontSize: '0.88rem',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        {printStatus === 'printing' && <span>⏳</span>}
+                        {printStatusMsg}
+                      </div>
+                    )}
+
+                    {/* PRINTER TERKONFIGURASI */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🖨️ Printer Aktif</div>
+                      {printerMac ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(52,211,153,0.1)', border: '1px solid #34d399' }}>
+                          <BluetoothConnected size={20} color="#34d399" />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: '800', color: '#34d399', fontSize: '0.9rem' }}>
+                              {pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                              {printerMac} • Kertas {printerPaperWidth}mm
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
+                            style={{ background: 'rgba(244,63,94,0.12)', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#f43f5e', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            Lepas
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(100,116,139,0.1)', border: '1px dashed var(--pos-border)' }}>
+                          <BluetoothOff size={20} color="#94a3b8" />
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.88rem' }}>Belum ada printer dipilih</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* LEBAR KERTAS */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📄 Lebar Kertas Thermal</div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {['58', '80'].map(w => (
+                          <button
+                            key={w}
+                            type="button"
+                            onClick={() => handleSavePrinterConfig(printerMac, w)}
+                            style={{
+                              flex: 1,
+                              padding: '14px',
+                              borderRadius: '12px',
+                              border: `2px solid ${printerPaperWidth === w ? '#6366f1' : 'var(--pos-border)'}`,
+                              background: printerPaperWidth === w ? 'rgba(99,102,241,0.15)' : 'transparent',
+                              color: printerPaperWidth === w ? '#a5b4fc' : 'var(--pos-txt-secondary)',
+                              fontWeight: '800',
+                              fontSize: '1.05rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s'
+                            }}
+                          >
+                            {w}mm
+                            <div style={{ fontSize: '0.72rem', fontWeight: '600', marginTop: '3px', opacity: 0.7 }}>
+                              {w === '58' ? 'Mini Kasir' : 'Lebar Standar'}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* SCAN PERANGKAT BLUETOOTH */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🔍 Perangkat Bluetooth Terpair</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>Pair printer terlebih dahulu di: Pengaturan Android → Bluetooth</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleScanPairedPrinters}
+                          disabled={isScanningPaired}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            padding: '10px 18px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: isScanningPaired ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.2)',
+                            color: '#a5b4fc',
+                            fontWeight: '800',
+                            fontSize: '0.82rem',
+                            cursor: isScanningPaired ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <Bluetooth size={16} />
+                          {isScanningPaired ? 'Memindai...' : 'Scan Perangkat'}
+                        </button>
+                      </div>
+
+                      {/* DEVICE LIST */}
+                      {pairedDevices.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '28px', color: 'var(--pos-txt-secondary)', fontSize: '0.85rem', borderRadius: '12px', background: 'var(--pos-bg-app)' }}>
+                          {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {pairedDevices.map(device => {
+                            const isSelected = printerMac === device.address;
+                            return (
+                              <button
+                                key={device.address}
+                                type="button"
+                                onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '14px',
+                                  padding: '14px 16px',
+                                  borderRadius: '12px',
+                                  border: `2px solid ${isSelected ? '#6366f1' : 'var(--pos-border)'}`,
+                                  background: isSelected ? 'rgba(99,102,241,0.12)' : 'var(--pos-bg-app)',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  transition: 'all 0.15s',
+                                  width: '100%'
+                                }}
+                              >
+                                {isSelected
+                                  ? <BluetoothConnected size={22} color="#6366f1" />
+                                  : <Bluetooth size={22} color="#94a3b8" />}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '800', color: isSelected ? '#a5b4fc' : 'var(--pos-txt-primary)', fontSize: '0.92rem' }}>
+                                    {device.name || 'Unnamed Device'}
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                    {device.address}
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <span style={{ fontSize: '0.72rem', background: '#6366f1', color: '#fff', borderRadius: '6px', padding: '3px 8px', fontWeight: '800', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* TEST PRINT */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧪 Tes Cetak Printer</div>
+                      <div style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)' }}>
+                        {printerMac
+                          ? 'Kirim struk tes ke printer yang dipilih untuk memastikan koneksi dan format cetak berjalan normal.'
+                          : 'Pilih printer terlebih dahulu untuk mengaktifkan fitur tes cetak.'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleExecuteTestPrint}
+                        disabled={!printerMac || printStatus === 'printing'}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          padding: '14px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          background: !printerMac ? 'rgba(100,116,139,0.1)' : 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)',
+                          color: !printerMac ? '#64748b' : '#34d399',
+                          fontWeight: '800',
+                          fontSize: '0.92rem',
+                          cursor: !printerMac ? 'not-allowed' : 'pointer',
+                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`
+                        }}
+                      >
+                        <PrinterIcon size={18} />
+                        {printStatus === 'printing' ? 'Mengirim...' : '🖨️ Kirim Test Print Sekarang'}
+                      </button>
+                      {testPrintSuccessToast && (
+                        <div style={{ textAlign: 'center', color: '#34d399', fontSize: '0.85rem', fontWeight: '700', padding: '8px', borderRadius: '8px', background: 'rgba(52,211,153,0.1)' }}>
+                          ✅ Struk tes berhasil dikirim ke printer!
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
 
                 {/* SUB-TAB 2: SISTEM (was 3) */}
 
@@ -12359,7 +12200,7 @@ export default function AndroidPosRegister({
             </div>
 
             <div style={{ borderTop: '1px solid var(--pos-border-card)', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => handlePrintTestReceipt()} style={{ padding: '10px 20px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button onClick={() => handleExecuteTestPrint()} style={{ padding: '10px 20px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Printer size={16} />
                 <span>🖨️ Cetak Fisik Thermal</span>
               </button>
