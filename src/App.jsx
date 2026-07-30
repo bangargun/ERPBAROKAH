@@ -17,20 +17,15 @@ export default function App() {
   // Di Browser (web) yang di-host di VPS: pakai URL relatif
   const getApiUrl = (pathStr) => {
     if (typeof window !== 'undefined') {
-      const proto = window.location.protocol;
-      const host = window.location.hostname;
-      const isCapacitorOrLocal = (
-        proto === 'file:' ||
-        host === 'localhost' ||
-        host === '127.0.0.1' ||
-        !host
-      );
-      if (isCapacitorOrLocal) {
-        return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
+      const savedServer = localStorage.getItem('MRIS_SERVER_URL');
+      if (savedServer) {
+        return `${savedServer.replace(/\/$/, '')}${pathStr}`;
       }
-      return pathStr;
+      if (window.location.protocol === 'file:') {
+        return `http://localhost:5000${pathStr}`;
+      }
     }
-    return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
+    return pathStr;
   };
 
   // User Authentication State

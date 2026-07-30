@@ -89,10 +89,16 @@ export default function AndroidPosRegister({
   onLogout
 }) {
   const getApiUrl = (pathStr) => {
-    if (typeof window !== 'undefined' && window.location.hostname === 'mris-admin.barokahgroupindonesia.tech') {
-      return pathStr;
+    if (typeof window !== 'undefined') {
+      const savedServer = localStorage.getItem('MRIS_SERVER_URL');
+      if (savedServer) {
+        return `${savedServer.replace(/\/$/, '')}${pathStr}`;
+      }
+      if (window.location.protocol === 'file:') {
+        return `http://localhost:5000${pathStr}`;
+      }
     }
-    return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
+    return pathStr;
   };
 
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
