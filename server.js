@@ -1221,11 +1221,50 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
       }
     }
 
-    const initialFirstTable = '${firstTable}';
-    if (initialFirstTable) {
-      selectTable(initialFirstTable);
+    window.selectTable = async function(tableName) {
+      if (!tableName) return;
+      activeTable = tableName;
+      const titleEl = document.getElementById('currentTableTitle');
+      if (titleEl) titleEl.innerText = 'Tabel: ' + tableName;
+
+      const items = document.querySelectorAll('.table-item');
+      items.forEach(function(el) {
+        if (el.getAttribute('data-tablename') === tableName) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+
+      loadTableData();
+    };
+
+    // Event listener otomatis untuk klik tabel di sidebar
+    document.addEventListener('click', function(e) {
+      const item = e.target.closest('.table-item');
+      if (item) {
+        const tbl = item.getAttribute('data-tablename');
+        if (tbl) {
+          window.selectTable(tbl);
+        }
+      }
+    });
+
+    // Auto-load tabel pertama dari DOM saat halaman dibuka
+    function initAutoLoad() {
+      const firstItem = document.querySelector('.table-item');
+      if (firstItem) {
+        const firstTbl = firstItem.getAttribute('data-tablename');
+        if (firstTbl) window.selectTable(firstTbl);
+      } else {
+        loadTables();
+      }
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(initAutoLoad, 100);
     } else {
-      loadTables();
+      document.addEventListener('DOMContentLoaded', initAutoLoad);
     }
   </script>
 </body>
