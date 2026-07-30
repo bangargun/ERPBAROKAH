@@ -667,9 +667,8 @@ export default function AndroidPosRegister({
   // Stok Opname Summary Preview State (Data sent from Web Admin)
   const [previewOpnameSummaryRecord, setPreviewOpnameSummaryRecord] = useState(null);
 
-  // Sidebar Lain-lain (Reservasi & SOP) States
-  // MULTI-STEP LOGIN BOARD STATES (Halaman 1: Super Admin/Owner/Resto -> Halaman 2: Nama User -> Halaman 3: Username & Password)
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(false); // Default Papan Login Aktif
+  // MULTI-STEP LOGIN BOARD STATES (Dinamis Berdasarkan Data Pengaturan Web Admin)
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => !!userSession);
   const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
   const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
   const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
@@ -715,16 +714,10 @@ export default function AndroidPosRegister({
   // Offline Network State & Queue Counter
   const [isNetworkOnline, setIsNetworkOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
-  // 1. Initial 0ms Local Cache Startup (Memuat masterData instan dari device)
+  // 1. Pembersihan total cache lokal stale agar data terhapus di database tidak kembali lagi
   React.useEffect(() => {
     try {
-      const cached = localStorage.getItem('MRIS_POS_MASTER_DATA_CACHE');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed === 'object') {
-          setMasterData(prev => ({ ...prev, ...parsed }));
-        }
-      }
+      localStorage.removeItem('MRIS_POS_MASTER_DATA_CACHE');
     } catch (e) {}
   }, []);
 
@@ -785,11 +778,7 @@ export default function AndroidPosRegister({
         .then(res => res.json())
         .then(data => {
           if (data && typeof data === 'object' && !data.error) {
-            setMasterData(prev => {
-              const updated = { ...prev, ...data };
-              try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
-              return updated;
-            });
+            setMasterData(data);
             const now = new Date();
             const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
             setLastSyncTime(formatted);
@@ -826,7 +815,8 @@ export default function AndroidPosRegister({
     const handleUserActivityReset = () => {
       if (inactivityTimer) clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
-        setIsAppLoggedIn(false);
+        // Auto-lock disabled per user requirement
+        // setIsAppLoggedIn(false);
         setLoginStep(1);
         setSelectedLoginCategory(null);
         setLoginSelectedOutlet(null);
@@ -2423,9 +2413,9 @@ export default function AndroidPosRegister({
     alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
   };
 
-  // PAPAN LOGIN SEDERHANA 1-HALAMAN (DIRECT & SIMPLE ACCESS)
+  // PAPAN LOGIN SEDERHANA & RESPONSIF (DATA DINAMIS DARI WEB ADMIN)
   if (!isAppLoggedIn) {
-    // Kumpulkan semua akun dari masterData (HANYA data real, TIDAK ada fallback fake)
+    // Kumpulkan semua akun dari masterData (HANYA data real dari Web Admin)
     const rawUsersList = [
       ...(masterData?.mobileAccounts || []),
       ...(masterData?.webAdminAccounts || []),
@@ -2446,11 +2436,10 @@ export default function AndroidPosRegister({
     });
     const registeredUsers = Array.from(usersMap.values());
 
-    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin (tanpa hardcoded name)
+    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin
     const availableOutlets = (() => {
       const map = new Map();
 
-      // 1. Direct outlets from masterData.outlets (Pengaturan Web Admin)
       (masterData?.outlets || []).forEach(o => {
         if (o && (o.name || o.branch_name)) {
           const id = String(o.id || o.outlet_id || Date.now());
@@ -2458,7 +2447,6 @@ export default function AndroidPosRegister({
         }
       });
 
-      // 2. Outlets assigned to registered users in Pengaturan Web Admin
       (registeredUsers || []).forEach(u => {
         const uOut = u.outlet || u.assignedOutlet || u.branch || '';
         if (uOut && typeof uOut === 'string' && !uOut.toLowerCase().includes('semua') && !uOut.toLowerCase().includes('central')) {
@@ -2470,27 +2458,13 @@ export default function AndroidPosRegister({
         }
       });
 
-      // 3. Outlets present in shift closings / transaction records
-      (masterData?.shiftClosings || masterData?.closedShifts || []).forEach(s => {
-        const sOut = s.branch_name || s.outlet_name || s.outlet;
-        if (sOut && typeof sOut === 'string' && sOut.trim()) {
-          const exists = Array.from(map.values()).some(o => o.name.toLowerCase().trim() === sOut.toLowerCase().trim());
-          if (!exists) {
-            const newId = s.outlet_id || (1000 + map.size);
-            map.set(String(newId), { id: newId, name: sOut.trim(), code: `OUT-${map.size + 1}` });
-          }
-        }
-      });
-
       return Array.from(map.values());
     })();
 
-    // Outlet aktif di form login (pakai loginSelectedOutlet state, fallback ke availableOutlets[0])
     const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
     const activeOutletName = String(activeOutletObj?.name || '').toLowerCase().trim();
     const activeOutletId = String(activeOutletObj?.id || '').toLowerCase().trim();
 
-    // Filter User Sesuai Outlet Terpilih
     const filteredUsersForOutlet = activeOutletObj ? registeredUsers.filter(u => {
       const uOutlet = String(u.outlet || u.assignedOutlet || u.outlet_name || u.branch || '').toLowerCase().trim();
       const uOutletId = String(u.outlet_id || u.outletId || '').toLowerCase().trim();
@@ -2508,13 +2482,11 @@ export default function AndroidPosRegister({
       setLoginErrorText('');
       const selectedUser = userObj || activeSelectedUser;
 
-      // Validasi: user harus terpilih
       if (!selectedUser) {
-        setLoginErrorText('❌ Tidak ada pengguna yang dapat dipilih. Tambahkan akun melalui Web Admin.');
+        setLoginErrorText('❌ Tidak ada pengguna yang dipilih. Tambahkan akun di Web Admin → Pengaturan.');
         return;
       }
 
-      // Tentukan outlet: Super Admin/Owner bisa login meski outlets kosong
       const userRole = String(selectedUser.role || '').toLowerCase();
       const userOutletStr = String(selectedUser.outlet || selectedUser.assignedOutlet || '').toLowerCase();
       const isCentralUser = userOutletStr.includes('semua outlet') || userOutletStr.includes('central') || userRole.includes('super admin') || userRole.includes('owner');
@@ -2523,7 +2495,6 @@ export default function AndroidPosRegister({
 
       if (!selectedOutlet) {
         if (isCentralUser) {
-          // Super Admin/Owner: buat outlet virtual "Semua Outlet"
           selectedOutlet = { id: 'central', name: 'Semua Outlet (Central)' };
         } else {
           setLoginErrorText('❌ Pilih outlet terlebih dahulu sebelum masuk.');
@@ -2531,7 +2502,6 @@ export default function AndroidPosRegister({
         }
       }
 
-      // Ambil password valid dari data user (TIDAK ada hardcoded default)
       const validPassword = String(
         selectedUser?.mobileLoginPassword ||
         selectedUser?.password ||
@@ -2542,7 +2512,6 @@ export default function AndroidPosRegister({
 
       const enteredPassword = String(loginPasswordInput || '').trim();
 
-      // Validasi password
       if (validPassword) {
         if (!enteredPassword) {
           setLoginErrorText(`❌ Masukkan PIN / Password untuk ${selectedUser.name}.`);
@@ -2554,7 +2523,6 @@ export default function AndroidPosRegister({
         }
       }
 
-      // Berhasil Login
       setCurrentUserSession({
         id: selectedUser.id || null,
         name: selectedUser.name || 'Kasir POS',
@@ -2574,68 +2542,56 @@ export default function AndroidPosRegister({
     };
 
     return (
-      <div style={{ minHeight: '100vh', width: '100vw', background: '#090d16', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: '480px', background: '#111827', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', padding: '32px 24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
+      <div style={{ minHeight: '100vh', width: '100vw', background: 'radial-gradient(circle at top, #1e293b 0%, #090d16 100%)', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: '440px', background: 'rgba(17, 24, 39, 0.95)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '24px', padding: '28px 20px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', backdropFilter: 'blur(16px)' }}>
 
           {/* HEADER LOGO & JUDUL */}
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <div style={{
-              width: '64px',
-              height: '64px',
+              width: '60px',
+              height: '60px',
               borderRadius: '50%',
               background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
-              border: '3px solid #facc15',
-              boxShadow: '0 0 20px rgba(250,204,21,0.4)',
+              border: '2.5px solid #facc15',
+              boxShadow: '0 0 20px rgba(250,204,21,0.3)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 12px'
+              margin: '0 auto 10px'
             }}>
-              <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#facc15' }}>MRIS</span>
+              <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#facc15' }}>MRIS</span>
             </div>
 
-            <h2 style={{ fontSize: '1.45rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
-              🔑 Login Kasir POS Mobile
+            <h2 style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+              🔑 Login POS Mobile Kasir
             </h2>
-            <p style={{ fontSize: '0.82rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
-              Pilih Pengguna & Outlet untuk Masuk Transaksi
+            <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
+              Pilih Pengguna &amp; Outlet Terdaftar di Web Admin
             </p>
-            <div style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '700', fontStyle: 'italic', marginTop: '6px' }}>
-              "bismillah, aku bekerja atas pengawasan Alloh"
-            </div>
           </div>
 
           {/* FORM USER & OUTLET SELECTION */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
             {/* 1. PILIH OUTLET */}
             <div>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 🏪 Pilih Outlet Cabang:
               </label>
               {availableOutlets.length === 0 ? (
-                (() => {
-                  const selUserRole = String(activeSelectedUser?.role || '').toLowerCase();
-                  const selUserOutlet = String(activeSelectedUser?.outlet || '').toLowerCase();
-                  const isCentral = selUserOutlet.includes('semua outlet') || selUserOutlet.includes('central') || selUserRole.includes('super admin') || selUserRole.includes('owner');
-                  return (
-                    <div style={{
-                      background: isCentral ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                      border: `1.5px solid ${isCentral ? '#10b981' : '#f59e0b'}`,
-                      borderRadius: '12px',
-                      padding: '12px',
-                      fontSize: '0.82rem',
-                      fontWeight: '700',
-                      color: isCentral ? '#34d399' : '#fbbf24',
-                      textAlign: 'center'
-                    }}>
-                      {isCentral
-                        ? '✅ Akses Semua Outlet (Central) — Super Admin / Owner'
-                        : '⚠️ Belum ada outlet. Tambahkan di Web Admin → Master Data'}
-                    </div>
-                  );
-                })()
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1.5px solid #10b981',
+                  borderRadius: '12px',
+                  padding: '10px 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  color: '#34d399',
+                  textAlign: 'center'
+                }}>
+                  ✅ Akses Outlet Central — Super Admin / Owner
+                </div>
               ) : (
                 <select
                   value={activeOutletObj?.id || 'ALL'}
@@ -2649,30 +2605,17 @@ export default function AndroidPosRegister({
                       if (found) {
                         setLoginSelectedOutlet(found);
                         setLoginErrorText('');
-                        const newOutletName = String(found.name || '').toLowerCase().trim();
-                        const matchedUser = registeredUsers.find(u => {
-                          const uOut = String(u.outlet || u.assignedOutlet || '').toLowerCase().trim();
-                          const uRole = String(u.role || '').toLowerCase();
-                          const isCentral = !uOut || uOut.includes('semua outlet') || uOut.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
-                          return !isCentral && (uOut.includes(newOutletName) || newOutletName.includes(uOut));
-                        }) || registeredUsers.find(u => {
-                          const uRole = String(u.role || '').toLowerCase();
-                          return uRole.includes('super admin') || uRole.includes('owner');
-                        });
-                        if (matchedUser) {
-                          setSelectedUserAccount(matchedUser);
-                        }
                       }
                     }
                   }}
                   style={{
                     width: '100%',
-                    background: 'var(--pos-bg-card2)',
-                    border: '1px solid #374151',
-                    color: 'var(--pos-txt-primary)',
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#f8fafc',
                     borderRadius: '12px',
                     padding: '12px',
-                    fontSize: '0.92rem',
+                    fontSize: '0.90rem',
                     fontWeight: '800',
                     boxSizing: 'border-box'
                   }}
@@ -2689,10 +2632,10 @@ export default function AndroidPosRegister({
 
             {/* 2. PILIH AKUN PENGGUNA */}
             <div>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 👤 Pilih Nama Pengguna (User):
               </label>
-<select
+              <select
                 value={activeSelectedUser?.id || ''}
                 onChange={(e) => {
                   const found = registeredUsers.find(u => String(u.id) === String(e.target.value));
@@ -2701,24 +2644,16 @@ export default function AndroidPosRegister({
                     setLoginUsernameInput(found.username || '');
                     setLoginPasswordInput('');
                     setLoginErrorText('');
-                    // Auto-sync outlet jika user ini di-assign ke outlet spesifik
-                    if (found.outlet && !String(found.outlet).toLowerCase().includes('semua outlet') && !String(found.outlet).toLowerCase().includes('central')) {
-                      const uOutletName = String(found.outlet).toLowerCase().trim();
-                      const matchedOutlet = availableOutlets.find(o => String(o.name).toLowerCase().trim().includes(uOutletName) || uOutletName.includes(String(o.name).toLowerCase().trim()));
-                      if (matchedOutlet) {
-                        setLoginSelectedOutlet(matchedOutlet);
-                      }
-                    }
                   }
                 }}
                 style={{
                   width: '100%',
-                  background: 'var(--pos-bg-card2)',
-                  border: registeredUsers.length === 0 ? '1.5px solid #f59e0b' : '1px solid #374151',
+                  background: '#1e293b',
+                  border: registeredUsers.length === 0 ? '1.5px solid #f59e0b' : '1px solid #334155',
                   color: '#38bdf8',
                   borderRadius: '12px',
                   padding: '12px',
-                  fontSize: '0.92rem',
+                  fontSize: '0.90rem',
                   fontWeight: '800',
                   boxSizing: 'border-box'
                 }}
@@ -2728,64 +2663,86 @@ export default function AndroidPosRegister({
                 ) : (
                   displayUsers.map(u => (
                     <option key={u.id} value={u.id}>
-                      {u.name} ({u.role || 'Kasir'}){u.outlet && !String(u.outlet).toLowerCase().includes('semua outlet') ? ` — ${u.outlet}` : ''}
+                      👤 {u.name} ({u.role || 'Kasir'}){u.outlet && !String(u.outlet).toLowerCase().includes('semua outlet') ? ` — ${u.outlet}` : ''}
                     </option>
                   ))
                 )}
               </select>
             </div>
 
-            {/* 3. INPUT PASSWORD / PIN */}
+            {/* 3. INPUT PASSWORD / PIN WITH EYE TOGGLE */}
             <div>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 🔑 PIN / Password:
               </label>
-              <input
-                type="password"
-                value={loginPasswordInput}
-                onChange={(e) => {
-                  setLoginPasswordInput(e.target.value);
-                  setLoginErrorText('');
-                }}
-                placeholder="Password PIN (Contoh: 1234)..."
-                style={{
-                  width: '100%',
-                  background: 'var(--pos-bg-card2)',
-                  border: loginErrorText ? '1.5px solid #ef4444' : '1px solid #374151',
-                  color: 'var(--pos-txt-primary)',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  fontSize: '1rem',
-                  fontWeight: '700',
-                  boxSizing: 'border-box'
-                }}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={showLoginPasswordEye ? 'text' : 'password'}
+                  value={loginPasswordInput}
+                  onChange={(e) => {
+                    setLoginPasswordInput(e.target.value);
+                    setLoginErrorText('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDirectLogin(activeSelectedUser, activeOutletObj);
+                  }}
+                  placeholder="Masukkan Password PIN..."
+                  style={{
+                    width: '100%',
+                    background: '#1e293b',
+                    border: loginErrorText ? '1.5px solid #ef4444' : '1px solid #334155',
+                    color: '#f8fafc',
+                    borderRadius: '12px',
+                    padding: '12px 42px 12px 12px',
+                    fontSize: '0.95rem',
+                    fontWeight: '700',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    padding: '4px'
+                  }}
+                >
+                  {showLoginPasswordEye ? '👁️' : '🙈'}
+                </button>
+              </div>
             </div>
 
-            {/* PESAN ERROR / KETERANGAN SALAH PASSWORD */}
+            {/* PESAN ERROR */}
             {loginErrorText && (
               <div style={{
                 background: 'rgba(239, 68, 68, 0.2)',
                 border: '1.5px solid #ef4444',
                 color: '#fca5a5',
-                padding: '12px',
+                padding: '10px 12px',
                 borderRadius: '12px',
-                fontSize: '0.86rem',
+                fontSize: '0.82rem',
                 fontWeight: '800',
-                textAlign: 'center',
-                boxShadow: '0 4px 12px rgba(239,68,68,0.2)'
+                textAlign: 'center'
               }}>
                 {loginErrorText}
               </div>
             )}
 
-            {/* TOMBOL UTAMA: MASUK KE POS KASIR */}
+            {/* TOMBOL MASUK */}
             <button
               type="button"
               onClick={() => handleDirectLogin(activeSelectedUser, activeOutletObj)}
               style={{
                 width: '100%',
-                padding: '16px',
+                padding: '14px',
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 border: 'none',
                 color: 'var(--pos-txt-primary)',

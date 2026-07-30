@@ -59,11 +59,12 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     if (typeof window !== 'undefined') {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v58_clean_session') {
-        // Bersihkan localStorage lama yang bisa mengandung data outlet/data stale
+      if (versionKey !== 'v59_purge_all_local_cache') {
+        // Pembersihan total seluruh key localStorage lama yang mengandung data stale
         localStorage.removeItem('mris_master_data');
         localStorage.removeItem('mris_user_session');
-        localStorage.setItem('mris_version', 'v58_clean_session');
+        localStorage.removeItem('MRIS_POS_MASTER_DATA_CACHE');
+        localStorage.setItem('mris_version', 'v59_purge_all_local_cache');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
