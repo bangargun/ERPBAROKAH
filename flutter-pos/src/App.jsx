@@ -16,18 +16,7 @@ export default function App() {
   // Di Capacitor APK: protocol = 'file:' → selalu pakai URL absolut VPS
   // Di Browser (web) yang di-host di VPS: pakai URL relatif
   const getApiUrl = (pathStr) => {
-    if (typeof window !== 'undefined') {
-      const proto = window.location.protocol;
-      const host = window.location.hostname;
-      const isCapacitorOrLocal = (
-        proto === 'file:' ||
-        host === 'localhost' ||
-        host === '127.0.0.1' ||
-        !host
-      );
-      if (isCapacitorOrLocal) {
-        return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
-      }
+    if (typeof window !== 'undefined' && window.location.hostname === 'mris-admin.barokahgroupindonesia.tech') {
       return pathStr;
     }
     return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;

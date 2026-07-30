@@ -112,9 +112,10 @@ export default function App() {
 
   // Helper for VPS API URL in APK & Web
   const getApiUrl = (pathStr) => {
-    const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
-    const baseUrl = isNativeApp ? 'https://mris-admin.barokahgroupindonesia.tech' : '';
-    return `${baseUrl}${pathStr}`;
+    if (typeof window !== 'undefined' && window.location.hostname === 'mris-admin.barokahgroupindonesia.tech') {
+      return pathStr;
+    }
+    return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
   };
 
   // Ref flag to distinguish local mutations (add/edit/delete) from remote GET polling updates

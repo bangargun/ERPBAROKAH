@@ -89,13 +89,10 @@ export default function AndroidPosRegister({
   onLogout
 }) {
   const getApiUrl = (pathStr) => {
-    if (typeof window !== 'undefined') {
-      const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
-      if (isNativeApp) {
-        return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
-      }
+    if (typeof window !== 'undefined' && window.location.hostname === 'mris-admin.barokahgroupindonesia.tech') {
+      return pathStr;
     }
-    return pathStr;
+    return `https://mris-admin.barokahgroupindonesia.tech${pathStr}`;
   };
 
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
@@ -657,7 +654,6 @@ export default function AndroidPosRegister({
         .then(res => res.json())
         .then(data => {
           if (data && typeof data === 'object' && !data.error) {
-            setMasterData(data);
             const now = new Date();
             const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
             setLastSyncTime(formatted);
@@ -670,12 +666,11 @@ export default function AndroidPosRegister({
     doSyncFetch();
     doFlushOfflineQueue();
 
-    // Polling interval: 10s di login screen, 20s saat transaksi aktif
-    const pollInterval = !isAppLoggedIn ? 10000 : 20000;
+    // Periodic flush queue & network status update
     const timer = setInterval(() => {
       doSyncFetch();
       if (navigator.onLine) doFlushOfflineQueue();
-    }, pollInterval);
+    }, 15000);
 
     return () => {
       window.removeEventListener('online', handleOnline);

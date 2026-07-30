@@ -1348,50 +1348,51 @@ app.all('/api/webhook/deploy', (req, res) => {
   });
 });
 
-// Deep merge masterData protecting user input from being overwritten by empty arrays
+// Deep merge masterData protecting user input from being overwritten by empty arrays while allowing full entity updates
 const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   const result = { ...existing };
+
+  // Append-only history keys yang digabung per ID (agar transaksi dari POS Mobile & Web Admin bergabung secara aman)
+  const appendOnlyKeys = new Set([
+    'salesTransactions', 'transactions', 'stockMovement', 
+    'damagedGoods', 'approvedWaste', 'stockTransfer', 
+    'manualEntryRecords', 'shift_closings', 'closedShifts', 'pettyExpenses'
+  ]);
 
   Object.keys(incoming).forEach(key => {
     const incVal = incoming[key];
     const extVal = existing[key];
 
-    if (Array.isArray(extVal) && extVal.length > 0) {
-      if (Array.isArray(incVal)) {
-        if (incVal.length === 0) {
-          // DO NOT overwrite non-empty existing data with empty incoming array!
-          result[key] = extVal;
+    if (appendOnlyKeys.has(key)) {
+      if (Array.isArray(incVal) && incVal.length > 0) {
+        if (!Array.isArray(extVal) || extVal.length === 0) {
+          result[key] = incVal;
         } else {
-          // Merge items by ID if items have IDs, or keep incoming if fully replacing
           const itemMap = new Map();
           extVal.forEach(item => {
-            if (item && item.id !== undefined) {
-              itemMap.set(String(item.id), item);
+            if (item && (item.id !== undefined || item.report_no !== undefined)) {
+              itemMap.set(String(item.id || item.report_no), item);
             }
           });
-
-          if (itemMap.size > 0) {
-            incVal.forEach(item => {
-              if (item && item.id !== undefined) {
-                const keyId = String(item.id);
-                const prev = itemMap.get(keyId) || {};
-                itemMap.set(keyId, { ...prev, ...item });
-              } else {
-                itemMap.set(Symbol(), item);
-              }
-            });
-            result[key] = Array.from(itemMap.values());
-          } else {
-            result[key] = incVal;
-          }
+          incVal.forEach(item => {
+            if (item && (item.id !== undefined || item.report_no !== undefined)) {
+              const keyId = String(item.id || item.report_no);
+              const prev = itemMap.get(keyId) || {};
+              itemMap.set(keyId, { ...prev, ...item });
+            } else {
+              itemMap.set(Symbol(), item);
+            }
+          });
+          result[key] = Array.from(itemMap.values());
         }
-      } else if (incVal === undefined || incVal === null) {
-        result[key] = extVal;
-      } else {
-        result[key] = incVal;
       }
     } else {
-      if (incVal !== undefined) {
+      // Untuk entitas utama (outlets, products, categories, users, dll), adopsi incVal langsung jika berupa array non-kosong/properti valid
+      if (Array.isArray(incVal)) {
+        if (incVal.length > 0 || !Array.isArray(extVal)) {
+          result[key] = incVal;
+        }
+      } else if (incVal !== undefined && incVal !== null) {
         result[key] = incVal;
       }
     }
