@@ -261,6 +261,7 @@ export default function AndroidPosRegister({
   const [currentSaveOrderTx, setCurrentSaveOrderTx] = useState(null);
   const [saveSettingsSuccessToast, setSaveSettingsSuccessToast] = useState(false);
   const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
+  const [showTestPrintModal, setShowTestPrintModal] = useState(false);
   const [selectedTxDetail, setSelectedTxDetail] = useState(null); // Detail transaksi di riwayat
 
   // Right Panel Sub Tabs ('ORDER' | 'TABLE' | 'MORE')
@@ -5922,13 +5923,12 @@ export default function AndroidPosRegister({
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                           padding: '14px',
                           borderRadius: '12px',
-                          border: 'none',
+                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`,
                           background: !printerMac ? 'rgba(100,116,139,0.1)' : 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)',
                           color: !printerMac ? '#64748b' : '#34d399',
                           fontWeight: '800',
                           fontSize: '0.92rem',
-                          cursor: !printerMac ? 'not-allowed' : 'pointer',
-                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`
+                          cursor: !printerMac ? 'not-allowed' : 'pointer'
                         }}
                       >
                         <PrinterIcon size={18} />
