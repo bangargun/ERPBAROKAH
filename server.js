@@ -1007,6 +1007,16 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     let currentEditRow = null;
     let pkColName = 'id';
 
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '<i style="color:#64748b">NULL</i>';
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
     async function loadTables() {
       const container = document.getElementById('tableList');
       if (!container) return;
@@ -1037,11 +1047,11 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     }
 
     async function selectTable(tableName) {
+      if (!tableName) return;
       activeTable = tableName;
       const titleEl = document.getElementById('currentTableTitle');
       if (titleEl) titleEl.innerText = 'Tabel: ' + tableName;
 
-      // Update highlight kelas 'active' di sidebar tanpa merefetch ulang loadTables()
       const items = document.querySelectorAll('.table-item');
       items.forEach(function(el) {
         if (el.getAttribute('data-tablename') === tableName) {
@@ -1051,7 +1061,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
         }
       });
 
-      loadTableData();
+      await loadTableData();
     }
 
     async function loadTableData() {
@@ -1072,14 +1082,16 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
         else if (activeTab === 'structure') renderStructure(data);
         else if (activeTab === 'sql') renderSqlConsole();
       } catch (err) {
-        content.innerHTML = '<div style="padding:20px; color:#ef4444;">Gagal mengambil data tabel</div>';
+        content.innerHTML = '<div style="padding:20px; color:#ef4444;">Gagal mengambil data tabel: ' + (err.message || 'Error') + '</div>';
       }
     }
 
     function switchTab(tabName) {
       activeTab = tabName;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('btn-' + tabName).classList.add('active');
+      const btn = document.getElementById('btn-' + tabName);
+      if (btn) btn.classList.add('active');
+
       if (activeTab === 'sql') renderSqlConsole();
       else if (tableDataCache.table) {
         if (activeTab === 'browse') renderBrowse(tableDataCache);
@@ -1089,39 +1101,48 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
 
     function renderBrowse(data) {
       const content = document.getElementById('contentArea');
-      if (!data.rows || data.rows.length === 0) {
-        content.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Tabel <b>' + data.table + '</b> masih kosong (0 records).</div>';
-        return;
+      try {
+        if (!data || !data.rows || data.rows.length === 0) {
+          content.innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">Tabel <b>' + (data ? data.table : activeTable) + '</b> masih kosong (0 records).</div>';
+          return;
+        }
+        const cols = (data.columns || []).map(c => typeof c === 'string' ? c : c.Field);
+        let html = '<div style="margin-bottom:12px; color:#94a3b8; font-weight:700;">Menampilkan ' + data.rows.length + ' baris (Akses Edit & Hapus Aktif):</div>';
+        html += '<table><thead><tr><th style="width:110px;">Aksi</th>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+        data.rows.forEach((row, idx) => {
+          const rowId = row[pkColName] !== undefined ? row[pkColName] : row.id;
+          html += '<tr>';
+          html += '<td>';
+          html += '<button class="btn-edit" onclick="openEditModal(' + idx + ')">✏️ Edit</button>';
+          html += '<button class="btn-delete" onclick="confirmDeleteRow(\'' + rowId + '\')">🗑️ Hapus</button>';
+          html += '</td>';
+          html += cols.map(c => {
+            let val = row[c];
+            if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+            return '<td title="' + (val !== null && val !== undefined ? String(val).replace(/"/g, '&quot;') : '') + '">' + escapeHtml(val) + '</td>';
+          }).join('');
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        content.innerHTML = html;
+      } catch (err) {
+        console.error('renderBrowse error:', err);
+        content.innerHTML = '<div style="padding:20px; color:#ef4444;">Error render tabel: ' + err.message + '</div>';
       }
-      const cols = data.columns.map(c => c.Field);
-      let html = '<div style="margin-bottom:12px; color:#94a3b8; font-weight:700;">Menampilkan ' + data.rows.length + ' baris (Akses Edit & Hapus Aktif):</div>';
-      html += '<table><thead><tr><th style="width:110px;">Aksi</th>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
-      data.rows.forEach((row, idx) => {
-        const rowId = row[pkColName] !== undefined ? row[pkColName] : row.id;
-        html += '<tr>';
-        html += '<td>';
-        html += '<button class="btn-edit" onclick="openEditModal(' + idx + ')">✏️ Edit</button>';
-        html += '<button class="btn-delete" onclick="confirmDeleteRow(\'' + rowId + '\')">🗑️ Hapus</button>';
-        html += '</td>';
-        html += cols.map(c => {
-          let val = row[c];
-          if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
-          return '<td title="' + (val || '') + '">' + (val !== null && val !== undefined ? String(val) : '<i style="color:#64748b">NULL</i>') + '</td>';
-        }).join('');
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      content.innerHTML = html;
     }
 
     function renderStructure(data) {
       const content = document.getElementById('contentArea');
-      let html = '<table><thead><tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr></thead><tbody>';
-      data.columns.forEach(c => {
-        html += '<tr><td style="font-weight:700; color:#38bdf8;">' + c.Field + '</td><td>' + c.Type + '</td><td>' + c.Null + '</td><td>' + (c.Key || '-') + '</td><td>' + (c.Default || 'NULL') + '</td></tr>';
-      });
-      html += '</tbody></table>';
-      content.innerHTML = html;
+      try {
+        let html = '<table><thead><tr><th>Field</th><th>Type</th><th>Null</th><th>Key</th><th>Default</th></tr></thead><tbody>';
+        (data.columns || []).forEach(c => {
+          html += '<tr><td style="font-weight:700; color:#38bdf8;">' + c.Field + '</td><td>' + c.Type + '</td><td>' + c.Null + '</td><td>' + (c.Key || '-') + '</td><td>' + (c.Default || 'NULL') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        content.innerHTML = html;
+      } catch (err) {
+        content.innerHTML = '<div style="padding:20px; color:#ef4444;">Error structure: ' + err.message + '</div>';
+      }
     }
 
     function renderSqlConsole() {
