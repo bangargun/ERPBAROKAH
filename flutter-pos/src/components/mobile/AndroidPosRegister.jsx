@@ -60,6 +60,7 @@ import {
   Bluetooth,
   BluetoothConnected,
   BluetoothOff,
+  Printer,
   PrinterIcon
 } from 'lucide-react';
 
