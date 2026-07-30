@@ -929,31 +929,48 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
 
     async function loadTables() {
       const container = document.getElementById('tableList');
+      if (!container) return;
       try {
-        const res = await fetch('/api/db/tables', { cache: 'no-store' });
+        const apiUrl = window.location.origin + '/api/db/tables';
+        const res = await fetch(apiUrl, { cache: 'no-store' });
         const data = await res.json();
-        if (data.tables && data.tables.length > 0) {
-          container.innerHTML = data.tables.map(function(t) {
-            return '<div class="table-item ' + (t.name === activeTable ? 'active' : '') + '" onclick="selectTable(\'' + t.name + '\')">' +
+        const list = Array.isArray(data) ? data : (data.tables || []);
+        if (list && list.length > 0) {
+          container.innerHTML = list.map(function(t) {
+            const isActive = t.name === activeTable;
+            return '<div class="table-item ' + (isActive ? 'active' : '') + '" data-tablename="' + t.name + '" onclick="selectTable(\'' + t.name + '\')">' +
               '<span>📂 ' + t.name + '</span>' +
-              '<span class="badge">' + t.count + '</span>' +
+              '<span class="badge">' + (t.count !== undefined ? t.count : 0) + '</span>' +
             '</div>';
           }).join('');
-          if (!activeTable && data.tables.length > 0) {
-            selectTable(data.tables[0].name);
+
+          if (!activeTable && list.length > 0) {
+            selectTable(list[0].name);
           }
         } else {
-          container.innerHTML = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel / Standalone JSON Mode</div>';
+          container.innerHTML = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel di MySQL mris_db</div>';
         }
       } catch (err) {
-        container.innerHTML = '<div style="padding:15px; color:#ef4444;">Gagal memuat: ' + (err.message || 'Error') + '</div>';
+        console.error('Gagal loadTables:', err);
+        container.innerHTML = '<div style="padding:15px; color:#ef4444;">Gagal memuat tabel: ' + (err.message || 'Error') + '</div>';
       }
     }
 
     async function selectTable(tableName) {
       activeTable = tableName;
-      document.getElementById('currentTableTitle').innerText = 'Tabel: ' + tableName;
-      loadTables();
+      const titleEl = document.getElementById('currentTableTitle');
+      if (titleEl) titleEl.innerText = 'Tabel: ' + tableName;
+
+      // Update highlight kelas 'active' di sidebar tanpa merefetch ulang loadTables()
+      const items = document.querySelectorAll('.table-item');
+      items.forEach(function(el) {
+        if (el.getAttribute('data-tablename') === tableName) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      });
+
       loadTableData();
     }
 
@@ -963,7 +980,8 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
       content.innerHTML = '<div style="padding:20px; color:#38bdf8;">Memuat data tabel '+activeTable+'...</div>';
 
       try {
-        const res = await fetch('/api/db/table/' + activeTable);
+        const apiUrl = window.location.origin + '/api/db/table/' + activeTable;
+        const res = await fetch(apiUrl, { cache: 'no-store' });
         const data = await res.json();
         tableDataCache = data;
 
