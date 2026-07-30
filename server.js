@@ -934,7 +934,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
     <div class="table-list" id="tableList">
       ${tableListHtml}
     </div>
-  </div>`;
+  </div>
   <div class="main">
     <div class="topbar">
       <div>
