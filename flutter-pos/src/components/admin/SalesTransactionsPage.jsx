@@ -3185,10 +3185,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   const generateMonthlyComparisonData = () => {
     const list = [];
-    const activeOutlets = outlets.length > 0 ? outlets : [
-      { id: 1, name: 'Senopati', code: 'SN' },
-      { id: 2, name: 'Kemang', code: 'KM' }
-    ];
+    const activeOutlets = outlets.length > 0 ? outlets : [];
 
     // Filter outlets currently selected by filter bar
     const selectedOutletsList = activeOutlets.filter(o => {

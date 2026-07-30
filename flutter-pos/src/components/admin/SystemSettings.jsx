@@ -1135,13 +1135,8 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
         {/* 2. PRINT & STRUK THERMAL */}
         {activeSubTab === 'print' && (() => {
-          const outletsList = (masterData?.outlets && masterData.outlets.length > 0)
-            ? masterData.outlets
-            : [
-                { id: 1, name: 'Restoran Utama (Pusat)', address: 'Jl. Sudirman No. 45, Jakarta' }
-              ];
-
-          const currentOutlet = outletsList.find(o => Number(o.id) === Number(selectedOutletIdForPrint)) || outletsList[0] || { id: 1, name: 'Restoran Utama (Pusat)', address: 'Jl. Sudirman No. 45, Jakarta' };
+          const outletsList = masterData?.outlets || [];
+          const currentOutlet = outletsList.find(o => Number(o.id) === Number(selectedOutletIdForPrint)) || outletsList[0] || null;
 
           const toTitleCase = (str) => {
             if (!str) return '';

@@ -32,34 +32,9 @@ import PaginationControls from './PaginationControls';
 export default function ManualFinancialEntryPage({ masterData, setMasterData, selectedBranch, setActiveTab, triggerOpenModal }) {
   const [activeMainSubTab, setActiveMainSubTab] = useState('rekap'); // 'rekap' | 'approval'
   const outlets = masterData.outlets || [];
-  const ingredientsList = masterData.ingredients && masterData.ingredients.length > 0 
-    ? masterData.ingredients 
-    : [
-        { id: 1, name: 'Beras Pandan Wangi', unit: 'kg', cost: 14000 },
-        { id: 2, name: 'Minyak Goreng Bimoli', unit: 'liter', cost: 18000 },
-        { id: 3, name: 'Telur Ayam Negeri', unit: 'butir', cost: 2000 },
-        { id: 4, name: 'Daging Ayam Fillet', unit: 'kg', cost: 48000 },
-        { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', cost: 65000 },
-        { id: 6, name: 'Bawang Merah', unit: 'kg', cost: 35000 }
-      ];
-
-  const expenseMasterList = masterData.expenseMaster && masterData.expenseMaster.length > 0
-    ? masterData.expenseMaster
-    : [
-        { id: 1, code: 'BIA-001', name: 'Biaya Listrik & Air', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-        { id: 2, code: 'BIA-002', name: 'Biaya Gas LPG Dapur', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-        { id: 3, code: 'BIA-003', name: 'Biaya Alat Kebersihan & Sabun', category: 'Biaya Operasional (OPEX)' },
-        { id: 4, code: 'BIA-004', name: 'Biaya Promo & Brosur Lokal', category: 'Biaya Pemasaran (Marketing & Promo)' },
-        { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
-      ];
-
-  const adminList = (masterData.userRights || masterData.users || []).length > 0
-    ? (masterData.userRights || masterData.users)
-    : [
-        { id: 1, name: 'Master Super Admin', role: 'Super Admin Restoran' },
-        { id: 2, name: 'Manajer Cabang', role: 'Branch Manager' },
-        { id: 3, name: 'Kasir Utama', role: 'Kasir Senior' }
-      ];
+  const ingredientsList = masterData.ingredients || [];
+  const expenseMasterList = masterData.expenseMaster || masterData.operationalExpenses || [];
+  const adminList = masterData.userRights || masterData.users || [];
 
   const formatRupiah = (val) => {
     return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
