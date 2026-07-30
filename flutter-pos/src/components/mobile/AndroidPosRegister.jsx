@@ -98,14 +98,14 @@ export default function AndroidPosRegister({
   const outlets = masterData?.outlets || [];
   const userOutletName = userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
 
-  const currentOutlet = outlets.find(o => 
+  const matchedOutlet = outlets.find(o => 
     o.id === selectedBranch || 
     String(o.id) === String(selectedBranch) || 
     o.name === selectedBranch || 
     (userOutletName && o.name === userOutletName)
-  ) || (userOutletName ? { id: userSession?.outlet_id || 1, name: userOutletName } : null)
-    || outlets[0] 
-    || { id: 1, name: 'Outlet Utama' };
+  );
+
+  const currentOutlet = matchedOutlet || outlets[0] || { id: 1, name: 'Outlet Central' };
 
   // Helper for extracting category name from product
   const getProductCategoryName = (item) => {

@@ -59,10 +59,11 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     if (typeof window !== 'undefined') {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v57_outlet_clean') {
+      if (versionKey !== 'v58_clean_session') {
         // Bersihkan localStorage lama yang bisa mengandung data outlet/data stale
         localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v57_outlet_clean');
+        localStorage.removeItem('mris_user_session');
+        localStorage.setItem('mris_version', 'v58_clean_session');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
@@ -89,7 +90,7 @@ export default function App() {
       const match = (masterData?.outlets || []).find(
         o => o.name === userSession.outlet || String(o.id) === String(userSession.outlet_id)
       );
-      setSelectedBranch(match ? match.id : userSession.outlet);
+      setSelectedBranch(match ? match.id : null);
     } else {
       setSelectedBranch(null); // Super Admin / Owner: akses semua outlet
     }
