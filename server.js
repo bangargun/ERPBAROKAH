@@ -832,11 +832,46 @@ app.post('/api/db/row/update', async (req, res) => {
   }
 });
 
-// Standalone phpMyAdmin / Adminer Web Interface Route
-app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyadmin', '/api/phpmyadmin/*', '/api/db-explorer'], (req, res) => {
+// Standalone phpMyAdmin / Adminer Web Interface Route (Server-Side Rendered Table List)
+app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyadmin', '/api/phpmyadmin/*', '/api/db-explorer'], async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+
+  let tableListHtml = '';
+  let firstTable = '';
+
+  if (mysqlPool) {
+    try {
+      const [tables] = await mysqlPool.query("SHOW TABLES");
+      const list = [];
+      for (const row of tables) {
+        const tableName = Object.values(row)[0];
+        try {
+          const [[cnt]] = await mysqlPool.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
+          list.push({ name: tableName, count: cnt.count });
+        } catch (e) {
+          list.push({ name: tableName, count: 0 });
+        }
+      }
+      if (list.length > 0) {
+        firstTable = list[0].name;
+        tableListHtml = list.map(t =>
+          `<div class="table-item ${t.name === firstTable ? 'active' : ''}" data-tablename="${t.name}" onclick="selectTable('${t.name}')">` +
+            `<span>📂 ${t.name}</span>` +
+            `<span class="badge">${t.count}</span>` +
+          `</div>`
+        ).join('');
+      } else {
+        tableListHtml = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel di database mris_db</div>';
+      }
+    } catch (err) {
+      tableListHtml = `<div style="padding:15px; color:#ef4444;">Gagal memuat tabel dari MySQL: ${err.message}</div>`;
+    }
+  } else {
+    tableListHtml = '<div style="padding:15px; color:#ef4444;">MySQL belum terhubung di server</div>';
+  }
+
   res.send(`<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -883,12 +918,12 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
   <div class="sidebar">
     <div class="sidebar-header">
       <h2>🗄️ phpMyAdmin <span>(mris_db)</span></h2>
-      <button onclick="loadTables()" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-size:14px;" title="Refresh">🔄</button>
+      <button onclick="window.location.reload()" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-size:14px;" title="Refresh">🔄</button>
     </div>
     <div class="table-list" id="tableList">
-      <div style="padding:15px; color:#94a3b8;">Memuat tabel...</div>
+      ${tableListHtml}
     </div>
-  </div>
+  </div>`;
   <div class="main">
     <div class="topbar">
       <div>
@@ -1175,7 +1210,12 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
       }
     }
 
-    loadTables();
+    const initialFirstTable = '${firstTable}';
+    if (initialFirstTable) {
+      selectTable(initialFirstTable);
+    } else {
+      loadTables();
+    }
   </script>
 </body>
 </html>`);
