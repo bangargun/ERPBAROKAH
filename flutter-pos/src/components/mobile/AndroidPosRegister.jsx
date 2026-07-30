@@ -264,6 +264,19 @@ export default function AndroidPosRegister({
   const [showTestPrintModal, setShowTestPrintModal] = useState(false);
   const [selectedTxDetail, setSelectedTxDetail] = useState(null); // Detail transaksi di riwayat
 
+  // Derived printerSettings object — menggabungkan state printer agar kode lama tetap berjalan
+  // Ini bukan state terpisah, melainkan referensi langsung ke state yang ada
+  const printerSettings = {
+    printKitchen: activeReceiptSelections.printKitchen,
+    printBar: activeReceiptSelections.printBar,
+    printTableCopy: activeReceiptSelections.printTableCopy,
+    printCashierCopy: activeReceiptSelections.printCashierCopy,
+    autoShowReceiptChoiceOnSaveOrder: false, // Langsung cetak otomatis tanpa modal pilih
+    printerName: printerMac || 'Belum dikonfigurasi',
+    paperWidth: `${printerPaperWidth}mm`,
+    printMode: 'sekaligus'
+  };
+
   // Right Panel Sub Tabs ('ORDER' | 'TABLE' | 'MORE')
   const [rightPanelSubTab, setRightPanelSubTab] = useState('ORDER');
   const [guestCount, setGuestCount] = useState(1);
