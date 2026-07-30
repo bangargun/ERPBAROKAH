@@ -48,7 +48,7 @@ const ingredients = masterData?.ingredients || [
 - **APK Android**: React + Vite → Capacitor → Android (`flutter-pos/`)
 - **Backend/API**: Node.js Express (`server.js` + `pos-backend/`)
 - **Web Admin**: React (`web_admin/`)
-- **Data Storage**: MySQL `mris_db` (`mris_master_data` table) sebagai Primary Storage, diakses via `/api/master-data` (dengan JSON fallback backup)
+- **Data Storage**: MySQL `mris_db` sebagai **Single Primary Database (100% Database Utama)**. File `mris_finance.json` adalah database statis pasif yang hanya aktif/direcall secara manual via trigger `/api/db/restore-snapshot` atau `/api/db/backup-snapshot`.
 
 ### Alur Data (SATU ARAH)
 ```

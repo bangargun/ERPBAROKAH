@@ -1253,7 +1253,11 @@ const sanitizeMasterDataPayload = (data) => {
   return clean;
 };
 
-// GET /api/master-data — MySQL PRIMARY, JSON fallback
+// -----------------------------------------------------------------------------
+// SINKRONISASI DATA MASTER TERPUSAT (SINGLE PRIMARY DATABASE: MySQL mris_db)
+// -----------------------------------------------------------------------------
+
+// GET /api/master-data — 100% MySQL PRIMARY STORAGE
 app.get('/api/master-data', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -1263,17 +1267,15 @@ app.get('/api/master-data', async (req, res) => {
     if (mysqlData && typeof mysqlData === 'object') {
       return res.json(sanitizeMasterDataPayload(mysqlData));
     }
-    // Fallback ke JSON
-    const db = readDb();
-    const jsonData = (db.masterData && typeof db.masterData === 'object') ? db.masterData : defaultMasterData;
-    res.json(sanitizeMasterDataPayload(jsonData));
+    // Jika MySQL belum pernah diisi, gunakan data awal default
+    res.json(sanitizeMasterDataPayload(defaultMasterData));
   } catch (err) {
     console.error('GET /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal mengambil data master terpusat' });
+    res.status(500).json({ error: 'Gagal mengambil data master terpusat dari MySQL mris_db' });
   }
 });
 
-// POST /api/master-data — MySQL PRIMARY, JSON fallback
+// POST /api/master-data — 100% MySQL PRIMARY STORAGE
 app.post('/api/master-data', async (req, res) => {
   try {
     const payload = req.body;
@@ -1284,23 +1286,15 @@ app.post('/api/master-data', async (req, res) => {
 
     let existing = await getMasterDataFromMySQL();
     if (!existing || typeof existing !== 'object') {
-      const db = readDb();
-      existing = (db.masterData && typeof db.masterData === 'object') ? db.masterData : defaultMasterData;
+      existing = defaultMasterData;
     }
 
     const sanitizedPayload = sanitizeMasterDataPayload(payload);
     const mergedData = mergeMasterDataSafely(existing, sanitizedPayload);
     const newMasterData = sanitizeMasterDataPayload({ ...mergedData, _lastUpdated: nowTs });
 
+    // Simpan ke MySQL mris_db
     const mysqlOk = await saveMasterDataToMySQL(newMasterData);
-
-    // Backup ke JSON
-    try {
-      const db = readDb();
-      db.masterData = newMasterData;
-      db.lastUpdated = new Date().toISOString();
-      saveDb(db);
-    } catch (jsonErr) {}
 
     // Sinkronisasi langsung ke tabel relasi MySQL (sales_transactions, outlets, products, dll)
     await syncToMySQL(newMasterData);
@@ -1308,14 +1302,59 @@ app.post('/api/master-data', async (req, res) => {
     const timestamp = new Date().toISOString();
     res.json({
       success: true,
-      message: mysqlOk ? 'Data master tersimpan ke MySQL' : 'Data master tersimpan ke JSON (MySQL unavailable)',
-      storage: mysqlOk ? 'mysql' : 'json',
+      message: 'Data master berhasil disimpan ke MySQL mris_db (Database Utama)',
+      storage: 'mysql_mris_db',
       timestamp,
       _lastUpdated: nowTs
     });
   } catch (err) {
     console.error('POST /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal menyinkronkan data master ke server' });
+    res.status(500).json({ error: 'Gagal menyinkronkan data master ke MySQL mris_db' });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// ENDPOINT MANUAL RECALL & SNAPSHOT DATABASE STATIS (mris_finance.json)
+// -----------------------------------------------------------------------------
+
+// POST /api/db/backup-snapshot — Manual Recall: Ambil snapshot MySQL -> file statis
+app.post('/api/db/backup-snapshot', async (req, res) => {
+  try {
+    const currentData = await getMasterDataFromMySQL();
+    if (!currentData) {
+      return res.status(400).json({ error: 'Data MySQL kosong, tidak bisa membuat snapshot' });
+    }
+    const db = readDb();
+    db.masterData = currentData;
+    db.lastUpdated = new Date().toISOString();
+    saveDb(db);
+    res.json({
+      success: true,
+      message: '✅ Snapshot manual berhasil disimpan ke database statis (mris_finance.json)',
+      timestamp: db.lastUpdated
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/db/restore-snapshot — Manual Recall: Pulihkan file statis -> MySQL mris_db
+app.post('/api/db/restore-snapshot', async (req, res) => {
+  try {
+    const db = readDb();
+    if (!db || !db.masterData) {
+      return res.status(400).json({ error: 'Database statis mris_finance.json tidak memiliki data master' });
+    }
+    const restoredData = sanitizeMasterDataPayload({ ...db.masterData, _lastUpdated: Date.now() });
+    await saveMasterDataToMySQL(restoredData);
+    await syncToMySQL(restoredData);
+    res.json({
+      success: true,
+      message: '✅ Data dari database statis mris_finance.json berhasil direcall ke MySQL mris_db!',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
