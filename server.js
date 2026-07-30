@@ -832,7 +832,7 @@ app.post('/api/db/row/update', async (req, res) => {
   }
 });
 
-// Standalone phpMyAdmin / Adminer Web Interface Route (Server-Side Rendered Table List)
+// Standalone phpMyAdmin / Adminer Web Interface Route (Full SSR: Sidebar & Initial Table Rows)
 app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyadmin', '/api/phpmyadmin/*', '/api/db-explorer'], async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -840,6 +840,8 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
 
   let tableListHtml = '';
   let firstTable = '';
+  let initialContentHtml = '<div style="padding: 50px; text-align: center; color: #94a3b8;"><h2>Selamat datang di phpMyAdmin (mris_db)</h2></div>';
+  let initialTableData = { table: '', columns: [], rows: [] };
 
   try {
     if (mysqlPool) {
@@ -868,6 +870,41 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
               `<span class="badge">${t.count}</span>` +
             `</div>`
           ).join('');
+
+          // SSR Data Rows for First Table
+          try {
+            const [rows] = await mysqlPool.query(`SELECT * FROM \`${firstTable}\` ORDER BY 1 DESC LIMIT 100`);
+            const [columns] = await mysqlPool.query(`SHOW COLUMNS FROM \`${firstTable}\``);
+            initialTableData = { table: firstTable, columns, rows };
+
+            if (!rows || rows.length === 0) {
+              initialContentHtml = `<div style="padding:40px; text-align:center; color:#94a3b8;">Tabel <b>${firstTable}</b> masih kosong (0 records).</div>`;
+            } else {
+              const cols = columns.map(c => c.Field);
+              const pkCol = columns.find(c => c.Key === 'PRI')?.Field || cols[0] || 'id';
+              let html = `<div style="margin-bottom:12px; color:#94a3b8; font-weight:700;">Menampilkan ${rows.length} baris (Akses Edit & Hapus Aktif):</div>`;
+              html += '<table><thead><tr><th style="width:110px;">Aksi</th>' + cols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+              rows.forEach((row, idx) => {
+                const rowId = row[pkCol] !== undefined ? row[pkCol] : row.id;
+                html += '<tr>';
+                html += '<td>';
+                html += '<button class="btn-edit" onclick="openEditModal(' + idx + ')">✏️ Edit</button>';
+                html += '<button class="btn-delete" onclick="confirmDeleteRow(\'' + rowId + '\')">🗑️ Hapus</button>';
+                html += '</td>';
+                html += cols.map(c => {
+                  let val = row[c];
+                  if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+                  return '<td title="' + (val || '') + '">' + (val !== null && val !== undefined ? String(val) : '<i style="color:#64748b">NULL</i>') + '</td>';
+                }).join('');
+                html += '</tr>';
+              });
+              html += '</tbody></table>';
+              initialContentHtml = html;
+            }
+          } catch (ssrErr) {
+            initialContentHtml = `<div style="padding:20px; color:#ef4444;">Gagal mengambil data tabel ${firstTable}: ${ssrErr.message}</div>`;
+          }
+
         } else {
           tableListHtml = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel di database mris_db</div>';
         }
@@ -938,7 +975,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
   <div class="main">
     <div class="topbar">
       <div>
-        <h3 id="currentTableTitle" style="font-size:1.1rem; font-weight:800; color:#f8fafc;">Pilih Tabel Database</h3>
+        <h3 id="currentTableTitle" style="font-size:1.1rem; font-weight:800; color:#f8fafc;">Tabel: ${firstTable || 'Database'}</h3>
         <span id="dbStatus" style="font-size:11px; color:#10b981; font-weight:700;">🟢 Full Access: Edit & Hapus Aktif (mris_db)</span>
       </div>
       <div class="tabs">
@@ -948,10 +985,7 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
       </div>
     </div>
     <div class="content-area" id="contentArea">
-      <div style="padding: 50px; text-align: center; color: #94a3b8;">
-        <h2>Selamat datang di phpMyAdmin / Database Manager (mris_db)</h2>
-        <p style="margin-top:10px;">Akses penuh Edit, Hapus, dan Eksekusi SQL Aktif.</p>
-      </div>
+      ${initialContentHtml}
     </div>
   </div>
 
