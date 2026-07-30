@@ -170,20 +170,12 @@ export default function App() {
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
 
-              // Adopt server state if server is newer or client data missing
-              if (serverUpdated >= clientUpdated || !prev?.outlets?.length || !prev?.products?.length) {
+              // Adopt server state if server is newer or client data missing (SERVER IS SINGLE SOURCE OF TRUTH)
+              if (serverUpdated >= clientUpdated || !clientUpdated) {
                 isRemoteUpdateRef.current = true;
                 return {
                   ...initialMasterData,
-                  ...prev,
-                  ...serverData,
-                  outlets: serverData.outlets || prev.outlets || [],
-                  products: serverData.products || prev.products || [],
-                  categories: serverData.categories || prev.categories || [],
-                  customers: serverData.customers || prev.customers || [],
-                  webAdminAccounts: serverData.webAdminAccounts || prev.webAdminAccounts || [],
-                  mobileAccounts: serverData.mobileAccounts || prev.mobileAccounts || [],
-                  salesTransactions: serverData.salesTransactions || prev.salesTransactions || []
+                  ...serverData
                 };
               }
               return prev;

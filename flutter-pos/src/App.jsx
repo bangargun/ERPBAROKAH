@@ -142,20 +142,12 @@ export default function App() {
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
 
-              // Adopsi data server jika server lebih baru atau data lokal belum lengkap
-              if (serverUpdated >= clientUpdated || !prev?.outlets?.length || !prev?.products?.length) {
+              // Adopsi total data server jika server lebih baru atau data lokal belum sinkron (SERVER ADALAH SINGLE SOURCE OF TRUTH)
+              if (serverUpdated >= clientUpdated || !clientUpdated) {
                 isRemoteUpdateRef.current = true;
                 return {
                   ...initialMasterData,
-                  ...prev,
-                  ...serverData,
-                  outlets: serverData.outlets || prev.outlets || [],
-                  products: serverData.products || prev.products || [],
-                  categories: serverData.categories || prev.categories || [],
-                  customers: serverData.customers || prev.customers || [],
-                  webAdminAccounts: serverData.webAdminAccounts || prev.webAdminAccounts || [],
-                  mobileAccounts: serverData.mobileAccounts || prev.mobileAccounts || [],
-                  salesTransactions: serverData.salesTransactions || prev.salesTransactions || []
+                  ...serverData
                 };
               }
               return prev;
