@@ -841,35 +841,46 @@ app.get(['/phpmyadmin', '/phpmyadmin/*', '/adminer', '/adminer/*', '/api/phpmyad
   let tableListHtml = '';
   let firstTable = '';
 
-  if (mysqlPool) {
-    try {
-      const [tables] = await mysqlPool.query("SHOW TABLES");
-      const list = [];
-      for (const row of tables) {
-        const tableName = Object.values(row)[0];
-        try {
-          const [[cnt]] = await mysqlPool.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
-          list.push({ name: tableName, count: cnt.count });
-        } catch (e) {
-          list.push({ name: tableName, count: 0 });
+  try {
+    if (mysqlPool) {
+      try {
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('MySQL query timeout')), 1500)
+        );
+        const queryPromise = mysqlPool.query("SHOW TABLES");
+        const [tables] = await Promise.race([queryPromise, timeoutPromise]);
+
+        const list = [];
+        for (const row of tables) {
+          const tableName = Object.values(row)[0];
+          try {
+            const [[cnt]] = await mysqlPool.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
+            list.push({ name: tableName, count: cnt.count });
+          } catch (e) {
+            list.push({ name: tableName, count: 0 });
+          }
         }
+        if (list.length > 0) {
+          firstTable = list[0].name;
+          tableListHtml = list.map(t =>
+            `<div class="table-item ${t.name === firstTable ? 'active' : ''}" data-tablename="${t.name}" onclick="selectTable('${t.name}')">` +
+              `<span>📂 ${t.name}</span>` +
+              `<span class="badge">${t.count}</span>` +
+            `</div>`
+          ).join('');
+        } else {
+          tableListHtml = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel di database mris_db</div>';
+        }
+      } catch (err) {
+        console.error('phpMyAdmin SSR mysql query error:', err.message);
+        tableListHtml = '<div style="padding:15px; color:#94a3b8;">Memuat tabel via browser...</div>';
       }
-      if (list.length > 0) {
-        firstTable = list[0].name;
-        tableListHtml = list.map(t =>
-          `<div class="table-item ${t.name === firstTable ? 'active' : ''}" data-tablename="${t.name}" onclick="selectTable('${t.name}')">` +
-            `<span>📂 ${t.name}</span>` +
-            `<span class="badge">${t.count}</span>` +
-          `</div>`
-        ).join('');
-      } else {
-        tableListHtml = '<div style="padding:15px; color:#ef4444;">Tidak ada tabel di database mris_db</div>';
-      }
-    } catch (err) {
-      tableListHtml = `<div style="padding:15px; color:#ef4444;">Gagal memuat tabel dari MySQL: ${err.message}</div>`;
+    } else {
+      tableListHtml = '<div style="padding:15px; color:#ef4444;">MySQL belum terhubung di server</div>';
     }
-  } else {
-    tableListHtml = '<div style="padding:15px; color:#ef4444;">MySQL belum terhubung di server</div>';
+  } catch (globalErr) {
+    console.error('phpMyAdmin global route error:', globalErr.message);
+    tableListHtml = '<div style="padding:15px; color:#94a3b8;">Memuat tabel via browser...</div>';
   }
 
   res.send(`<!DOCTYPE html>
