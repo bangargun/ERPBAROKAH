@@ -137,14 +137,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
   const [dailyRepOutletId, setDailyRepOutletId] = useState(selectedBranch || (outlets[0] ? outlets[0].id : 1));
   const [dailyRepCreatedBy, setDailyRepCreatedBy] = useState(adminList[0]?.name || 'Argun Admin');
 
-  const suppliersList = masterData.suppliers && masterData.suppliers.length > 0
-    ? masterData.suppliers
-    : [
-        { id: 1, name: 'PT Sembako Nusantara' },
-        { id: 2, name: 'UD Sayur Segar Jaya' },
-        { id: 3, name: 'PT Pangan Mandiri' },
-        { id: 4, name: 'Toko Bumbu Lestari' }
-      ];
+  const suppliersList = masterData.suppliers || [];
 
   // Combined Master Data List (Bahan Baku & Biaya)
   const combinedMasterItemsList = [

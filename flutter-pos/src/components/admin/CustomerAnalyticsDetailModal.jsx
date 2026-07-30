@@ -8,11 +8,7 @@ export default function CustomerAnalyticsDetailModal({ customer, masterData, onC
   if (!customer) return null;
 
   // Retrieve outlets list
-  const outletsList = masterData?.outlets || [
-    { name: 'Gourmet Bistro - Senopati' },
-    { name: 'Ramen Haus - Kemang' },
-    { name: 'Kopi & Kitchen - PIK' }
-  ];
+  const outletsList = masterData?.outlets || [];
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {

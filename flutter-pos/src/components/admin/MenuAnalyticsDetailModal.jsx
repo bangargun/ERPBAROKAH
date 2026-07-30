@@ -8,11 +8,7 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
   if (!menuItem) return null;
 
   // Retrieve outlets list
-  const outletsList = masterData?.outlets || [
-    { name: 'Gourmet Bistro - Senopati' },
-    { name: 'Ramen Haus - Kemang' },
-    { name: 'Kopi & Kitchen - PIK' }
-  ];
+  const outletsList = masterData?.outlets || [];
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {
@@ -56,8 +52,8 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
           id: trx.id || idx + 1,
           receipt_no: trx.receipt_no || trx.code || trx.id || `#TRX-${String(idx + 1).padStart(3, '0')}`,
           date: trx.date ? `${trx.date}${trx.time ? `, ${trx.time}` : ''}` : (trx.created_at || 'Baru Saja'),
-          month_year: trx.month_year || (trx.date ? new Date(trx.date).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : 'Juli 2026'),
-          outlet_name: trx.branch_name || trx.outlet_name || (outletsList[idx % outletsList.length]?.name || 'Gourmet Bistro - Senopati'),
+          month_year: trx.month_year || (trx.date ? new Date(trx.date).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }) : ''),
+          outlet_name: trx.branch_name || trx.outlet_name || (outletsList[idx % outletsList.length]?.name || 'Outlet Central'),
           qty: itemQty,
           unit_price: unitPrice,
           total_price: totalPrice,
