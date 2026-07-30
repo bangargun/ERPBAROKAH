@@ -89,9 +89,9 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     try {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v56_sync_fix') {
+      if (versionKey !== 'v57_outlet_clean') {
         localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v56_sync_fix');
+        localStorage.setItem('mris_version', 'v57_outlet_clean');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
@@ -543,6 +543,17 @@ export default function App() {
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
           />
+        )}
+
+        {/* 11. INSPEKTUR DATABASE (MySQL mris_db) */}
+        {adminTab === 'db_explorer' && (
+          <div style={{ width: '100%', height: 'calc(100vh - 90px)', background: '#0f172a', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <iframe
+              src={getApiUrl('/api/db-explorer')}
+              title="MRIS Database Inspector (phpMyAdmin)"
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          </div>
         )}
 
         {/* Quick Transaction Add Modal */}
