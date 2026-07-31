@@ -345,7 +345,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   };
 
   // 8. Delete Product
-  const handleDeleteProduct = (id, name) => {
+  const handleDeleteProduct = async (id, name) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus produk "${name}"?`)) {
       const updated = {
         ...masterData,
@@ -353,6 +353,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         products: (masterData.products || []).filter(p => String(p.id) !== String(id))
       };
       setMasterData(updated);
+
+      try {
+        const res = await fetch(getApiUrl(`/api/master-data/products/${id}`), { method: 'DELETE' });
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData && resData.masterData) {
+            setMasterData(resData.masterData);
+          }
+        }
+      } catch (err) {
+        console.error('Delete product API error:', err);
+      }
     }
   };
 

@@ -102,7 +102,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
     setNewItemPrice('');
   };
 
-  const handleDeleteItem = (listKey, id) => {
+  const handleDeleteItem = async (listKey, id) => {
     if (!masterData[listKey]) return;
     const updated = {
       ...masterData,
@@ -110,6 +110,18 @@ export default function MasterDataManagement({ masterData, setMasterData, select
       [listKey]: masterData[listKey].filter(item => String(item.id) !== String(id))
     };
     setMasterData(updated);
+
+    try {
+      const res = await fetch(getApiUrl(`/api/master-data/${listKey}/${id}`), { method: 'DELETE' });
+      if (res.ok) {
+        const resData = await res.json();
+        if (resData && resData.masterData) {
+          setMasterData(resData.masterData);
+        }
+      }
+    } catch (err) {
+      console.error('Delete item API error:', err);
+    }
   };
 
   return (

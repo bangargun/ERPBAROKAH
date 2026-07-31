@@ -94,7 +94,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
   };
 
   // Handle Delete Category
-  const handleDeleteCategory = (catId, catName) => {
+  const handleDeleteCategory = async (catId, catName) => {
     const associatedCount = getAssociatedProducts(catId, catName).length;
     if (associatedCount > 0) {
       if (!window.confirm(`Kategori "${catName}" memiliki ${associatedCount} menu terhubung. Apakah Anda yakin ingin menghapusnya?`)) {
@@ -109,9 +109,21 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
-      categories: (masterData.categories || []).filter(c => c.id !== catId)
+      categories: (masterData.categories || []).filter(c => String(c.id) !== String(catId))
     };
     setMasterData(updated);
+
+    try {
+      const res = await fetch(getApiUrl(`/api/master-data/categories/${catId}`), { method: 'DELETE' });
+      if (res.ok) {
+        const resData = await res.json();
+        if (resData && resData.masterData) {
+          setMasterData(resData.masterData);
+        }
+      }
+    } catch (err) {
+      console.error('Delete category API error:', err);
+    }
   };
 
   const filteredCategories = masterData.categories.filter(c => 

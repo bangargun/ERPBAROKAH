@@ -1487,6 +1487,65 @@ app.post('/api/master-data', async (req, res) => {
   }
 });
 
+// DELETE /api/master-data/:key/:id — Direct Permanent Item Deletion Endpoint
+app.delete('/api/master-data/:key/:id', async (req, res) => {
+  try {
+    const { key, id } = req.params;
+    if (!key || !id) {
+      return res.status(400).json({ error: 'Key dan ID wajib diisi' });
+    }
+
+    let existing = await getMasterDataFromMySQL();
+    if (!existing || typeof existing !== 'object') {
+      return res.status(404).json({ error: 'Master data tidak ditemukan' });
+    }
+
+    const idStr = String(id);
+    const nowTs = Date.now();
+
+    // Hapus item dari array di masterData JSON
+    if (Array.isArray(existing[key])) {
+      existing[key] = existing[key].filter(item => {
+        if (!item) return false;
+        const itemId = String(item.id !== undefined ? item.id : item.code || item.name);
+        return itemId !== idStr;
+      });
+    }
+
+    existing._lastUpdated = nowTs;
+
+    // Simpan masterData JSON terbaru ke MySQL mris_master_data
+    await saveMasterDataToMySQL(existing);
+
+    // Hapus baris dari tabel relasi MySQL jika ada
+    if (mysqlPool) {
+      const relTable = key === 'products' ? 'products' :
+                       key === 'categories' ? 'categories' :
+                       key === 'outlets' ? 'outlets' :
+                       key === 'users' || key === 'userRights' ? 'users' :
+                       key === 'ingredients' ? 'ingredients' :
+                       key === 'suppliers' ? 'suppliers' :
+                       key === 'customers' ? 'customers' : null;
+      if (relTable) {
+        await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]).catch(() => {});
+      }
+    }
+
+    // Sync ulang sisa data ke relasi
+    await syncToMySQL(existing);
+
+    res.json({
+      success: true,
+      message: `Item ID ${id} dari ${key} berhasil dihapus permanen`,
+      masterData: existing,
+      _lastUpdated: nowTs
+    });
+  } catch (err) {
+    console.error('DELETE /api/master-data/:key/:id error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // -----------------------------------------------------------------------------
 // ENDPOINT MANUAL RECALL & SNAPSHOT DATABASE STATIS (mris_finance.json)
 // -----------------------------------------------------------------------------
