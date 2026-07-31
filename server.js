@@ -1337,7 +1337,7 @@ app.all('/api/webhook/deploy', (req, res) => {
 
   res.json({ success: true, message: '🚀 Deployment command triggered on VPS in background...' });
 
-  const deployCmd = `cd /var/www/MRIS_TECH && git fetch origin && git reset --hard origin/main && cd web_admin && npm run build && cp -r dist/* ../dist/ && cd .. && (pm2 reload mris-app-tech || pm2 restart mris-app-tech)`;
+  const deployCmd = `DIR=$(pwd); if [ -d "/var/www/MRIS_TECH" ]; then DIR="/var/www/MRIS_TECH"; elif [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; cd "$DIR" && git fetch origin && git reset --hard origin/main && (cd web_admin && npm run build && cp -r dist/* ../dist/ 2>/dev/null || true) && (pm2 reload all || pm2 restart all)`;
 
   exec(deployCmd, (error, stdout, stderr) => {
     if (error) {
