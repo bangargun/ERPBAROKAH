@@ -139,4 +139,4 @@ Web Dashboard menyediakan analisis mendalam yang dirancang dengan **Fit-to-Page 
 ### Keunggulan Logika Ini:
 1. **Zero Downtime / Offline Ready**: Kasir di toko tidak pernah terhenti meskipun koneksi internet terputus.
 2. **Real-time Reporting**: Owner di rumah/laptop langsung mendapatkan update omzet detik itu juga begitu tablet kasir terhubung ke internet.
-3. **Isolasi Database Total**: Seluruh data tersimpan di `/var/www/MRIS_TECH/data/mris_finance.json` di port `4000` VPS Hostinger Anda, sehingga **100% aman dan tidak pernah tertukar dengan domain lain**.
+3. **Isolasi Database Total**: Seluruh data tersimpan di `/var/www/erp-barokah/data/mris_finance.json` di port `4000` VPS Hostinger Anda, sehingga **100% aman dan tidak pernah tertukar dengan domain lain**.
