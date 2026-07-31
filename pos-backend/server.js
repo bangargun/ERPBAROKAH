@@ -1661,16 +1661,23 @@ app.get('*', (req, res, next) => {
 });
 
 // Start Server
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 MRIS Full-Stack App & API running on http://0.0.0.0:${PORT}`);
-});
+const TARGET_PORT = Number(process.env.PORT) || 5000;
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    const ALT_PORT = 5001;
-    console.log(`Port ${PORT} is in use, trying ${ALT_PORT}...`);
-    app.listen(ALT_PORT, '0.0.0.0', () => {
-      console.log(`🚀 MRIS Full-Stack App & API running on http://0.0.0.0:${ALT_PORT}`);
-    });
-  }
-});
+const startServer = (portToUse, retries = 5) => {
+  const server = app.listen(portToUse, '0.0.0.0', () => {
+    console.log(`🚀 MRIS Full-Stack App & API running on http://0.0.0.0:${portToUse}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && retries > 0) {
+      console.log(`⚠️ Port ${portToUse} is occupied. Retrying in 1.5s (${retries} retries left)...`);
+      setTimeout(() => {
+        startServer(portToUse, retries - 1);
+      }, 1500);
+    } else {
+      console.error('❌ Server listen error:', err.message);
+    }
+  });
+};
+
+startServer(TARGET_PORT);
