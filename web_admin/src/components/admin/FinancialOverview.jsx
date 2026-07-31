@@ -306,25 +306,8 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             </h2>
           </div>
           <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '4px', margin: 0 }}>
-            Pemantauan omzet harian, komparasi per outlet, analisis HPP, dan Rekomendasi Analisis AI real-time.
+            Pemantauan omzet harian, komparasi per outlet, analisis HPP, dan performa keuangan real-time.
           </p>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            type="button"
-            onClick={handleRunAiAnalysis}
-            style={{
-              padding: '9px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer',
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: '#ffffff', border: 'none',
-              display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
-              transition: 'transform 0.2s ease'
-            }}
-            title="Jalankan Ulang Analisis AI"
-          >
-            <Sparkles size={15} className={isAnalyzingAI ? "animate-spin" : ""} />
-            <span>{isAnalyzingAI ? "Analisis AI..." : "Update Analisis AI"}</span>
-          </button>
         </div>
       </div>
 
