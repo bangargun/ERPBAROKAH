@@ -383,7 +383,7 @@ const initMySQLPool = async () => {
       queueLimit: 0
     });
     mysqlInitError = null;
-    console.log('✅ MySQL Pool Initialized for Hostinger mris_db Storage');
+    console.log('✅ MySQL Pool Initialized for VPS (187.77.122.142) mris_db Storage');
   } catch (err) {
     mysqlInitError = err.message;
   }

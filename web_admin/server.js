@@ -378,7 +378,7 @@ const initMySQLPool = async () => {
       queueLimit: 0
     });
     mysqlInitError = null;
-    console.log('✅ MySQL Pool Initialized for Hostinger mris_db Storage');
+    console.log('✅ MySQL Pool Initialized for VPS (187.77.122.142) mris_db Storage');
     // Auto-create master data table jika belum ada
     await ensureMasterDataTable();
   } catch (err) {
