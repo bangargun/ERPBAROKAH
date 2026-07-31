@@ -355,7 +355,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       setMasterData(updated);
 
       try {
-        const res = await fetch(getApiUrl(`/api/master-data/products/${id}`), { method: 'DELETE' });
+        const res = await fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'products', id })
+        });
         if (res.ok) {
           const resData = await res.json();
           if (resData && resData.masterData) {

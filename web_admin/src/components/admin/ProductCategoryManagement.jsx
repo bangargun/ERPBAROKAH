@@ -114,7 +114,11 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
     setMasterData(updated);
 
     try {
-      const res = await fetch(getApiUrl(`/api/master-data/categories/${catId}`), { method: 'DELETE' });
+      const res = await fetch(getApiUrl('/api/master-data/delete-item'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'categories', id: catId })
+      });
       if (res.ok) {
         const resData = await res.json();
         if (resData && resData.masterData) {
