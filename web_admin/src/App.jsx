@@ -132,13 +132,14 @@ export default function App() {
   // Ref flag to distinguish local mutations (add/edit/delete) from remote GET polling updates
   const isRemoteUpdateRef = useRef(true);
 
+  const lastRemoteTsRef = useRef(0);
+
   // Sync Master Data to localStorage & Central VPS Cloud API (Local Mutations Only)
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
     
     // Ignore automatic POST if this state update came from server GET polling
-    if (isRemoteUpdateRef.current) {
-      isRemoteUpdateRef.current = false;
+    if (masterData._lastUpdated && masterData._lastUpdated === lastRemoteTsRef.current) {
       return;
     }
 
@@ -152,7 +153,7 @@ export default function App() {
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data._lastUpdated) {
-          isRemoteUpdateRef.current = true;
+          lastRemoteTsRef.current = data._lastUpdated;
           setMasterData(prev => ({
             ...prev,
             _lastUpdated: data._lastUpdated
@@ -182,9 +183,9 @@ export default function App() {
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
 
-              // Adopt server state if server is newer or client data missing (SERVER IS SINGLE SOURCE OF TRUTH)
-              if (serverUpdated >= clientUpdated || !clientUpdated) {
-                isRemoteUpdateRef.current = true;
+              // Adopt server state if server is strictly newer or client data missing
+              if (serverUpdated > clientUpdated || !clientUpdated) {
+                lastRemoteTsRef.current = serverUpdated;
                 return {
                   ...initialMasterData,
                   ...serverData
