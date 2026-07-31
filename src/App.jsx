@@ -12,9 +12,7 @@ export default function App() {
     window.location.hash.includes('register-customer')
   );
 
-  // Helper untuk URL VPS Backend Cloud API
-  // Di Capacitor APK: protocol = 'file:' → selalu pakai URL absolut VPS
-  // Di Browser (web) yang di-host di VPS: pakai URL relatif
+  // Helper untuk URL VPS Backend Cloud API (mris-api.barokahgroupindonesia.tech)
   const getApiUrl = (pathStr) => {
     if (typeof window !== 'undefined') {
       const savedServer = localStorage.getItem('MRIS_SERVER_URL');
@@ -22,10 +20,15 @@ export default function App() {
         return `${savedServer.replace(/\/$/, '')}${pathStr}`;
       }
       if (window.location.protocol === 'file:') {
-        return `http://localhost:5000${pathStr}`;
+        return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+      }
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (window.location.port && window.location.port !== '5001') {
+          return `http://localhost:5001${pathStr}`;
+        }
       }
     }
-    return pathStr;
+    return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
   };
 
   // User Authentication State
@@ -50,9 +53,18 @@ export default function App() {
     setUserSession(null);
   };
 
-  // Master Data State — diinisialisasi dari localStorage, fallback ke initialMasterData
+  // Master Data State — diinisialisasi dengan pembersihan cache versi baru & data terpusat
   const [masterData, setMasterData] = useState(() => {
     if (typeof window !== 'undefined') {
+      const versionKey = localStorage.getItem('mris_version');
+      if (versionKey !== 'v59_purge_all_local_cache') {
+        // Pembersihan total seluruh key localStorage lama yang mengandung data stale
+        localStorage.removeItem('mris_master_data');
+        localStorage.removeItem('mris_user_session');
+        localStorage.removeItem('MRIS_POS_MASTER_DATA_CACHE');
+        localStorage.setItem('mris_version', 'v59_purge_all_local_cache');
+        return initialMasterData;
+      }
       const saved = localStorage.getItem('mris_master_data');
       if (saved) {
         try {
@@ -60,23 +72,7 @@ export default function App() {
           if (parsed && typeof parsed === 'object') {
             return {
               ...initialMasterData,
-              ...parsed,
-              salesTransactions: parsed.salesTransactions || [],
-              closedShifts: parsed.closedShifts || parsed.shift_closings || [],
-              approvedFinanceDaily: parsed.approvedFinanceDaily || [],
-              manualEntryRecords: parsed.manualEntryRecords || [],
-              cogsExpenses: parsed.cogsExpenses || [],
-              productionExpenses: parsed.productionExpenses || [],
-              otherExpenses: parsed.otherExpenses || [],
-              stockOpname: parsed.stockOpname || [],
-              stockMovement: parsed.stockMovement || [],
-              approvedLogistics: parsed.approvedLogistics || [],
-              cashFlow: parsed.cashFlow || [],
-              customers: parsed.customers || [],
-              damagedGoods: parsed.damagedGoods || [],
-              approvedWaste: parsed.approvedWaste || [],
-              stockTransfer: parsed.stockTransfer || [],
-              approvedTransfers: parsed.approvedTransfers || [],
+              ...parsed
             };
           }
         } catch (e) {}
@@ -93,7 +89,7 @@ export default function App() {
       const match = (masterData?.outlets || []).find(
         o => o.name === userSession.outlet || String(o.id) === String(userSession.outlet_id)
       );
-      setSelectedBranch(match ? match.id : userSession.outlet);
+      setSelectedBranch(match ? match.id : null);
     } else {
       setSelectedBranch(null); // Super Admin / Owner: akses semua outlet
     }
@@ -130,7 +126,7 @@ export default function App() {
     return () => clearTimeout(syncTimer);
   }, [masterData]);
 
-  // 2. LIVE POLLING dari VPS server setiap 3 detik
+  // 2. LIVE REALTIME POLLING DARI VPS SERVER (Setiap 3 Detik - Sinkronisasi 100% dengan Web Admin)
   useEffect(() => {
     const fetchLatestFromServer = () => {
       fetch(getApiUrl('/api/master-data'))
@@ -138,13 +134,20 @@ export default function App() {
         .then(serverData => {
           if (serverData && typeof serverData === 'object') {
             setMasterData(prev => {
+              const prevStr = JSON.stringify(prev);
+              const serverStr = JSON.stringify(serverData);
+              if (prevStr === serverStr) return prev;
+
               const clientUpdated = prev?._lastUpdated || 0;
               const serverUpdated = serverData?._lastUpdated || 0;
-              if (serverUpdated > clientUpdated) {
-                const nextData = { ...prev, ...serverData };
-                if (JSON.stringify(prev) === JSON.stringify(nextData)) return prev;
+
+              // Adopsi total data server jika server lebih baru atau data lokal belum sinkron (SERVER ADALAH SINGLE SOURCE OF TRUTH)
+              if (serverUpdated >= clientUpdated || !clientUpdated) {
                 isRemoteUpdateRef.current = true;
-                return nextData;
+                return {
+                  ...initialMasterData,
+                  ...serverData
+                };
               }
               return prev;
             });
@@ -173,17 +176,7 @@ export default function App() {
     );
   }
 
-  // RENDER: Login page jika belum ada sesi
-  if (!userSession) {
-    return (
-      <LoginPage
-        onLoginSuccess={handleLoginSuccess}
-        masterData={masterData}
-      />
-    );
-  }
-
-  // RENDER: POS Mobile Kasir (satu-satunya view setelah login di APK)
+  // RENDER: POS Mobile Kasir (AndroidPosRegister mengelola Papan Login Akses Restoran, Sesi & Lock Screen)
   return (
     <AndroidPosRegister
       userSession={userSession}

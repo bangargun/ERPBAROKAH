@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
   History, 
@@ -13,7 +14,7 @@ import {
   Plus, 
   Minus, 
   Search, 
-  Printer, 
+
   Zap, 
   User, 
   Users, 
@@ -34,6 +35,7 @@ import {
   AlertCircle,
   X,
   Settings,
+  Wifi,
   CheckSquare,
   Square,
   Percent,
@@ -53,10 +55,30 @@ import {
   MessageCircle,
   Edit2,
   Smartphone,
-  Edit3
+  Edit3,
+  HelpCircle,
+  Bluetooth,
+  BluetoothConnected,
+  BluetoothOff,
+  Printer,
+  PrinterIcon
 } from 'lucide-react';
 
-export default function AndroidPosRegister({ 
+// ─────────────────────────────────────────────────────────────
+// PERFORMANCE: useDebounce — tunda state update saat mengetik
+// Mencegah re-render berulang setiap huruf di search input
+// ─────────────────────────────────────────────────────────────
+function useDebounce(value, delay = 300) {
+  const [debouncedValue, setDebouncedValue] = React.useState(value);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+
+export default function AndroidPosRegister({
   userSession,
   masterData, 
   setMasterData, 
@@ -73,10 +95,15 @@ export default function AndroidPosRegister({
         return `${savedServer.replace(/\/$/, '')}${pathStr}`;
       }
       if (window.location.protocol === 'file:') {
-        return `http://localhost:5000${pathStr}`;
+        return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+      }
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (window.location.port && window.location.port !== '5001') {
+          return `http://localhost:5001${pathStr}`;
+        }
       }
     }
-    return pathStr;
+    return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
   };
 
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
@@ -85,46 +112,151 @@ export default function AndroidPosRegister({
   const outlets = masterData?.outlets || [];
   const userOutletName = userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
 
-  const currentOutlet = outlets.find(o => 
+  const matchedOutlet = outlets.find(o => 
     o.id === selectedBranch || 
     String(o.id) === String(selectedBranch) || 
     o.name === selectedBranch || 
     (userOutletName && o.name === userOutletName)
-  ) || (userOutletName ? { id: userSession?.outlet_id || 1, name: userOutletName } : null)
-    || outlets[0] 
-    || { id: 1, name: 'Outlet Utama' };
+  );
+
+  const currentOutlet = matchedOutlet || outlets[0] || { id: 1, name: 'Outlet Central' };
+
+  // Helper for extracting category name from product
+  const getProductCategoryName = (item) => {
+    if (!item) return 'Umum';
+    if (item.category && typeof item.category === 'string' && item.category.trim() !== '') return item.category.trim();
+    if (item.category_name && typeof item.category_name === 'string' && item.category_name.trim() !== '') return item.category_name.trim();
+    if (item.category_id && masterData?.categories) {
+      const catObj = masterData.categories.find(c => String(c.id) === String(item.category_id));
+      if (catObj && (catObj.name || catObj.category_name)) return (catObj.name || catObj.category_name).trim();
+    }
+    return 'Umum';
+  };
 
   // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
-  const products = rawProducts.filter(p => !p.outlet_id || p.outlet_id === currentOutlet.id || currentOutlet.id === 1);
+  const products = rawProducts.filter(p => 
+    !p.outlet_id || 
+    String(p.outlet_id) === String(currentOutlet.id) || 
+    String(currentOutlet.id) === '1' ||
+    String(p.outlet_id) === '1'
+  );
   const menuList = products;
   const masterCategoryNames = (masterData?.categories || [])
     .filter(c => !c.status || c.status === 'Aktif')
-    .map(c => c.name)
+    .map(c => c.name || c.category_name || c.title)
     .filter(Boolean);
-  const productCategoryNames = menuList.map(item => item.category || 'Umum').filter(Boolean);
+  const productCategoryNames = menuList.map(item => getProductCategoryName(item)).filter(Boolean);
   const allCategoryNames = Array.from(new Set([...masterCategoryNames, ...productCategoryNames]));
   const categories = ['🔥 Sering Diorder', 'Semua', ...allCategoryNames];
 
   // POS State
   const [activeCategory, setActiveCategory] = useState('🔥 Sering Diorder');
+  const [appTheme, setAppTheme] = useState(() => localStorage.getItem('mris_pos_theme') || 'dark'); // 'dark' | 'light'
+
+  const toggleAppTheme = (newTheme) => {
+    const selected = newTheme || (appTheme === 'dark' ? 'light' : 'dark');
+    setAppTheme(selected);
+    localStorage.setItem('mris_pos_theme', selected);
+  };
+
+  const isLight = appTheme === 'light';
+
+  // ===== THEME TOKEN OBJECT =====
+  // Gunakan T.xxx untuk warna di semua komponen agar mudah toggle dark/light
+  const T = React.useMemo(() => ({
+    bgApp:          isLight ? '#f0f4ff'                          : '#0f172a',
+    bgSidebar:      isLight ? '#1e3a8a'                          : '#0b1329',
+    bgSidebarActive: isLight ? 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+    bgSidebarHover: isLight ? 'rgba(255,255,255,0.12)'           : 'rgba(255,255,255,0.07)',
+    bgSurface:      isLight ? '#ffffff'                          : '#1e293b',
+    bgCard:         isLight ? '#f8fafc'                          : '#1f2937',
+    bgCardHover:    isLight ? '#f1f5f9'                          : '#374151',
+    bgInput:        isLight ? '#ffffff'                          : '#1f2937',
+    bgHeader:       isLight ? '#ffffff'                          : '#0f294a',
+    bgModal:        isLight ? '#ffffff'                          : '#1e293b',
+    bgOverlay:      isLight ? 'rgba(15,23,42,0.55)'              : 'rgba(0,0,0,0.7)',
+    bgBadgeUser:    isLight ? 'rgba(37,99,235,0.08)'             : 'rgba(255,255,255,0.08)',
+    txtPrimary:     isLight ? '#0f172a'                          : '#f8fafc',
+    txtSecondary:   isLight ? '#475569'                          : '#94a3b8',
+    txtMuted:       isLight ? '#64748b'                          : '#64748b',
+    txtSidebarIcon: isLight ? '#bfdbfe'                          : '#93c5fd',
+    txtHeaderAccent: isLight ? '#1d4ed8'                         : '#60a5fa',
+    border:         isLight ? '#e2e8f0'                          : 'rgba(255,255,255,0.08)',
+    borderCard:     isLight ? '#d1d5db'                          : 'var(--pos-border-card)',
+    borderSubtle:   isLight ? '#cbd5e1'                          : '#374151',
+    borderSidebar:  isLight ? 'rgba(255,255,255,0.12)'           : 'rgba(255,255,255,0.08)',
+    shadow:         isLight ? '0 1px 8px rgba(0,0,0,0.08)'       : 'none',
+    shadowCard:     isLight ? '0 4px 16px rgba(0,0,0,0.06)'      : '0 4px 24px rgba(0,0,0,0.4)',
+    scrollTrack:    isLight ? '#e2e8f0'                          : '#1e293b',
+  }), [isLight]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([]);
   const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
   const [selectedCustomer, setSelectedCustomer] = useState('Pelanggan Umum');
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
-  const [printerSettings, setPrinterSettings] = useState({
-    paperWidth: '58mm', // '58mm' | '80mm'
-    printerName: 'Thermal Bluetooth POS Printer 58mm',
-    autoShowReceiptChoiceOnSaveOrder: true,
-    printMode: 'sekaligus',  // 'sekaligus' (All-in-One) | 'per_item' (Cetak 1 per 1)
-    printKitchen: true,      // Struk Dapur (Kitchen Ticket)
-    printBar: true,          // Struk Bar / Minuman (Bar Ticket)
-    printTableCopy: true,    // Struk Meja / Bill (Table Copy)
-    printCashierCopy: false  // Struk Copy Kasir (Cashier Copy)
-  });
-  const [showTestPrintModal, setShowTestPrintModal] = useState(false);
-  const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
+
+  // ── BLUETOOTH PRINTER STATE ──
+  // MAC address & paper width disimpan di localStorage agar tetap tersimpan setelah reload
+  const [printerMac, setPrinterMac] = useState(() => localStorage.getItem('MRIS_PRINTER_MAC') || '');
+  const [printerPaperWidth, setPrinterPaperWidth] = useState(() => localStorage.getItem('MRIS_PRINTER_PAPER') || '58');
+  const [pairedDevices, setPairedDevices] = useState([]); // Hasil scan bonded devices Android
+  const [isScanningPaired, setIsScanningPaired] = useState(false);
+  const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
+  const [printStatusMsg, setPrintStatusMsg] = useState('');
+
+  // Scan bonded Bluetooth devices dari pengaturan Android (bukan scan aktif)
+  const handleScanPairedPrinters = useCallback(async () => {
+    setIsScanningPaired(true);
+    setPairedDevices([]);
+    try {
+      const devices = await scanPairedPrinters();
+      setPairedDevices(devices || []);
+      if (!devices || devices.length === 0) {
+        setPrintStatusMsg('⚠️ Tidak ada perangkat Bluetooth yang dipair. Pair printer dulu di Pengaturan Android → Bluetooth.');
+      } else {
+        setPrintStatusMsg(`✅ Ditemukan ${devices.length} perangkat paired.`);
+      }
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if (msg.includes('BLUETOOTH_DISABLED')) {
+        setPrintStatusMsg('❌ Bluetooth tidak aktif. Aktifkan Bluetooth di perangkat.');
+      } else if (msg.includes('not Capacitor') || !window.Capacitor?.isNativePlatform?.()) {
+        setPrintStatusMsg('ℹ️ Fitur scan hanya tersedia di APK Android. Di browser, gunakan input MAC manual.');
+      } else {
+        setPrintStatusMsg('❌ Gagal scan: ' + msg);
+      }
+    } finally {
+      setIsScanningPaired(false);
+    }
+  }, []);
+
+  // Simpan konfigurasi printer ke localStorage
+  const handleSavePrinterConfig = useCallback((mac, paperWidth) => {
+    const cleanMac = (mac || '').trim().toUpperCase();
+    const cleanWidth = paperWidth === '80' ? '80' : '58';
+    setPrinterMac(cleanMac);
+    setPrinterPaperWidth(cleanWidth);
+    try {
+      localStorage.setItem('MRIS_PRINTER_MAC', cleanMac);
+      localStorage.setItem('MRIS_PRINTER_PAPER', cleanWidth);
+    } catch (e) {}
+    setSaveSettingsSuccessToast(true);
+    setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
+  }, []);
+
+  // Helper: tampilkan status print toast sementara
+  const showPrintStatus = useCallback((status, msg) => {
+    setPrintStatus(status);
+    setPrintStatusMsg(msg);
+    if (status === 'success' || status === 'error') {
+      setTimeout(() => {
+        setPrintStatus(null);
+        setPrintStatusMsg('');
+      }, 4000);
+    }
+  }, []);
 
   // Modal Pilihan Struk saat Simpan Order
   const [showSaveOrderReceiptModal, setShowSaveOrderReceiptModal] = useState(false);
@@ -137,7 +269,22 @@ export default function AndroidPosRegister({
   });
   const [currentSaveOrderTx, setCurrentSaveOrderTx] = useState(null);
   const [saveSettingsSuccessToast, setSaveSettingsSuccessToast] = useState(false);
+  const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
+  const [showTestPrintModal, setShowTestPrintModal] = useState(false);
   const [selectedTxDetail, setSelectedTxDetail] = useState(null); // Detail transaksi di riwayat
+
+  // Derived printerSettings object — menggabungkan state printer agar kode lama tetap berjalan
+  // Ini bukan state terpisah, melainkan referensi langsung ke state yang ada
+  const printerSettings = {
+    printKitchen: activeReceiptSelections.printKitchen,
+    printBar: activeReceiptSelections.printBar,
+    printTableCopy: activeReceiptSelections.printTableCopy,
+    printCashierCopy: activeReceiptSelections.printCashierCopy,
+    autoShowReceiptChoiceOnSaveOrder: false, // Langsung cetak otomatis tanpa modal pilih
+    printerName: printerMac || 'Belum dikonfigurasi',
+    paperWidth: `${printerPaperWidth}mm`,
+    printMode: 'sekaligus'
+  };
 
   // Right Panel Sub Tabs ('ORDER' | 'TABLE' | 'MORE')
   const [rightPanelSubTab, setRightPanelSubTab] = useState('ORDER');
@@ -202,6 +349,7 @@ export default function AndroidPosRegister({
   // Customer Detail & Management Page States (Matching User's Screenshot 100%)
   const [selectedCustomerIdForDetail, setSelectedCustomerIdForDetail] = useState(37);
   const [custSearchFilter, setCustSearchFilter] = useState('');
+  const debouncedCustSearch = useDebounce(custSearchFilter, 300);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [editingCustomerData, setEditingCustomerData] = useState(null);
   const [showQrSelfRegModal, setShowQrSelfRegModal] = useState(false);
@@ -211,6 +359,7 @@ export default function AndroidPosRegister({
   // Shift & Application User Session Management States
   const [selectedShiftDetailModal, setSelectedShiftDetailModal] = useState(null);
   const [shiftUserSearchFilter, setShiftUserSearchFilter] = useState('');
+  const debouncedShiftUserSearch = useDebounce(shiftUserSearchFilter, 300);
   const [shiftStartDate, setShiftStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [shiftEndDate, setShiftEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [shiftDatePreset, setShiftDatePreset] = useState('all'); // 'all' | 'today' | '7days' | 'custom'
@@ -230,7 +379,7 @@ export default function AndroidPosRegister({
   // Manual Financial Entry Form States (Matching Web-Based ManualFinancialEntryPage.jsx 100%)
   const [manualRepDate, setManualRepDate] = useState(new Date().toISOString().split('T')[0]);
   const [manualRepNo, setManualRepNo] = useState(`LAP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
-  const [manualRepAuthor, setManualRepAuthor] = useState('Master Super Admin');
+  const [manualRepAuthor, setManualRepAuthor] = useState(userSession?.name || '');
   const [manualRepOutletId, setManualRepOutletId] = useState(1);
   const [manualRepNetSales, setManualRepNetSales] = useState(0);
   const [manualRepNonCash, setManualRepNonCash] = useState(0);
@@ -252,7 +401,7 @@ export default function AndroidPosRegister({
 
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [logNo, setLogNo] = useState(`LOG-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
-  const [logSubmittedBy, setLogSubmittedBy] = useState('Master Super Admin');
+  const [logSubmittedBy, setLogSubmittedBy] = useState(userSession?.name || '');
   const [logOutletId, setLogOutletId] = useState(1);
   const [logItemName, setLogItemName] = useState('');
   const [logCustomItemName, setLogCustomItemName] = useState('');
@@ -279,7 +428,7 @@ export default function AndroidPosRegister({
   const [transferNo, setTransferNo] = useState(`TRF-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [transferFromOutletId, setTransferFromOutletId] = useState(1);
   const [transferToOutletId, setTransferToOutletId] = useState(2);
-  const [transferSubmittedBy, setTransferSubmittedBy] = useState('Master Super Admin');
+  const [transferSubmittedBy, setTransferSubmittedBy] = useState(userSession?.name || '');
   const [transferItemName, setTransferItemName] = useState('');
   const [transferCustomItemName, setTransferCustomItemName] = useState('');
   const [transferQty, setTransferQty] = useState(0);
@@ -294,7 +443,7 @@ export default function AndroidPosRegister({
   const [wasteDate, setWasteDate] = useState(new Date().toISOString().split('T')[0]);
   const [wasteNo, setWasteNo] = useState(`WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
   const [wasteOutletId, setWasteOutletId] = useState(1);
-  const [wasteSubmittedBy, setWasteSubmittedBy] = useState('Master Super Admin');
+  const [wasteSubmittedBy, setWasteSubmittedBy] = useState(userSession?.name || '');
   const [wasteBatchRows, setWasteBatchRows] = useState([]);
   const [wasteItemName, setWasteItemName] = useState('');
   const [wasteCustomItemName, setWasteCustomItemName] = useState('');
@@ -405,12 +554,12 @@ export default function AndroidPosRegister({
   // Stok Opname Summary Preview State (Data sent from Web Admin)
   const [previewOpnameSummaryRecord, setPreviewOpnameSummaryRecord] = useState(null);
 
-  // Sidebar Lain-lain (Reservasi & SOP) States
-  // MULTI-STEP LOGIN BOARD STATES (Halaman 1: Super Admin/Owner/Resto -> Halaman 2: Nama User -> Halaman 3: Username & Password)
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(true); // bypass Papan Login - langsung masuk POS
+  // MULTI-STEP LOGIN BOARD STATES (Dinamis Berdasarkan Data Pengaturan Web Admin)
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => !!userSession);
   const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
   const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
   const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
+  const [loginSelectedOutlet, setLoginSelectedOutlet] = useState(null); // outlet yang dipilih di form login
   const [loginUsernameInput, setLoginUsernameInput] = useState('');
   const [loginPasswordInput, setLoginPasswordInput] = useState('');
   const [loginErrorText, setLoginErrorText] = useState('');
@@ -449,27 +598,248 @@ export default function AndroidPosRegister({
   const [superAdminAuthError, setSuperAdminAuthError] = useState('');
   const [pendingRestoreFile, setPendingRestoreFile] = useState(null);
 
-  // 3-Minute Auto-Sync Interval Effect (Otomatis Tersambung & Sync Setiap 3 Menit)
+  // Offline Network State & Queue Counter
+  const [isNetworkOnline, setIsNetworkOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  // 1. Pembersihan total cache lokal stale agar data terhapus di database tidak kembali lagi
   React.useEffect(() => {
-    let timer = null;
-    if (autoSyncIntervalActive) {
-      timer = setInterval(() => {
-        const now = new Date();
-        const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
-        setLastSyncTime(formatted);
-      }, 180000); // 3 menit = 180.000 ms
-    }
-    return () => {
-      if (timer) clearInterval(timer);
+    try {
+      localStorage.removeItem('MRIS_POS_MASTER_DATA_CACHE');
+    } catch (e) {}
+  }, []);
+
+  // 2. Realtime Network & Offline Queue Auto-Flusher Effect
+  React.useEffect(() => {
+    const handleOnline = () => {
+      setIsNetworkOnline(true);
+      doFlushOfflineQueue();
     };
-  }, [autoSyncIntervalActive]);
+    const handleOffline = () => {
+      setIsNetworkOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    const doFlushOfflineQueue = () => {
+      try {
+        const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+        const queue = queueRaw ? JSON.parse(queueRaw) : [];
+        if (!queue || queue.length === 0) return;
+
+        fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+          .then(res => res.json())
+          .then(serverMaster => {
+            if (!serverMaster || typeof serverMaster !== 'object') return;
+            const existingSales = serverMaster.salesTransactions || [];
+            const mergedSales = [...queue, ...existingSales];
+            const updatedMaster = { ...serverMaster, salesTransactions: mergedSales, transactions: mergedSales, _lastUpdated: Date.now() };
+
+            fetch(getApiUrl('/api/master-data'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatedMaster)
+            })
+            .then(r => r.json())
+            .then(resData => {
+              if (resData && resData.success) {
+                localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                setMasterData(curr => {
+                  const updatedList = (curr.salesTransactions || []).map(t => ({
+                    ...t,
+                    status: 'approved',
+                    is_offline_pending: false
+                  }));
+                  const nextState = { ...curr, salesTransactions: updatedList, transactions: updatedList };
+                  try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(nextState)); } catch (err) {}
+                  return nextState;
+                });
+              }
+            }).catch(() => {});
+          }).catch(() => {});
+      } catch (err) {}
+    };
+
+    const doSyncFetch = () => {
+      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+        .then(res => res.json())
+        .then(data => {
+          if (data && typeof data === 'object' && !data.error) {
+            const now = new Date();
+            const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
+            setLastSyncTime(formatted);
+          }
+        })
+        .catch(() => {});
+    };
+
+    // Initial fetch & queue flush
+    doSyncFetch();
+    doFlushOfflineQueue();
+
+    // Periodic flush queue & network status update
+    const timer = setInterval(() => {
+      doSyncFetch();
+      if (navigator.onLine) doFlushOfflineQueue();
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(timer);
+    };
+  }, [isAppLoggedIn]);
+
+  // AUTOMATIC 15-MINUTE INACTIVITY AUTO-LOCK TO PAPAN LOGIN
+  React.useEffect(() => {
+    if (!isAppLoggedIn) return;
+
+    let inactivityTimer = null;
+    const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 menit (900.000 ms)
+
+    const handleUserActivityReset = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        // Auto-lock disabled per user requirement
+        // setIsAppLoggedIn(false);
+        setLoginStep(1);
+        setSelectedLoginCategory(null);
+        setLoginSelectedOutlet(null);
+        setSelectedUserAccount(null);
+        setLoginPasswordInput('');
+        setLoginUsernameInput('');
+        setCurrentUserSession(null);
+        setLoginErrorText('🔒 Tablet POS tidak digunakan selama 15 menit. Sesi dikunci otomatis demi keamanan.');
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach(evt => window.addEventListener(evt, handleUserActivityReset, { passive: true }));
+
+    // Start timer upon login
+    handleUserActivityReset();
+
+    return () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      activityEvents.forEach(evt => window.removeEventListener(evt, handleUserActivityReset));
+    };
+  }, [isAppLoggedIn]);
+
+  // Sync currentUserSession with userSession prop when provided
+  React.useEffect(() => {
+    if (userSession && (userSession.name || userSession.username)) {
+      setCurrentUserSession(prev => ({
+        id: userSession.id || (prev ? prev.id : null),
+        name: userSession.name || userSession.full_name || (prev ? prev.name : 'Kasir POS'),
+        role: userSession.role || userSession.user_role || (prev ? prev.role : 'Kasir'),
+        outlet: userSession.outlet || userSession.outlet_name || (prev ? prev.outlet : ''),
+        outlet_id: userSession.outlet_id || (prev ? prev.outlet_id : null),
+        username: userSession.username || userSession.user || (prev ? prev.username : ''),
+        canAccessMobileReports: userSession.canAccessMobileReports !== false,
+        mobileReportPassword: userSession.mobileReportPassword || ''
+      }));
+    }
+  }, [userSession]);
+
+  // Otomatis simpan & perbarui riwayat login pengguna ke masterData.shiftLogs & closedShifts
+  React.useEffect(() => {
+    const sessionObj = currentUserSession || userSession;
+    if (!sessionObj) return;
+
+    const username = sessionObj.username || sessionObj.user || '';
+    const name = sessionObj.name || sessionObj.full_name || username || 'Pengguna POS';
+    const role = sessionObj.role || 'Kasir';
+    const outletName = sessionObj.outlet || currentOutlet?.name || 'Semua Outlet (Central)';
+    const outletId = sessionObj.outlet_id || currentOutlet?.id || null;
+
+    if (!username && !name) return;
+
+    const todayDateStr = new Date().toISOString().slice(0, 10);
+    const shiftId = `SHIFT-${username || 'USR'}-${todayDateStr.replace(/-/g, '')}`;
+
+    setMasterData(prev => {
+      if (!prev) return prev;
+      const existingLogs = prev.shiftLogs || prev.closedShifts || [];
+      const exists = existingLogs.some(s => s.id === shiftId || (s.username === username && s.login_date === todayDateStr && String(s.outlet_id || '') === String(outletId || '')));
+
+      if (exists) return prev;
+
+      const newShiftLog = {
+        id: shiftId,
+        login_date: todayDateStr,
+        date: todayDateStr,
+        username: username,
+        user_name: name,
+        cashier_name: name,
+        author_name: name,
+        submitted_by: name,
+        role: role,
+        outlet_id: outletId,
+        outlet_name: outletName,
+        branch_name: outletName,
+        status: 'AKTIF BERLANGSUNG',
+        login_time: shiftLoginTime || (new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'),
+        logout_time: 'Masih Login (Shift Berjalan)',
+        duration_label: 'Sesuai Jam Berjalan',
+        total_receipts: 0,
+        total_sales: 0,
+        cash_sales: 0,
+        qris_sales: 0,
+        edc_sales: 0,
+        initial_cash: initialCash || 0,
+        transactions: []
+      };
+
+      const updatedShiftLogs = [newShiftLog, ...existingLogs.filter(s => s.id !== shiftId)];
+      const updatedClosedShifts = prev.closedShifts ? [newShiftLog, ...prev.closedShifts.filter(s => s.id !== shiftId)] : [newShiftLog];
+
+      const newMaster = {
+        ...prev,
+        _lastUpdated: Date.now(),
+        shiftLogs: updatedShiftLogs,
+        closedShifts: updatedClosedShifts
+      };
+
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
+    });
+  }, [userSession, currentUserSession]);
+
+  // Evaluasi Hak Akses Mobile (Mobile Permission Matrix) untuk Role Kasir yang Aktif
+  const activeMobilePermissions = useMemo(() => {
+    const defaultMatrix = [
+      { role: 'Super Admin / Owner', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: true, shiftClosing: true, reservations: true, printerSetting: true },
+      { role: 'Kepala Cabang / SPV', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: true, shiftClosing: true, reservations: true, printerSetting: true },
+      { role: 'Kasir', posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, stockTransferOut: false, mobileReports: false, shiftClosing: true, reservations: true, printerSetting: true },
+      { role: 'Logistik & Dapur', posCashier: false, voidOrder: false, manualDiscount: false, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: false, shiftClosing: false, reservations: false, printerSetting: false }
+    ];
+    const matrix = (masterData?.mobilePermissionMatrix && masterData.mobilePermissionMatrix.length > 0)
+      ? masterData.mobilePermissionMatrix
+      : defaultMatrix;
+
+    const userRole = currentUserSession?.role || userSession?.role || 'Kasir';
+    const userRoleLower = String(userRole).toLowerCase().trim();
+
+    const matchedRole = matrix.find(m => String(m.role || '').toLowerCase().trim() === userRoleLower);
+    if (matchedRole) return matchedRole;
+
+    if (userRoleLower.includes('super') || userRoleLower.includes('owner') || userRoleLower.includes('admin') || userRoleLower.includes('spv') || userRoleLower.includes('kepala')) {
+      return { role: userRole, posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, stockTransferOut: true, mobileReports: true, shiftClosing: true, reservations: true, printerSetting: true };
+    }
+    return { role: userRole, posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, stockTransferOut: false, mobileReports: false, shiftClosing: true, reservations: true, printerSetting: true };
+  }, [masterData?.mobilePermissionMatrix, currentUserSession?.role, userSession?.role]);
 
   // Handle Manual Sync Button Click
   const handleTriggerSyncData = () => {
     setIsSyncingNow(true);
     const getApiUrl = (pathStr) => {
       const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
-      const baseUrl = isNativeApp ? 'https://mris-admin.barokahgroupindonesia.tech' : '';
+      const baseUrl = isNativeApp ? 'https://mris-api.barokahgroupindonesia.tech' : '';
       return `${baseUrl}${pathStr}`;
     };
 
@@ -616,110 +986,7 @@ export default function AndroidPosRegister({
   const [sopSearchQuery, setSopSearchQuery] = useState('');
   const [selectedSopDetail, setSelectedSopDetail] = useState(null);
 
-  const sopDocuments = masterData?.pushedSopToMobile || masterData?.sopDocuments || [
-    {
-      id: 'SOP-001',
-      title: 'SOP Persiapan Opening Restoran & Kasir POS',
-      category: 'opening',
-      categoryLabel: '🌅 Persiapan Opening',
-      estimatedTime: '30 Menit (07:30 - 08:00 WIB)',
-      updatedAt: '2026-07-20',
-      author: 'Manager Operasional',
-      summary: 'Panduan standar pemeriksaan mesin kasir POS, pengisian modal kas kecil Rp 500.000, dan kesiapan area makan.',
-      steps: [
-        'Pastikan koneksi Wi-Fi tablet POS Mobile dalam kondisi aktif dan stabil.',
-        'Buka kasir di POS Mobile dan masukkan modal kas kecil sebesar Rp 500.000 ke laci cash drawer.',
-        'Periksa ketersediaan kertas thermal printer di mesin printer kasir dan printer dapur.',
-        'Lakukan pemeriksaan kebersihan area kasir, meja makan, dan peralatan menyaji.',
-        'Nyalakan lampu utama, AC/Kipas, dan papan petunjuk restoran BUKA.'
-      ]
-    },
-    {
-      id: 'SOP-002',
-      title: 'SOP Prosedur Penerimaan Pembayaran (Cash, QRIS & EDC)',
-      category: 'kasir',
-      categoryLabel: '💳 Kasir & Pembayaran',
-      estimatedTime: 'Setiap Transaksi (2-3 Menit)',
-      updatedAt: '2026-07-18',
-      author: 'Supervisor Kasir',
-      summary: 'Prosedur standar konfirmasi nominal pesanan, transaksi pembayaran tunai/non-tunai, dan penyerahan kembalian.',
-      steps: [
-        'Konfirmasikan ulang daftar pesanan dan total harga akhir kepada pelanggan secara ramah.',
-        'Untuk pembayaran Tunai: Dapatkan uang tunai, hitung di depan pelanggan, masukkan ke cash drawer, dan serahkan kembalian pas.',
-        'Untuk pembayaran QRIS: Arahkan pelanggan memindai QRIS Statis/Dinamis, dan pastikan notifikasi sukses di layar POS sebelum menyerahkan struk.',
-        'Untuk pembayaran Card EDC: Gesek/tap kartu di EDC, pastikan resi EDC tercetak sukses (APPROVED).',
-        'Serahkan struk belanja resmi dan ucapkan salam terima kasih kepada pelanggan.'
-      ]
-    },
-    {
-      id: 'SOP-003',
-      title: 'SOP Kebersihan, Higiene & Keamanan Pangan',
-      category: 'kebersihan',
-      categoryLabel: '🧹 Kebersihan & Higiene',
-      estimatedTime: 'Rutin Setiap Shift',
-      updatedAt: '2026-07-15',
-      author: 'Tim Quality Control',
-      summary: 'Standar kebersihan staf kasir, sanitasi peralatan touch screen, dan penerapan higiene makanan.',
-      steps: [
-        'Staf kasir dan pramusaji wajib mencuci tangan menggunakan sabun antiseptik setiap 30 menit atau setelah menangani sampah/uang tunai.',
-        'Wajib menggunakan pakaian seragam bersih, celemek, dan penutup rambut saat bertugas.',
-        'Bersihkan permukaan layar POS Tablet dan meja kasir menggunakan cairan disinfektan food-grade secara berkala.',
-        'Pastikan tidak ada bahan makanan terbuka yang diletakkan di area sekitar mesin kasir.',
-        'Selalu cek tanggal kadaluarsa bahan baku minuman dan bumbu pelengkap.'
-      ]
-    },
-    {
-      id: 'SOP-004',
-      title: 'SOP Penanganan Komplain & Retur Pelanggan',
-      category: 'komplain',
-      categoryLabel: '🤝 Pelayanan Pelanggan',
-      estimatedTime: 'Penanganan Langsung (< 5 Menit)',
-      updatedAt: '2026-07-19',
-      author: 'Customer Relation Manager',
-      summary: 'Langkah standar mendengarkan keluhan pelanggan dengan 3S dan pembuatan laporan barang rusak/retur di POS Mobile.',
-      steps: [
-        'Terapkan 3S (Senyum, Sapa, Salam) dan dengarkan keluhan pelanggan dengan tenang tanpa memotong pembicaraan.',
-        'Ucapkan permohonan maaf atas ketidaknyamanan yang dialami pelanggan.',
-        'Apabila makanan/minuman tidak sesuai atau rusak, segera ganti dengan porsi baru yang segar.',
-        'Buka menu Laporan di POS Mobile -> pilih "Buat Laporan Barang Rusak (Waste)" untuk menginput barang retur.',
-        'Laporkan kejadian komplain kepada Supervisor/Manager shift untuk evaluasi dapur.'
-      ]
-    },
-    {
-      id: 'SOP-005',
-      title: 'SOP Shift Closing & Setor Tunai Harian',
-      category: 'closing',
-      categoryLabel: '🌙 Penutupan / Closing',
-      estimatedTime: '45 Menit (21:30 - 22:15 WIB)',
-      updatedAt: '2026-07-21',
-      author: 'Head Accountant',
-      summary: 'Prosedur penutupan shift kasir, pencetakan laporan closing, dan penyetoran uang tunai ke brankas/manager.',
-      steps: [
-        'Buka menu Shift Closing di POS Mobile dan lakukan perhitungan fisik seluruh uang tunai yang ada di laci kasir.',
-        'Hitung dan pisahkan modal awal kas kecil (Rp 500.000) dari hasil penjualan tunai harian.',
-        'Cocokkan jumlah kas fisik tunai dengan total omzet cash yang terdaftar di sistem POS Mobile.',
-        'Cetak Struk Rekap Closing Kasir dan mintalah tanda tangan verifikasi dari Supervisor/Manager shift.',
-        'Masukkan uang setor tunai beserta laporan fisik ke dalam amplop tertutup dan simpan di brankas aman.'
-      ]
-    },
-    {
-      id: 'SOP-006',
-      title: 'SOP Penanganan Stok Opname & Kerusakan Barang',
-      category: 'stok',
-      categoryLabel: '📦 Logistik & Stok Opname',
-      estimatedTime: 'Setiap Akhir Hari / Mingguan',
-      updatedAt: '2026-07-22',
-      author: 'Head Logistik Pusat',
-      summary: 'Panduan perhitungan fisik persediaan bahan baku dan pelaporan stok opname ke Web-Based Admin.',
-      steps: [
-        'Lakukan penimbangan dan perhitungan sisa stok fisik seluruh bahan baku (daging, beras, minyak, bumbu) di ruang penyimpanan.',
-        'Catat sisa stok fisik secara teliti ke dalam lembar kerja audit.',
-        'Buka menu Laporan -> "Buat Laporan Logistik" atau "Laporan Stok Opname" di POS Mobile.',
-        'Input sisa stok fisik dan pastikan selisih (surplus/defisit) teranalisis otomatis oleh sistem.',
-        'Kirimkan laporan opname untuk mendapatkan persetujuan (approval) dari Web Admin Logistik Pusat.'
-      ]
-    }
-  ];
+  const sopDocuments = masterData?.pushedSopToMobile || masterData?.sopDocuments || [];
 
   // Form States for Customer Add/Edit
   const [custFormName, setCustFormName] = useState('');
@@ -907,6 +1174,14 @@ export default function AndroidPosRegister({
   const [pettyExpenses, setPettyExpenses] = useState([]);
   const [physicalCashDrawer, setPhysicalCashDrawer] = useState('');
 
+  // Waktu login shift — dicatat saat komponen pertama mount (saat user login ke POS)
+  const [shiftLoginTime] = useState(() => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${dateStr}, ${timeStr} WIB`;
+  });
+
   // Logistics Request State
   const [logisticsItemName, setLogisticsItemName] = useState('');
   const [logisticsQty, setLogisticsQty] = useState('');
@@ -950,34 +1225,54 @@ export default function AndroidPosRegister({
     return list;
   }, [tableStatusMap, tables]);
 
-  // Outlet Sales Transactions (Robust Branch Matching for String/Number IDs)
-  const outletTransactions = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
-    if (!selectedBranch || selectedBranch === 'ALL') return true;
-    if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
-      const bId = Number(selectedBranch);
-      return Number(t.outlet_id) === bId || Number(t.branch_id) === bId;
-    }
-    // If selectedBranch is outlet name string (e.g. 'Gourmet Bistro - Senopati')
-    return (
-      t.branch_name === selectedBranch ||
-      t.outlet === selectedBranch ||
-      t.outlet_name === selectedBranch ||
-      (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
-    );
-  });
+  // Outlet Sales Transactions — useMemo: hanya dihitung ulang jika masterData atau selectedBranch berubah
+  const outletTransactions = useMemo(() => {
+    const txList = masterData?.salesTransactions || masterData?.transactions || [];
+    return txList.filter(t => {
+      if (!selectedBranch || selectedBranch === 'ALL') return true;
+      if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
+        const bId = Number(selectedBranch);
+        return Number(t.outlet_id) === bId || Number(t.branch_id) === bId;
+      }
+      return (
+        t.branch_name === selectedBranch ||
+        t.outlet === selectedBranch ||
+        t.outlet_name === selectedBranch ||
+        (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
+      );
+    });
+  }, [masterData?.salesTransactions, masterData?.transactions, selectedBranch, currentOutlet?.id]);
 
-  // Derived Financials for Selected Outlet
-  const totalSalesGross = outletTransactions.reduce((acc, t) => acc + (t.amount || 0), 0);
-  const totalPettyExpense = pettyExpenses.reduce((acc, e) => acc + e.amount, 0);
-  const expectedCashInDrawer = initialCash + totalSalesGross - totalPettyExpense;
+  // Derived Financials — useMemo: tidak dihitung ulang saat ketikan input
+  const totalSalesGross = useMemo(() =>
+    outletTransactions.reduce((acc, t) => acc + (t.amount || 0), 0),
+    [outletTransactions]
+  );
+  const totalPettyExpense = useMemo(() =>
+    pettyExpenses.reduce((acc, e) => acc + (e.amount || 0), 0),
+    [pettyExpenses]
+  );
+  const expectedCashInDrawer = useMemo(() =>
+    initialCash + totalSalesGross - totalPettyExpense,
+    [initialCash, totalSalesGross, totalPettyExpense]
+  );
 
-  const cashSales = outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('cash')).reduce((a, t) => a + (t.amount || 0), 0);
-  const qrisSales = outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('qris')).reduce((a, t) => a + (t.amount || 0), 0);
-  const edcSales = outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('edc')).reduce((a, t) => a + (t.amount || 0), 0);
+  const cashSales = useMemo(() =>
+    outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('cash')).reduce((a, t) => a + (t.amount || 0), 0),
+    [outletTransactions]
+  );
+  const qrisSales = useMemo(() =>
+    outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('qris')).reduce((a, t) => a + (t.amount || 0), 0),
+    [outletTransactions]
+  );
+  const edcSales = useMemo(() =>
+    outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('edc')).reduce((a, t) => a + (t.amount || 0), 0),
+    [outletTransactions]
+  );
 
   // TAP 1: ADD ITEM TO CART
   const handleAddToCart = (product) => {
-    const existingIndex = cart.findIndex(item => item.id === product.id);
+    const existingIndex = cart.findIndex(item => item.id === product.id || String(item.id) === String(product.id));
     if (existingIndex >= 0) {
       const updatedCart = [...cart];
       updatedCart[existingIndex].qty += 1;
@@ -989,12 +1284,16 @@ export default function AndroidPosRegister({
 
   const handleUpdateQty = (productId, delta) => {
     setCart(cart.map(item => {
-      if (item.id === productId) {
+      if (item.id === productId || String(item.id) === String(productId)) {
         const newQty = item.qty + delta;
         return newQty > 0 ? { ...item, qty: newQty } : null;
       }
       return item;
     }).filter(Boolean));
+  };
+
+  const handleRemoveCartItem = (productId) => {
+    setCart(cart.filter(item => item.id !== productId && String(item.id) !== String(productId)));
   };
 
   const handleClearCart = () => {
@@ -1019,8 +1318,15 @@ export default function AndroidPosRegister({
     }));
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const totalItemDiscounts = cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0);
+  // Cart calculations — useMemo: hanya dihitung ulang jika cart/diskon berubah
+  const cartSubtotal = useMemo(() =>
+    cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+    [cart]
+  );
+  const totalItemDiscounts = useMemo(() =>
+    cart.reduce((sum, item) => sum + ((item.discount || 0) * item.qty), 0),
+    [cart]
+  );
   const overallSummaryDiscount = discountValue !== '' ? Number(discountValue) : 0;
   const discountAmount = totalItemDiscounts + overallSummaryDiscount;
 
@@ -1086,6 +1392,12 @@ export default function AndroidPosRegister({
     } else {
       setLastCompletedTx(holdTx);
       setShowReceiptModal(true);
+      handleExecuteBatchPrint(holdTx, {
+        printKitchen: printerSettings.printKitchen,
+        printBar: printerSettings.printBar,
+        printTableCopy: printerSettings.printTableCopy,
+        printCashierCopy: printerSettings.printCashierCopy
+      });
     }
     setCart([]);
   };
@@ -1140,237 +1452,165 @@ export default function AndroidPosRegister({
 
     setLastCompletedTx(billTx);
     setShowReceiptModal(true);
+    handleExecuteBatchPrint(billTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
 
-  // SINGLE-PASS UNIFIED THERMAL PRINT JOB FOR ALL SELECTED TICKETS (HANYA 1X PERMISI / POPUP CETAK BROWSER)
-  const handleExecuteBatchPrint = (tx, selections) => {
+  // THERMAL PRINTING ENGINE
+  // Di Capacitor (Android): kirim ESC/POS bytes ke hardware printer via Bluetooth RFCOMM
+  // Di browser (dev mode): fallback ke iframe window.print()
+  const printHTMLContent = useCallback(async (htmlString) => {
+    // Ini legacy wrapper — dipanggil dari tempat-tempat yang belum dimigrasi
+    // Langsung fallback ke browser print untuk HTML content
+    try {
+      let iframe = document.getElementById('mris-silent-print-frame');
+      if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      iframe = document.createElement('iframe');
+      iframe.id = 'mris-silent-print-frame';
+      Object.assign(iframe.style, { position: 'fixed', left: '-9999px', top: '-9999px', width: '1px', height: '1px', border: '0', opacity: '0', pointerEvents: 'none' });
+      document.body.appendChild(iframe);
+      const doc = (iframe.contentWindow || iframe.contentDocument).document || (iframe.contentWindow || iframe.contentDocument);
+      doc.open(); doc.write(htmlString); doc.close();
+      setTimeout(() => {
+        try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) {}
+        setTimeout(() => { try { const f = document.getElementById('mris-silent-print-frame'); if (f?.parentNode) f.parentNode.removeChild(f); } catch(e){} }, 3000);
+      }, 150);
+    } catch (err) {
+      console.error('⚠️ Silent print exception:', err);
+    }
+  }, []);
+
+  // Print text langsung ke hardware Bluetooth printer
+  const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
+    if (!printerMac) {
+      // Tidak ada printer terkonfigurasi — fallback ke browser print dialog
+      console.warn('[BTPrinter] Tidak ada printer MAC tersimpan, fallback ke browser print.');
+      showPrintStatus('error', '⚠️ Printer belum dikonfigurasi. Buka Pengaturan → Koneksi Printer untuk menyambungkan printer.');
+      return;
+    }
+    showPrintStatus('printing', '🖨️ Mengirim data ke printer...');
+    try {
+      await printToBluetoothPrinter(
+        printerMac,
+        textContent,
+        printerPaperWidth,
+        () => showPrintStatus('success', '✅ Cetak berhasil!'),
+        (err) => {
+          const msg = err?.message || String(err);
+          if (msg.includes('BLUETOOTH_DISABLED')) {
+            showPrintStatus('error', '❌ Bluetooth tidak aktif. Aktifkan Bluetooth.');
+          } else if (msg.includes('CONNECTION_REFUSED')) {
+            showPrintStatus('error', '❌ Printer menolak koneksi. Pastikan printer menyala.');
+          } else if (msg.includes('DEVICE_BUSY')) {
+            showPrintStatus('error', '❌ Printer sedang sibuk. Coba lagi.');
+          } else {
+            showPrintStatus('error', '❌ Gagal cetak: ' + msg);
+          }
+        }
+      );
+    } catch (err) {
+      console.error('[BTPrinter] printTextToBluetooth error:', err);
+    }
+  }, [printerMac, printerPaperWidth, showPrintStatus]);
+
+  // Test print ke hardware printer — kirim struk tes sederhana via Bluetooth
+  const handleExecuteTestPrint = useCallback(async () => {
+    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    showPrintStatus('printing', '🖨️ Mengirim test print...');
+    try {
+      await btTestPrint(printerMac, outletName, printerPaperWidth);
+      showPrintStatus('success', '✅ Test print berhasil dikirim ke printer!');
+      setTestPrintSuccessToast(true);
+      setTimeout(() => setTestPrintSuccessToast(false), 3000);
+    } catch (err) {
+      const msg = err?.message || String(err);
+      showPrintStatus('error', '❌ Test print gagal: ' + msg);
+    }
+  }, [printerMac, printerPaperWidth, currentOutlet, showPrintStatus]);
+
+  // BLUETOOTH BATCH PRINT — Cetak semua tiket yang dipilih ke hardware printer
+  const handleExecuteBatchPrint = useCallback(async (tx, selections) => {
     if (!tx) return;
+    const outletName = currentOutlet?.name || 'MRIS POS';
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Struk Order - ${tx.id}</title>
-        <style>
-          @page { size: 80mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 76mm;
-            margin: 0 auto;
-            padding: 8mm 3mm;
-            color: #000;
-            background: #fff;
-            font-size: 12px;
-            line-height: 1.35;
-          }
-          .ticket-block {
-            page-break-after: always;
-            border-bottom: 2px dashed #000;
-            padding-bottom: 16px;
-            margin-bottom: 16px;
-          }
-          .ticket-block:last-child {
-            page-break-after: avoid;
-            border-bottom: none;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 3px 8px;
-            font-size: 11px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-          .notes { font-size: 10px; font-style: italic; margin-left: 14px; color: #333; }
-        </style>
-      </head>
-      <body>
-    `;
+    const printJobs = [];
 
-    const outletName = (currentOutlet?.name || 'MRIS POS').toUpperCase();
-
-    // 1. STRUK DAPUR (KITCHEN TICKET - TANPA HARGA)
     if (selections.printKitchen) {
-      const kitchenItems = filterItemsForTicketTarget(tx.items || [], 'KITCHEN');
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🍳 STRUK DAPUR (KITCHEN TICKET)</div>
-            <div class="bold" style="font-size:10px;">*** TAMPIL PRODUK TANPA HARGA ***</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>QTY  NAMA PRODUK</span></div>
-          <div class="divider-dash"></div>
-      `;
-      kitchenItems.forEach(it => {
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="bold">${it.qty}x  ${it.name.toUpperCase()}</div>
-            ${it.notes ? `<div class="notes">* Catatan: ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="text-center bold" style="font-size:10px;">*** UNTUK KOKI / DAPUR ***</div>
-        </div>
-      `;
+      const kitchenTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || 'KITCHEN') === 'KITCHEN') };
+      if (kitchenTx.items.length > 0) {
+        printJobs.push({ type: 'kitchen', text: buildReceiptText(kitchenTx, outletName, 'kitchen', printerPaperWidth, fmtRp) });
+      }
     }
 
-    // 2. STRUK BAR (BAR TICKET - TANPA HARGA)
     if (selections.printBar) {
-      const barItems = filterItemsForTicketTarget(tx.items || [], 'BAR');
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🍹 STRUK BAR (BAR TICKET)</div>
-            <div class="bold" style="font-size:10px;">*** TAMPIL MINUMAN TANPA HARGA ***</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>QTY  NAMA MINUMAN</span></div>
-          <div class="divider-dash"></div>
-      `;
-      barItems.forEach(it => {
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="bold">${it.qty}x  ${it.name.toUpperCase()}</div>
-            ${it.notes ? `<div class="notes">* Catatan: ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="text-center bold" style="font-size:10px;">*** UNTUK BARTENDER / BAR ***</div>
-        </div>
-      `;
+      const barTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || '') === 'BAR') };
+      if (barTx.items.length > 0) {
+        printJobs.push({ type: 'bar', text: buildReceiptText(barTx, outletName, 'bar', printerPaperWidth, fmtRp) });
+      }
     }
 
-    // 3. STRUK MEJA / BILL (TABLE COPY - DENGAN HARGA)
     if (selections.printTableCopy) {
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">📋 STRUK MEJA / BILL SEMENTARA</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-          <div class="divider-dash"></div>
-      `;
-      (tx.items || []).forEach(it => {
-        const itemLinePrice = (it.price || it.price_unit || 0) * it.qty;
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="row">
-              <span>${it.qty}x ${it.name.toUpperCase()}</span>
-              <span>${formatRupiah(itemLinePrice)}</span>
-            </div>
-            ${it.notes ? `<div class="notes">* ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="row bold" style="font-size:13px;">
-            <span>TOTAL BILL:</span>
-            <span>${formatRupiah(tx.amount || cartTotal)}</span>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="bold text-center" style="font-size: 9px; border: 1px dashed #000; padding: 6px; margin: 8px 0; line-height: 1.35;">
-            Struk ini hanya sebagai informasi tagihan BUKAN BUKTI PEMBAYARAN. Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir
-          </div>
-          <div class="text-center" style="font-size:10px;">Terima kasih atas kunjungan Anda</div>
-        </div>
-      `;
+      printJobs.push({ type: 'bill', text: buildReceiptText(tx, outletName, 'bill', printerPaperWidth, fmtRp) });
     }
 
-    // 4. STRUK COPY KASIR (CASHIER COPY - DENGAN HARGA)
     if (selections.printCashierCopy) {
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🧾 STRUK COPY KASIR (ARSIP LACI)</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-          <div class="divider-dash"></div>
-      `;
-      (tx.items || []).forEach(it => {
-        const itemLinePrice = (it.price || it.price_unit || 0) * it.qty;
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="row">
-              <span>${it.qty}x ${it.name.toUpperCase()}</span>
-              <span>${formatRupiah(itemLinePrice)}</span>
-            </div>
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="row bold" style="font-size:13px;">
-            <span>TOTAL STRUK:</span>
-            <span>${formatRupiah(tx.amount || cartTotal)}</span>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="bold text-center" style="font-size: 9px; border: 1px dashed #000; padding: 6px; margin: 8px 0; line-height: 1.35;">
-            Struk ini hanya sebagai informasi tagihan BUKAN BUKTI PEMBAYARAN. Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir
-          </div>
-          <div class="text-center" style="font-size:10px;">*** ARSIP LACI KASIR ***</div>
-        </div>
-      `;
+      printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp) });
     }
 
-    printHTML += `
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
+    if (printJobs.length === 0) return;
 
-    const printWin = window.open('', '_blank', 'width=450,height=600');
-    if (printWin) {
-      printWin.document.open();
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      window.print();
-    }
-  };
+    // Gabung semua job dengan separator antar tiket
+    const separator = '\n[CUT]\n';
+    const combined = printJobs.map(j => j.text).join(separator);
+
+    await printTextToBluetooth(combined);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
+
+  // CETAK ULANG RIWAYAT TRANSAKSI ke hardware Bluetooth printer
+  const handlePrintSingleReceipt = useCallback(async (tx) => {
+    if (!tx) return;
+    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+    const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp);
+    await printTextToBluetooth(text);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
+
+
+  // LAPORAN SHIFT CLOSING ke hardware Bluetooth printer
+  const handlePrintShiftClosingReport = useCallback(async (shiftData) => {
+    if (!shiftData) return;
+    const outletName = (currentOutlet?.name || shiftData.branch_name || 'MRIS POS').toUpperCase();
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+    const charsPerLine = printerPaperWidth === '80' ? 48 : 32;
+    const div = '-'.repeat(charsPerLine);
+    const divd = '='.repeat(charsPerLine);
+
+    const lines = [
+      '[C][B]' + outletName,
+      '[C]REKAPITULASI SHIFT CLOSING KASIR',
+      '[C][B]REKAP KHUSUS KASIR',
+      div,
+      `No. Laporan : ${shiftData.id || shiftData.report_no || '-'}`,
+      `Tanggal     : ${shiftData.date || ''}`,
+      `Kasir       : ${shiftData.user_name || shiftData.author_name || shiftData.cashier_name || 'Kasir'}`,
+      div,
+      `Modal Awal Kas  : ${fmtRp(shiftData.initial_cash || 0)}`,
+      `Total Struk POS : ${shiftData.total_receipts || shiftData.tx_count || 0} Struk`,
+      '[B]' + `Total Omset     : ${fmtRp(shiftData.gross_sales || shiftData.total_sales || 0)}`,
+      `Penjualan Cash  : ${fmtRp(shiftData.cash_sales || 0)}`,
+      `Non-Cash        : ${fmtRp(shiftData.non_cash_sales || 0)}`,
+      `Pengeluaran     : ${fmtRp(shiftData.total_expense || shiftData.petty_expense || 0)}`,
+      div,
+      '[B]' + `Kas Fisik Laci  : ${fmtRp(shiftData.cash_physical || shiftData.physical_cash || 0)}`,
+      `Selisih Kas     : ${fmtRp(shiftData.variance || 0)}`,
+      divd,
+      '[C]*** HARAP DISIMPAN DI LACI KASIR ***',
+      '',
+      ''
+    ].join('\n');
+
+    await printTextToBluetooth(lines);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
 
   // CHECKOUT / OPEN OCCUPIED TABLE FROM BOARD
   const handleCheckoutOccupiedTable = (table) => {
@@ -1499,16 +1739,47 @@ export default function AndroidPosRegister({
       });
     });
 
+    const isOnlineNow = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const finalTx = {
+      ...newTx,
+      status: isOnlineNow ? 'approved' : 'offline_pending',
+      is_offline_pending: !isOnlineNow
+    };
+
     // Save transaction, stock movements, updated products & customers directly into Web Master Data
-    setMasterData(prev => ({
-      ...prev,
-      _lastUpdated: Date.now(),
-      customers: updatedCustomersList,
-      products: updatedProducts,
-      stockMovement: [...(prev?.stockMovement || []), ...newStockMovements],
-      salesTransactions: [newTx, ...(prev?.salesTransactions || [])],
-      transactions: [newTx, ...(prev?.transactions || [])]
-    }));
+    setMasterData(prev => {
+      const updated = {
+        ...prev,
+        _lastUpdated: Date.now(),
+        customers: updatedCustomersList,
+        products: updatedProducts,
+        stockMovement: [...(prev?.stockMovement || []), ...newStockMovements],
+        salesTransactions: [finalTx, ...(prev?.salesTransactions || [])],
+        transactions: [finalTx, ...(prev?.transactions || [])]
+      };
+
+      // 1. Simpan Instan ke Cache Device (0ms Latency)
+      try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
+
+      // 2. Kirim INSTANT 0ms ke Server VPS & Web Admin jika online
+      if (isOnlineNow) {
+        fetch(getApiUrl('/api/master-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated)
+        }).catch(() => {});
+      } else {
+        // Jika offline, masukkan ke antrean pending
+        try {
+          const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+          const q = qRaw ? JSON.parse(qRaw) : [];
+          q.unshift(finalTx);
+          localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(q));
+        } catch (e) {}
+      }
+
+      return updated;
+    });
 
     // Reset Table status back to Available (Kosong)
     if (orderType === 'Dine In' && selectedTableId) {
@@ -1521,6 +1792,7 @@ export default function AndroidPosRegister({
     setLastCompletedTx(newTx);
     setCart([]);
     setShowReceiptModal(true);
+    handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
 
   // Handle Petty Expense Entry
@@ -1597,494 +1869,377 @@ export default function AndroidPosRegister({
     alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
   };
 
-  // MULTI-STEP PAPAN LOGIN MOBILE APK
+  // PAPAN LOGIN SEDERHANA & RESPONSIF (DATA DINAMIS DARI WEB ADMIN)
   if (!isAppLoggedIn) {
-    const registeredUsers = (masterData?.mobileAccounts && masterData.mobileAccounts.length > 0)
-      ? masterData.mobileAccounts
-      : (masterData?.webAdminAccounts || []);
+    // Kumpulkan semua akun dari masterData (HANYA data real dari Web Admin)
+    const rawUsersList = [
+      ...(masterData?.mobileAccounts || []),
+      ...(masterData?.webAdminAccounts || []),
+      ...(masterData?.userRights || []),
+      ...(masterData?.users || []),
+      ...(masterData?.userAccounts || [])
+    ];
 
-    let step2FilteredUsers = registeredUsers.filter(u => u.status === 'Aktif');
-    if (selectedLoginCategory === 'super_admin') {
-      step2FilteredUsers = registeredUsers.filter(u => u.role === 'Super Admin' && u.status === 'Aktif');
-    } else if (selectedLoginCategory === 'owner') {
-      step2FilteredUsers = registeredUsers.filter(u => u.role === 'Owner' && u.status === 'Aktif');
-    } else if (selectedLoginCategory && selectedLoginCategory.name) {
-      step2FilteredUsers = registeredUsers.filter(u =>
-        (u.outlet === selectedLoginCategory.name || u.outlet === 'Semua Outlet (Central)' || !u.outlet) && u.status === 'Aktif'
-      );
-    }
+    // De-duplikasi berdasarkan ID/username/name
+    const usersMap = new Map();
+    rawUsersList.forEach(u => {
+      if (u && u.name) {
+        const key = String(u.id || u.username || u.name).toLowerCase().trim();
+        if (!usersMap.has(key)) {
+          usersMap.set(key, { ...u, status: u.status || 'Aktif' });
+        }
+      }
+    });
+    const registeredUsers = Array.from(usersMap.values());
+
+    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin
+    const availableOutlets = (() => {
+      const map = new Map();
+
+      (masterData?.outlets || []).forEach(o => {
+        if (o && (o.name || o.branch_name)) {
+          const id = String(o.id || o.outlet_id || Date.now());
+          map.set(id, { id: o.id || id, name: o.name || o.branch_name, code: o.code || 'OUTLET' });
+        }
+      });
+
+      (registeredUsers || []).forEach(u => {
+        const uOut = u.outlet || u.assignedOutlet || u.branch || '';
+        if (uOut && typeof uOut === 'string' && !uOut.toLowerCase().includes('semua') && !uOut.toLowerCase().includes('central')) {
+          const exists = Array.from(map.values()).some(o => o.name.toLowerCase().trim() === uOut.toLowerCase().trim());
+          if (!exists) {
+            const newId = u.outlet_id || u.branch_id || (1000 + map.size);
+            map.set(String(newId), { id: newId, name: uOut.trim(), code: `OUT-${map.size + 1}` });
+          }
+        }
+      });
+
+      return Array.from(map.values());
+    })();
+
+    const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
+    const activeOutletName = String(activeOutletObj?.name || '').toLowerCase().trim();
+    const activeOutletId = String(activeOutletObj?.id || '').toLowerCase().trim();
+
+    const filteredUsersForOutlet = activeOutletObj ? registeredUsers.filter(u => {
+      const uOutlet = String(u.outlet || u.assignedOutlet || u.outlet_name || u.branch || '').toLowerCase().trim();
+      const uOutletId = String(u.outlet_id || u.outletId || '').toLowerCase().trim();
+      const uRole = String(u.role || '').toLowerCase();
+
+      const isCentral = !uOutlet || uOutlet.includes('semua outlet') || uOutlet.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
+      const isMatch = isCentral || uOutlet.includes(activeOutletName) || activeOutletName.includes(uOutlet) || (uOutletId && uOutletId === activeOutletId);
+      return isMatch;
+    }) : registeredUsers;
+
+    const displayUsers = filteredUsersForOutlet.length > 0 ? filteredUsersForOutlet : registeredUsers;
+    const activeSelectedUser = selectedUserAccount || displayUsers[0] || null;
+
+    const handleDirectLogin = (userObj, outletObj) => {
+      setLoginErrorText('');
+      const selectedUser = userObj || activeSelectedUser;
+
+      if (!selectedUser) {
+        setLoginErrorText('❌ Tidak ada pengguna yang dipilih. Tambahkan akun di Web Admin → Pengaturan.');
+        return;
+      }
+
+      const userRole = String(selectedUser.role || '').toLowerCase();
+      const userOutletStr = String(selectedUser.outlet || selectedUser.assignedOutlet || '').toLowerCase();
+      const isCentralUser = userOutletStr.includes('semua outlet') || userOutletStr.includes('central') || userRole.includes('super admin') || userRole.includes('owner');
+
+      let selectedOutlet = outletObj || activeOutletObj;
+
+      if (!selectedOutlet) {
+        if (isCentralUser) {
+          selectedOutlet = { id: 'central', name: 'Semua Outlet (Central)' };
+        } else {
+          setLoginErrorText('❌ Pilih outlet terlebih dahulu sebelum masuk.');
+          return;
+        }
+      }
+
+      const validPassword = String(
+        selectedUser?.mobileLoginPassword ||
+        selectedUser?.password ||
+        selectedUser?.pin ||
+        selectedUser?.mobileReportPassword ||
+        ''
+      ).trim();
+
+      const enteredPassword = String(loginPasswordInput || '').trim();
+
+      if (validPassword) {
+        if (!enteredPassword) {
+          setLoginErrorText(`❌ Masukkan PIN / Password untuk ${selectedUser.name}.`);
+          return;
+        }
+        if (enteredPassword !== validPassword) {
+          setLoginErrorText(`❌ PIN / Password Salah! Password untuk "${selectedUser.name}" tidak sesuai.`);
+          return;
+        }
+      }
+
+      setCurrentUserSession({
+        id: selectedUser.id || null,
+        name: selectedUser.name || 'Kasir POS',
+        role: selectedUser.role || 'Kasir',
+        outlet: selectedOutlet.name || '',
+        outlet_id: selectedOutlet.id || null,
+        username: selectedUser.username || '',
+        canAccessMobileReports: selectedUser.canAccessMobileReports === true,
+        mobileReportPassword: selectedUser.mobileReportPassword || ''
+      });
+      if (selectedOutlet.id !== 'central') {
+        setSelectedBranch(selectedOutlet.id);
+      }
+      setLoginPasswordInput('');
+      setLoginErrorText('');
+      setIsAppLoggedIn(true);
+    };
 
     return (
-      <div style={{ minHeight: '100vh', width: '100vw', background: '#090d16', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '880px', background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '36px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)' }}>
-          {/* BRANDING HEADER & STEP INDICATOR */}
-          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60a5fa', padding: '6px 18px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '900', marginBottom: '12px' }}>
-              <Store size={16} />
-              <span>POS RESTAURANT MULTI-BRANCH SYSTEM (MOBILE APK)</span>
+      <div style={{ minHeight: '100vh', width: '100vw', background: 'radial-gradient(circle at top, #1e293b 0%, #090d16 100%)', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: '440px', background: 'rgba(17, 24, 39, 0.95)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '24px', padding: '28px 20px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', backdropFilter: 'blur(16px)' }}>
+
+          {/* HEADER LOGO & JUDUL */}
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
+              border: '2.5px solid #facc15',
+              boxShadow: '0 0 20px rgba(250,204,21,0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 10px'
+            }}>
+              <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#facc15' }}>MRIS</span>
             </div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-              {loginStep === 1 && '🔑 Papan Login Akses Restoran'}
-              {loginStep === '2A' && '🏛️ Akses Manajemen Pusat'}
-              {loginStep === '2B' && '🏪 Pilih Outlet Cabang Restoran'}
-              {(loginStep === 2 || loginStep === 3) && '👥 Pilih Nama User (Pengguna)'}
-              {loginStep === 4 && '🔐 Autentikasi Username & Password'}
-            </h1>
-            <p style={{ fontSize: '0.84rem', color: '#94a3b8', marginTop: '6px' }}>
-              {loginStep === 1 && 'Halaman 1: Pilih Kategori Akses (Manajemen Pusat vs Outlet Cabang)'}
-              {loginStep === '2A' && 'Halaman 2: Pilih Peran Manajemen (Super Admin, Owner, Admin)'}
-              {loginStep === '2B' && 'Halaman 2: Pilih Cabang Restoran dari Data Master'}
-              {(loginStep === 2 || loginStep === 3) && 'Halaman 3: Daftar Akun Pengguna Terdaftar'}
-              {loginStep === 4 && 'Halaman 4: Masukkan Username & Password Hak User'}
+
+            <h2 style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+              🔑 Login POS Mobile Kasir
+            </h2>
+            <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
+              Pilih Pengguna &amp; Outlet Terdaftar di Web Admin
             </p>
           </div>
 
-          {/* =================================================================== */}
-          {/* STEP 1: HALAMAN PERTAMA (2 PILIHAN UTAMA: MANAJEMEN VS OUTLET)      */}
-          {/* =================================================================== */}
-          {loginStep === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '640px', margin: '0 auto' }}>
-              <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>
-                Silakan Pilih Kategori Akses Masuk:
-              </div>
+          {/* FORM USER & OUTLET SELECTION */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                {/* 1. MANAJEMEN PUSAT */}
-                <div
-                  onClick={() => {
-                    setSelectedLoginCategory('management');
-                    setLoginStep('2A');
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(126,34,206,0.25) 100%)',
-                    border: '2px solid #a855f7',
-                    borderRadius: '24px',
-                    padding: '36px 20px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 8px 24px rgba(168,85,247,0.2)'
-                  }}
-                  className="hover:scale-[1.02]"
-                >
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(168,85,247,0.3)', border: '2px solid #c084fc', color: '#e9d5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                    <ShieldCheck size={38} />
-                  </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                    🏢 MANAJEMEN PUSAT
-                  </h3>
-                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(168,85,247,0.3)', color: '#c084fc', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block' }}>
-                    Central Management
-                  </span>
-                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4' }}>
-                    Akses Super Admin, Owner Pemilik &amp; Admin Operasional
-                  </p>
-                </div>
-
-                {/* 2. OUTLET CABANG */}
-                <div
-                  onClick={() => {
-                    setSelectedLoginCategory('outlet');
-                    setLoginStep('2B');
-                  }}
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(16,185,129,0.25) 100%)',
-                    border: '2px solid #2563eb',
-                    borderRadius: '24px',
-                    padding: '36px 20px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 8px 24px rgba(37,99,235,0.2)'
-                  }}
-                  className="hover:scale-[1.02]"
-                >
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'rgba(37,99,235,0.3)', border: '2px solid #60a5fa', color: '#93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                    <Store size={38} />
-                  </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                    🏪 OUTLET CABANG
-                  </h3>
-                  <span style={{ fontSize: '0.74rem', fontWeight: '900', background: 'rgba(37,99,235,0.3)', color: '#60a5fa', padding: '4px 12px', borderRadius: '8px', marginTop: '10px', display: 'inline-block' }}>
-                    Resto Branch Access
-                  </span>
-                  <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '12px', lineHeight: '1.4' }}>
-                    Pilih Cabang Restoran dari Halaman Data Master
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 2A: MANAJEMEN PUSAT (SUPER ADMIN, OWNER, ADMIN)                */}
-          {/* =================================================================== */}
-          {loginStep === '2A' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '680px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setLoginStep(1)}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <span>⬅️ Kembali Ke Pilihan Akses</span>
-                </button>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#c084fc', background: 'rgba(168,85,247,0.15)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(168,85,247,0.3)' }}>
-                  Kategori: <strong>🏢 MANAJEMEN PUSAT</strong>
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                {/* SUPER ADMIN */}
-                <div
-                  onClick={() => {
-                    setSelectedLoginCategory('super_admin');
-                    setLoginStep(2);
-                  }}
-                  style={{ background: '#1f2937', border: '2px solid #a855f7', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer' }}
-                >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(168,85,247,0.25)', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem' }}>
-                    👑
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>Super Admin</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>Hak akses penuh seluruh sistem</p>
-                </div>
-
-                {/* OWNER */}
-                <div
-                  onClick={() => {
-                    setSelectedLoginCategory('owner');
-                    setLoginStep(2);
-                  }}
-                  style={{ background: '#1f2937', border: '2px solid #f59e0b', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer' }}
-                >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(245,158,11,0.25)', color: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem' }}>
-                    💼
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>Owner / Pemilik</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>Laporan Laba Rugi &amp; Performa</p>
-                </div>
-
-                {/* ADMIN */}
-                <div
-                  onClick={() => {
-                    setSelectedLoginCategory('admin');
-                    setLoginStep(2);
-                  }}
-                  style={{ background: '#1f2937', border: '2px solid #38bdf8', borderRadius: '20px', padding: '24px 16px', textAlign: 'center', cursor: 'pointer' }}
-                >
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56,189,248,0.25)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '1.6rem' }}>
-                    🏢
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>Admin Operasional</h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>Master Data &amp; Approval Jurnal</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 2B: OUTLET CABANG (NAMA OUTLET DARI DATA MASTER)               */}
-          {/* =================================================================== */}
-          {loginStep === '2B' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '680px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setLoginStep(1)}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <span>⬅️ Kembali Ke Pilihan Akses</span>
-                </button>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(56,189,248,0.3)' }}>
-                  Kategori: <strong>🏪 OUTLET CABANG</strong>
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                {(masterData?.outlets || defaultOutlets).map((outlet, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      setSelectedLoginCategory(outlet);
-                      setLoginStep(2);
-                    }}
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(37,99,235,0.15) 0%, rgba(29,78,216,0.25) 100%)',
-                      border: '2px solid #2563eb',
-                      borderRadius: '20px',
-                      padding: '24px 20px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '16px',
-                      transition: 'all 0.2s ease'
-                    }}
-                    className="hover:scale-[1.02]"
-                  >
-                    <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(37,99,235,0.3)', border: '1px solid #60a5fa', color: '#93c5fd', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Store size={28} />
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                        {outlet.name}
-                      </h3>
-                      <span style={{ fontSize: '0.72rem', color: '#60a5fa', fontWeight: '800', marginTop: '4px', display: 'block' }}>
-                        Cabang Terdaftar #{outlet.id || idx + 1}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 2: PILIHAN NAMA USER (PENGGUNA TERDAFTAR HAK USER)             */}
-          {/* =================================================================== */}
-          {loginStep === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedLoginCategory === 'super_admin' || selectedLoginCategory === 'owner' || selectedLoginCategory === 'admin') {
-                      setLoginStep('2A');
-                    } else {
-                      setLoginStep('2B');
-                    }
-                  }}
-                  style={{ padding: '10px 18px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <span>⬅️ Kembali</span>
-                </button>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '6px 14px', borderRadius: '10px' }}>
-                  Akses Dipilih: <strong style={{ color: '#38bdf8' }}>{selectedLoginCategory === 'super_admin' ? 'Super Admin' : selectedLoginCategory === 'owner' ? 'Owner' : selectedLoginCategory === 'admin' ? 'Admin Operasional' : selectedLoginCategory?.name || 'Cabang Resto'}</strong>
-                </span>
-              </div>
-
-              {step2FilteredUsers.length === 0 ? (
-                <div style={{ background: '#1f2937', padding: '40px', borderRadius: '20px', textAlign: 'center', color: '#94a3b8' }}>
-                  <Users size={48} style={{ marginBottom: '12px', color: '#60a5fa' }} />
-                  <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#ffffff' }}>Belum Ada Akun Pengguna Aktif</div>
-                  <div style={{ fontSize: '0.80rem', marginTop: '6px' }}>Tambahkan user baru di Web Admin ➔ Settings ➔ Hak User.</div>
+            {/* 1. PILIH OUTLET */}
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                🏪 Pilih Outlet Cabang:
+              </label>
+              {availableOutlets.length === 0 ? (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1.5px solid #10b981',
+                  borderRadius: '12px',
+                  padding: '10px 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  color: '#34d399',
+                  textAlign: 'center'
+                }}>
+                  ✅ Akses Outlet Central — Super Admin / Owner
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                  {step2FilteredUsers.map((u) => {
-                    let roleBadgeColor = '#818cf8';
-                    let roleBgColor = 'rgba(99,102,241,0.15)';
-                    if (u.role === 'Super Admin') { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
-                    else if (u.role === 'Owner') { roleBadgeColor = '#fbbf24'; roleBgColor = 'rgba(251,191,36,0.2)'; }
-                    else if (u.role === 'Admin') { roleBadgeColor = '#38bdf8'; roleBgColor = 'rgba(56,189,248,0.2)'; }
-                    else if (u.role === 'Kasir') { roleBadgeColor = '#34d399'; roleBgColor = 'rgba(52,211,153,0.2)'; }
-                    else if (u.role === 'Kepala Cabang') { roleBadgeColor = '#f472b6'; roleBgColor = 'rgba(244,114,182,0.2)'; }
-                    else if (u.role === 'SPV') { roleBadgeColor = '#fb923c'; roleBgColor = 'rgba(251,146,60,0.2)'; }
-                    else if (u.role === 'Logistik') { roleBadgeColor = '#a78bfa'; roleBgColor = 'rgba(167,139,250,0.2)'; }
-
-                    return (
-                      <div
-                        key={u.id}
-                        onClick={() => {
-                          setSelectedUserAccount(u);
-                          setLoginUsernameInput(u.username || '');
-                          setLoginPasswordInput('');
-                          setLoginErrorText('');
-                          setLoginStep(4);
-                        }}
-                        style={{
-                          background: '#1f2937',
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          borderRadius: '18px',
-                          padding: '24px 16px',
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '12px'
-                        }}
-                      >
-                        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: roleBgColor, border: `2px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.25rem' }}>
-                          {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                        </div>
-                        <div>
-                          <h4 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                            {u.name}
-                          </h4>
-                          <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px', display: 'block', fontFamily: 'monospace' }}>
-                            @{u.username}
-                          </span>
-                        </div>
-
-                        <span style={{
-                          padding: '4px 12px',
-                          borderRadius: '10px',
-                          fontSize: '0.76rem',
-                          fontWeight: '900',
-                          background: roleBgColor,
-                          color: roleBadgeColor,
-                          border: `1px solid ${roleBadgeColor}`
-                        }}>
-                          Peran: {u.role}
-                        </span>
-
-                        <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: '800' }}>
-                          🟢 Akun Aktif
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* =================================================================== */}
-          {/* STEP 4: INPUT USERNAME & PASSWORD HAK USER                           */}
-          {/* =================================================================== */}
-          {(loginStep === 3 || loginStep === 4) && selectedUserAccount && (
-            <div style={{ maxWidth: '460px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setLoginStep(2)}
-                  style={{ padding: '8px 16px', background: '#1f2937', border: '1px solid #374151', color: '#38bdf8', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span>⬅️ Pilih User Lain</span>
-                </button>
-              </div>
-
-              {/* CARD PREVIEW AKUN PENGGUNA */}
-              <div style={{ background: '#1f2937', padding: '24px', borderRadius: '20px', border: '1px solid #374151', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'rgba(37,99,235,0.2)', border: '2px solid #38bdf8', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.5rem' }}>
-                  {selectedUserAccount.name ? selectedUserAccount.name.charAt(0).toUpperCase() : 'U'}
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                    {selectedUserAccount.name}
-                  </h3>
-                  <div style={{ fontSize: '0.80rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Peran: <strong style={{ color: '#38bdf8' }}>{selectedUserAccount.role}</strong> • {selectedUserAccount.outlet || 'Central Outlet'}
-                  </div>
-                </div>
-              </div>
-
-              {loginErrorText && (
-                <div style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', color: '#fca5a5', padding: '12px 16px', borderRadius: '14px', fontSize: '0.84rem', fontWeight: '800', textAlign: 'center' }}>
-                  {loginErrorText}
-                </div>
-              )}
-
-              {/* FORM INPUT USERNAME & PASSWORD */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-
-                  if (selectedUserAccount.canLoginMobile === false) {
-                    setLoginErrorText(`⚠️ Akses Ditolak! Akun user (${selectedUserAccount.name}) tidak memiliki Hak Akses Login Mobile APK. Hubungi Admin Web.`);
-                    return;
-                  }
-
-                  const validMobilePassword = selectedUserAccount.mobileLoginPassword || selectedUserAccount.password || '123';
-
-                  if (
-                    loginUsernameInput.trim().toLowerCase() === (selectedUserAccount.username || '').toLowerCase() &&
-                    (loginPasswordInput === validMobilePassword || loginPasswordInput === selectedUserAccount.password || loginPasswordInput === '1234' || loginPasswordInput === '888' || loginPasswordInput === '999')
-                  ) {
-                    setCurrentUserSession({
-                      id: selectedUserAccount.id,
-                      name: selectedUserAccount.name,
-                      role: selectedUserAccount.role,
-                      outlet: selectedUserAccount.outlet || 'Kopi MRIS - Cabang Jakarta Pusat',
-                      username: selectedUserAccount.username,
-                      canAccessMobileReports: selectedUserAccount.canAccessMobileReports !== false,
-                      mobileReportPassword: selectedUserAccount.mobileReportPassword || '8888'
-                    });
-                    if (selectedUserAccount.outlet && selectedUserAccount.outlet !== 'Semua Outlet (Central)') {
-                      const matchedOutlet = (masterData?.outlets || defaultOutlets).find(o => o.name === selectedUserAccount.outlet);
-                      if (matchedOutlet) setCurrentOutlet(matchedOutlet);
-                    }
-                    setIsAppLoggedIn(true);
-                  } else {
-                    setLoginErrorText('⚠️ Username atau Password Salah! Silakan cek kembali data Hak User.');
-                  }
-                }}
-                style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
-              >
-                <div>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
-                    Username Akses:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={loginUsernameInput}
-                    onChange={e => {
-                      setLoginUsernameInput(e.target.value);
+                <select
+                  value={activeOutletObj?.id || 'ALL'}
+                  onChange={(e) => {
+                    const val = String(e.target.value);
+                    if (val === 'ALL') {
+                      setLoginSelectedOutlet({ id: 'ALL', name: 'Akses Semua Outlet (Central)', code: 'ALL' });
                       setLoginErrorText('');
-                    }}
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: '12px', border: '1px solid #374151', background: '#090d16', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.95rem', fontWeight: '700' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
-                    Password Hak User:
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type={showLoginPasswordEye ? 'text' : 'password'}
-                      required
-                      placeholder="Masukkan Password..."
-                      value={loginPasswordInput}
-                      onChange={e => {
-                        setLoginPasswordInput(e.target.value);
+                    } else {
+                      const found = availableOutlets.find(o => String(o.id) === val);
+                      if (found) {
+                        setLoginSelectedOutlet(found);
                         setLoginErrorText('');
-                      }}
-                      style={{ width: '100%', padding: '12px 42px 12px 14px', borderRadius: '12px', border: '1px solid #374151', background: '#090d16', color: '#ffffff', fontSize: '0.95rem' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
-                    >
-                      {showLoginPasswordEye ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn-primary"
+                      }
+                    }
+                  }}
                   style={{
                     width: '100%',
-                    padding: '14px',
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#f8fafc',
                     borderRadius: '12px',
-                    fontSize: '0.95rem',
-                    fontWeight: '900',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
-                    marginTop: '8px'
+                    padding: '12px',
+                    fontSize: '0.90rem',
+                    fontWeight: '800',
+                    boxSizing: 'border-box'
                   }}
                 >
-                  <ShieldCheck size={20} />
-                  <span>🚀 Otentikasi &amp; Masuk Ke POS Mobile</span>
-                </button>
-              </form>
+                  <option value="ALL">🌐 Akses Semua Outlet (Central)</option>
+                  {availableOutlets.map(o => (
+                    <option key={o.id} value={o.id}>
+                      📍 {o.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
-          )}
+
+            {/* 2. PILIH AKUN PENGGUNA */}
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                👤 Pilih Nama Pengguna (User):
+              </label>
+              <select
+                value={activeSelectedUser?.id || ''}
+                onChange={(e) => {
+                  const found = registeredUsers.find(u => String(u.id) === String(e.target.value));
+                  if (found) {
+                    setSelectedUserAccount(found);
+                    setLoginUsernameInput(found.username || '');
+                    setLoginPasswordInput('');
+                    setLoginErrorText('');
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: '#1e293b',
+                  border: registeredUsers.length === 0 ? '1.5px solid #f59e0b' : '1px solid #334155',
+                  color: '#38bdf8',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  fontSize: '0.90rem',
+                  fontWeight: '800',
+                  boxSizing: 'border-box'
+                }}
+              >
+                {registeredUsers.length === 0 ? (
+                  <option value="">— Belum ada pengguna. Tambahkan di Web Admin —</option>
+                ) : (
+                  displayUsers.map(u => (
+                    <option key={u.id} value={u.id}>
+                      👤 {u.name} ({u.role || 'Kasir'}){u.outlet && !String(u.outlet).toLowerCase().includes('semua outlet') ? ` — ${u.outlet}` : ''}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {/* 3. INPUT PASSWORD / PIN WITH EYE TOGGLE */}
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                🔑 PIN / Password:
+              </label>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={showLoginPasswordEye ? 'text' : 'password'}
+                  value={loginPasswordInput}
+                  onChange={(e) => {
+                    setLoginPasswordInput(e.target.value);
+                    setLoginErrorText('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDirectLogin(activeSelectedUser, activeOutletObj);
+                  }}
+                  placeholder="Masukkan Password PIN..."
+                  style={{
+                    width: '100%',
+                    background: '#1e293b',
+                    border: loginErrorText ? '1.5px solid #ef4444' : '1px solid #334155',
+                    color: '#f8fafc',
+                    borderRadius: '12px',
+                    padding: '12px 42px 12px 12px',
+                    fontSize: '0.95rem',
+                    fontWeight: '700',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    padding: '4px'
+                  }}
+                >
+                  {showLoginPasswordEye ? '👁️' : '🙈'}
+                </button>
+              </div>
+            </div>
+
+            {/* PESAN ERROR */}
+            {loginErrorText && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1.5px solid #ef4444',
+                color: '#fca5a5',
+                padding: '10px 12px',
+                borderRadius: '12px',
+                fontSize: '0.82rem',
+                fontWeight: '800',
+                textAlign: 'center'
+              }}>
+                {loginErrorText}
+              </div>
+            )}
+
+            {/* TOMBOL MASUK */}
+            <button
+              type="button"
+              onClick={() => handleDirectLogin(activeSelectedUser, activeOutletObj)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                color: 'var(--pos-txt-primary)',
+                borderRadius: '14px',
+                fontWeight: '900',
+                fontSize: '1.05rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(16,185,129,0.4)',
+                marginTop: '8px',
+                touchAction: 'manipulation'
+              }}
+            >
+              🚀 MASUK KE MENU KASIR POS
+            </button>
+
+            {/* INFO STATUS KONEKSI & AKUN */}
+            <div style={{ marginTop: '16px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+              <div style={{ fontSize: '0.73rem', color: '#64748b', textAlign: 'center', lineHeight: '1.6' }}>
+                {registeredUsers.length > 0 ? (
+                  <span style={{ color: '#34d399' }}>
+                    ✅ {registeredUsers.length} akun &amp; {availableOutlets.length} outlet terdeteksi dari server
+                  </span>
+                ) : (
+                  <span style={{ color: '#f59e0b' }}>
+                    ⚠️ Belum ada akun pengguna atau outlet.<br />
+                    Silakan tambahkan di <strong>Web Admin → Pengaturan</strong> terlebih dahulu.
+                  </span>
+                )}
+              </div>
+            </div>
+
+          </div>
+
         </div>
       </div>
     );
   }
 
   const filteredItems = menuList.filter(item => {
-    let matchesCat = activeCategory === 'Semua' || item.category === activeCategory;
+    const itemCatName = getProductCategoryName(item);
+    let matchesCat = activeCategory === 'Semua' || itemCatName.toLowerCase() === activeCategory.toLowerCase();
     if (activeCategory === '🔥 Sering Diorder') {
       const hasPopular = menuList.some(i => i.isPopular || i.is_popular || i.isFavorite);
       matchesCat = hasPopular ? !!(item.isPopular || item.is_popular || item.isFavorite) : true;
@@ -2094,7 +2249,11 @@ export default function AndroidPosRegister({
   });
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: '#0f172a', color: '#f8fafc', fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
+    <div
+      data-theme={appTheme}
+      className="pos-wrapper"
+      style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: T.bgApp, color: T.txtPrimary, fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
+    >
 
       {/* =================================================================== */}
       {/* 1. FAR LEFT VERTICAL NAVIGATION SIDEBAR (DARK SLATE BLUE THEME)     */}
@@ -2102,21 +2261,36 @@ export default function AndroidPosRegister({
       <aside style={{
         width: '78px',
         flexShrink: 0,
-        background: '#0b1329',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        background: T.bgSidebar,
+        borderRight: `1px solid ${T.borderSidebar}`,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justify: 'space-between',
         padding: '12px 0',
-        zIndex: 20
+        zIndex: 20,
+        boxShadow: isLight ? '2px 0 12px rgba(0,0,0,0.15)' : 'none'
       }}>
         {/* Top Logo / Outlet Badge */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.95rem', color: '#ffffff', boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
-            POS
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+            border: '2px solid #60a5fa',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: '900',
+            fontSize: '0.90rem',
+            color: 'var(--pos-txt-primary)',
+            letterSpacing: '1px',
+            boxShadow: '0 0 16px rgba(56,189,248,0.5), inset 0 0 10px rgba(255,255,255,0.3)'
+          }}>
+            MRIS
           </div>
-          <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#60a5fa', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#bfdbfe', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             {currentOutlet.name}
           </div>
         </div>
@@ -2152,9 +2326,9 @@ export default function AndroidPosRegister({
                   width: '64px',
                   height: '54px',
                   borderRadius: '12px',
-                  background: isActive ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'transparent',
+                  background: isActive ? T.bgSidebarActive : 'transparent',
                   border: 'none',
-                  color: isActive ? '#ffffff' : '#93c5fd',
+                  color: isActive ? '#ffffff' : T.txtSidebarIcon,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -2162,7 +2336,7 @@ export default function AndroidPosRegister({
                   gap: '3px',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  boxShadow: isActive ? '0 4px 12px rgba(37,99,235,0.3)' : 'none'
+                  boxShadow: isActive ? '0 4px 12px rgba(37,99,235,0.35)' : 'none'
                 }}
               >
                 {showSyncDot && (
@@ -2193,13 +2367,13 @@ export default function AndroidPosRegister({
             width: '64px',
             height: '50px',
             borderRadius: '12px',
-            background: activeNavTab === 'pos_settings' ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'transparent',
+            background: activeNavTab === 'pos_settings' ? T.bgSidebarActive : 'transparent',
             border: 'none',
-            color: activeNavTab === 'pos_settings' ? '#ffffff' : '#93c5fd',
+            color: activeNavTab === 'pos_settings' ? '#ffffff' : T.txtSidebarIcon,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justify: 'center',
+            justifyContent: 'center',
             gap: '3px',
             cursor: 'pointer'
           }}
@@ -2218,8 +2392,9 @@ export default function AndroidPosRegister({
         {/* TOP OCEAN BLUE HEADER BAR */}
         <header style={{
           height: '54px',
-          background: '#0f294a',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          background: T.bgHeader,
+          borderBottom: `1px solid ${T.border}`,
+          boxShadow: T.shadow,
           padding: '0 20px',
           display: 'flex',
           alignItems: 'center',
@@ -2227,64 +2402,86 @@ export default function AndroidPosRegister({
           flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <h1 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ffffff', margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <h1 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>MRIS</span>
-              <span style={{ fontSize: '0.65rem', background: '#2563eb', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>POS</span>
+              <span style={{ fontSize: '0.65rem', background: '#2563eb', color: 'var(--pos-txt-white)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>POS</span>
             </h1>
-            <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: '700' }}>| {currentOutlet.name}</span>
+            <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
-
+            {/* THEME TOGGLE BUTTON (MODE GELAP VS MODE TERANG) */}
             <button
-              onClick={() => setActiveNavTab('printer_setting')}
-              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', padding: '5px 12px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              type="button"
+              onClick={() => toggleAppTheme()}
+              style={{
+                background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.1)',
+                border: isLight ? '1.5px solid #cbd5e1' : '1px solid rgba(255,255,255,0.2)',
+                color: isLight ? '#0f172a' : '#ffffff',
+                padding: '5px 12px',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: isLight ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
+              }}
+              title="Ganti Tema Tampilan (Mode Terang vs Mode Gelap)"
             >
-              <Printer size={15} />
-              <span>Setting Printer</span>
+              {isLight ? <span>☀️ Mode Terang</span> : <span>🌙 Mode Gelap</span>}
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)' }}>
-              <span style={{ fontSize: '0.78rem', color: '#f8fafc', fontWeight: '800' }}>
+
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.bgBadgeUser, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.borderSubtle}` }}>
+              <span style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '800' }}>
                 👤 {currentUserSession?.name || 'Kasir'} ({currentUserSession?.role || 'Kasir'})
               </span>
             </div>
 
             <button
               onClick={() => {
-                if (onLogout) {
-                  onLogout();
-                } else {
+                if (window.confirm('Yakin ingin keluar dari akun ini?')) {
+                  // Reset semua state login secara lengkap
                   setIsAppLoggedIn(false);
                   setLoginStep(1);
+                  setSelectedLoginCategory(null);
+                  setLoginSelectedOutlet(null);
+                  setSelectedUserAccount(null);
+                  setLoginPasswordInput('');
+                  setLoginUsernameInput('');
+                  setLoginErrorText('');
+                  setCurrentUserSession(null);
                 }
               }}
               style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(248,113,113,0.4)', color: '#fca5a5', padding: '5px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <User size={15} />
-              <span>🚪 Keluar dari Akun</span>
+              <span>🚪 Keluar</span>
             </button>
           </div>
         </header>
 
 
         {/* MAIN VIEW AREA (BERDASARKAN TAB NAVIGASI) */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: T.bgApp }}>
           {activeNavTab === 'kasir' && (
             <div style={{ flex: 1, display: 'flex', width: '100%' }}>
 
               {/* ----------------------------------------------------------- */}
               {/* LEFT CATALOG PANEL (PRODUCTS CATALOG - 60% WIDTH)            */}
               {/* ----------------------------------------------------------- */}
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(255,255,255,0.08)', background: '#0f172a', boxSizing: 'border-box' }}>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: `1px solid ${T.border}`, background: T.bgApp, boxSizing: 'border-box' }}>
 
                 {/* Catalog Header: Title + Search & Barcode Scanner */}
-                <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b' }}>
+                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bgSurface }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Grid size={19} color="#a78bfa" />
-                    <span style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>
-                      Semua <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: '700' }}>({filteredItems.length})</span>
+                    <Grid size={19} color={isLight ? '#7c3aed' : '#a78bfa'} />
+                    <span style={{ fontSize: '0.95rem', fontWeight: '900', color: T.txtPrimary }}>
+                      Semua <span style={{ fontSize: '0.82rem', color: T.txtSecondary, fontWeight: '700' }}>({filteredItems.length})</span>
                     </span>
                   </div>
 
@@ -2295,15 +2492,15 @@ export default function AndroidPosRegister({
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="Cari menu / scan..."
-                        style={{ width: '100%', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '6px 10px 6px 32px', color: '#ffffff', fontSize: '0.82rem', outline: 'none' }}
+                        style={{ width: '100%', background: T.bgInput, border: `1px solid ${T.borderSubtle}`, borderRadius: '8px', padding: '6px 10px 6px 32px', color: T.txtPrimary, fontSize: '0.82rem', outline: 'none' }}
                       />
-                      <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '10px', top: '8px' }} />
+                      <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '10px', top: '8px' }} />
                     </div>
                   </div>
                 </div>
 
                 {/* Category Filters Carousel Row */}
-                <div style={{ padding: '10px 16px', background: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '8px', overflowX: 'auto' }}>
+                <div style={{ padding: '10px 16px', background: T.bgSurface, borderBottom: `1px solid ${T.border}`, display: 'flex', gap: '8px', overflowX: 'auto' }}>
                   {categories.map(cat => {
                     const isAct = activeCategory === cat;
                     return (
@@ -2313,9 +2510,9 @@ export default function AndroidPosRegister({
                         style={{
                           padding: '6px 14px',
                           borderRadius: '8px',
-                          border: isAct ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.1)',
-                          background: isAct ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#1e293b',
-                          color: isAct ? '#ffffff' : '#94a3b8',
+                          border: isAct ? '1px solid #60a5fa' : `1px solid ${T.borderSubtle}`,
+                          background: isAct ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : T.bgCard,
+                          color: isAct ? '#ffffff' : T.txtSecondary,
                           fontWeight: '800',
                           fontSize: '0.78rem',
                           whiteSpace: 'nowrap',
@@ -2330,7 +2527,7 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* Product Grid */}
-                <div style={{ flex: 1, padding: '16px', overflowY: 'auto', background: '#0f172a' }}>
+                <div style={{ flex: 1, padding: '16px', overflowY: 'auto', background: T.bgApp }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: '12px' }}>
                     {filteredItems.map(item => {
                       const activeOutletId = currentOutlet?.id || 1;
@@ -2344,9 +2541,9 @@ export default function AndroidPosRegister({
                           key={item.id}
                           onClick={() => handleProductCardClick(item)}
                           style={{
-                            background: '#1e293b',
+                            background: T.bgCard,
                             borderRadius: '12px',
-                            border: '1px solid rgba(255,255,255,0.08)',
+                            border: `1px solid ${T.border}`,
                             overflow: 'hidden',
                             cursor: 'pointer',
                             display: 'flex',
@@ -2360,7 +2557,7 @@ export default function AndroidPosRegister({
                           <div style={{ height: '90px', background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                             <ShoppingBag size={28} color="#60a5fa" style={{ opacity: 0.7 }} />
                             {item.variants && item.variants.length > 0 && (
-                              <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(37,99,235,0.9)', color: '#ffffff', fontSize: '0.58rem', fontWeight: '800', padding: '2px 6px', borderRadius: '4px' }}>
+                              <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(37,99,235,0.9)', color: 'var(--pos-txt-white)', fontSize: '0.58rem', fontWeight: '800', padding: '2px 6px', borderRadius: '4px' }}>
                                 VARIAN
                               </div>
                             )}
@@ -2368,10 +2565,10 @@ export default function AndroidPosRegister({
 
                           {/* Item Info */}
                           <div style={{ padding: '8px 10px' }}>
-                            <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
                               {item.name}
                             </div>
-                            <div style={{ fontSize: '0.80rem', fontWeight: '900', color: '#38bdf8', marginTop: '4px' }}>
+                            <div style={{ fontSize: '0.80rem', fontWeight: '900', color: isLight ? '#0284c7' : '#38bdf8', marginTop: '4px' }}>
                               {formatRupiah(displayPrice)}
                             </div>
                           </div>
@@ -2386,17 +2583,17 @@ export default function AndroidPosRegister({
               {/* ----------------------------------------------------------- */}
               {/* RIGHT CHECKOUT PANEL (CART REGISTER & SUMMARY - FIXED 380PX) */}
               {/* ----------------------------------------------------------- */}
-              <div style={{ width: '380px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#1e293b', boxSizing: 'border-box' }}>
+              <div style={{ width: '380px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: T.bgSurface, boxSizing: 'border-box', borderLeft: `1px solid ${T.border}` }}>
 
                 {/* Top 3 Action Tabs: ORDER | TABLE | MORE */}
-                <div style={{ display: 'flex', background: '#0b1329', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', background: T.bgSidebar, borderBottom: `1px solid ${T.borderSidebar}` }}>
                   <button
                     onClick={() => setRightPanelSubTab('ORDER')}
                     style={{
                       flex: 1,
                       padding: '12px 0',
                       background: rightPanelSubTab === 'ORDER' ? '#2563eb' : 'transparent',
-                      color: '#ffffff',
+                      color: rightPanelSubTab === 'ORDER' ? '#ffffff' : T.txtSidebarIcon,
                       border: 'none',
                       fontWeight: '800',
                       fontSize: '0.85rem',
@@ -2414,7 +2611,7 @@ export default function AndroidPosRegister({
                       flex: 1,
                       padding: '12px 0',
                       background: rightPanelSubTab === 'TABLE' ? '#2563eb' : 'transparent',
-                      color: '#ffffff',
+                      color: rightPanelSubTab === 'TABLE' ? '#ffffff' : T.txtSidebarIcon,
                       border: 'none',
                       fontWeight: '800',
                       fontSize: '0.85rem',
@@ -2429,7 +2626,7 @@ export default function AndroidPosRegister({
                       flex: 1,
                       padding: '12px 0',
                       background: rightPanelSubTab === 'MORE' ? '#f43f5e' : '#2563eb',
-                      color: '#ffffff',
+                      color: 'var(--pos-txt-primary)',
                       border: 'none',
                       fontWeight: '800',
                       fontSize: '0.85rem',
@@ -2441,14 +2638,14 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* Cart Sub-Header Meta Bar */}
-                <div style={{ padding: '10px 16px', background: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#cbd5e1' }}>#Pesanan Baru</span>
+                <div style={{ padding: '10px 16px', background: T.bgApp, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtSecondary }}>#Pesanan Baru</span>
                   <button
                     onClick={() => {
                       setCustomerSearchQuery('');
                       setShowCustomerSearchModal(true);
                     }}
-                    style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    style={{ background: 'none', border: 'none', color: isLight ? '#1d4ed8' : '#60a5fa', fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
                     <User size={14} />
                     <span>👤 {selectedCustomer || 'Pilih Pelanggan'}</span>
@@ -2456,18 +2653,18 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* Dine In Info Bar */}
-                <div style={{ padding: '8px 16px', background: '#1e293b', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ padding: '8px 16px', background: T.bgCard, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtSecondary, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span>🪑</span>
                       <span>Table {selectedTableObj?.number || '01'}</span>
                     </div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <User size={13} />
                       <span>{guestCount}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', background: '#0f172a', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', gap: '4px', background: T.bgApp, padding: '3px', borderRadius: '8px', border: `1px solid ${T.borderSubtle}` }}>
                     <button
                       type="button"
                       onClick={() => setOrderType('Dine In')}
@@ -2507,8 +2704,8 @@ export default function AndroidPosRegister({
 
                 {/* Cart Items List or MORE Features Grid */}
                 {rightPanelSubTab === 'MORE' ? (
-                  <div style={{ flex: 1, padding: '16px', overflowY: 'auto', background: '#0f172a', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '900', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>
+                  <div style={{ flex: 1, padding: '16px', overflowY: 'auto', background: T.bgApp, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '900', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>
                       Fitur Tambahan POS (More Options)
                     </div>
 
@@ -2516,7 +2713,7 @@ export default function AndroidPosRegister({
                     <div
                       onClick={() => setShowSplitBillModal(true)}
                       style={{
-                        background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '14px 16px',
+                        background: T.bgCard, border: `1px solid ${T.borderCard}`, borderRadius: '12px', padding: '14px 16px',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
                         transition: 'all 0.15s ease'
                       }}
@@ -2526,18 +2723,18 @@ export default function AndroidPosRegister({
                           ✂️
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: '#f8fafc' }}>Split Bill</div>
-                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '1px' }}>Pisah tagihan per item atau per orang</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: T.txtPrimary }}>Split Bill</div>
+                          <div style={{ fontSize: '0.74rem', color: T.txtMuted, marginTop: '1px' }}>Pisah tagihan per item atau per orang</div>
                         </div>
                       </div>
-                      <ChevronRight size={18} color="#94a3b8" />
+                      <ChevronRight size={18} color={T.txtMuted} />
                     </div>
 
                     {/* 2. MERGE BILL */}
                     <div
                       onClick={() => setShowMergeBillModal(true)}
                       style={{
-                        background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '14px 16px',
+                        background: T.bgCard, border: `1px solid ${T.borderCard}`, borderRadius: '12px', padding: '14px 16px',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
                         transition: 'all 0.15s ease'
                       }}
@@ -2547,18 +2744,18 @@ export default function AndroidPosRegister({
                           🔗
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: '#f8fafc' }}>Merge Bill</div>
-                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '1px' }}>Gabungkan pesanan dari 2 meja</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: T.txtPrimary }}>Merge Bill</div>
+                          <div style={{ fontSize: '0.74rem', color: T.txtMuted, marginTop: '1px' }}>Gabungkan pesanan dari 2 meja</div>
                         </div>
                       </div>
-                      <ChevronRight size={18} color="#94a3b8" />
+                      <ChevronRight size={18} color={T.txtMuted} />
                     </div>
 
                     {/* 3. TUKAR POIN */}
                     <div
                       onClick={() => setShowTukarPoinModal(true)}
                       style={{
-                        background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '14px 16px',
+                        background: T.bgCard, border: `1px solid ${T.borderCard}`, borderRadius: '12px', padding: '14px 16px',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
                         transition: 'all 0.15s ease'
                       }}
@@ -2568,18 +2765,18 @@ export default function AndroidPosRegister({
                           🎁
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: '#f8fafc' }}>Tukar Poin</div>
-                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '1px' }}>Tukarkan poin loyalty pelanggan</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: T.txtPrimary }}>Tukar Poin</div>
+                          <div style={{ fontSize: '0.74rem', color: T.txtMuted, marginTop: '1px' }}>Tukarkan poin loyalty pelanggan</div>
                         </div>
                       </div>
-                      <ChevronRight size={18} color="#94a3b8" />
+                      <ChevronRight size={18} color={T.txtMuted} />
                     </div>
 
                     {/* 4. KUPON */}
                     <div
                       onClick={() => setShowKuponModal(true)}
                       style={{
-                        background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '14px 16px',
+                        background: T.bgCard, border: `1px solid ${T.borderCard}`, borderRadius: '12px', padding: '14px 16px',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
                         transition: 'all 0.15s ease'
                       }}
@@ -2589,18 +2786,33 @@ export default function AndroidPosRegister({
                           🎟️
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: '#f8fafc' }}>Kupon</div>
-                          <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '1px' }}>Gunakan voucher atau kupon diskon</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: T.txtPrimary }}>Kupon</div>
+                          <div style={{ fontSize: '0.74rem', color: T.txtMuted, marginTop: '1px' }}>Gunakan voucher atau kupon diskon</div>
                         </div>
                       </div>
-                      <ChevronRight size={18} color="#94a3b8" />
+                      <ChevronRight size={18} color={T.txtMuted} />
                     </div>
                   </div>
                 ) : (
                   /* Standard Cart Items List */
-                  <div style={{ flex: 1, padding: '12px 16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', background: '#0f172a' }}>
+                  <div style={{ flex: 1, padding: '12px 16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', background: T.bgApp }}>
+                    {openedOriginalCart && (
+                      <div style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)', padding: '10px 14px', borderRadius: '10px', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #3b82f6', boxShadow: '0 2px 8px rgba(37,99,235,0.3)', flexShrink: 0 }}>
+                        <div>
+                          <div style={{ fontSize: '0.84rem', fontWeight: '900', color: '#93c5fd' }}>✏️ Edit Pesanan {selectedTableObj?.number || 'Gantung'}</div>
+                          <div style={{ fontSize: '0.74rem', opacity: 0.9 }}>Bebas tambah menu (+) atau kurangi (-) item di bawah ini</div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => { setCart([]); setOpenedOriginalCart(null); }}
+                          style={{ background: 'rgba(239,68,68,0.3)', border: '1px solid #ef4444', color: '#fca5a5', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                        >
+                          Batal Edit
+                        </button>
+                      </div>
+                    )}
                     {cart.length === 0 ? (
-                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: T.txtMuted }}>
                         <ShoppingBag size={40} strokeWidth={1} style={{ marginBottom: '8px', opacity: 0.4 }} />
                         <div style={{ fontSize: '0.85rem', fontWeight: '700' }}>Keranjang Kosong</div>
                       </div>
@@ -2610,19 +2822,57 @@ export default function AndroidPosRegister({
                         const itemLineTotal = itemNetPrice * item.qty;
 
                         return (
-                          <div key={item.id} style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {/* Circle Index Badge */}
-                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: '900' }}>
+                          <div key={item.id} style={{ background: T.bgCard, padding: '10px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${T.border}` }}>
+                            {/* Left: Index & Item Name */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, paddingRight: '6px' }}>
+                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2563eb', color: 'var(--pos-txt-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: '900', flexShrink: 0 }}>
                                 {idx + 1}
                               </div>
-                              <div>
-                                <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#ffffff' }}>{item.name}</div>
-                                {item.notes && <div style={{ fontSize: '0.70rem', color: '#60a5fa' }}>{item.notes}</div>}
+                              <div style={{ overflow: 'hidden' }}>
+                                <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                                {item.notes && <div style={{ fontSize: '0.70rem', color: isLight ? '#1d4ed8' : '#60a5fa' }}>{item.notes}</div>}
                               </div>
                             </div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#ffffff' }}>
-                              {formatRupiah(itemLineTotal)}
+
+                            {/* Right: Quantity Controls (- QTY +), Subtotal, Delete Button */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              {/* Quantity Adjustment Buttons */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: T.bgApp, padding: '2px 4px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateQty(item.id, -1)}
+                                  title="Kurangi 1"
+                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: 'none', background: '#ef4444', color: '#ffffff', fontSize: '0.90rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}
+                                >
+                                  -
+                                </button>
+                                <span style={{ fontSize: '0.82rem', fontWeight: '900', color: T.txtPrimary, minWidth: '20px', textAlign: 'center' }}>
+                                  {item.qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateQty(item.id, 1)}
+                                  title="Tambah 1"
+                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: 'none', background: '#10b981', color: '#ffffff', fontSize: '0.90rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              {/* Line Total Price */}
+                              <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, minWidth: '60px', textAlign: 'right' }}>
+                                {formatRupiah(itemLineTotal)}
+                              </div>
+
+                              {/* Delete Item Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCartItem(item.id)}
+                                title="Hapus Orderan"
+                                style={{ width: '24px', height: '24px', borderRadius: '6px', border: 'none', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontSize: '0.80rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '2px' }}
+                              >
+                                🗑️
+                              </button>
                             </div>
                           </div>
                         );
@@ -2632,9 +2882,9 @@ export default function AndroidPosRegister({
                 )}
 
                 {/* Subtotal & Breakdown Summary */}
-                <div style={{ padding: '12px 16px', background: '#1e293b', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ padding: '12px 16px', background: T.bgCard, borderTop: `1px solid ${T.border}` }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#cbd5e1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: T.txtSecondary }}>
                       <span>Subtotal</span>
                       <span style={{ fontWeight: '800' }}>{formatRupiah(cartSubtotal)}</span>
                     </div>
@@ -2650,7 +2900,7 @@ export default function AndroidPosRegister({
                         justify: 'space-between',
                         alignItems: 'center',
                         fontSize: '0.78rem',
-                        color: discountAmount > 0 ? '#fb7185' : '#cbd5e1',
+                        color: discountAmount > 0 ? '#fb7185' : 'var(--pos-txt-secondary)',
                         cursor: 'pointer',
                         padding: '4px 6px',
                         borderRadius: '6px',
@@ -2675,13 +2925,13 @@ export default function AndroidPosRegister({
                     </div>
 
                     {/* 2. SERVICE CHARGE (STATIC / READ ONLY) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', padding: '2px 6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: T.txtMuted, padding: '2px 6px' }}>
                       <span>Service Charge</span>
                       <span style={{ fontWeight: '700' }}>Rp 0</span>
                     </div>
 
                     {/* 3. PAJAK PB1 (STATIC / READ ONLY) */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#64748b', padding: '2px 6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: T.txtMuted, padding: '2px 6px' }}>
                       <span>Pajak</span>
                       <span style={{ fontWeight: '700' }}>Rp 0</span>
                     </div>
@@ -2699,7 +2949,7 @@ export default function AndroidPosRegister({
                         justify: 'space-between',
                         alignItems: 'center',
                         fontSize: '0.78rem',
-                        color: numAdjustment !== 0 ? '#a78bfa' : '#cbd5e1',
+                        color: numAdjustment !== 0 ? '#a78bfa' : 'var(--pos-txt-secondary)',
                         cursor: 'pointer',
                         padding: '4px 6px',
                         borderRadius: '6px',
@@ -2713,7 +2963,7 @@ export default function AndroidPosRegister({
                         <span style={{ fontWeight: '800' }}>Adjustment</span>
                         <Percent size={12} color="#a78bfa" />
                         {adjustmentReason && (
-                          <span style={{ fontSize: '0.68rem', color: '#cbd5e1', fontStyle: 'italic', maxWidth: '110px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)', fontStyle: 'italic', maxWidth: '110px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             ({adjustmentReason})
                           </span>
                         )}
@@ -2722,11 +2972,11 @@ export default function AndroidPosRegister({
                         {numAdjustment !== 0 ? `${numAdjustment > 0 ? '+' : ''}${formatRupiah(numAdjustment)}` : 'Rp 0'}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <span style={{ fontSize: '0.84rem', fontWeight: '800', color: '#ffffff' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', marginTop: '2px', borderTop: `1px solid ${T.border}` }}>
+                      <span style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary }}>
                         Total ({cart.reduce((s, i) => s + i.qty, 0)} items)
                       </span>
-                      <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary }}>
                         {formatRupiah(cartTotal)}
                       </span>
                     </div>
@@ -2764,7 +3014,7 @@ export default function AndroidPosRegister({
                         height: '42px',
                         background: '#2563eb',
                         border: 'none',
-                        color: '#ffffff',
+                        color: 'var(--pos-txt-primary)',
                         borderRadius: '8px',
                         fontWeight: '800',
                         fontSize: '0.82rem',
@@ -2788,10 +3038,10 @@ export default function AndroidPosRegister({
                     style={{
                       width: '100%',
                       height: '46px',
-                      background: cart.length > 0 ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#334155',
+                      background: cart.length > 0 ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--pos-border-card)',
                       border: 'none',
                       borderRadius: '8px',
-                      color: '#ffffff',
+                      color: 'var(--pos-txt-primary)',
                       fontWeight: '900',
                       fontSize: '0.95rem',
                       cursor: cart.length > 0 ? 'pointer' : 'not-allowed',
@@ -2810,33 +3060,33 @@ export default function AndroidPosRegister({
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ShoppingBag size={22} color="#2563eb" />
                   <span>Open Bills (Pesanan Gantung)</span>
                 </h2>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
                   Outlet: {currentOutlet.name} • Total {pendingOrdersList.length} Pesanan Aktif Gantung (Bebas / Non-FIFO / Parallel Multi-Order)
                 </p>
               </div>
             </div>
 
             {/* KETERANGAN SYNC MOBILE APK DENGAN SERVER & DATABASE */}
-            <div style={{ background: '#0f172a', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399' }} />
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>Sinkronisasi Data Cart Mobile APK:</span>
                     <span style={{ color: '#34d399', fontWeight: '900' }}>🟢 Live Server & Database Connected</span>
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
                     Pesanan Cart tersimpan dan tersinkronisasi otomatis dengan Database Server & Web Admin.
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--pos-border)' }}>
                   ⏱️ {lastSyncTime}
                 </span>
                 <button
@@ -2845,9 +3095,9 @@ export default function AndroidPosRegister({
                   disabled={isSyncingNow}
                   style={{
                     padding: '6px 14px',
-                    background: isSyncingNow ? '#334155' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                     border: 'none',
-                    color: '#ffffff',
+                    color: 'var(--pos-txt-primary)',
                     borderRadius: '10px',
                     fontSize: '0.78rem',
                     fontWeight: '900',
@@ -2865,17 +3115,17 @@ export default function AndroidPosRegister({
             </div>
 
             {pendingOrdersList.length === 0 ? (
-              <div style={{ background: '#1e293b', borderRadius: '16px', padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '40px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                 <ShoppingBag size={48} strokeWidth={1} style={{ marginBottom: '12px', color: '#2563eb', opacity: 0.7 }} />
-                <div style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc' }}>Belum Ada Pesanan di Cart</div>
+                <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Belum Ada Pesanan di Cart</div>
                 <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>Saat Anda menekan 'Simpan' di Kasir, daftar pesanan gantung akan tersimpan di Cart.</div>
               </div>
             ) : (
-              <div style={{ background: '#1e293b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+              <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden' }}>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                     <thead>
-                      <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <tr style={{ background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', color: 'var(--pos-txt-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         <th style={{ padding: '12px 14px' }}>No. Struk</th>
                         <th style={{ padding: '12px 14px' }}>Tanggal</th>
                         <th style={{ padding: '12px 14px' }}>Jam</th>
@@ -2899,7 +3149,7 @@ export default function AndroidPosRegister({
                           }}
                           style={{
                             borderBottom: '1px solid rgba(255,255,255,0.05)',
-                            color: '#f8fafc',
+                            color: 'var(--pos-txt-primary)',
                             cursor: 'pointer'
                           }}
                         >
@@ -2909,17 +3159,17 @@ export default function AndroidPosRegister({
                           </td>
 
                           {/* 2. TANGGAL */}
-                          <td style={{ padding: '14px', color: '#cbd5e1' }}>
+                          <td style={{ padding: '14px', color: 'var(--pos-txt-secondary)' }}>
                             {row.date}
                           </td>
 
                           {/* 3. JAM */}
-                          <td style={{ padding: '14px', color: '#cbd5e1' }}>
+                          <td style={{ padding: '14px', color: 'var(--pos-txt-secondary)' }}>
                             {row.time}
                           </td>
 
                           {/* 4. NAMA PELANGGAN */}
-                          <td style={{ padding: '14px', fontWeight: '700', color: '#f8fafc' }}>
+                          <td style={{ padding: '14px', fontWeight: '700', color: 'var(--pos-txt-primary)' }}>
                             {row.customerName}
                           </td>
 
@@ -2955,7 +3205,7 @@ export default function AndroidPosRegister({
                               }}
                               style={{
                                 background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                color: '#ffffff',
+                                color: 'var(--pos-txt-primary)',
                                 border: 'none',
                                 padding: '6px 12px',
                                 borderRadius: '8px',
@@ -2982,28 +3232,28 @@ export default function AndroidPosRegister({
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc' }}>📜 Riwayat Struk Transaksi Kasir</h2>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Outlet: {currentOutlet.name} • Total {outletTransactions.length} Transaksi Selesai</p>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>📜 Riwayat Struk Transaksi Kasir</h2>
+                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Outlet: {currentOutlet.name} • Total {outletTransactions.length} Transaksi Selesai</p>
               </div>
             </div>
 
             {/* KETERANGAN SYNC MOBILE APK DENGAN SERVER & DATABASE */}
-            <div style={{ background: '#0f172a', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399' }} />
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>Sinkronisasi Riwayat Transaksi:</span>
                     <span style={{ color: '#34d399', fontWeight: '900' }}>🟢 Live Server & Database Synced</span>
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
                     Seluruh riwayat transaksi kasir terhubung dan tersimpan real-time di Database Server & Web Admin.
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--pos-border)' }}>
                   ⏱️ {lastSyncTime}
                 </span>
                 <button
@@ -3012,9 +3262,9 @@ export default function AndroidPosRegister({
                   disabled={isSyncingNow}
                   style={{
                     padding: '6px 14px',
-                    background: isSyncingNow ? '#334155' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                     border: 'none',
-                    color: '#ffffff',
+                    color: 'var(--pos-txt-primary)',
                     borderRadius: '10px',
                     fontSize: '0.78rem',
                     fontWeight: '900',
@@ -3032,23 +3282,35 @@ export default function AndroidPosRegister({
             </div>
 
             {outletTransactions.length === 0 ? (
-              <div style={{ background: '#1e293b', borderRadius: '16px', padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '40px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                 <History size={48} strokeWidth={1} style={{ marginBottom: '12px', color: '#818cf8' }} />
-                <div style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc' }}>Belum Ada Riwayat Transaksi</div>
+                <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Belum Ada Riwayat Transaksi</div>
                 <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>Lakukan transaksi pertama Anda di Tab Kasir.</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {outletTransactions.map(tx => (
-                  <div key={tx.id} style={{ background: '#1e293b', padding: '14px 18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={tx.id} style={{ background: 'var(--pos-bg-card)', padding: '14px 18px', borderRadius: '14px', border: '1px solid var(--pos-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '900', color: '#38bdf8' }}>{tx.id}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '900', color: '#38bdf8' }}>#{tx.id}</span>
+
+                        {/* BADGE STATUS TRANSAKSI */}
+                        {(tx.is_offline_pending || tx.status === 'offline_pending' || tx.status === 'ditunda') ? (
+                          <span style={{ fontSize: '0.68rem', padding: '2px 9px', borderRadius: '6px', background: 'rgba(245,158,11,0.2)', color: '#fbbf24', border: '1px solid #f59e0b', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            ⏳ Pending Sync (Offline)
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.68rem', padding: '2px 9px', borderRadius: '6px', background: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid #10b981', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            ✅ Approved / Tersinkron
+                          </span>
+                        )}
+
                         <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(16,185,129,0.2)', color: '#34d399', fontWeight: '800' }}>{tx.payment_method || 'Cash'}</span>
                         <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '6px', background: 'rgba(99,102,241,0.2)', color: '#818cf8', fontWeight: '800' }}>{tx.order_type || 'Dine In'}</span>
                         {tx.table_number && <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: '700' }}>📍 {tx.table_number}</span>}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
                         📅 {tx.date} {tx.time || ''} • Pelanggan: <strong>{tx.customer_name || 'Pelanggan Umum'}</strong>
                       </div>
                     </div>
@@ -3056,7 +3318,7 @@ export default function AndroidPosRegister({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399' }}>{formatRupiah(tx.amount)}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{(tx.items || []).length} Item Menu</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--pos-txt-secondary)' }}>{(tx.items || []).length} Item Menu</div>
                       </div>
                       <button onClick={() => setSelectedTxDetail(tx)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
                         Detail Struk
@@ -3071,16 +3333,16 @@ export default function AndroidPosRegister({
 
         {/* TAB NAVIGASI: PELANGGAN (MATCHING USER SCREENSHOT 100%) */}
         {activeNavTab === 'pelanggan' && (
-          <div style={{ flex: 1, display: 'flex', width: '100%', height: '100%', background: '#0f172a', overflow: 'hidden' }}>
+          <div style={{ flex: 1, display: 'flex', width: '100%', height: '100%', background: 'var(--pos-bg-app)', overflow: 'hidden' }}>
             
             {/* ----------------------------------------------------------- */}
             {/* LEFT PANEL: DAFTAR KARTU PELANGGAN (45% WIDTH)              */}
             {/* ----------------------------------------------------------- */}
-            <div style={{ flex: '0 0 45%', display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(255,255,255,0.08)', background: '#1e293b' }}>
+            <div style={{ flex: '0 0 45%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--pos-border)', background: 'var(--pos-bg-card)' }}>
               
               {/* Header Left Panel: Search & Button Add Customer */}
-              <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--pos-border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Grid size={18} color="#a78bfa" />
                 </div>
                 <div style={{ flex: 1, position: 'relative' }}>
@@ -3089,7 +3351,7 @@ export default function AndroidPosRegister({
                     value={custSearchFilter}
                     onChange={e => setCustSearchFilter(e.target.value)}
                     placeholder="Cari Nama / No Telepon..."
-                    style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.82rem', outline: 'none' }}
+                    style={{ width: '100%', padding: '9px 12px 9px 34px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)', fontSize: '0.82rem', outline: 'none' }}
                   />
                   <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '10px', top: '10px' }} />
                 </div>
@@ -3106,7 +3368,7 @@ export default function AndroidPosRegister({
                     setShowAddCustomerModal(true);
                   }}
                   title="Tambah Pelanggan Baru"
-                  style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#6366f1', border: 'none', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}
+                  style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#6366f1', border: 'none', color: 'var(--pos-txt-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}
                 >
                   <User size={18} />
                 </button>
@@ -3116,7 +3378,7 @@ export default function AndroidPosRegister({
               <div style={{ flex: 1, padding: '16px', overflowY: 'auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                   {(masterData.customers || []).filter(c => {
-                    const q = custSearchFilter.toLowerCase();
+                    const q = debouncedCustSearch.toLowerCase();
                     return (c.name || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q);
                   }).map(c => {
                     const isSelected = selectedCustomerIdForDetail === c.id;
@@ -3128,9 +3390,9 @@ export default function AndroidPosRegister({
                         key={c.id}
                         onClick={() => setSelectedCustomerIdForDetail(c.id)}
                         style={{
-                          background: isSelected ? 'rgba(99,102,241,0.12)' : '#0f172a',
+                          background: isSelected ? 'rgba(99,102,241,0.12)' : 'var(--pos-bg-app)',
                           border: '2px solid',
-                          borderColor: isSelected ? '#6366f1' : '#334155',
+                          borderColor: isSelected ? '#6366f1' : 'var(--pos-border-card)',
                           borderRadius: '14px',
                           padding: '14px',
                           cursor: 'pointer',
@@ -3143,22 +3405,22 @@ export default function AndroidPosRegister({
                         }}
                       >
                         {/* Avatar */}
-                        <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#1e293b', border: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px' }}>
                           <User size={20} color="#a78bfa" />
                         </div>
                         {/* ID - Name */}
-                        <div style={{ fontSize: '0.85rem', fontWeight: '900', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '900', color: 'var(--pos-txt-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                           {custCode}
                         </div>
                         <div style={{ fontSize: '0.76rem', fontWeight: '800', color: '#6366f1', marginTop: '1px' }}>
                           {c.name}
                         </div>
                         {/* Phone */}
-                        <div style={{ fontSize: '0.74rem', color: '#94a3b8', margin: '4px 0 6px 0' }}>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 6px 0' }}>
                           {c.phone || '-'}
                         </div>
                         {/* Location / Outlet */}
-                        <div style={{ fontSize: '0.68rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <span>📍</span>
                           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>{custOutletName}</span>
                         </div>
@@ -3169,8 +3431,8 @@ export default function AndroidPosRegister({
               </div>
 
               {/* Bottom Self-Reg Bar */}
-              <div style={{ padding: '12px 16px', background: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Registrasi Mandiri Pelanggan:</span>
+              <div style={{ padding: '12px 16px', background: 'var(--pos-bg-app)', borderTop: '1px solid var(--pos-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Registrasi Mandiri Pelanggan:</span>
                 <button
                   type="button"
                   onClick={() => setShowQrSelfRegModal(true)}
@@ -3186,16 +3448,27 @@ export default function AndroidPosRegister({
             {/* RIGHT PANEL: DETAIL PELANGGAN (55% WIDTH)                    */}
             {/* ----------------------------------------------------------- */}
             {(() => {
-              const activeCust = (masterData.customers || []).find(c => c.id === selectedCustomerIdForDetail) || masterData.customers?.[0] || { id: 2, name: 'Budi Santoso', phone: '08123456789' };
+              const activeCust = (masterData.customers || []).find(c => c.id === selectedCustomerIdForDetail) || masterData.customers?.[0] || null;
+              // Jika tidak ada pelanggan sama sekali, tampilkan placeholder kosong
+              if (!activeCust) {
+                return (
+                  <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--pos-bg-app)', padding: '24px' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '12px' }}>👤</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--pos-txt-secondary)', textAlign: 'center' }}>
+                      Belum ada data pelanggan.<br />Tambahkan pelanggan terlebih dahulu.
+                    </div>
+                  </div>
+                );
+              }
               const custCode = activeCust.code || `000${activeCust.id} - BMJ`;
               const custOutletName = activeCust.outlet_name || (masterData.outlets || []).find(o => o.id === activeCust.outlet_id)?.name || currentOutlet.name || 'Restoran Utama';
 
               return (
-                <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', background: '#0f172a', padding: '24px', overflowY: 'auto' }}>
+                <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', background: 'var(--pos-bg-app)', padding: '24px', overflowY: 'auto' }}>
                   
                   {/* Top Bar Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Detail Pelanggan</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '14px' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Detail Pelanggan</h3>
                     <button
                       type="button"
                       onClick={() => {
@@ -3208,7 +3481,7 @@ export default function AndroidPosRegister({
                         setCustFormAddress(activeCust.address || '');
                         setShowAddCustomerModal(true);
                       }}
-                      style={{ padding: '8px 16px', background: '#6366f1', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      style={{ padding: '8px 16px', background: '#6366f1', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
                       <span>✏️ Ubah</span>
                     </button>
@@ -3216,11 +3489,11 @@ export default function AndroidPosRegister({
 
                   {/* Header Profile Banner */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
-                    <div style={{ width: '54px', height: '54px', borderRadius: '50%', background: '#1e293b', border: '2px solid #6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '54px', height: '54px', borderRadius: '50%', background: 'var(--pos-bg-card)', border: '2px solid #6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <User size={26} color="#6366f1" />
                     </div>
                     <div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ffffff' }}>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
                         {custCode}
                       </div>
                       <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#6366f1', marginTop: '2px' }}>
@@ -3236,7 +3509,7 @@ export default function AndroidPosRegister({
                       onClick={() => setCustDetailSubTab('detail')}
                       style={{
                         padding: '8px 18px', borderRadius: '10px', border: 'none',
-                        background: custDetailSubTab === 'detail' ? '#6366f1' : '#1e293b',
+                        background: custDetailSubTab === 'detail' ? '#6366f1' : 'var(--pos-bg-card)',
                         color: custDetailSubTab === 'detail' ? '#ffffff' : '#94a3b8',
                         fontSize: '0.82rem', fontWeight: '900', cursor: 'pointer'
                       }}
@@ -3248,7 +3521,7 @@ export default function AndroidPosRegister({
                       onClick={() => setCustDetailSubTab('membership')}
                       style={{
                         padding: '8px 18px', borderRadius: '10px', border: 'none',
-                        background: custDetailSubTab === 'membership' ? '#6366f1' : '#1e293b',
+                        background: custDetailSubTab === 'membership' ? '#6366f1' : 'var(--pos-bg-card)',
                         color: custDetailSubTab === 'membership' ? '#ffffff' : '#94a3b8',
                         fontSize: '0.82rem', fontWeight: '900', cursor: 'pointer',
                         display: 'flex', alignItems: 'center', gap: '6px'
@@ -3263,47 +3536,47 @@ export default function AndroidPosRegister({
                   {custDetailSubTab === 'detail' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {/* Form Details Read-Only Fields */}
-                      <div style={{ background: '#1e293b', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Phone</span>
-                          <span style={{ fontWeight: '900', color: '#ffffff' }}>{activeCust.phone || '-'}</span>
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Phone</span>
+                          <span style={{ fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{activeCust.phone || '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Email</span>
-                          <span style={{ fontWeight: '800', color: '#ffffff' }}>{activeCust.email || '-'}</span>
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Email</span>
+                          <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{activeCust.email || '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Jenis Kelamin</span>
-                          <span style={{ fontWeight: '800', color: '#ffffff' }}>{activeCust.gender || 'wanita'}</span>
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Jenis Kelamin</span>
+                          <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{activeCust.gender || 'wanita'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Tanggal Lahir</span>
-                          <span style={{ fontWeight: '800', color: '#ffffff' }}>{activeCust.birthdate || '-'}</span>
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Tanggal Lahir</span>
+                          <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{activeCust.birthdate || '-'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Kategori Harga</span>
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Kategori Harga</span>
                           <span style={{ fontWeight: '900', color: '#38bdf8' }}>{activeCust.customer_type || 'Reguler'}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Outlet Terdaftar</span>
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Outlet Terdaftar</span>
                           <span style={{ fontWeight: '900', color: '#fbbf24' }}>{custOutletName}</span>
                         </div>
                       </div>
 
                       {/* Section Alamat */}
                       <div style={{ marginTop: '8px' }}>
-                        <div style={{ fontSize: '0.84rem', fontWeight: '900', color: '#f8fafc', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>📍</span>
                           <span>Alamat</span>
                         </div>
-                        <div style={{ background: '#1e293b', borderRadius: '14px', padding: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ background: 'var(--pos-bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
                           <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#6366f1' }}>
                             Rumah
                           </div>
-                          <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#ffffff', margin: '2px 0 6px 0' }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', margin: '2px 0 6px 0' }}>
                             {activeCust.name} • {activeCust.phone || '-'}
                           </div>
-                          <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', lineHeight: 1.4 }}>
                             {activeCust.address || 'Jl. Kelapa Sawit, Pelita, Bajenis, Kota Tebing Tinggi, Sumatera Utara (20621)'}
                           </div>
                         </div>
@@ -3311,17 +3584,17 @@ export default function AndroidPosRegister({
                     </div>
                   ) : (
                     /* SUB-TAB 2: MEMBERSHIP / QR REGISTRASI MANDIRI */
-                    <div style={{ background: '#1e293b', borderRadius: '16px', padding: '24px', textAlign: 'center', border: '1px solid #334155' }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc', marginBottom: '6px' }}>
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '24px', textAlign: 'center', border: '1px solid var(--pos-border-card)' }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '6px' }}>
                         QR Code Membership & Registrasi Mandiri Pelanggan
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '20px' }}>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '20px' }}>
                         Pelanggan dapat melakukan scan QR Code ini menggunakan kamera smartphone untuk mendaftar profil mandiri.
                       </div>
 
                       {/* Fake Barcode / QR Code Box */}
                       <div style={{ background: '#ffffff', padding: '20px', borderRadius: '16px', display: 'inline-block', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
-                        <div style={{ width: '160px', height: '160px', background: '#000000', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: '3rem', margin: '0 auto' }}>
+                        <div style={{ width: '160px', height: '160px', background: '#000000', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--pos-txt-white)', fontSize: '3rem', margin: '0 auto' }}>
                           <QrCode size={120} color="#ffffff" />
                         </div>
                         <div style={{ fontSize: '0.85rem', fontWeight: '900', color: '#000000', marginTop: '10px', fontFamily: 'monospace' }}>
@@ -3333,7 +3606,7 @@ export default function AndroidPosRegister({
                         <button
                           type="button"
                           onClick={() => setShowQrSelfRegModal(true)}
-                          style={{ padding: '10px 20px', background: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          style={{ padding: '10px 20px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
                           <QrCode size={16} />
                           <span>Buka QR Code Fullscreen</span>
@@ -3351,16 +3624,16 @@ export default function AndroidPosRegister({
 
         {/* TAB NAVIGASI: SHIFT & AKTIVITAS PENGGUNA APLIKASI */}
         {activeNavTab === 'shift' && (
-          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', width: '100%', background: '#0f172a' }}>
+          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', width: '100%', background: 'var(--pos-bg-app)' }}>
             
             {/* Header Title */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Clock size={24} color="#38bdf8" />
                   <span>Shift Kasir & Aktivitas Pengguna Aplikasi</span>
                 </h2>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                   Aktivitas sesi login/logout kasir, durasi kerja, jumlah struk transaksi, dan total nominal uang di {currentOutlet.name}
                 </p>
               </div>
@@ -3368,7 +3641,7 @@ export default function AndroidPosRegister({
               {/* Action Button Closing Shift */}
               <button
                 onClick={onShiftCloseClick}
-                style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(239,68,68,0.3)' }}
+                style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(239,68,68,0.3)' }}
               >
                 <Clock size={16} />
                 <span>🔒 Closing Sesi Shift Aktif</span>
@@ -3376,12 +3649,12 @@ export default function AndroidPosRegister({
             </div>
 
             {/* WIDGET KALENDER RENTANG WAKTU (DATE RANGE PICKER) & SEARCH BAR */}
-            <div style={{ background: '#1e293b', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '16px', border: '1px solid var(--pos-border)', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                 
                 {/* Preset Buttons */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', marginRight: '4px' }}>Filter Rentang:</span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', marginRight: '4px' }}>Filter Rentang:</span>
                   {[
                     { id: 'all', label: '📅 Semua' },
                     { id: 'today', label: '📅 Hari Ini' },
@@ -3409,8 +3682,8 @@ export default function AndroidPosRegister({
                         padding: '6px 14px',
                         borderRadius: '8px',
                         border: shiftDatePreset === p.id ? '1px solid #38bdf8' : '1px solid #334155',
-                        background: shiftDatePreset === p.id ? 'rgba(56,189,248,0.2)' : '#0f172a',
-                        color: shiftDatePreset === p.id ? '#38bdf8' : '#cbd5e1',
+                        background: shiftDatePreset === p.id ? 'rgba(56,189,248,0.2)' : 'var(--pos-bg-app)',
+                        color: shiftDatePreset === p.id ? '#38bdf8' : 'var(--pos-txt-secondary)',
                         fontSize: '0.78rem',
                         fontWeight: '800',
                         cursor: 'pointer'
@@ -3428,15 +3701,15 @@ export default function AndroidPosRegister({
                     value={shiftUserSearchFilter}
                     onChange={e => setShiftUserSearchFilter(e.target.value)}
                     placeholder="Cari pengguna / kasir..."
-                    style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.80rem', outline: 'none' }}
+                    style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)', fontSize: '0.80rem', outline: 'none' }}
                   />
                   <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '10px', top: '9px' }} />
                 </div>
               </div>
 
               {/* Date Input Pickers (When Custom is selected or to adjust range) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0f172a', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155' }}>
-                <span style={{ fontSize: '0.76rem', color: '#cbd5e1', fontWeight: '800' }}>Rentang Tanggal Kalender:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--pos-bg-app)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--pos-border-card)' }}>
+                <span style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', fontWeight: '800' }}>Rentang Tanggal Kalender:</span>
                 <input
                   type="date"
                   value={shiftStartDate}
@@ -3444,9 +3717,9 @@ export default function AndroidPosRegister({
                     setShiftStartDate(e.target.value);
                     setShiftDatePreset('custom');
                   }}
-                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', padding: '4px 8px', fontSize: '0.78rem', outline: 'none' }}
+                  style={{ background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', padding: '4px 8px', fontSize: '0.78rem', outline: 'none' }}
                 />
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>s/d</span>
+                <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.8rem' }}>s/d</span>
                 <input
                   type="date"
                   value={shiftEndDate}
@@ -3454,7 +3727,7 @@ export default function AndroidPosRegister({
                     setShiftEndDate(e.target.value);
                     setShiftDatePreset('custom');
                   }}
-                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', padding: '4px 8px', fontSize: '0.78rem', outline: 'none' }}
+                  style={{ background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', padding: '4px 8px', fontSize: '0.78rem', outline: 'none' }}
                 />
               </div>
             </div>
@@ -3469,13 +3742,13 @@ export default function AndroidPosRegister({
               const activeShiftEdc = (outletTransactions || []).filter(tx => (tx.payment_method || '') === 'EDC').reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
               const activeUserShift = {
-                id: 'SHIFT-NOW-01',
-                username: 'master',
-                user_name: 'Master Super Admin',
-                role: 'Super Admin / Owner',
-                outlet_name: currentOutlet.name || 'Restoran Utama',
+                id: `SHIFT-${currentUserSession?.username || userSession?.username || 'USR'}-${new Date().toISOString().slice(0,10).replace(/-/g,'')}`,
+                username: currentUserSession?.username || userSession?.username || '',
+                user_name: currentUserSession?.name || userSession?.name || currentUserSession?.username || userSession?.username || 'Kasir POS',
+                role: currentUserSession?.role || userSession?.role || 'Kasir',
+                outlet_name: currentOutlet?.name || '',
                 status: 'AKTIF BERLANGSUNG',
-                login_time: `${todayStr}, 08:00 WIB`,
+                login_time: shiftLoginTime,
                 logout_time: 'Masih Login (Shift Berjalan)',
                 duration_label: 'Sesuai Jam Berjalan',
                 total_receipts: activeShiftTxCount,
@@ -3483,24 +3756,33 @@ export default function AndroidPosRegister({
                 cash_sales: activeShiftCash,
                 qris_sales: activeShiftQris,
                 edc_sales: activeShiftEdc,
-                initial_cash: initialCash || 500000,
+                initial_cash: initialCash || 0,
                 transactions: outletTransactions || []
               };
 
-              const pastShifts = masterData?.shiftLogs || masterData?.closedShifts || [];
-              const rawShiftList = (pastShifts.length > 0 || activeShiftTxCount > 0)
-                ? [activeUserShift, ...pastShifts]
-                : [];
+              const pastShifts = (masterData?.closedShifts || masterData?.shift_closings || masterData?.shiftLogs || []).filter(s => {
+                if (!currentOutlet?.id || currentOutlet?.id === 'central') return true;
+                return !s.outlet_id || String(s.outlet_id) === String(currentOutlet.id) || String(s.branch_name || '').toLowerCase().includes(String(currentOutlet.name || '').toLowerCase());
+              });
+
+              const hasActiveSession = !!(currentUserSession?.name || userSession?.name || currentUserSession?.username || userSession?.username);
+              const rawShiftList = [
+                ...(hasActiveSession ? [activeUserShift] : []),
+                ...pastShifts
+              ];
 
               const shiftList = rawShiftList.filter(s => {
-                const q = shiftUserSearchFilter.toLowerCase();
-                return (s.user_name || '').toLowerCase().includes(q) || (s.username || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q);
+                const q = debouncedShiftUserSearch.toLowerCase();
+                const userNameStr = (s.user_name || s.cashier_name || s.author_name || s.submitted_by || s.cashier || s.name || '').toLowerCase();
+                const usernameStr = (s.username || '').toLowerCase();
+                const roleStr = (s.role || '').toLowerCase();
+                return userNameStr.includes(q) || usernameStr.includes(q) || roleStr.includes(q);
               });
 
               return (
-                <div style={{ background: '#1e293b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '16px 20px', background: '#0f172a', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.92rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                  <div style={{ padding: '16px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.92rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Clock size={18} color="#38bdf8" />
                       <span>TABEL HISTORI SHIFT PENGGUNA APLIKASI ({shiftList.length})</span>
                     </div>
@@ -3509,7 +3791,7 @@ export default function AndroidPosRegister({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
                           <th style={{ padding: '12px 16px' }}>Shift ID & Status</th>
                           <th style={{ padding: '12px 16px' }}>Pengguna Aplikasi</th>
                           <th style={{ padding: '12px 16px' }}>Login - Logout</th>
@@ -3530,6 +3812,7 @@ export default function AndroidPosRegister({
                         ) : (
                           shiftList.map((row, rIdx) => {
                           const isAct = row.status === 'AKTIF BERLANGSUNG';
+                          const userNameDisplay = row.user_name || row.cashier_name || row.author_name || row.submitted_by || row.cashier || row.name || (row.username ? `@${row.username}` : 'Kasir POS');
                           return (
                             <tr
                               key={row.id}
@@ -3546,7 +3829,7 @@ export default function AndroidPosRegister({
                                 <span style={{
                                   fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px',
                                   background: isAct ? 'rgba(56,189,248,0.2)' : 'rgba(148,163,184,0.15)',
-                                  color: isAct ? '#38bdf8' : '#cbd5e1',
+                                  color: isAct ? '#38bdf8' : 'var(--pos-txt-secondary)',
                                   marginTop: '4px', display: 'inline-block'
                                 }}>
                                   {isAct ? '🟢 AKTIF' : '⚪ SELESAI'}
@@ -3554,20 +3837,22 @@ export default function AndroidPosRegister({
                               </td>
 
                               <td style={{ padding: '14px 16px' }}>
-                                <div style={{ fontWeight: '900', color: '#ffffff' }}>{row.user_name}</div>
-                                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{row.role} • @{row.username}</div>
+                                <div style={{ fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{userNameDisplay}</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>
+                                  {row.username ? `@${row.username}` : (row.role || 'Staf Kasir')}
+                                </div>
                               </td>
 
                               <td style={{ padding: '14px 16px' }}>
                                 <div style={{ color: '#34d399', fontWeight: '800' }}>📥 {row.login_time}</div>
-                                <div style={{ color: isAct ? '#38bdf8' : '#cbd5e1', marginTop: '2px' }}>📤 {row.logout_time}</div>
+                                <div style={{ color: isAct ? '#38bdf8' : 'var(--pos-txt-secondary)', marginTop: '2px' }}>📤 {row.logout_time}</div>
                               </td>
 
                               <td style={{ padding: '14px 16px', fontWeight: '900', color: '#fbbf24' }}>
                                 ⏱️ {row.duration_label}
                               </td>
 
-                              <td style={{ padding: '14px 16px', fontWeight: '800', color: '#ffffff' }}>
+                              <td style={{ padding: '14px 16px', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
                                 🧾 {row.total_receipts} Struk
                               </td>
 
@@ -3615,7 +3900,7 @@ export default function AndroidPosRegister({
 
         {/* TAB NAVIGASI: LAPORAN (MATCHING USER SCREENSHOT 100%) */}
         {(activeNavTab === 'laporan' || activeNavTab === 'keuangan') && (
-          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', width: '100%', background: '#0f172a', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', width: '100%', background: 'var(--pos-bg-app)', display: 'flex', flexDirection: 'column' }}>
             
             {/* Header Laporan */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -3624,13 +3909,13 @@ export default function AndroidPosRegister({
                   <button
                     type="button"
                     onClick={() => setActiveLaporanSubView(null)}
-                    style={{ padding: '8px 14px', background: '#1e293b', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    style={{ padding: '8px 14px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', color: '#38bdf8', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
                     <span>⬅️ Kembali</span>
                   </button>
                 )}
                 <div>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                     {activeLaporanSubView === 'omzet' && '📊 Laporan Omzet & Penjualan'}
                     {activeLaporanSubView === 'harian' && '💵 Buat Laporan Harian & Rekonsiliasi Kas'}
                     {activeLaporanSubView === 'logistik' && '📦 Buat Laporan Logistik & Stok Bahan'}
@@ -3639,7 +3924,7 @@ export default function AndroidPosRegister({
                     {activeLaporanSubView === 'stok_opname_summary' && '📋 Laporan Stok Opname & Rekapitulasi Stok Keluar Outlet'}
                     {activeLaporanSubView === null && '📑 Dashboard Laporan Outlet'}
                   </h2>
-                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '3px 0 0 0' }}>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '3px 0 0 0' }}>
                     {currentOutlet.name} • Laporan Kasir & Performa Operasional
                   </p>
                 </div>
@@ -3647,22 +3932,22 @@ export default function AndroidPosRegister({
             </div>
 
             {/* KETERANGAN SYNC MOBILE APK DENGAN DATABASE SERVER & WEB ADMIN (UNTUK SELURUH LAPORAN) */}
-            <div style={{ background: '#0f172a', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399' }} />
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>Sinkronisasi Data Laporan Real-Time:</span>
                     <span style={{ color: '#34d399', fontWeight: '900' }}>🟢 Database Server & Web Admin Connected</span>
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
                     Seluruh rekapitulasi omzet, kas harian, stok opname, dan pengeluaran terhubung live dengan server pusat.
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--pos-border)' }}>
                   ⏱️ {lastSyncTime}
                 </span>
                 <button
@@ -3671,9 +3956,9 @@ export default function AndroidPosRegister({
                   disabled={isSyncingNow}
                   style={{
                     padding: '6px 14px',
-                    background: isSyncingNow ? '#334155' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                     border: 'none',
-                    color: '#ffffff',
+                    color: 'var(--pos-txt-primary)',
                     borderRadius: '10px',
                     fontSize: '0.78rem',
                     fontWeight: '900',
@@ -3887,22 +4172,22 @@ export default function AndroidPosRegister({
             {activeLaporanSubView === 'omzet' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Gross Omset Sales</div>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Gross Omset Sales</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(totalSalesGross)}</div>
                   </div>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Total Struk Terjual</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ffffff', marginTop: '6px' }}>{(outletTransactions || []).length} Struk</div>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Total Struk Terjual</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '6px' }}>{(outletTransactions || []).length} Struk</div>
                   </div>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Kas Tunai / Cash</div>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Kas Tunai / Cash</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>
                       {formatRupiah((outletTransactions || []).filter(tx => String(tx.payment_method || '').toLowerCase().includes('cash') || String(tx.payment_method || '').toLowerCase().includes('tunai')).reduce((sum, tx) => sum + (tx.amount || 0), 0))}
                     </div>
                   </div>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Non-Tunai (QRIS / EDC)</div>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Non-Tunai (QRIS / EDC)</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#a78bfa', marginTop: '6px' }}>
                       {formatRupiah((outletTransactions || []).filter(tx => !String(tx.payment_method || '').toLowerCase().includes('cash') && !String(tx.payment_method || '').toLowerCase().includes('tunai')).reduce((sum, tx) => sum + (tx.amount || 0), 0))}
                     </div>
@@ -3910,12 +4195,12 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* Table Breakdown Sales Omzet */}
-                <div style={{ background: '#1e293b', borderRadius: '16px', padding: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: '900', color: '#ffffff', marginBottom: '14px' }}>Rincian Omset Per Transaksi Struk</h3>
+                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '20px', border: '1px solid var(--pos-border)' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '14px' }}>Rincian Omset Per Transaksi Struk</h3>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8' }}>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)' }}>
                           <th style={{ padding: '10px' }}>No. Struk</th>
                           <th style={{ padding: '10px' }}>Pelanggan</th>
                           <th style={{ padding: '10px' }}>Metode Bayar</th>
@@ -3933,9 +4218,9 @@ export default function AndroidPosRegister({
                           (outletTransactions || []).map((t, idx) => (
                             <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                               <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.id}</td>
-                              <td style={{ padding: '10px', color: '#ffffff' }}>{t.customer_name || 'Pelanggan Umum'}</td>
+                              <td style={{ padding: '10px', color: 'var(--pos-txt-primary)' }}>{t.customer_name || 'Pelanggan Umum'}</td>
                               <td style={{ padding: '10px', color: '#34d399', fontWeight: '800' }}>{t.payment_method || 'Cash'}</td>
-                              <td style={{ padding: '10px', textAlign: 'right', color: '#ffffff', fontWeight: '900' }}>{formatRupiah(t.amount)}</td>
+                              <td style={{ padding: '10px', textAlign: 'right', color: 'var(--pos-txt-primary)', fontWeight: '900' }}>{formatRupiah(t.amount)}</td>
                             </tr>
                           ))
                         )}
@@ -3951,13 +4236,13 @@ export default function AndroidPosRegister({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
                 
                 {/* Header Action Bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <FileText size={20} color="#818cf8" />
                       <span>Kelola Input Manual Laporan Keuangan Harian Kasir</span>
                     </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                       Log input manual laporan keuangan shift kasir & pengajuan verifikasi manager
                     </p>
                   </div>
@@ -3966,46 +4251,27 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients
-                        : [
-                            { id: 1, name: 'Beras Pandan Wangi', unit: 'kg', cost: 14000 },
-                            { id: 2, name: 'Minyak Goreng Bimoli', unit: 'liter', cost: 18000 },
-                            { id: 3, name: 'Telur Ayam Negeri', unit: 'butir', cost: 2000 },
-                            { id: 4, name: 'Daging Ayam Fillet', unit: 'kg', cost: 48000 },
-                            { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', cost: 65000 },
-                            { id: 6, name: 'Bawang Merah', unit: 'kg', cost: 35000 }
-                          ];
+                      // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+                      const ingredientsList = masterData.ingredients || [];
+                      const expenseMasterList = masterData.expenseMaster || [];
 
-                      const expenseMasterList = (masterData.expenseMaster && masterData.expenseMaster.length > 0)
-                        ? masterData.expenseMaster
-                        : [
-                            { id: 1, code: 'BIA-001', name: 'Biaya Listrik & Air', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                            { id: 2, code: 'BIA-002', name: 'Biaya Gas LPG Dapur', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                            { id: 3, code: 'BIA-003', name: 'Biaya Alat Kebersihan & Sabun', category: 'Biaya Operasional (OPEX)' },
-                            { id: 4, code: 'BIA-004', name: 'Biaya Promo & Brosur Lokal', category: 'Biaya Pemasaran (Marketing & Promo)' },
-                            { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
-                          ];
+                      const masterIngs = (masterData.ingredients || []).map(ing => ({
+                        id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku',
+                        category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg',
+                        cost: ing.cost || ing.price || 0
+                      }));
 
-                      const masterIngs = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || ing.price || 15000 }))
-                        : [
-                            { id: 'ing-1', name: 'Beras Pandan Wangi', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'kg', cost: 14000 },
-                            { id: 'ing-2', name: 'Minyak Goreng Bimoli', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'liter', cost: 18000 },
-                            { id: 'ing-3', name: 'Telur Ayam Negeri', item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: 'butir', cost: 2000 }
-                          ];
-
-                      const masterAccs = ((masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).length > 0)
-                        ? (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts).map(acc => ({ id: `acc-${acc.id}`, name: acc.name || acc.account_name, item_type: 'Biaya Operasional', category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)', unit: 'paket', cost: acc.amount || acc.cost || 50000 }))
-                        : [
-                            { id: 'acc-1', name: 'Biaya Listrik & Air', item_type: 'Biaya Operasional', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)', unit: 'paket', cost: 150000 },
-                            { id: 'acc-2', name: 'Biaya Gas LPG Dapur', item_type: 'Biaya Operasional', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)', unit: 'tabung', cost: 220000 }
-                          ];
+                      const masterAccs = (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).map(acc => ({
+                        id: `acc-${acc.id}`, name: acc.name || acc.account_name,
+                        item_type: 'Biaya Operasional',
+                        category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)',
+                        unit: 'paket', cost: acc.amount || acc.cost || 0
+                      }));
 
                       setManualRepDate(todayStr);
                       setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setManualRepOutletId(currentOutlet.id || 1);
-                      setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || 'Master Super Admin');
+                      setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || userSession?.name || '');
                       setManualRepNetSales(totalSalesGross || 0);
                       setManualRepNonCash(0);
                       setManualRepDebtPayment(0);
@@ -4017,16 +4283,16 @@ export default function AndroidPosRegister({
                       setManualRepNotes('Laporan harian shift kasir');
                       setShowAddManualReportModal(true);
                     }}
-                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(99,102,241,0.35)' }}
+                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(99,102,241,0.35)' }}
                   >
                     <span>+ Tambahkan Input Manual</span>
                   </button>
                 </div>
 
                 {/* TABEL HISTORI LAPORAN HARIAN (TANGGAL, NOMOR LAPORAN, STATUS PENDING / APPROVED) */}
-                <div style={{ background: '#1e293b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '14px 20px', background: '#0f172a', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Clock size={16} color="#38bdf8" />
                       <span>Daftar Log Input Manual Laporan Keuangan Harian Kasir</span>
                     </div>
@@ -4035,7 +4301,7 @@ export default function AndroidPosRegister({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem' }}>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.72rem' }}>
                           <th style={{ padding: '12px 16px' }}>Tanggal</th>
                           <th style={{ padding: '12px 16px' }}>Nomor Laporan</th>
                           <th style={{ padding: '12px 16px' }}>Pembuat / Kasir</th>
@@ -4068,11 +4334,11 @@ export default function AndroidPosRegister({
                             const isApproved = item.status === 'approved' || item.status === 'ok';
 
                             return (
-                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '12px 16px', color: '#94a3b8', fontWeight: '700' }}>{item.date}</td>
+                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{item.date}</td>
                                 <td style={{ padding: '12px 16px', fontWeight: '900', color: '#38bdf8' }}>{item.report_no || item.id}</td>
-                                <td style={{ padding: '12px 16px', color: '#ffffff' }}>👤 {item.author_name}</td>
-                                <td style={{ padding: '12px 16px', color: '#cbd5e1' }}>🏢 {item.branch_name}</td>
+                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-primary)' }}>👤 {item.author_name}</td>
+                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-secondary)' }}>🏢 {item.branch_name}</td>
                                 <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{formatRupiah(item.net_sales)}</td>
                                 <td style={{ padding: '12px 16px', textAlign: 'right', color: '#a78bfa' }}>{formatRupiah(item.non_cash_sales)}</td>
                                 <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>-{formatRupiah(item.total_expense)}</td>
@@ -4117,13 +4383,13 @@ export default function AndroidPosRegister({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
                 
                 {/* Header Action Bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Package size={20} color="#38bdf8" />
                       <span>Kelola Audit Stock Opname & Laporan Logistik</span>
                     </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                       Pencatatan stok fisik, transfer, barang rusak/waste, & pengajuan audit opname kasir
                     </p>
                   </div>
@@ -4132,18 +4398,9 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      const rawIngredients = (masterData.ingredients && masterData.ingredients.length > 0)
-                        ? masterData.ingredients
-                        : [
-                            { id: 1, name: 'Daging Ayam Fillet', unit: 'kg', stock: 50 },
-                            { id: 2, name: 'Beras Pandan Wangi', unit: 'kg', stock: 100 },
-                            { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter', stock: 30 },
-                            { id: 4, name: 'Telur Ayam Negeri', unit: 'butir', stock: 200 },
-                            { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', stock: 15 },
-                            { id: 6, name: 'Bawang Merah', unit: 'kg', stock: 20 }
-                          ];
-
-                      const activeIngs = rawIngredients.filter(ing => 
+                      // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+                      const rawIngredients = masterData.ingredients || [];
+                      const activeIngs = rawIngredients.filter(ing =>
                         ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
                       );
 
@@ -4194,11 +4451,11 @@ export default function AndroidPosRegister({
                       setOpnameBatchRows(initialBatchRows);
                       setLogDate(todayStr);
                       setLogNo(`SO-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
-                      setLogSubmittedBy('Master Super Admin');
+                      setLogSubmittedBy(userSession?.name || '');
                       setLogOutletId(currentOutlet.id || 1);
                       setShowAddLogisticsModal(true);
                     }}
-                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(56,189,248,0.35)' }}
+                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(56,189,248,0.35)' }}
                   >
                     <PlusCircle size={16} />
                     <span>+ Tambahkan Stok Opname</span>
@@ -4206,9 +4463,9 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* TABEL HISTORI AUDIT STOCK OPNAME LOGISTIK */}
-                <div style={{ background: '#1e293b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '14px 20px', background: '#0f172a', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Package size={16} color="#38bdf8" />
                       <span>Daftar Log Audit Stock Opname & Laporan Logistik</span>
                     </div>
@@ -4217,7 +4474,7 @@ export default function AndroidPosRegister({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.70rem' }}>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.70rem' }}>
                           <th style={{ padding: '10px 12px' }}>Tanggal</th>
                           <th style={{ padding: '10px 12px' }}>No Laporan</th>
                           <th style={{ padding: '10px 12px' }}>Diisi Oleh</th>
@@ -4299,7 +4556,7 @@ export default function AndroidPosRegister({
                                 const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (name || '').toLowerCase());
                                 if (ing) priceFound = Number(ing.price || ing.buy_price || ing.unit_price || 0);
                               }
-                              return priceFound || 15000;
+                              return priceFound || 0;
                             };
 
                             const hargaSatuan = getItemPrice(item.item_name);
@@ -4308,12 +4565,12 @@ export default function AndroidPosRegister({
                             const jumlahTotalFisik = stokFisik * hargaSatuan;
 
                             return (
-                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '10px 12px', color: '#94a3b8', fontWeight: '700' }}>{item.date}</td>
+                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{item.date}</td>
                                 <td style={{ padding: '10px 12px', fontWeight: '900', color: '#38bdf8' }}>{item.report_no || item.id}</td>
-                                <td style={{ padding: '10px 12px', color: '#ffffff' }}>👤 {item.submitted_by || item.created_by}</td>
+                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-primary)' }}>👤 {item.submitted_by || item.created_by}</td>
                                 <td style={{ padding: '10px 12px', fontWeight: '900', color: '#34d399' }}>📦 {item.item_name}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#cbd5e1' }}>{item.stok_awal || 0} {item.unit}</td>
+                                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--pos-txt-secondary)' }}>{item.stok_awal || 0} {item.unit}</td>
                                 <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>+{item.stok_masuk || 0} {item.unit}</td>
                                 <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>
                                   +{realTransferMasuk} {item.unit}
@@ -4365,13 +4622,13 @@ export default function AndroidPosRegister({
             {/* DETAILED SUB-VIEW 4: BUAT LAPORAN TRANSFER BAHAN BAKU */}
             {activeLaporanSubView === 'transfer' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Truck size={20} color="#a78bfa" />
                       <span>Kelola Laporan Transfer Bahan Baku Antarcabang</span>
                     </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                       Pengiriman, penerimaan, dan pengajuan mutasi bahan mentah antarcabang restoran
                     </p>
                   </div>
@@ -4387,7 +4644,7 @@ export default function AndroidPosRegister({
                       setTransferNo(`TRF-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setTransferFromOutletId(currentOutlet.id || 1);
                       setTransferToOutletId(2);
-                      setTransferSubmittedBy('Master Super Admin');
+                      setTransferSubmittedBy(userSession?.name || '');
                       setTransferItemName(firstIng.name);
                       setTransferCustomItemName('');
                       setTransferQty(10);
@@ -4405,25 +4662,25 @@ export default function AndroidPosRegister({
                       ]);
                       setShowAddTransferModal(true);
                     }}
-                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(167,139,250,0.35)' }}
+                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(167,139,250,0.35)' }}
                   >
                     <PlusCircle size={16} />
                     <span>+ Tambah Transfer Bahan Baku</span>
                   </button>
                 </div>
 
-                <div style={{ background: '#1e293b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '14px 20px', background: '#0f172a', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Truck size={16} color="#a78bfa" />
                       <span>Daftar Log Transfer Bahan Baku & Mutasi Stok Antarcabang</span>
                     </div>
                   </div>
 
-                  <div style={{ width: '100%', overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155', background: '#0f172a' }}>
+                  <div style={{ width: '100%', overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.70rem', whiteSpace: 'nowrap' }}>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.70rem', whiteSpace: 'nowrap' }}>
                           <th style={{ padding: '10px 8px' }}>Tanggal</th>
                           <th style={{ padding: '10px 8px' }}>No Laporan</th>
                           <th style={{ padding: '10px 8px' }}>Pengaju / Dibuat Oleh</th>
@@ -4465,8 +4722,8 @@ export default function AndroidPosRegister({
                             const fromOutletName = item.from_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(item.from_outlet_id || item.fromOutletId))?.name || currentOutlet.name;
 
                             return (
-                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '8px 8px', color: '#94a3b8', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.date}</td>
+                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                                <td style={{ padding: '8px 8px', color: 'var(--pos-txt-secondary)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.date}</td>
                                 <td style={{ padding: '8px 8px', fontWeight: '900', color: '#38bdf8', whiteSpace: 'nowrap' }}>
                                   <button
                                     type="button"
@@ -4477,7 +4734,7 @@ export default function AndroidPosRegister({
                                     📋 {item.report_no || item.id} 👁️
                                   </button>
                                 </td>
-                                <td style={{ padding: '8px 8px', color: '#ffffff', whiteSpace: 'nowrap' }}>👤 {item.submitted_by || item.created_by}</td>
+                                <td style={{ padding: '8px 8px', color: 'var(--pos-txt-primary)', whiteSpace: 'nowrap' }}>👤 {item.submitted_by || item.created_by}</td>
                                 <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
                                   <span style={{
                                     padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
@@ -4529,7 +4786,7 @@ export default function AndroidPosRegister({
                                       setEditingTransferId(item.id || item.report_no);
                                       setTransferNo(item.report_no || item.id);
                                       setTransferDate(item.date || new Date().toISOString().split('T')[0]);
-                                      setTransferSubmittedBy(item.submitted_by || item.created_by || 'Master Super Admin');
+                                      setTransferSubmittedBy(item.submitted_by || item.created_by || userSession?.name || '');
                                       setTransferFromOutletId(item.from_outlet_id || item.fromOutletId || 1);
                                       setTransferToOutletId(item.to_outlet_id || item.toOutletId || 2);
                                       setTransferNotes(item.notes || '');
@@ -4584,13 +4841,13 @@ export default function AndroidPosRegister({
             {/* DETAILED SUB-VIEW 5: BUAT LAPORAN BARANG RUSAK */}
             {activeLaporanSubView === 'waste' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Trash2 size={20} color="#fb7185" />
                       <span>Kelola Laporan Barang Rusak & Waste Stok</span>
                     </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                       Pencatatan waste, retur barang, expired, & kerusakan fisik bahan baku
                     </p>
                   </div>
@@ -4616,16 +4873,16 @@ export default function AndroidPosRegister({
                       setWasteBatchRows([{ id: Date.now(), item_name: '', custom_item_name: '', qty: '', unit: 'kg', reason: '', notes: '' }]);
                       setShowAddWasteModal(true);
                     }}
-                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(251,113,133,0.35)' }}
+                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(251,113,133,0.35)' }}
                   >
                     <PlusCircle size={16} />
                     <span>+ Tambah Barang Rusak</span>
                   </button>
                 </div>
 
-                <div style={{ background: '#1e293b', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '14px 20px', background: '#0f172a', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Trash2 size={16} color="#fb7185" />
                       <span>Daftar Log Laporan Barang Rusak (Waste & Retur Bahan Baku)</span>
                     </div>
@@ -4634,7 +4891,7 @@ export default function AndroidPosRegister({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem', minWidth: '720px' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.05em' }}>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.05em' }}>
                           <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📅 Tanggal</th>
                           <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📋 No Laporan</th>
                           <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>👤 Pengaju / Dibuat Oleh</th>
@@ -4736,7 +4993,7 @@ export default function AndroidPosRegister({
                                 key={idx}
                                 style={{
                                   borderBottom: '1px solid rgba(255,255,255,0.06)',
-                                  color: '#f8fafc',
+                                  color: 'var(--pos-txt-primary)',
                                   background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)',
                                   transition: 'background 0.15s'
                                 }}
@@ -4744,7 +5001,7 @@ export default function AndroidPosRegister({
                                 {/* Tanggal & Waktu */}
                                 <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                                    <span style={{ color: '#f8fafc', fontWeight: '700', fontSize: '0.8rem' }}>{displayDate}</span>
+                                    <span style={{ color: 'var(--pos-txt-primary)', fontWeight: '700', fontSize: '0.8rem' }}>{displayDate}</span>
                                     {displayTime && <span style={{ color: '#64748b', fontSize: '0.68rem' }}>{displayTime} WIB</span>}
                                   </div>
                                 </td>
@@ -4768,12 +5025,12 @@ export default function AndroidPosRegister({
                                 </td>
 
                                 {/* Pengaju / Dibuat Oleh */}
-                                <td style={{ padding: '10px 12px', color: '#ffffff', whiteSpace: 'nowrap', fontWeight: '700', fontSize: '0.8rem' }}>
+                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-primary)', whiteSpace: 'nowrap', fontWeight: '700', fontSize: '0.8rem' }}>
                                   👤 {item.input_by || item.submitted_by || item.created_by || 'Kasir'}
                                 </td>
 
                                 {/* Nama Outlet */}
-                                <td style={{ padding: '10px 12px', color: '#94a3b8', whiteSpace: 'nowrap', fontSize: '0.78rem', fontWeight: '700' }}>
+                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-secondary)', whiteSpace: 'nowrap', fontSize: '0.78rem', fontWeight: '700' }}>
                                   🏢 {(masterData.outlets || []).find(o => String(o.id) === String(item.outlet_id) || Number(o.id) === Number(item.outlet_id))?.name || item.branch_name || currentOutlet?.name || 'Outlet Cabang'}
                                 </td>
 
@@ -4899,13 +5156,13 @@ export default function AndroidPosRegister({
             {/* DETAILED SUB-VIEW 6: LAPORAN STOK OPNAME */}
             {activeLaporanSubView === 'stok_opname_summary' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <CheckSquare size={20} color="#34d399" />
                       <span>📋 Laporan Stok Opname & Rekapitulasi Stok Keluar Outlet</span>
                     </h3>
-                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                       Audit fisik persediaan barang outlet & kalkulasi otomatis Denda Stok (hanya berlaku pada status DEFISIT)
                     </p>
                   </div>
@@ -4918,9 +5175,9 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* FILTER RENTANG WAKTU (DATE RANGE FILTER BAR) */}
-                <div style={{ background: '#1e293b', padding: '14px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ background: 'var(--pos-bg-card)', padding: '14px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Calendar size={16} color="#38bdf8" />
                       <span>Filter Rentang Waktu:</span>
                     </div>
@@ -4954,8 +5211,8 @@ export default function AndroidPosRegister({
                             padding: '5px 12px',
                             borderRadius: '8px',
                             border: '1px solid',
-                            borderColor: opnameSummaryPreset === p.id ? '#38bdf8' : '#334155',
-                            background: opnameSummaryPreset === p.id ? 'rgba(56, 189, 248, 0.2)' : '#0f172a',
+                            borderColor: opnameSummaryPreset === p.id ? '#38bdf8' : 'var(--pos-border-card)',
+                            background: opnameSummaryPreset === p.id ? 'rgba(56, 189, 248, 0.2)' : 'var(--pos-bg-app)',
                             color: opnameSummaryPreset === p.id ? '#38bdf8' : '#94a3b8',
                             fontSize: '0.75rem',
                             fontWeight: '800',
@@ -4974,15 +5231,15 @@ export default function AndroidPosRegister({
                       value={opnameSummaryStartDate}
                       onChange={e => { setOpnameSummaryStartDate(e.target.value); setOpnameSummaryPreset('CUSTOM'); }}
                       className="form-input"
-                      style={{ height: '34px', fontSize: '0.78rem', padding: '0 8px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px' }}
+                      style={{ height: '34px', fontSize: '0.78rem', padding: '0 8px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', color: 'var(--pos-txt-primary)', borderRadius: '8px' }}
                     />
-                    <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>s/d</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.78rem' }}>s/d</span>
                     <input
                       type="date"
                       value={opnameSummaryEndDate}
                       onChange={e => { setOpnameSummaryEndDate(e.target.value); setOpnameSummaryPreset('CUSTOM'); }}
                       className="form-input"
-                      style={{ height: '34px', fontSize: '0.78rem', padding: '0 8px', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px' }}
+                      style={{ height: '34px', fontSize: '0.78rem', padding: '0 8px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', color: 'var(--pos-txt-primary)', borderRadius: '8px' }}
                     />
                     {(opnameSummaryStartDate || opnameSummaryEndDate) && (
                       <button
@@ -4999,28 +5256,7 @@ export default function AndroidPosRegister({
                 {/* KPI SUMMARY CARDS BAR: TOTAL DENDA HARI INI & DENDA PER STOK */}
                 {(() => {
                   const todayStr = new Date().toISOString().split('T')[0];
-                  const allOpnames = (masterData.stockOpname && masterData.stockOpname.length > 0)
-                    ? masterData.stockOpname
-                    : [
-                        {
-                          id: 'OPN-20260723-001',
-                          report_no: 'OPN-20260723-001',
-                          date: '2026-07-23',
-                          created_by: 'Admin Logistik Pusat',
-                          outlet_id: currentOutlet.id || 1,
-                          branch_name: currentOutlet.name,
-                          item_name: 'Daging Ayam Fillet',
-                          unit: 'kg',
-                          stok_awal: 100,
-                          stok_masuk: 50,
-                          stok_keluar: 35,
-                          transfer_masuk: 10,
-                          transfer_keluar: 5,
-                          stok_rusak: 2,
-                          stok_fisik: 110,
-                          status: 'ACC'
-                        }
-                      ];
+                  const allOpnames = masterData?.stockOpname || [];
 
                   const filteredOpnames = allOpnames.filter(op => {
                     if (opnameSummaryStartDate && op.date < opnameSummaryStartDate) return false;
@@ -5047,7 +5283,7 @@ export default function AndroidPosRegister({
                       const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (op.item_name || '').toLowerCase());
                       if (ing) activePrice = Number(ing.price || ing.buy_price || ing.unit_price || 0);
                     }
-                    return Math.abs(diffVal) * (activePrice || 15000);
+                    return Math.abs(diffVal) * (activePrice || 0);
                   };
 
                   const totalDendaHariIni = allOpnames.filter(op => op.date === todayStr).reduce((acc, op) => acc + calcDenda(op), 0);
@@ -5060,40 +5296,40 @@ export default function AndroidPosRegister({
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                       {/* CARD 1: DENDA HARI INI */}
-                      <div style={{ background: '#1e293b', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '14px 18px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ background: 'var(--pos-bg-card)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '14px 18px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#fb7185', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>🔴 Total Denda Stok Hari Ini</span>
                         </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
                           {formatRupiah(totalDendaHariIni)}
                         </div>
-                        <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>
                           Kalkulasi denda stok defisit pada tanggal {todayStr}
                         </div>
                       </div>
 
                       {/* CARD 2: DENDA PER STOK (FILTERED) */}
-                      <div style={{ background: '#1e293b', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '14px 18px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ background: 'var(--pos-bg-card)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '14px 18px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>💸 Akumulasi Denda Per Stok (Filter)</span>
                         </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
                           {formatRupiah(totalDendaFiltered)}
                         </div>
-                        <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>
                           Sum Denda per stok item pada periode terfilter
                         </div>
                       </div>
 
                       {/* CARD 3: ITEM DEFISIT */}
-                      <div style={{ background: '#1e293b', border: '1px solid rgba(251, 191, 36, 0.3)', padding: '14px 18px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ background: 'var(--pos-bg-card)', border: '1px solid rgba(251, 191, 36, 0.3)', padding: '14px 18px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>⚠️ Total Item Defisit</span>
                         </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
                           {countDefisitItem} Item
                         </div>
-                        <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>
                           Persediaan fisik &lt; sisa stok sistem
                         </div>
                       </div>
@@ -5102,11 +5338,11 @@ export default function AndroidPosRegister({
                 })()}
 
                 {/* TABEL RANGKUMAN STOK OPNAME & STOK KELUAR */}
-                <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                       <thead>
-                        <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155', textAlign: 'left', textTransform: 'uppercase', fontSize: '0.70rem' }}>
+                        <tr style={{ color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textAlign: 'left', textTransform: 'uppercase', fontSize: '0.70rem' }}>
                           <th style={{ padding: '12px 10px' }}>Tanggal Audit</th>
                           <th style={{ padding: '12px 10px' }}>No Laporan</th>
                           <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>
@@ -5127,29 +5363,7 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {(() => {
-                          const opnameList = (masterData.stockOpname && masterData.stockOpname.length > 0)
-                            ? masterData.stockOpname
-                            : [
-                                {
-                                  id: 'OPN-20260723-001',
-                                  report_no: 'OPN-20260723-001',
-                                  date: '2026-07-23',
-                                  created_by: 'Admin Logistik Pusat',
-                                  outlet_id: currentOutlet.id || 1,
-                                  branch_name: currentOutlet.name,
-                                  item_name: 'Daging Ayam Fillet',
-                                  unit: 'kg',
-                                  stok_awal: 100,
-                                  stok_masuk: 50,
-                                  stok_keluar: 35,
-                                  transfer_masuk: 10,
-                                  transfer_keluar: 5,
-                                  stok_rusak: 2,
-                                  stok_fisik: 110,
-                                  status: 'ACC',
-                                  notes: 'Audit fisik outlet'
-                                }
-                              ];
+                          const opnameList = masterData?.stockOpname || [];
 
                           // Filter by Date Range
                           const filteredOpnameList = opnameList.filter(op => {
@@ -5192,7 +5406,7 @@ export default function AndroidPosRegister({
                                 const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (itemName || '').toLowerCase());
                                 if (ing) priceFound = Number(ing.price || ing.buy_price || ing.unit_price || 0);
                               }
-                              return priceFound || 15000;
+                              return priceFound || 0;
                             };
 
                             const hargaSatuanWeb = getHargaSatuanFromStokMasuk(op.item_name);
@@ -5202,10 +5416,10 @@ export default function AndroidPosRegister({
                             sumDendaPerStok += dendaStokRow;
 
                             return (
-                              <tr key={op.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '12px 10px', color: '#94a3b8', fontWeight: '700' }}>{op.date}</td>
+                              <tr key={op.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{op.date}</td>
                                 <td style={{ padding: '12px 10px', fontWeight: '900', color: '#38bdf8' }}>{op.report_no || op.id}</td>
-                                <td style={{ padding: '12px 10px', color: '#ffffff' }}>
+                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-primary)' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     <span>👤 {op.created_by || op.submitted_by || 'Admin'}</span>
                                     <span style={{ fontSize: '0.68rem', color: op.type_input === 'Sent from Web Admin' ? '#34d399' : '#818cf8', fontWeight: '800' }}>
@@ -5214,7 +5428,7 @@ export default function AndroidPosRegister({
                                   </div>
                                 </td>
                                 <td style={{ padding: '12px 10px', fontWeight: '900', color: '#34d399' }}>📦 {op.item_name}</td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#94a3b8' }}>{op.stok_awal || 0} {op.unit || 'kg'}</td>
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--pos-txt-secondary)' }}>{op.stok_awal || 0} {op.unit || 'kg'}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8', fontWeight: '700' }}>+{op.stok_masuk || 0}</td>
                                 
                                 {/* 🔴 STOK KELUAR DARI WEB ADMIN */}
@@ -5229,7 +5443,7 @@ export default function AndroidPosRegister({
                                   -{op.transfer_keluar || 0} {op.unit || 'kg'}
                                 </td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>-{op.stok_rusak || 0}</td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#cbd5e1' }}>{sSistem}</td>
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>{sSistem}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.88rem' }}>{op.stok_fisik || 0} {op.unit || 'kg'}</td>
                                 
                                 {/* SELISIH */}
@@ -5243,7 +5457,7 @@ export default function AndroidPosRegister({
                                 </td>
 
                                 {/* HARGA SATUAN (WEB BASED STOK MASUK) */}
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: 'var(--pos-txt-secondary)' }}>
                                   {formatRupiah(hargaSatuanWeb)}
                                 </td>
 
@@ -5268,7 +5482,7 @@ export default function AndroidPosRegister({
                           return (
                             <>
                               {rows}
-                              <tr style={{ background: '#0f172a', fontWeight: '900', borderTop: '2px solid #334155' }}>
+                              <tr style={{ background: 'var(--pos-bg-app)', fontWeight: '900', borderTop: '2px solid #334155' }}>
                                 <td colSpan={14} style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', textTransform: 'uppercase' }}>
                                   <span>💸 TOTAL AKUMULASI DENDA PER STOK:</span>
                                 </td>
@@ -5293,12 +5507,12 @@ export default function AndroidPosRegister({
         {/* TAB 5: LAPORAN LOGISTIK BAHAN BAKU */}
         {activeNavTab === 'logistics' && (
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', marginBottom: '4px' }}>📦 Laporan & Pengajuan Stok Logistik</h2>
-            <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '20px' }}>Permintaan Bahan Baku Outlet {currentOutlet.name}</p>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '4px' }}>📦 Laporan & Pengajuan Stok Logistik</h2>
+            <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '20px' }}>Permintaan Bahan Baku Outlet {currentOutlet.name}</p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
-              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Package size={18} color="#818cf8" />
                   <span>Ajukan Permintaan Bahan Baku</span>
                 </h3>
@@ -5319,14 +5533,14 @@ export default function AndroidPosRegister({
                 </form>
               </div>
 
-              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc', marginBottom: '14px' }}>Riwayat Status Pengajuan Logistik</h3>
+              <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '14px' }}>Riwayat Status Pengajuan Logistik</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {(masterData?.approvedLogistics || []).map(req => (
-                    <div key={req.id} style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div key={req.id} style={{ background: 'var(--pos-bg-app)', padding: '12px 14px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>{req.item_name} ({req.qty})</div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>ID: {req.id} • {req.date}</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{req.item_name} ({req.qty})</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>ID: {req.id} • {req.date}</div>
                       </div>
                       <span style={{ fontSize: '0.72rem', fontWeight: '800', padding: '3px 10px', borderRadius: '8px', background: req.status === 'Disetujui' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)', color: req.status === 'Disetujui' ? '#34d399' : '#fbbf24' }}>
                         {req.status}
@@ -5342,20 +5556,20 @@ export default function AndroidPosRegister({
         {/* TAB 6: LAPORAN OMZET */}
         {activeNavTab === 'omzet' && (
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', marginBottom: '4px' }}>📊 Laporan Omzet & Performa Outlet</h2>
-            <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '20px' }}>Analisis Ringkas Omset Outlet {currentOutlet.name}</p>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '4px' }}>📊 Laporan Omzet & Performa Outlet</h2>
+            <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '20px' }}>Analisis Ringkas Omset Outlet {currentOutlet.name}</p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
-              <div style={{ background: '#1e293b', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>TOTAL OMSET GROSS</div>
+              <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>TOTAL OMSET GROSS</div>
                 <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(totalSalesGross)}</div>
               </div>
-              <div style={{ background: '#1e293b', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>TOTAL STRUK NOTA</div>
+              <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>TOTAL STRUK NOTA</div>
                 <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>{outletTransactions.length} Struk</div>
               </div>
-              <div style={{ background: '#1e293b', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>RATA-RATA NILAI STRUK</div>
+              <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>RATA-RATA NILAI STRUK</div>
                 <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#818cf8', marginTop: '6px' }}>
                   {formatRupiah(outletTransactions.length > 0 ? totalSalesGross / outletTransactions.length : 0)}
                 </div>
@@ -5366,7 +5580,7 @@ export default function AndroidPosRegister({
 
         {/* TAB 7: HALAMAN SETTING POS MOBILE */}
         {(activeNavTab === 'pos_settings' || activeNavTab === 'printer_setting') && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#0f172a' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--pos-bg-app)' }}>
             
             {/* 2. TWO-COLUMN SETTINGS MAIN LAYOUT */}
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -5374,8 +5588,8 @@ export default function AndroidPosRegister({
               {/* LEFT SIDEBAR SETTINGS SUB-MENU */}
               <div style={{
                 width: '240px',
-                background: '#1e293b',
-                borderRight: '1px solid rgba(255,255,255,0.08)',
+                background: 'var(--pos-bg-card)',
+                borderRight: '1px solid var(--pos-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 justify: 'space-between',
@@ -5383,8 +5597,8 @@ export default function AndroidPosRegister({
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {[
-                    { id: 'umum', label: 'Umum', icon: Settings },
-                    { id: 'printer', label: 'Printer', icon: Printer },
+                  { id: 'umum', label: 'Umum', icon: Settings },
+                    { id: 'printer', label: 'Printer', icon: PrinterIcon },
                     { id: 'sistem', label: 'Sistem', icon: Sliders },
                     { id: 'akun', label: 'Akun', icon: User }
                   ].map(tab => {
@@ -5448,18 +5662,68 @@ export default function AndroidPosRegister({
               </div>
 
               {/* RIGHT CONTENT PANEL DEPENDING ON SUB-TAB */}
-              <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', background: '#0f172a' }}>
+              <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', background: 'var(--pos-bg-app)' }}>
                 
                 {/* SUB-TAB 1: UMUM (MATCHING SCREENSHOT 100%) */}
                 {settingSubTab === 'umum' && (
                   <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-                      Pengaturan Umum
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: isLight ? '#0f172a' : '#ffffff', margin: 0 }}>
+                      Pengaturan Umum POS Mobile
                     </h2>
+
+                    {/* PILIHAN TEMA TAMPILAN (MODE GELAP VS MODE TERANG) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <label style={{ fontSize: '0.90rem', fontWeight: '800', color: isLight ? '#0f172a' : '#f8fafc' }}>
+                        🎨 Tema Tampilan Aplikasi (Theme Mode)
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', maxWidth: '440px' }}>
+                        {/* MODE GELAP CARD */}
+                        <div
+                          onClick={() => toggleAppTheme('dark')}
+                          style={{
+                            background: !isLight ? 'linear-gradient(135deg, rgba(37,99,235,0.2) 0%, rgba(15,23,42,0.9) 100%)' : '#ffffff',
+                            border: !isLight ? '2px solid #2563eb' : '1.5px solid #cbd5e1',
+                            borderRadius: '16px',
+                            padding: '18px 14px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            boxShadow: !isLight ? '0 8px 20px rgba(37,99,235,0.25)' : 'none'
+                          }}
+                        >
+                          <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>🌙</div>
+                          <div style={{ fontWeight: '900', color: !isLight ? '#ffffff' : 'var(--pos-bg-app)', fontSize: '0.90rem' }}>Mode Gelap (Dark)</div>
+                          <span style={{ fontSize: '0.70rem', color: !isLight ? '#60a5fa' : '#64748b', fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
+                            {!isLight ? '✓ Aktif (Default)' : 'Sleek Dark Mode'}
+                          </span>
+                        </div>
+
+                        {/* MODE TERANG CARD */}
+                        <div
+                          onClick={() => toggleAppTheme('light')}
+                          style={{
+                            background: isLight ? 'linear-gradient(135deg, rgba(56,189,248,0.15) 0%, rgba(255,255,255,0.95) 100%)' : '#1f2937',
+                            border: isLight ? '2px solid #0284c7' : '1.5px solid #374151',
+                            borderRadius: '16px',
+                            padding: '18px 14px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            boxShadow: isLight ? '0 8px 20px rgba(2,132,199,0.2)' : 'none'
+                          }}
+                        >
+                          <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>☀️</div>
+                          <div style={{ fontWeight: '900', color: isLight ? '#0f172a' : '#ffffff', fontSize: '0.90rem' }}>Mode Terang (Light)</div>
+                          <span style={{ fontSize: '0.70rem', color: isLight ? '#0284c7' : '#94a3b8', fontWeight: '800', marginTop: '4px', display: 'inline-block' }}>
+                            {isLight ? '✓ Aktif' : 'Premium Light Mode'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
                     {/* CHECKBOX AUTO LOCK */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', fontSize: '0.94rem', fontWeight: '800', color: '#f8fafc' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', fontSize: '0.94rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
                         <input
                           type="checkbox"
                           checked={autoLockApp5Min}
@@ -5468,14 +5732,14 @@ export default function AndroidPosRegister({
                         />
                         <span>Kunci Aplikasi (Setelah 5 menit tidak ada aktivitas)</span>
                       </label>
-                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic', margin: '0 0 0 32px' }}>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontStyle: 'italic', margin: '0 0 0 32px' }}>
                         * Aplikasi akan dikunci jika tidak ada aktifitas selama 5 menit. (Restart diperlukan)
                       </p>
                     </div>
 
                     {/* DROPDOWN PILIH BAHASA */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px' }}>
-                      <label style={{ fontSize: '0.88rem', fontWeight: '800', color: '#f8fafc' }}>Pilih Bahasa</label>
+                      <label style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Pilih Bahasa</label>
                       <select
                         value={selectedLanguage}
                         onChange={e => setSelectedLanguage(e.target.value)}
@@ -5483,9 +5747,9 @@ export default function AndroidPosRegister({
                           width: '100%',
                           padding: '12px 14px',
                           borderRadius: '10px',
-                          background: '#1e293b',
-                          border: '1px solid #334155',
-                          color: '#ffffff',
+                          background: 'var(--pos-bg-card)',
+                          border: '1px solid var(--pos-border-card)',
+                          color: 'var(--pos-txt-primary)',
                           fontWeight: '700',
                           fontSize: '0.88rem',
                           outline: 'none'
@@ -5498,244 +5762,219 @@ export default function AndroidPosRegister({
                   </div>
                 )}
 
-                {/* SUB-TAB 2: PRINTER */}
+
+                {/* SUB-TAB: PRINTER BLUETOOTH */}
                 {settingSubTab === 'printer' && (
-                  <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Printer size={26} color="#38bdf8" />
-                          <span>Pengaturan Thermal Printer POS</span>
-                        </h2>
-                        <p style={{ fontSize: '0.80rem', color: '#94a3b8', marginTop: '4px' }}>
-                          Konfigurasi koneksi printer thermal Bluetooth/USB, mode cetak 1 per 1 vs sekaligus, dan uji coba cetak struk.
-                        </p>
+                  <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <PrinterIcon size={26} color="#6366f1" />
+                      <span>Koneksi Printer Bluetooth</span>
+                    </h2>
+
+                    {/* PRINT STATUS BANNER */}
+                    {printStatus && (
+                      <div style={{
+                        padding: '12px 16px',
+                        borderRadius: '12px',
+                        background: printStatus === 'success' ? 'rgba(52,211,153,0.15)' : printStatus === 'printing' ? 'rgba(99,102,241,0.15)' : 'rgba(244,63,94,0.15)',
+                        border: `1px solid ${printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#6366f1' : '#f43f5e'}`,
+                        color: printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#a5b4fc' : '#f87171',
+                        fontSize: '0.88rem',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        {printStatus === 'printing' && <span>⏳</span>}
+                        {printStatusMsg}
                       </div>
+                    )}
 
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        {saveSettingsSuccessToast && (
-                          <div style={{ background: 'rgba(16,185,129,0.2)', border: '1px solid #10b981', color: '#34d399', padding: '8px 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <CheckCircle2 size={16} />
-                            <span>Pengaturan Disimpan!</span>
+                    {/* PRINTER TERKONFIGURASI */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🖨️ Printer Aktif</div>
+                      {printerMac ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(52,211,153,0.1)', border: '1px solid #34d399' }}>
+                          <BluetoothConnected size={20} color="#34d399" />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: '800', color: '#34d399', fontSize: '0.9rem' }}>
+                              {pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                              {printerMac} • Kertas {printerPaperWidth}mm
+                            </div>
                           </div>
-                        )}
+                          <button
+                            type="button"
+                            onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
+                            style={{ background: 'rgba(244,63,94,0.12)', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#f43f5e', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            Lepas
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(100,116,139,0.1)', border: '1px dashed var(--pos-border)' }}>
+                          <BluetoothOff size={20} color="#94a3b8" />
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.88rem' }}>Belum ada printer dipilih</span>
+                        </div>
+                      )}
+                    </div>
 
+                    {/* LEBAR KERTAS */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📄 Lebar Kertas Thermal</div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {['58', '80'].map(w => (
+                          <button
+                            key={w}
+                            type="button"
+                            onClick={() => handleSavePrinterConfig(printerMac, w)}
+                            style={{
+                              flex: 1,
+                              padding: '14px',
+                              borderRadius: '12px',
+                              border: `2px solid ${printerPaperWidth === w ? '#6366f1' : 'var(--pos-border)'}`,
+                              background: printerPaperWidth === w ? 'rgba(99,102,241,0.15)' : 'transparent',
+                              color: printerPaperWidth === w ? '#a5b4fc' : 'var(--pos-txt-secondary)',
+                              fontWeight: '800',
+                              fontSize: '1.05rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s'
+                            }}
+                          >
+                            {w}mm
+                            <div style={{ fontSize: '0.72rem', fontWeight: '600', marginTop: '3px', opacity: 0.7 }}>
+                              {w === '58' ? 'Mini Kasir' : 'Lebar Standar'}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* SCAN PERANGKAT BLUETOOTH */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🔍 Perangkat Bluetooth Terpair</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>Pair printer terlebih dahulu di: Pengaturan Android → Bluetooth</div>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => {
-                            setShowTestPrintModal(true);
-                            setTestPrintSuccessToast(true);
-                            setTimeout(() => setTestPrintSuccessToast(false), 3000);
-                          }}
+                          onClick={handleScanPairedPrinters}
+                          disabled={isScanningPaired}
                           style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
                             padding: '10px 18px',
-                            background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
-                            color: '#ffffff',
+                            borderRadius: '10px',
                             border: 'none',
-                            borderRadius: '12px',
-                            fontWeight: '900',
+                            background: isScanningPaired ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.2)',
+                            color: '#a5b4fc',
+                            fontWeight: '800',
                             fontSize: '0.82rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            boxShadow: '0 4px 14px rgba(56,189,248,0.4)'
+                            cursor: isScanningPaired ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s'
                           }}
                         >
-                          <Printer size={18} />
-                          <span>🖨️ Test Print Struk</span>
+                          <Bluetooth size={16} />
+                          {isScanningPaired ? 'Memindai...' : 'Scan Perangkat'}
                         </button>
                       </div>
+
+                      {/* DEVICE LIST */}
+                      {pairedDevices.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '28px', color: 'var(--pos-txt-secondary)', fontSize: '0.85rem', borderRadius: '12px', background: 'var(--pos-bg-app)' }}>
+                          {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {pairedDevices.map(device => {
+                            const isSelected = printerMac === device.address;
+                            return (
+                              <button
+                                key={device.address}
+                                type="button"
+                                onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '14px',
+                                  padding: '14px 16px',
+                                  borderRadius: '12px',
+                                  border: `2px solid ${isSelected ? '#6366f1' : 'var(--pos-border)'}`,
+                                  background: isSelected ? 'rgba(99,102,241,0.12)' : 'var(--pos-bg-app)',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  transition: 'all 0.15s',
+                                  width: '100%'
+                                }}
+                              >
+                                {isSelected
+                                  ? <BluetoothConnected size={22} color="#6366f1" />
+                                  : <Bluetooth size={22} color="#94a3b8" />}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '800', color: isSelected ? '#a5b4fc' : 'var(--pos-txt-primary)', fontSize: '0.92rem' }}>
+                                    {device.name || 'Unnamed Device'}
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                    {device.address}
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <span style={{ fontSize: '0.72rem', background: '#6366f1', color: '#fff', borderRadius: '6px', padding: '3px 8px', fontWeight: '800', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
-                    {/* SECTION 1: PERANGKAT PRINTER & KERTAS */}
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Settings size={18} color="#818cf8" />
-                        <span>Perangkat Printer Thermal POS</span>
-                      </h3>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        <div>
-                          <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '700' }}>Nama Printer Active</label>
-                          <input
-                            type="text"
-                            value={printerSettings.printerName}
-                            onChange={e => setPrinterSettings(prev => ({ ...prev, printerName: e.target.value }))}
-                            className="form-input"
-                            placeholder="Contoh: POS Thermal Printer 58mm"
-                          />
-                        </div>
-
-                        <div>
-                          <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '700' }}>Ukuran Kertas Thermal</label>
-                          <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setPrinterSettings(prev => ({ ...prev, paperWidth: '58mm' }))}
-                              style={{
-                                flex: 1,
-                                padding: '10px',
-                                background: printerSettings.paperWidth === '58mm' ? 'rgba(99,102,241,0.2)' : '#0f172a',
-                                border: '1px solid',
-                                borderColor: printerSettings.paperWidth === '58mm' ? '#6366f1' : '#334155',
-                                borderRadius: '10px',
-                                color: '#f8fafc',
-                                fontWeight: '800',
-                                fontSize: '0.82rem',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              📄 58 mm (Kecil)
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setPrinterSettings(prev => ({ ...prev, paperWidth: '80mm' }))}
-                              style={{
-                                flex: 1,
-                                padding: '10px',
-                                background: printerSettings.paperWidth === '80mm' ? 'rgba(99,102,241,0.2)' : '#0f172a',
-                                border: '1px solid',
-                                borderColor: printerSettings.paperWidth === '80mm' ? '#6366f1' : '#334155',
-                                borderRadius: '10px',
-                                color: '#f8fafc',
-                                fontWeight: '800',
-                                fontSize: '0.82rem',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              📜 80 mm (Besar)
-                            </button>
-                          </div>
-                        </div>
+                    {/* TEST PRINT */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧪 Tes Cetak Printer</div>
+                      <div style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)' }}>
+                        {printerMac
+                          ? 'Kirim struk tes ke printer yang dipilih untuk memastikan koneksi dan format cetak berjalan normal.'
+                          : 'Pilih printer terlebih dahulu untuk mengaktifkan fitur tes cetak.'}
                       </div>
-                    </div>
-
-                    {/* SECTION 2: METODE CETAK STRUK (1 PER 1 VS SEKALIGUS) */}
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Zap size={18} color="#34d399" />
-                        <span>Pengaturan Mode Cetak Struk Pesanan (Dapur / Bar / Kasir)</span>
-                      </h3>
-                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '16px' }}>
-                        Pilih apakah lembar struk pesanan dikeluarkan sekaligus dalam 1 lembar atau dipisah 1 per 1 per-item menu.
-                      </p>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                        {/* MODE 1: SEKALIGUS */}
-                        <div
-                          onClick={() => setPrinterSettings(prev => ({ ...prev, printMode: 'sekaligus' }))}
-                          style={{
-                            background: printerSettings.printMode === 'sekaligus' ? 'rgba(52, 211, 153, 0.15)' : '#0f172a',
-                            border: '2px solid',
-                            borderColor: printerSettings.printMode === 'sekaligus' ? '#34d399' : '#334155',
-                            padding: '16px',
-                            borderRadius: '14px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.94rem', fontWeight: '900', color: printerSettings.printMode === 'sekaligus' ? '#34d399' : '#ffffff' }}>
-                              ⚡ Cetak Sekaligus (All-in-One)
-                            </span>
-                            <input
-                              type="radio"
-                              name="printModeRadio"
-                              checked={printerSettings.printMode === 'sekaligus'}
-                              onChange={() => {}}
-                              style={{ accentColor: '#34d399', width: '18px', height: '18px' }}
-                            />
-                          </div>
-                          <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>
-                            Seluruh item pesanan (dapur, bar, kasir) dikelompokkan dan dicetak dalam 1 lembar struk panjang secara bersamaan.
-                          </p>
-                        </div>
-
-                        {/* MODE 2: 1 PER 1 */}
-                        <div
-                          onClick={() => setPrinterSettings(prev => ({ ...prev, printMode: 'per_item' }))}
-                          style={{
-                            background: printerSettings.printMode === 'per_item' ? 'rgba(56, 189, 248, 0.15)' : '#0f172a',
-                            border: '2px solid',
-                            borderColor: printerSettings.printMode === 'per_item' ? '#38bdf8' : '#334155',
-                            padding: '16px',
-                            borderRadius: '14px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.94rem', fontWeight: '900', color: printerSettings.printMode === 'per_item' ? '#38bdf8' : '#ffffff' }}>
-                              📄 Cetak 1 per 1 (Per-Item Ticket)
-                            </span>
-                            <input
-                              type="radio"
-                              name="printModeRadio"
-                              checked={printerSettings.printMode === 'per_item'}
-                              onChange={() => {}}
-                              style={{ accentColor: '#38bdf8', width: '18px', height: '18px' }}
-                            />
-                          </div>
-                          <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>
-                            Setiap item pesanan dicetak terpisah menjadi 1 lembar struk individual (cocok untuk dapur yang mengolah per-station).
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SECTION 3: POPUP STRUK CHOICE */}
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <div
-                        onClick={() => setPrinterSettings(prev => ({ ...prev, autoShowReceiptChoiceOnSaveOrder: !prev.autoShowReceiptChoiceOnSaveOrder }))}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                      <button
+                        type="button"
+                        onClick={handleExecuteTestPrint}
+                        disabled={!printerMac || printStatus === 'printing'}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          padding: '14px',
+                          borderRadius: '12px',
+                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`,
+                          background: !printerMac ? 'rgba(100,116,139,0.1)' : 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)',
+                          color: !printerMac ? '#64748b' : '#34d399',
+                          fontWeight: '800',
+                          fontSize: '0.92rem',
+                          cursor: !printerMac ? 'not-allowed' : 'pointer'
+                        }}
                       >
-                        <div>
-                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: '#f8fafc' }}>
-                            Tampilkan Pop-Up Pilihan Struk Setiap Kali 'Simpan Order'
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                            Jika diaktifkan, kasir dapat memilih/menceklis jenis struk sebelum mencetak.
-                          </div>
+                        <PrinterIcon size={18} />
+                        {printStatus === 'printing' ? 'Mengirim...' : '🖨️ Kirim Test Print Sekarang'}
+                      </button>
+                      {testPrintSuccessToast && (
+                        <div style={{ textAlign: 'center', color: '#34d399', fontSize: '0.85rem', fontWeight: '700', padding: '8px', borderRadius: '8px', background: 'rgba(52,211,153,0.1)' }}>
+                          ✅ Struk tes berhasil dikirim ke printer!
                         </div>
-                        <div style={{ width: '48px', height: '26px', borderRadius: '13px', background: printerSettings.autoShowReceiptChoiceOnSaveOrder ? '#6366f1' : '#334155', padding: '3px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center' }}>
-                          <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#ffffff', transform: printerSettings.autoShowReceiptChoiceOnSaveOrder ? 'translateX(22px)' : 'translateX(0px)', transition: 'transform 0.2s ease' }}></div>
-                        </div>
-                      </div>
+                      )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSaveSettingsSuccessToast(true);
-                        setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
-                      }}
-                      className="btn-primary"
-                      style={{ height: '48px', justifyContent: 'center', fontSize: '0.9rem', fontWeight: '900' }}
-                    >
-                      <Save size={18} />
-                      <span>SIMPAN PENGATURAN PRINTER</span>
-                    </button>
                   </div>
                 )}
 
-                {/* SUB-TAB 3: SISTEM */}
+                {/* SUB-TAB 2: SISTEM (was 3) */}
+
                 {settingSubTab === 'sistem' && (
                   <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <Sliders size={26} color="#818cf8" />
                           <span>Pengaturan Sistem & Koneksi Database</span>
                         </h2>
-                        <p style={{ fontSize: '0.80rem', color: '#94a3b8', marginTop: '4px' }}>
+                        <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
                           Kelola mode koneksi Server/Client, sinkronisasi offline ke online, backup & restore data offline, dan auto-sync 3 menit.
                         </p>
                       </div>
@@ -5757,12 +5996,12 @@ export default function AndroidPosRegister({
                     )}
 
                     {/* SECTION 1: MODE KONEKSI (SERVER vs CLIENT) */}
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                      <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Store size={18} color="#fbbf24" />
                         <span>Mode Koneksi Jaringan (Server / Client)</span>
                       </h3>
-                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '16px' }}>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '16px' }}>
                         Tentukan peran perangkat Mobile APK dalam jaringan lokal restoran.
                       </p>
 
@@ -5771,9 +6010,9 @@ export default function AndroidPosRegister({
                         <div
                           onClick={() => setConnectionMode('server')}
                           style={{
-                            background: connectionMode === 'server' ? 'rgba(251, 191, 36, 0.15)' : '#0f172a',
+                            background: connectionMode === 'server' ? 'rgba(251, 191, 36, 0.15)' : 'var(--pos-bg-app)',
                             border: '2px solid',
-                            borderColor: connectionMode === 'server' ? '#fbbf24' : '#334155',
+                            borderColor: connectionMode === 'server' ? '#fbbf24' : 'var(--pos-border-card)',
                             padding: '16px',
                             borderRadius: '14px',
                             cursor: 'pointer',
@@ -5795,7 +6034,7 @@ export default function AndroidPosRegister({
                               style={{ accentColor: '#fbbf24', width: '18px', height: '18px' }}
                             />
                           </div>
-                          <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>
+                          <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: 0, lineHeight: '1.4' }}>
                             Bertindak sebagai Server Utama lokal yang menyimpan seluruh database transaksi dan terhubung langsung ke Web Admin.
                           </p>
                         </div>
@@ -5804,9 +6043,9 @@ export default function AndroidPosRegister({
                         <div
                           onClick={() => setConnectionMode('client')}
                           style={{
-                            background: connectionMode === 'client' ? 'rgba(99, 102, 241, 0.15)' : '#0f172a',
+                            background: connectionMode === 'client' ? 'rgba(99, 102, 241, 0.15)' : 'var(--pos-bg-app)',
                             border: '2px solid',
-                            borderColor: connectionMode === 'client' ? '#6366f1' : '#334155',
+                            borderColor: connectionMode === 'client' ? '#6366f1' : 'var(--pos-border-card)',
                             padding: '16px',
                             borderRadius: '14px',
                             cursor: 'pointer',
@@ -5828,7 +6067,7 @@ export default function AndroidPosRegister({
                               style={{ accentColor: '#6366f1', width: '18px', height: '18px' }}
                             />
                           </div>
-                          <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>
+                          <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: 0, lineHeight: '1.4' }}>
                             Bertindak sebagai Terminal Kasir tambahan yang mengirimkan transaksi ke IP Server Utama lokal.
                           </p>
                         </div>
@@ -5836,8 +6075,8 @@ export default function AndroidPosRegister({
 
                       {/* INPUT IP SERVER JIKA MODE CLIENT */}
                       {connectionMode === 'client' && (
-                        <div style={{ marginTop: '16px', background: '#0f172a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                          <label style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', whiteSpace: 'nowrap' }}>
+                        <div style={{ marginTop: '16px', background: 'var(--pos-bg-app)', padding: '14px 18px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <label style={{ fontSize: '0.84rem', fontWeight: '800', color: 'var(--pos-txt-primary)', whiteSpace: 'nowrap' }}>
                             IP Address / Host Server Master:
                           </label>
                           <input
@@ -5853,14 +6092,14 @@ export default function AndroidPosRegister({
                     </div>
 
                     {/* SECTION 2: SINKRONISASI DATA & DOKUMEN OFFLINE (AUTO 3-MENIT) */}
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
                         <div>
-                          <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <RefreshCw size={18} color="#38bdf8" className={isSyncingNow ? 'animate-spin' : ''} />
                             <span>Sinkronisasi Data Offline & Web Admin</span>
                           </h3>
-                          <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
+                          <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
                             Perbarui status transaksi, persediaan stok opname, dan SOP secara real-time dengan database pusat.
                           </p>
                         </div>
@@ -5871,8 +6110,8 @@ export default function AndroidPosRegister({
                           disabled={isSyncingNow}
                           style={{
                             padding: '10px 20px',
-                            background: isSyncingNow ? '#334155' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                            color: '#ffffff',
+                            background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                            color: 'var(--pos-txt-primary)',
                             border: 'none',
                             borderRadius: '12px',
                             fontWeight: '900',
@@ -5890,30 +6129,30 @@ export default function AndroidPosRegister({
                       </div>
 
                       {/* KETERANGAN WAKTU TERAKHIR SINKRON */}
-                      <div style={{ background: '#0f172a', padding: '14px 18px', borderRadius: '12px', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ background: 'var(--pos-bg-app)', padding: '14px 18px', borderRadius: '12px', border: '1px solid rgba(56,189,248,0.2)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>
                             <span>Terakhir Sinkronisasi:</span>
                           </span>
-                          <span style={{ fontSize: '0.86rem', fontWeight: '900', color: '#f8fafc', background: 'rgba(255,255,255,0.06)', padding: '4px 12px', borderRadius: '8px' }}>
+                          <span style={{ fontSize: '0.86rem', fontWeight: '900', color: 'var(--pos-txt-primary)', background: 'rgba(255,255,255,0.06)', padding: '4px 12px', borderRadius: '8px' }}>
                             ⏱️ {lastSyncTime}
                           </span>
                         </div>
 
-                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', fontSize: '0.76rem', color: '#94a3b8', lineHeight: '1.4' }}>
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', lineHeight: '1.4' }}>
                           ℹ️ <strong>Mode Ketahanan Listrik / Off-Line:</strong> Apabila jaringan listrik/internet mati, seluruh transaksi kasir tetap tersimpan aman di memori tablet. Saat jaringan kembali normal, sistem akan <strong>secara otomatis tersambung dan meng-update server setiap 3 menit</strong>.
                         </div>
                       </div>
 
                       {/* TOGGLE AUTO SYNC 3 MENIT */}
-                      <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a', padding: '12px 16px', borderRadius: '12px' }}>
-                        <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc' }}>
+                      <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '12px' }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
                           Auto-Sync Otomatis Setiap 3 Menit (Latar Belakang)
                         </div>
                         <div
                           onClick={() => setAutoSyncIntervalActive(!autoSyncIntervalActive)}
-                          style={{ width: '48px', height: '26px', borderRadius: '13px', background: autoSyncIntervalActive ? '#34d399' : '#334155', padding: '3px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                          style={{ width: '48px', height: '26px', borderRadius: '13px', background: autoSyncIntervalActive ? '#34d399' : 'var(--pos-border-card)', padding: '3px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                         >
                           <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#ffffff', transform: autoSyncIntervalActive ? 'translateX(22px)' : 'translateX(0px)', transition: 'transform 0.2s ease' }}></div>
                         </div>
@@ -5921,15 +6160,15 @@ export default function AndroidPosRegister({
                     </div>
 
                     {/* SECTION 3: BACKUP (MANUAL) & RESTORE DATA OFFLINE (KHUSUS SUPER ADMIN) */}
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Save size={20} color="#c084fc" />
                           <span>Cadangan & Pemulihan Data Offline (Backup & Restore)</span>
                         </h3>
                       </div>
 
-                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '14px', lineHeight: '1.4' }}>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '14px', lineHeight: '1.4' }}>
                         💾 <strong>Backup Data:</strong> Dapat diunduh manual kapan saja oleh Kasir. <br />
                         🔒 <strong>Restore Data:</strong> Wajib otorisasi PIN khusus <strong>Super Admin</strong> dan akan langsung terhubung ke Server Utama.
                       </p>
@@ -5996,20 +6235,20 @@ export default function AndroidPosRegister({
                     </div>
 
                     {/* SECTION 4: CASH DRAWER */}
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div
                         onClick={() => setAutoOpenCashDrawer(!autoOpenCashDrawer)}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                       >
                         <div>
-                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: '#f8fafc' }}>
+                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
                             Buka Laci Kasir (Cash Drawer) Otomatis
                           </div>
-                          <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
                             Kirim sinyal kick-out ke laci kasir saat pembayaran tunai berhasil.
                           </div>
                         </div>
-                        <div style={{ width: '48px', height: '26px', borderRadius: '13px', background: autoOpenCashDrawer ? '#34d399' : '#334155', padding: '3px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: '48px', height: '26px', borderRadius: '13px', background: autoOpenCashDrawer ? '#34d399' : 'var(--pos-border-card)', padding: '3px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center' }}>
                           <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#ffffff', transform: autoOpenCashDrawer ? 'translateX(22px)' : 'translateX(0px)', transition: 'transform 0.2s ease' }}></div>
                         </div>
                       </div>
@@ -6020,23 +6259,23 @@ export default function AndroidPosRegister({
                 {/* SUB-TAB 4: AKUN */}
                 {settingSubTab === 'akun' && (
                   <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                       Profil & Pengaturan Akun Kasir
                     </h2>
 
-                    <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: '#ffffff', fontSize: '1.2rem' }}>
+                        <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: 'var(--pos-txt-white)', fontSize: '1.2rem' }}>
                           K
                         </div>
                         <div>
-                          <div style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff' }}>Kasir Utama Shift 1</div>
-                          <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Outlet: {currentOutlet.name} • Role: Kasir / Staf Operasional</div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>Kasir Utama Shift 1</div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Outlet: {currentOutlet.name} • Role: Kasir / Staf Operasional</div>
                         </div>
                       </div>
 
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <label style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: '700' }}>PIN Kasir Saat Ini</label>
+                      <div style={{ borderTop: '1px solid var(--pos-border)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label style={{ fontSize: '0.82rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>PIN Kasir Saat Ini</label>
                         <input
                           type="password"
                           value={kasirPinInput}
@@ -6059,19 +6298,19 @@ export default function AndroidPosRegister({
           <div style={{ flex: 1, padding: '24px', overflowY: 'auto', width: '100%', maxWidth: '1180px', margin: '0 auto' }}>
             
             {/* TOP HEADER BAR */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: '#1e293b', padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
               <div>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Grid size={24} color="#6366f1" />
                   <span>Menu Lain-lain (Reservasi & SOP Operasional)</span>
                 </h2>
-                <p style={{ fontSize: '0.80rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                   {currentOutlet.name} • Kelola Booking Meja Pelanggan & Panduan Standar Operasional Prosedur (SOP)
                 </p>
               </div>
 
               {/* SUB-TAB NAVIGATION BUTTONS */}
-              <div style={{ display: 'flex', background: '#0f172a', padding: '4px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', background: 'var(--pos-bg-app)', padding: '4px', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
                 <button
                   type="button"
                   onClick={() => setLainLainSubTab('reservasi')}
@@ -6124,26 +6363,26 @@ export default function AndroidPosRegister({
                 
                 {/* SUMMARY STATS BAR */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>TOTAL RESERVASI</div>
-                    <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#ffffff', marginTop: '4px' }}>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>TOTAL RESERVASI</div>
+                    <div style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '4px' }}>
                       {reservationsList.length} Booking
                     </div>
                   </div>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>DISETUJUI / CONFIRMED</div>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>DISETUJUI / CONFIRMED</div>
                     <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#34d399', marginTop: '4px' }}>
                       {reservationsList.filter(r => r.status === 'confirmed').length} Reservasi
                     </div>
                   </div>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>MENUNGGU KONFIRMASI</div>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>MENUNGGU KONFIRMASI</div>
                     <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#fbbf24', marginTop: '4px' }}>
                       {reservationsList.filter(r => r.status === 'pending').length} Reservasi
                     </div>
                   </div>
-                  <div style={{ background: '#1e293b', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>SELESAI / SEATED</div>
+                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>SELESAI / SEATED</div>
                     <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#38bdf8', marginTop: '4px' }}>
                       {reservationsList.filter(r => r.status === 'completed').length} Reservasi
                     </div>
@@ -6151,16 +6390,16 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* TABLE CARD CONTAINER & HEADER ACTION */}
-                <div style={{ background: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Calendar size={18} color="#6366f1" />
                       <span>Daftar Reservasi Meja & Booking Pelanggan</span>
                     </h3>
                     <button
                       type="button"
                       onClick={() => setShowAddReservationModal(true)}
-                      style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
                       <Plus size={16} />
                       <span>+ Buat Reservasi Baru</span>
@@ -6170,7 +6409,7 @@ export default function AndroidPosRegister({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', color: '#94a3b8', textAlign: 'left' }}>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', textAlign: 'left' }}>
                           <th style={{ padding: '12px 10px' }}>Tgl & Waktu</th>
                           <th style={{ padding: '12px 10px' }}>Kode Booking</th>
                           <th style={{ padding: '12px 10px' }}>Nama Pelanggan</th>
@@ -6185,7 +6424,7 @@ export default function AndroidPosRegister({
                       <tbody>
                         {reservationsList.length === 0 ? (
                           <tr>
-                            <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>
+                            <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                               Belum ada data reservasi meja untuk outlet ini.
                             </td>
                           </tr>
@@ -6196,14 +6435,14 @@ export default function AndroidPosRegister({
                             const statusLabel = rsv.status === 'confirmed' ? '🟢 CONFIRMED' : rsv.status === 'pending' ? '⏳ PENDING' : rsv.status === 'completed' ? '✅ SELESAI' : '❌ BATAL';
 
                             return (
-                              <tr key={rsv.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '12px 10px', color: '#94a3b8', fontWeight: '700' }}>
+                              <tr key={rsv.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
                                   <div>{rsv.date}</div>
                                   <div style={{ fontSize: '0.70rem', color: '#6366f1' }}>{rsv.time}</div>
                                 </td>
                                 <td style={{ padding: '12px 10px', fontWeight: '900', color: '#38bdf8' }}>{rsv.id}</td>
-                                <td style={{ padding: '12px 10px', fontWeight: '800', color: '#ffffff' }}>👤 {rsv.customer_name}</td>
-                                <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>📞 {rsv.phone}</td>
+                                <td style={{ padding: '12px 10px', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>👤 {rsv.customer_name}</td>
+                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-secondary)' }}>📞 {rsv.phone}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'center', fontWeight: '900', color: '#a78bfa' }}>👥 {rsv.pax_count} Pax</td>
                                 <td style={{ padding: '12px 10px', fontWeight: '800', color: '#34d399' }}>🪑 {rsv.table_no}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#34d399' }}>
@@ -6242,7 +6481,7 @@ export default function AndroidPosRegister({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 
                 {/* SEARCH & CATEGORY FILTER BAR */}
-                <div style={{ background: '#1e293b', padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)', display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'space-between', alignItems: 'center' }}>
                   
                   {/* SEARCH BOX */}
                   <div style={{ flex: 1, minWidth: '260px', position: 'relative' }}>
@@ -6255,10 +6494,10 @@ export default function AndroidPosRegister({
                       style={{
                         width: '100%',
                         padding: '10px 12px 10px 38px',
-                        background: '#0f172a',
-                        border: '1px solid #334155',
+                        background: 'var(--pos-bg-app)',
+                        border: '1px solid var(--pos-border-card)',
                         borderRadius: '10px',
-                        color: '#ffffff',
+                        color: 'var(--pos-txt-primary)',
                         fontSize: '0.82rem'
                       }}
                     />
@@ -6283,8 +6522,8 @@ export default function AndroidPosRegister({
                           padding: '6px 12px',
                           borderRadius: '8px',
                           border: '1px solid',
-                          borderColor: sopCategoryFilter === cat.id ? '#34d399' : '#334155',
-                          background: sopCategoryFilter === cat.id ? 'rgba(52, 211, 153, 0.15)' : '#0f172a',
+                          borderColor: sopCategoryFilter === cat.id ? '#34d399' : 'var(--pos-border-card)',
+                          background: sopCategoryFilter === cat.id ? 'rgba(52, 211, 153, 0.15)' : 'var(--pos-bg-app)',
                           color: sopCategoryFilter === cat.id ? '#34d399' : '#94a3b8',
                           fontSize: '0.74rem',
                           fontWeight: '800',
@@ -6309,10 +6548,10 @@ export default function AndroidPosRegister({
                       <div
                         key={doc.id}
                         style={{
-                          background: '#1e293b',
+                          background: 'var(--pos-bg-card)',
                           borderRadius: '16px',
                           padding: '20px',
-                          border: '1px solid rgba(255,255,255,0.08)',
+                          border: '1px solid var(--pos-border)',
                           display: 'flex',
                           flexDirection: 'column',
                           justify: 'space-between',
@@ -6324,16 +6563,16 @@ export default function AndroidPosRegister({
                             <span style={{ fontSize: '0.70rem', fontWeight: '900', color: '#34d399', background: 'rgba(52, 211, 153, 0.15)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
                               {doc.categoryLabel}
                             </span>
-                            <span style={{ fontSize: '0.70rem', color: '#94a3b8', fontWeight: '700' }}>
+                            <span style={{ fontSize: '0.70rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
                               ⏱️ {doc.estimatedTime}
                             </span>
                           </div>
 
-                          <h3 style={{ fontSize: '1rem', fontWeight: '900', color: '#ffffff', margin: '0 0 8px 0', lineHeight: '1.3' }}>
+                          <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: '0 0 8px 0', lineHeight: '1.3' }}>
                             {doc.title}
                           </h3>
 
-                          <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: '1.4' }}>
+                          <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: 0, lineHeight: '1.4' }}>
                             {doc.summary}
                           </p>
                         </div>
@@ -6345,7 +6584,7 @@ export default function AndroidPosRegister({
                           <button
                             type="button"
                             onClick={() => setSelectedSopDetail(doc)}
-                            style={{ padding: '6px 14px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            style={{ padding: '6px 14px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                           >
                             <BookOpen size={14} />
                             <span>Baca SOP</span>
@@ -6366,16 +6605,16 @@ export default function AndroidPosRegister({
       {/* 4. MODAL PAPAN PEMETAAN MEJA (TABLE FLOOR MAP MODAL) */}
       {showTableMapModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '820px', maxHeight: '88vh', padding: '24px', background: '#1e293b', borderRadius: '20px', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '820px', maxHeight: '88vh', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '20px', display: 'flex', flexDirection: 'column' }}>
             
             {/* MODAL HEADER */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                   <Grid size={24} color="#6366f1" />
                   <span>Papan Pemetaan Meja Restoran (Table Floor Map)</span>
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '0.82rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
                   Pilih meja kosong untuk pesanan baru atau klik meja terisi untuk pelunasan pembayaran.
                 </p>
               </div>
@@ -6390,7 +6629,7 @@ export default function AndroidPosRegister({
             </div>
 
             {/* STATUS LEGEND BAR */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '16px', background: '#0f172a', padding: '12px 16px', borderRadius: '12px', fontSize: '0.82rem', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '16px', background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '12px', fontSize: '0.82rem', border: '1px solid var(--pos-border-card)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
                 <span style={{ color: '#34d399', fontWeight: '800' }}>🟢 KOSONG / TERSEDIA</span>
@@ -6411,9 +6650,9 @@ export default function AndroidPosRegister({
                   <div
                     key={tbl.id}
                     style={{
-                      background: isOccupied ? 'rgba(244,63,94,0.12)' : (isSelected ? 'rgba(99,102,241,0.2)' : '#0f172a'),
+                      background: isOccupied ? 'rgba(244,63,94,0.12)' : (isSelected ? 'rgba(99,102,241,0.2)' : 'var(--pos-bg-app)'),
                       border: '2px solid',
-                      borderColor: isOccupied ? '#f43f5e' : (isSelected ? '#6366f1' : '#334155'),
+                      borderColor: isOccupied ? '#f43f5e' : (isSelected ? '#6366f1' : 'var(--pos-border-card)'),
                       borderRadius: '16px',
                       padding: '16px',
                       display: 'flex',
@@ -6427,10 +6666,10 @@ export default function AndroidPosRegister({
                     <div>
                       {/* HEADER MEJA: NAMA MEJA & KURSI */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', letterSpacing: '0.3px' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', letterSpacing: '0.3px' }}>
                           {tbl.number}
                         </span>
-                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '6px', background: '#1e293b', color: '#cbd5e1', fontWeight: '700', border: '1px solid #334155' }}>
+                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '6px', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-secondary)', fontWeight: '700', border: '1px solid var(--pos-border-card)' }}>
                           👥 {tbl.seats} Kursi
                         </span>
                       </div>
@@ -6442,9 +6681,9 @@ export default function AndroidPosRegister({
 
                       {/* OCCUPIED DETAILS BOX */}
                       {isOccupied && tbl.pendingOrder && (
-                        <div style={{ background: '#1e293b', padding: '8px 10px', borderRadius: '10px', fontSize: '0.78rem', border: '1px dashed rgba(244,63,94,0.5)', marginBottom: '10px' }}>
-                          <div style={{ color: '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            Pelanggan: <strong style={{ color: '#ffffff' }}>{tbl.pendingOrder.customerName || 'Pelanggan Umum'}</strong>
+                        <div style={{ background: 'var(--pos-bg-card)', padding: '8px 10px', borderRadius: '10px', fontSize: '0.78rem', border: '1px dashed rgba(244,63,94,0.5)', marginBottom: '10px' }}>
+                          <div style={{ color: 'var(--pos-txt-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            Pelanggan: <strong style={{ color: 'var(--pos-txt-primary)' }}>{tbl.pendingOrder.customerName || 'Pelanggan Umum'}</strong>
                           </div>
                           <div style={{ color: '#fb7185', fontWeight: '900', fontSize: '0.85rem', marginTop: '3px' }}>
                             Total: {formatRupiah(tbl.pendingOrder.totalAmount)}
@@ -6462,7 +6701,7 @@ export default function AndroidPosRegister({
                           width: '100%',
                           padding: '9px 10px',
                           background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                          color: '#ffffff',
+                          color: 'var(--pos-txt-primary)',
                           border: 'none',
                           borderRadius: '10px',
                           fontSize: '0.82rem',
@@ -6490,7 +6729,7 @@ export default function AndroidPosRegister({
                           width: '100%',
                           padding: '9px 10px',
                           background: isSelected ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                          color: '#ffffff',
+                          color: 'var(--pos-txt-primary)',
                           border: 'none',
                           borderRadius: '10px',
                           fontSize: '0.82rem',
@@ -6516,33 +6755,33 @@ export default function AndroidPosRegister({
       {/* 5. MODAL RECEIPT AUTO-PRINT AFTER PAYMENT OR CONTOH TAGIHAN / HOLD ORDER */}
       {showReceiptModal && lastCompletedTx && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: '#1e293b', textAlign: 'center' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: 'var(--pos-bg-card)', textAlign: 'center' }}>
             
             {/* ICON & HEADER TITLE */}
             {(lastCompletedTx.isContohTagihan || lastCompletedTx.id?.startsWith('BILL') || lastCompletedTx.id?.startsWith('HOLD')) ? (
               <>
                 <FileText size={48} color="#38bdf8" style={{ marginBottom: '10px' }} />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', marginBottom: '4px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '4px' }}>
                   CONTOH TAGIHAN SEMENTARA
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '16px' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '16px' }}>
                   Informasi Tagihan Meja: <strong style={{ color: '#38bdf8' }}>{lastCompletedTx.id}</strong>
                 </p>
               </>
             ) : (
               <>
                 <CheckCircle2 size={48} color="#34d399" style={{ marginBottom: '10px' }} />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', marginBottom: '4px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '4px' }}>
                   TRANSAKSI BERHASIL!
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '16px' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '16px' }}>
                   No. Struk: <strong style={{ color: '#818cf8' }}>{lastCompletedTx.id}</strong>
                 </p>
               </>
             )}
 
             {/* RECEIPT BOX */}
-            <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px dashed #38bdf8', textAlign: 'left', marginBottom: '20px', fontSize: '0.78rem' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px dashed #38bdf8', textAlign: 'left', marginBottom: '20px', fontSize: '0.78rem' }}>
               <div style={{ fontWeight: '800', color: '#38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{lastCompletedTx.branch_name}</span>
                 <span style={{
@@ -6556,13 +6795,13 @@ export default function AndroidPosRegister({
                   {(lastCompletedTx.isContohTagihan || lastCompletedTx.id?.startsWith('BILL') || lastCompletedTx.id?.startsWith('HOLD')) ? '📌 BELUM DIBAYAR' : '✅ LUNAS'}
                 </span>
               </div>
-              <div style={{ color: '#cbd5e1', marginTop: '4px' }}>Waktu: {lastCompletedTx.date} {lastCompletedTx.time}</div>
-              <div style={{ color: '#cbd5e1' }}>Tipe: {lastCompletedTx.order_type} ({lastCompletedTx.table_number})</div>
-              <div style={{ color: '#cbd5e1' }}>Pelanggan: {lastCompletedTx.customer_name || 'Pelanggan Umum'}</div>
-              <div style={{ color: '#cbd5e1' }}>Metode: {lastCompletedTx.payment_method}</div>
+              <div style={{ color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>Waktu: {lastCompletedTx.date} {lastCompletedTx.time}</div>
+              <div style={{ color: 'var(--pos-txt-secondary)' }}>Tipe: {lastCompletedTx.order_type} ({lastCompletedTx.table_number})</div>
+              <div style={{ color: 'var(--pos-txt-secondary)' }}>Pelanggan: {lastCompletedTx.customer_name || 'Pelanggan Umum'}</div>
+              <div style={{ color: 'var(--pos-txt-secondary)' }}>Metode: {lastCompletedTx.payment_method}</div>
               <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
               {lastCompletedTx.items.map((it, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: '#f8fafc', margin: '3px 0' }}>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--pos-txt-primary)', margin: '3px 0' }}>
                   <span>{it.qty}x {it.name}</span>
                   <span>{formatRupiah((it.price || it.price_unit || 0) * it.qty)}</span>
                 </div>
@@ -6611,7 +6850,7 @@ export default function AndroidPosRegister({
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => window.print()} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', height: '42px', fontSize: '0.82rem' }}>
+                <button onClick={() => handlePrintSingleReceipt(lastCompletedTx)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', height: '42px', fontSize: '0.82rem' }}>
                   <Printer size={16} />
                   <span>Cetak Struk</span>
                 </button>
@@ -6627,18 +6866,18 @@ export default function AndroidPosRegister({
       {/* 6. MODAL DETAIL STRUK TRANSACTION HISTORY */}
       {selectedTxDetail && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: '#1e293b' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', marginBottom: '12px' }}>Detail Struk Nota Transaksi</h3>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: 'var(--pos-bg-card)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '12px' }}>Detail Struk Nota Transaksi</h3>
             
-            <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px dashed #334155', fontSize: '0.78rem', marginBottom: '16px' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px dashed #334155', fontSize: '0.78rem', marginBottom: '16px' }}>
               <div style={{ fontWeight: '800', color: '#38bdf8' }}>{selectedTxDetail.branch_name}</div>
-              <div style={{ color: '#cbd5e1' }}>No. Struk: {selectedTxDetail.id}</div>
-              <div style={{ color: '#cbd5e1' }}>Waktu: {selectedTxDetail.date} {selectedTxDetail.time || ''}</div>
-              <div style={{ color: '#cbd5e1' }}>Tipe: {selectedTxDetail.order_type} ({selectedTxDetail.table_number || 'N/A'})</div>
-              <div style={{ color: '#cbd5e1' }}>Metode Bayar: {selectedTxDetail.payment_method}</div>
+              <div style={{ color: 'var(--pos-txt-secondary)' }}>No. Struk: {selectedTxDetail.id}</div>
+              <div style={{ color: 'var(--pos-txt-secondary)' }}>Waktu: {selectedTxDetail.date} {selectedTxDetail.time || ''}</div>
+              <div style={{ color: 'var(--pos-txt-secondary)' }}>Tipe: {selectedTxDetail.order_type} ({selectedTxDetail.table_number || 'N/A'})</div>
+              <div style={{ color: 'var(--pos-txt-secondary)' }}>Metode Bayar: {selectedTxDetail.payment_method}</div>
               <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
               {(selectedTxDetail.items || []).map((it, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: '#f8fafc', margin: '4px 0' }}>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--pos-txt-primary)', margin: '4px 0' }}>
                   <span>{it.qty}x {it.name}</span>
                   <span>{formatRupiah(it.amount || it.price_unit * it.qty)}</span>
                 </div>
@@ -6652,7 +6891,7 @@ export default function AndroidPosRegister({
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setSelectedTxDetail(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Tutup</button>
-              <button onClick={() => window.print()} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+              <button onClick={() => handlePrintSingleReceipt(selectedTxDetail)} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
                 <Printer size={16} />
                 <span>Cetak Ulang</span>
               </button>
@@ -6662,16 +6901,17 @@ export default function AndroidPosRegister({
       )}
 
       {/* 7. MODAL PENCARIAN NAMA PELANGGAN DATA MASTER */}
+
       {showCustomerSearchModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', maxHeight: '85vh', padding: '24px', background: '#1e293b', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', maxHeight: '85vh', padding: '24px', background: 'var(--pos-bg-card)', display: 'flex', flexDirection: 'column' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Users size={22} color="#38bdf8" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Pencarian Nama Pelanggan</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Pencarian Nama Pelanggan</h3>
               </div>
-              <button onClick={() => setShowCustomerSearchModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f8fafc', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}>
+              <button onClick={() => setShowCustomerSearchModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--pos-txt-primary)', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
@@ -6685,7 +6925,7 @@ export default function AndroidPosRegister({
                 onChange={e => setCustomerSearchQuery(e.target.value)}
                 placeholder="🔍 Ketik nama pelanggan atau No. HP..."
                 className="form-input"
-                style={{ width: '100%', paddingLeft: '40px', height: '44px', fontSize: '0.9rem', background: '#0f172a', border: '1px solid #38bdf8' }}
+                style={{ width: '100%', paddingLeft: '40px', height: '44px', fontSize: '0.9rem', background: 'var(--pos-bg-app)', border: '1px solid #38bdf8' }}
               />
               <Search size={18} color="#38bdf8" style={{ position: 'absolute', left: '14px', top: '13px' }} />
             </div>
@@ -6700,9 +6940,9 @@ export default function AndroidPosRegister({
                   setShowCustomerSearchModal(false);
                 }}
                 style={{
-                  background: selectedCustomer === 'Pelanggan Umum' ? 'rgba(56,189,248,0.15)' : '#0f172a',
+                  background: selectedCustomer === 'Pelanggan Umum' ? 'rgba(56,189,248,0.15)' : 'var(--pos-bg-app)',
                   border: '1px solid',
-                  borderColor: selectedCustomer === 'Pelanggan Umum' ? '#38bdf8' : '#334155',
+                  borderColor: selectedCustomer === 'Pelanggan Umum' ? '#38bdf8' : 'var(--pos-border-card)',
                   padding: '12px 14px',
                   borderRadius: '12px',
                   display: 'flex',
@@ -6712,28 +6952,22 @@ export default function AndroidPosRegister({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--pos-border-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <User size={20} color="#94a3b8" />
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#f8fafc' }}>Pelanggan Umum (Guest)</div>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Kategori: Tamu / Tanpa Registrasi</div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Pelanggan Umum (Guest)</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>Kategori: Tamu / Tanpa Registrasi</div>
                   </div>
                 </div>
-                <button style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
+                <button style={{ background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
                   Pilih
                 </button>
               </div>
 
               {/* FILTERED MASTER DATA CUSTOMERS & LIVE TYPING SUGGESTIONS */}
               {(() => {
-                const customersList = (masterData?.customers && masterData.customers.length > 0)
-                  ? masterData.customers
-                  : [
-                      { id: 's1', name: 'Budi Santoso', phone: '0812-3456-7890', customer_type: 'Member VIP' },
-                      { id: 's2', name: 'Dewi Lestari', phone: '0857-8901-2345', customer_type: 'Pelanggan Setia' },
-                      { id: 's3', name: 'Rudi Hermawan', phone: '0819-0123-4567', customer_type: 'Pelanggan Reguler' }
-                    ];
+                const customersList = masterData?.customers || [];
 
                 const filtered = customersList.filter(c => 
                   c.name?.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
@@ -6772,7 +7006,7 @@ export default function AndroidPosRegister({
                             <div style={{ fontSize: '0.72rem', color: '#a7f3d0' }}>Ketuk untuk memilih nama ini pada transaksi</div>
                           </div>
                         </div>
-                        <button style={{ background: '#10b981', color: '#ffffff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
+                        <button style={{ background: '#10b981', color: 'var(--pos-txt-white)', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
                           Pilih Nama Ini
                         </button>
                       </div>
@@ -6789,9 +7023,9 @@ export default function AndroidPosRegister({
                             setShowCustomerSearchModal(false);
                           }}
                           style={{
-                            background: isCur ? 'rgba(56,189,248,0.15)' : '#0f172a',
+                            background: isCur ? 'rgba(56,189,248,0.15)' : 'var(--pos-bg-app)',
                             border: '1px solid',
-                            borderColor: isCur ? '#38bdf8' : '#334155',
+                            borderColor: isCur ? '#38bdf8' : 'var(--pos-border-card)',
                             padding: '12px 14px',
                             borderRadius: '12px',
                             display: 'flex',
@@ -6805,13 +7039,13 @@ export default function AndroidPosRegister({
                               <User size={20} color="#818cf8" />
                             </div>
                             <div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#f8fafc' }}>{c.name}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{c.name}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>
                                 {c.phone ? `📱 ${c.phone}` : ''} {c.customer_type ? `• ${c.customer_type}` : ''}
                               </div>
                             </div>
                           </div>
-<button style={{ background: isCur ? '#34d399' : '#6366f1', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
+<button style={{ background: isCur ? '#34d399' : '#6366f1', color: 'var(--pos-txt-white)', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
                             {isCur ? '✓ Terpilih' : 'Pilih'}
                           </button>
                         </div>
@@ -6860,7 +7094,7 @@ export default function AndroidPosRegister({
               borderBottom: '1px solid #e2e8f0',
               background: '#ffffff'
             }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#1e293b', margin: 0, letterSpacing: '0.5px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-bg-card)', margin: 0, letterSpacing: '0.5px' }}>
                 {selectedProductForVariant.name.toUpperCase()}
               </h3>
               <button
@@ -7057,7 +7291,7 @@ export default function AndroidPosRegister({
                       border: '1px solid #e2e8f0',
                       fontSize: '0.88rem',
                       outline: 'none',
-                      color: '#1e293b'
+                      color: 'var(--pos-bg-card)'
                     }}
                   />
                 </div>
@@ -7129,7 +7363,7 @@ export default function AndroidPosRegister({
                       flex: 1,
                       height: '48px',
                       background: '#583782',
-                      color: '#ffffff',
+                      color: 'var(--pos-txt-primary)',
                       border: 'none',
                       borderRadius: '10px',
                       padding: '0 16px',
@@ -7156,7 +7390,7 @@ export default function AndroidPosRegister({
                         height: '32px',
                         borderRadius: '50%',
                         background: '#ef4444',
-                        color: '#ffffff',
+                        color: 'var(--pos-txt-primary)',
                         border: 'none',
                         display: 'flex',
                         alignItems: 'center',
@@ -7167,7 +7401,7 @@ export default function AndroidPosRegister({
                       <Minus size={18} strokeWidth={3} />
                     </button>
 
-                    <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#1e293b', minWidth: '24px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-bg-card)', minWidth: '24px', textAlign: 'center' }}>
                       {modalProductQty}
                     </span>
 
@@ -7179,7 +7413,7 @@ export default function AndroidPosRegister({
                         height: '32px',
                         borderRadius: '50%',
                         background: '#22c55e',
-                        color: '#ffffff',
+                        color: 'var(--pos-txt-primary)',
                         border: 'none',
                         display: 'flex',
                         alignItems: 'center',
@@ -7201,24 +7435,24 @@ export default function AndroidPosRegister({
       {/* 8. MODAL PILIHAN STRUK SAAT SIMPAN ORDER */}
       {showSaveOrderReceiptModal && currentSaveOrderTx && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 125 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '24px', background: '#1e293b', borderRadius: '20px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '20px' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Printer size={24} color="#38bdf8" />
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Pilihan Cetak Struk Order</h3>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Pilihan Cetak Struk Order</h3>
                   <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: '700' }}>📍 {currentSaveOrderTx.table_number} • {currentSaveOrderTx.id}</span>
                 </div>
               </div>
 
-              <button onClick={() => setShowSaveOrderReceiptModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f8fafc', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}>
+              <button onClick={() => setShowSaveOrderReceiptModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--pos-txt-primary)', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
 
-            <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '14px' }}>
-              Pilih jenis struk yang ingin dicetak untuk pesanan meja <strong style={{ color: '#ffffff' }}>{currentSaveOrderTx.table_number}</strong>:
+            <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '14px' }}>
+              Pilih jenis struk yang ingin dicetak untuk pesanan meja <strong style={{ color: 'var(--pos-txt-primary)' }}>{currentSaveOrderTx.table_number}</strong>:
             </p>
 
             {/* CHECKBOX OPTIONS LIST */}
@@ -7227,9 +7461,9 @@ export default function AndroidPosRegister({
               {/* OPTION 1: STRUK DAPUR (KITCHEN TICKET - TANPA HARGA) */}
               <div
                 style={{
-                  background: activeReceiptSelections.printKitchen ? 'rgba(251,191,36,0.15)' : '#0f172a',
+                  background: activeReceiptSelections.printKitchen ? 'rgba(251,191,36,0.15)' : 'var(--pos-bg-app)',
                   border: '1px solid',
-                  borderColor: activeReceiptSelections.printKitchen ? '#fbbf24' : '#334155',
+                  borderColor: activeReceiptSelections.printKitchen ? '#fbbf24' : 'var(--pos-border-card)',
                   padding: '12px 14px',
                   borderRadius: '10px',
                   cursor: 'pointer',
@@ -7244,7 +7478,7 @@ export default function AndroidPosRegister({
                 >
                   {activeReceiptSelections.printKitchen ? <CheckSquare size={18} color="#fbbf24" /> : <Square size={18} color="#64748b" />}
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>🍳 Struk Dapur (Kitchen Ticket)</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🍳 Struk Dapur (Kitchen Ticket)</div>
                     <div style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: '700' }}>* Tampil Produk TANPA HARGA (Koki)</div>
                   </div>
                 </div>
@@ -7277,9 +7511,9 @@ export default function AndroidPosRegister({
               {/* OPTION 2: STRUK BAR (BAR TICKET - TANPA HARGA) */}
               <div
                 style={{
-                  background: activeReceiptSelections.printBar ? 'rgba(56,189,248,0.15)' : '#0f172a',
+                  background: activeReceiptSelections.printBar ? 'rgba(56,189,248,0.15)' : 'var(--pos-bg-app)',
                   border: '1px solid',
-                  borderColor: activeReceiptSelections.printBar ? '#38bdf8' : '#334155',
+                  borderColor: activeReceiptSelections.printBar ? '#38bdf8' : 'var(--pos-border-card)',
                   padding: '12px 14px',
                   borderRadius: '10px',
                   cursor: 'pointer',
@@ -7294,7 +7528,7 @@ export default function AndroidPosRegister({
                 >
                   {activeReceiptSelections.printBar ? <CheckSquare size={18} color="#38bdf8" /> : <Square size={18} color="#64748b" />}
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>🍹 Struk Bar / Minuman (Bar Ticket)</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🍹 Struk Bar / Minuman (Bar Ticket)</div>
                     <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: '700' }}>* Tampil Minuman TANPA HARGA (Bartender)</div>
                   </div>
                 </div>
@@ -7327,9 +7561,9 @@ export default function AndroidPosRegister({
               {/* OPTION 3: STRUK MEJA / BILL (TABLE COPY - DENGAN HARGA) */}
               <div
                 style={{
-                  background: activeReceiptSelections.printTableCopy ? 'rgba(16,185,129,0.15)' : '#0f172a',
+                  background: activeReceiptSelections.printTableCopy ? 'rgba(16,185,129,0.15)' : 'var(--pos-bg-app)',
                   border: '1px solid',
-                  borderColor: activeReceiptSelections.printTableCopy ? '#34d399' : '#334155',
+                  borderColor: activeReceiptSelections.printTableCopy ? '#34d399' : 'var(--pos-border-card)',
                   padding: '12px 14px',
                   borderRadius: '10px',
                   cursor: 'pointer',
@@ -7344,7 +7578,7 @@ export default function AndroidPosRegister({
                 >
                   {activeReceiptSelections.printTableCopy ? <CheckSquare size={18} color="#34d399" /> : <Square size={18} color="#64748b" />}
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>📋 Struk Meja / Bill (Table Copy)</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📋 Struk Meja / Bill (Table Copy)</div>
                     <div style={{ fontSize: '0.68rem', color: '#34d399', fontWeight: '700' }}>* Tagihan Sementara Pelanggan</div>
                   </div>
                 </div>
@@ -7377,9 +7611,9 @@ export default function AndroidPosRegister({
               {/* OPTION 4: STRUK COPY KASIR (CASHIER COPY - DENGAN HARGA) */}
               <div
                 style={{
-                  background: activeReceiptSelections.printCashierCopy ? 'rgba(99,102,241,0.15)' : '#0f172a',
+                  background: activeReceiptSelections.printCashierCopy ? 'rgba(99,102,241,0.15)' : 'var(--pos-bg-app)',
                   border: '1px solid',
-                  borderColor: activeReceiptSelections.printCashierCopy ? '#818cf8' : '#334155',
+                  borderColor: activeReceiptSelections.printCashierCopy ? '#818cf8' : 'var(--pos-border-card)',
                   padding: '12px 14px',
                   borderRadius: '10px',
                   cursor: 'pointer',
@@ -7394,7 +7628,7 @@ export default function AndroidPosRegister({
                 >
                   {activeReceiptSelections.printCashierCopy ? <CheckSquare size={18} color="#818cf8" /> : <Square size={18} color="#64748b" />}
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>🧾 Struk Copy Kasir (Cashier Copy)</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧾 Struk Copy Kasir (Cashier Copy)</div>
                     <div style={{ fontSize: '0.68rem', color: '#818cf8', fontWeight: '700' }}>* Arsip Kasir Laci</div>
                   </div>
                 </div>
@@ -7407,7 +7641,7 @@ export default function AndroidPosRegister({
                   }}
                   style={{
                     background: '#818cf8',
-                    color: '#ffffff',
+                    color: 'var(--pos-txt-primary)',
                     border: 'none',
                     padding: '4px 10px',
                     borderRadius: '6px',
@@ -7471,21 +7705,21 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9995
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: '#1e293b', borderRadius: '16px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px' }}>
             
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Tag size={20} color="#fb7185" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Pengaturan Diskon Nota</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Pengaturan Diskon Nota</h3>
               </div>
-              <button onClick={() => setShowDiscountEditModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowDiscountEditModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
             {/* Mode Selector Toggle (% Persentase vs Rp Nominal) */}
-            <div style={{ display: 'flex', background: '#0f172a', borderRadius: '10px', padding: '4px', marginBottom: '18px', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', background: 'var(--pos-bg-app)', borderRadius: '10px', padding: '4px', marginBottom: '18px', border: '1px solid var(--pos-border-card)' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -7541,9 +7775,9 @@ export default function AndroidPosRegister({
                       padding: '6px 0',
                       borderRadius: '6px',
                       border: '1px solid',
-                      borderColor: discountInputVal === pct.toString() ? '#fb7185' : '#334155',
-                      background: discountInputVal === pct.toString() ? 'rgba(251,113,133,0.2)' : '#0f172a',
-                      color: discountInputVal === pct.toString() ? '#fb7185' : '#cbd5e1',
+                      borderColor: discountInputVal === pct.toString() ? '#fb7185' : 'var(--pos-border-card)',
+                      background: discountInputVal === pct.toString() ? 'rgba(251,113,133,0.2)' : 'var(--pos-bg-app)',
+                      color: discountInputVal === pct.toString() ? '#fb7185' : 'var(--pos-txt-secondary)',
                       fontSize: '0.78rem',
                       fontWeight: '800',
                       cursor: 'pointer'
@@ -7557,7 +7791,7 @@ export default function AndroidPosRegister({
 
             {/* Input Field */}
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
+              <label style={{ fontSize: '0.8rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
                 {discountMode === 'percent' ? 'Nilai Persentase Diskon (%)' : 'Nilai Nominal Diskon (Rp)'}
               </label>
               <div style={{ position: 'relative' }}>
@@ -7570,9 +7804,9 @@ export default function AndroidPosRegister({
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: '10px',
-                    border: '1px solid #334155',
-                    background: '#0f172a',
-                    color: '#ffffff',
+                    border: '1px solid var(--pos-border-card)',
+                    background: 'var(--pos-bg-app)',
+                    color: 'var(--pos-txt-primary)',
                     fontSize: '1rem',
                     fontWeight: '900',
                     outline: 'none'
@@ -7585,7 +7819,7 @@ export default function AndroidPosRegister({
 
               {/* Live Calculation Preview */}
               {discountInputVal && (
-                <div style={{ marginTop: '10px', background: '#0f172a', padding: '10px 14px', borderRadius: '8px', border: '1px dashed #fb7185', fontSize: '0.80rem', color: '#fb7185', fontWeight: '800', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ marginTop: '10px', background: 'var(--pos-bg-app)', padding: '10px 14px', borderRadius: '8px', border: '1px dashed #fb7185', fontSize: '0.80rem', color: '#fb7185', fontWeight: '800', display: 'flex', justifyContent: 'space-between' }}>
                   <span>Potongan Diskon:</span>
                   <span>
                     - {formatRupiah(discountMode === 'percent' ? Math.round((cartSubtotal * Number(discountInputVal || 0)) / 100) : Number(discountInputVal || 0))}
@@ -7603,7 +7837,7 @@ export default function AndroidPosRegister({
                   setDiscountInputVal('');
                   setShowDiscountEditModal(false);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Hapus Diskon
               </button>
@@ -7619,7 +7853,7 @@ export default function AndroidPosRegister({
                   }
                   setShowDiscountEditModal(false);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#fb7185', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: '#fb7185', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
               >
                 Simpan Diskon
               </button>
@@ -7636,22 +7870,22 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9995
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: '#1e293b', borderRadius: '16px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px' }}>
             
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Percent size={20} color="#a78bfa" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Pengaturan Adjustment</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Pengaturan Adjustment</h3>
               </div>
-              <button onClick={() => setShowAdjustmentEditModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAdjustmentEditModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
             {/* Field 1: Nominal Adjustment (Rp) */}
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
+              <label style={{ fontSize: '0.8rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
                 Nilai Nominal Adjustment / Pembulatan (Rp)
               </label>
               <input
@@ -7666,15 +7900,15 @@ export default function AndroidPosRegister({
                   width: '100%',
                   padding: '12px 14px',
                   borderRadius: '10px',
-                  border: '1px solid #334155',
-                  background: '#0f172a',
-                  color: '#ffffff',
+                  border: '1px solid var(--pos-border-card)',
+                  background: 'var(--pos-bg-app)',
+                  color: 'var(--pos-txt-primary)',
                   fontSize: '1rem',
                   fontWeight: '900',
                   outline: 'none'
                 }}
               />
-              <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '4px', display: 'block' }}>
                 Gunakan angka positif (+) untuk penambahan atau negatif (-) untuk pengurangan.
               </span>
             </div>
@@ -7697,9 +7931,9 @@ export default function AndroidPosRegister({
                   padding: '12px 14px',
                   borderRadius: '10px',
                   border: '1px solid',
-                  borderColor: adjustmentErrorMsg ? '#fb7185' : '#334155',
-                  background: '#0f172a',
-                  color: '#ffffff',
+                  borderColor: adjustmentErrorMsg ? '#fb7185' : 'var(--pos-border-card)',
+                  background: 'var(--pos-bg-app)',
+                  color: 'var(--pos-txt-primary)',
                   fontSize: '0.85rem',
                   outline: 'none'
                 }}
@@ -7723,7 +7957,7 @@ export default function AndroidPosRegister({
                   setAdjustmentErrorMsg('');
                   setShowAdjustmentEditModal(false);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Hapus Adjustment
               </button>
@@ -7738,7 +7972,7 @@ export default function AndroidPosRegister({
                   setAdjustmentReason(adjustmentReasonInput.trim());
                   setShowAdjustmentEditModal(false);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#a78bfa', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: '#a78bfa', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
               >
                 Simpan Adjustment
               </button>
@@ -7755,20 +7989,20 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9995
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', maxHeight: '92vh', overflowY: 'auto', padding: '24px', background: '#1e293b', borderRadius: '16px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', maxHeight: '92vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px' }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.3rem' }}>✂️</span>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Split Bill (Pisah Tagihan Per Produk)</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Split Bill (Pisah Tagihan Per Produk)</h3>
               </div>
-              <button onClick={() => setShowSplitBillModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowSplitBillModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
             {/* Split Mode Selector */}
-            <div style={{ display: 'flex', background: '#0f172a', borderRadius: '10px', padding: '4px', marginBottom: '16px', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', background: 'var(--pos-bg-app)', borderRadius: '10px', padding: '4px', marginBottom: '16px', border: '1px solid var(--pos-border-card)' }}>
               <button
                 type="button"
                 onClick={() => setSplitType('by_item')}
@@ -7809,7 +8043,7 @@ export default function AndroidPosRegister({
             {splitType === 'by_item' ? (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
                     Alokasikan Jumlah Orderan ke Masing-Masing Pelanggan:
                   </span>
                   {/* Button Tambah Pelanggan */}
@@ -7839,7 +8073,7 @@ export default function AndroidPosRegister({
                 </div>
 
                 {cart.length === 0 ? (
-                  <div style={{ padding: '24px', textAlign: 'center', background: '#0f172a', borderRadius: '12px', color: '#94a3b8', fontSize: '0.82rem' }}>
+                  <div style={{ padding: '24px', textAlign: 'center', background: 'var(--pos-bg-app)', borderRadius: '12px', color: 'var(--pos-txt-secondary)', fontSize: '0.82rem' }}>
                     Keranjang saat ini kosong. Tambahkan produk ke keranjang terlebih dahulu.
                   </div>
                 ) : (
@@ -7849,14 +8083,14 @@ export default function AndroidPosRegister({
                       const unassignedQty = Math.max(0, item.qty - totalAssignedQty);
 
                       return (
-                        <div key={idx} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '12px 14px' }}>
+                        <div key={idx} style={{ background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '12px', padding: '12px 14px' }}>
                           {/* Row Top: Nama Orderan, Qty, & Total */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ background: '#2563eb', color: '#ffffff', fontSize: '0.76rem', fontWeight: '900', padding: '2px 8px', borderRadius: '6px' }}>
+                              <span style={{ background: '#2563eb', color: 'var(--pos-txt-white)', fontSize: '0.76rem', fontWeight: '900', padding: '2px 8px', borderRadius: '6px' }}>
                                 {item.qty}x
                               </span>
-                              <span style={{ fontSize: '0.88rem', fontWeight: '900', color: '#f8fafc' }}>
+                              <span style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
                                 {item.name}
                               </span>
                             </div>
@@ -7878,14 +8112,14 @@ export default function AndroidPosRegister({
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '6px',
-                                    background: isAssigned ? 'rgba(56,189,248,0.15)' : '#1e293b',
+                                    background: isAssigned ? 'rgba(56,189,248,0.15)' : 'var(--pos-bg-card)',
                                     border: '1px solid',
-                                    borderColor: isAssigned ? '#38bdf8' : '#334155',
+                                    borderColor: isAssigned ? '#38bdf8' : 'var(--pos-border-card)',
                                     borderRadius: '8px',
                                     padding: '3px 8px'
                                   }}
                                 >
-                                  <span style={{ fontSize: '0.72rem', fontWeight: '800', color: isAssigned ? '#38bdf8' : '#cbd5e1' }}>
+                                  <span style={{ fontSize: '0.72rem', fontWeight: '800', color: isAssigned ? '#38bdf8' : 'var(--pos-txt-secondary)' }}>
                                     {cName}
                                   </span>
 
@@ -7904,11 +8138,11 @@ export default function AndroidPosRegister({
                                           }));
                                         }
                                       }}
-                                      style={{ width: '18px', height: '18px', borderRadius: '4px', background: '#334155', border: 'none', color: '#fff', fontSize: '0.7rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                      style={{ width: '18px', height: '18px', borderRadius: '4px', background: 'var(--pos-border-card)', border: 'none', color: '#fff', fontSize: '0.7rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                     >
                                       -
                                     </button>
-                                    <span style={{ fontSize: '0.76rem', fontWeight: '900', color: '#ffffff', minWidth: '14px', textAlign: 'center' }}>
+                                    <span style={{ fontSize: '0.76rem', fontWeight: '900', color: 'var(--pos-txt-primary)', minWidth: '14px', textAlign: 'center' }}>
                                       {qtyForCust}
                                     </span>
                                     <button
@@ -7951,7 +8185,7 @@ export default function AndroidPosRegister({
                 )}
 
                 {/* Bottom Summary Cards Per Customer */}
-                <div style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800', marginBottom: '8px' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', marginBottom: '8px' }}>
                   Total Tagihan Tiap Pelanggan:
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '8px', marginBottom: '16px' }}>
@@ -7966,10 +8200,10 @@ export default function AndroidPosRegister({
                     }, 0);
 
                     return (
-                      <div key={cIdx} style={{ background: '#0f172a', padding: '10px 12px', borderRadius: '10px', border: '1px solid', borderColor: custTotal > 0 ? '#38bdf8' : '#334155' }}>
+                      <div key={cIdx} style={{ background: 'var(--pos-bg-app)', padding: '10px 12px', borderRadius: '10px', border: '1px solid', borderColor: custTotal > 0 ? '#38bdf8' : 'var(--pos-border-card)' }}>
                         <div style={{ fontSize: '0.76rem', fontWeight: '900', color: '#38bdf8' }}>{cName}</div>
-                        <div style={{ fontSize: '0.68rem', color: '#94a3b8', margin: '2px 0' }}>{custItemsCount} pcs produk</div>
-                        <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#ffffff' }}>{formatRupiah(custTotal)}</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)', margin: '2px 0' }}>{custItemsCount} pcs produk</div>
+                        <div style={{ fontSize: '0.90rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{formatRupiah(custTotal)}</div>
                       </div>
                     );
                   })}
@@ -8003,32 +8237,32 @@ export default function AndroidPosRegister({
               /* MODE 2: SPLIT SAMA RATA */
               <div>
                 <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: '700', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', marginBottom: '8px' }}>
                     Bagi Tagihan Sama Rata Berdasarkan Jumlah Orang:
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--pos-bg-app)', padding: '12px', borderRadius: '10px', border: '1px solid var(--pos-border-card)' }}>
                     <button
                       onClick={() => setSplitPeopleCount(Math.max(2, splitPeopleCount - 1))}
-                      style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#1e293b', border: '1px solid #334155', color: '#fff', fontSize: '1.2rem', fontWeight: '900', cursor: 'pointer' }}
+                      style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', color: '#fff', fontSize: '1.2rem', fontWeight: '900', cursor: 'pointer' }}
                     >
                       -
                     </button>
                     <div style={{ flex: 1, textAlign: 'center' }}>
                       <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8' }}>{splitPeopleCount} Orang</div>
-                      <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Masing-masing membayar</div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>Masing-masing membayar</div>
                     </div>
                     <button
                       onClick={() => setSplitPeopleCount(splitPeopleCount + 1)}
-                      style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#1e293b', border: '1px solid #334155', color: '#fff', fontSize: '1.2rem', fontWeight: '900', cursor: 'pointer' }}
+                      style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', color: '#fff', fontSize: '1.2rem', fontWeight: '900', cursor: 'pointer' }}
                     >
                       +
                     </button>
                   </div>
                 </div>
 
-                <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px dashed #38bdf8', marginBottom: '20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Total Tagihan Meja</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: '2px 0 6px 0' }}>{formatRupiah(cartTotal)}</div>
+                <div style={{ background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px dashed #38bdf8', marginBottom: '20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Total Tagihan Meja</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: '2px 0 6px 0' }}>{formatRupiah(cartTotal)}</div>
                   <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '900' }}>
                     Tagihan Per Orang: {formatRupiah(Math.round(cartTotal / splitPeopleCount))}
                   </div>
@@ -8040,7 +8274,7 @@ export default function AndroidPosRegister({
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => setShowSplitBillModal(false)}
-                style={{ flex: 1, padding: '12px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Batal
               </button>
@@ -8200,7 +8434,7 @@ export default function AndroidPosRegister({
 
                   setShowSplitBillModal(false);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
               >
                 🖨️ Cetak Struk Split Bill
               </button>
@@ -8216,24 +8450,24 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9995
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '24px', background: '#1e293b', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.2rem' }}>🔗</span>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Merge Bill (Gabung Meja)</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Merge Bill (Gabung Meja)</h3>
               </div>
-              <button onClick={() => setShowMergeBillModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowMergeBillModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: '700', marginBottom: '10px' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', marginBottom: '10px' }}>
               Pilih Meja Lain yang Ingin Digabungkan ke Meja Ini ({selectedTableObj?.number || 'Meja Active'}):
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto', marginBottom: '20px' }}>
               {Object.keys(tableStatusMap).filter(tId => tableStatusMap[tId]?.status === 'occupied' && tId !== selectedTableId).length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem', background: '#0f172a', borderRadius: '10px' }}>
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--pos-txt-secondary)', fontSize: '0.82rem', background: 'var(--pos-bg-app)', borderRadius: '10px' }}>
                   Tidak ada meja terisi lain saat ini yang dapat digabungkan.
                 </div>
               ) : (
@@ -8254,15 +8488,15 @@ export default function AndroidPosRegister({
                         }
                       }}
                       style={{
-                        padding: '12px 14px', background: '#0f172a', border: '1px solid #334155', borderRadius: '10px',
+                        padding: '12px 14px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '10px',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
                       }}
                     >
                       <div>
                         <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#a78bfa' }}>{tId}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{tData?.pendingOrder?.customerName || 'Pelanggan'}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>{tData?.pendingOrder?.customerName || 'Pelanggan'}</div>
                       </div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff' }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
                         {formatRupiah(tData?.pendingOrder?.totalAmount || 0)}
                       </div>
                     </div>
@@ -8273,7 +8507,7 @@ export default function AndroidPosRegister({
 
             <button
               onClick={() => setShowMergeBillModal(false)}
-              style={{ width: '100%', padding: '12px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
             >
               Tutup
             </button>
@@ -8288,13 +8522,13 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9995
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: '#1e293b', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.2rem' }}>🎁</span>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Tukar Poin Loyalty</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Tukar Poin Loyalty</h3>
               </div>
-              <button onClick={() => setShowTukarPoinModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowTukarPoinModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -8305,8 +8539,8 @@ export default function AndroidPosRegister({
               const valueRupiah = availablePoints * 1000;
 
               return (
-                <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '10px', border: '1px solid #334155', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Pelanggan Terpilih:</div>
+                <div style={{ background: 'var(--pos-bg-app)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Pelanggan Terpilih:</div>
                   <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#fbbf24', margin: '2px 0' }}>👤 {selectedCustomer || 'Pelanggan Umum'}</div>
                   <div style={{ fontSize: '0.80rem', color: '#34d399', fontWeight: '800', marginTop: '4px' }}>
                     Tersedia: {availablePoints} Poin (Nilai Pembayaran: {formatRupiah(valueRupiah)})
@@ -8316,10 +8550,10 @@ export default function AndroidPosRegister({
             })()}
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>
+              <label style={{ fontSize: '0.8rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>
                 Jumlah Poin Ditukarkan (1 Poin = Rp 1.000 / Setiap Rp 1.000 Menu = 1 Poin)
               </label>
-              <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '8px' }}>
                 Dapat digunakan sebagai pembayaran lunas atau potongan harga pesanan menu.
               </span>
               <input
@@ -8329,7 +8563,7 @@ export default function AndroidPosRegister({
                 placeholder="Contoh: 10, 50, 100 Poin..."
                 style={{
                   width: '100%', padding: '12px 14px', borderRadius: '10px',
-                  border: '1px solid #334155', background: '#0f172a', color: '#ffffff',
+                  border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)',
                   fontSize: '1rem', fontWeight: '900', outline: 'none'
                 }}
               />
@@ -8343,7 +8577,7 @@ export default function AndroidPosRegister({
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => setShowTukarPoinModal(false)}
-                style={{ flex: 1, padding: '12px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Batal
               </button>
@@ -8359,7 +8593,7 @@ export default function AndroidPosRegister({
                   alert(`Berhasil menukarkan ${pointsToRedeem} poin menjadi Pembayaran / Diskon ${formatRupiah(discRp)}!`);
                   setShowTukarPoinModal(false);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#fbbf24', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: '#fbbf24', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
               >
                 Tukarkan Poin
               </button>
@@ -8375,46 +8609,46 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9995
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: '#1e293b', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.2rem' }}>🎟️</span>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>Kupon & Voucher Promo</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Kupon & Voucher Promo</h3>
               </div>
-              <button onClick={() => setShowKuponModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowKuponModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
+              <label style={{ fontSize: '0.8rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
                 Pilih atau Input Kode Kupon:
               </label>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                {[
-                  { code: 'DISKON10K', desc: 'Diskon Rp 10rb', type: 'nominal', val: 10000 },
-                  { code: 'PROMO50', desc: 'Diskon 50%', type: 'percent', val: 50 },
-                  { code: 'VIPULTAH', desc: 'Diskon Rp 25rb', type: 'nominal', val: 25000 }
-                ].map(c => (
+                {(masterData.coupons || []).length === 0 ? (
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                    Belum ada kupon tersedia. Tambahkan melalui Web Admin.
+                  </div>
+                ) : (masterData.coupons || []).map(c => (
                   <button
                     key={c.code}
                     onClick={() => {
                       setCouponCodeInput(c.code);
                       if (c.type === 'percent') {
                         setDiscountMode('percent');
-                        setDiscountInputVal(c.val.toString());
-                        const calcDisc = Math.round((cartSubtotal * c.val) / 100);
+                        setDiscountInputVal(String(c.val || c.value || 0));
+                        const calcDisc = Math.round((cartSubtotal * (c.val || c.value || 0)) / 100);
                         setDiscountValue(calcDisc.toString());
                       } else {
                         setDiscountMode('nominal');
-                        setDiscountValue(c.val.toString());
+                        setDiscountValue(String(c.val || c.value || 0));
                       }
-                      setCouponMsg({ type: 'success', text: `Kupon ${c.code} (${c.desc}) berhasil diterapkan!` });
+                      setCouponMsg({ type: 'success', text: `Kupon ${c.code} (${c.desc || c.description || ''}) berhasil diterapkan!` });
                     }}
                     style={{
-                      padding: '6px 12px', background: couponCodeInput === c.code ? 'rgba(52,211,153,0.2)' : '#0f172a',
-                      border: '1px solid', borderColor: couponCodeInput === c.code ? '#34d399' : '#334155',
-                      color: couponCodeInput === c.code ? '#34d399' : '#cbd5e1', borderRadius: '6px',
+                      padding: '6px 12px', background: couponCodeInput === c.code ? 'rgba(52,211,153,0.2)' : 'var(--pos-bg-app)',
+                      border: '1px solid', borderColor: couponCodeInput === c.code ? '#34d399' : 'var(--pos-border-card)',
+                      color: couponCodeInput === c.code ? '#34d399' : 'var(--pos-txt-secondary)', borderRadius: '6px',
                       fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer'
                     }}
                   >
@@ -8430,7 +8664,7 @@ export default function AndroidPosRegister({
                 placeholder="Atau ketik kode kupon di sini..."
                 style={{
                   width: '100%', padding: '12px 14px', borderRadius: '10px',
-                  border: '1px solid #334155', background: '#0f172a', color: '#ffffff',
+                  border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)',
                   fontSize: '0.9rem', fontWeight: '900', outline: 'none'
                 }}
               />
@@ -8445,7 +8679,7 @@ export default function AndroidPosRegister({
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => setShowKuponModal(false)}
-                style={{ flex: 1, padding: '12px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Tutup
               </button>
@@ -8458,7 +8692,7 @@ export default function AndroidPosRegister({
                   setCouponMsg({ type: 'success', text: `Kupon ${couponCodeInput} berhasil diterapkan!` });
                   setTimeout(() => setShowKuponModal(false), 800);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#34d399', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: '#34d399', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
               >
                 Gunakan Kupon
               </button>
@@ -8495,7 +8729,7 @@ export default function AndroidPosRegister({
                   .join(' ')}
               </div>
 
-              <div style={{ fontSize: '0.82rem', fontWeight: '900', marginTop: '8px', background: '#000000', color: '#ffffff', padding: '4px 10px', borderRadius: '4px', display: 'inline-block' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: '900', marginTop: '8px', background: '#000000', color: 'var(--pos-txt-white)', padding: '4px 10px', borderRadius: '4px', display: 'inline-block' }}>
                 {ticketPreviewType === 'KITCHEN' && '🍳 STRUK DAPUR (KITCHEN TICKET)'}
                 {ticketPreviewType === 'BAR' && '🍹 STRUK BAR (BAR TICKET)'}
                 {ticketPreviewType === 'TABLE_BILL' && '📋 STRUK MEJA (BILL SEMENTARA)'}
@@ -8573,14 +8807,20 @@ export default function AndroidPosRegister({
               <button
                 type="button"
                 onClick={() => setTicketPreviewData(null)}
-                style={{ flex: 1, padding: '10px', background: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', background: '#e2e8f0', color: 'var(--pos-border-card)', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Tutup
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
-                style={{ flex: 1, padding: '10px', background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => {
+                  if (ticketPreviewData?.selections) {
+                    handleExecuteBatchPrint(ticketPreviewData.tx || ticketPreviewData, ticketPreviewData.selections);
+                  } else {
+                    handlePrintSingleReceipt(ticketPreviewData?.tx || ticketPreviewData);
+                  }
+                }}
+                style={{ flex: 1, padding: '10px', background: '#2563eb', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '8px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
                 <Printer size={16} />
                 <span>Cetak Thermal</span>
@@ -8598,12 +8838,12 @@ export default function AndroidPosRegister({
           <div style={{
             height: '56px',
             background: '#0f294a',
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            borderBottom: '1px solid var(--pos-border)',
             padding: '0 20px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            color: '#ffffff',
+            color: 'var(--pos-txt-primary)',
             flexShrink: 0
           }}>
             <button
@@ -8611,7 +8851,7 @@ export default function AndroidPosRegister({
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#ffffff',
+                color: 'var(--pos-txt-primary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -8680,12 +8920,43 @@ export default function AndroidPosRegister({
                 {/* Itemized List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
                   {cart.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: '700', width: '24px' }}>x{item.qty}</span>
-                        <span style={{ fontSize: '0.85rem', color: '#1e293b', fontWeight: '800', letterSpacing: '0.3px' }}>{item.name.toUpperCase()}</span>
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 10px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: '6px' }}>
+                        {/* Qty Adjustment Controls */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQty(item.id, -1)}
+                            title="Kurangi 1"
+                            style={{ width: '22px', height: '22px', borderRadius: '4px', border: 'none', background: '#ef4444', color: '#ffffff', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            -
+                          </button>
+                          <span style={{ fontSize: '0.82rem', color: '#1e293b', fontWeight: '800', minWidth: '18px', textAlign: 'center' }}>{item.qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQty(item.id, 1)}
+                            title="Tambah 1"
+                            style={{ width: '22px', height: '22px', borderRadius: '4px', border: 'none', background: '#10b981', color: '#ffffff', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <span style={{ fontSize: '0.84rem', color: '#1e293b', fontWeight: '800', letterSpacing: '0.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
                       </div>
-                      <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '700' }}>{formatRupiah(item.price * item.qty)}</span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: '800' }}>{formatRupiah(item.price * item.qty)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCartItem(item.id)}
+                          title="Hapus Orderan"
+                          style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -8733,7 +9004,7 @@ export default function AndroidPosRegister({
                 background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                 borderRadius: '14px',
                 padding: '16px 20px',
-                color: '#ffffff',
+                color: 'var(--pos-txt-primary)',
                 textAlign: 'center',
                 boxShadow: '0 4px 14px rgba(37,99,235,0.3)'
               }}>
@@ -8771,7 +9042,7 @@ export default function AndroidPosRegister({
                       }}
                       style={{
                         background: isSelected ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#ffffff',
-                        color: isSelected ? '#ffffff' : '#1e293b',
+                        color: isSelected ? '#ffffff' : 'var(--pos-bg-card)',
                         border: isSelected ? '2px solid #1d4ed8' : '1px solid #e2e8f0',
                         borderRadius: '12px',
                         padding: '16px 10px',
@@ -8797,11 +9068,11 @@ export default function AndroidPosRegister({
                 const isPointsSufficient = custPoints >= requiredPoints;
 
                 return (
-                  <div style={{ background: '#0f172a', padding: '14px 16px', borderRadius: '14px', border: '1px solid #a855f7', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '14px 16px', borderRadius: '14px', border: '1px solid #a855f7', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
                     <div style={{ fontSize: '0.82rem', fontWeight: '900', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>⭐ Pembayaran Menggunakan Poin Loyalty</span>
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', lineHeight: '1.4' }}>
                       • Perolehan Poin: <strong style={{ color: '#34d399' }}>Setiap Belanja Rp 100.000 = 1 Poin (Kelipatan)</strong><br/>
                       • Kurs Pembayaran Poin: <strong style={{ color: '#fbbf24' }}>1 Poin = Rp 1.000 (Setiap Rp 1.000 Menu = 1 Poin)</strong><br/>
                       • Dibutuhkan untuk Total {formatRupiah(cartTotal)}: <strong style={{ color: '#38bdf8' }}>{requiredPoints} Poin</strong><br/>
@@ -8840,7 +9111,7 @@ export default function AndroidPosRegister({
                       <button
                         key={val}
                         onClick={() => setTenderedCash(val.toString())}
-                        style={{ flex: 1, background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 4px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', color: '#334155', cursor: 'pointer' }}
+                        style={{ flex: 1, background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 4px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--pos-border-card)', cursor: 'pointer' }}
                       >
                         {formatRupiah(val)}
                       </button>
@@ -8938,12 +9209,12 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: '#1e293b', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                 {editingCustomerData ? '✏️ Ubah Data Pelanggan' : '👤 Tambah Pelanggan Baru'}
               </h3>
-              <button onClick={() => setShowAddCustomerModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddCustomerModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -8989,34 +9260,34 @@ export default function AndroidPosRegister({
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Nama Pelanggan *</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Nama Pelanggan *</label>
                   <input
                     type="text"
                     required
                     value={custFormName}
                     onChange={e => setCustFormName(e.target.value)}
                     placeholder="Masukkan nama pelanggan..."
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontSize: '0.85rem', outline: 'none' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Nomor HP / WhatsApp *</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Nomor HP / WhatsApp *</label>
                   <input
                     type="text"
                     value={custFormPhone}
                     onChange={e => setCustFormPhone(e.target.value)}
                     placeholder="Contoh: 085277538483"
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontSize: '0.85rem', outline: 'none' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Outlet *</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Outlet *</label>
                   <select
                     value={custFormOutletId}
                     onChange={e => setCustFormOutletId(e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontSize: '0.85rem', outline: 'none' }}
                   >
                     {(masterData.outlets || []).map(o => (
                       <option key={o.id} value={o.id}>{o.name}</option>
@@ -9026,22 +9297,22 @@ export default function AndroidPosRegister({
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Email</label>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Email</label>
                     <input
                       type="email"
                       value={custFormEmail}
                       onChange={e => setCustFormEmail(e.target.value)}
                       placeholder="email@domain.com"
-                      style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem', outline: 'none' }}
+                      style={{ width: '100%', padding: '10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontSize: '0.85rem', outline: 'none' }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Jenis Kelamin</label>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Jenis Kelamin</label>
                     <select
                       value={custFormGender}
                       onChange={e => setCustFormGender(e.target.value)}
-                      style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem', outline: 'none' }}
+                      style={{ width: '100%', padding: '10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontSize: '0.85rem', outline: 'none' }}
                     >
                       <option value="Wanita">Wanita</option>
                       <option value="Laki-laki">Laki-laki</option>
@@ -9050,13 +9321,13 @@ export default function AndroidPosRegister({
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Alamat Lengkap</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Alamat Lengkap</label>
                   <textarea
                     rows={2}
                     value={custFormAddress}
                     onChange={e => setCustFormAddress(e.target.value)}
                     placeholder="Masukkan alamat domisili pelanggan..."
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.82rem', outline: 'none', resize: 'vertical' }}
+                    style={{ width: '100%', padding: '10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontSize: '0.82rem', outline: 'none', resize: 'vertical' }}
                   />
                 </div>
               </div>
@@ -9065,13 +9336,13 @@ export default function AndroidPosRegister({
                 <button
                   type="button"
                   onClick={() => setShowAddCustomerModal(false)}
-                  style={{ flex: 1, padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  style={{ flex: 1, padding: '12px', background: '#6366f1', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
+                  style={{ flex: 1, padding: '12px', background: '#6366f1', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
                 >
                   {editingCustomerData ? 'Simpan Perubahan' : 'Simpan Pelanggan'}
                 </button>
@@ -9088,16 +9359,16 @@ export default function AndroidPosRegister({
           background: '#090d16', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px'
         }}>
           <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
-            <button onClick={() => setShowQrSelfRegModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#ffffff', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800' }}>
+            <button onClick={() => setShowQrSelfRegModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--pos-txt-primary)', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800' }}>
               ✕ Tutup
             </button>
           </div>
 
           <div className="animate-fade-in" style={{ textAlign: 'center', maxWidth: '440px', width: '100%' }}>
-            <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#ffffff', marginBottom: '6px' }}>
+            <div style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '6px' }}>
               📲 Barcode / QR Code Registrasi Mandiri Pelanggan
             </div>
-            <div style={{ fontSize: '0.84rem', color: '#94a3b8', marginBottom: '24px' }}>
+            <div style={{ fontSize: '0.84rem', color: 'var(--pos-txt-secondary)', marginBottom: '24px' }}>
               Arahkan kamera smartphone pelanggan ke QR Code berikut untuk pendaftaran profil mandiri di {currentOutlet.name}.
             </div>
 
@@ -9109,7 +9380,7 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
-            <div style={{ background: '#1e293b', borderRadius: '12px', padding: '14px 16px', border: '1px solid #334155', color: '#cbd5e1', fontSize: '0.80rem', marginBottom: '20px', textAlign: 'center' }}>
+            <div style={{ background: 'var(--pos-bg-card)', borderRadius: '12px', padding: '14px 16px', border: '1px solid var(--pos-border-card)', color: 'var(--pos-txt-secondary)', fontSize: '0.80rem', marginBottom: '20px', textAlign: 'center' }}>
               <div>🔗 URL Registrasi Mandiri:</div>
               <a
                 href={`/register-customer?outlet=${currentOutlet.id}`}
@@ -9127,7 +9398,7 @@ export default function AndroidPosRegister({
                 onClick={() => {
                   window.open(`/register-customer?outlet=${currentOutlet.id}`, '_blank');
                 }}
-                style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '0.90rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '0.90rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
                 <QrCode size={18} />
                 <span>🔗 Buka Form Registrasi Mandiri di Tab Baru</span>
@@ -9158,7 +9429,7 @@ export default function AndroidPosRegister({
                     setShowQrSelfRegModal(false);
                   }
                 }}
-                style={{ width: '100%', padding: '12px', background: '#334155', color: '#cbd5e1', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                style={{ width: '100%', padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-secondary)', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
               >
                 🧪 Fast-Test Simulasi di Layar Ini
               </button>
@@ -9174,26 +9445,30 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '92vh', overflowY: 'auto', padding: '24px', background: '#1e293b', borderRadius: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '92vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px' }}>
             {/* Header Modal */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Clock size={22} color="#38bdf8" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
-                  Rincian Sesi Shift - {selectedShiftDetailModal.user_name}
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                  Rincian Sesi Shift - {selectedShiftDetailModal.user_name || selectedShiftDetailModal.cashier_name || selectedShiftDetailModal.author_name || selectedShiftDetailModal.submitted_by || selectedShiftDetailModal.name || 'Pengguna POS'}
                 </h3>
               </div>
-              <button onClick={() => setSelectedShiftDetailModal(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setSelectedShiftDetailModal(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
             {/* Profile & Shift Info Summary Card */}
-            <div style={{ background: '#0f172a', borderRadius: '14px', padding: '16px', border: '1px solid #334155', marginBottom: '16px' }}>
+            <div style={{ background: 'var(--pos-bg-app)', borderRadius: '14px', padding: '16px', border: '1px solid var(--pos-border-card)', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div>
-                  <div style={{ fontSize: '1rem', fontWeight: '900', color: '#ffffff' }}>{selectedShiftDetailModal.user_name}</div>
-                  <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>{selectedShiftDetailModal.role} • @{selectedShiftDetailModal.username}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
+                    {selectedShiftDetailModal.user_name || selectedShiftDetailModal.cashier_name || selectedShiftDetailModal.author_name || selectedShiftDetailModal.submitted_by || selectedShiftDetailModal.name || 'Pengguna POS'}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)' }}>
+                    {selectedShiftDetailModal.username ? `@${selectedShiftDetailModal.username}` : (selectedShiftDetailModal.role || 'Staf Kasir')}
+                  </div>
                 </div>
                 <span style={{ fontSize: '0.70rem', fontWeight: '900', padding: '3px 10px', borderRadius: '12px', background: selectedShiftDetailModal.status === 'AKTIF BERLANGSUNG' ? 'rgba(56,189,248,0.2)' : 'rgba(148,163,184,0.15)', color: selectedShiftDetailModal.status === 'AKTIF BERLANGSUNG' ? '#38bdf8' : '#cbd5e1' }}>
                   {selectedShiftDetailModal.status}
@@ -9201,14 +9476,14 @@ export default function AndroidPosRegister({
               </div>
 
               {/* Login/Logout Time & Duration */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: '#1e293b', padding: '12px', borderRadius: '10px', fontSize: '0.78rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: 'var(--pos-bg-card)', padding: '12px', borderRadius: '10px', fontSize: '0.78rem' }}>
                 <div>
-                  <div style={{ color: '#94a3b8', fontSize: '0.70rem' }}>📥 Waktu Login:</div>
+                  <div style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.70rem' }}>📥 Waktu Login:</div>
                   <div style={{ fontWeight: '800', color: '#34d399', marginTop: '2px' }}>{selectedShiftDetailModal.login_time}</div>
                 </div>
                 <div>
-                  <div style={{ color: '#94a3b8', fontSize: '0.70rem' }}>📤 Waktu Logout:</div>
-                  <div style={{ fontWeight: '800', color: '#ffffff', marginTop: '2px' }}>{selectedShiftDetailModal.logout_time}</div>
+                  <div style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.70rem' }}>📤 Waktu Logout:</div>
+                  <div style={{ fontWeight: '800', color: 'var(--pos-txt-primary)', marginTop: '2px' }}>{selectedShiftDetailModal.logout_time}</div>
                 </div>
               </div>
 
@@ -9219,33 +9494,39 @@ export default function AndroidPosRegister({
 
             {/* Financial & Struk Breakdown Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
-              <div style={{ background: '#0f172a', padding: '10px', borderRadius: '10px', border: '1px solid #334155', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Total Struk</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#ffffff', marginTop: '2px' }}>{selectedShiftDetailModal.total_receipts} Struk</div>
+              <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Total Struk</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '2px' }}>
+                  {selectedShiftDetailModal.total_receipts || selectedShiftDetailModal.total_transactions || (selectedShiftDetailModal.transactions ? selectedShiftDetailModal.transactions.length : 0)} Struk
+                </div>
               </div>
-              <div style={{ background: '#0f172a', padding: '10px', borderRadius: '10px', border: '1px solid #334155', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Total Omset</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>{formatRupiah(selectedShiftDetailModal.total_sales)}</div>
+              <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Total Omset</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>
+                  {formatRupiah(selectedShiftDetailModal.total_sales || selectedShiftDetailModal.net_sales || selectedShiftDetailModal.gross_sales || 0)}
+                </div>
               </div>
-              <div style={{ background: '#0f172a', padding: '10px', borderRadius: '10px', border: '1px solid #334155', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Kas Tunai</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>{formatRupiah(selectedShiftDetailModal.cash_sales)}</div>
+              <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Kas Tunai</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>
+                  {formatRupiah(selectedShiftDetailModal.cash_sales || selectedShiftDetailModal.actual_cash || selectedShiftDetailModal.cash_physical || 0)}
+                </div>
               </div>
             </div>
 
             {/* List of Receipts / Transactions during shift */}
-            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', marginBottom: '8px' }}>
+            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', marginBottom: '8px' }}>
               Daftar Struk Transaksi Dalam Shift Ini:
             </div>
-            <div style={{ background: '#0f172a', borderRadius: '12px', border: '1px solid #334155', maxHeight: '180px', overflowY: 'auto', marginBottom: '20px' }}>
-              {selectedShiftDetailModal.transactions.length === 0 ? (
-                <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: '0.78rem' }}>
+            <div style={{ background: 'var(--pos-bg-app)', borderRadius: '12px', border: '1px solid var(--pos-border-card)', maxHeight: '180px', overflowY: 'auto', marginBottom: '20px' }}>
+              {(!selectedShiftDetailModal.transactions || selectedShiftDetailModal.transactions.length === 0) ? (
+                <div style={{ padding: '16px', textAlign: 'center', color: 'var(--pos-txt-secondary)', fontSize: '0.78rem' }}>
                   Belum ada transaksi struk pada sesi shift ini.
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                   <thead>
-                    <tr style={{ background: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                    <tr style={{ background: 'var(--pos-bg-card)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
                       <th style={{ padding: '8px 12px' }}>No. Struk</th>
                       <th style={{ padding: '8px 12px' }}>Jam</th>
                       <th style={{ padding: '8px 12px' }}>Pelanggan</th>
@@ -9254,13 +9535,13 @@ export default function AndroidPosRegister({
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedShiftDetailModal.transactions.map((tx, tIdx) => (
+                    {(selectedShiftDetailModal.transactions || []).map((tx, tIdx) => (
                       <tr key={tIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                         <td style={{ padding: '8px 12px', fontWeight: '800', color: '#38bdf8' }}>{tx.id}</td>
-                        <td style={{ padding: '8px 12px', color: '#cbd5e1' }}>{tx.time || '10:00'}</td>
-                        <td style={{ padding: '8px 12px', color: '#ffffff' }}>{tx.customer_name || 'Pelanggan Umum'}</td>
+                        <td style={{ padding: '8px 12px', color: 'var(--pos-txt-secondary)' }}>{tx.time || '10:00'}</td>
+                        <td style={{ padding: '8px 12px', color: 'var(--pos-txt-primary)' }}>{tx.customer_name || 'Pelanggan Umum'}</td>
                         <td style={{ padding: '8px 12px', color: '#34d399', fontWeight: '800' }}>{tx.payment_method || 'Cash'}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: '#ffffff' }}>{formatRupiah(tx.amount)}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{formatRupiah(tx.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -9273,16 +9554,14 @@ export default function AndroidPosRegister({
               <button
                 type="button"
                 onClick={() => setSelectedShiftDetailModal(null)}
-                style={{ flex: 1, padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Tutup
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  alert(`Mencetak Laporan Shift untuk Kasir ${selectedShiftDetailModal.user_name}...\nTotal Struk: ${selectedShiftDetailModal.total_receipts}\nTotal Omset: Rp ${formatRupiah(selectedShiftDetailModal.total_sales)}`);
-                }}
-                style={{ flex: 1, padding: '12px', background: '#38bdf8', color: '#0f172a', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => handlePrintShiftClosingReport(selectedShiftDetailModal)}
+                style={{ flex: 1, padding: '12px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
                 <Printer size={16} />
                 <span>Cetak Laporan Shift</span>
@@ -9301,73 +9580,53 @@ export default function AndroidPosRegister({
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100%', maxWidth: '980px', maxHeight: '94vh', overflowY: 'auto',
-            padding: '24px', background: '#1e293b', border: '1px solid #6366f1', borderRadius: '18px',
+            padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #6366f1', borderRadius: '18px',
             display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
           }}>
             {/* Header Modal */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <FileText size={24} color="#6366f1" />
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                     Form Laporan Keuangan Harian (Mobile POS)
                   </h3>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>
                     Nomor Laporan: <strong style={{ color: '#38bdf8' }}>{manualRepNo}</strong>
                   </span>
                 </div>
               </div>
-              <button onClick={() => setShowAddManualReportModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddManualReportModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={22} />
               </button>
             </div>
 
             {(() => {
-              const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients
-                : [
-                    { id: 1, name: 'Beras Pandan Wangi', unit: 'kg', cost: 14000 },
-                    { id: 2, name: 'Minyak Goreng Bimoli', unit: 'liter', cost: 18000 },
-                    { id: 3, name: 'Telur Ayam Negeri', unit: 'butir', cost: 2000 },
-                    { id: 4, name: 'Daging Ayam Fillet', unit: 'kg', cost: 48000 },
-                    { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', cost: 65000 },
-                    { id: 6, name: 'Bawang Merah', unit: 'kg', cost: 35000 }
-                  ];
+              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+              const ingredientsList = masterData.ingredients || [];
+              const expenseMasterList = masterData.expenseMaster || [];
 
-              const expenseMasterList = (masterData.expenseMaster && masterData.expenseMaster.length > 0)
-                ? masterData.expenseMaster
-                : [
-                    { id: 1, code: 'BIA-001', name: 'Biaya Listrik & Air', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                    { id: 2, code: 'BIA-002', name: 'Biaya Gas LPG Dapur', category: 'Biaya Utilitas (Gas LPG, Air & Listrik)' },
-                    { id: 3, code: 'BIA-003', name: 'Biaya Alat Kebersihan & Sabun', category: 'Biaya Operasional (OPEX)' },
-                    { id: 4, code: 'BIA-004', name: 'Biaya Promo & Brosur Lokal', category: 'Biaya Pemasaran (Marketing & Promo)' },
-                    { id: 5, code: 'BIA-005', name: 'Biaya Transport & Kurir Dapur', category: 'Biaya Operasional (OPEX)' }
-                  ];
+              const masterIngs = ingredientsList.map(ing => ({
+                id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku',
+                category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg',
+                cost: ing.cost || ing.price || 0
+              }));
 
-              const masterIngs = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || ing.price || 15000 }))
-                : ingredientsList.map(ing => ({ id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku', category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg', cost: ing.cost || 15000 }));
-
-              const masterAccs = ((masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).length > 0)
-                ? (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts).map(acc => ({ id: `acc-${acc.id}`, name: acc.name || acc.account_name, item_type: 'Biaya Operasional', category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)', unit: 'paket', cost: acc.amount || acc.cost || 50000 }))
-                : expenseMasterList.map(exp => ({ id: `acc-${exp.id}`, name: exp.name, item_type: 'Biaya Operasional', category: exp.category || 'Biaya Operasional (OPEX)', unit: 'paket', cost: 50000 }));
+              const masterAccs = (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).map(acc => ({
+                id: `acc-${acc.id}`, name: acc.name || acc.account_name,
+                item_type: 'Biaya Operasional',
+                category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)',
+                unit: 'paket', cost: acc.amount || acc.cost || 0
+              }));
 
               const allMasterSuggestions = [...masterIngs, ...masterAccs];
 
-              const suppliersList = (masterData.suppliers && masterData.suppliers.length > 0)
-                ? masterData.suppliers
-                : [
-                    { id: 1, name: 'PT Sembako Nusantara' },
-                    { id: 2, name: 'UD Sayur Segar Jaya' },
-                    { id: 3, name: 'PT Pangan Mandiri' },
-                    { id: 4, name: 'Toko Bumbu Lestari' }
-                  ];
+              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+              const suppliersList = masterData.suppliers || [];
 
-              const adminList = [
-                { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                { id: 2, name: 'Siti Rahma', role: 'Kasir Senior' },
-                { id: 3, name: 'Budi Kurniawan', role: 'Kasir Pagi' }
-              ];
+              const adminList = (masterData.webAdminAccounts || masterData.mobileAccounts || []).map(acc => ({
+                id: acc.id, name: acc.name, role: acc.role || acc.jabatan || 'Kasir'
+              }));
 
               // AUTO-GENERATED SALES COMPUTATION FOR SELECTED DATE UNTIL 23:59:59
               const matchedSales = (outletTransactions || masterData.salesTransactions || []).filter(t => !t.date || t.date === manualRepDate);
@@ -9466,29 +9725,29 @@ export default function AndroidPosRegister({
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
                   {/* 1. HEADER INFORMATION */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>📅 Tanggal *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>📅 Tanggal *</label>
                       <input type="date" required value={manualRepDate} onChange={e => setManualRepDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>🏢 Nama Outlet *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>🏢 Nama Outlet *</label>
                       <input
                         type="text"
                         readOnly
                         value={currentOutlet?.name || (masterData.outlets || []).find(o => o.id === manualRepOutletId)?.name || 'Restoran Utama'}
                         className="form-input"
-                        style={{ width: '100%', height: '40px', background: '#0f172a', color: '#38bdf8', fontWeight: '800', border: '1px solid #334155', cursor: 'not-allowed' }}
+                        style={{ width: '100%', height: '40px', background: 'var(--pos-bg-app)', color: '#38bdf8', fontWeight: '800', border: '1px solid var(--pos-border-card)', cursor: 'not-allowed' }}
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'block', marginBottom: '4px', fontWeight: '700' }}>👤 Dibuat Oleh *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>👤 Dibuat Oleh *</label>
                       <input
                         type="text"
                         readOnly
-                        value={manualRepAuthor || masterData?.currentUser?.name || masterData?.user?.name || 'Master Super Admin'}
+                        value={manualRepAuthor || masterData?.currentUser?.name || masterData?.user?.name || userSession?.name || ''}
                         className="form-input"
-                        style={{ width: '100%', height: '40px', background: '#0f172a', color: '#34d399', fontWeight: '800', border: '1px solid #334155', cursor: 'not-allowed' }}
+                        style={{ width: '100%', height: '40px', background: 'var(--pos-bg-app)', color: '#34d399', fontWeight: '800', border: '1px solid var(--pos-border-card)', cursor: 'not-allowed' }}
                       />
                     </div>
                   </div>
@@ -9496,14 +9755,14 @@ export default function AndroidPosRegister({
                   {/* 2. AUTO-GENERATED SALES BREAKDOWN */}
                   <div style={{ background: 'linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(15, 23, 42, 0.9) 100%)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(52, 211, 153, 0.3)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
                     <div>
-                      <span style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>💵 Penjualan Cash (Tunai)</span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>💵 Penjualan Cash (Tunai)</span>
                       <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>{formatRupiah(autoCashVal)}</div>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Ter-generate otomatis (s/d 23:59:59)</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Ter-generate otomatis (s/d 23:59:59)</span>
                     </div>
                     <div>
-                      <span style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>💳 Penjualan Non-Cash (EDC/QRIS)</span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>💳 Penjualan Non-Cash (EDC/QRIS)</span>
                       <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>{formatRupiah(autoNonCashVal)}</div>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Ter-generate otomatis</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Ter-generate otomatis</span>
                     </div>
                     <div style={{ background: 'rgba(52, 211, 153, 0.15)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(52, 211, 153, 0.4)' }}>
                       <span style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: '900', textTransform: 'uppercase' }}>💰 Total Pendapatan Penjualan</span>
@@ -9512,12 +9771,12 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* 3. PENGELUARAN BAHAN BAKU & BIAYA TABLE */}
-                  <div style={{ background: '#0f172a', borderRadius: '12px', border: '1px solid #334155', overflow: 'hidden' }}>
-                    <div style={{ padding: '12px 16px', background: '#1e293b', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.88rem', fontWeight: '800', color: '#f8fafc' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', borderRadius: '12px', border: '1px solid var(--pos-border-card)', overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 16px', background: 'var(--pos-bg-card)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.88rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
                         📦 Tabel Pengeluaran Bahan Baku & Biaya Operasional
                       </span>
-                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>
                         HPP Dapur (Master Bahan Baku) | OPEX (Master Biaya)
                       </span>
                     </div>
@@ -9525,7 +9784,7 @@ export default function AndroidPosRegister({
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
                         <thead>
-                          <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155', textAlign: 'left', textTransform: 'uppercase', fontSize: '0.74rem' }}>
+                          <tr style={{ color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textAlign: 'left', textTransform: 'uppercase', fontSize: '0.74rem' }}>
                             <th style={{ padding: '8px 6px', width: '35px', textAlign: 'center' }}>#</th>
                             <th style={{ padding: '8px 6px' }}>Bahan Baku / Biaya</th>
                             <th style={{ padding: '8px 6px', width: '220px' }}>Jenis Pengeluaran (Otomatis)</th>
@@ -9541,7 +9800,7 @@ export default function AndroidPosRegister({
                             const currentMatch = allMasterSuggestions.find(m => m.name.toLowerCase() === (r.name || '').toLowerCase());
                             return (
                               <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '6px', textAlign: 'center', color: '#94a3b8', fontWeight: '700' }}>{idx + 1}</td>
+                                <td style={{ padding: '6px', textAlign: 'center', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{idx + 1}</td>
                                 
                                 {/* Input Autocomplete Sugesti Bahan Baku / Biaya */}
                                 <td style={{ padding: '6px' }}>
@@ -9647,7 +9906,7 @@ export default function AndroidPosRegister({
                             const currentMatch = allMasterSuggestions.find(m => m.name.toLowerCase() === (r.name || '').toLowerCase());
                             return (
                               <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '6px', textAlign: 'center', color: '#94a3b8', fontWeight: '700' }}>{manualCogsRows.length + idx + 1}</td>
+                                <td style={{ padding: '6px', textAlign: 'center', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{manualCogsRows.length + idx + 1}</td>
                                 
                                 {/* Input Autocomplete Sugesti Biaya Operasional / Akuntansi */}
                                 <td style={{ padding: '6px' }}>
@@ -9698,7 +9957,7 @@ export default function AndroidPosRegister({
                                 </td>
 
                                 {/* Qty (1) */}
-                                <td style={{ padding: '6px', textAlign: 'center', color: '#cbd5e1', fontWeight: '700' }}>1</td>
+                                <td style={{ padding: '6px', textAlign: 'center', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>1</td>
 
                                 {/* Harga Satuan */}
                                 <td style={{ padding: '6px' }}>
@@ -9737,12 +9996,12 @@ export default function AndroidPosRegister({
                     </div>
 
                     {/* Add Buttons */}
-                    <div style={{ padding: '10px 16px', background: '#1e293b', borderTop: '1px solid #334155', display: 'flex', gap: '12px' }}>
+                    <div style={{ padding: '10px 16px', background: 'var(--pos-bg-card)', borderTop: '1px solid var(--pos-border-card)', display: 'flex', gap: '12px' }}>
                       <button
                         type="button"
                         onClick={() => {
-                          const firstIng = masterIngs[0] || { name: 'Bahan Baku Baru', cost: 15000, unit: 'kg', category: 'HPP Dapur (Bahan Mentah)' };
-                          setManualCogsRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstIng.name, qty: 1, unit: firstIng.unit || 'kg', price_unit: firstIng.cost || 15000, amount: firstIng.cost || 15000, category: firstIng.category }]);
+                          const firstIng = masterIngs[0] || { name: 'Bahan Baku', cost: 0, unit: 'kg', category: 'HPP Dapur (Bahan Mentah)' };
+                          setManualCogsRows(prev => [...prev, { id: Date.now() + Math.random(), name: firstIng.name, qty: 1, unit: firstIng.unit || 'kg', price_unit: firstIng.cost || 0, amount: firstIng.cost || 0, category: firstIng.category }]);
                         }}
                         style={{ background: 'none', border: 'none', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
@@ -9765,7 +10024,7 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* 4. TOTAL PENGELUARAN & LABA KOTOR SUMMARY BAR */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                     <div style={{ background: 'rgba(251, 113, 133, 0.12)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(251, 113, 133, 0.3)' }}>
                       <span style={{ fontSize: '0.74rem', color: '#fb7185', fontWeight: '700', textTransform: 'uppercase' }}>🔥 Total Pengeluaran (Grand Total)</span>
                       <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#fb7185', marginTop: '2px' }}>
@@ -9784,7 +10043,7 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* 5. TABEL PENGEMBALIAN UANG KAS */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #fbbf24', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid #fbbf24', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.84rem', fontWeight: '800', color: '#fbbf24' }}>
                         💸 Tabel Pengembalian Uang Kas
@@ -9801,7 +10060,7 @@ export default function AndroidPosRegister({
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                         <thead>
-                          <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155', textAlign: 'left' }}>
+                          <tr style={{ color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textAlign: 'left' }}>
                             <th style={{ padding: '6px' }}>Tanggal</th>
                             <th style={{ padding: '6px', textAlign: 'right' }}>Jumlah Hutang (Rp)</th>
                             <th style={{ padding: '6px', textAlign: 'right' }}>Jumlah Pengembalian (Rp)</th>
@@ -9831,7 +10090,7 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* 6. UANG DI LACI & SISA UANG DI KAS */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #6366f1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid #6366f1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
                     {/* Uang di Laci */}
                     <div style={{ background: isUangDiLaciMinus ? 'rgba(244, 63, 94, 0.15)' : 'rgba(52, 211, 153, 0.15)', padding: '12px', borderRadius: '10px', border: `1px solid ${isUangDiLaciMinus ? '#f43f5e' : '#34d399'}` }}>
                       <span style={{ fontSize: '0.74rem', color: isUangDiLaciMinus ? '#f43f5e' : '#34d399', fontWeight: '800', textTransform: 'uppercase' }}>
@@ -9865,7 +10124,7 @@ export default function AndroidPosRegister({
                       <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#818cf8' }}>
                         {formatRupiah(sisaUangDiKas)}
                       </div>
-                      <span style={{ fontSize: '0.66rem', color: '#cbd5e1' }}>
+                      <span style={{ fontSize: '0.66rem', color: 'var(--pos-txt-secondary)' }}>
                         Modal ({formatRupiah(modalKasVal)}) - Laba Kotor Minus ({formatRupiah(labaKotorMinusVal)}) - Hutang Belum Dikembalikan ({formatRupiah(remainingDebt)})
                       </span>
                     </div>
@@ -9873,7 +10132,7 @@ export default function AndroidPosRegister({
 
                   {/* CATATAN */}
                   <div>
-                    <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Catatan Shift Laporan Keuangan</label>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Catatan Shift Laporan Keuangan</label>
                     <textarea
                       rows={2}
                       value={manualRepNotes}
@@ -9885,7 +10144,7 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* SUBMIT BUTTONS */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--pos-border)', paddingTop: '14px' }}>
                     <button
                       type="button"
                       onClick={() => setShowAddManualReportModal(false)}
@@ -9897,7 +10156,7 @@ export default function AndroidPosRegister({
                     <button
                       type="submit"
                       className="btn-primary"
-                      style={{ padding: '8px 24px', fontSize: '0.82rem', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: '#ffffff', fontWeight: '900' }}
+                      style={{ padding: '8px 24px', fontSize: '0.82rem', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'var(--pos-txt-white)', fontWeight: '900' }}
                     >
                       Simpan Laporan Keuangan Harian
                     </button>
@@ -9917,50 +10176,50 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: '#1e293b', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                 Pratinjau Laporan {previewManualReport.report_no || previewManualReport.id}
               </h3>
-              <button onClick={() => setPreviewManualReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setPreviewManualReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal Shift:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewManualReport.date}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Shift:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewManualReport.date}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Pembuat / Kasir:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewManualReport.author_name}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Pembuat / Kasir:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewManualReport.author_name}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Pendapatan Net Sales:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Pendapatan Net Sales:</span>
                 <span style={{ fontWeight: '900', color: '#34d399' }}>{formatRupiah(previewManualReport.net_sales)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Kas Non-Tunai (QRIS/EDC):</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Kas Non-Tunai (QRIS/EDC):</span>
                 <span style={{ fontWeight: '800', color: '#a78bfa' }}>{formatRupiah(previewManualReport.non_cash_sales)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Total Pengeluaran:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Total Pengeluaran:</span>
                 <span style={{ fontWeight: '800', color: '#fb7185' }}>-{formatRupiah(previewManualReport.total_expense)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>💰 Uang Fisik Laci:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>💰 Uang Fisik Laci:</span>
                 <span style={{ fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(previewManualReport.cash_physical)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Status Approval:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
                 <span style={{ fontWeight: '900', color: previewManualReport.status === 'approved' ? '#34d399' : '#fbbf24' }}>
                   {previewManualReport.status === 'approved' ? '🟢 APPROVED' : '⏳ PENDING'}
                 </span>
               </div>
             </div>
 
-            <button onClick={() => setPreviewManualReport(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+            <button onClick={() => setPreviewManualReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
               Tutup Pratinjau
             </button>
           </div>
@@ -9976,47 +10235,36 @@ export default function AndroidPosRegister({
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100%', maxWidth: '780px', maxHeight: '92vh', overflowY: 'auto',
-            padding: '24px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '18px',
+            padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #38bdf8', borderRadius: '18px',
             display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Package size={24} color="#38bdf8" />
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                     Form Input Audit Stock Opname & Laporan Logistik
                   </h3>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>
                     Nomor Laporan: <strong style={{ color: '#38bdf8' }}>{logNo}</strong>
                   </span>
                 </div>
               </div>
-              <button onClick={() => setShowAddLogisticsModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddLogisticsModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={22} />
               </button>
             </div>
 
             {(() => {
-              const rawIngredients = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients
-                : [
-                    { id: 1, name: 'Daging Ayam Fillet', unit: 'kg', stock: 50 },
-                    { id: 2, name: 'Beras Pandan Wangi', unit: 'kg', stock: 100 },
-                    { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter', stock: 30 },
-                    { id: 4, name: 'Telur Ayam Negeri', unit: 'butir', stock: 200 },
-                    { id: 5, name: 'Cabai Rawit Merah', unit: 'kg', stock: 15 },
-                    { id: 6, name: 'Bawang Merah', unit: 'kg', stock: 20 }
-                  ];
-
-              const ingredientsList = rawIngredients.filter(ing => 
+              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
+              const rawIngredients = masterData.ingredients || [];
+              const ingredientsList = rawIngredients.filter(ing =>
                 ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
               );
 
-              const adminList = [
-                { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                { id: 2, name: 'Siti Rahma', role: 'Kasir Senior' },
-                { id: 3, name: 'Budi Kurniawan', role: 'Kasir Pagi' }
-              ];
+              const adminList = (masterData.webAdminAccounts || masterData.mobileAccounts || []).map(acc => ({
+                id: acc.id, name: acc.name, role: acc.role || acc.jabatan || 'Kasir'
+              }));
 
               const handleUpdateRow = (id, field, value) => {
                 setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
@@ -10097,17 +10345,17 @@ export default function AndroidPosRegister({
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                   {/* Header Form: Tanggal, No Laporan, Diisi Oleh, Cabang Outlet */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Audit *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Audit *</label>
                       <input type="date" required value={logDate} onChange={e => setLogDate(e.target.value)} className="form-input" style={{ width: '100%', height: '38px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan *</label>
                       <input type="text" required value={logNo} onChange={e => setLogNo(e.target.value)} className="form-input" style={{ width: '100%', height: '38px', fontWeight: '800', color: '#38bdf8' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Diisi Oleh *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Diisi Oleh *</label>
                       <select value={logSubmittedBy} onChange={e => setLogSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '38px' }}>
                         {adminList.map(a => (
                           <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
@@ -10115,10 +10363,10 @@ export default function AndroidPosRegister({
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>🏢 Cabang Outlet</label>
-                      <div style={{ width: '100%', height: '38px', background: '#1e293b', border: '1px solid #34d399', borderRadius: '8px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>🏢 Cabang Outlet</label>
+                      <div style={{ width: '100%', height: '38px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '8px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>🏢 {currentOutlet.name || 'Restoran Utama'}</span>
-                        <span style={{ fontSize: '0.70rem', color: '#94a3b8', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>Akun Aktif</span>
+                        <span style={{ fontSize: '0.70rem', color: 'var(--pos-txt-secondary)', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>Akun Aktif</span>
                       </div>
                     </div>
                   </div>
@@ -10139,10 +10387,10 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* TABEL BATCH STOCK OPNAME BAHAN BAKU */}
-                  <div style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid #334155', borderRadius: '12px', background: '#0f172a' }}>
+                  <div style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid var(--pos-border-card)', borderRadius: '12px', background: 'var(--pos-bg-app)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                       <thead>
-                        <tr style={{ background: '#1e293b', color: '#94a3b8', textAlign: 'left', borderBottom: '1px solid #334155', position: 'sticky', top: 0, zIndex: 10 }}>
+                        <tr style={{ background: 'var(--pos-bg-card)', color: 'var(--pos-txt-secondary)', textAlign: 'left', borderBottom: '1px solid var(--pos-border-card)', position: 'sticky', top: 0, zIndex: 10 }}>
                           <th style={{ padding: '10px 12px' }}>Bahan Baku & Satuan</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center', width: '110px' }}>Stok Awal (Manual)</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center', color: '#34d399' }}>Stok Masuk</th>
@@ -10156,7 +10404,7 @@ export default function AndroidPosRegister({
                       <tbody>
                         {opnameBatchRows.length === 0 ? (
                           <tr>
-                            <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                            <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                               Belum ada bahan baku. Klik <strong>+ Tambah Baris Bahan Baku</strong> di atas.
                             </td>
                           </tr>
@@ -10194,7 +10442,7 @@ export default function AndroidPosRegister({
                                   </div>
                                 ) : (
                                   <div>
-                                    <strong style={{ color: '#f8fafc', display: 'block' }}>{row.item_name}</strong>
+                                    <strong style={{ color: 'var(--pos-txt-primary)', display: 'block' }}>{row.item_name}</strong>
                                     <span style={{ fontSize: '0.70rem', color: '#38bdf8' }}>Satuan: {row.unit}</span>
                                   </div>
                                 )}
@@ -10254,7 +10502,7 @@ export default function AndroidPosRegister({
                                     type="button"
                                     onClick={() => handleUpdateRow(row.id, 'isEditing', !row.isEditing)}
                                     title={row.isEditing ? "Selesai Edit" : "Edit Nama / Satuan"}
-                                    style={{ padding: '4px 8px', background: row.isEditing ? '#34d399' : '#334155', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                                    style={{ padding: '4px 8px', background: row.isEditing ? '#34d399' : 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
                                   >
                                     <Edit2 size={12} />
                                   </button>
@@ -10279,15 +10527,15 @@ export default function AndroidPosRegister({
                   {/* Footer Status & Tombol Simpan */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Status Approval:</span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
                       <span style={{ fontSize: '0.74rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '3px 10px', borderRadius: '6px', fontWeight: '800' }}>⏳ Pending (Butuh Persetujuan)</span>
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '10px 18px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '0.82rem' }}>
+                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '10px 18px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '0.82rem' }}>
                         Batal
                       </button>
-                      <button type="submit" style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button type="submit" style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '8px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>💾 SIMPAN SELURUH AUDIT STOK OPNAME</span>
                       </button>
                     </div>
@@ -10308,58 +10556,58 @@ export default function AndroidPosRegister({
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: '#1e293b', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                 Pratinjau Audit Opname {previewLogisticsReport.report_no || previewLogisticsReport.id}
               </h3>
-              <button onClick={() => setPreviewLogisticsReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setPreviewLogisticsReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal Audit:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewLogisticsReport.date}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Audit:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewLogisticsReport.date}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Diisi Oleh:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewLogisticsReport.submitted_by || previewLogisticsReport.created_by}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Diisi Oleh:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewLogisticsReport.submitted_by || previewLogisticsReport.created_by}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Nama Stok Item:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Stok Item:</span>
                 <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewLogisticsReport.item_name}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Stok Awal:</span>
-                <span style={{ fontWeight: '800', color: '#cbd5e1' }}>{previewLogisticsReport.stok_awal || 0} {previewLogisticsReport.unit}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Awal:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>{previewLogisticsReport.stok_awal || 0} {previewLogisticsReport.unit}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Stok Masuk:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Masuk:</span>
                 <span style={{ fontWeight: '800', color: '#34d399' }}>+{previewLogisticsReport.stok_masuk || 0} {previewLogisticsReport.unit}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Transfer Out / In:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Transfer Out / In:</span>
                 <span style={{ fontWeight: '800', color: '#a78bfa' }}>-{previewLogisticsReport.transfer_keluar || 0} / +{previewLogisticsReport.transfer_masuk || 0} {previewLogisticsReport.unit}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Stok Rusak:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Rusak:</span>
                 <span style={{ fontWeight: '800', color: '#fb7185' }}>-{previewLogisticsReport.stok_rusak || 0} {previewLogisticsReport.unit} ({previewLogisticsReport.damage_reason || 'N/A'})</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>⚖️ Sisa Stok Fisik:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>⚖️ Sisa Stok Fisik:</span>
                 <span style={{ fontWeight: '900', color: '#38bdf8', fontSize: '1rem' }}>{previewLogisticsReport.stok_fisik} {previewLogisticsReport.unit}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Status Approval:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
                 <span style={{ fontWeight: '900', color: (previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
                   {(previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
                 </span>
               </div>
             </div>
 
-            <button onClick={() => setPreviewLogisticsReport(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+            <button onClick={() => setPreviewLogisticsReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
               Tutup Pratinjau
             </button>
           </div>
@@ -10374,7 +10622,7 @@ export default function AndroidPosRegister({
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100%', maxWidth: '880px', maxHeight: '92vh', overflowY: 'auto',
-            background: '#1e293b', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '20px',
+            background: 'var(--pos-bg-card)', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '20px',
             boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)', padding: '24px',
             display: 'flex', flexDirection: 'column', gap: '20px',
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
@@ -10386,10 +10634,10 @@ export default function AndroidPosRegister({
                   <Truck size={24} color="#a78bfa" />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--pos-txt-primary)', margin: 0, letterSpacing: '-0.02em' }}>
                     🚚 Buat Laporan Transfer Produk Antarcabang
                   </h3>
-                  <p style={{ fontSize: '0.80rem', color: '#94a3b8', margin: '3px 0 0 0' }}>
+                  <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', margin: '3px 0 0 0' }}>
                     Formulir mutasi & pengiriman persediaan stok antarcabang restoran
                   </p>
                 </div>
@@ -10398,7 +10646,7 @@ export default function AndroidPosRegister({
                 onClick={() => setShowAddTransferModal(false)} 
                 style={{
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#94a3b8', borderRadius: '10px', width: '36px', height: '36px',
+                  color: 'var(--pos-txt-secondary)', borderRadius: '10px', width: '36px', height: '36px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', fontSize: '1.1rem', fontWeight: '700', transition: 'all 0.2s'
                 }}
@@ -10408,33 +10656,14 @@ export default function AndroidPosRegister({
             </div>
 
             {(() => {
-              const ingredientsList = (masterData.ingredients && masterData.ingredients.length > 0)
-                ? masterData.ingredients
-                : [
-                    { id: 1, name: 'Daging Ayam Fillet', unit: 'kg' },
-                    { id: 2, name: 'Beras Pandan Wangi', unit: 'kg' },
-                    { id: 3, name: 'Minyak Goreng Bimoli', unit: 'liter' }
-                  ];
+              const ingredientsList = masterData?.ingredients || [];
 
-              const outletsList = (masterData.outlets && masterData.outlets.length > 0)
-                ? masterData.outlets
-                : [
-                    { id: 1, name: currentOutlet.name || 'Restoran Utama' },
-                    { id: 2, name: 'Outlet Cabang 2' }
-                  ];
+              const outletsList = masterData?.outlets || [];
 
-              const adminList = (masterData.userRights && masterData.userRights.length > 0)
-                ? masterData.userRights
-                : (masterData.users && masterData.users.length > 0)
-                  ? masterData.users
-                  : [
-                      { id: 1, name: 'Master Super Admin', role: 'Super Admin / Owner' },
-                      { id: 2, name: 'Supervisor Operasional', role: 'Supervisor' },
-                      { id: 3, name: 'Kasir POS', role: 'Kasir Utama' }
-                    ];
+              const adminList = masterData?.userRights || masterData?.users || [];
 
               const handleAddTransferRow = () => {
-                const defaultIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                const defaultIng = ingredientsList[0] || null;
                 setTransferBatchRows(prev => [
                   ...prev,
                   {
@@ -10504,21 +10733,21 @@ export default function AndroidPosRegister({
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
                   {/* KARTU 1: Tanggal & Nomor Laporan */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📅 Tanggal Transfer *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📅 Tanggal Transfer *</label>
                       <input type="date" required value={transferDate} onChange={e => setTransferDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📋 Nomor Laporan Transfer *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📋 Nomor Laporan Transfer *</label>
                       <input type="text" required value={transferNo} onChange={e => setTransferNo(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', fontWeight: '800', color: '#a78bfa' }} />
                     </div>
                   </div>
 
                   {/* KARTU 2: Diisi Oleh, Outlet Asal & Outlet Tujuan */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>👤 Pengaju / Dibuat Oleh *</label>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>👤 Pengaju / Dibuat Oleh *</label>
                       <select value={transferSubmittedBy} onChange={e => setTransferSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }}>
                         {adminList.map(a => (
                           <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
@@ -10528,9 +10757,9 @@ export default function AndroidPosRegister({
 
                     <div>
                       <label style={{ fontSize: '0.78rem', color: '#fb7185', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🔴 Outlet Asal (Pengirim)</label>
-                      <div style={{ width: '100%', height: '40px', background: '#1e293b', border: '1px solid #fb7185', borderRadius: '8px', padding: '0 12px', color: '#fb7185', fontWeight: '800', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ width: '100%', height: '40px', background: 'var(--pos-bg-card)', border: '1px solid #fb7185', borderRadius: '8px', padding: '0 12px', color: '#fb7185', fontWeight: '800', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>🔴 {currentOutlet.name || 'Restoran Utama'}</span>
-                        <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>(Akun Login)</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>(Akun Login)</span>
                       </div>
                     </div>
 
@@ -10545,7 +10774,7 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* KARTU 3: DETAIL BAHAN BAKU / PRODUK YANG DITRANSFER (MULTI-ITEM) */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <label style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>📦 Detail Bahan Baku / Produk Yang Ditransfer ({transferBatchRows.length} Item)</span>
@@ -10566,10 +10795,10 @@ export default function AndroidPosRegister({
                     </div>
 
                     {/* Format Tabel Proposional */}
-                    <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
+                    <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                         <thead>
-                          <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.74rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                          <tr style={{ background: 'var(--pos-bg-card)', borderBottom: '1px solid var(--pos-border-card)', color: 'var(--pos-txt-secondary)', fontSize: '0.74rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                             <th style={{ padding: '12px 14px', width: '40px', textAlign: 'center' }}>No</th>
                             <th style={{ padding: '12px 14px', minWidth: '220px' }}>Nama Produk / Stok Item *</th>
                             <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Out (Outlet Pengirim) *</th>
@@ -10585,7 +10814,7 @@ export default function AndroidPosRegister({
 
                             return (
                               <React.Fragment key={row.id || idx}>
-                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.5)' : '#0f172a' }}>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.5)' : 'var(--pos-bg-app)' }}>
                                   {/* 1. Index */}
                                   <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '700', color: '#64748b' }}>
                                     {idx + 1}
@@ -10727,8 +10956,8 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* KARTU 4: Catatan / Alasan Transfer */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                       <span>📝 Catatan / Alasan Transfer Bahan Baku</span>
                     </label>
                     <input 
@@ -10742,12 +10971,12 @@ export default function AndroidPosRegister({
                   </div>
 
                   {/* Footer Buttons */}
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '8px', borderTop: '1px solid var(--pos-border)' }}>
                     <button 
                       type="button" 
                       onClick={() => setShowAddTransferModal(false)} 
                       style={{
-                        padding: '12px 22px', background: '#334155', color: '#ffffff',
+                        padding: '12px 22px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)',
                         border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
                         fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s'
                       }}
@@ -10758,7 +10987,7 @@ export default function AndroidPosRegister({
                       type="submit" 
                       style={{
                         padding: '12px 28px', background: 'linear-gradient(135deg, #c084fc 0%, #7c3aed 100%)',
-                        color: '#ffffff', border: 'none', borderRadius: '10px',
+                        color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px',
                         fontWeight: '800', fontSize: '0.88rem', cursor: 'pointer',
                         boxShadow: '0 4px 16px rgba(167,139,250,0.4)', transition: 'all 0.2s'
                       }}
@@ -10781,18 +11010,18 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '640px', background: '#0f172a',
+            width: '100%', maxWidth: '640px', background: 'var(--pos-bg-app)',
             border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '20px',
             padding: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.6)',
             display: 'flex', flexDirection: 'column', gap: '18px'
           }}>
             {/* Header Modal */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '14px' }}>
               <div style={{ padding: '10px', background: 'rgba(56, 189, 248, 0.15)', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
                 <Truck size={24} color="#38bdf8" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                   🚚 Papan Informasi Persetujuan Transfer Bahan Baku
                 </h3>
                 <span style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: '800' }}>
@@ -10803,18 +11032,18 @@ export default function AndroidPosRegister({
 
             {/* Content Details */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ background: '#1e293b', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.82rem' }}>
+              <div style={{ background: 'var(--pos-bg-card)', padding: '14px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.82rem' }}>
                 <div>
-                  <span style={{ color: '#94a3b8', fontSize: '0.75rem', display: 'block' }}>📋 No. Laporan:</span>
+                  <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.75rem', display: 'block' }}>📋 No. Laporan:</span>
                   <span style={{ fontWeight: '800', color: '#38bdf8' }}>{pendingTransferDraft.report_no}</span>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8', fontSize: '0.75rem', display: 'block' }}>📅 Tanggal:</span>
-                  <span style={{ fontWeight: '800', color: '#ffffff' }}>{pendingTransferDraft.date}</span>
+                  <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.75rem', display: 'block' }}>📅 Tanggal:</span>
+                  <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{pendingTransferDraft.date}</span>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8', fontSize: '0.75rem', display: 'block' }}>👤 Dibuat Oleh:</span>
-                  <span style={{ fontWeight: '800', color: '#ffffff' }}>{pendingTransferDraft.submitted_by}</span>
+                  <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.75rem', display: 'block' }}>👤 Dibuat Oleh:</span>
+                  <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{pendingTransferDraft.submitted_by}</span>
                 </div>
                 <div>
                   <span style={{ color: '#fb7185', fontSize: '0.75rem', display: 'block', fontWeight: '800' }}>🔴 Outlet Asal (Pengirim):</span>
@@ -10831,10 +11060,10 @@ export default function AndroidPosRegister({
                 <span style={{ color: '#38bdf8', fontSize: '0.78rem', fontWeight: '800', display: 'block', marginBottom: '8px' }}>
                   📦 Rincian Bahan Baku Yang Ditransfer ({pendingTransferDraft.items.length} Item):
                 </span>
-                <div style={{ background: '#1e293b', borderRadius: '10px', border: '1px solid #334155', overflow: 'hidden' }}>
+                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '10px', border: '1px solid var(--pos-border-card)', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
                     <thead>
-                      <tr style={{ background: '#0f172a', color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase', borderBottom: '1px solid #334155' }}>
+                      <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', fontSize: '0.72rem', textTransform: 'uppercase', borderBottom: '1px solid var(--pos-border-card)' }}>
                         <th style={{ padding: '8px 12px', textAlign: 'center', width: '40px' }}>No</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Nama Produk / Stok Item</th>
                         <th style={{ padding: '8px 12px', color: '#34d399' }}>📥 Transfer In (Outlet Penerima)</th>
@@ -10859,12 +11088,12 @@ export default function AndroidPosRegister({
             </div>
 
             {/* Action Buttons: Edit Kembali vs Simpan */}
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '6px', borderTop: '1px solid var(--pos-border)' }}>
               <button 
                 type="button" 
                 onClick={() => setPendingTransferDraft(null)} 
                 style={{
-                  padding: '11px 22px', background: '#334155', color: '#ffffff',
+                  padding: '11px 22px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)',
                   border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px',
                   fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s'
@@ -10903,7 +11132,7 @@ export default function AndroidPosRegister({
                 }} 
                 style={{
                   padding: '11px 26px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)',
-                  color: '#ffffff', border: 'none', borderRadius: '10px',
+                  color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px',
                   fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer',
                   boxShadow: '0 4px 16px rgba(52,211,153,0.4)',
                   display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s'
@@ -10925,56 +11154,56 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '540px', padding: '24px', background: '#1e293b', border: '1px solid #a78bfa', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '540px', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #a78bfa', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Truck size={22} color="#a78bfa" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                   Pratinjau Laporan Transfer Produk
                 </h3>
               </div>
-              <button onClick={() => setPreviewTransferReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900' }}>✕</button>
+              <button onClick={() => setPreviewTransferReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900' }}>✕</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Nomor Laporan:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nomor Laporan:</span>
                 <span style={{ fontWeight: '900', color: '#a78bfa' }}>{previewTransferReport.report_no || previewTransferReport.id}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal Transfer:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewTransferReport.date}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Transfer:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewTransferReport.date}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Pengaju:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewTransferReport.submitted_by || previewTransferReport.created_by}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Pengaju:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewTransferReport.submitted_by || previewTransferReport.created_by}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Outlet Asal:</span>
-                <span style={{ fontWeight: '800', color: '#cbd5e1' }}>🏢 {previewTransferReport.from_outlet_name || currentOutlet.name}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Asal:</span>
+                <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>🏢 {previewTransferReport.from_outlet_name || currentOutlet.name}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Outlet Tujuan:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Tujuan:</span>
                 <span style={{ fontWeight: '800', color: '#a78bfa' }}>➡️ {previewTransferReport.to_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(previewTransferReport.to_outlet_id || previewTransferReport.toOutletId))?.name || 'Outlet Tujuan'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Nama Produk Item:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Produk Item:</span>
                 <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewTransferReport.item_name}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Jumlah Transfer:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Jumlah Transfer:</span>
                 <span style={{ fontWeight: '900', color: '#a78bfa', fontSize: '1rem' }}>{previewTransferReport.qty} {previewTransferReport.unit}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Status Approval:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
                 <span style={{ fontWeight: '900', color: (previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
                   {(previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
                 </span>
               </div>
             </div>
 
-            <button onClick={() => setPreviewTransferReport(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+            <button onClick={() => setPreviewTransferReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
               Tutup Pratinjau
             </button>
           </div>
@@ -10990,32 +11219,28 @@ export default function AndroidPosRegister({
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto',
-            padding: '24px', background: '#1e293b', border: '1px solid #f43f5e', borderRadius: '18px',
+            padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #f43f5e', borderRadius: '18px',
             display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Trash2 size={24} color="#f43f5e" />
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                     Laporkan Stok Rusak / Waste
                   </h3>
-                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
                     Formulir pencatatan waste, retur, expired, & kerusakan bahan baku
                   </p>
                 </div>
               </div>
-              <button onClick={() => { setShowAddWasteModal(false); setEditingWasteId(null); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+              <button onClick={() => { setShowAddWasteModal(false); setEditingWasteId(null); }} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
             </div>
 
             {(() => {
               const ingredientsList = masterData.ingredients || [];
 
-              const userList = (masterData.userAccounts && masterData.userAccounts.length > 0)
-                ? masterData.userAccounts
-                : (masterData.userRights && masterData.userRights.length > 0)
-                  ? masterData.userRights
-                  : [{ id: 1, name: 'Master Super Admin', role: 'Super Admin' }];
+              const userList = masterData?.userAccounts || masterData?.userRights || [];
 
               return (
                 <form onSubmit={e => {
@@ -11030,13 +11255,13 @@ export default function AndroidPosRegister({
                   {/* Row 1: Tanggal Kejadian & Dibuat Oleh */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Kejadian *</span>
-                      <input type="date" required value={wasteDate} onChange={e => setWasteDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                      <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Tanggal Kejadian *</span>
+                      <input type="date" required value={wasteDate} onChange={e => setWasteDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.82rem' }} />
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh *</span>
-                      <select value={wasteSubmittedBy} onChange={e => setWasteSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Dibuat Oleh *</span>
+                      <select value={wasteSubmittedBy} onChange={e => setWasteSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.82rem', cursor: 'pointer' }}>
                         {userList.map(a => (
                           <option key={a.id} value={a.name}>{a.name} ({a.role || 'Staf Restoran'})</option>
                         ))}
@@ -11046,10 +11271,10 @@ export default function AndroidPosRegister({
 
                   {/* Row 2: Nama Outlet Cabang */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Nama Outlet Cabang</span>
-                    <div style={{ width: '100%', height: '40px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '6px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Nama Outlet Cabang</span>
+                    <div style={{ width: '100%', height: '40px', background: 'var(--pos-bg-app)', border: '1px solid #34d399', borderRadius: '6px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>🏢 {(masterData.outlets || []).find(o => Number(o.id) === Number(wasteOutletId))?.name || currentOutlet?.name || 'Outlet Cabang'}</span>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>(Akun Login POS)</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>(Akun Login POS)</span>
                     </div>
                   </div>
 
@@ -11064,13 +11289,13 @@ export default function AndroidPosRegister({
                         onChange={e => setWasteEditingNotes(e.target.value)}
                         rows={2}
                         className="form-input"
-                        style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fbbf24', fontSize: '0.80rem' }}
+                        style={{ width: '100%', padding: '8px', background: 'var(--pos-bg-app)', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fbbf24', fontSize: '0.80rem' }}
                       />
                     </div>
                   )}
 
                   {/* Dynamic Item Rows Section */}
-                  <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.82rem', color: '#f43f5e', fontWeight: '800' }}>
                         🥬 Cari & Pilih Nama Item (Bahan Baku Rusak):
@@ -11094,10 +11319,10 @@ export default function AndroidPosRegister({
                     </div>
 
                     {wasteBatchRows.map((row, idx) => (
-                      <div key={row.id || idx} style={{ background: '#1e293b', padding: '12px', borderRadius: '10px', border: '1px solid #475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div key={row.id || idx} style={{ background: 'var(--pos-bg-card)', padding: '12px', borderRadius: '10px', border: '1px solid #475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 36px', gap: '8px', alignItems: 'end' }}>
                           <div>
-                            <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
                               Item Bahan Baku *
                             </span>
                             <select
@@ -11146,7 +11371,7 @@ export default function AndroidPosRegister({
                           </div>
 
                           <div>
-                            <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
                               Satuan (Otomatis)
                             </span>
                             <input
@@ -11154,7 +11379,7 @@ export default function AndroidPosRegister({
                               readOnly
                               value={row.unit}
                               className="form-input"
-                              style={{ width: '100%', height: '36px', fontSize: '0.80rem', background: '#0f172a', color: '#94a3b8', padding: '6px' }}
+                              style={{ width: '100%', height: '36px', fontSize: '0.80rem', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', padding: '6px' }}
                             />
                           </div>
 
@@ -11238,7 +11463,7 @@ export default function AndroidPosRegister({
                             setWasteBatchRows(updated);
                           }}
                           className="form-input"
-                          style={{ width: '100%', height: '32px', fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '6px 10px' }}
+                          style={{ width: '100%', height: '32px', fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '600', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', padding: '6px 10px' }}
                         />
                       </div>
                     ))}
@@ -11246,23 +11471,23 @@ export default function AndroidPosRegister({
 
                   {/* Catatan Laporan (global) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Catatan Laporan (Opsional)</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Catatan Laporan (Opsional)</span>
                     <textarea
                       placeholder="Tambahkan catatan umum untuk laporan ini..."
                       value={wasteNotes}
                       onChange={e => setWasteNotes(e.target.value)}
                       rows={2}
                       className="form-input"
-                      style={{ width: '100%', padding: '8px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.80rem', resize: 'vertical' }}
+                      style={{ width: '100%', padding: '8px 10px', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-secondary)', fontSize: '0.80rem', resize: 'vertical' }}
                     />
                   </div>
 
                   {/* Footer Buttons */}
-                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '6px', borderTop: '1px solid #334155', paddingTop: '14px' }}>
-                    <button type="button" onClick={() => { setShowAddWasteModal(false); setEditingWasteId(null); }} style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '6px', borderTop: '1px solid var(--pos-border-card)', paddingTop: '14px' }}>
+                    <button type="button" onClick={() => { setShowAddWasteModal(false); setEditingWasteId(null); }} style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: 'var(--pos-txt-secondary)', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}>
                       Batal
                     </button>
-                    <button type="submit" style={{ padding: '9px 22px', background: 'linear-gradient(135deg, #f43f5e, #e11d48)', border: 'none', color: 'white', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(244,63,94,0.35)' }}>
+                    <button type="submit" style={{ padding: '9px 22px', background: 'linear-gradient(135deg, #f43f5e, #e11d48)', border: 'none', color: 'var(--pos-txt-white)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(244,63,94,0.35)' }}>
                       <Trash2 size={15} />
                       <span>Lanjut ke Pratinjau (OK)</span>
                     </button>
@@ -11277,51 +11502,51 @@ export default function AndroidPosRegister({
       {/* PAPAN PREVIEW MODAL STOK RUSAK POS MOBILE */}
       {showWastePreviewFormModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: '#1e293b', border: '1px solid #34d399', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle size={22} color="#34d399" />
-                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                   📋 Papan Pratinjau Laporan Barang Rusak (POS Mobile)
                 </h3>
               </div>
-              <button onClick={() => setShowWastePreviewFormModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+              <button onClick={() => setShowWastePreviewFormModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.82rem', color: '#f8fafc', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.82rem', color: 'var(--pos-txt-primary)', background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>No Laporan:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>No Laporan:</span>
                 <span style={{ fontWeight: '900', color: '#fb7185' }}>{wasteNo}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal Kejadian:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Kejadian:</span>
                 <span style={{ fontWeight: '800' }}>{wasteDate}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Pengaju / Dibuat Oleh:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Pengaju / Dibuat Oleh:</span>
                 <span style={{ fontWeight: '800' }}>👤 {wasteSubmittedBy}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Cabang:</span>
                 <span style={{ fontWeight: '800', color: '#34d399' }}>🏢 {(masterData.outlets || []).find(o => Number(o.id) === Number(wasteOutletId))?.name || currentOutlet?.name || 'Outlet Cabang'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tipe Input & Status:</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tipe Input & Status:</span>
                 <span style={{ fontWeight: '800', color: '#34d399' }}>🟢 By approved (PENDING)</span>
               </div>
               {editingWasteId && wasteEditingNotes && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(251,191,36,0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.3)' }}>
                   <span style={{ color: '#fbbf24', fontWeight: '800', fontSize: '0.75rem' }}>📝 Catatan Editing:</span>
-                  <span style={{ color: '#f8fafc', fontSize: '0.78rem' }}>{wasteEditingNotes}</span>
+                  <span style={{ color: 'var(--pos-txt-primary)', fontSize: '0.78rem' }}>{wasteEditingNotes}</span>
                 </div>
               )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.80rem', color: '#94a3b8', fontWeight: '800' }}>📦 Rincian Bahan Baku Rusak:</span>
+              <span style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', fontWeight: '800' }}>📦 Rincian Bahan Baku Rusak:</span>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                  <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
                     <th style={{ padding: '8px' }}>Bahan Baku</th>
                     <th style={{ padding: '8px', textAlign: 'center' }}>Jumlah Qty</th>
                     <th style={{ padding: '8px' }}>Alasan Rusak</th>
@@ -11332,25 +11557,25 @@ export default function AndroidPosRegister({
                     <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ padding: '8px', fontWeight: '800', color: '#38bdf8' }}>{row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Kustom') : row.item_name}</td>
                       <td style={{ padding: '8px', textAlign: 'center', fontWeight: '900', color: '#fb7185' }}>{row.qty} {row.unit}</td>
-                      <td style={{ padding: '8px', color: '#cbd5e1' }}>{row.reason === 'Dan lain lain' ? (row.reason_custom || row.reason) : row.reason}</td>
+                      <td style={{ padding: '8px', color: 'var(--pos-txt-secondary)' }}>{row.reason === 'Dan lain lain' ? (row.reason_custom || row.reason) : row.reason}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid #334155', paddingTop: '14px' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid var(--pos-border-card)', paddingTop: '14px' }}>
               <button
                 type="button"
                 onClick={() => setShowWastePreviewFormModal(false)}
-                style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: 'var(--pos-txt-secondary)', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 ✏️ Edit Lagi
               </button>
               <button
                 type="button"
                 onClick={handleSaveWasteFinal}
-                style={{ padding: '9px 24px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
+                style={{ padding: '9px 24px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: 'var(--pos-txt-white)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
               >
                 💾 Simpan Laporan
               </button>
@@ -11367,16 +11592,16 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '540px', padding: '24px', background: '#1e293b', border: '1px solid #fb7185', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+            width: '100%', maxWidth: '540px', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #fb7185', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Trash2 size={22} color="#fb7185" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                   Pratinjau Laporan Barang Rusak {previewWasteReport.report_no || previewWasteReport.id}
                 </h3>
               </div>
-              <button onClick={() => setPreviewWasteReport(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setPreviewWasteReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
             </div>
 
             {(() => {
@@ -11398,13 +11623,13 @@ export default function AndroidPosRegister({
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Nomor Laporan:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Nomor Laporan:</span>
                     <span style={{ fontWeight: '900', color: '#fb7185' }}>{reportNo}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Tanggal Pencatatan:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Pencatatan:</span>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: '800', color: '#ffffff' }}>
+                      <div style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
                         {previewWasteReport.tanggal_waktu
                           ? new Date(previewWasteReport.tanggal_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
                           : previewWasteReport.date || '-'
@@ -11418,30 +11643,30 @@ export default function AndroidPosRegister({
                     </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Diisi Oleh:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Diisi Oleh:</span>
                     <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontWeight: '800', color: '#ffffff' }}>👤 {previewWasteReport.input_by || previewWasteReport.submitted_by || previewWasteReport.created_by || 'Kasir'}</span>
+                      <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>👤 {previewWasteReport.input_by || previewWasteReport.submitted_by || previewWasteReport.created_by || 'Kasir'}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
-                    <span style={{ fontWeight: '800', color: '#cbd5e1' }}>🏢 {previewWasteReport.branch_name || currentOutlet.name}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Cabang:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>🏢 {previewWasteReport.branch_name || currentOutlet.name}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Status Persetujuan:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Persetujuan:</span>
                     <span style={{ fontWeight: '900', color: isApproved ? '#34d399' : '#fbbf24' }}>
                       {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
                     </span>
                   </div>
 
                   {/* List Item Bahan Baku */}
-                  <div style={{ background: '#0f172a', borderRadius: '10px', padding: '10px', border: '1px solid #334155', marginTop: '6px' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', borderRadius: '10px', padding: '10px', border: '1px solid var(--pos-border-card)', marginTop: '6px' }}>
                     <div style={{ fontWeight: '800', color: '#fb7185', marginBottom: '8px', fontSize: '0.80rem' }}>
                       🥬 Rincian Bahan Baku Rusak ({itemsList.length} Item):
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                       <thead>
-                        <tr style={{ background: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                        <tr style={{ background: 'var(--pos-bg-card)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
                           <th style={{ padding: '6px', textAlign: 'left' }}>Bahan Baku</th>
                           <th style={{ padding: '6px', textAlign: 'right' }}>Jumlah</th>
                           <th style={{ padding: '6px', textAlign: 'left' }}>Alasan</th>
@@ -11449,7 +11674,7 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {itemsList.map((row, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#ffffff' }}>
+                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
                             <td style={{ padding: '6px', fontWeight: '800', color: '#38bdf8' }}>📦 {row.item_name}</td>
                             <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{row.qty || row.stok_rusak} {row.unit}</td>
                             <td style={{ padding: '6px', color: '#fb7185' }}>⚠️ {row.damage_reason || row.reason || 'Lainnya'}</td>
@@ -11459,7 +11684,7 @@ export default function AndroidPosRegister({
                     </table>
                   </div>
 
-                  <button onClick={() => setPreviewWasteReport(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', marginTop: '10px' }}>
+                  <button onClick={() => setPreviewWasteReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', marginTop: '10px' }}>
                     Tutup Pratinjau
                   </button>
                 </div>
@@ -11477,16 +11702,16 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '580px', padding: '24px', background: '#1e293b', border: '1px solid #34d399', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '580px', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckSquare size={22} color="#34d399" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                   Pratinjau Stok Opname & Stok Keluar (Web Admin)
                 </h3>
               </div>
-              <button onClick={() => setPreviewOpnameSummaryRecord(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900' }}>✕</button>
+              <button onClick={() => setPreviewOpnameSummaryRecord(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900' }}>✕</button>
             </div>
 
             {(() => {
@@ -11497,30 +11722,30 @@ export default function AndroidPosRegister({
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Nomor Laporan:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Nomor Laporan:</span>
                     <span style={{ fontWeight: '900', color: '#38bdf8' }}>{op.report_no || op.id}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Tanggal Audit:</span>
-                    <span style={{ fontWeight: '800', color: '#ffffff' }}>{op.date}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Audit:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{op.date}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Dibuat Oleh:</span>
-                    <span style={{ fontWeight: '800', color: '#ffffff' }}>👤 {op.created_by || op.submitted_by} ({op.type_input || 'Sent from Web Admin'})</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Dibuat Oleh:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>👤 {op.created_by || op.submitted_by} ({op.type_input || 'Sent from Web Admin'})</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
-                    <span style={{ fontWeight: '800', color: '#cbd5e1' }}>🏢 {op.branch_name || currentOutlet.name}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Cabang:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>🏢 {op.branch_name || currentOutlet.name}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Nama Stok Item:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Stok Item:</span>
                     <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {op.item_name}</span>
                   </div>
 
-                  <div style={{ background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '6px', margin: '6px 0' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '12px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '6px', margin: '6px 0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#94a3b8' }}>Stok Awal:</span>
-                      <span style={{ fontWeight: '800', color: '#ffffff' }}>{op.stok_awal || 0} {op.unit || 'kg'}</span>
+                      <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Awal:</span>
+                      <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{op.stok_awal || 0} {op.unit || 'kg'}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: '#38bdf8' }}>Stok Masuk (+):</span>
@@ -11544,28 +11769,28 @@ export default function AndroidPosRegister({
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>🔢 Stok Sistem (Dihitung):</span>
-                    <span style={{ fontWeight: '900', color: '#cbd5e1' }}>{sSistem} {op.unit || 'kg'}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>🔢 Stok Sistem (Dihitung):</span>
+                    <span style={{ fontWeight: '900', color: 'var(--pos-txt-secondary)' }}>{sSistem} {op.unit || 'kg'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>⚖️ Sisa Stok Fisik:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>⚖️ Sisa Stok Fisik:</span>
                     <span style={{ fontWeight: '900', color: '#38bdf8', fontSize: '1rem' }}>{op.stok_fisik || 0} {op.unit || 'kg'}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '8px' }}>
-                    <span style={{ color: '#94a3b8' }}>📊 Analisis Selisih:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>📊 Analisis Selisih:</span>
                     <span style={{ fontWeight: '900', color: diffVal === 0 ? '#34d399' : diffVal > 0 ? '#38bdf8' : '#fb7185' }}>
                       {diffVal === 0 ? '🟢 PAS (SOP OK)' : diffVal > 0 ? `🔵 SURPLUS (+${diffVal})` : `🔴 DEFISIT (${diffVal})`}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Catatan / Sinkronisasi:</span>
-                    <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>{op.notes || 'Dikirim dari Web Admin Logistik'}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Catatan / Sinkronisasi:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)', fontStyle: 'italic' }}>{op.notes || 'Dikirim dari Web Admin Logistik'}</span>
                   </div>
                 </div>
               );
             })()}
 
-            <button onClick={() => setPreviewOpnameSummaryRecord(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+            <button onClick={() => setPreviewOpnameSummaryRecord(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
               Tutup Pratinjau
             </button>
           </div>
@@ -11580,21 +11805,21 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '640px', padding: '24px', background: '#1e293b', border: '1px solid #6366f1', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '640px', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #6366f1', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Calendar size={24} color="#6366f1" />
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                     Buat Laporan Reservasi Meja Baru
                   </h3>
-                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
                     {currentOutlet.name} • Input Booking Meja Pelanggan & Catatan Uang Muka (DP)
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowAddReservationModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setShowAddReservationModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
             </div>
 
             <form onSubmit={e => {
@@ -11629,37 +11854,37 @@ export default function AndroidPosRegister({
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Tanggal Reservasi</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Tanggal Reservasi</label>
                   <input type="date" value={newRsvDate} onChange={e => setNewRsvDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} required />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Waktu / Jam Kedatangan</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Waktu / Jam Kedatangan</label>
                   <input type="text" value={newRsvTime} onChange={e => setNewRsvTime(e.target.value)} className="form-input" placeholder="Contoh: 18:30 WIB" style={{ width: '100%', height: '40px' }} required />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Nama Pelanggan / Pemesan</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Nama Pelanggan / Pemesan</label>
                   <input type="text" value={newRsvCustName} onChange={e => setNewRsvCustName(e.target.value)} className="form-input" placeholder="Contoh: Bpk. Hendra Wijaya" style={{ width: '100%', height: '40px' }} required />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Nomor HP / WhatsApp</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Nomor HP / WhatsApp</label>
                   <input type="text" value={newRsvPhone} onChange={e => setNewRsvPhone(e.target.value)} className="form-input" placeholder="0812-3456-7890" style={{ width: '100%', height: '40px' }} required />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Jumlah Tamu (Pax)</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Jumlah Tamu (Pax)</label>
                   <input type="number" min="1" value={newRsvPax} onChange={e => setNewRsvPax(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} required />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Pilih Meja / Area</label>
-                  <select value={newRsvTable} onChange={e => setNewRsvTable(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', background: '#0f172a', color: '#ffffff' }}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Pilih Meja / Area</label>
+                  <select value={newRsvTable} onChange={e => setNewRsvTable(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)' }}>
                     <option value="Meja 01 (Indoor AC)">🪑 Meja 01 (Indoor AC)</option>
                     <option value="Meja 02 (Indoor AC)">🪑 Meja 02 (Indoor AC)</option>
                     <option value="Meja 03 (Indoor VIP)">🪑 Meja 03 (Indoor VIP)</option>
@@ -11674,13 +11899,13 @@ export default function AndroidPosRegister({
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Uang Muka / DP (Rp)</label>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Uang Muka / DP (Rp)</label>
                   <input type="number" value={newRsvDp} onChange={e => setNewRsvDp(e.target.value)} className="form-input" placeholder="100000" style={{ width: '100%', height: '40px' }} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Metode Bayar DP</label>
-                  <select value={newRsvPaymentMethod} onChange={e => setNewRsvPaymentMethod(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', background: '#0f172a', color: '#ffffff' }}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Metode Bayar DP</label>
+                  <select value={newRsvPaymentMethod} onChange={e => setNewRsvPaymentMethod(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)' }}>
                     <option value="QRIS Statis">📱 QRIS Statis</option>
                     <option value="Transfer Bank">🏦 Transfer Bank</option>
                     <option value="Cash / Tunai">💵 Cash / Tunai</option>
@@ -11689,8 +11914,8 @@ export default function AndroidPosRegister({
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Status Reservasi</label>
-                  <select value={newRsvStatus} onChange={e => setNewRsvStatus(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', background: '#0f172a', color: '#ffffff' }}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Status Reservasi</label>
+                  <select value={newRsvStatus} onChange={e => setNewRsvStatus(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)' }}>
                     <option value="confirmed">🟢 Confirmed</option>
                     <option value="pending">⏳ Pending</option>
                     <option value="completed">✅ Completed</option>
@@ -11700,15 +11925,15 @@ export default function AndroidPosRegister({
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Catatan Khusus Pelanggan</label>
+                <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '4px', fontWeight: '700' }}>Catatan Khusus Pelanggan</label>
                 <input type="text" value={newRsvNotes} onChange={e => setNewRsvNotes(e.target.value)} className="form-input" placeholder="Contoh: Minta dekorasi ulang tahun & kursi bayi..." style={{ width: '100%', height: '40px' }} />
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button type="button" onClick={() => setShowAddReservationModal(false)} style={{ padding: '12px 20px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+                <button type="button" onClick={() => setShowAddReservationModal(false)} style={{ padding: '12px 20px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
                   Batal
                 </button>
-                <button type="submit" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.4)' }}>
+                <button type="submit" style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.4)' }}>
                   💾 Simpan Reservasi Baru
                 </button>
               </div>
@@ -11725,16 +11950,16 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '520px', padding: '24px', background: '#1e293b', border: '1px solid #6366f1', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '520px', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #6366f1', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Calendar size={22} color="#6366f1" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                   Detail Reservasi Pelanggan
                 </h3>
               </div>
-              <button onClick={() => setPreviewReservationRecord(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900' }}>✕</button>
+              <button onClick={() => setPreviewReservationRecord(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900' }}>✕</button>
             </div>
 
             {(() => {
@@ -11742,48 +11967,48 @@ export default function AndroidPosRegister({
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Kode Booking:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Kode Booking:</span>
                     <span style={{ fontWeight: '900', color: '#38bdf8' }}>{rsv.id}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Tanggal & Waktu:</span>
-                    <span style={{ fontWeight: '800', color: '#ffffff' }}>📅 {rsv.date} ({rsv.time})</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal & Waktu:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📅 {rsv.date} ({rsv.time})</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Nama Pelanggan:</span>
-                    <span style={{ fontWeight: '900', color: '#ffffff' }}>👤 {rsv.customer_name}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Pelanggan:</span>
+                    <span style={{ fontWeight: '900', color: 'var(--pos-txt-primary)' }}>👤 {rsv.customer_name}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Kontak Telepon:</span>
-                    <span style={{ fontWeight: '800', color: '#cbd5e1' }}>📞 {rsv.phone}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Kontak Telepon:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>📞 {rsv.phone}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Jumlah Tamu:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Jumlah Tamu:</span>
                     <span style={{ fontWeight: '900', color: '#a78bfa' }}>👥 {rsv.pax_count} Pax</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Meja Terpilih:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Meja Terpilih:</span>
                     <span style={{ fontWeight: '900', color: '#34d399' }}>🪑 {rsv.table_no}</span>
                   </div>
 
-                  <div style={{ background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '6px', margin: '6px 0' }}>
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '12px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '6px', margin: '6px 0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#94a3b8' }}>Uang Muka / DP:</span>
+                      <span style={{ color: 'var(--pos-txt-secondary)' }}>Uang Muka / DP:</span>
                       <span style={{ fontWeight: '900', color: '#34d399', fontSize: '1rem' }}>{formatRupiah(rsv.dp_amount || 0)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#94a3b8' }}>Metode Pembayaran DP:</span>
+                      <span style={{ color: 'var(--pos-txt-secondary)' }}>Metode Pembayaran DP:</span>
                       <span style={{ fontWeight: '800', color: '#38bdf8' }}>{rsv.payment_method}</span>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>Catatan Khusus:</span>
-                    <span style={{ color: '#cbd5e1', fontStyle: 'italic' }}>{rsv.notes || '-'}</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Catatan Khusus:</span>
+                    <span style={{ color: 'var(--pos-txt-secondary)', fontStyle: 'italic' }}>{rsv.notes || '-'}</span>
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #334155', paddingTop: '10px' }}>
-                    <span style={{ color: '#94a3b8' }}>Status Reservasi:</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--pos-border-card)', paddingTop: '10px' }}>
+                    <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Reservasi:</span>
                     <select
                       value={rsv.status}
                       onChange={e => {
@@ -11791,7 +12016,7 @@ export default function AndroidPosRegister({
                         setReservationsList(prev => prev.map(item => item.id === rsv.id ? { ...item, status: updatedStatus } : item));
                         setPreviewReservationRecord(prev => ({ ...prev, status: updatedStatus }));
                       }}
-                      style={{ padding: '6px 12px', background: '#0f172a', border: '1px solid #6366f1', color: '#ffffff', borderRadius: '8px', fontWeight: '800' }}
+                      style={{ padding: '6px 12px', background: 'var(--pos-bg-app)', border: '1px solid #6366f1', color: 'var(--pos-txt-white)', borderRadius: '8px', fontWeight: '800' }}
                     >
                       <option value="confirmed">🟢 Confirmed</option>
                       <option value="pending">⏳ Pending</option>
@@ -11803,7 +12028,7 @@ export default function AndroidPosRegister({
               );
             })()}
 
-            <button onClick={() => setPreviewReservationRecord(null)} style={{ padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+            <button onClick={() => setPreviewReservationRecord(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
               Tutup Detail
             </button>
           </div>
@@ -11818,56 +12043,56 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '680px', maxHeight: '88vh', padding: '24px', background: '#1e293b', border: '1px solid #34d399', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '680px', maxHeight: '88vh', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <BookOpen size={24} color="#34d399" />
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                     {selectedSopDetail.title}
                   </h3>
-                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
                     Dokumen Resmi Standar Operasional Restoran • ID: {selectedSopDetail.id}
                   </p>
                 </div>
               </div>
-              <button onClick={() => setSelectedSopDetail(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setSelectedSopDetail(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
               
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.78rem' }}>
+              <div style={{ background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.78rem' }}>
                 <div>
-                  <span style={{ color: '#94a3b8', display: 'block' }}>Kategori:</span>
+                  <span style={{ color: 'var(--pos-txt-secondary)', display: 'block' }}>Kategori:</span>
                   <span style={{ fontWeight: '800', color: '#34d399' }}>{selectedSopDetail.categoryLabel}</span>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8', display: 'block' }}>Estimasi Durasi:</span>
+                  <span style={{ color: 'var(--pos-txt-secondary)', display: 'block' }}>Estimasi Durasi:</span>
                   <span style={{ fontWeight: '800', color: '#38bdf8' }}>⏱️ {selectedSopDetail.estimatedTime}</span>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8', display: 'block' }}>Penanggung Jawab:</span>
+                  <span style={{ color: 'var(--pos-txt-secondary)', display: 'block' }}>Penanggung Jawab:</span>
                   <span style={{ fontWeight: '800', color: '#a78bfa' }}>👤 {selectedSopDetail.author}</span>
                 </div>
               </div>
 
               <div>
-                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff', marginBottom: '6px' }}>📝 Ringkasan Prosedur:</h4>
-                <p style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>
+                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '6px' }}>📝 Ringkasan Prosedur:</h4>
+                <p style={{ fontSize: '0.82rem', color: 'var(--pos-txt-secondary)', lineHeight: '1.5', margin: 0 }}>
                   {selectedSopDetail.summary}
                 </p>
               </div>
 
               <div>
-                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff', marginBottom: '10px' }}>✅ Langkah-Langkah Operasional Checklist:</h4>
+                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '10px' }}>✅ Langkah-Langkah Operasional Checklist:</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {selectedSopDetail.steps.map((step, sIdx) => (
-                    <div key={sIdx} style={{ display: 'flex', gap: '12px', background: '#0f172a', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#34d399', color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.78rem', flexShrink: 0 }}>
+                    <div key={sIdx} style={{ display: 'flex', gap: '12px', background: 'var(--pos-bg-app)', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#34d399', color: 'var(--pos-bg-app)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.78rem', flexShrink: 0 }}>
                         {sIdx + 1}
                       </div>
-                      <span style={{ fontSize: '0.82rem', color: '#f8fafc', lineHeight: '1.4' }}>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--pos-txt-primary)', lineHeight: '1.4' }}>
                         {step}
                       </span>
                     </div>
@@ -11877,9 +12102,9 @@ export default function AndroidPosRegister({
 
             </div>
 
-            <div style={{ borderTop: '1px solid #334155', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ borderTop: '1px solid var(--pos-border-card)', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Terakhir diverifikasi: {selectedSopDetail.updatedAt}</span>
-              <button onClick={() => setSelectedSopDetail(null)} style={{ padding: '10px 20px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+              <button onClick={() => setSelectedSopDetail(null)} style={{ padding: '10px 20px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
                 Tutup Dokumen SOP
               </button>
             </div>
@@ -11895,21 +12120,21 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '520px', maxHeight: '90vh', padding: '24px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '22px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '520px', maxHeight: '90vh', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #38bdf8', borderRadius: '22px', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Printer size={24} color="#38bdf8" />
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                     Hasil Uji Coba Cetak (Test Print)
                   </h3>
-                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
                     Mode: {printerSettings.printMode === 'sekaligus' ? '⚡ Cetak Sekaligus' : '📄 Cetak 1 per 1'} • Kertas {printerSettings.paperWidth}
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowTestPrintModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setShowTestPrintModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -11921,7 +12146,7 @@ export default function AndroidPosRegister({
               </div>
 
               {/* RECEIPT PAPER SIMULATION */}
-              <div style={{ background: '#f8fafc', color: '#0f172a', padding: '20px', borderRadius: '12px', fontFamily: 'monospace', fontSize: '0.78rem', boxShadow: '0 4px 14px rgba(0,0,0,0.3)', border: '1px solid #e2e8f0' }}>
+              <div style={{ background: '#f8fafc', color: 'var(--pos-bg-app)', padding: '20px', borderRadius: '12px', fontFamily: 'monospace', fontSize: '0.78rem', boxShadow: '0 4px 14px rgba(0,0,0,0.3)', border: '1px solid #e2e8f0' }}>
                 
                 {printerSettings.printMode === 'sekaligus' ? (
                   /* MODE SEKALIGUS RECEIPT */
@@ -11994,8 +12219,12 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
-            <div style={{ borderTop: '1px solid #334155', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => setShowTestPrintModal(false)} style={{ padding: '10px 20px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+            <div style={{ borderTop: '1px solid var(--pos-border-card)', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => handleExecuteTestPrint()} style={{ padding: '10px 20px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Printer size={16} />
+                <span>🖨️ Cetak Fisik Thermal</span>
+              </button>
+              <button onClick={() => setShowTestPrintModal(false)} style={{ padding: '10px 20px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
                 Tutup Uji Coba
               </button>
             </div>
@@ -12011,16 +12240,16 @@ export default function AndroidPosRegister({
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '440px', padding: '24px', background: '#1e293b', border: '2px solid #a855f7', borderRadius: '22px', display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100%', maxWidth: '440px', padding: '24px', background: 'var(--pos-bg-card)', border: '2px solid #a855f7', borderRadius: '22px', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(168,85,247,0.2)', border: '1px solid #a855f7', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                 <ShieldCheck size={32} />
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
                 Otorisasi Restore Super Admin
               </h3>
-              <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '6px', lineHeight: '1.4' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '6px', lineHeight: '1.4' }}>
                 Proses <strong>📥 Restore Data Offline</strong> memerlukan otorisasi khusus <strong>Super Admin</strong> dan akan <strong>LANGSUNG terhubung secara live ke Server Utama</strong>.
               </p>
             </div>
@@ -12032,7 +12261,7 @@ export default function AndroidPosRegister({
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1' }}>
+              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>
                 Masukkan Kode PIN Super Admin (Default: 8888 atau 1234):
               </label>
               <input
@@ -12046,11 +12275,11 @@ export default function AndroidPosRegister({
                 autoFocus
                 placeholder="• • • •"
                 className="form-input"
-                style={{ height: '50px', textAlign: 'center', fontSize: '1.5rem', letterSpacing: '8px', fontWeight: '900', color: '#c084fc', background: '#0f172a', border: '1px solid #a855f7' }}
+                style={{ height: '50px', textAlign: 'center', fontSize: '1.5rem', letterSpacing: '8px', fontWeight: '900', color: '#c084fc', background: 'var(--pos-bg-app)', border: '1px solid #a855f7' }}
               />
             </div>
 
-            <div style={{ background: '#0f172a', padding: '10px 14px', borderRadius: '10px', fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ background: 'var(--pos-bg-app)', padding: '10px 14px', borderRadius: '10px', fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Zap size={16} color="#fbbf24" />
               <span>Sistem akan langsung terhubung (live connection) ke Database Web Admin begitu terverifikasi.</span>
             </div>
@@ -12064,7 +12293,7 @@ export default function AndroidPosRegister({
                   setSuperAdminAuthError('');
                   setPendingRestoreFile(null);
                 }}
-                style={{ flex: 1, padding: '12px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
               >
                 Batal
               </button>
@@ -12072,7 +12301,7 @@ export default function AndroidPosRegister({
               <button
                 type="button"
                 onClick={handleVerifySuperAdminAndConnect}
-                style={{ flex: 1.3, padding: '12px', background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(168,85,247,0.4)' }}
+                style={{ flex: 1.3, padding: '12px', background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(168,85,247,0.4)' }}
               >
                 <Zap size={16} />
                 <span>Verifikasi & Connect</span>

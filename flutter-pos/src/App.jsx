@@ -12,9 +12,7 @@ export default function App() {
     window.location.hash.includes('register-customer')
   );
 
-  // Helper untuk URL VPS Backend Cloud API
-  // Di Capacitor APK: protocol = 'file:' → selalu pakai URL absolut VPS
-  // Di Browser (web) yang di-host di VPS: pakai URL relatif
+  // Helper untuk URL VPS Backend Cloud API (mris-api.barokahgroupindonesia.tech)
   const getApiUrl = (pathStr) => {
     if (typeof window !== 'undefined') {
       const savedServer = localStorage.getItem('MRIS_SERVER_URL');
@@ -22,10 +20,15 @@ export default function App() {
         return `${savedServer.replace(/\/$/, '')}${pathStr}`;
       }
       if (window.location.protocol === 'file:') {
-        return `http://localhost:5000${pathStr}`;
+        return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+      }
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (window.location.port && window.location.port !== '5001') {
+          return `http://localhost:5001${pathStr}`;
+        }
       }
     }
-    return pathStr;
+    return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
   };
 
   // User Authentication State
