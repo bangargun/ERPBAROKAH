@@ -49,8 +49,7 @@ export default function AdminLayout({
     { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen },
     { id: 'loyalty', label: '8. Program Loyalitas', icon: Award },
     { id: 'settings', label: '9. Pengaturan', icon: Settings },
-    { id: 'activity_log', label: '10. Log Aktivitas', icon: History },
-    { id: 'db_explorer', label: '11. Inspektur Database', icon: Sparkles }
+    { id: 'activity_log', label: '10. Log Aktivitas', icon: History }
   ];
 
   const userName = userSession?.name || 'Super Admin Restoran';

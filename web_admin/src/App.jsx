@@ -549,16 +549,6 @@ export default function App() {
           />
         )}
 
-        {/* 11. INSPEKTUR DATABASE (MySQL mris_db) */}
-        {adminTab === 'db_explorer' && (
-          <div style={{ width: '100%', height: 'calc(100vh - 90px)', background: '#0f172a', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <iframe
-              src={getApiUrl('/api/db-explorer')}
-              title="MRIS Database Inspector (phpMyAdmin)"
-              style={{ width: '100%', height: '100%', border: 'none' }}
-            />
-          </div>
-        )}
 
         {/* Quick Transaction Add Modal */}
         {showAddModal && (
