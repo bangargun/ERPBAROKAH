@@ -162,8 +162,11 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
   // Delete Ingredient
   const handleDeleteIngredient = (id, name) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus bahan baku "${name}"?`)) {
-      const updated = { ...masterData };
-      updated.ingredients = updated.ingredients.filter(i => i.id !== id);
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now(),
+        ingredients: (masterData.ingredients || []).filter(i => String(i.id) !== String(id))
+      };
       setMasterData(updated);
     }
   };

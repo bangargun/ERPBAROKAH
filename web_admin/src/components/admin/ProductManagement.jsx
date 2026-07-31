@@ -349,9 +349,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     if (window.confirm(`Apakah Anda yakin ingin menghapus produk "${name}"?`)) {
       const updated = {
         ...masterData,
-        _lastUpdated: Date.now()
+        _lastUpdated: Date.now(),
+        products: (masterData.products || []).filter(p => String(p.id) !== String(id))
       };
-      updated.products = updated.products.filter(p => p.id !== id);
       setMasterData(updated);
     }
   };

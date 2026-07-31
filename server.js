@@ -1387,11 +1387,9 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
         }
       }
     } else {
-      // Untuk entitas utama (outlets, products, categories, users, dll), adopsi incVal langsung jika berupa array non-kosong/properti valid
+      // Untuk entitas utama (outlets, products, categories, users, dll), adopsi incVal langsung jika berupa array/properti valid
       if (Array.isArray(incVal)) {
-        if (incVal.length > 0 || !Array.isArray(extVal)) {
-          result[key] = incVal;
-        }
+        result[key] = incVal;
       } else if (incVal !== undefined && incVal !== null) {
         result[key] = incVal;
       }

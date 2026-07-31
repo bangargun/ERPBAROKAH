@@ -103,8 +103,12 @@ export default function MasterDataManagement({ masterData, setMasterData, select
   };
 
   const handleDeleteItem = (listKey, id) => {
-    const updated = { ...masterData };
-    updated[listKey] = updated[listKey].filter(item => item.id !== id);
+    if (!masterData[listKey]) return;
+    const updated = {
+      ...masterData,
+      _lastUpdated: Date.now(),
+      [listKey]: masterData[listKey].filter(item => String(item.id) !== String(id))
+    };
     setMasterData(updated);
   };
 
