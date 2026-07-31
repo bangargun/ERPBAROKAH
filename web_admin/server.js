@@ -1349,7 +1349,7 @@ app.all('/api/webhook/deploy', (req, res) => {
 
   res.json({ success: true, message: '🚀 Deployment command triggered on VPS in background...' });
 
-  const deployCmd = `if [ -f "/var/www/deploy.sh" ]; then bash /var/www/deploy.sh; else DIR=$(pwd); if [ -d "/var/www/MRIS_TECH" ]; then DIR="/var/www/MRIS_TECH"; elif [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; cd "$DIR" && git fetch origin && git reset --hard origin/main && (cd web_admin && npm run build && cp -r dist/* ../dist/ 2>/dev/null || true) && (pm2 reload all || pm2 restart all); fi`;
+  const deployCmd = `if [ -f "/var/www/deploy.sh" ]; then bash /var/www/deploy.sh; else DIR=$(pwd); if [ -d "/var/www/erp-barokah" ]; then DIR="/var/www/erp-barokah"; elif [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS_TECH" ]; then DIR="/var/www/MRIS_TECH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; cd "$DIR" && git fetch origin && git reset --hard origin/main && (cd web_admin && npm run build && cp -r dist/* ../dist/ 2>/dev/null || true) && (pm2 reload all || pm2 restart all || pm2 restart erp-barokah); fi`;
 
   exec(deployCmd, (error, stdout, stderr) => {
     if (error) {

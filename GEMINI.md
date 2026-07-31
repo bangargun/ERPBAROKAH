@@ -86,6 +86,7 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 - Node: `/Users/argun/Desktop/ChatGPT.app/Contents/Resources/cua_node/bin`
 - GitHub Repo: `git@github.com:bangargun/ERPBAROKAH.git` (`https://github.com/bangargun/ERPBAROKAH.git`)
 - **Server VPS IP**: `187.77.122.142`
+- **Direktori Proyek VPS**: `/var/www/erp-barokah`
 - **Script Deploy VPS**: `/var/www/deploy.sh`
 
 ---
