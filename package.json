@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "(cd web_admin && npm run build && mkdir -p ../dist && cp -r dist/* ../dist/)",
     "preview": "vite preview",
     "server": "node server.js",
     "start": "node server.js"
