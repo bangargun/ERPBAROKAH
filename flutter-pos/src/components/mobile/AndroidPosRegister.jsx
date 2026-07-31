@@ -600,13 +600,27 @@ export default function AndroidPosRegister({
 
   // Offline Network State & Queue Counter
   const [isNetworkOnline, setIsNetworkOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [offlineQueueCount, setOfflineQueueCount] = useState(() => {
+    try {
+      const q = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      return q ? (JSON.parse(q).length || 0) : 0;
+    } catch (e) { return 0; }
+  });
+
+  const checkOfflineQueueCount = useCallback(() => {
+    try {
+      const q = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      setOfflineQueueCount(q ? (JSON.parse(q).length || 0) : 0);
+    } catch (e) { setOfflineQueueCount(0); }
+  }, []);
 
   // 1. Pembersihan total cache lokal stale agar data terhapus di database tidak kembali lagi
   React.useEffect(() => {
     try {
       localStorage.removeItem('MRIS_POS_MASTER_DATA_CACHE');
     } catch (e) {}
-  }, []);
+    checkOfflineQueueCount();
+  }, [checkOfflineQueueCount]);
 
   // 2. Realtime Network & Offline Queue Auto-Flusher Effect
   React.useEffect(() => {
@@ -625,7 +639,11 @@ export default function AndroidPosRegister({
       try {
         const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
         const queue = queueRaw ? JSON.parse(queueRaw) : [];
-        if (!queue || queue.length === 0) return;
+        if (!queue || queue.length === 0) {
+          setOfflineQueueCount(0);
+          return;
+        }
+        setOfflineQueueCount(queue.length);
 
         fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
           .then(res => res.json())
@@ -644,6 +662,7 @@ export default function AndroidPosRegister({
             .then(resData => {
               if (resData && resData.success) {
                 localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                setOfflineQueueCount(0);
                 setMasterData(curr => {
                   const updatedList = (curr.salesTransactions || []).map(t => ({
                     ...t,
@@ -677,11 +696,12 @@ export default function AndroidPosRegister({
     doSyncFetch();
     doFlushOfflineQueue();
 
-    // Periodic flush queue & network status update
+    // Periodic flush queue & network status update (Smart Battery-Aware 15s / 30s Polling)
+    const pollIntervalMs = (typeof navigator !== 'undefined' && navigator.getBattery) ? 25000 : 15000;
     const timer = setInterval(() => {
       doSyncFetch();
       if (navigator.onLine) doFlushOfflineQueue();
-    }, 15000);
+    }, pollIntervalMs);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -2410,6 +2430,31 @@ export default function AndroidPosRegister({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+
+            {/* OFFLINE QUEUE STATUS BADGE */}
+            {offlineQueueCount > 0 && (
+              <div 
+                style={{
+                  background: 'rgba(245, 158, 11, 0.25)',
+                  border: '1.5px solid #f59e0b',
+                  color: '#fbbf24',
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  fontSize: '0.74rem',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 0 12px rgba(245, 158, 11, 0.3)'
+                }}
+                title="Transaksi Offline Tersimpan di Tablet — Klik untuk paksa sync ke Cloud VPS"
+                className="animate-pulse"
+              >
+                <RefreshCw size={13} className="animate-spin" />
+                <span>⚡ {offlineQueueCount} Offline Pending</span>
+              </div>
+            )}
 
             {/* THEME TOGGLE BUTTON (MODE GELAP VS MODE TERANG) */}
             <button

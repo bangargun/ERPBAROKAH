@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
   History, 
@@ -13,7 +14,7 @@ import {
   Plus, 
   Minus, 
   Search, 
-  Printer, 
+
   Zap, 
   User, 
   Users, 
@@ -55,7 +56,12 @@ import {
   Edit2,
   Smartphone,
   Edit3,
-  HelpCircle
+  HelpCircle,
+  Bluetooth,
+  BluetoothConnected,
+  BluetoothOff,
+  Printer,
+  PrinterIcon
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -106,14 +112,14 @@ export default function AndroidPosRegister({
   const outlets = masterData?.outlets || [];
   const userOutletName = userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
 
-  const currentOutlet = outlets.find(o => 
+  const matchedOutlet = outlets.find(o => 
     o.id === selectedBranch || 
     String(o.id) === String(selectedBranch) || 
     o.name === selectedBranch || 
     (userOutletName && o.name === userOutletName)
-  ) || (userOutletName ? { id: userSession?.outlet_id || 1, name: userOutletName } : null)
-    || outlets[0] 
-    || { id: 1, name: 'Outlet Utama' };
+  );
+
+  const currentOutlet = matchedOutlet || outlets[0] || { id: 1, name: 'Outlet Central' };
 
   // Helper for extracting category name from product
   const getProductCategoryName = (item) => {
@@ -190,164 +196,67 @@ export default function AndroidPosRegister({
   const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
   const [selectedCustomer, setSelectedCustomer] = useState('Pelanggan Umum');
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
-  const [printerSettings, setPrinterSettings] = useState({
-    paperWidth: '58mm', // '58mm' | '80mm'
-    printerName: 'Thermal Bluetooth POS Printer 58mm',
-    macAddress: 'DC:0D:30:84:9E:21',
-    connectionType: 'bluetooth', // 'bluetooth' | 'usb' | 'wifi' | 'system'
-    status: 'connected', // 'connected' | 'disconnected'
-    printMethod: 'direct', // 'direct' (Direct Thermal) | 'system' (Dialog Cetak Sistem Android)
-    autoShowReceiptChoiceOnSaveOrder: true,
-    printMode: 'sekaligus',  // 'sekaligus' (All-in-One) | 'per_item' (Cetak 1 per 1)
-    printKitchen: true,      // Struk Dapur (Kitchen Ticket)
-    printBar: true,          // Struk Bar / Minuman (Bar Ticket)
-    printTableCopy: true,    // Struk Meja / Bill (Table Copy)
-    printCashierCopy: false  // Struk Copy Kasir (Cashier Copy)
-  });
-  const [isScanningPrinters, setIsScanningPrinters] = useState(false);
-  const [discoveredPrinters, setDiscoveredPrinters] = useState([
-    { id: '1', name: 'Thermal Bluetooth POS (RPP02N)', mac: 'DC:0D:30:84:9E:21', type: 'bluetooth', status: 'connected' },
-    { id: '2', name: 'USB POS Thermal Printer 80mm', mac: 'USB_VID_0483_PID_5740', type: 'usb', status: 'available' },
-    { id: '3', name: 'LAN Kitchen Printer (192.168.1.200)', mac: '192.168.1.200:9100', type: 'wifi', status: 'available' }
-  ]);
-  const [showTestPrintModal, setShowTestPrintModal] = useState(false);
-  const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
 
-  const handleScanPrinters = () => {
-    setIsScanningPrinters(true);
-    setTimeout(() => {
-      setIsScanningPrinters(false);
-      alert('🔍 Pemindaian Selesai: 3 Perangkat Printer Thermal Terdeteksi di Sekitar Tablet POS.');
-    }, 1500);
-  };
+  // ── BLUETOOTH PRINTER STATE ──
+  // MAC address & paper width disimpan di localStorage agar tetap tersimpan setelah reload
+  const [printerMac, setPrinterMac] = useState(() => localStorage.getItem('MRIS_PRINTER_MAC') || '');
+  const [printerPaperWidth, setPrinterPaperWidth] = useState(() => localStorage.getItem('MRIS_PRINTER_PAPER') || '58');
+  const [pairedDevices, setPairedDevices] = useState([]); // Hasil scan bonded devices Android
+  const [isScanningPaired, setIsScanningPaired] = useState(false);
+  const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
+  const [printStatusMsg, setPrintStatusMsg] = useState('');
 
-  const handleConnectPrinterDevice = (device) => {
-    setPrinterSettings(prev => ({
-      ...prev,
-      printerName: device.name,
-      macAddress: device.mac,
-      connectionType: device.type,
-      status: 'connected'
-    }));
-    setDiscoveredPrinters(prev => prev.map(p => ({
-      ...p,
-      status: p.id === device.id ? 'connected' : 'available'
-    })));
-  };
-
-  // Default Printer Areas list (Main, Captain Order, Label, Dapur) - Matches Luna POS design
-  const [printerAreas, setPrinterAreas] = useState(() => {
+  // Scan bonded Bluetooth devices dari pengaturan Android (bukan scan aktif)
+  const handleScanPairedPrinters = useCallback(async () => {
+    setIsScanningPaired(true);
+    setPairedDevices([]);
     try {
-      const saved = localStorage.getItem('MRIS_POS_PRINTER_AREAS');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return [
-      { id: 'main', name: 'Main', type: 'Escpos', module: 'Bluetooth General', printerName: 'RPP02N', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: true, copies: 1, autoPrintOnPayment: true },
-      { id: 'captain', name: 'Captain Order', type: 'Escpos', module: 'Bluetooth General', printerName: '-', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: false, copies: 1, autoPrintOnPayment: false },
-      { id: 'label', name: 'Label', type: 'Escpos', module: 'Bluetooth General', printerName: '-', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: false, copies: 1, autoPrintOnPayment: false },
-    ];
-  });
-  const [showSelectPrinterModal, setShowSelectPrinterModal] = useState(false);
-  const [editingPrinterAreaIndex, setEditingPrinterAreaIndex] = useState(null);
-  const [tempAreaForm, setTempAreaForm] = useState({
-    name: 'Main', type: 'Escpos', module: 'Bluetooth General', printerName: 'RPP02N', paperSize: '58', feedCount: 0, autoCut: '0', disconnectAfter: true, copies: 1, autoPrintOnPayment: true
-  });
-
-  const handleOpenSelectPrinterModal = (index) => {
-    setEditingPrinterAreaIndex(index);
-    const area = printerAreas[index];
-    setTempAreaForm({ ...area });
-    setShowSelectPrinterModal(true);
-  };
-
-  const handleAddPrinterArea = () => {
-    const newAreaName = `Printer Area ${printerAreas.length + 1}`;
-    const newArea = {
-      id: `area_${Date.now()}`,
-      name: newAreaName,
-      type: 'Escpos',
-      module: 'Bluetooth General',
-      printerName: '-',
-      paperSize: '58',
-      feedCount: 0,
-      autoCut: '0',
-      disconnectAfter: true,
-      copies: 1,
-      autoPrintOnPayment: true
-    };
-    setEditingPrinterAreaIndex(printerAreas.length);
-    setTempAreaForm(newArea);
-    setShowSelectPrinterModal(true);
-  };
-
-  const handleSavePrinterAreaForm = () => {
-    if (editingPrinterAreaIndex !== null) {
-      const updated = [...printerAreas];
-      updated[editingPrinterAreaIndex] = { ...tempAreaForm };
-      setPrinterAreas(updated);
-      try {
-        localStorage.setItem('MRIS_POS_PRINTER_AREAS', JSON.stringify(updated));
-      } catch (e) {}
-      if (editingPrinterAreaIndex === 0) {
-        setPrinterSettings(prev => ({
-          ...prev,
-          printerName: tempAreaForm.printerName || 'RPP02N',
-          paperWidth: tempAreaForm.paperSize === '80' ? '80mm' : '58mm',
-          status: tempAreaForm.printerName && tempAreaForm.printerName !== '-' ? 'connected' : 'disconnected'
-        }));
+      const devices = await scanPairedPrinters();
+      setPairedDevices(devices || []);
+      if (!devices || devices.length === 0) {
+        setPrintStatusMsg('⚠️ Tidak ada perangkat Bluetooth yang dipair. Pair printer dulu di Pengaturan Android → Bluetooth.');
+      } else {
+        setPrintStatusMsg(`✅ Ditemukan ${devices.length} perangkat paired.`);
       }
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if (msg.includes('BLUETOOTH_DISABLED')) {
+        setPrintStatusMsg('❌ Bluetooth tidak aktif. Aktifkan Bluetooth di perangkat.');
+      } else if (msg.includes('not Capacitor') || !window.Capacitor?.isNativePlatform?.()) {
+        setPrintStatusMsg('ℹ️ Fitur scan hanya tersedia di APK Android. Di browser, gunakan input MAC manual.');
+      } else {
+        setPrintStatusMsg('❌ Gagal scan: ' + msg);
+      }
+    } finally {
+      setIsScanningPaired(false);
     }
-    setShowSelectPrinterModal(false);
+  }, []);
+
+  // Simpan konfigurasi printer ke localStorage
+  const handleSavePrinterConfig = useCallback((mac, paperWidth) => {
+    const cleanMac = (mac || '').trim().toUpperCase();
+    const cleanWidth = paperWidth === '80' ? '80' : '58';
+    setPrinterMac(cleanMac);
+    setPrinterPaperWidth(cleanWidth);
+    try {
+      localStorage.setItem('MRIS_PRINTER_MAC', cleanMac);
+      localStorage.setItem('MRIS_PRINTER_PAPER', cleanWidth);
+    } catch (e) {}
     setSaveSettingsSuccessToast(true);
     setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
-  };
+  }, []);
 
-  const handleDeletePrinterArea = (index) => {
-    const updated = printerAreas.filter((_, i) => i !== index);
-    setPrinterAreas(updated);
-    try {
-      localStorage.setItem('MRIS_POS_PRINTER_AREAS', JSON.stringify(updated));
-    } catch (e) {}
-  };
-
-  const handleTestPrintArea = (area) => {
-    const testHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Test Print ${area.name}</title>
-        <style>
-          @page { size: ${area.paperSize || '58'}mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: ${area.paperSize === '80' ? '76mm' : '54mm'};
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .divider { border-top: 1px dashed #000; margin: 6px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center bold" style="font-size:14px;">TEST PRINT SUCCESS</div>
-        <div class="text-center" style="font-size:10px;">AREA: ${(area.name || '').toUpperCase()}</div>
-        <div class="divider"></div>
-        <div>Printer  : ${area.printerName || '-'}</div>
-        <div>Module   : ${area.module || 'Bluetooth General'}</div>
-        <div>Kertas   : ${area.paperSize || '58'} mm</div>
-        <div>Waktu    : ${new Date().toLocaleString('id-ID')}</div>
-        <div class="divider"></div>
-        <div class="text-center bold">*** PRINTER READY ***</div>
-      </body>
-      </html>
-    `;
-    printHTMLContent(testHTML);
-  };
+  // Helper: tampilkan status print toast sementara
+  const showPrintStatus = useCallback((status, msg) => {
+    setPrintStatus(status);
+    setPrintStatusMsg(msg);
+    if (status === 'success' || status === 'error') {
+      setTimeout(() => {
+        setPrintStatus(null);
+        setPrintStatusMsg('');
+      }, 4000);
+    }
+  }, []);
 
   // Modal Pilihan Struk saat Simpan Order
   const [showSaveOrderReceiptModal, setShowSaveOrderReceiptModal] = useState(false);
@@ -360,7 +269,22 @@ export default function AndroidPosRegister({
   });
   const [currentSaveOrderTx, setCurrentSaveOrderTx] = useState(null);
   const [saveSettingsSuccessToast, setSaveSettingsSuccessToast] = useState(false);
+  const [testPrintSuccessToast, setTestPrintSuccessToast] = useState(false);
+  const [showTestPrintModal, setShowTestPrintModal] = useState(false);
   const [selectedTxDetail, setSelectedTxDetail] = useState(null); // Detail transaksi di riwayat
+
+  // Derived printerSettings object — menggabungkan state printer agar kode lama tetap berjalan
+  // Ini bukan state terpisah, melainkan referensi langsung ke state yang ada
+  const printerSettings = {
+    printKitchen: activeReceiptSelections.printKitchen,
+    printBar: activeReceiptSelections.printBar,
+    printTableCopy: activeReceiptSelections.printTableCopy,
+    printCashierCopy: activeReceiptSelections.printCashierCopy,
+    autoShowReceiptChoiceOnSaveOrder: false, // Langsung cetak otomatis tanpa modal pilih
+    printerName: printerMac || 'Belum dikonfigurasi',
+    paperWidth: `${printerPaperWidth}mm`,
+    printMode: 'sekaligus'
+  };
 
   // Right Panel Sub Tabs ('ORDER' | 'TABLE' | 'MORE')
   const [rightPanelSubTab, setRightPanelSubTab] = useState('ORDER');
@@ -630,9 +554,8 @@ export default function AndroidPosRegister({
   // Stok Opname Summary Preview State (Data sent from Web Admin)
   const [previewOpnameSummaryRecord, setPreviewOpnameSummaryRecord] = useState(null);
 
-  // Sidebar Lain-lain (Reservasi & SOP) States
-  // MULTI-STEP LOGIN BOARD STATES (Halaman 1: Super Admin/Owner/Resto -> Halaman 2: Nama User -> Halaman 3: Username & Password)
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(false); // Default Papan Login Aktif
+  // MULTI-STEP LOGIN BOARD STATES (Dinamis Berdasarkan Data Pengaturan Web Admin)
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => !!userSession);
   const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
   const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
   const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
@@ -677,19 +600,27 @@ export default function AndroidPosRegister({
 
   // Offline Network State & Queue Counter
   const [isNetworkOnline, setIsNetworkOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [offlineQueueCount, setOfflineQueueCount] = useState(() => {
+    try {
+      const q = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      return q ? (JSON.parse(q).length || 0) : 0;
+    } catch (e) { return 0; }
+  });
 
-  // 1. Initial 0ms Local Cache Startup (Memuat masterData instan dari device)
+  const checkOfflineQueueCount = useCallback(() => {
+    try {
+      const q = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      setOfflineQueueCount(q ? (JSON.parse(q).length || 0) : 0);
+    } catch (e) { setOfflineQueueCount(0); }
+  }, []);
+
+  // 1. Pembersihan total cache lokal stale agar data terhapus di database tidak kembali lagi
   React.useEffect(() => {
     try {
-      const cached = localStorage.getItem('MRIS_POS_MASTER_DATA_CACHE');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed === 'object') {
-          setMasterData(prev => ({ ...prev, ...parsed }));
-        }
-      }
+      localStorage.removeItem('MRIS_POS_MASTER_DATA_CACHE');
     } catch (e) {}
-  }, []);
+    checkOfflineQueueCount();
+  }, [checkOfflineQueueCount]);
 
   // 2. Realtime Network & Offline Queue Auto-Flusher Effect
   React.useEffect(() => {
@@ -708,7 +639,11 @@ export default function AndroidPosRegister({
       try {
         const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
         const queue = queueRaw ? JSON.parse(queueRaw) : [];
-        if (!queue || queue.length === 0) return;
+        if (!queue || queue.length === 0) {
+          setOfflineQueueCount(0);
+          return;
+        }
+        setOfflineQueueCount(queue.length);
 
         fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
           .then(res => res.json())
@@ -727,6 +662,7 @@ export default function AndroidPosRegister({
             .then(resData => {
               if (resData && resData.success) {
                 localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                setOfflineQueueCount(0);
                 setMasterData(curr => {
                   const updatedList = (curr.salesTransactions || []).map(t => ({
                     ...t,
@@ -748,11 +684,6 @@ export default function AndroidPosRegister({
         .then(res => res.json())
         .then(data => {
           if (data && typeof data === 'object' && !data.error) {
-            setMasterData(prev => {
-              const updated = { ...prev, ...data };
-              try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
-              return updated;
-            });
             const now = new Date();
             const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
             setLastSyncTime(formatted);
@@ -765,12 +696,12 @@ export default function AndroidPosRegister({
     doSyncFetch();
     doFlushOfflineQueue();
 
-    // Polling interval: 10s di login screen, 20s saat transaksi aktif
-    const pollInterval = !isAppLoggedIn ? 10000 : 20000;
+    // Periodic flush queue & network status update (Smart Battery-Aware 15s / 30s Polling)
+    const pollIntervalMs = (typeof navigator !== 'undefined' && navigator.getBattery) ? 25000 : 15000;
     const timer = setInterval(() => {
       doSyncFetch();
       if (navigator.onLine) doFlushOfflineQueue();
-    }, pollInterval);
+    }, pollIntervalMs);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -789,7 +720,8 @@ export default function AndroidPosRegister({
     const handleUserActivityReset = () => {
       if (inactivityTimer) clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
-        setIsAppLoggedIn(false);
+        // Auto-lock disabled per user requirement
+        // setIsAppLoggedIn(false);
         setLoginStep(1);
         setSelectedLoginCategory(null);
         setLoginSelectedOutlet(null);
@@ -829,6 +761,75 @@ export default function AndroidPosRegister({
     }
   }, [userSession]);
 
+  // Otomatis simpan & perbarui riwayat login pengguna ke masterData.shiftLogs & closedShifts
+  React.useEffect(() => {
+    const sessionObj = currentUserSession || userSession;
+    if (!sessionObj) return;
+
+    const username = sessionObj.username || sessionObj.user || '';
+    const name = sessionObj.name || sessionObj.full_name || username || 'Pengguna POS';
+    const role = sessionObj.role || 'Kasir';
+    const outletName = sessionObj.outlet || currentOutlet?.name || 'Semua Outlet (Central)';
+    const outletId = sessionObj.outlet_id || currentOutlet?.id || null;
+
+    if (!username && !name) return;
+
+    const todayDateStr = new Date().toISOString().slice(0, 10);
+    const shiftId = `SHIFT-${username || 'USR'}-${todayDateStr.replace(/-/g, '')}`;
+
+    setMasterData(prev => {
+      if (!prev) return prev;
+      const existingLogs = prev.shiftLogs || prev.closedShifts || [];
+      const exists = existingLogs.some(s => s.id === shiftId || (s.username === username && s.login_date === todayDateStr && String(s.outlet_id || '') === String(outletId || '')));
+
+      if (exists) return prev;
+
+      const newShiftLog = {
+        id: shiftId,
+        login_date: todayDateStr,
+        date: todayDateStr,
+        username: username,
+        user_name: name,
+        cashier_name: name,
+        author_name: name,
+        submitted_by: name,
+        role: role,
+        outlet_id: outletId,
+        outlet_name: outletName,
+        branch_name: outletName,
+        status: 'AKTIF BERLANGSUNG',
+        login_time: shiftLoginTime || (new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'),
+        logout_time: 'Masih Login (Shift Berjalan)',
+        duration_label: 'Sesuai Jam Berjalan',
+        total_receipts: 0,
+        total_sales: 0,
+        cash_sales: 0,
+        qris_sales: 0,
+        edc_sales: 0,
+        initial_cash: initialCash || 0,
+        transactions: []
+      };
+
+      const updatedShiftLogs = [newShiftLog, ...existingLogs.filter(s => s.id !== shiftId)];
+      const updatedClosedShifts = prev.closedShifts ? [newShiftLog, ...prev.closedShifts.filter(s => s.id !== shiftId)] : [newShiftLog];
+
+      const newMaster = {
+        ...prev,
+        _lastUpdated: Date.now(),
+        shiftLogs: updatedShiftLogs,
+        closedShifts: updatedClosedShifts
+      };
+
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
+    });
+  }, [userSession, currentUserSession]);
+
   // Evaluasi Hak Akses Mobile (Mobile Permission Matrix) untuk Role Kasir yang Aktif
   const activeMobilePermissions = useMemo(() => {
     const defaultMatrix = [
@@ -858,7 +859,7 @@ export default function AndroidPosRegister({
     setIsSyncingNow(true);
     const getApiUrl = (pathStr) => {
       const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
-      const baseUrl = isNativeApp ? 'https://mris-admin.barokahgroupindonesia.tech' : '';
+      const baseUrl = isNativeApp ? 'https://mris-api.barokahgroupindonesia.tech' : '';
       return `${baseUrl}${pathStr}`;
     };
 
@@ -1474,591 +1475,162 @@ export default function AndroidPosRegister({
     handleExecuteBatchPrint(billTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
 
-  // SILENT BACKGROUND THERMAL PRINTING ENGINE (ZERO POPUPS / NO WINDOW PREVIEW OVERLAYS)
-  const printHTMLContent = (htmlString) => {
+  // THERMAL PRINTING ENGINE
+  // Di Capacitor (Android): kirim ESC/POS bytes ke hardware printer via Bluetooth RFCOMM
+  // Di browser (dev mode): fallback ke iframe window.print()
+  const printHTMLContent = useCallback(async (htmlString) => {
+    // Ini legacy wrapper — dipanggil dari tempat-tempat yang belum dimigrasi
+    // Langsung fallback ke browser print untuk HTML content
     try {
       let iframe = document.getElementById('mris-silent-print-frame');
-      if (iframe && iframe.parentNode) {
-        iframe.parentNode.removeChild(iframe);
-      }
-
+      if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
       iframe = document.createElement('iframe');
       iframe.id = 'mris-silent-print-frame';
-      iframe.style.position = 'fixed';
-      iframe.style.left = '-9999px';
-      iframe.style.top = '-9999px';
-      iframe.style.width = '1px';
-      iframe.style.height = '1px';
-      iframe.style.border = '0';
-      iframe.style.opacity = '0';
-      iframe.style.pointerEvents = 'none';
-
+      Object.assign(iframe.style, { position: 'fixed', left: '-9999px', top: '-9999px', width: '1px', height: '1px', border: '0', opacity: '0', pointerEvents: 'none' });
       document.body.appendChild(iframe);
-
-      const frameDoc = iframe.contentWindow || iframe.contentDocument;
-      const doc = frameDoc.document || frameDoc;
-
-      doc.open();
-      doc.write(htmlString);
-      doc.close();
-
+      const doc = (iframe.contentWindow || iframe.contentDocument).document || (iframe.contentWindow || iframe.contentDocument);
+      doc.open(); doc.write(htmlString); doc.close();
       setTimeout(() => {
-        try {
-          if (iframe.contentWindow) {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-          }
-        } catch (e) {
-          console.error('Silent print iframe error:', e);
-        }
-
-        setTimeout(() => {
-          try {
-            const frameToRemove = document.getElementById('mris-silent-print-frame');
-            if (frameToRemove && frameToRemove.parentNode) {
-              frameToRemove.parentNode.removeChild(frameToRemove);
-            }
-          } catch (e) {}
-        }, 3000);
+        try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch (e) {}
+        setTimeout(() => { try { const f = document.getElementById('mris-silent-print-frame'); if (f?.parentNode) f.parentNode.removeChild(f); } catch(e){} }, 3000);
       }, 150);
-
     } catch (err) {
-      console.error('⚠️ Silent print execution exception:', err);
+      console.error('⚠️ Silent print exception:', err);
     }
-  };
+  }, []);
 
-  const handleExecuteTestPrint = () => {
-    const pWidth = printerSettings.paperWidth === '80mm' ? '76mm' : '54mm';
-    const testHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Test Print Thermal - ${printerSettings.printerName}</title>
-        <style>
-          @page { size: ${printerSettings.paperWidth} auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: ${pWidth};
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
+  // Print text langsung ke hardware Bluetooth printer
+  const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
+    if (!printerMac) {
+      // Tidak ada printer terkonfigurasi — fallback ke browser print dialog
+      console.warn('[BTPrinter] Tidak ada printer MAC tersimpan, fallback ke browser print.');
+      showPrintStatus('error', '⚠️ Printer belum dikonfigurasi. Buka Pengaturan → Koneksi Printer untuk menyambungkan printer.');
+      return;
+    }
+    showPrintStatus('printing', '🖨️ Mengirim data ke printer...');
+    try {
+      await printToBluetoothPrinter(
+        printerMac,
+        textContent,
+        printerPaperWidth,
+        () => showPrintStatus('success', '✅ Cetak berhasil!'),
+        (err) => {
+          const msg = err?.message || String(err);
+          if (msg.includes('BLUETOOTH_DISABLED')) {
+            showPrintStatus('error', '❌ Bluetooth tidak aktif. Aktifkan Bluetooth.');
+          } else if (msg.includes('CONNECTION_REFUSED')) {
+            showPrintStatus('error', '❌ Printer menolak koneksi. Pastikan printer menyala.');
+          } else if (msg.includes('DEVICE_BUSY')) {
+            showPrintStatus('error', '❌ Printer sedang sibuk. Coba lagi.');
+          } else {
+            showPrintStatus('error', '❌ Gagal cetak: ' + msg);
           }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .divider { border-top: 1px dashed #000; margin: 6px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center bold" style="font-size: 13px;">${currentOutlet?.name || 'RESTORAN MRIS'}</div>
-        <div class="text-center" style="font-size: 10px;">POS THERMAL PRINTER TEST</div>
-        <div class="divider"></div>
-        <div>Waktu Test : ${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}</div>
-        <div>Nama Printer: ${printerSettings.printerName}</div>
-        <div>Status      : ${printerSettings.status === 'connected' ? 'TERKONEKSI (OK)' : 'TDK TERKONEKSI'}</div>
-        <div>Kertas      : ${printerSettings.paperWidth} (${printerSettings.connectionType?.toUpperCase() || 'BT'})</div>
-        <div>MAC / ID    : ${printerSettings.macAddress || 'DC:0D:30:84:9E:21'}</div>
-        <div class="divider"></div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>1x Nasi Goreng Spesial</span>
-          <span>25.000</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>1x Es Teh Manis</span>
-          <span>5.000</span>
-        </div>
-        <div class="divider"></div>
-        <div style="display:flex; justify-content:space-between;" class="bold">
-          <span>TOTAL STRUK TEST</span>
-          <span>Rp 30.000</span>
-        </div>
-        <div class="divider"></div>
-        <div class="text-center bold" style="margin-top: 8px;">*** CETAK STRUK TEST BERHASIL ***</div>
-        <div class="text-center" style="font-size: 9px; margin-top: 2px;">Sistem Kasir Mobile POS MRIS Ready</div>
-      </body>
-      </html>
-    `;
+        }
+      );
+    } catch (err) {
+      console.error('[BTPrinter] printTextToBluetooth error:', err);
+    }
+  }, [printerMac, printerPaperWidth, showPrintStatus]);
 
-    printHTMLContent(testHTML);
-    setTestPrintSuccessToast(true);
-    setTimeout(() => setTestPrintSuccessToast(false), 3000);
-  };
+  // Test print ke hardware printer — kirim struk tes sederhana via Bluetooth
+  const handleExecuteTestPrint = useCallback(async () => {
+    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    showPrintStatus('printing', '🖨️ Mengirim test print...');
+    try {
+      await btTestPrint(printerMac, outletName, printerPaperWidth);
+      showPrintStatus('success', '✅ Test print berhasil dikirim ke printer!');
+      setTestPrintSuccessToast(true);
+      setTimeout(() => setTestPrintSuccessToast(false), 3000);
+    } catch (err) {
+      const msg = err?.message || String(err);
+      showPrintStatus('error', '❌ Test print gagal: ' + msg);
+    }
+  }, [printerMac, printerPaperWidth, currentOutlet, showPrintStatus]);
 
-  // SINGLE-PASS UNIFIED THERMAL PRINT JOB FOR ALL SELECTED TICKETS (HANYA 1X PERMISI / POPUP CETAK BROWSER)
-  const handleExecuteBatchPrint = (tx, selections) => {
+  // BLUETOOTH BATCH PRINT — Cetak semua tiket yang dipilih ke hardware printer
+  const handleExecuteBatchPrint = useCallback(async (tx, selections) => {
     if (!tx) return;
+    const outletName = currentOutlet?.name || 'MRIS POS';
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Struk Order - ${tx.id}</title>
-        <style>
-          @page { size: 80mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 76mm;
-            margin: 0 auto;
-            padding: 8mm 3mm;
-            color: #000;
-            background: #fff;
-            font-size: 12px;
-            line-height: 1.35;
-          }
-          .ticket-block {
-            page-break-after: always;
-            border-bottom: 2px dashed #000;
-            padding-bottom: 16px;
-            margin-bottom: 16px;
-          }
-          .ticket-block:last-child {
-            page-break-after: avoid;
-            border-bottom: none;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 3px 8px;
-            font-size: 11px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-          .notes { font-size: 10px; font-style: italic; margin-left: 14px; color: #333; }
-        </style>
-      </head>
-      <body>
-    `;
+    const printJobs = [];
 
-    const outletName = (currentOutlet?.name || 'MRIS POS').toUpperCase();
-
-    // 1. STRUK DAPUR (KITCHEN TICKET - TANPA HARGA)
     if (selections.printKitchen) {
-      const kitchenItems = filterItemsForTicketTarget(tx.items || [], 'KITCHEN');
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🍳 STRUK DAPUR (KITCHEN TICKET)</div>
-            <div class="bold" style="font-size:10px;">*** TAMPIL PRODUK TANPA HARGA ***</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>QTY  NAMA PRODUK</span></div>
-          <div class="divider-dash"></div>
-      `;
-      kitchenItems.forEach(it => {
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="bold">${it.qty}x  ${it.name.toUpperCase()}</div>
-            ${it.notes ? `<div class="notes">* Catatan: ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="text-center bold" style="font-size:10px;">*** UNTUK KOKI / DAPUR ***</div>
-        </div>
-      `;
+      const kitchenTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || 'KITCHEN') === 'KITCHEN') };
+      if (kitchenTx.items.length > 0) {
+        printJobs.push({ type: 'kitchen', text: buildReceiptText(kitchenTx, outletName, 'kitchen', printerPaperWidth, fmtRp) });
+      }
     }
 
-    // 2. STRUK BAR (BAR TICKET - TANPA HARGA)
     if (selections.printBar) {
-      const barItems = filterItemsForTicketTarget(tx.items || [], 'BAR');
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🍹 STRUK BAR (BAR TICKET)</div>
-            <div class="bold" style="font-size:10px;">*** TAMPIL MINUMAN TANPA HARGA ***</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>QTY  NAMA MINUMAN</span></div>
-          <div class="divider-dash"></div>
-      `;
-      barItems.forEach(it => {
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="bold">${it.qty}x  ${it.name.toUpperCase()}</div>
-            ${it.notes ? `<div class="notes">* Catatan: ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="text-center bold" style="font-size:10px;">*** UNTUK BARTENDER / BAR ***</div>
-        </div>
-      `;
+      const barTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || '') === 'BAR') };
+      if (barTx.items.length > 0) {
+        printJobs.push({ type: 'bar', text: buildReceiptText(barTx, outletName, 'bar', printerPaperWidth, fmtRp) });
+      }
     }
 
-    // 3. STRUK MEJA / BILL (TABLE COPY - DENGAN HARGA)
     if (selections.printTableCopy) {
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">📋 STRUK MEJA / BILL SEMENTARA</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-          <div class="divider-dash"></div>
-      `;
-      (tx.items || []).forEach(it => {
-        const itemLinePrice = (it.price || it.price_unit || 0) * it.qty;
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="row">
-              <span>${it.qty}x ${it.name.toUpperCase()}</span>
-              <span>${formatRupiah(itemLinePrice)}</span>
-            </div>
-            ${it.notes ? `<div class="notes">* ${it.notes}</div>` : ''}
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="row bold" style="font-size:13px;">
-            <span>TOTAL BILL:</span>
-            <span>${formatRupiah(tx.amount || cartTotal)}</span>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="bold text-center" style="font-size: 9px; border: 1px dashed #000; padding: 6px; margin: 8px 0; line-height: 1.35;">
-            Struk ini hanya sebagai informasi tagihan BUKAN BUKTI PEMBAYARAN. Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir
-          </div>
-          <div class="text-center" style="font-size:10px;">Terima kasih atas kunjungan Anda</div>
-        </div>
-      `;
+      printJobs.push({ type: 'bill', text: buildReceiptText(tx, outletName, 'bill', printerPaperWidth, fmtRp) });
     }
 
-    // 4. STRUK COPY KASIR (CASHIER COPY - DENGAN HARGA)
     if (selections.printCashierCopy) {
-      printHTML += `
-        <div class="ticket-block">
-          <div class="text-center">
-            <div class="bold" style="font-size:14px;">${outletName}</div>
-            <div class="badge">🧾 STRUK COPY KASIR (ARSIP LACI)</div>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="row"><span>No. Order:</span><span class="bold">${tx.id}</span></div>
-          <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-          <div class="row"><span>Waktu:</span><span>${tx.date} ${tx.time || ''}</span></div>
-          <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-          <div class="divider-dash"></div>
-          <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-          <div class="divider-dash"></div>
-      `;
-      (tx.items || []).forEach(it => {
-        const itemLinePrice = (it.price || it.price_unit || 0) * it.qty;
-        printHTML += `
-          <div style="margin: 4px 0;">
-            <div class="row">
-              <span>${it.qty}x ${it.name.toUpperCase()}</span>
-              <span>${formatRupiah(itemLinePrice)}</span>
-            </div>
-          </div>
-        `;
-      });
-      printHTML += `
-          <div class="divider-double"></div>
-          <div class="row bold" style="font-size:13px;">
-            <span>TOTAL STRUK:</span>
-            <span>${formatRupiah(tx.amount || cartTotal)}</span>
-          </div>
-          <div class="divider-dash"></div>
-          <div class="bold text-center" style="font-size: 9px; border: 1px dashed #000; padding: 6px; margin: 8px 0; line-height: 1.35;">
-            Struk ini hanya sebagai informasi tagihan BUKAN BUKTI PEMBAYARAN. Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir
-          </div>
-          <div class="text-center" style="font-size:10px;">*** ARSIP LACI KASIR ***</div>
-        </div>
-      `;
+      printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp) });
     }
 
-    printHTML += `
-      </body>
-      </html>
-    `;
+    if (printJobs.length === 0) return;
 
-    printHTMLContent(printHTML);
-  };
+    // Gabung semua job dengan separator antar tiket
+    const separator = '\n[CUT]\n';
+    const combined = printJobs.map(j => j.text).join(separator);
 
-  // DEDICATED SINGLE RECEIPT THERMAL PRINTING (CETAK ULANG RIWAYAT TRANSAKSI)
-  const handlePrintSingleReceipt = (tx) => {
+    await printTextToBluetooth(combined);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
+
+  // CETAK ULANG RIWAYAT TRANSAKSI ke hardware Bluetooth printer
+  const handlePrintSingleReceipt = useCallback(async (tx) => {
     if (!tx) return;
-    const outletName = (currentOutlet?.name || 'MRIS POS RESTORAN').toUpperCase();
-    const paperWidth = printerSettings.paperWidth || '58mm';
-    const bodyWidth = paperWidth === '80mm' ? '76mm' : '54mm';
+    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+    const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp);
+    await printTextToBluetooth(text);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
 
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Struk Nota - ${tx.id || tx.receipt_no || ''}</title>
-        <style>
-          @page { size: ${paperWidth} auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: ${bodyWidth};
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 2px 6px;
-            font-size: 10px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-          .notes { font-size: 10px; font-style: italic; margin-left: 10px; color: #333; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center">
-          <div class="bold" style="font-size:14px;">${outletName}</div>
-          <div style="font-size:10px;">MRIS RESTAURANT POS SYSTEM</div>
-          <div class="badge">*** CETAK ULANG NOTA ***</div>
-        </div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>No. Struk:</span><span class="bold">${tx.id || tx.receipt_no || '-'}</span></div>
-        <div class="row"><span>Waktu:</span><span>${tx.date || ''} ${tx.time || ''}</span></div>
-        <div class="row"><span>Tipe:</span><span>${tx.order_type || 'Dine In'}</span></div>
-        <div class="row"><span>Meja:</span><span class="bold">${tx.table_number || 'Meja 01'}</span></div>
-        <div class="row"><span>Pelanggan:</span><span>${tx.customer_name || 'Pelanggan Umum'}</span></div>
-        <div class="row"><span>Kasir:</span><span>${tx.cashier || userSession?.name || 'Kasir POS'}</span></div>
-        <div class="divider-dash"></div>
-        <div class="row bold"><span>ITEM</span><span>SUBTOTAL</span></div>
-        <div class="divider-dash"></div>
-    `;
 
-    (tx.items || []).forEach(it => {
-      const itemLinePrice = (it.price || it.price_unit || 0) * (it.qty || 1);
-      printHTML += `
-        <div style="margin: 4px 0;">
-          <div class="row">
-            <span>${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}</span>
-            <span>${formatRupiah(itemLinePrice)}</span>
-          </div>
-          ${it.notes ? `<div class="notes">* ${it.notes}</div>` : ''}
-        </div>
-      `;
-    });
-
-    const amountVal = Number(tx.amount || 0);
-    const payVal = Number(tx.cash_paid || tx.amount || 0);
-    const changeVal = Math.max(0, payVal - amountVal);
-
-    printHTML += `
-        <div class="divider-double"></div>
-        <div class="row bold" style="font-size:13px;">
-          <span>TOTAL:</span>
-          <span>${formatRupiah(amountVal)}</span>
-        </div>
-        <div class="row"><span>Metode Bayar:</span><span>${tx.payment_method || 'Cash'}</span></div>
-        <div class="row"><span>Bayar Tunai:</span><span>${formatRupiah(payVal)}</span></div>
-        <div class="row"><span>Kembalian:</span><span>${formatRupiah(changeVal)}</span></div>
-        <div class="divider-dash"></div>
-        <div class="text-center bold" style="margin-top:8px; font-size:10px;">
-          *** TERIMA KASIH ATAS KUNJUNGAN ANDA ***<br/>
-          [SALINAN CETAK ULANG NOTA PENJUALAN]
-        </div>
-      </body>
-      </html>
-    `;
-
-    printHTMLContent(printHTML);
-  };
-
-  // DEDICATED SHIFT CLOSING REPORT THERMAL PRINTING
-  const handlePrintShiftClosingReport = (shiftData) => {
+  // LAPORAN SHIFT CLOSING ke hardware Bluetooth printer
+  const handlePrintShiftClosingReport = useCallback(async (shiftData) => {
     if (!shiftData) return;
     const outletName = (currentOutlet?.name || shiftData.branch_name || 'MRIS POS').toUpperCase();
+    const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+    const charsPerLine = printerPaperWidth === '80' ? 48 : 32;
+    const div = '-'.repeat(charsPerLine);
+    const divd = '='.repeat(charsPerLine);
 
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Laporan Shift Closing - ${shiftData.id || shiftData.report_no || ''}</title>
-        <style>
-          @page { size: 58mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 54mm;
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 2px 6px;
-            font-size: 10px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center">
-          <div class="bold" style="font-size:14px;">${outletName}</div>
-          <div style="font-size:10px;">REKAP SHIFT CLOSING KASIR</div>
-          <div class="badge">REKAP KHUSUS KASIR</div>
-        </div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>No. Laporan:</span><span class="bold">${shiftData.id || shiftData.report_no || '-'}</span></div>
-        <div class="row"><span>Tanggal:</span><span>${shiftData.date || ''}</span></div>
-        <div class="row"><span>Kasir:</span><span>${shiftData.user_name || shiftData.author_name || shiftData.cashier_name || 'Kasir'}</span></div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>Modal Awal Kas:</span><span>${formatRupiah(shiftData.initial_cash || 0)}</span></div>
-        <div class="row"><span>Total Struk POS:</span><span>${shiftData.total_receipts || shiftData.tx_count || 0} Struk</span></div>
-        <div class="row bold"><span>Total Omset Bruto:</span><span>${formatRupiah(shiftData.gross_sales || shiftData.total_sales || 0)}</span></div>
-        <div class="row"><span>Penjualan Cash:</span><span>${formatRupiah(shiftData.cash_sales || 0)}</span></div>
-        <div class="row"><span>Penjualan Non-Cash:</span><span>${formatRupiah(shiftData.non_cash_sales || 0)}</span></div>
-        <div class="row"><span>Pengeluaran Kasir:</span><span>${formatRupiah(shiftData.total_expense || shiftData.petty_expense || 0)}</span></div>
-        <div class="divider-dash"></div>
-        <div class="row bold"><span>Kas Fisik di Laci:</span><span>${formatRupiah(shiftData.cash_physical || shiftData.physical_cash || 0)}</span></div>
-        <div class="row"><span>Selisih Kas:</span><span class="bold">${formatRupiah(shiftData.variance || 0)}</span></div>
-        <div class="divider-double"></div>
-        <div class="text-center bold" style="margin-top:8px; font-size:10px;">
-          *** HARAP DISIMPANKAN DI LACI / DOKUMEN KASIR ***
-        </div>
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
+    const lines = [
+      '[C][B]' + outletName,
+      '[C]REKAPITULASI SHIFT CLOSING KASIR',
+      '[C][B]REKAP KHUSUS KASIR',
+      div,
+      `No. Laporan : ${shiftData.id || shiftData.report_no || '-'}`,
+      `Tanggal     : ${shiftData.date || ''}`,
+      `Kasir       : ${shiftData.user_name || shiftData.author_name || shiftData.cashier_name || 'Kasir'}`,
+      div,
+      `Modal Awal Kas  : ${fmtRp(shiftData.initial_cash || 0)}`,
+      `Total Struk POS : ${shiftData.total_receipts || shiftData.tx_count || 0} Struk`,
+      '[B]' + `Total Omset     : ${fmtRp(shiftData.gross_sales || shiftData.total_sales || 0)}`,
+      `Penjualan Cash  : ${fmtRp(shiftData.cash_sales || 0)}`,
+      `Non-Cash        : ${fmtRp(shiftData.non_cash_sales || 0)}`,
+      `Pengeluaran     : ${fmtRp(shiftData.total_expense || shiftData.petty_expense || 0)}`,
+      div,
+      '[B]' + `Kas Fisik Laci  : ${fmtRp(shiftData.cash_physical || shiftData.physical_cash || 0)}`,
+      `Selisih Kas     : ${fmtRp(shiftData.variance || 0)}`,
+      divd,
+      '[C]*** HARAP DISIMPAN DI LACI KASIR ***',
+      '',
+      ''
+    ].join('\n');
 
-    const printWin = window.open('', '_blank', 'width=450,height=600');
-    if (printWin) {
-      printWin.document.open();
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      window.print();
-    }
-  };
-
-  // DEDICATED TEST PRINT RECEIPT FOR PRINTER SETTINGS
-  const handlePrintTestReceipt = () => {
-    const outletName = (currentOutlet?.name || 'MRIS POS RESTORAN').toUpperCase();
-
-    let printHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Test Print Thermal - ${printerSettings.printerName}</title>
-        <style>
-          @page { size: 58mm auto; margin: 0; }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            width: 54mm;
-            margin: 0 auto;
-            padding: 4mm 2mm;
-            color: #000;
-            background: #fff;
-            font-size: 11px;
-            line-height: 1.35;
-          }
-          .text-center { text-align: center; }
-          .bold { font-weight: bold; }
-          .badge {
-            display: inline-block;
-            background: #000;
-            color: #fff;
-            padding: 2px 6px;
-            font-size: 10px;
-            font-weight: bold;
-            border-radius: 4px;
-            margin: 4px 0;
-          }
-          .divider-dash { border-top: 1px dashed #000; margin: 6px 0; }
-          .divider-double { border-top: 2px dashed #000; margin: 8px 0; }
-          .row { display: flex; justify-content: space-between; }
-        </style>
-      </head>
-      <body>
-        <div class="text-center">
-          <div class="bold" style="font-size:14px;">=== TEST PRINT POS ===</div>
-          <div class="bold">${outletName}</div>
-          <div class="badge">PRINTER OK & CONNECTED</div>
-        </div>
-        <div class="divider-dash"></div>
-        <div class="row"><span>Printer:</span><span class="bold">${printerSettings.printerName}</span></div>
-        <div class="row"><span>Lebar Kertas:</span><span>${printerSettings.paperWidth || '58mm'}</span></div>
-        <div class="row"><span>Mode Cetak:</span><span>${printerSettings.printMode || 'sekaligus'}</span></div>
-        <div class="row"><span>Waktu Test:</span><span>${new Date().toLocaleString('id-ID')}</span></div>
-        <div class="divider-dash"></div>
-        <div class="text-center bold">1x SAMBAL PENYET (TEST) - Rp 15.000</div>
-        <div class="divider-double"></div>
-        <div class="text-center bold" style="font-size:10px;">
-          *** TEST PRINT SUCCESSFUL ***<br/>
-          Printer Siap Digunakan Transaksi Kasir
-        </div>
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
-
-    const printWin = window.open('', '_blank', 'width=450,height=600');
-    if (printWin) {
-      printWin.document.open();
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      window.print();
-    }
-  };
+    await printTextToBluetooth(lines);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
 
   // CHECKOUT / OPEN OCCUPIED TABLE FROM BOARD
   const handleCheckoutOccupiedTable = (table) => {
@@ -2317,9 +1889,9 @@ export default function AndroidPosRegister({
     alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
   };
 
-  // PAPAN LOGIN SEDERHANA 1-HALAMAN (DIRECT & SIMPLE ACCESS)
+  // PAPAN LOGIN SEDERHANA & RESPONSIF (DATA DINAMIS DARI WEB ADMIN)
   if (!isAppLoggedIn) {
-    // Kumpulkan semua akun dari masterData (HANYA data real, TIDAK ada fallback fake)
+    // Kumpulkan semua akun dari masterData (HANYA data real dari Web Admin)
     const rawUsersList = [
       ...(masterData?.mobileAccounts || []),
       ...(masterData?.webAdminAccounts || []),
@@ -2340,11 +1912,10 @@ export default function AndroidPosRegister({
     });
     const registeredUsers = Array.from(usersMap.values());
 
-    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin (tanpa hardcoded name)
+    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin
     const availableOutlets = (() => {
       const map = new Map();
 
-      // 1. Direct outlets from masterData.outlets (Pengaturan Web Admin)
       (masterData?.outlets || []).forEach(o => {
         if (o && (o.name || o.branch_name)) {
           const id = String(o.id || o.outlet_id || Date.now());
@@ -2352,7 +1923,6 @@ export default function AndroidPosRegister({
         }
       });
 
-      // 2. Outlets assigned to registered users in Pengaturan Web Admin
       (registeredUsers || []).forEach(u => {
         const uOut = u.outlet || u.assignedOutlet || u.branch || '';
         if (uOut && typeof uOut === 'string' && !uOut.toLowerCase().includes('semua') && !uOut.toLowerCase().includes('central')) {
@@ -2364,27 +1934,13 @@ export default function AndroidPosRegister({
         }
       });
 
-      // 3. Outlets present in shift closings / transaction records
-      (masterData?.shiftClosings || masterData?.closedShifts || []).forEach(s => {
-        const sOut = s.branch_name || s.outlet_name || s.outlet;
-        if (sOut && typeof sOut === 'string' && sOut.trim()) {
-          const exists = Array.from(map.values()).some(o => o.name.toLowerCase().trim() === sOut.toLowerCase().trim());
-          if (!exists) {
-            const newId = s.outlet_id || (1000 + map.size);
-            map.set(String(newId), { id: newId, name: sOut.trim(), code: `OUT-${map.size + 1}` });
-          }
-        }
-      });
-
       return Array.from(map.values());
     })();
 
-    // Outlet aktif di form login (pakai loginSelectedOutlet state, fallback ke availableOutlets[0])
     const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
     const activeOutletName = String(activeOutletObj?.name || '').toLowerCase().trim();
     const activeOutletId = String(activeOutletObj?.id || '').toLowerCase().trim();
 
-    // Filter User Sesuai Outlet Terpilih
     const filteredUsersForOutlet = activeOutletObj ? registeredUsers.filter(u => {
       const uOutlet = String(u.outlet || u.assignedOutlet || u.outlet_name || u.branch || '').toLowerCase().trim();
       const uOutletId = String(u.outlet_id || u.outletId || '').toLowerCase().trim();
@@ -2402,13 +1958,11 @@ export default function AndroidPosRegister({
       setLoginErrorText('');
       const selectedUser = userObj || activeSelectedUser;
 
-      // Validasi: user harus terpilih
       if (!selectedUser) {
-        setLoginErrorText('❌ Tidak ada pengguna yang dapat dipilih. Tambahkan akun melalui Web Admin.');
+        setLoginErrorText('❌ Tidak ada pengguna yang dipilih. Tambahkan akun di Web Admin → Pengaturan.');
         return;
       }
 
-      // Tentukan outlet: Super Admin/Owner bisa login meski outlets kosong
       const userRole = String(selectedUser.role || '').toLowerCase();
       const userOutletStr = String(selectedUser.outlet || selectedUser.assignedOutlet || '').toLowerCase();
       const isCentralUser = userOutletStr.includes('semua outlet') || userOutletStr.includes('central') || userRole.includes('super admin') || userRole.includes('owner');
@@ -2417,7 +1971,6 @@ export default function AndroidPosRegister({
 
       if (!selectedOutlet) {
         if (isCentralUser) {
-          // Super Admin/Owner: buat outlet virtual "Semua Outlet"
           selectedOutlet = { id: 'central', name: 'Semua Outlet (Central)' };
         } else {
           setLoginErrorText('❌ Pilih outlet terlebih dahulu sebelum masuk.');
@@ -2425,7 +1978,6 @@ export default function AndroidPosRegister({
         }
       }
 
-      // Ambil password valid dari data user (TIDAK ada hardcoded default)
       const validPassword = String(
         selectedUser?.mobileLoginPassword ||
         selectedUser?.password ||
@@ -2436,7 +1988,6 @@ export default function AndroidPosRegister({
 
       const enteredPassword = String(loginPasswordInput || '').trim();
 
-      // Validasi password
       if (validPassword) {
         if (!enteredPassword) {
           setLoginErrorText(`❌ Masukkan PIN / Password untuk ${selectedUser.name}.`);
@@ -2448,7 +1999,6 @@ export default function AndroidPosRegister({
         }
       }
 
-      // Berhasil Login
       setCurrentUserSession({
         id: selectedUser.id || null,
         name: selectedUser.name || 'Kasir POS',
@@ -2468,68 +2018,56 @@ export default function AndroidPosRegister({
     };
 
     return (
-      <div style={{ minHeight: '100vh', width: '100vw', background: '#090d16', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: '480px', background: '#111827', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', padding: '32px 24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
+      <div style={{ minHeight: '100vh', width: '100vw', background: 'radial-gradient(circle at top, #1e293b 0%, #090d16 100%)', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: '440px', background: 'rgba(17, 24, 39, 0.95)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '24px', padding: '28px 20px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)', backdropFilter: 'blur(16px)' }}>
 
           {/* HEADER LOGO & JUDUL */}
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <div style={{
-              width: '64px',
-              height: '64px',
+              width: '60px',
+              height: '60px',
               borderRadius: '50%',
               background: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)',
-              border: '3px solid #facc15',
-              boxShadow: '0 0 20px rgba(250,204,21,0.4)',
+              border: '2.5px solid #facc15',
+              boxShadow: '0 0 20px rgba(250,204,21,0.3)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 12px'
+              margin: '0 auto 10px'
             }}>
-              <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#facc15' }}>MRIS</span>
+              <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#facc15' }}>MRIS</span>
             </div>
 
-            <h2 style={{ fontSize: '1.45rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
-              🔑 Login Kasir POS Mobile
+            <h2 style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+              🔑 Login POS Mobile Kasir
             </h2>
-            <p style={{ fontSize: '0.82rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
-              Pilih Pengguna & Outlet untuk Masuk Transaksi
+            <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>
+              Pilih Pengguna &amp; Outlet Terdaftar di Web Admin
             </p>
-            <div style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '700', fontStyle: 'italic', marginTop: '6px' }}>
-              "bismillah, aku bekerja atas pengawasan Alloh"
-            </div>
           </div>
 
           {/* FORM USER & OUTLET SELECTION */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
             {/* 1. PILIH OUTLET */}
             <div>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 🏪 Pilih Outlet Cabang:
               </label>
               {availableOutlets.length === 0 ? (
-                (() => {
-                  const selUserRole = String(activeSelectedUser?.role || '').toLowerCase();
-                  const selUserOutlet = String(activeSelectedUser?.outlet || '').toLowerCase();
-                  const isCentral = selUserOutlet.includes('semua outlet') || selUserOutlet.includes('central') || selUserRole.includes('super admin') || selUserRole.includes('owner');
-                  return (
-                    <div style={{
-                      background: isCentral ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                      border: `1.5px solid ${isCentral ? '#10b981' : '#f59e0b'}`,
-                      borderRadius: '12px',
-                      padding: '12px',
-                      fontSize: '0.82rem',
-                      fontWeight: '700',
-                      color: isCentral ? '#34d399' : '#fbbf24',
-                      textAlign: 'center'
-                    }}>
-                      {isCentral
-                        ? '✅ Akses Semua Outlet (Central) — Super Admin / Owner'
-                        : '⚠️ Belum ada outlet. Tambahkan di Web Admin → Master Data'}
-                    </div>
-                  );
-                })()
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1.5px solid #10b981',
+                  borderRadius: '12px',
+                  padding: '10px 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  color: '#34d399',
+                  textAlign: 'center'
+                }}>
+                  ✅ Akses Outlet Central — Super Admin / Owner
+                </div>
               ) : (
                 <select
                   value={activeOutletObj?.id || 'ALL'}
@@ -2543,30 +2081,17 @@ export default function AndroidPosRegister({
                       if (found) {
                         setLoginSelectedOutlet(found);
                         setLoginErrorText('');
-                        const newOutletName = String(found.name || '').toLowerCase().trim();
-                        const matchedUser = registeredUsers.find(u => {
-                          const uOut = String(u.outlet || u.assignedOutlet || '').toLowerCase().trim();
-                          const uRole = String(u.role || '').toLowerCase();
-                          const isCentral = !uOut || uOut.includes('semua outlet') || uOut.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
-                          return !isCentral && (uOut.includes(newOutletName) || newOutletName.includes(uOut));
-                        }) || registeredUsers.find(u => {
-                          const uRole = String(u.role || '').toLowerCase();
-                          return uRole.includes('super admin') || uRole.includes('owner');
-                        });
-                        if (matchedUser) {
-                          setSelectedUserAccount(matchedUser);
-                        }
                       }
                     }
                   }}
                   style={{
                     width: '100%',
-                    background: 'var(--pos-bg-card2)',
-                    border: '1px solid #374151',
-                    color: 'var(--pos-txt-primary)',
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#f8fafc',
                     borderRadius: '12px',
                     padding: '12px',
-                    fontSize: '0.92rem',
+                    fontSize: '0.90rem',
                     fontWeight: '800',
                     boxSizing: 'border-box'
                   }}
@@ -2583,10 +2108,10 @@ export default function AndroidPosRegister({
 
             {/* 2. PILIH AKUN PENGGUNA */}
             <div>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 👤 Pilih Nama Pengguna (User):
               </label>
-<select
+              <select
                 value={activeSelectedUser?.id || ''}
                 onChange={(e) => {
                   const found = registeredUsers.find(u => String(u.id) === String(e.target.value));
@@ -2595,24 +2120,16 @@ export default function AndroidPosRegister({
                     setLoginUsernameInput(found.username || '');
                     setLoginPasswordInput('');
                     setLoginErrorText('');
-                    // Auto-sync outlet jika user ini di-assign ke outlet spesifik
-                    if (found.outlet && !String(found.outlet).toLowerCase().includes('semua outlet') && !String(found.outlet).toLowerCase().includes('central')) {
-                      const uOutletName = String(found.outlet).toLowerCase().trim();
-                      const matchedOutlet = availableOutlets.find(o => String(o.name).toLowerCase().trim().includes(uOutletName) || uOutletName.includes(String(o.name).toLowerCase().trim()));
-                      if (matchedOutlet) {
-                        setLoginSelectedOutlet(matchedOutlet);
-                      }
-                    }
                   }
                 }}
                 style={{
                   width: '100%',
-                  background: 'var(--pos-bg-card2)',
-                  border: registeredUsers.length === 0 ? '1.5px solid #f59e0b' : '1px solid #374151',
+                  background: '#1e293b',
+                  border: registeredUsers.length === 0 ? '1.5px solid #f59e0b' : '1px solid #334155',
                   color: '#38bdf8',
                   borderRadius: '12px',
                   padding: '12px',
-                  fontSize: '0.92rem',
+                  fontSize: '0.90rem',
                   fontWeight: '800',
                   boxSizing: 'border-box'
                 }}
@@ -2622,64 +2139,86 @@ export default function AndroidPosRegister({
                 ) : (
                   displayUsers.map(u => (
                     <option key={u.id} value={u.id}>
-                      {u.name} ({u.role || 'Kasir'}){u.outlet && !String(u.outlet).toLowerCase().includes('semua outlet') ? ` — ${u.outlet}` : ''}
+                      👤 {u.name} ({u.role || 'Kasir'}){u.outlet && !String(u.outlet).toLowerCase().includes('semua outlet') ? ` — ${u.outlet}` : ''}
                     </option>
                   ))
                 )}
               </select>
             </div>
 
-            {/* 3. INPUT PASSWORD / PIN */}
+            {/* 3. INPUT PASSWORD / PIN WITH EYE TOGGLE */}
             <div>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', display: 'block', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 🔑 PIN / Password:
               </label>
-              <input
-                type="password"
-                value={loginPasswordInput}
-                onChange={(e) => {
-                  setLoginPasswordInput(e.target.value);
-                  setLoginErrorText('');
-                }}
-                placeholder="Password PIN (Contoh: 1234)..."
-                style={{
-                  width: '100%',
-                  background: 'var(--pos-bg-card2)',
-                  border: loginErrorText ? '1.5px solid #ef4444' : '1px solid #374151',
-                  color: 'var(--pos-txt-primary)',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  fontSize: '1rem',
-                  fontWeight: '700',
-                  boxSizing: 'border-box'
-                }}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={showLoginPasswordEye ? 'text' : 'password'}
+                  value={loginPasswordInput}
+                  onChange={(e) => {
+                    setLoginPasswordInput(e.target.value);
+                    setLoginErrorText('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDirectLogin(activeSelectedUser, activeOutletObj);
+                  }}
+                  placeholder="Masukkan Password PIN..."
+                  style={{
+                    width: '100%',
+                    background: '#1e293b',
+                    border: loginErrorText ? '1.5px solid #ef4444' : '1px solid #334155',
+                    color: '#f8fafc',
+                    borderRadius: '12px',
+                    padding: '12px 42px 12px 12px',
+                    fontSize: '0.95rem',
+                    fontWeight: '700',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    padding: '4px'
+                  }}
+                >
+                  {showLoginPasswordEye ? '👁️' : '🙈'}
+                </button>
+              </div>
             </div>
 
-            {/* PESAN ERROR / KETERANGAN SALAH PASSWORD */}
+            {/* PESAN ERROR */}
             {loginErrorText && (
               <div style={{
                 background: 'rgba(239, 68, 68, 0.2)',
                 border: '1.5px solid #ef4444',
                 color: '#fca5a5',
-                padding: '12px',
+                padding: '10px 12px',
                 borderRadius: '12px',
-                fontSize: '0.86rem',
+                fontSize: '0.82rem',
                 fontWeight: '800',
-                textAlign: 'center',
-                boxShadow: '0 4px 12px rgba(239,68,68,0.2)'
+                textAlign: 'center'
               }}>
                 {loginErrorText}
               </div>
             )}
 
-            {/* TOMBOL UTAMA: MASUK KE POS KASIR */}
+            {/* TOMBOL MASUK */}
             <button
               type="button"
               onClick={() => handleDirectLogin(activeSelectedUser, activeOutletObj)}
               style={{
                 width: '100%',
-                padding: '16px',
+                padding: '14px',
                 background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                 border: 'none',
                 color: 'var(--pos-txt-primary)',
@@ -2892,6 +2431,31 @@ export default function AndroidPosRegister({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
+            {/* OFFLINE QUEUE STATUS BADGE */}
+            {offlineQueueCount > 0 && (
+              <div 
+                style={{
+                  background: 'rgba(245, 158, 11, 0.25)',
+                  border: '1.5px solid #f59e0b',
+                  color: '#fbbf24',
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  fontSize: '0.74rem',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 0 12px rgba(245, 158, 11, 0.3)'
+                }}
+                title="Transaksi Offline Tersimpan di Tablet — Klik untuk paksa sync ke Cloud VPS"
+                className="animate-pulse"
+              >
+                <RefreshCw size={13} className="animate-spin" />
+                <span>⚡ {offlineQueueCount} Offline Pending</span>
+              </div>
+            )}
+
             {/* THEME TOGGLE BUTTON (MODE GELAP VS MODE TERANG) */}
             <button
               type="button"
@@ -2915,13 +2479,7 @@ export default function AndroidPosRegister({
               {isLight ? <span>☀️ Mode Terang</span> : <span>🌙 Mode Gelap</span>}
             </button>
 
-            <button
-              onClick={() => setActiveNavTab('printer_setting')}
-              style={{ background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.1)', border: isLight ? '1.5px solid #cbd5e1' : '1px solid rgba(255,255,255,0.2)', color: isLight ? '#0f172a' : '#ffffff', padding: '5px 12px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Printer size={15} />
-              <span>Setting Printer</span>
-            </button>
+
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.bgBadgeUser, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.borderSubtle}` }}>
               <span style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '800' }}>
@@ -3310,18 +2868,56 @@ export default function AndroidPosRegister({
 
                         return (
                           <div key={item.id} style={{ background: T.bgCard, padding: '10px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${T.border}` }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {/* Circle Index Badge */}
-                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2563eb', color: 'var(--pos-txt-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: '900' }}>
+                            {/* Left: Index & Item Name */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, paddingRight: '6px' }}>
+                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2563eb', color: 'var(--pos-txt-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: '900', flexShrink: 0 }}>
                                 {idx + 1}
                               </div>
-                              <div>
-                                <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary }}>{item.name}</div>
+                              <div style={{ overflow: 'hidden' }}>
+                                <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
                                 {item.notes && <div style={{ fontSize: '0.70rem', color: isLight ? '#1d4ed8' : '#60a5fa' }}>{item.notes}</div>}
                               </div>
                             </div>
-                            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtPrimary }}>
-                              {formatRupiah(itemLineTotal)}
+
+                            {/* Right: Quantity Controls (- QTY +), Subtotal, Delete Button */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              {/* Quantity Adjustment Buttons */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: T.bgApp, padding: '2px 4px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateQty(item.id, -1)}
+                                  title="Kurangi 1"
+                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: 'none', background: '#ef4444', color: '#ffffff', fontSize: '0.90rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}
+                                >
+                                  -
+                                </button>
+                                <span style={{ fontSize: '0.82rem', fontWeight: '900', color: T.txtPrimary, minWidth: '20px', textAlign: 'center' }}>
+                                  {item.qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateQty(item.id, 1)}
+                                  title="Tambah 1"
+                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: 'none', background: '#10b981', color: '#ffffff', fontSize: '0.90rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', lineHeight: 1 }}
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              {/* Line Total Price */}
+                              <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, minWidth: '60px', textAlign: 'right' }}>
+                                {formatRupiah(itemLineTotal)}
+                              </div>
+
+                              {/* Delete Item Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCartItem(item.id)}
+                                title="Hapus Orderan"
+                                style={{ width: '24px', height: '24px', borderRadius: '6px', border: 'none', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontSize: '0.80rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '2px' }}
+                              >
+                                🗑️
+                              </button>
                             </div>
                           </div>
                         );
@@ -3898,6 +3494,17 @@ export default function AndroidPosRegister({
             {/* ----------------------------------------------------------- */}
             {(() => {
               const activeCust = (masterData.customers || []).find(c => c.id === selectedCustomerIdForDetail) || masterData.customers?.[0] || null;
+              // Jika tidak ada pelanggan sama sekali, tampilkan placeholder kosong
+              if (!activeCust) {
+                return (
+                  <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--pos-bg-app)', padding: '24px' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '12px' }}>👤</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--pos-txt-secondary)', textAlign: 'center' }}>
+                      Belum ada data pelanggan.<br />Tambahkan pelanggan terlebih dahulu.
+                    </div>
+                  </div>
+                );
+              }
               const custCode = activeCust.code || `000${activeCust.id} - BMJ`;
               const custOutletName = activeCust.outlet_name || (masterData.outlets || []).find(o => o.id === activeCust.outlet_id)?.name || currentOutlet.name || 'Restoran Utama';
 
@@ -6035,8 +5642,8 @@ export default function AndroidPosRegister({
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {[
-                    { id: 'umum', label: 'Umum', icon: Settings },
-                    { id: 'printer', label: 'Printer', icon: Printer },
+                  { id: 'umum', label: 'Umum', icon: Settings },
+                    { id: 'printer', label: 'Printer', icon: PrinterIcon },
                     { id: 'sistem', label: 'Sistem', icon: Sliders },
                     { id: 'akun', label: 'Akun', icon: User }
                   ].map(tab => {
@@ -6200,120 +5807,210 @@ export default function AndroidPosRegister({
                   </div>
                 )}
 
-                {/* SUB-TAB 2: PRINTER (MATCHING USER SCREENSHOT 100%) */}
+
+                {/* SUB-TAB: PRINTER BLUETOOTH */}
                 {settingSubTab === 'printer' && (
-                  <div style={{ maxWidth: '850px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--pos-txt-primary)', margin: 0 }}>
-                        Pengaturan Printer
-                      </h2>
-                      {saveSettingsSuccessToast && (
-                        <div style={{ background: 'rgba(16,185,129,0.2)', border: '1px solid #10b981', color: '#34d399', padding: '6px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800' }}>
-                          ✅ Pengaturan Disimpan!
+                  <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <PrinterIcon size={26} color="#6366f1" />
+                      <span>Koneksi Printer Bluetooth</span>
+                    </h2>
+
+                    {/* PRINT STATUS BANNER */}
+                    {printStatus && (
+                      <div style={{
+                        padding: '12px 16px',
+                        borderRadius: '12px',
+                        background: printStatus === 'success' ? 'rgba(52,211,153,0.15)' : printStatus === 'printing' ? 'rgba(99,102,241,0.15)' : 'rgba(244,63,94,0.15)',
+                        border: `1px solid ${printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#6366f1' : '#f43f5e'}`,
+                        color: printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#a5b4fc' : '#f87171',
+                        fontSize: '0.88rem',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        {printStatus === 'printing' && <span>⏳</span>}
+                        {printStatusMsg}
+                      </div>
+                    )}
+
+                    {/* PRINTER TERKONFIGURASI */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🖨️ Printer Aktif</div>
+                      {printerMac ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(52,211,153,0.1)', border: '1px solid #34d399' }}>
+                          <BluetoothConnected size={20} color="#34d399" />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: '800', color: '#34d399', fontSize: '0.9rem' }}>
+                              {pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                              {printerMac} • Kertas {printerPaperWidth}mm
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
+                            style={{ background: 'rgba(244,63,94,0.12)', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#f43f5e', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            Lepas
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(100,116,139,0.1)', border: '1px dashed var(--pos-border)' }}>
+                          <BluetoothOff size={20} color="#94a3b8" />
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.88rem' }}>Belum ada printer dipilih</span>
                         </div>
                       )}
                     </div>
 
-                    {/* PRINTER AREAS LIST (Main, Captain Order, Label, Custom Areas...) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {printerAreas.map((area, idx) => (
-                        <div key={area.id || idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <label style={{ fontSize: '0.9rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
-                            {area.name}
-                          </label>
-                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                            {/* Clickable Printer Display Box */}
-                            <div 
-                              onClick={() => handleOpenSelectPrinterModal(idx)}
-                              style={{
-                                flex: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                padding: '12px 16px',
-                                background: '#ffffff',
-                                border: '1px solid #cbd5e1',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                color: '#1e293b'
-                              }}
-                            >
-                              <Printer size={20} color="#64748b" />
-                              <span style={{ fontSize: '0.95rem', fontWeight: '600' }}>
-                                {area.printerName || '-'}
-                              </span>
+                    {/* LEBAR KERTAS */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📄 Lebar Kertas Thermal</div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {['58', '80'].map(w => (
+                          <button
+                            key={w}
+                            type="button"
+                            onClick={() => handleSavePrinterConfig(printerMac, w)}
+                            style={{
+                              flex: 1,
+                              padding: '14px',
+                              borderRadius: '12px',
+                              border: `2px solid ${printerPaperWidth === w ? '#6366f1' : 'var(--pos-border)'}`,
+                              background: printerPaperWidth === w ? 'rgba(99,102,241,0.15)' : 'transparent',
+                              color: printerPaperWidth === w ? '#a5b4fc' : 'var(--pos-txt-secondary)',
+                              fontWeight: '800',
+                              fontSize: '1.05rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s'
+                            }}
+                          >
+                            {w}mm
+                            <div style={{ fontSize: '0.72rem', fontWeight: '600', marginTop: '3px', opacity: 0.7 }}>
+                              {w === '58' ? 'Mini Kasir' : 'Lebar Standar'}
                             </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                            {/* Test Print Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleTestPrintArea(area)}
-                              style={{
-                                padding: '12px 24px',
-                                background: '#4c1d95',
-                                color: '#ffffff',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: '700',
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                                minWidth: '120px'
-                              }}
-                            >
-                              Test Print
-                            </button>
+                    {/* SCAN PERANGKAT BLUETOOTH */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🔍 Perangkat Bluetooth Terpair</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>Pair printer terlebih dahulu di: Pengaturan Android → Bluetooth</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleScanPairedPrinters}
+                          disabled={isScanningPaired}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            padding: '10px 18px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: isScanningPaired ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.2)',
+                            color: '#a5b4fc',
+                            fontWeight: '800',
+                            fontSize: '0.82rem',
+                            cursor: isScanningPaired ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <Bluetooth size={16} />
+                          {isScanningPaired ? 'Memindai...' : 'Scan Perangkat'}
+                        </button>
+                      </div>
 
-                            {/* Delete Button (if custom area) */}
-                            {idx >= 3 && (
+                      {/* DEVICE LIST */}
+                      {pairedDevices.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '28px', color: 'var(--pos-txt-secondary)', fontSize: '0.85rem', borderRadius: '12px', background: 'var(--pos-bg-app)' }}>
+                          {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {pairedDevices.map(device => {
+                            const isSelected = printerMac === device.address;
+                            return (
                               <button
+                                key={device.address}
                                 type="button"
-                                onClick={() => handleDeletePrinterArea(idx)}
+                                onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}
                                 style={{
-                                  padding: '12px 24px',
-                                  background: '#dc2626',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  borderRadius: '8px',
-                                  fontWeight: '700',
-                                  fontSize: '0.9rem',
+                                  display: 'flex', alignItems: 'center', gap: '14px',
+                                  padding: '14px 16px',
+                                  borderRadius: '12px',
+                                  border: `2px solid ${isSelected ? '#6366f1' : 'var(--pos-border)'}`,
+                                  background: isSelected ? 'rgba(99,102,241,0.12)' : 'var(--pos-bg-app)',
                                   cursor: 'pointer',
-                                  minWidth: '100px'
+                                  textAlign: 'left',
+                                  transition: 'all 0.15s',
+                                  width: '100%'
                                 }}
                               >
-                                Hapus
+                                {isSelected
+                                  ? <BluetoothConnected size={22} color="#6366f1" />
+                                  : <Bluetooth size={22} color="#94a3b8" />}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '800', color: isSelected ? '#a5b4fc' : 'var(--pos-txt-primary)', fontSize: '0.92rem' }}>
+                                    {device.name || 'Unnamed Device'}
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                    {device.address}
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <span style={{ fontSize: '0.72rem', background: '#6366f1', color: '#fff', borderRadius: '6px', padding: '3px 8px', fontWeight: '800', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
+                                )}
                               </button>
-                            )}
-                          </div>
+                            );
+                          })}
                         </div>
-                      ))}
+                      )}
                     </div>
 
-                    {/* Add Printer Area Button */}
-                    <div style={{ marginTop: '6px' }}>
+                    {/* TEST PRINT */}
+                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧪 Tes Cetak Printer</div>
+                      <div style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)' }}>
+                        {printerMac
+                          ? 'Kirim struk tes ke printer yang dipilih untuk memastikan koneksi dan format cetak berjalan normal.'
+                          : 'Pilih printer terlebih dahulu untuk mengaktifkan fitur tes cetak.'}
+                      </div>
                       <button
                         type="button"
-                        onClick={handleAddPrinterArea}
+                        onClick={handleExecuteTestPrint}
+                        disabled={!printerMac || printStatus === 'printing'}
                         style={{
-                          padding: '12px 24px',
-                          background: '#4c1d95',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontWeight: '700',
-                          fontSize: '0.9rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          padding: '14px',
+                          borderRadius: '12px',
+                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`,
+                          background: !printerMac ? 'rgba(100,116,139,0.1)' : 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)',
+                          color: !printerMac ? '#64748b' : '#34d399',
+                          fontWeight: '800',
+                          fontSize: '0.92rem',
+                          cursor: !printerMac ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        <span>+ Tambah Printer Area</span>
+                        <PrinterIcon size={18} />
+                        {printStatus === 'printing' ? 'Mengirim...' : '🖨️ Kirim Test Print Sekarang'}
                       </button>
+                      {testPrintSuccessToast && (
+                        <div style={{ textAlign: 'center', color: '#34d399', fontSize: '0.85rem', fontWeight: '700', padding: '8px', borderRadius: '8px', background: 'rgba(52,211,153,0.1)' }}>
+                          ✅ Struk tes berhasil dikirim ke printer!
+                        </div>
+                      )}
                     </div>
+
                   </div>
                 )}
 
-                {/* SUB-TAB 3: SISTEM */}
+                {/* SUB-TAB 2: SISTEM (was 3) */}
+
                 {settingSubTab === 'sistem' && (
                   <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -7248,221 +6945,8 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* 6.5. MODAL SELECT PRINTER (EXACT LUNA POS MATCH FROM USER SCREENSHOT 2) */}
-      {showSelectPrinterModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, padding: '16px'
-        }}>
-          <div style={{
-            width: '100%', maxWidth: '580px', background: '#ffffff',
-            borderRadius: '12px', overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
-            display: 'flex', flexDirection: 'column'
-          }}>
-            {/* Header Banner */}
-            <div style={{
-              background: '#4c1d95', color: '#ffffff', padding: '16px',
-              textAlign: 'center', fontWeight: '800', fontSize: '1.1rem',
-              letterSpacing: '0.3px'
-            }}>
-              Select Printer
-            </div>
-
-            {/* Form Content */}
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', color: '#1e293b' }}>
-              
-              {/* Row 1: Printer Type & Printer Module */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
-                    Printer Type
-                  </label>
-                  <select
-                    value={tempAreaForm.type || 'Escpos'}
-                    onChange={e => setTempAreaForm(prev => ({ ...prev, type: e.target.value }))}
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
-                  >
-                    <option value="Escpos">Escpos</option>
-                    <option value="Text">Text</option>
-                    <option value="PDF">PDF</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
-                    Printer Module
-                  </label>
-                  <select
-                    value={tempAreaForm.module || 'Bluetooth General'}
-                    onChange={e => setTempAreaForm(prev => ({ ...prev, module: e.target.value }))}
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
-                  >
-                    <option value="Bluetooth General">Bluetooth General</option>
-                    <option value="USB Direct">USB Direct</option>
-                    <option value="LAN / Network">LAN / Network</option>
-                    <option value="Sunmi Inner Printer">Sunmi Inner Printer</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 2: Printer Device Selection */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700' }}>
-                    Printer
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleScanPrinters}
-                    style={{ background: 'none', border: 'none', color: '#4c1d95', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <RefreshCw size={12} className={isScanningPrinters ? 'animate-spin' : ''} />
-                    <span>{isScanningPrinters ? 'Memindai...' : 'Pindai Perangkat'}</span>
-                  </button>
-                </div>
-                <select
-                  value={tempAreaForm.printerName || ''}
-                  onChange={e => setTempAreaForm(prev => ({ ...prev, printerName: e.target.value }))}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
-                >
-                  <option value="">-- Pilih Perangkat Printer --</option>
-                  <option value="RPP02N">RPP02N (Bluetooth Thermal)</option>
-                  <option value="POS-58">POS-58 (Bluetooth Thermal)</option>
-                  <option value="PT-210">PT-210 (Portable Thermal)</option>
-                  <option value="InnerPrinter">InnerPrinter (Sunmi Built-in)</option>
-                  {discoveredPrinters.map(dev => (
-                    <option key={dev.id} value={dev.name}>{dev.name} ({dev.mac})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Row 3: Paper Size, Feed After Print, Auto Cut Type */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
-                    Paper Size
-                  </label>
-                  <select
-                    value={tempAreaForm.paperSize || '58'}
-                    onChange={e => setTempAreaForm(prev => ({ ...prev, paperSize: e.target.value }))}
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
-                  >
-                    <option value="58">58</option>
-                    <option value="80">80</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
-                    Feed After Print
-                  </label>
-                  <input
-                    type="number"
-                    value={tempAreaForm.feedCount !== undefined ? tempAreaForm.feedCount : 0}
-                    onChange={e => setTempAreaForm(prev => ({ ...prev, feedCount: Number(e.target.value) }))}
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
-                    Auto Cut Type
-                  </label>
-                  <select
-                    value={tempAreaForm.autoCut !== undefined ? tempAreaForm.autoCut : '0'}
-                    onChange={e => setTempAreaForm(prev => ({ ...prev, autoCut: e.target.value }))}
-                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.9rem', color: '#1e293b', background: '#fff' }}
-                  >
-                    <option value="0">0</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 4: Disconnect Setelah Print */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                <input
-                  type="checkbox"
-                  id="chkDisconnect"
-                  checked={tempAreaForm.disconnectAfter || false}
-                  onChange={e => setTempAreaForm(prev => ({ ...prev, disconnectAfter: e.target.checked }))}
-                  style={{ width: '18px', height: '18px', accentColor: '#4c1d95', cursor: 'pointer' }}
-                />
-                <label htmlFor="chkDisconnect" style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Disconnect Setelah Print
-                  <HelpCircle size={16} color="#64748b" />
-                </label>
-              </div>
-
-              {/* Row 5: Jumlah Copy Stepper */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '6px 0' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155' }}>
-                  Jumlah copy {tempAreaForm.name || 'Main'} Yang akan dicetak
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setTempAreaForm(prev => ({ ...prev, copies: Math.max(1, (prev.copies || 1) - 1) }))}
-                    style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#4c1d95', color: '#fff', border: 'none', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    -
-                  </button>
-                  <span style={{ fontSize: '1rem', fontWeight: '800', width: '20px', textAlign: 'center' }}>
-                    {tempAreaForm.copies || 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setTempAreaForm(prev => ({ ...prev, copies: (prev.copies || 1) + 1 }))}
-                    style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#4c1d95', color: '#fff', border: 'none', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Row 6: Cetak Otomatis Checkbox */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  id="chkAutoPrint"
-                  checked={tempAreaForm.autoPrintOnPayment || false}
-                  onChange={e => setTempAreaForm(prev => ({ ...prev, autoPrintOnPayment: e.target.checked }))}
-                  style={{ width: '18px', height: '18px', accentColor: '#4c1d95', cursor: 'pointer' }}
-                />
-                <label htmlFor="chkAutoPrint" style={{ fontSize: '0.85rem', fontWeight: '600', color: '#334155', cursor: 'pointer' }}>
-                  Cetak otomatis receipt pada waktu pembayaran
-                </label>
-              </div>
-
-            </div>
-
-            {/* Footer Buttons */}
-            <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button
-                type="button"
-                onClick={() => setShowSelectPrinterModal(false)}
-                style={{ padding: '10px 24px', background: '#ffffff', border: '1px solid #94a3b8', borderRadius: '8px', color: '#334155', fontWeight: '700', cursor: 'pointer', minWidth: '100px' }}
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleSavePrinterAreaForm}
-                style={{ padding: '10px 24px', background: '#4c1d95', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '700', cursor: 'pointer', minWidth: '100px' }}
-              >
-                Simpan
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
       {/* 7. MODAL PENCARIAN NAMA PELANGGAN DATA MASTER */}
+
       {showCustomerSearchModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
           <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', maxHeight: '85vh', padding: '24px', background: 'var(--pos-bg-card)', display: 'flex', flexDirection: 'column' }}>
@@ -9186,25 +8670,25 @@ export default function AndroidPosRegister({
                 Pilih atau Input Kode Kupon:
               </label>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                {[
-                  { code: 'DISKON10K', desc: 'Diskon Rp 10rb', type: 'nominal', val: 10000 },
-                  { code: 'PROMO50', desc: 'Diskon 50%', type: 'percent', val: 50 },
-                  { code: 'VIPULTAH', desc: 'Diskon Rp 25rb', type: 'nominal', val: 25000 }
-                ].map(c => (
+                {(masterData.coupons || []).length === 0 ? (
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                    Belum ada kupon tersedia. Tambahkan melalui Web Admin.
+                  </div>
+                ) : (masterData.coupons || []).map(c => (
                   <button
                     key={c.code}
                     onClick={() => {
                       setCouponCodeInput(c.code);
                       if (c.type === 'percent') {
                         setDiscountMode('percent');
-                        setDiscountInputVal(c.val.toString());
-                        const calcDisc = Math.round((cartSubtotal * c.val) / 100);
+                        setDiscountInputVal(String(c.val || c.value || 0));
+                        const calcDisc = Math.round((cartSubtotal * (c.val || c.value || 0)) / 100);
                         setDiscountValue(calcDisc.toString());
                       } else {
                         setDiscountMode('nominal');
-                        setDiscountValue(c.val.toString());
+                        setDiscountValue(String(c.val || c.value || 0));
                       }
-                      setCouponMsg({ type: 'success', text: `Kupon ${c.code} (${c.desc}) berhasil diterapkan!` });
+                      setCouponMsg({ type: 'success', text: `Kupon ${c.code} (${c.desc || c.description || ''}) berhasil diterapkan!` });
                     }}
                     style={{
                       padding: '6px 12px', background: couponCodeInput === c.code ? 'rgba(52,211,153,0.2)' : 'var(--pos-bg-app)',
@@ -9481,12 +8965,43 @@ export default function AndroidPosRegister({
                 {/* Itemized List */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
                   {cart.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: '700', width: '24px' }}>x{item.qty}</span>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--pos-bg-card)', fontWeight: '800', letterSpacing: '0.3px' }}>{item.name.toUpperCase()}</span>
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 10px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1, minWidth: 0, paddingRight: '6px' }}>
+                        {/* Qty Adjustment Controls */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQty(item.id, -1)}
+                            title="Kurangi 1"
+                            style={{ width: '22px', height: '22px', borderRadius: '4px', border: 'none', background: '#ef4444', color: '#ffffff', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            -
+                          </button>
+                          <span style={{ fontSize: '0.82rem', color: '#1e293b', fontWeight: '800', minWidth: '18px', textAlign: 'center' }}>{item.qty}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQty(item.id, 1)}
+                            title="Tambah 1"
+                            style={{ width: '22px', height: '22px', borderRadius: '4px', border: 'none', background: '#10b981', color: '#ffffff', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <span style={{ fontSize: '0.84rem', color: '#1e293b', fontWeight: '800', letterSpacing: '0.2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
                       </div>
-                      <span style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '700' }}>{formatRupiah(item.price * item.qty)}</span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.85rem', color: '#0f172a', fontWeight: '800' }}>{formatRupiah(item.price * item.qty)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCartItem(item.id)}
+                          title="Hapus Orderan"
+                          style={{ width: '24px', height: '24px', borderRadius: '5px', border: 'none', background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -10026,15 +9541,21 @@ export default function AndroidPosRegister({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
               <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Total Struk</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '2px' }}>{selectedShiftDetailModal.total_receipts} Struk</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '2px' }}>
+                  {selectedShiftDetailModal.total_receipts || selectedShiftDetailModal.total_transactions || (selectedShiftDetailModal.transactions ? selectedShiftDetailModal.transactions.length : 0)} Struk
+                </div>
               </div>
               <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Total Omset</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>{formatRupiah(selectedShiftDetailModal.total_sales)}</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>
+                  {formatRupiah(selectedShiftDetailModal.total_sales || selectedShiftDetailModal.net_sales || selectedShiftDetailModal.gross_sales || 0)}
+                </div>
               </div>
               <div style={{ background: 'var(--pos-bg-app)', padding: '10px', borderRadius: '10px', border: '1px solid var(--pos-border-card)', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>Kas Tunai</div>
-                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>{formatRupiah(selectedShiftDetailModal.cash_sales)}</div>
+                <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>
+                  {formatRupiah(selectedShiftDetailModal.cash_sales || selectedShiftDetailModal.actual_cash || selectedShiftDetailModal.cash_physical || 0)}
+                </div>
               </div>
             </div>
 
@@ -10043,7 +9564,7 @@ export default function AndroidPosRegister({
               Daftar Struk Transaksi Dalam Shift Ini:
             </div>
             <div style={{ background: 'var(--pos-bg-app)', borderRadius: '12px', border: '1px solid var(--pos-border-card)', maxHeight: '180px', overflowY: 'auto', marginBottom: '20px' }}>
-              {selectedShiftDetailModal.transactions.length === 0 ? (
+              {(!selectedShiftDetailModal.transactions || selectedShiftDetailModal.transactions.length === 0) ? (
                 <div style={{ padding: '16px', textAlign: 'center', color: 'var(--pos-txt-secondary)', fontSize: '0.78rem' }}>
                   Belum ada transaksi struk pada sesi shift ini.
                 </div>
@@ -10059,7 +9580,7 @@ export default function AndroidPosRegister({
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedShiftDetailModal.transactions.map((tx, tIdx) => (
+                    {(selectedShiftDetailModal.transactions || []).map((tx, tIdx) => (
                       <tr key={tIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                         <td style={{ padding: '8px 12px', fontWeight: '800', color: '#38bdf8' }}>{tx.id}</td>
                         <td style={{ padding: '8px 12px', color: 'var(--pos-txt-secondary)' }}>{tx.time || '10:00'}</td>
@@ -12744,7 +12265,7 @@ export default function AndroidPosRegister({
             </div>
 
             <div style={{ borderTop: '1px solid var(--pos-border-card)', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => handlePrintTestReceipt()} style={{ padding: '10px 20px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button onClick={() => handleExecuteTestPrint()} style={{ padding: '10px 20px', background: '#38bdf8', color: 'var(--pos-bg-app)', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Printer size={16} />
                 <span>🖨️ Cetak Fisik Thermal</span>
               </button>
