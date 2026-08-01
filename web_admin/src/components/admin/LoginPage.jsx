@@ -44,11 +44,28 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
     setTimeout(() => setMounted(true), 50);
   }, []);
 
-  const webAdminAccounts = masterData?.webAdminAccounts !== undefined
-    ? masterData.webAdminAccounts : DEFAULT_WEB_ADMIN_ACCOUNTS;
+  // Fallback berlapis: gunakan DEFAULT jika array kosong atau tidak ada
+  // Prioritas: webAdminAccounts → userRights → users → DEFAULT
+  const webAdminAccounts = (() => {
+    const wa = masterData?.webAdminAccounts;
+    if (Array.isArray(wa) && wa.length > 0) return wa;
+    const ur = masterData?.userRights;
+    if (Array.isArray(ur) && ur.length > 0) return ur;
+    const us = masterData?.users;
+    if (Array.isArray(us) && us.length > 0) return us;
+    return DEFAULT_WEB_ADMIN_ACCOUNTS;
+  })();
 
-  const mobileAccountsList = masterData?.mobileAccounts !== undefined
-    ? masterData.mobileAccounts : DEFAULT_MOBILE_ACCOUNTS;
+  // Prioritas: mobileAccounts → userRights (canLoginMobile) → users → DEFAULT
+  const mobileAccountsList = (() => {
+    const ma = masterData?.mobileAccounts;
+    if (Array.isArray(ma) && ma.length > 0) return ma;
+    const ur = masterData?.userRights;
+    if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
+    const us = masterData?.users;
+    if (Array.isArray(us) && us.length > 0) return us.filter(u => u.canLoginMobile !== false);
+    return DEFAULT_MOBILE_ACCOUNTS;
+  })();
 
   const outlets = masterData?.outlets || [];
 

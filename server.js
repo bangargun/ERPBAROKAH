@@ -1403,11 +1403,21 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   const incTs = Number(incoming._lastUpdated) || 0;
   const extTs = Number(existing._lastUpdated) || 0;
 
+  // Field kritis yang TIDAK BOLEH di-overwrite dengan [] kosong (perlindungan data user)
+  const USER_CRITICAL_KEYS = new Set(['webAdminAccounts', 'mobileAccounts', 'userRights', 'users', 'userAccounts']);
+
   Object.keys(incoming).forEach(key => {
     const incVal = incoming[key];
     const extVal = existing[key];
 
     if (Array.isArray(incVal)) {
+      // Proteksi khusus: field user-kritis tidak boleh di-overwrite dengan [] tanpa _isExplicitClear
+      if (USER_CRITICAL_KEYS.has(key) && incVal.length === 0 && Array.isArray(extVal) && extVal.length > 0 && !incoming._isExplicitClear) {
+        // Pertahankan data existing yang ada — jangan izinkan array kosong menimpa data user
+        result[key] = extVal;
+        return;
+      }
+
       // If incoming payload timestamp is newer or equal (active client mutation), adopt incVal directly to respect additions & deletions 100%
       if (incTs >= extTs || !extVal) {
         if (incVal.length > 0) {

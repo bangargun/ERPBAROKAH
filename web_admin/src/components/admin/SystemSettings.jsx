@@ -311,30 +311,26 @@ export default function SystemSettings({ masterData, setMasterData }) {
   }, [permissionMatrix, mobilePermissionMatrix]);
 
   // === WEB ADMIN ACCOUNTS ===
+  // Fallback berlapis: webAdminAccounts → userRights → users → []
   const getWebAdminList = () => {
-    if (Array.isArray(masterData?.webAdminAccounts)) {
-      return masterData.webAdminAccounts;
-    }
-    if (Array.isArray(masterData?.userRights) && masterData.userRights.length > 0) {
-      return masterData.userRights;
-    }
-    if (Array.isArray(masterData?.users) && masterData.users.length > 0) {
-      return masterData.users;
-    }
+    const wa = masterData?.webAdminAccounts;
+    if (Array.isArray(wa) && wa.length > 0) return wa;
+    const ur = masterData?.userRights;
+    if (Array.isArray(ur) && ur.length > 0) return ur;
+    const us = masterData?.users;
+    if (Array.isArray(us) && us.length > 0) return us;
     return [];
   };
 
   // === MOBILE ACCOUNTS ===
+  // Fallback berlapis: mobileAccounts → userRights (canLoginMobile) → users → []
   const getMobileList = () => {
-    if (Array.isArray(masterData?.mobileAccounts)) {
-      return masterData.mobileAccounts;
-    }
-    if (Array.isArray(masterData?.userRights) && masterData.userRights.length > 0) {
-      return masterData.userRights.filter(u => u.canLoginMobile !== false);
-    }
-    if (Array.isArray(masterData?.users) && masterData.users.length > 0) {
-      return masterData.users.filter(u => u.canLoginMobile !== false);
-    }
+    const ma = masterData?.mobileAccounts;
+    if (Array.isArray(ma) && ma.length > 0) return ma;
+    const ur = masterData?.userRights;
+    if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
+    const us = masterData?.users;
+    if (Array.isArray(us) && us.length > 0) return us.filter(u => u.canLoginMobile !== false);
     return [];
   };
 
@@ -393,11 +389,19 @@ export default function SystemSettings({ masterData, setMasterData }) {
     }
 
     setMasterData(prev => {
-      const mobList = prev?.mobileAccounts || [];
+      // Ambil daftar mobile terkini dari prev state (bukan masterData closure lama)
+      const mobList = (() => {
+        const ma = prev?.mobileAccounts;
+        if (Array.isArray(ma) && ma.length > 0) return ma;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
+        return [];
+      })();
+      // Gabungkan: web list yang sudah diupdate + mobile list, de-duplikasi by ID
       const usersMap = new Map();
       [...updatedWebList, ...mobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
+        if (u && (u.id || u.username)) {
+          const k = String(u.id || u.username).toLowerCase();
           if (!usersMap.has(k)) usersMap.set(k, u);
         }
       });
@@ -420,11 +424,17 @@ export default function SystemSettings({ masterData, setMasterData }) {
       return u;
     });
     setMasterData(prev => {
-      const mobList = prev?.mobileAccounts || [];
+      const mobList = (() => {
+        const ma = prev?.mobileAccounts;
+        if (Array.isArray(ma) && ma.length > 0) return ma;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
+        return [];
+      })();
       const usersMap = new Map();
       [...updatedWebList, ...mobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
+        if (u && (u.id || u.username)) {
+          const k = String(u.id || u.username).toLowerCase();
           if (!usersMap.has(k)) usersMap.set(k, u);
         }
       });
@@ -444,11 +454,17 @@ export default function SystemSettings({ masterData, setMasterData }) {
     if (window.confirm('Apakah Anda yakin ingin menghapus akun Web Admin ini?')) {
       const updatedWebList = getWebAdminList().filter(u => u.id !== id);
       setMasterData(prev => {
-        const mobList = prev?.mobileAccounts || [];
+        const mobList = (() => {
+          const ma = prev?.mobileAccounts;
+          if (Array.isArray(ma) && ma.length > 0) return ma;
+          const ur = prev?.userRights;
+          if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
+          return [];
+        })();
         const usersMap = new Map();
         [...updatedWebList, ...mobList].forEach(u => {
-          if (u && u.name) {
-            const k = String(u.id || u.username || u.name).toLowerCase();
+          if (u && (u.id || u.username)) {
+            const k = String(u.id || u.username).toLowerCase();
             if (!usersMap.has(k)) usersMap.set(k, u);
           }
         });
@@ -512,11 +528,18 @@ export default function SystemSettings({ masterData, setMasterData }) {
     }
 
     setMasterData(prev => {
-      const webList = prev?.webAdminAccounts || [];
+      // Ambil daftar web admin terkini dari prev state
+      const webList = (() => {
+        const wa = prev?.webAdminAccounts;
+        if (Array.isArray(wa) && wa.length > 0) return wa;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur;
+        return [];
+      })();
       const usersMap = new Map();
       [...webList, ...updatedMobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
+        if (u && (u.id || u.username)) {
+          const k = String(u.id || u.username).toLowerCase();
           if (!usersMap.has(k)) usersMap.set(k, u);
         }
       });
@@ -539,11 +562,17 @@ export default function SystemSettings({ masterData, setMasterData }) {
       return u;
     });
     setMasterData(prev => {
-      const webList = prev?.webAdminAccounts || [];
+      const webList = (() => {
+        const wa = prev?.webAdminAccounts;
+        if (Array.isArray(wa) && wa.length > 0) return wa;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur;
+        return [];
+      })();
       const usersMap = new Map();
       [...webList, ...updatedMobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
+        if (u && (u.id || u.username)) {
+          const k = String(u.id || u.username).toLowerCase();
           if (!usersMap.has(k)) usersMap.set(k, u);
         }
       });
@@ -563,11 +592,17 @@ export default function SystemSettings({ masterData, setMasterData }) {
     if (window.confirm('Apakah Anda yakin ingin menghapus akun Mobile APK ini?')) {
       const updatedMobList = getMobileList().filter(u => u.id !== id);
       setMasterData(prev => {
-        const webList = prev?.webAdminAccounts || [];
+        const webList = (() => {
+          const wa = prev?.webAdminAccounts;
+          if (Array.isArray(wa) && wa.length > 0) return wa;
+          const ur = prev?.userRights;
+          if (Array.isArray(ur) && ur.length > 0) return ur;
+          return [];
+        })();
         const usersMap = new Map();
         [...webList, ...updatedMobList].forEach(u => {
-          if (u && u.name) {
-            const k = String(u.id || u.username || u.name).toLowerCase();
+          if (u && (u.id || u.username)) {
+            const k = String(u.id || u.username).toLowerCase();
             if (!usersMap.has(k)) usersMap.set(k, u);
           }
         });
