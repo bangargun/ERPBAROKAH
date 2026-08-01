@@ -3564,49 +3564,18 @@ export default function AndroidPosRegister({
                   {custDetailSubTab === 'detail' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {/* Form Details Read-Only Fields */}
-                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Phone</span>
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
+                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Nomor HP</span>
                           <span style={{ fontWeight: '900', color: 'var(--pos-txt-primary)' }}>{activeCust.phone || '-'}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Email</span>
-                          <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{activeCust.email || '-'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Jenis Kelamin</span>
-                          <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{activeCust.gender || 'wanita'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                          <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Tanggal Lahir</span>
-                          <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{activeCust.birthdate || '-'}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                           <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Kategori Harga</span>
-                          <span style={{ fontWeight: '900', color: '#38bdf8' }}>{activeCust.customer_type || 'Reguler'}</span>
+                          <span style={{ fontWeight: '900', color: '#38bdf8' }}>{activeCust.customer_type || activeCust.price_category || 'Reguler'}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                           <span style={{ color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Outlet Terdaftar</span>
                           <span style={{ fontWeight: '900', color: '#fbbf24' }}>{custOutletName}</span>
-                        </div>
-                      </div>
-
-                      {/* Section Alamat */}
-                      <div style={{ marginTop: '8px' }}>
-                        <div style={{ fontSize: '0.84rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>📍</span>
-                          <span>Alamat</span>
-                        </div>
-                        <div style={{ background: 'var(--pos-bg-card)', borderRadius: '14px', padding: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                          <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#6366f1' }}>
-                            Rumah
-                          </div>
-                          <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', margin: '2px 0 6px 0' }}>
-                            {activeCust.name} • {activeCust.phone || '-'}
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', lineHeight: 1.4 }}>
-                            {activeCust.address || 'Jl. Kelapa Sawit, Pelita, Bajenis, Kota Tebing Tinggi, Sumatera Utara (20621)'}
-                          </div>
                         </div>
                       </div>
                     </div>
