@@ -27,7 +27,8 @@ if (fs.existsSync(envPath)) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+// PORT resmi produksi VPS: 5001 (sesuai Nginx proxy_pass)
+const PORT = 5001;
 
 app.use(cors({
   origin: '*',
@@ -1708,8 +1709,8 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
 });
 
-// Start Server
-const TARGET_PORT = Number(process.env.PORT) || 5001;
+// Start Server — PORT resmi produksi: 5001 (dikunci, tidak tergantung env)
+const TARGET_PORT = PORT;
 
 const startServer = (portToUse, retries = 5) => {
   const server = app.listen(portToUse, '0.0.0.0', () => {
