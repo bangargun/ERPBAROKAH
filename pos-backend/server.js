@@ -710,10 +710,12 @@ const syncToMySQL = async (masterData) => {
       const smReason = String(sm.reason || sm.supplier || sm.notes || '');
       const smUser = String(sm.created_by || sm.user_name || sm.requested_by || 'Staf');
 
-      await mysqlPool.execute(`
-        INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, target_outlet, reason, user_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [smDate, smTime, smName, smType, smQty, smUnit, smOutletId, smSource, smTarget, smReason, smUser]).catch(() => {});
+      try {
+        await mysqlPool.execute(`
+          INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, target_outlet, reason, user_name)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [smDate, smTime, smName, smType, smQty, smUnit, smOutletId, smSource, smTarget, smReason, smUser]);
+      } catch (smErr) {}
     }
   } catch (err) {
     console.error('syncToMySQL error:', err.message);
@@ -1569,7 +1571,9 @@ app.delete('/api/master-data/:key/:id', async (req, res) => {
                        key === 'suppliers' ? 'suppliers' :
                        key === 'customers' ? 'customers' : null;
       if (relTable) {
-        await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]).catch(() => {});
+        try {
+          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]);
+        } catch (delErr) {}
       }
     }
 
@@ -1628,7 +1632,9 @@ app.post('/api/master-data/delete-item', async (req, res) => {
                        key === 'suppliers' ? 'suppliers' :
                        key === 'customers' ? 'customers' : null;
       if (relTable) {
-        await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]).catch(() => {});
+        try {
+          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]);
+        } catch (delErr) {}
       }
     }
 
@@ -1703,7 +1709,7 @@ app.get('*', (req, res, next) => {
 });
 
 // Start Server
-const TARGET_PORT = Number(process.env.PORT) || 5000;
+const TARGET_PORT = Number(process.env.PORT) || 5001;
 
 const startServer = (portToUse, retries = 5) => {
   const server = app.listen(portToUse, '0.0.0.0', () => {
