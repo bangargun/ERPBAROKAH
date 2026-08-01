@@ -2037,60 +2037,46 @@ export default function AndroidPosRegister({
           {/* FORM USER & OUTLET SELECTION */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-            {/* 1. PILIH OUTLET */}
+            {/* 1. PILIH OUTLET CABANG (DINAMIS DARI MASTER DATA WEB ADMIN) */}
             <div>
               <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
                 🏪 Pilih Outlet Cabang:
               </label>
-              {availableOutlets.length === 0 ? (
-                <div style={{
-                  background: 'rgba(16, 185, 129, 0.12)',
-                  border: '1.5px solid #10b981',
-                  borderRadius: '12px',
-                  padding: '10px 12px',
-                  fontSize: '0.82rem',
-                  fontWeight: '700',
-                  color: '#34d399',
-                  textAlign: 'center'
-                }}>
-                  ✅ Akses Outlet Central — Super Admin / Owner
-                </div>
-              ) : (
-                <select
-                  value={activeOutletObj?.id || 'ALL'}
-                  onChange={(e) => {
-                    const val = String(e.target.value);
-                    if (val === 'ALL') {
-                      setLoginSelectedOutlet({ id: 'ALL', name: 'Akses Semua Outlet (Central)', code: 'ALL' });
+              <select
+                value={activeOutletObj?.id || 'ALL'}
+                onChange={(e) => {
+                  const val = String(e.target.value);
+                  if (val === 'ALL') {
+                    setLoginSelectedOutlet({ id: 'ALL', name: 'Akses Semua Outlet (Central)', code: 'ALL' });
+                    setLoginErrorText('');
+                  } else {
+                    const allOutlets = [...(masterData?.outlets || []), ...availableOutlets];
+                    const found = allOutlets.find(o => String(o.id) === val);
+                    if (found) {
+                      setLoginSelectedOutlet(found);
                       setLoginErrorText('');
-                    } else {
-                      const found = availableOutlets.find(o => String(o.id) === val);
-                      if (found) {
-                        setLoginSelectedOutlet(found);
-                        setLoginErrorText('');
-                      }
                     }
-                  }}
-                  style={{
-                    width: '100%',
-                    background: '#1e293b',
-                    border: '1px solid #334155',
-                    color: '#f8fafc',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    fontSize: '0.90rem',
-                    fontWeight: '800',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <option value="ALL">🌐 Akses Semua Outlet (Central)</option>
-                  {availableOutlets.map(o => (
-                    <option key={o.id} value={o.id}>
-                      📍 {o.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: '#1e293b',
+                  border: '1.5px solid #3b82f6',
+                  color: '#f8fafc',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  fontSize: '0.90rem',
+                  fontWeight: '800',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <option value="ALL">🌐 Akses Semua Outlet (Central / Owner)</option>
+                {(masterData?.outlets && masterData.outlets.length > 0 ? masterData.outlets : availableOutlets).map(o => (
+                  <option key={o.id} value={o.id}>
+                    📍 {o.name} {o.code ? `(${o.code})` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* 2. PILIH AKUN PENGGUNA */}
