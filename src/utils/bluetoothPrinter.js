@@ -59,7 +59,7 @@ export const scanPairedPrinters = async () => {
 export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWidth = '58', formatRupiah) => {
   const charsPerLine = paperWidth === '80' ? 48 : 32;
   const lines = [];
-  const outlet = (outletName || 'MRIS POS RESTORAN').toUpperCase();
+  const outlet = (outletName || 'POS KASIR BAROKAH').toUpperCase();
 
   const fmt = formatRupiah || ((n) => `Rp ${Number(n).toLocaleString('id-ID')}`);
 
@@ -131,7 +131,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
   } else {
     // ===== STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT) =====
     lines.push('[C][B]' + outlet);
-    lines.push('[C]MRIS RESTAURANT POS SYSTEM');
+    lines.push('[C]POS KASIR BAROKAH');
     lines.push('[C]NOTA PEMBAYARAN');
     lines.push('[DIV]');
     lines.push(rowLine('No. Struk:', tx.id || tx.receipt_no || '-'));
@@ -208,7 +208,7 @@ export const printToBluetoothPrinter = async (mac, textContent, paperWidth = '58
  * @param {string} outletName - Nama outlet
  * @param {string} paperWidth - '58' | '80'
  */
-export const testPrint = async (mac, outletName = 'MRIS POS', paperWidth = '58') => {
+export const testPrint = async (mac, outletName = 'POS KASIR BAROKAH', paperWidth = '58') => {
   const charsPerLine = paperWidth === '80' ? 48 : 32;
   const divider = '-'.repeat(charsPerLine);
   const now = new Date();
@@ -217,8 +217,8 @@ export const testPrint = async (mac, outletName = 'MRIS POS', paperWidth = '58')
 
   const text = [
     '[C][2]TEST PRINT',
-    '[C]' + (outletName || 'MRIS POS').toUpperCase(),
-    '[C]MRIS RESTAURANT SYSTEM',
+    '[C]' + (outletName || 'POS KASIR BAROKAH').toUpperCase(),
+    '[C]POS KASIR BAROKAH',
     divider,
     `Tanggal : ${dateStr}`,
     `Waktu   : ${timeStr}`,
@@ -226,7 +226,7 @@ export const testPrint = async (mac, outletName = 'MRIS POS', paperWidth = '58')
     `Kertas  : ${paperWidth}mm`,
     divider,
     '[C][B]*** PRINTER SIAP DIGUNAKAN ***',
-    '[C]Sistem MRIS POS Ready',
+    '[C]POS KASIR BAROKAH Ready',
     '',
     ''
   ].join('\n');

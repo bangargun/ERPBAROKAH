@@ -1529,7 +1529,7 @@ export default function AndroidPosRegister({
 
   // Test print ke hardware printer — kirim struk tes sederhana via Bluetooth
   const handleExecuteTestPrint = useCallback(async () => {
-    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
     showPrintStatus('printing', '🖨️ Mengirim test print...');
     try {
       await btTestPrint(printerMac, outletName, printerPaperWidth);
@@ -1545,7 +1545,7 @@ export default function AndroidPosRegister({
   // BLUETOOTH BATCH PRINT — Cetak semua tiket yang dipilih ke hardware printer
   const handleExecuteBatchPrint = useCallback(async (tx, selections) => {
     if (!tx) return;
-    const outletName = currentOutlet?.name || 'MRIS POS';
+    const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
     const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 
     const printJobs = [];
@@ -1584,7 +1584,7 @@ export default function AndroidPosRegister({
   // CETAK ULANG RIWAYAT TRANSAKSI ke hardware Bluetooth printer
   const handlePrintSingleReceipt = useCallback(async (tx) => {
     if (!tx) return;
-    const outletName = currentOutlet?.name || 'MRIS POS RESTORAN';
+    const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
     const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
     const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp);
     await printTextToBluetooth(text);
@@ -1594,7 +1594,7 @@ export default function AndroidPosRegister({
   // LAPORAN SHIFT CLOSING ke hardware Bluetooth printer
   const handlePrintShiftClosingReport = useCallback(async (shiftData) => {
     if (!shiftData) return;
-    const outletName = (currentOutlet?.name || shiftData.branch_name || 'MRIS POS').toUpperCase();
+    const outletName = (currentOutlet?.name || shiftData.branch_name || 'POS KASIR BAROKAH').toUpperCase();
     const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
     const charsPerLine = printerPaperWidth === '80' ? 48 : 32;
     const div = '-'.repeat(charsPerLine);
@@ -8365,7 +8365,7 @@ export default function AndroidPosRegister({
                         splitPrintHTML += `
                           <div class="ticket-block">
                             <div class="text-center">
-                              <div class="bold" style="font-size:13px;">${currentOutlet.name?.toUpperCase() || 'MRIS RESTO'}</div>
+                              <div class="bold" style="font-size:13px;">${currentOutlet.name?.toUpperCase() || 'POS KASIR BAROKAH'}</div>
                               <div class="bold" style="font-size:11px; margin-top:4px;">*** STRUK SPLIT BILL - ${cName.toUpperCase()} ***</div>
                             </div>
                             <div class="divider-dash"></div>
@@ -8396,7 +8396,7 @@ export default function AndroidPosRegister({
                     splitPrintHTML += `
                       <div class="ticket-block">
                         <div class="text-center">
-                          <div class="bold" style="font-size:13px;">${currentOutlet.name?.toUpperCase() || 'MRIS RESTO'}</div>
+                          <div class="bold" style="font-size:13px;">${currentOutlet.name?.toUpperCase() || 'POS KASIR BAROKAH'}</div>
                           <div class="bold" style="font-size:11px; margin-top:4px;">*** REKAPITULASI SPLIT BILL OVERALL ***</div>
                         </div>
                         <div class="divider-dash"></div>
@@ -8450,7 +8450,7 @@ export default function AndroidPosRegister({
                       splitPrintHTML += `
                         <div class="ticket-block">
                           <div class="text-center">
-                            <div class="bold" style="font-size:13px;">${currentOutlet.name?.toUpperCase() || 'MRIS RESTO'}</div>
+                            <div class="bold" style="font-size:13px;">${currentOutlet.name?.toUpperCase() || 'POS KASIR BAROKAH'}</div>
                             <div class="bold" style="font-size:11px; margin-top:4px;">*** STRUK SPLIT EQUAL - ORANG ${i} dari ${splitPeopleCount} ***</div>
                           </div>
                           <div class="divider-dash"></div>
