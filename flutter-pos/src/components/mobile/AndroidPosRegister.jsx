@@ -119,15 +119,20 @@ export default function AndroidPosRegister({
 
   // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
-  const products = rawProducts.filter(p => 
-    !p.outlet_id || 
+  const products = rawProducts.filter(p => {
+    const priceVal = Number(p.price || p.cost_price || p.cost || 0);
+    const hasPriceCombo = (p.priceCombinations || []).some(c => c.outletPrices && Object.values(c.outletPrices).some(v => Number(v) > 0));
+    const hasStdPrice = (p.standardPrices && Object.values(p.standardPrices).some(v => Number(v) > 0));
+    if (priceVal <= 0 && !hasPriceCombo && !hasStdPrice) return false;
+
+    return !p.outlet_id || 
     p.outlet_id === 'Semua Outlet' ||
     p.outlet_id === 'Semua Outlet (Central)' ||
     String(p.outlet_id) === String(currentOutlet.id) || 
     String(p.outlet_name || '').toLowerCase() === String(currentOutlet.name || '').toLowerCase() ||
     String(currentOutlet.id) === '1' ||
-    String(p.outlet_id) === '1'
-  );
+    String(p.outlet_id) === '1';
+  });
   const menuList = products;
   const masterCategoryNames = (masterData?.categories || [])
     .filter(c => !c.status || c.status === 'Aktif')

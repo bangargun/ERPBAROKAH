@@ -378,9 +378,29 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
+  const getEffectiveProductPrice = (p) => {
+    if (p.price && Number(p.price) > 0) return Number(p.price);
+    if (p.priceCombinations && p.priceCombinations.length > 0) {
+      for (const combo of p.priceCombinations) {
+        if (combo.outletPrices) {
+          const prices = Object.values(combo.outletPrices).map(Number).filter(v => v > 0);
+          if (prices.length > 0) return Math.max(...prices);
+        }
+      }
+    }
+    if (p.standardPrices) {
+      const prices = Object.values(p.standardPrices).map(Number).filter(v => v > 0);
+      if (prices.length > 0) return Math.max(...prices);
+    }
+    return 0;
+  };
+
   const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
 
   const filteredProducts = masterData.products.filter(p => {
+    // Sembunyikan produk yang harganya 0 atau tidak valid
+    if (getEffectiveProductPrice(p) <= 0) return false;
+
     if (selectedBranch) {
       const matchOutlet = p.outlet_id === selectedBranch || Number(p.outlet_id) === Number(selectedBranch) ||
         (p.selectedOutletIds && (p.selectedOutletIds.includes(selectedBranch) || p.selectedOutletIds.includes(String(selectedBranch)) || p.selectedOutletIds.includes(Number(selectedBranch))));
