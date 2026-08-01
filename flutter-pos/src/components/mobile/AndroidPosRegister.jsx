@@ -1171,20 +1171,23 @@ export default function AndroidPosRegister({
   };
 
   const filterItemsForTicketTarget = (items = [], targetType = 'KITCHEN') => {
-    if (targetType === 'KITCHEN') {
-      return items.filter(it => {
-        if (it.printer_target === 'bar') return false;
-        if (it.printer_target === 'dapur' || it.printer_target === 'keduanya') return true;
+    const masterCats = masterData?.categories || [];
+    return items.filter(it => {
+      const catName = (it.category || it.category_name || '').toLowerCase();
+      const catObj = masterCats.find(c => (c.name || '').toLowerCase() === catName || String(c.id) === String(it.category_id));
+      const targetPrinter = ((catObj?.target_printer || catObj?.target_struk || it.printer_target || '') + '').toLowerCase();
+
+      if (targetType === 'KITCHEN') {
+        if (targetPrinter.includes('bar') && !targetPrinter.includes('dapur')) return false;
+        if (targetPrinter.includes('dapur') || targetPrinter.includes('keduanya')) return true;
         return !isDrinkCategory(it.category || it.category_name, it.name);
-      });
-    } else if (targetType === 'BAR') {
-      return items.filter(it => {
-        if (it.printer_target === 'dapur') return false;
-        if (it.printer_target === 'bar' || it.printer_target === 'keduanya') return true;
+      } else if (targetType === 'BAR') {
+        if (targetPrinter.includes('dapur') && !targetPrinter.includes('bar')) return false;
+        if (targetPrinter.includes('bar') || targetPrinter.includes('keduanya')) return true;
         return isDrinkCategory(it.category || it.category_name, it.name);
-      });
-    }
-    return items;
+      }
+      return true;
+    });
   };
 
   // Customer Search Modal State

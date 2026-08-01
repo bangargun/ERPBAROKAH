@@ -339,18 +339,11 @@ export const _browserPrintFallback = (textContent, paperWidth = '58') => {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
       } catch (e) {
-        console.warn('[BTPrinter] iframe print exception, using window.open fallback:', e);
+        console.warn('[BTPrinter] iframe print exception, falling back to window.print():', e);
         try {
-          const printWin = window.open('', '_blank');
-          if (printWin) {
-            printWin.document.write(html);
-            printWin.document.close();
-            printWin.focus();
-            printWin.print();
-            setTimeout(() => { try { printWin.close(); } catch(errClose){} }, 1000);
-          }
+          window.print();
         } catch (errWin) {
-          console.error('[BTPrinter] PDF Print popup blocked / failed:', errWin);
+          console.error('[BTPrinter] PDF Print failed:', errWin);
         }
       }
       setTimeout(() => {
