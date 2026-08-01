@@ -1122,7 +1122,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               
               {/* Resto Branding Header */}
               <div style={{ textAlign: 'center', borderBottom: '1px dashed #334155', paddingBottom: '12px' }}>
-                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.05em' }}>MRIS RESTO POS</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.05em' }}>POS KASIR BAROKAH</div>
                 <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '2px', fontWeight: '700' }}>🏢 {previewRecord.branch_name}</div>
                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>Terhubung Realtime Kasir System</div>
               </div>

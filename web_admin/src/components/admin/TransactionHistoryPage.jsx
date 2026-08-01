@@ -26,12 +26,9 @@ import {
   ChevronDown,
   RefreshCw,
   SlidersHorizontal,
-  MoreVertical,
-  FileSpreadsheet,
-  UploadCloud
+  MoreVertical
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
-import ExcelMasterImportModal from './ExcelMasterImportModal';
 
 export default function TransactionHistoryPage({ masterData, setMasterData, selectedBranch }) {
   const outlets = masterData?.outlets || [];
@@ -47,7 +44,15 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   };
   
   // MASTER DATA PELANGGAN
-  const customerList = masterData?.customers || [];
+  const customerList = (masterData?.customers && masterData.customers.length > 0)
+    ? masterData.customers
+    : [
+        { id: 1, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', phone: '0812-3456-7890', tier: 'Gold' },
+        { id: 2, name: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', phone: '0811-9876-5432', tier: 'Silver' },
+        { id: 3, name: 'AYAM PECAK 2001 SEAFOOD KISARAN', phone: '0813-1122-3344', tier: 'Platinum' },
+        { id: 4, name: 'AYAM BAKAR SURABAYA TEBING TINGGI', phone: '0815-6677-8899', tier: 'Gold' },
+        { id: 5, name: 'Default Customer', phone: '-', tier: 'Reguler' }
+      ];
 
   // EXTRACT DYNAMIC VARIANT & PRICE PER OUTLET FROM MASTER DATA PRODUK
   const getVariantOutletProducts = (targetOutletId = null) => {
@@ -64,7 +69,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
               const outObj = outletsList.find(o => Number(o.id) === Number(outId));
               const outName = outObj ? outObj.name : `Outlet #${outId}`;
-              const price = combo.outletPrices?.[outId] !== undefined ? combo.outletPrices[outId] : (p.price || 0);
+              const price = combo.outletPrices?.[outId] !== undefined ? combo.outletPrices[outId] : (p.price || 35000);
               
               items.push({
                 id: `${p.id}-${combo.id}-${outId}`,
@@ -91,7 +96,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
           const outObj = outletsList.find(o => Number(o.id) === Number(outId));
           const outName = outObj ? outObj.name : `Outlet #${outId}`;
-          const basePrice = p.price || 0;
+          const basePrice = p.price || 35000;
 
           if (p.variants && p.variants.length > 0) {
             p.variants.forEach(vName => {
@@ -140,12 +145,6 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [viewMode, setViewMode] = useState('list');
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [previewRecord, setPreviewRecord] = useState(null);
-  const [showExcelImportModal, setShowExcelImportModal] = useState(false);
-
-  // DELETE MODAL STATES WITH REQUIRED NOTES REASON
-  const [deleteRecord, setDeleteRecord] = useState(null);
-  const [deleteReason, setDeleteReason] = useState('');
-  const [deleteError, setDeleteError] = useState('');
 
   // FILTER STATES
   const [statusFilterPreset, setStatusFilterPreset] = useState('Semua');
@@ -189,7 +188,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formTime, setFormTime] = useState('12:00');
   const [formOutletId, setFormOutletId] = useState(1);
-  const [formCashier, setFormCashier] = useState(adminList[0]?.name || '');
+  const [formCashier, setFormCashier] = useState(adminList[0]?.name || 'Rina Kasir');
   const [formCustomerName, setFormCustomerName] = useState('Pelanggan Umum');
   const [formOrderType, setFormOrderType] = useState('Dine In');
   const [formItemRows, setFormItemRows] = useState([]);
@@ -214,22 +213,22 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     setFormDate(new Date().toISOString().split('T')[0]);
     setFormTime(new Date().toTimeString().substring(0, 5));
     setFormOutletId(selectedBranch || 1);
-    setFormCashier(adminList[0]?.name || '');
+    setFormCashier(adminList[0]?.name || 'Rina Kasir');
     setFormCustomerName('Default Customer');
     setFormOrderType('Dine In');
     setFormPaymentMethod('Cash');
     setFormNotes('');
 
-    const firstProduct = menuProducts[0] || null;
+    const firstProduct = menuProducts[0] || { name: 'AYAM BAKAR / SAMBAL PENYET', price: 35000, sku: '000987' };
     setFormItemRows([
       {
         id: Date.now(),
-        name: firstProduct?.name || '',
-        sku: firstProduct?.sku || '',
+        name: firstProduct.name,
+        sku: firstProduct.sku || 'SKU-1',
         unit: 'PORSI',
         qty: 1,
-        price_unit: firstProduct?.price || 0,
-        amount: firstProduct?.price || 0
+        price_unit: firstProduct.price || 35000,
+        amount: firstProduct.price || 35000
       }
     ]);
     setShowModal(true);
@@ -241,7 +240,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     setFormDate(item.date || new Date().toISOString().split('T')[0]);
     setFormTime(item.time || '12:00');
     setFormOutletId(item.outlet_id || 1);
-    setFormCashier(item.cashier || adminList[0]?.name || '');
+    setFormCashier(item.cashier || adminList[0]?.name || 'Rina Kasir');
     setFormCustomerName(item.customer_name || 'Default Customer');
     setFormOrderType(item.order_type || 'Dine In');
     setFormPaymentMethod(item.payment_method || 'Cash');
@@ -254,19 +253,19 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         sku: it.sku || `SKU-${idx + 1}`,
         unit: it.unit || 'PORSI',
         qty: it.qty || 1,
-        price_unit: it.price_unit || 0,
-        amount: (it.qty || 1) * (it.price_unit || 0)
+        price_unit: it.price_unit || 35000,
+        amount: (it.qty || 1) * (it.price_unit || 35000)
       })));
     } else {
       setFormItemRows([
         {
           id: Date.now(),
-          name: item.item_name || menuProducts[0]?.name || '',
-          sku: '',
+          name: item.item_name || menuProducts[0]?.name || 'AYAM BAKAR / SAMBAL PENYET',
+          sku: '000987',
           unit: 'PORSI',
           qty: item.qty || 1,
-          price_unit: item.price_unit || 0,
-          amount: item.amount || 0
+          price_unit: item.price_unit || 35000,
+          amount: item.amount || 35000
         }
       ]);
     }
@@ -277,15 +276,15 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const handleAddBlankItemRow = () => {
     const currentOutletProducts = getVariantOutletProducts(formOutletId);
     const nextIdx = formItemRows.length;
-    const p = currentOutletProducts[nextIdx % currentOutletProducts.length] || null;
+    const p = currentOutletProducts[nextIdx % currentOutletProducts.length] || { name: 'Item Produk Baru', price: 25000, sku: 'SKU-NEW' };
     const newRow = {
       id: Date.now() + Math.random(),
-      name: p?.name || '',
-      sku: p?.sku || '',
+      name: p.name,
+      sku: p.sku || 'SKU-NEW',
       unit: 'PORSI',
       qty: 1,
-      price_unit: p?.price || 0,
-      amount: p?.price || 0
+      price_unit: p.price || 25000,
+      amount: p.price || 25000
     };
     setFormItemRows([...formItemRows, newRow]);
   };
@@ -370,9 +369,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (setMasterData) {
       setMasterData({
         ...masterData,
-        _lastUpdated: Date.now(),
-        salesTransactions: updatedList,
-        transactions: updatedList
+        salesTransactions: updatedList
       });
     }
 
@@ -393,54 +390,18 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (setMasterData) {
       setMasterData({
         ...masterData,
-        _lastUpdated: Date.now(),
-        salesTransactions: updatedList,
-        transactions: updatedList
+        salesTransactions: updatedList
       });
     }
-  };
-
-  const handleOpenDeleteModal = (item) => {
-    setDeleteRecord(item);
-    setDeleteReason('');
-    setDeleteError('');
-  };
-
-  const handleConfirmDelete = () => {
-    if (!deleteReason.trim()) {
-      setDeleteError('Catatan alasan penghapusan wajib diisi sebelum transaksi dapat dihapus.');
-      return;
-    }
-    if (!deleteRecord) return;
-
-    const targetId = deleteRecord.id;
-    const updatedList = transactions.filter(t => t.id !== targetId);
-    if (setMasterData) {
-      setMasterData({
-        ...masterData,
-        _lastUpdated: Date.now(),
-        salesTransactions: updatedList,
-        transactions: updatedList
-      });
-    }
-
-    setDeleteRecord(null);
-    setDeleteReason('');
-    setDeleteError('');
   };
 
   const handleDeleteTransaction = (id) => {
-    const item = transactions.find(t => t.id === id);
-    if (item) {
-      handleOpenDeleteModal(item);
-    } else {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${id}?`)) {
       const updatedList = transactions.filter(t => t.id !== id);
       if (setMasterData) {
         setMasterData({
           ...masterData,
-          _lastUpdated: Date.now(),
-          salesTransactions: updatedList,
-          transactions: updatedList
+          salesTransactions: updatedList
         });
       }
     }
@@ -484,7 +445,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     const inv = selectedInvoice;
     const itemList = inv.items && inv.items.length > 0 
       ? inv.items 
-      : [{ name: inv.item_name || '', sku: '', qty: inv.qty || 1, unit: 'PORSI', price_unit: inv.amount || 0, amount: inv.amount || 0 }];
+      : [{ name: inv.item_name || 'AYAM BAKAR / SAMBAL PENYET', sku: '000987', qty: inv.qty || 1, unit: 'PORSI', price_unit: inv.amount || 35000, amount: inv.amount || 35000 }];
     
     const totalQtyCount = itemList.reduce((sum, it) => sum + Number(it.qty || 1), 0);
 
@@ -760,50 +721,8 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
           </div>
         </div>
 
-        {/* "+ TAMBAH BARU", "📥 UPLOAD EXCEL", & "📄 UPLOAD PDF" BUTTONS */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button 
-            onClick={() => setShowExcelImportModal(true)} 
-            style={{ 
-              padding: '8px 16px', 
-              fontSize: '0.85rem', 
-              fontWeight: '700',
-              display: 'flex', 
-              alignItems: 'center',
-              gap: '8px', 
-              background: '#1e293b', 
-              color: '#38bdf8',
-              borderRadius: '8px',
-              border: '1px solid #38bdf8',
-              cursor: 'pointer'
-            }}
-            title="Unduh Template & Upload File Excel Transaksi Penjualan (.csv / .xlsx)"
-          >
-            <FileSpreadsheet size={16} color="#38bdf8" />
-            <span>📥 Template & Upload Excel</span>
-          </button>
-
-          <button 
-            onClick={() => setShowExcelImportModal(true)} 
-            style={{ 
-              padding: '8px 16px', 
-              fontSize: '0.85rem', 
-              fontWeight: '700',
-              display: 'flex', 
-              alignItems: 'center',
-              gap: '8px', 
-              background: '#1e293b', 
-              color: '#f472b6',
-              borderRadius: '8px',
-              border: '1px solid #f472b6',
-              cursor: 'pointer'
-            }}
-            title="Import Rekap Transaksi Penjualan dari Dokumen PDF (.pdf)"
-          >
-            <FileText size={16} color="#f472b6" />
-            <span>📄 Upload PDF Transaksi</span>
-          </button>
-
+        {/* "+ TAMBAH BARU" PURPLE BUTTON */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button 
             onClick={handleOpenAddModal} 
             style={{ 
@@ -956,31 +875,17 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                       </span>
                     </td>
 
-                    {/* Aksi (Ubah & Hapus) */}
+                    {/* Aksi (PURPLE UBAH BUTTON MATCHING DARK THEME) */}
                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                        <button 
-                          onClick={() => handleOpenEditModal(item)}
-                          style={{
-                            background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 14px', borderRadius: '16px',
-                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
-                          }}
-                          title="Ubah Data Transaksi Ini"
-                        >
-                          Ubah
-                        </button>
-                        <button 
-                          onClick={() => handleOpenDeleteModal(item)}
-                          style={{
-                            background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '6px 12px', borderRadius: '16px',
-                            fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
-                          }}
-                          title="Hapus / Void Transaksi Penjualan Ini"
-                        >
-                          <Trash2 size={13} />
-                          <span>Hapus</span>
-                        </button>
-                      </div>
+                      <button 
+                        onClick={() => handleOpenEditModal(item)}
+                        style={{
+                          background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 18px', borderRadius: '16px',
+                          fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
+                        }}
+                      >
+                        Ubah
+                      </button>
                     </td>
 
                   </tr>
@@ -1028,25 +933,6 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 <X size={20} />
               </button>
             </div>
-
-            {!editingRecord && (
-              <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid #38bdf8', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: '700' }}>
-                  💡 Memiliki rekap file Excel / CSV banyak transaksi penjualan?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setShowExcelImportModal(true);
-                  }}
-                  style={{ background: '#0284c7', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <FileSpreadsheet size={14} />
-                  <span>📥 Upload Excel</span>
-                </button>
-              </div>
-            )}
 
             <form onSubmit={handleSaveTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1236,7 +1122,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               
               {/* Resto Branding Header */}
               <div style={{ textAlign: 'center', borderBottom: '1px dashed #334155', paddingBottom: '12px' }}>
-                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.05em' }}>MRIS RESTO POS</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.05em' }}>POS KASIR BAROKAH</div>
                 <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '2px', fontWeight: '700' }}>🏢 {previewRecord.branch_name}</div>
                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>Terhubung Realtime Kasir System</div>
               </div>
@@ -1275,7 +1161,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 </div>
 
                 {(previewRecord.items && previewRecord.items.length > 0 ? previewRecord.items : [
-                  { name: previewRecord.item_name || '', qty: previewRecord.qty || 1, price_unit: previewRecord.price_unit || 0, amount: previewRecord.amount || 0 }
+                  { name: previewRecord.item_name || 'Nasi Goreng Spesial', qty: previewRecord.qty || 1, price_unit: previewRecord.price_unit || 35000, amount: previewRecord.amount || 35000 }
                 ]).map((it, idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#f8fafc' }}>
                     <div>
@@ -1324,127 +1210,10 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 Tutup Struk
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* MODAL PAPAN INFORMASI KONFIRMASI HAPUS TRANSAKSI PENJUALAN  */}
-      {/* ========================================================= */}
-      {deleteRecord && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 160
-        }}>
-          <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '480px', padding: '24px', background: '#0f172a',
-            border: '1px solid rgba(244,63,94,0.4)', borderRadius: '20px',
-            boxShadow: '0 25px 50px rgba(0,0,0,0.8)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#fb7185', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Trash2 size={20} color="#fb7185" />
-                <span>Konfirmasi Penghapusan Transaksi</span>
-              </h3>
-              <button type="button" onClick={() => setDeleteRecord(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Papan Informasi Transaksi */}
-            <div style={{ background: '#1e293b', padding: '14px 16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', fontSize: '0.82rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>No Struk / ID Transaksi:</span>
-                <strong style={{ color: '#38bdf8', fontFamily: 'monospace' }}>{deleteRecord.id}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal & Waktu:</span>
-                <span style={{ color: '#cbd5e1' }}>📅 {deleteRecord.date} {deleteRecord.time || ''}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Pelanggan / Outlet:</span>
-                <span style={{ color: '#f8fafc', fontWeight: '700' }}>👤 {deleteRecord.customer_name || 'Pelanggan Umum'} · {deleteRecord.branch_name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #334155', paddingTop: '6px', marginTop: '2px' }}>
-                <span style={{ color: '#94a3b8' }}>Total Nominal Penjualan:</span>
-                <strong style={{ color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(deleteRecord.amount || 0)}</strong>
-              </div>
-            </div>
-
-            {/* Field Catatan Alasan Penghapusan (Wajib Diisi) */}
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#f8fafc', display: 'block', marginBottom: '6px' }}>
-                📝 Catatan Alasan Penghapusan (Wajib Diisi): <span style={{ color: '#fb7185' }}>*</span>
-              </label>
-              <textarea
-                rows={3}
-                required
-                placeholder="Tuliskan alasan/catatan penghapusan transaksi (contoh: Salah input pesanan / pelanggan membatalkan order)..."
-                value={deleteReason}
-                onChange={e => {
-                  setDeleteReason(e.target.value);
-                  if (e.target.value.trim()) setDeleteError('');
-                }}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: deleteError ? '1px solid #ef4444' : (deleteReason.trim() ? '1px solid #34d399' : '1px solid #475569'),
-                  background: '#0f172a', color: '#ffffff', fontSize: '0.85rem',
-                  boxSizing: 'border-box', resize: 'vertical'
-                }}
-              />
-              {deleteError ? (
-                <div style={{ color: '#fb7185', fontSize: '0.75rem', marginTop: '4px', fontWeight: '700' }}>
-                  ⚠️ {deleteError}
-                </div>
-              ) : (
-                <div style={{ color: '#94a3b8', fontSize: '0.72rem', marginTop: '4px' }}>
-                  💡 Tombol <strong>OK / Konfirmasi Hapus</strong> hanya aktif jika catatan alasan telah diisi.
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setDeleteRecord(null)}
-                style={{
-                  padding: '8px 16px', borderRadius: '10px', border: '1px solid #475569',
-                  background: '#0f172a', color: '#cbd5e1', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer'
-                }}
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                disabled={!deleteReason.trim()}
-                onClick={handleConfirmDelete}
-                style={{
-                  padding: '8px 20px', borderRadius: '10px', border: 'none',
-                  background: deleteReason.trim() ? 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)' : '#334155',
-                  color: deleteReason.trim() ? '#ffffff' : '#64748b', fontSize: '0.82rem', fontWeight: '800',
-                  cursor: deleteReason.trim() ? 'pointer' : 'not-allowed',
-                  opacity: deleteReason.trim() ? 1 : 0.6,
-                  boxShadow: deleteReason.trim() ? '0 4px 14px rgba(225,29,72,0.4)' : 'none'
-                }}
-              >
-                OK / Konfirmasi Hapus
-              </button>
-            </div>
 
           </div>
         </div>
       )}
-
-      {/* MODAL IMPORT EXCEL TRANSAKSI PENJUALAN */}
-      <ExcelMasterImportModal 
-        isOpen={showExcelImportModal} 
-        onClose={() => setShowExcelImportModal(false)} 
-        moduleType="sales_transactions" 
-        masterData={masterData} 
-        setMasterData={setMasterData} 
-      />
 
     </div>
   );

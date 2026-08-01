@@ -390,7 +390,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: MRIS Resto Branch PIK"
+                  placeholder="Contoh: Barokah Resto Branch PIK"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="form-input"

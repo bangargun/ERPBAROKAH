@@ -215,10 +215,10 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
               backgroundClip: 'text',
               marginBottom: '4px',
             }}>
-              MRIS Restoran
+              POS Kasir Barokah
             </div>
             <div style={{ fontSize: '0.72rem', color: '#64748b', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: '700' }}>
-              Multi Restaurant Information System
+              Restoran &amp; ERP Management System
             </div>
 
             {/* Divider */}
@@ -650,7 +650,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
           {/* FOOTER */}
           <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
             <div style={{ fontSize: '0.62rem', color: '#334155', letterSpacing: '0.08em' }}>
-              © 2025 MRIS · Barokah Group · v2.0
+              © 2026 POS Kasir Barokah · Barokah Group · v3.0.0
             </div>
           </div>
         </div>

@@ -75,10 +75,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
       return;
     }
 
-    const updated = {
-      ...masterData,
-      _lastUpdated: Date.now()
-    };
+    const updated = { ...masterData };
     if (!updated.outlets) updated.outlets = [];
 
     const finalCode = code.trim().toUpperCase();
@@ -117,10 +114,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
   // Delete Outlet
   const handleDeleteOutlet = (id, outletName) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus outlet "${outletName}"?`)) {
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now()
-      };
+      const updated = { ...masterData };
       updated.outlets = updated.outlets.filter(o => o.id !== id);
       setMasterData(updated);
     }
@@ -396,7 +390,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: MRIS Resto Branch PIK"
+                  placeholder="Contoh: Barokah Resto Branch PIK"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="form-input"

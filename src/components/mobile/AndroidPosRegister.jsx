@@ -2031,7 +2031,7 @@ export default function AndroidPosRegister({
               justifyContent: 'center',
               margin: '0 auto 10px'
             }}>
-              <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#facc15' }}>MRIS</span>
+              <span style={{ fontSize: '0.90rem', fontWeight: '900', color: '#facc15' }}>POS</span>
             </div>
 
             <h2 style={{ fontSize: '1.35rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
@@ -2303,7 +2303,7 @@ export default function AndroidPosRegister({
             letterSpacing: '1px',
             boxShadow: '0 0 16px rgba(56,189,248,0.5), inset 0 0 10px rgba(255,255,255,0.3)'
           }}>
-            MRIS
+            POS
           </div>
           <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#bfdbfe', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             {currentOutlet.name}

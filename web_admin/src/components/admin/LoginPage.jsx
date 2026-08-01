@@ -7,7 +7,7 @@ import { Monitor, Smartphone, Lock, Eye, EyeOff, Store, AlertCircle, ChevronRigh
 // DEFAULT ACCOUNTS - WEB BASED ADMIN
 // =====================================================================
 const DEFAULT_WEB_ADMIN_ACCOUNTS = [
-  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '1234', role: 'Super Admin', status: 'Aktif' },
+  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
   { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
 ];
 
@@ -15,7 +15,7 @@ const DEFAULT_WEB_ADMIN_ACCOUNTS = [
 // DEFAULT ACCOUNTS - POS MOBILE APK
 // =====================================================================
 const DEFAULT_MOBILE_ACCOUNTS = [
-  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '1234', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '1234' },
+  { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '888', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' },
   { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
 ];
 
@@ -31,7 +31,7 @@ const ROLE_ICONS = {
 };
 
 export default function LoginPage({ onLoginSuccess, masterData }) {
-  const [mode, setMode] = useState('admin');
+  const [mode, setMode] = useState('mobile');
   const [selectedOutlet, setSelectedOutlet] = useState('');
   const [selectedUsername, setSelectedUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -44,10 +44,10 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
     setTimeout(() => setMounted(true), 50);
   }, []);
 
-  const webAdminAccounts = (masterData?.webAdminAccounts && masterData.webAdminAccounts.length > 0)
+  const webAdminAccounts = masterData?.webAdminAccounts !== undefined
     ? masterData.webAdminAccounts : DEFAULT_WEB_ADMIN_ACCOUNTS;
 
-  const mobileAccountsList = (masterData?.mobileAccounts && masterData.mobileAccounts.length > 0)
+  const mobileAccountsList = masterData?.mobileAccounts !== undefined
     ? masterData.mobileAccounts : DEFAULT_MOBILE_ACCOUNTS;
 
   const outlets = masterData?.outlets || [];
@@ -86,9 +86,6 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
   const handleModeSelect = (m) => {
     resetForm();
     setMode(m);
-    if (m === 'admin') {
-      setSelectedUsername('superadmin');
-    }
   };
 
   const handleLogin = () => {
@@ -218,10 +215,10 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
               backgroundClip: 'text',
               marginBottom: '4px',
             }}>
-              MRIS Restoran
+              POS Kasir Barokah
             </div>
             <div style={{ fontSize: '0.72rem', color: '#64748b', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: '700' }}>
-              Multi Restaurant Information System
+              Restoran &amp; ERP Management System
             </div>
 
             {/* Divider */}
@@ -653,7 +650,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
           {/* FOOTER */}
           <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
             <div style={{ fontSize: '0.62rem', color: '#334155', letterSpacing: '0.08em' }}>
-              © 2025 MRIS · Barokah Group · v2.0
+              © 2026 POS Kasir Barokah · Barokah Group · v3.0.0
             </div>
           </div>
         </div>
