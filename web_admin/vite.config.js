@@ -11,6 +11,10 @@ export default defineConfig({
     chunkSizeWarningLimit: 2500,
     rollupOptions: {
       output: {
+        // Nama file fixed (tanpa hash) agar VPS tidak perlu update index.html setiap deploy
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]',
         manualChunks: {
           vendor: ['react', 'react-dom'],
           icons: ['lucide-react'],
