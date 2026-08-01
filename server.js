@@ -1623,9 +1623,9 @@ app.delete('/api/master-data/:key/:id', async (req, res) => {
 // POST /api/master-data/delete-item — Nginx/Cloudflare Compatible Deletion Endpoint
 app.post('/api/master-data/delete-item', async (req, res) => {
   try {
-    const { key, id } = req.body || {};
-    if (!key || id === undefined || id === null) {
-      return res.status(400).json({ error: 'Key dan ID wajib diisi' });
+    const { key, id, username, name } = req.body || {};
+    if (!key || (id === undefined && !username && !name)) {
+      return res.status(400).json({ error: 'Key dan ID/Username wajib diisi' });
     }
 
     let existing = await getMasterDataFromMySQL();
@@ -1633,7 +1633,9 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       return res.status(404).json({ error: 'Master data tidak ditemukan' });
     }
 
-    const idStr = String(id);
+    const idStr = id != null ? String(id) : '';
+    const userStr = username ? String(username).toLowerCase() : '';
+    const nameStr = name ? String(name).toLowerCase() : '';
     const nowTs = Date.now();
 
     // Hapus item dari array di masterData JSON
@@ -1681,9 +1683,14 @@ app.post('/api/master-data/delete-item', async (req, res) => {
         const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
         const itemUser = String(item.username || '').toLowerCase();
         const itemName = String(item.name || '').toLowerCase();
-        const targetStr = idStr.toLowerCase();
-        return itemId === idStr || itemUser === targetStr || itemName === targetStr;
+        
+        if (idStr && itemId === idStr) return true;
+        if (userStr && itemUser === userStr) return true;
+        if (nameStr && itemName === nameStr) return true;
+        if (idStr && (itemUser === idStr.toLowerCase() || itemName === idStr.toLowerCase())) return true;
+        return false;
       };
+
       if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
       if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
       if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
@@ -1714,7 +1721,13 @@ app.post('/api/master-data/delete-item', async (req, res) => {
                        key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
       if (relTable === 'users') {
         try {
-          await mysqlPool.execute(`DELETE FROM \`users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`, [idStr, idStr.toLowerCase(), idStr.toLowerCase()]);
+          const matchValId = idStr || '0';
+          const matchValUser = userStr || idStr.toLowerCase() || '___none___';
+          const matchValName = nameStr || idStr.toLowerCase() || '___none___';
+          await mysqlPool.execute(
+            `DELETE FROM \`users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`,
+            [matchValId, matchValUser, matchValName]
+          );
         } catch (delErr) {}
       } else if (relTable) {
         try {

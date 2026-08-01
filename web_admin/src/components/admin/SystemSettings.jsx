@@ -505,7 +505,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
       fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'webAdminAccounts', id: deleteId })
+        body: JSON.stringify({
+          key: 'webAdminAccounts',
+          id: user.id,
+          username: user.username,
+          name: user.name
+        })
       }).catch(() => {});
     }
   };
@@ -645,7 +650,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
       fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'mobileAccounts', id: deleteId })
+        body: JSON.stringify({
+          key: 'mobileAccounts',
+          id: targetObj?.id,
+          username: targetObj?.username,
+          name: targetObj?.name
+        })
       }).catch(() => {});
     }
   };
