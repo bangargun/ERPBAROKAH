@@ -248,9 +248,23 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       });
     }
 
-    const activeOutletIds = Array.isArray(product.selectedOutletIds) 
+    const stdP = product.standardPrices || (Object.keys(stdPrices).length > 0 ? stdPrices : {});
+    const vP = product.variantPrices || vPrices;
+
+    const rawOutletIds = Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0
       ? product.selectedOutletIds 
       : (comboOutlets.size > 0 ? Array.from(comboOutlets) : []);
+
+    const activeOutletIds = rawOutletIds.filter(outId => {
+      const stdVal = Number(stdP[outId] || 0);
+      let varVal = 0;
+      if (product.variants && product.variants.length > 0) {
+        product.variants.forEach(v => {
+          if (vP[v] && Number(vP[v][outId]) > 0) varVal = Number(vP[v][outId]);
+        });
+      }
+      return stdVal > 0 || varVal > 0;
+    });
 
     setSelectedOutletIds(activeOutletIds);
     setVariantPrices(vPrices);

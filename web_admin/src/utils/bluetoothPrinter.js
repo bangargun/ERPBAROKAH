@@ -252,9 +252,16 @@ export const testPrint = async (mac, outletName = 'POS KASIR BAROKAH', paperWidt
 export const _browserPrintFallback = (textContent, paperWidth = '58') => {
   const w = paperWidth === '80' ? '76mm' : '54mm';
   
+  const charsPerLine = paperWidth === '80' ? 48 : 32;
+  const divStr = '-'.repeat(charsPerLine);
+  const divdStr = '='.repeat(charsPerLine);
+
   // Clean ESC/POS tags for clean PDF layout
   const cleanText = (textContent || '')
-    .replace(/\[C\]|\[L\]|\[R\]|\[B\]|\[2\]|\[DIV\]|\[DIVD\]|\[CUT\]/g, '')
+    .replace(/\[DIV\]/g, divStr)
+    .replace(/\[DIVD\]/g, divdStr)
+    .replace(/\[CUT\]/g, '\n' + divdStr + '\n--- POTONG KERTAS ---\n' + divdStr + '\n')
+    .replace(/\[C\]|\[L\]|\[R\]|\[B\]|\[2\]/g, '')
     .replace(/undefined/g, '');
 
   const html = `<!DOCTYPE html>

@@ -1451,10 +1451,10 @@ export default function AndroidPosRegister({
       setLastCompletedTx(holdTx);
       setShowReceiptModal(true);
       handleExecuteBatchPrint(holdTx, {
-        printKitchen: printerSettings.printKitchen,
-        printBar: printerSettings.printBar,
-        printTableCopy: printerSettings.printTableCopy,
-        printCashierCopy: printerSettings.printCashierCopy
+        printKitchen: true,
+        printBar: true,
+        printTableCopy: false,
+        printCashierCopy: false
       });
     }
     setCart([]);
@@ -1631,7 +1631,9 @@ export default function AndroidPosRegister({
     if (!tx) return;
     const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
     const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
-    const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp);
+    const isBill = tx.isContohTagihan || String(tx.payment_method || '').toLowerCase().includes('contoh tagihan') || String(tx.notes || '').toLowerCase().includes('tagihan');
+    const type = isBill ? 'bill' : 'receipt';
+    const text = buildReceiptText(tx, outletName, type, printerPaperWidth, fmtRp);
     await printTextToBluetooth(text);
   }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
 
