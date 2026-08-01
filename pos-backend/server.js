@@ -1397,59 +1397,37 @@ app.all('/api/webhook/deploy', (req, res) => {
   });
 });
 
-// Deep merge masterData protecting user input from empty array wipes while honoring active entity updates and appending history logs
+// Deep merge masterData protecting user input from empty array wipes while honoring active entity updates and respecting deletions
 const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   const result = { ...existing };
-
-  // Append-only history/transaction log keys (merge by ID so transactions from multiple devices combine)
-  const appendOnlyKeys = new Set([
-    'salesTransactions', 'transactions', 'stockMovement', 
-    'damagedGoods', 'approvedWaste', 'stockTransfer', 
-    'manualEntryRecords', 'shift_closings', 'closedShifts', 'pettyExpenses'
-  ]);
+  const incTs = Number(incoming._lastUpdated) || 0;
+  const extTs = Number(existing._lastUpdated) || 0;
 
   Object.keys(incoming).forEach(key => {
     const incVal = incoming[key];
     const extVal = existing[key];
 
-    if (appendOnlyKeys.has(key)) {
-      if (Array.isArray(incVal) && incVal.length > 0) {
-        if (!Array.isArray(extVal) || extVal.length === 0) {
-          result[key] = incVal;
-        } else {
-          const itemMap = new Map();
-          extVal.forEach(item => {
-            if (item && (item.id !== undefined && item.id !== null || item.report_no)) {
-              itemMap.set(String(item.id || item.report_no), item);
-            }
-          });
-          incVal.forEach(item => {
-            if (item && (item.id !== undefined && item.id !== null || item.report_no)) {
-              const keyId = String(item.id || item.report_no);
-              const prev = itemMap.get(keyId) || {};
-              itemMap.set(keyId, { ...prev, ...item });
-            } else {
-              itemMap.set(Symbol(), item);
-            }
-          });
-          result[key] = Array.from(itemMap.values());
-        }
-      }
-    } else {
-      // Primary Master Entities (paymentMethods, products, categories, outlets, customers, users, suppliers, ingredients, tables, etc.)
-      if (Array.isArray(incVal)) {
+    if (Array.isArray(incVal)) {
+      // If incoming payload timestamp is newer or equal (active client mutation), adopt incVal directly to respect additions & deletions 100%
+      if (incTs >= extTs || !extVal) {
         if (incVal.length > 0) {
-          // Client has active list -> adopt client list directly (respects additions AND deletions)
           result[key] = incVal;
-        } else if (Array.isArray(extVal) && extVal.length > 0) {
-          // Protect server from uninitialized empty array [] payload wipes
-          result[key] = extVal;
-        } else {
+        } else if (!extVal || extVal.length === 0 || incoming._isExplicitClear) {
           result[key] = [];
+        } else {
+          // If incVal is [] but extVal has items and not an explicit clear, keep extVal to protect against accidental empty array payload wipes
+          result[key] = extVal;
         }
-      } else if (incVal !== undefined && incVal !== null) {
-        result[key] = incVal;
+      } else {
+        // If incoming timestamp is older, adopt incoming non-empty array or keep existing
+        if (incVal.length > 0) {
+          result[key] = incVal;
+        } else {
+          result[key] = extVal || [];
+        }
       }
+    } else if (incVal !== undefined && incVal !== null) {
+      result[key] = incVal;
     }
   });
 
