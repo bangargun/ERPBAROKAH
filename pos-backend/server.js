@@ -67,20 +67,29 @@ const saveDb = (data) => {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 };
 
-// REST API ROUTES
+// Helper for unified MySQL storage retrieval across all REST endpoints
+const getUnifiedData = async () => {
+  let masterData = await getMasterDataFromMySQL();
+  if (!masterData || typeof masterData !== 'object') {
+    masterData = defaultMasterData;
+  }
+  return masterData;
+};
+
+// REST API ROUTES (100% UNIFIED MYSQL mris_db PRIMARY STORAGE)
 
 // 1. Get All Outlets
-app.get('/api/outlets', (req, res) => {
-  const db = readDb();
-  res.json(db.outlets);
+app.get('/api/outlets', async (req, res) => {
+  const masterData = await getUnifiedData();
+  res.json(masterData.outlets || []);
 });
 
 // Create Outlet
-app.post('/api/outlets', (req, res) => {
-  const db = readDb();
+app.post('/api/outlets', async (req, res) => {
+  const masterData = await getUnifiedData();
   const { code, name, location, manager_name, phone, monthly_budget, color } = req.body;
   const newOutlet = {
-    id: db.outlets.length + 1,
+    id: (masterData.outlets || []).length + 1,
     code,
     name,
     location,
@@ -90,37 +99,40 @@ app.post('/api/outlets', (req, res) => {
     status: 'Active',
     color: color || '#3b82f6'
   };
-  db.outlets.push(newOutlet);
-  saveDb(db);
+  masterData.outlets = [...(masterData.outlets || []), newOutlet];
+  masterData._lastUpdated = Date.now();
+  await saveMasterDataToMySQL(masterData);
+  await syncToMySQL(masterData);
   res.json({ id: newOutlet.id, message: 'Restoran/Cabang berhasil ditambahkan' });
 });
 
 // 2. Get Categories
-app.get('/api/categories', (req, res) => {
-  const db = readDb();
-  res.json(db.categories);
+app.get('/api/categories', async (req, res) => {
+  const masterData = await getUnifiedData();
+  res.json(masterData.categories || []);
 });
 
 // 3. Get Financial Dashboard KPI & Consolidated Stats
-app.get('/api/dashboard/stats', (req, res) => {
-  const db = readDb();
+app.get('/api/dashboard/stats', async (req, res) => {
+  const masterData = await getUnifiedData();
   const branchId = req.query.branchId ? parseInt(req.query.branchId) : null;
+  const allTx = [...(masterData.salesTransactions || []), ...(masterData.transactions || [])];
 
-  let approvedTx = db.transactions.filter(t => t.status === 'approved');
+  let approvedTx = allTx.filter(t => t.status === 'approved' || !t.status);
   if (branchId) {
-    approvedTx = approvedTx.filter(t => t.branch_id === branchId);
+    approvedTx = approvedTx.filter(t => Number(t.branch_id || t.outlet_id) === branchId);
   }
 
-  const totalIncome = approvedTx.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = approvedTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = approvedTx.filter(t => t.type === 'income' || t.total || t.grand_total).reduce((sum, t) => sum + Number(t.amount || t.total || t.grand_total || 0), 0);
+  const totalExpense = approvedTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const netProfit = totalIncome - totalExpense;
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
-  const pendingApprovals = db.transactions.filter(t => t.status === 'pending').length;
+  const pendingApprovals = allTx.filter(t => t.status === 'pending').length;
 
-  const outletsStats = db.outlets.map(o => {
-    const oApproved = db.transactions.filter(t => t.branch_id === o.id && t.status === 'approved');
-    const income = oApproved.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expense = oApproved.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const outletsStats = (masterData.outlets || []).map(o => {
+    const oApproved = allTx.filter(t => Number(t.branch_id || t.outlet_id) === Number(o.id) && (t.status === 'approved' || !t.status));
+    const income = oApproved.filter(t => t.type === 'income' || t.total || t.grand_total).reduce((sum, t) => sum + Number(t.amount || t.total || t.grand_total || 0), 0);
+    const expense = oApproved.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount || 0), 0);
     const net = income - expense;
     const margin = income > 0 ? ((net / income) * 100).toFixed(1) : 0;
     return {
@@ -147,22 +159,28 @@ app.get('/api/dashboard/stats', (req, res) => {
 });
 
 // 4. Get Financial Chart Data (Revenue vs Expense Trend)
-app.get('/api/dashboard/chart', (req, res) => {
-  const db = readDb();
+app.get('/api/dashboard/chart', async (req, res) => {
+  const masterData = await getUnifiedData();
   const branchId = req.query.branchId ? parseInt(req.query.branchId) : null;
+  const allTx = [...(masterData.salesTransactions || []), ...(masterData.transactions || [])];
 
-  let approvedTx = db.transactions.filter(t => t.status === 'approved');
+  let approvedTx = allTx.filter(t => t.status === 'approved' || !t.status);
   if (branchId) {
-    approvedTx = approvedTx.filter(t => t.branch_id === branchId);
+    approvedTx = approvedTx.filter(t => Number(t.branch_id || t.outlet_id) === branchId);
   }
 
   const dateMap = {};
   approvedTx.forEach(t => {
-    if (!dateMap[t.date]) {
-      dateMap[t.date] = { date: t.date, income: 0, expense: 0 };
+    const d = t.date || (t.timestamp ? String(t.timestamp).split('T')[0] : new Date().toISOString().split('T')[0]);
+    if (!dateMap[d]) {
+      dateMap[d] = { date: d, income: 0, expense: 0 };
     }
-    if (t.type === 'income') dateMap[t.date].income += t.amount;
-    if (t.type === 'expense') dateMap[t.date].expense += t.amount;
+    const amt = Number(t.amount || t.total || t.grand_total || 0);
+    if (t.type === 'expense') {
+      dateMap[d].expense += amt;
+    } else {
+      dateMap[d].income += amt;
+    }
   });
 
   const chartData = Object.values(dateMap).sort((a, b) => a.date.localeCompare(b.date));
@@ -172,20 +190,30 @@ app.get('/api/dashboard/chart', (req, res) => {
 });
 
 // 5. Get Transactions List
-app.get('/api/transactions', (req, res) => {
-  const db = readDb();
+app.get('/api/transactions', async (req, res) => {
+  const masterData = await getUnifiedData();
   const { branchId, type, status, limit } = req.query;
 
-  let list = db.transactions.map(t => {
-    const outlet = db.outlets.find(o => o.id === t.branch_id);
-    return { ...t, branch_name: outlet?.name || 'Cabang', branch_code: outlet?.code || '' };
+  const outlets = masterData.outlets || [];
+  const allTx = [...(masterData.salesTransactions || []), ...(masterData.transactions || [])];
+
+  let list = allTx.map(t => {
+    const bId = Number(t.branch_id || t.outlet_id);
+    const outlet = outlets.find(o => Number(o.id) === bId);
+    return {
+      ...t,
+      amount: Number(t.amount || t.total || t.grand_total || 0),
+      branch_id: bId,
+      branch_name: outlet?.name || t.outlet_name || 'Cabang',
+      branch_code: outlet?.code || ''
+    };
   });
 
   if (branchId) list = list.filter(t => t.branch_id === parseInt(branchId));
   if (type) list = list.filter(t => t.type === type);
   if (status) list = list.filter(t => t.status === status);
 
-  list.sort((a, b) => b.id - a.id);
+  list.sort((a, b) => (b.id || 0) - (a.id || 0));
 
   if (limit) list = list.slice(0, parseInt(limit));
 
@@ -193,8 +221,8 @@ app.get('/api/transactions', (req, res) => {
 });
 
 // Add Transaction
-app.post('/api/transactions', (req, res) => {
-  const db = readDb();
+app.post('/api/transactions', async (req, res) => {
+  const masterData = await getUnifiedData();
   const { branch_id, type, category, amount, description, payment_method, date, created_by, receipt_url, status } = req.body;
 
   if (!branch_id || !type || !category || !amount || !payment_method) {
@@ -218,8 +246,12 @@ app.post('/api/transactions', (req, res) => {
     status: txStatus
   };
 
-  db.transactions.unshift(newTx);
-  saveDb(db);
+  masterData.transactions = [newTx, ...(masterData.transactions || [])];
+  masterData.salesTransactions = [newTx, ...(masterData.salesTransactions || [])];
+  masterData._lastUpdated = Date.now();
+
+  await saveMasterDataToMySQL(masterData);
+  await syncToMySQL(masterData);
 
   res.json({
     id: newTx.id,
@@ -229,15 +261,18 @@ app.post('/api/transactions', (req, res) => {
 });
 
 // Update Status
-app.patch('/api/transactions/:id/status', (req, res) => {
-  const db = readDb();
+app.patch('/api/transactions/:id/status', async (req, res) => {
+  const masterData = await getUnifiedData();
   const id = parseInt(req.params.id);
   const { status } = req.body;
 
-  const tx = db.transactions.find(t => t.id === id);
+  const allTx = masterData.transactions || [];
+  const tx = allTx.find(t => Number(t.id) === id);
   if (tx) {
     tx.status = status;
-    saveDb(db);
+    masterData._lastUpdated = Date.now();
+    await saveMasterDataToMySQL(masterData);
+    await syncToMySQL(masterData);
     res.json({ message: `Status transaksi berhasil diperbarui menjadi ${status}` });
   } else {
     res.status(404).json({ error: 'Transaksi tidak ditemukan' });
@@ -245,24 +280,28 @@ app.patch('/api/transactions/:id/status', (req, res) => {
 });
 
 // 6. Get Shift Closings
-app.get('/api/shift-closings', (req, res) => {
-  const db = readDb();
+app.get('/api/shift-closings', async (req, res) => {
+  const masterData = await getUnifiedData();
   const { branchId } = req.query;
 
-  let closings = db.shift_closings.map(s => {
-    const outlet = db.outlets.find(o => o.id === s.branch_id);
-    return { ...s, branch_name: outlet?.name || 'Cabang' };
+  const closingsList = [...(masterData.shift_closings || []), ...(masterData.closedShifts || [])];
+  const outlets = masterData.outlets || [];
+
+  let closings = closingsList.map(s => {
+    const bId = Number(s.branch_id || s.outlet_id);
+    const outlet = outlets.find(o => Number(o.id) === bId);
+    return { ...s, branch_name: outlet?.name || s.outlet_name || 'Cabang' };
   });
 
-  if (branchId) closings = closings.filter(s => s.branch_id === parseInt(branchId));
-  closings.sort((a, b) => b.id - a.id);
+  if (branchId) closings = closings.filter(s => Number(s.branch_id || s.outlet_id) === parseInt(branchId));
+  closings.sort((a, b) => (b.id || 0) - (a.id || 0));
 
   res.json(closings);
 });
 
 // Submit Shift Closing
-app.post('/api/shift-closings', (req, res) => {
-  const db = readDb();
+app.post('/api/shift-closings', async (req, res) => {
+  const masterData = await getUnifiedData();
   const { branch_id, shift_date, shift_name, cashier_name, system_sales, actual_cash, qris_sales, edc_sales, notes } = req.body;
 
   const sys = parseFloat(system_sales) || 0;
@@ -285,8 +324,12 @@ app.post('/api/shift-closings', (req, res) => {
     notes: notes || ''
   };
 
-  db.shift_closings.unshift(newClosing);
-  saveDb(db);
+  masterData.shift_closings = [newClosing, ...(masterData.shift_closings || [])];
+  masterData.closedShifts = [newClosing, ...(masterData.closedShifts || [])];
+  masterData._lastUpdated = Date.now();
+
+  await saveMasterDataToMySQL(masterData);
+  await syncToMySQL(masterData);
 
   res.json({
     id: newClosing.id,
@@ -296,21 +339,24 @@ app.post('/api/shift-closings', (req, res) => {
 });
 
 // 7. Get Profit & Loss Report
-app.get('/api/reports/pnl', (req, res) => {
-  const db = readDb();
+app.get('/api/reports/pnl', async (req, res) => {
+  const masterData = await getUnifiedData();
   const { branchId } = req.query;
+  const allTx = [...(masterData.salesTransactions || []), ...(masterData.transactions || [])];
 
-  let approvedTx = db.transactions.filter(t => t.status === 'approved');
-  if (branchId) approvedTx = approvedTx.filter(t => t.branch_id === parseInt(branchId));
+  let approvedTx = allTx.filter(t => t.status === 'approved' || !t.status);
+  if (branchId) approvedTx = approvedTx.filter(t => Number(t.branch_id || t.outlet_id) === parseInt(branchId));
 
   const incomeMap = {};
   const expenseMap = {};
 
   approvedTx.forEach(t => {
-    if (t.type === 'income') {
-      incomeMap[t.category] = (incomeMap[t.category] || 0) + t.amount;
-    } else if (t.type === 'expense') {
-      expenseMap[t.category] = (expenseMap[t.category] || 0) + t.amount;
+    const amt = Number(t.amount || t.total || t.grand_total || 0);
+    const cat = t.category || 'Penjualan Kasir';
+    if (t.type === 'expense') {
+      expenseMap[cat] = (expenseMap[cat] || 0) + amt;
+    } else {
+      incomeMap[cat] = (incomeMap[cat] || 0) + amt;
     }
   });
 
