@@ -2,41 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Printer, Download, TrendingUp, TrendingDown, DollarSign, PieChart, BarChart2 } from 'lucide-react';
 import { ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 
-export default function ReportsAndAnalytics({ masterData, selectedBranch, outlets }) {
+export default function ReportsAndAnalytics({ selectedBranch, outlets }) {
   const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const formatRupiah = (val) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
   useEffect(() => {
-    const transactions = [
-      ...(masterData?.salesTransactions || []),
-      ...(masterData?.transactions || [])
-    ].filter(t => !selectedBranch || Number(t.outlet_id || t.branch_id) === Number(selectedBranch));
+    setLoading(true);
+    const getApiUrl = (pathStr) => {
+      if (typeof window !== 'undefined') {
+        const savedServer = localStorage.getItem('MRIS_SERVER_URL');
+        if (savedServer && savedServer.trim() !== '') {
+          return `${savedServer.replace(/\/$/, '')}${pathStr}`;
+        }
+      }
+      return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+    };
 
-    const totalIncome = transactions.reduce((sum, t) => sum + Number(t.amount || t.total || 0), 0);
-    
-    const financialRecords = (masterData?.financialRecords || []).filter(f => !selectedBranch || Number(f.outlet_id) === Number(selectedBranch));
-    const cogsTotal = (masterData?.ingredients || []).reduce((sum, i) => sum + (Number(i.stock || 0) * Number(i.unit_price || 0)), 0);
-    const totalExpense = financialRecords.reduce((sum, f) => sum + Number(f.amount || 0), 0) + cogsTotal;
-    const netProfit = totalIncome - totalExpense;
-
-    setReport({
-      totalIncome,
-      totalExpense,
-      netProfit,
-      incomeByCategory: [
-        { category: 'Penjualan Dine-in & Takeaway', total: Math.round(totalIncome * 0.8) },
-        { category: 'Layanan Online & Catering', total: Math.round(totalIncome * 0.2) }
-      ],
-      expenseByCategory: [
-        { category: 'Bahan Baku & Dapur (COGS)', total: cogsTotal || Math.round(totalExpense * 0.5) },
-        { category: 'Operational & General Expenses', total: Math.max(0, totalExpense - (cogsTotal || Math.round(totalExpense * 0.5))) }
-      ]
-    });
-  }, [masterData, selectedBranch]);
+    const path = selectedBranch ? `/api/reports/pnl?branchId=${selectedBranch}` : '/api/reports/pnl';
+    fetch(getApiUrl(path))
+      .then(res => res.json())
+      .then(data => {
+        setReport(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [selectedBranch]);
 
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e'];
 

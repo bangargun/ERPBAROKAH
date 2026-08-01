@@ -12,8 +12,18 @@ export default function ReportsAndAnalytics({ selectedBranch, outlets }) {
 
   useEffect(() => {
     setLoading(true);
-    const url = selectedBranch ? `/api/reports/pnl?branchId=${selectedBranch}` : '/api/reports/pnl';
-    fetch(url)
+    const getApiUrl = (pathStr) => {
+      if (typeof window !== 'undefined') {
+        const savedServer = localStorage.getItem('MRIS_SERVER_URL');
+        if (savedServer && savedServer.trim() !== '') {
+          return `${savedServer.replace(/\/$/, '')}${pathStr}`;
+        }
+      }
+      return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+    };
+
+    const path = selectedBranch ? `/api/reports/pnl?branchId=${selectedBranch}` : '/api/reports/pnl';
+    fetch(getApiUrl(path))
       .then(res => res.json())
       .then(data => {
         setReport(data);
