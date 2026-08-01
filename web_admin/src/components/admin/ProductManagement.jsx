@@ -129,10 +129,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     const newV = tempVariantInput.trim();
     if (!variants.includes(newV)) {
       setVariants([...variants, newV]);
-      // Initialize default per-outlet prices for this new variant
+      // Initialize harga 0 untuk outlet yang sudah dipilih
       const initPrices = {};
-      masterData.outlets.forEach(o => {
-        initPrices[o.id] = 0;
+      selectedOutletIds.forEach(outId => {
+        initPrices[outId] = 0;
       });
       setVariantPrices(prev => ({ ...prev, [newV]: initPrices }));
     }
@@ -571,58 +571,43 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               ) : (
                 paginatedProducts.map(p => {
                   const categoryName = (masterData.categories.find(c => c.id === p.category_id)?.name || p.category_name || 'Umum').toUpperCase();
-                  const isAktif = p.status === 'Aktif';
-                  const firstLetter = p.name ? p.name.charAt(0).toUpperCase() : 'P';
-                  const variantCount = p.variants ? p.variants.length : (p.priceCombinations ? p.priceCombinations.length : 0);
-
-                  // Primary Outlet Name & Price (HANYA pilih outlet yang memiliki harga > 0)
-                  const validPriceOutlets = (masterData.outlets || []).filter(o => {
+                  
+                  // === LOGIKA HARGA KATALOG MENU ===
+                  // Prioritas: standardPrices (dari form) → variantPrices → priceCombinations → p.price (produk lama)
+                  const _getOutletPrice = (o) => {
                     const oid = String(o.id);
-                    let pr = 0;
+                    // 1. standardPrices (diisi langsung dari form "Harga Outlet Manual")
                     if (p.standardPrices) {
-                      const stdKey = Object.keys(p.standardPrices).find(k => String(k) === oid);
-                      if (stdKey && Number(p.standardPrices[stdKey]) > 0) pr = Number(p.standardPrices[stdKey]);
+                      const k = Object.keys(p.standardPrices).find(k => String(k) === oid);
+                      if (k && Number(p.standardPrices[k]) > 0) return Number(p.standardPrices[k]);
                     }
-                    if (pr === 0 && p.variantPrices && p.variants && p.variants.length > 0) {
-                      const firstV = p.variants[0];
-                      if (p.variantPrices[firstV]) {
-                        const vKey = Object.keys(p.variantPrices[firstV]).find(k => String(k) === oid);
-                        if (vKey && Number(p.variantPrices[firstV][vKey]) > 0) pr = Number(p.variantPrices[firstV][vKey]);
+                    // 2. variantPrices (jika ada varian)
+                    if (p.variantPrices && p.variants && p.variants.length > 0) {
+                      for (const vName of p.variants) {
+                        const vMap = p.variantPrices[vName] || {};
+                        const vKey = Object.keys(vMap).find(k => String(k) === oid);
+                        if (vKey && Number(vMap[vKey]) > 0) return Number(vMap[vKey]);
                       }
                     }
-                    if (pr === 0 && p.priceCombinations && p.priceCombinations.length > 0) {
-                      const combo = p.priceCombinations.find(c => c.outletPrices && (
-                        Number(c.outletPrices[o.id]) > 0 || Number(c.outletPrices[oid]) > 0
-                      ));
-                      if (combo) {
-                        pr = Number(combo.outletPrices[o.id] || combo.outletPrices[oid] || 0);
+                    // 3. priceCombinations (backward compat)
+                    if (p.priceCombinations && p.priceCombinations.length > 0) {
+                      for (const combo of p.priceCombinations) {
+                        if (combo.outletPrices) {
+                          const v = Number(combo.outletPrices[o.id] || combo.outletPrices[oid] || 0);
+                          if (v > 0) return v;
+                        }
                       }
                     }
-                    return pr > 0;
-                  });
+                    return 0;
+                  };
 
+                  const validPriceOutlets = (masterData.outlets || []).filter(o => _getOutletPrice(o) > 0);
                   const firstOutletObj = validPriceOutlets[0] || null;
 
-                  let primaryPrice = 0;
-                  if (firstOutletObj) {
-                    const oid = String(firstOutletObj.id);
-                    if (p.standardPrices) {
-                      const stdKey = Object.keys(p.standardPrices).find(k => String(k) === oid);
-                      if (stdKey) primaryPrice = Number(p.standardPrices[stdKey]);
-                    }
-                    if (primaryPrice <= 0 && p.variantPrices && p.variants && p.variants.length > 0) {
-                      const firstV = p.variants[0];
-                      if (p.variantPrices[firstV]) {
-                        const vKey = Object.keys(p.variantPrices[firstV]).find(k => String(k) === oid);
-                        if (vKey) primaryPrice = Number(p.variantPrices[firstV][vKey]);
-                      }
-                    }
-                    if (primaryPrice <= 0 && p.priceCombinations && p.priceCombinations.length > 0) {
-                      const combo = p.priceCombinations.find(c => c.outletPrices && (
-                        Number(c.outletPrices[firstOutletObj.id]) > 0 || Number(c.outletPrices[oid]) > 0
-                      ));
-                      if (combo) primaryPrice = Number(combo.outletPrices[firstOutletObj.id] || combo.outletPrices[oid] || 0);
-                    }
+                  // Harga dari outlet pertama, atau fallback ke p.price (produk lama tanpa outlet mapping)
+                  let primaryPrice = firstOutletObj ? _getOutletPrice(firstOutletObj) : 0;
+                  if (primaryPrice <= 0 && p.price && Number(p.price) > 0) {
+                    primaryPrice = Number(p.price);
                   }
 
                   const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
@@ -1142,10 +1127,20 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       onClick={() => {
                         if (!tempOutletSelectId) return;
                         const targetId = isNaN(tempOutletSelectId) ? tempOutletSelectId : Number(tempOutletSelectId);
-                        if (!selectedOutletIds.includes(targetId)) {
+                        if (!selectedOutletIds.map(String).includes(String(targetId))) {
                           setSelectedOutletIds([...selectedOutletIds, targetId]);
                           setStandardPrices(prev => ({ ...prev, [targetId]: 0 }));
                           setOutletApkStatus(prev => ({ ...prev, [targetId]: 'Aktif' }));
+                          // Inisialisasi variantPrices untuk outlet baru jika ada varian
+                          if (variants.length > 0) {
+                            setVariantPrices(prev => {
+                              const updated = { ...prev };
+                              variants.forEach(vName => {
+                                updated[vName] = { ...(updated[vName] || {}), [targetId]: 0 };
+                              });
+                              return updated;
+                            });
+                          }
                         }
                         setTempOutletSelectId('');
                       }}
@@ -1174,7 +1169,119 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   <div style={{ padding: '16px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
                     Belum ada outlet ditambahkan. Pilih outlet di atas lalu klik "+ Tambah Outlet Ini" untuk menjual menu ini di outlet tersebut.
                   </div>
+                ) : variants.length > 0 ? (
+                  // Mode Varian: tampilkan input harga per varian × outlet
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {variants.map((vName, vi) => (
+                      <div key={vi} style={{ background: '#1e293b', borderRadius: '8px', border: '1px solid #334155', overflow: 'hidden' }}>
+                        <div style={{ background: 'rgba(88,55,130,0.2)', padding: '8px 12px', borderBottom: '1px solid #334155' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#a78bfa' }}>🏷️ Varian: {vName}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', padding: '10px 12px' }}>
+                          {selectedOutletIds.map(outId => {
+                            const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };
+                            const vPriceMap = variantPrices[vName] || {};
+                            const curVPrice = vPriceMap[outId] !== undefined ? vPriceMap[outId] : (vPriceMap[String(outId)] !== undefined ? vPriceMap[String(outId)] : 0);
+                            const currentApkStat = outletApkStatus[outId] || 'Aktif';
+                            return (
+                              <div key={outId} style={{ background: '#0f172a', padding: '8px 10px', borderRadius: '6px', border: '1px solid #1e293b' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                  <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: '800' }}>🏢 {outObj.name}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800' }}>Rp</span>
+                                  <input
+                                    type="number"
+                                    placeholder="Harga varian..."
+                                    value={curVPrice}
+                                    onChange={e => handleUpdateVariantPrice(vName, outId, e.target.value)}
+                                    style={{
+                                      width: '100%',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #334155',
+                                      background: '#1e293b',
+                                      color: '#34d399',
+                                      fontWeight: '800',
+                                      fontSize: '0.82rem'
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {/* APK Status per Outlet (shared across variants) */}
+                    <div style={{ background: '#1e293b', borderRadius: '8px', border: '1px solid #334155', overflow: 'hidden' }}>
+                      <div style={{ background: 'rgba(14,165,233,0.15)', padding: '8px 12px', borderBottom: '1px solid #334155' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#38bdf8' }}>📱 Status Tampil di POS APK</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', padding: '10px 12px' }}>
+                        {selectedOutletIds.map(outId => {
+                          const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };
+                          const currentApkStat = outletApkStatus[outId] || 'Aktif';
+                          return (
+                            <div key={outId} style={{ background: '#0f172a', padding: '8px 10px', borderRadius: '6px' }}>
+                              <div style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: '800', marginBottom: '4px' }}>🏢 {outObj.name}</div>
+                              <select
+                                value={currentApkStat}
+                                onChange={e => setOutletApkStatus(prev => ({ ...prev, [outId]: e.target.value }))}
+                                style={{
+                                  width: '100%',
+                                  background: currentApkStat === 'Inaktif' ? 'rgba(244,63,94,0.15)' : 'rgba(52,211,153,0.15)',
+                                  border: `1px solid ${currentApkStat === 'Inaktif' ? '#f43f5e' : '#10b981'}`,
+                                  color: currentApkStat === 'Inaktif' ? '#f43f5e' : '#34d399',
+                                  padding: '5px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <option value="Aktif" style={{ background: '#1e293b', color: '#34d399' }}>🟢 Aktif (Tampil di POS)</option>
+                                <option value="Inaktif" style={{ background: '#1e293b', color: '#f43f5e' }}>🔴 Inaktif (Sembunyikan)</option>
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* Hapus Outlet */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {selectedOutletIds.map(outId => {
+                        const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };
+                        return (
+                          <button
+                            key={outId}
+                            type="button"
+                            onClick={() => {
+                              setSelectedOutletIds(selectedOutletIds.filter(id => String(id) !== String(outId)));
+                              const updatedStd = { ...standardPrices }; delete updatedStd[outId]; setStandardPrices(updatedStd);
+                              const updatedApk = { ...outletApkStatus }; delete updatedApk[outId]; setOutletApkStatus(updatedApk);
+                              setVariantPrices(prev => {
+                                const updated = { ...prev };
+                                variants.forEach(vName => {
+                                  if (updated[vName]) {
+                                    const vCopy = { ...updated[vName] };
+                                    delete vCopy[outId]; delete vCopy[String(outId)];
+                                    updated[vName] = vCopy;
+                                  }
+                                });
+                                return updated;
+                              });
+                            }}
+                            style={{ background: 'rgba(244,63,94,0.1)', border: '1px solid #f43f5e', color: '#f43f5e', padding: '4px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <X size={12} /> Hapus {outObj.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : (
+                  // Mode Standard (tanpa varian): input harga per outlet
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px', marginTop: '10px' }}>
                     {selectedOutletIds.map(outId => {
                       const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };

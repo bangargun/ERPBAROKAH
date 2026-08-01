@@ -1261,7 +1261,7 @@ export default function AndroidPosRegister({
   const [logisticsNotes, setLogisticsNotes] = useState('');
 
   const [transferBatchRows, setTransferBatchRows] = useState([
-    { id: 1, item_name: 'Daging Ayam Fillet', custom_item_name: '', qty: 10, unit: 'kg' }
+    { id: 1, item_name: '', custom_item_name: '', qty_out: 0, qty_in: 0, unit: 'kg' }
   ]);
   const [pendingTransferDraft, setPendingTransferDraft] = useState(null);
 
@@ -4702,10 +4702,11 @@ export default function AndroidPosRegister({
                       setTransferBatchRows([
                         {
                           id: Date.now(),
-                          item_name: firstIng.name,
+                          item_name: firstIng ? firstIng.name : (ingredientsList[0]?.name || ''),
                           custom_item_name: '',
-                          qty: 10,
-                          unit: firstIng.unit || 'kg'
+                          qty_out: 0,
+                          qty_in: 0,
+                          unit: firstIng?.unit || ingredientsList[0]?.unit || 'kg'
                         }
                       ]);
                       setShowAddTransferModal(true);
@@ -4845,7 +4846,8 @@ export default function AndroidPosRegister({
                                           id: b.id || (Date.now() + i),
                                           item_name: b.item_name,
                                           custom_item_name: '',
-                                          qty: b.qty,
+                                          qty_out: b.qty_out ?? b.qty ?? 0,
+                                          qty_in:  b.qty_in  ?? b.qty ?? 0,
                                           unit: b.unit
                                         })));
                                       } else {
@@ -4853,7 +4855,8 @@ export default function AndroidPosRegister({
                                           id: item.id || Date.now(),
                                           item_name: item.item_name,
                                           custom_item_name: '',
-                                          qty: item.qty,
+                                          qty_out: item.qty_out ?? item.qty ?? 0,
+                                          qty_in:  item.qty_in  ?? item.qty ?? 0,
                                           unit: item.unit
                                         }]);
                                       }
@@ -7196,11 +7199,25 @@ export default function AndroidPosRegister({
                     {/* Radio Options List */}
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {varList.map((item, idx) => {
-                        let vPrice = selectedProductForVariant.price || 0;
-                        if (item.name !== 'Standard' && selectedProductForVariant.variantPrices?.[item.name]?.[activeOutletId] !== undefined) {
-                          vPrice = selectedProductForVariant.variantPrices[item.name][activeOutletId];
-                        } else if (selectedProductForVariant.standardPrices?.[activeOutletId] !== undefined) {
-                          vPrice = selectedProductForVariant.standardPrices[activeOutletId];
+                        // Resolve harga per varian dengan handle string/number key (activeOutletId bisa number atau string)
+                        let vPrice = 0;
+                        const _oid = activeOutletId;
+                        const _soid = String(activeOutletId);
+                        if (item.name !== 'Standard' && selectedProductForVariant.variantPrices) {
+                          const vMap = selectedProductForVariant.variantPrices[item.name] || {};
+                          const vVal = vMap[_oid] !== undefined ? vMap[_oid] : vMap[_soid];
+                          if (vVal !== undefined && Number(vVal) > 0) {
+                            vPrice = Number(vVal);
+                          }
+                        }
+                        if (vPrice <= 0 && selectedProductForVariant.standardPrices) {
+                          const sMap = selectedProductForVariant.standardPrices;
+                          const sVal = sMap[_oid] !== undefined ? sMap[_oid] : sMap[_soid];
+                          if (sVal !== undefined && Number(sVal) > 0) vPrice = Number(sVal);
+                        }
+                        if (vPrice <= 0) {
+                          // fallback priceCombinations
+                          vPrice = getProductPriceForOutlet(selectedProductForVariant, _oid);
                         }
 
                         const isSelected = activeVarObj.name === item.name;
@@ -7356,11 +7373,22 @@ export default function AndroidPosRegister({
               const varList = rawVariants.length > 0 ? rawVariants : ['Standard'];
               const activeVName = modalSelectedVariant || varList[0];
 
-              let unitPrice = selectedProductForVariant.price || 0;
-              if (activeVName !== 'Standard' && selectedProductForVariant.variantPrices?.[activeVName]?.[activeOutletId] !== undefined) {
-                unitPrice = selectedProductForVariant.variantPrices[activeVName][activeOutletId];
-              } else if (selectedProductForVariant.standardPrices?.[activeOutletId] !== undefined) {
-                unitPrice = selectedProductForVariant.standardPrices[activeOutletId];
+              // Resolve harga untuk varian aktif — handle string/number key mismatch
+              let unitPrice = 0;
+              const _oid2 = activeOutletId;
+              const _soid2 = String(activeOutletId);
+              if (activeVName !== 'Standard' && selectedProductForVariant.variantPrices) {
+                const vMap2 = selectedProductForVariant.variantPrices[activeVName] || {};
+                const vVal2 = vMap2[_oid2] !== undefined ? vMap2[_oid2] : vMap2[_soid2];
+                if (vVal2 !== undefined && Number(vVal2) > 0) unitPrice = Number(vVal2);
+              }
+              if (unitPrice <= 0 && selectedProductForVariant.standardPrices) {
+                const sMap2 = selectedProductForVariant.standardPrices;
+                const sVal2 = sMap2[_oid2] !== undefined ? sMap2[_oid2] : sMap2[_soid2];
+                if (sVal2 !== undefined && Number(sVal2) > 0) unitPrice = Number(sVal2);
+              }
+              if (unitPrice <= 0) {
+                unitPrice = getProductPriceForOutlet(selectedProductForVariant, _oid2);
               }
 
               const discVal = modalDiscountEnabled && modalDiscountAmount !== '' ? Number(modalDiscountAmount) : 0;
@@ -10716,10 +10744,11 @@ export default function AndroidPosRegister({
                   ...prev,
                   {
                     id: Date.now() + Math.random(),
-                    item_name: defaultIng.name,
+                    item_name: defaultIng ? defaultIng.name : '',
                     custom_item_name: '',
-                    qty: 1,
-                    unit: defaultIng.unit || 'kg'
+                    qty_out: 0,
+                    qty_in: 0,
+                    unit: defaultIng?.unit || 'kg'
                   }
                 ]);
               };
@@ -10748,6 +10777,8 @@ export default function AndroidPosRegister({
                   transferBatchRows.forEach((row, idx) => {
                     const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Baru') : row.item_name;
                     const recId = transferBatchRows.length > 1 ? `${transferNo}-${idx + 1}` : transferNo;
+                    const qtyOut = Number(row.qty_out || 0);
+                    const qtyIn  = Number(row.qty_in  || 0);
 
                     newRecords.push({
                       id: recId,
@@ -10761,7 +10792,9 @@ export default function AndroidPosRegister({
                       created_by: transferSubmittedBy,
                       author_name: transferSubmittedBy,
                       item_name: finalItemName,
-                      qty: Number(row.qty || 0),
+                      qty_out: qtyOut,
+                      qty_in:  qtyIn,
+                      qty: qtyOut,          // backward compat: qty = qty_out
                       unit: row.unit || 'kg',
                       notes: transferNotes || 'Transfer stok antarcabang',
                       status: 'ditunda',
@@ -10900,15 +10933,15 @@ export default function AndroidPosRegister({
                                         step="any"
                                         min="0"
                                         placeholder="0"
-                                        value={row.qty}
-                                        onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
+                                        value={row.qty_out ?? ''}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'qty_out', e.target.value)}
                                         className="form-input"
                                         style={{ width: '85px', height: '38px', fontWeight: '900', color: '#fb7185', fontSize: '0.85rem', textAlign: 'right', borderRadius: '8px', border: '1px solid rgba(251, 113, 133, 0.4)' }}
                                       />
                                     </div>
                                   </td>
 
-                                  {/* 4. Transfer In Input */}
+                                  {/* 4. Transfer In Input - INDEPENDEN dari Transfer Out */}
                                   <td style={{ padding: '10px 14px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
                                       <span style={{ color: '#34d399', fontWeight: '900', fontSize: '0.9rem' }}>+</span>
@@ -10918,8 +10951,8 @@ export default function AndroidPosRegister({
                                         step="any"
                                         min="0"
                                         placeholder="0"
-                                        value={row.qty}
-                                        onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
+                                        value={row.qty_in ?? ''}
+                                        onChange={e => handleUpdateTransferRow(row.id, 'qty_in', e.target.value)}
                                         className="form-input"
                                         style={{ width: '85px', height: '38px', fontWeight: '900', color: '#34d399', fontSize: '0.85rem', textAlign: 'right', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.4)' }}
                                       />
@@ -11240,8 +11273,12 @@ export default function AndroidPosRegister({
                 <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewTransferReport.item_name}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Jumlah Transfer:</span>
-                <span style={{ fontWeight: '900', color: '#a78bfa', fontSize: '1rem' }}>{previewTransferReport.qty} {previewTransferReport.unit}</span>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>📤 Transfer Out (Keluar):</span>
+                <span style={{ fontWeight: '900', color: '#fb7185', fontSize: '1rem' }}>-{previewTransferReport.qty_out ?? previewTransferReport.qty} {previewTransferReport.unit}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--pos-txt-secondary)' }}>📥 Transfer In (Masuk):</span>
+                <span style={{ fontWeight: '900', color: '#34d399', fontSize: '1rem' }}>+{previewTransferReport.qty_in ?? previewTransferReport.qty} {previewTransferReport.unit}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
                 <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
