@@ -404,13 +404,14 @@ export default function SystemSettings({ masterData, setMasterData }) {
   };
 
   // ===== CRUD WEB ADMIN ACCOUNTS =====
+  // ✅ INDEPENDEN: hanya sentuh webAdminAccounts. mobileAccounts TIDAK terpengaruh.
   const handleSaveUser = (e) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserUsername.trim()) {
       alert('Nama pengguna dan Username wajib diisi!');
       return;
     }
-    // Capture form values to avoid stale closure inside setState
+    // Capture form values agar tidak stale di dalam setState callback
     const _editingUserId = editingUserId;
     const _name = newUserName.trim();
     const _outlet = newUserOutlet;
@@ -420,52 +421,37 @@ export default function SystemSettings({ masterData, setMasterData }) {
     const _status = newUserStatus;
 
     setMasterData(prev => {
-      // ✅ FIX: Baca webAdminList dari prev (state terbaru), bukan masterData closure
-      const webList = (() => {
-        const wa = prev?.webAdminAccounts;
-        if (Array.isArray(wa) && wa.length > 0) return wa;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.role !== 'Kasir' || u.canLoginWeb === true || u.password);
-        return [];
-      })();
+      // Baca webAdminAccounts dari prev (state terbaru)
+      const webList = Array.isArray(prev?.webAdminAccounts) && prev.webAdminAccounts.length > 0
+        ? prev.webAdminAccounts
+        : [];
 
       let updatedWebList;
       if (_editingUserId) {
-        updatedWebList = webList.map(u => {
-          if (u.id === _editingUserId) {
-            return { ...u, name: _name, outlet: _outlet, username: _username, password: _password, role: _role, status: _status };
-          }
-          return u;
-        });
+        updatedWebList = webList.map(u =>
+          u.id === _editingUserId
+            ? { ...u, name: _name, outlet: _outlet, username: _username, password: _password, role: _role, status: _status }
+            : u
+        );
       } else {
         const newAccount = { id: Date.now(), name: _name, outlet: _outlet, username: _username, password: _password || '123', role: _role, status: _status };
         updatedWebList = [...webList, newAccount];
       }
 
-      // Ambil daftar mobile terkini dari prev state
-      const mobList = (() => {
-        const ma = prev?.mobileAccounts;
-        if (Array.isArray(ma) && ma.length > 0) return ma;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
-        return [];
-      })();
-      // Gabungkan: web list yang sudah diupdate + mobile list, de-duplikasi by ID
+      // ✅ mobileAccounts TIDAK diubah sama sekali
+      const mobList = prev?.mobileAccounts || [];
+      // userRights = gabungan keduanya untuk backward compat server/APK
       const usersMap = new Map();
       [...updatedWebList, ...mobList].forEach(u => {
-        if (u && (u.id || u.username)) {
-          const k = String(u.id || u.username).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
+        if (u && (u.id || u.username)) usersMap.set(String(u.id || u.username).toLowerCase(), u);
       });
-      const combinedUsers = Array.from(usersMap.values());
       return {
         ...prev,
         webAdminAccounts: updatedWebList,
         mobileAccounts: mobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        userRights: Array.from(usersMap.values()),
+        users: Array.from(usersMap.values()),
+        userAccounts: Array.from(usersMap.values())
       };
     });
     setShowAddUserModal(false);
@@ -473,81 +459,45 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
   const handleToggleUserStatus = (id) => {
     setMasterData(prev => {
-      // ✅ FIX: Baca webAdminList dari prev (state terbaru)
-      const webList = (() => {
-        const wa = prev?.webAdminAccounts;
-        if (Array.isArray(wa) && wa.length > 0) return wa;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.role !== 'Kasir' || u.canLoginWeb === true || u.password);
-        return [];
-      })();
-      const updatedWebList = webList.map(u => {
-        if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
-        return u;
-      });
-      const mobList = (() => {
-        const ma = prev?.mobileAccounts;
-        if (Array.isArray(ma) && ma.length > 0) return ma;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
-        return [];
-      })();
+      const webList = Array.isArray(prev?.webAdminAccounts) ? prev.webAdminAccounts : [];
+      const updatedWebList = webList.map(u =>
+        u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
+      );
+      const mobList = prev?.mobileAccounts || [];
       const usersMap = new Map();
       [...updatedWebList, ...mobList].forEach(u => {
-        if (u && (u.id || u.username)) {
-          const k = String(u.id || u.username).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
+        if (u && (u.id || u.username)) usersMap.set(String(u.id || u.username).toLowerCase(), u);
       });
-      const combinedUsers = Array.from(usersMap.values());
       return {
         ...prev,
         webAdminAccounts: updatedWebList,
         mobileAccounts: mobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        userRights: Array.from(usersMap.values()),
+        users: Array.from(usersMap.values()),
+        userAccounts: Array.from(usersMap.values())
       };
     });
   };
 
   const handleDeleteUser = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus akun Web Admin ini?')) {
-      setMasterData(prev => {
-        // ✅ FIX: Baca webAdminList dari prev (state terbaru)
-        const webList = (() => {
-          const wa = prev?.webAdminAccounts;
-          if (Array.isArray(wa) && wa.length > 0) return wa;
-          const ur = prev?.userRights;
-          if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.role !== 'Kasir' || u.canLoginWeb === true || u.password);
-          return [];
-        })();
-        const updatedWebList = webList.filter(u => u.id !== id);
-        const mobList = (() => {
-          const ma = prev?.mobileAccounts;
-          if (Array.isArray(ma) && ma.length > 0) return ma;
-          const ur = prev?.userRights;
-          if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
-          return [];
-        })();
-        const usersMap = new Map();
-        [...updatedWebList, ...mobList].forEach(u => {
-          if (u && (u.id || u.username)) {
-            const k = String(u.id || u.username).toLowerCase();
-            if (!usersMap.has(k)) usersMap.set(k, u);
-          }
-        });
-        const combinedUsers = Array.from(usersMap.values());
-        return {
-          ...prev,
-          webAdminAccounts: updatedWebList,
-          mobileAccounts: mobList,
-          userRights: combinedUsers,
-          users: combinedUsers,
-          userAccounts: combinedUsers
-        };
+    if (!window.confirm('Hapus akun Web Admin ini?')) return;
+    setMasterData(prev => {
+      // Filter dilakukan di dalam callback agar selalu baca state terbaru
+      const updatedWebList = (prev?.webAdminAccounts || []).filter(u => u.id !== id);
+      const mobList = prev?.mobileAccounts || [];
+      const usersMap = new Map();
+      [...updatedWebList, ...mobList].forEach(u => {
+        if (u && (u.id || u.username)) usersMap.set(String(u.id || u.username).toLowerCase(), u);
       });
-    }
+      return {
+        ...prev,
+        webAdminAccounts: updatedWebList,
+        mobileAccounts: mobList,
+        userRights: Array.from(usersMap.values()),
+        users: Array.from(usersMap.values()),
+        userAccounts: Array.from(usersMap.values())
+      };
+    });
   };
 
   // ===== CRUD MOBILE ACCOUNTS (INDEPENDEN dari Web Admin) =====
@@ -579,10 +529,10 @@ export default function SystemSettings({ masterData, setMasterData }) {
     setShowAddMobileModal(true);
   };
 
+  // ✅ INDEPENDEN: hanya sentuh mobileAccounts. webAdminAccounts TIDAK terpengaruh.
   const handleSaveMobile = (e) => {
     e.preventDefault();
     if (!newMobileName.trim() || !newMobileUsername.trim()) { alert('Nama dan Username wajib diisi!'); return; }
-    // Capture form values to avoid stale closure inside setState
     const _editingMobileId = editingMobileId;
     const _name = newMobileName.trim();
     const _outlet = newMobileOutlet;
@@ -594,51 +544,36 @@ export default function SystemSettings({ masterData, setMasterData }) {
     const _reportPwd = newMobileReportPwd2;
 
     setMasterData(prev => {
-      // ✅ FIX: Baca mobileList dari prev (state terbaru), bukan masterData closure
-      const mobList = (() => {
-        const ma = prev?.mobileAccounts;
-        if (Array.isArray(ma) && ma.length > 0) return ma;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir' || u.role?.includes('Mobile') || u.role?.includes('Owner') || u.role?.includes('Super Admin'));
-        return [];
-      })();
+      // Baca mobileAccounts dari prev (state terbaru)
+      const mobList = Array.isArray(prev?.mobileAccounts) && prev.mobileAccounts.length > 0
+        ? prev.mobileAccounts
+        : [];
 
       let updatedMobList;
       if (_editingMobileId) {
-        updatedMobList = mobList.map(u => {
-          if (u.id === _editingMobileId) {
-            return { ...u, name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd, password: _pwd, role: _role, status: _status, canLoginMobile: true, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd };
-          }
-          return u;
-        });
+        updatedMobList = mobList.map(u =>
+          u.id === _editingMobileId
+            ? { ...u, name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd, password: _pwd, role: _role, status: _status, canLoginMobile: true, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd }
+            : u
+        );
       } else {
         const newAcc = { id: Date.now(), name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd || '123', password: _pwd || '123', role: _role, status: _status, canLoginMobile: true, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd || '8888' };
         updatedMobList = [...mobList, newAcc];
       }
 
-      // Ambil daftar web admin terkini dari prev state
-      const webList = (() => {
-        const wa = prev?.webAdminAccounts;
-        if (Array.isArray(wa) && wa.length > 0) return wa;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur;
-        return [];
-      })();
+      // ✅ webAdminAccounts TIDAK diubah sama sekali
+      const webList = prev?.webAdminAccounts || [];
       const usersMap = new Map();
       [...webList, ...updatedMobList].forEach(u => {
-        if (u && (u.id || u.username)) {
-          const k = String(u.id || u.username).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
+        if (u && (u.id || u.username)) usersMap.set(String(u.id || u.username).toLowerCase(), u);
       });
-      const combinedUsers = Array.from(usersMap.values());
       return {
         ...prev,
         webAdminAccounts: webList,
         mobileAccounts: updatedMobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        userRights: Array.from(usersMap.values()),
+        users: Array.from(usersMap.values()),
+        userAccounts: Array.from(usersMap.values())
       };
     });
     setShowAddMobileModal(false);
@@ -646,81 +581,45 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
   const handleToggleMobileStatus = (id) => {
     setMasterData(prev => {
-      // ✅ FIX: Baca mobileList dari prev (state terbaru)
-      const mobList = (() => {
-        const ma = prev?.mobileAccounts;
-        if (Array.isArray(ma) && ma.length > 0) return ma;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir');
-        return [];
-      })();
-      const updatedMobList = mobList.map(u => {
-        if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
-        return u;
-      });
-      const webList = (() => {
-        const wa = prev?.webAdminAccounts;
-        if (Array.isArray(wa) && wa.length > 0) return wa;
-        const ur = prev?.userRights;
-        if (Array.isArray(ur) && ur.length > 0) return ur;
-        return [];
-      })();
+      const mobList = Array.isArray(prev?.mobileAccounts) ? prev.mobileAccounts : [];
+      const updatedMobList = mobList.map(u =>
+        u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
+      );
+      const webList = prev?.webAdminAccounts || [];
       const usersMap = new Map();
       [...webList, ...updatedMobList].forEach(u => {
-        if (u && (u.id || u.username)) {
-          const k = String(u.id || u.username).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
+        if (u && (u.id || u.username)) usersMap.set(String(u.id || u.username).toLowerCase(), u);
       });
-      const combinedUsers = Array.from(usersMap.values());
       return {
         ...prev,
         webAdminAccounts: webList,
         mobileAccounts: updatedMobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        userRights: Array.from(usersMap.values()),
+        users: Array.from(usersMap.values()),
+        userAccounts: Array.from(usersMap.values())
       };
     });
   };
 
   const handleDeleteMobile = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus akun Mobile APK ini?')) {
-      setMasterData(prev => {
-        // ✅ FIX: Baca mobileList dari prev (state terbaru)
-        const mobList = (() => {
-          const ma = prev?.mobileAccounts;
-          if (Array.isArray(ma) && ma.length > 0) return ma;
-          const ur = prev?.userRights;
-          if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir');
-          return [];
-        })();
-        const updatedMobList = mobList.filter(u => u.id !== id);
-        const webList = (() => {
-          const wa = prev?.webAdminAccounts;
-          if (Array.isArray(wa) && wa.length > 0) return wa;
-          const ur = prev?.userRights;
-          if (Array.isArray(ur) && ur.length > 0) return ur;
-          return [];
-        })();
-        const usersMap = new Map();
-        [...webList, ...updatedMobList].forEach(u => {
-          if (u && (u.id || u.username)) {
-            const k = String(u.id || u.username).toLowerCase();
-            if (!usersMap.has(k)) usersMap.set(k, u);
-          }
-        });
-        const combinedUsers = Array.from(usersMap.values());
-        return {
-          ...prev,
-          webAdminAccounts: webList,
-          mobileAccounts: updatedMobList,
-          userRights: combinedUsers,
-          users: combinedUsers,
-          userAccounts: combinedUsers
-        };
+    if (!window.confirm('Hapus akun Mobile APK ini?')) return;
+    setMasterData(prev => {
+      // Filter dilakukan di dalam callback agar selalu baca state terbaru
+      const updatedMobList = (prev?.mobileAccounts || []).filter(u => u.id !== id);
+      const webList = prev?.webAdminAccounts || [];
+      const usersMap = new Map();
+      [...webList, ...updatedMobList].forEach(u => {
+        if (u && (u.id || u.username)) usersMap.set(String(u.id || u.username).toLowerCase(), u);
       });
-    }
+      return {
+        ...prev,
+        webAdminAccounts: webList,
+        mobileAccounts: updatedMobList,
+        userRights: Array.from(usersMap.values()),
+        users: Array.from(usersMap.values()),
+        userAccounts: Array.from(usersMap.values())
+      };
+    });
   };
 
   const togglePasswordVisibility = (id) => {
