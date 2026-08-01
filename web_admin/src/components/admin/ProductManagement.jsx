@@ -405,11 +405,6 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
 
   const filteredProducts = masterData.products.filter(p => {
-    // Hide items with zero effective price
-    if (getEffectiveProductPrice(p) <= 0) {
-      return false;
-    }
-
     if (selectedBranch) {
       const matchOutlet = p.outlet_id === selectedBranch || Number(p.outlet_id) === Number(selectedBranch) ||
         (p.selectedOutletIds && (p.selectedOutletIds.includes(selectedBranch) || p.selectedOutletIds.includes(String(selectedBranch)) || p.selectedOutletIds.includes(Number(selectedBranch))));
@@ -653,7 +648,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             </div>
                           </>
                         ) : (
-                          <span style={{ color: '#64748b', fontSize: '0.75rem', fontStyle: 'italic' }}>Belum Di-set</span>
+                          <span style={{ color: '#f43f5e', fontSize: '0.75rem', fontWeight: '800', background: 'rgba(244,63,94,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(244,63,94,0.3)' }}>⚠️ Belum Di-set (Rp 0)</span>
                         )}
                       </td>
 
