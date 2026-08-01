@@ -1386,14 +1386,53 @@ app.all('/api/webhook/deploy', (req, res) => {
 
   res.json({ success: true, message: '🚀 Deployment command triggered on VPS in background...' });
 
-  const deployCmd = `if [ -f "/var/www/deploy.sh" ]; then bash /var/www/deploy.sh; else DIR=$(pwd); if [ -d "/var/www/erp-barokah" ]; then DIR="/var/www/erp-barokah"; elif [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; cd "$DIR" && git fetch origin && git reset --hard origin/main && (cd web_admin && npm run build && cp -r dist/* ../dist/ 2>/dev/null || true) && (pm2 reload all || pm2 restart all || pm2 restart erp-barokah); fi`;
+  // Step 1: jalankan deploy.sh (atau fallback git pull + pm2 restart)
+  // Step 2: SELALU rebuild web_admin setelah deploy agar dist ter-update
+  const getProjectDir = `DIR="/var/www/erp-barokah"; if [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; echo $DIR`;
+  const deployCmd = `
+    if [ -f "/var/www/deploy.sh" ]; then
+      bash /var/www/deploy.sh;
+    fi;
+    DIR="/var/www/erp-barokah";
+    if [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi;
+    cd "$DIR" && git fetch origin && git reset --hard origin/main && echo "✅ git pull done";
+    cd "$DIR/web_admin" && npm run build && echo "✅ web_admin build done" && cp -r dist/* ../dist/ && echo "✅ dist copied";
+    pm2 reload all || pm2 restart all || true;
+  `;
 
-  exec(deployCmd, (error, stdout, stderr) => {
+  exec(deployCmd, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
     if (error) {
       console.error('❌ Auto-deploy failed:', error.message);
+      console.error('stderr:', stderr);
       return;
     }
     console.log('✅ Auto-deploy output:\n', stdout);
+  });
+});
+
+// Endpoint khusus: force rebuild web_admin saja (tanpa full deploy)
+// Berguna untuk memaksa update tampilan tanpa restart backend
+app.all('/api/webhook/build-frontend', (req, res) => {
+  const secret = req.query.secret || req.body?.secret || req.headers['x-deploy-secret'];
+  const DEPLOY_SECRET = process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026';
+
+  if (secret !== DEPLOY_SECRET) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  let projectDir = '/var/www/erp-barokah';
+  if (require('fs').existsSync('/var/www/ERPBAROKAH')) projectDir = '/var/www/ERPBAROKAH';
+  else if (require('fs').existsSync('/var/www/MRIS')) projectDir = '/var/www/MRIS';
+
+  const buildCmd = `cd "${projectDir}/web_admin" && npm run build && cp -r dist/* ../dist/ && echo "BUILD_OK"`;
+
+  exec(buildCmd, { maxBuffer: 1024 * 1024 * 10, timeout: 300000 }, (error, stdout, stderr) => {
+    if (error) {
+      console.error('❌ Frontend build failed:', error.message);
+      return res.status(500).json({ success: false, error: error.message, stderr });
+    }
+    console.log('✅ Frontend build output:\n', stdout);
+    res.json({ success: true, message: '✅ Frontend build selesai', output: stdout.slice(-500) });
   });
 });
 
