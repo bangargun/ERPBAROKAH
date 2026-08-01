@@ -1589,11 +1589,42 @@ app.post('/api/master-data/delete-item', async (req, res) => {
 
     // Hapus item dari array di masterData JSON
     if (key === 'salesTransactions' || key === 'transactions') {
+      const findTx = (arr) => Array.isArray(arr) ? arr.find(item => item && (String(item.id) === idStr || String(item.receipt_no) === idStr || String(item.receiptNo) === idStr || String(item.invoice_no) === idStr)) : null;
+      const found = findTx(existing.salesTransactions) || findTx(existing.transactions) || findTx(existing.outletTransactions);
+      
+      let targetId = idStr;
+      let targetReceiptNo = null;
+      if (found) {
+        targetId = String(found.id || idStr);
+        targetReceiptNo = found.receipt_no || found.receiptNo || found.invoice_no || null;
+      }
+
+      const isMatch = (item) => {
+        if (!item) return false;
+        const itemId = String(item.id !== undefined ? item.id : '');
+        const itemRcpt = String(item.receipt_no || item.receiptNo || item.invoice_no || '');
+        if (itemId && (itemId === targetId || itemId === idStr)) return true;
+        if (targetReceiptNo && itemRcpt && itemRcpt === targetReceiptNo) return true;
+        if (itemRcpt && (itemRcpt === targetId || itemRcpt === idStr)) return true;
+        return false;
+      };
+
       if (Array.isArray(existing.salesTransactions)) {
-        existing.salesTransactions = existing.salesTransactions.filter(item => item && String(item.id) !== idStr);
+        existing.salesTransactions = existing.salesTransactions.filter(item => !isMatch(item));
       }
       if (Array.isArray(existing.transactions)) {
-        existing.transactions = existing.transactions.filter(item => item && String(item.id) !== idStr);
+        existing.transactions = existing.transactions.filter(item => !isMatch(item));
+      }
+      if (Array.isArray(existing.outletTransactions)) {
+        existing.outletTransactions = existing.outletTransactions.filter(item => !isMatch(item));
+      }
+      if (Array.isArray(existing.stockMovement)) {
+        existing.stockMovement = existing.stockMovement.filter(item => {
+          if (!item) return false;
+          const refId = String(item.ref_id || item.transaction_id || item.receipt_no || '');
+          if (refId && (refId === targetId || refId === idStr || (targetReceiptNo && refId === targetReceiptNo))) return false;
+          return true;
+        });
       }
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {

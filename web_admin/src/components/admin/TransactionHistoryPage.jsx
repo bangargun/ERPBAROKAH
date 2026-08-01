@@ -397,14 +397,45 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
   const handleDeleteTransaction = async (id) => {
     if (!id) return;
-    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${id}? Data penjualan ini akan terhapus permanen dari Web Admin dan Mobile Kasir.`)) {
-      const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => String(t.id) !== String(id));
-      const updatedTx = (masterData?.transactions || []).filter(t => String(t.id) !== String(id));
+    const targetTx = (masterData?.salesTransactions || []).find(t => 
+      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
+    ) || (masterData?.transactions || []).find(t => 
+      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
+    );
+
+    const targetId = targetTx?.id ? String(targetTx.id) : String(id);
+    const targetReceiptNo = targetTx?.receipt_no || targetTx?.receiptNo || targetTx?.invoice_no || null;
+    const displayLabel = targetReceiptNo || targetId;
+
+    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${displayLabel}? Data penjualan ini akan terhapus permanen dari Web Admin, Riwayat Kategori, Laba Rugi, dan Kasir Mobile.`)) {
+      const isMatch = (t) => {
+        if (!t) return false;
+        const tid = String(t.id !== undefined ? t.id : '');
+        const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+        if (tid && (tid === targetId || tid === String(id))) return true;
+        if (targetReceiptNo && trcpt && trcpt === targetReceiptNo) return true;
+        if (trcpt && (trcpt === targetId || trcpt === String(id))) return true;
+        return false;
+      };
+
+      const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => !isMatch(t));
+      const updatedTx = (masterData?.transactions || []).filter(t => !isMatch(t));
+      const updatedOutletTx = (masterData?.outletTransactions || []).filter(t => !isMatch(t));
+
+      const updatedStockMovement = (masterData?.stockMovement || []).filter(m => {
+        if (!m) return false;
+        const refId = String(m.ref_id || m.transaction_id || m.receipt_no || '');
+        if (refId && (refId === targetId || refId === String(id) || (targetReceiptNo && refId === targetReceiptNo))) return false;
+        return true;
+      });
+
       const updated = {
         ...masterData,
         _lastUpdated: Date.now(),
         salesTransactions: updatedSalesTx,
-        transactions: updatedTx
+        transactions: updatedTx,
+        outletTransactions: updatedOutletTx,
+        stockMovement: updatedStockMovement
       };
 
       if (setMasterData) {
@@ -416,7 +447,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         await fetch(getApiUrl('/api/master-data/delete-item'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'salesTransactions', id })
+          body: JSON.stringify({ key: 'salesTransactions', id: targetId })
         });
       } catch (err) {
         console.error('Delete transaction API error:', err);

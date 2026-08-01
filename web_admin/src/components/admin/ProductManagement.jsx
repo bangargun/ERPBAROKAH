@@ -1068,7 +1068,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         const targetId = isNaN(tempOutletSelectId) ? tempOutletSelectId : Number(tempOutletSelectId);
                         if (!selectedOutletIds.includes(targetId)) {
                           setSelectedOutletIds([...selectedOutletIds, targetId]);
-                          setStandardPrices(prev => ({ ...prev, [targetId]: 15000 }));
+                          setStandardPrices(prev => ({ ...prev, [targetId]: 0 }));
                           setOutletApkStatus(prev => ({ ...prev, [targetId]: 'Aktif' }));
                         }
                         setTempOutletSelectId('');
