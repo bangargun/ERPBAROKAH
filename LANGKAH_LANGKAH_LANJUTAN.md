@@ -1,8 +1,10 @@
 # 🚀 PANDUAN DEPLOYMENT ISOLASI KHUSUS MRIS (`barokahgroupindonesia.tech`)
 **IP VPS Hostinger**: `187.77.122.142`  
 **Domain Baru MRIS**: `barokahgroupindonesia.tech` *(Terisolasi 100% dari domain `barokahgroupindonesia.com`)*  
-**Port API Khusus MRIS**: `4000`  
-**Nama Layanan PM2**: `mris-app-tech`
+**Port API Backend MRIS**: `5001`  
+**Nama Layanan PM2**: `erp-barokah`  
+**Direktori Proyek VPS**: `/var/www/erp-barokah`  
+**GitHub Repository**: `https://github.com/bangargun/ERPBAROKAH.git`
 
 ---
 
@@ -22,8 +24,6 @@ Masukkan 4 Record Tipe **A** berikut ini di Hostinger:
 | **A** | `mris-admin` | `187.77.122.142` | `14400` | Subdomain Web Admin Executive |
 | **A** | `mris-api` | `187.77.122.142` | `14400` | Subdomain API Backend MRIS |
 
-*(Jika ada tombol sampah pada `www` lama di tabel daftar record bawah, hapus `www` lama terlebih dahulu sebelum menekan Tambahkan Record).*
-
 ---
 
 ## 💻 TAHAP 2: SETUP PERINTAH SSH (JALANKAN DI TERMINAL VPS `187.77.122.142`)
@@ -37,11 +37,11 @@ ssh root@187.77.122.142
 
 ---
 
-### 2. Clone Proyek ke Folder Terisolasi `/var/www/MRIS_TECH`
+### 2. Clone Proyek ke Folder Terisolasi `/var/www/erp-barokah`
 ```bash
 cd /var/www
-sudo git clone https://github.com/bangargun/MRIS.git MRIS_TECH
-cd /var/www/MRIS_TECH
+sudo git clone https://github.com/bangargun/ERPBAROKAH.git erp-barokah
+cd /var/www/erp-barokah
 sudo mkdir -p data
 ```
 
@@ -67,17 +67,17 @@ server {
     listen 80;
     server_name barokahgroupindonesia.tech www.barokahgroupindonesia.tech mris-admin.barokahgroupindonesia.tech mris-api.barokahgroupindonesia.tech;
 
-    # Folder Terisolasi Khusus MRIS TECH
-    root /var/www/MRIS_TECH/dist;
+    # Folder Terisolasi Khusus MRIS ERP BAROKAH
+    root /var/www/erp-barokah/dist;
     index index.html;
 
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # Proxy API Khusus Port 4000 (Terisolasi dari aplikasi .com)
+    # Proxy API Khusus Port 5001
     location /api/ {
-        proxy_pass http://127.0.0.1:4000;
+        proxy_pass http://127.0.0.1:5001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -89,7 +89,6 @@ server {
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
 }
 ```
-> 💡 **Cara Simpan di Nano**: Tekan **`Ctrl + O`** ➔ **`Enter`** ➔ Tekan **`Ctrl + X`**.
 
 ---
 
@@ -103,16 +102,17 @@ sudo certbot --nginx -d barokahgroupindonesia.tech -d www.barokahgroupindonesia.
 
 ---
 
-### 6. Jalankan Server Database MRIS via PM2 (Port 4000)
+### 6. Jalankan Server Database MRIS via PM2 (Port 5001) & Autostart Permanent
 ```bash
-cd /var/www/MRIS_TECH
-PORT=4000 pm2 start server.js --name "mris-app-tech"
+cd /var/www/erp-barokah
+PORT=5001 pm2 start server.js --name "erp-barokah"
 pm2 save
+pm2 startup
 ```
 
 ---
 
-## 🛠️ TAHAP 3: ALUR UPDATE / PERBAIKAN BUG DI KEMUDIAN HARI (LOCAL ➔ GITHUB ➔ VPS)
+## 🛠️ TAHAP 3: ALUR UPDATE / PERBAIKAN BUG (LOCAL ➔ GITHUB ➔ VPS)
 
 ```
 [Komputer Lokal (Mac)] ➔ 1. Edit & Tes Lokal ➔ 2. Git Commit & Push ➔ [GitHub] ➔ 3. Pull & Build di VPS
