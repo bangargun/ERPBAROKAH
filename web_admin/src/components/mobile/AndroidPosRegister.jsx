@@ -682,42 +682,21 @@ export default function AndroidPosRegister({
       } catch (err) {}
     };
 
-    const doSyncFetch = () => {
-      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
-        .then(res => res.json())
-        .then(data => {
-          if (data && typeof data === 'object' && !data.error) {
-            const now = new Date();
-            const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
-            setLastSyncTime(formatted);
-
-            setMasterData(prev => {
-              if (!prev) return data;
-              const prevTs = prev?._lastUpdated || 0;
-              const serverTs = data?._lastUpdated || 0;
-              if (serverTs >= prevTs || !prevTs) {
-                return {
-                  ...prev,
-                  ...data
-                };
-              }
-              return prev;
-            });
-          }
-        })
-        .catch(() => {});
+    const updateSyncTimestamp = () => {
+      const now = new Date();
+      const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
+      setLastSyncTime(formatted);
     };
 
-    // Initial fetch & queue flush
-    doSyncFetch();
+    // Initial sync timestamp update & queue flush
+    updateSyncTimestamp();
     doFlushOfflineQueue();
 
-    // Periodic flush queue & network status update (Smart Battery-Aware 15s / 30s Polling)
-    const pollIntervalMs = (typeof navigator !== 'undefined' && navigator.getBattery) ? 25000 : 15000;
+    // Periodic queue flush & sync timestamp update
     const timer = setInterval(() => {
-      doSyncFetch();
+      updateSyncTimestamp();
       if (navigator.onLine) doFlushOfflineQueue();
-    }, pollIntervalMs);
+    }, 15000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
