@@ -1361,50 +1361,54 @@ app.all('/api/webhook/deploy', (req, res) => {
 });
 
 // Deep merge masterData protecting user input from being overwritten by empty arrays while allowing full entity updates
+// Deep merge masterData protecting user input from being overwritten by empty arrays while allowing full entity updates
 const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   const result = { ...existing };
-
-  // Append-only history keys yang digabung per ID (agar transaksi dari POS Mobile & Web Admin bergabung secara aman)
-  const appendOnlyKeys = new Set([
-    'salesTransactions', 'transactions', 'stockMovement', 
-    'damagedGoods', 'approvedWaste', 'stockTransfer', 
-    'manualEntryRecords', 'shift_closings', 'closedShifts', 'pettyExpenses'
-  ]);
 
   Object.keys(incoming).forEach(key => {
     const incVal = incoming[key];
     const extVal = existing[key];
 
-    if (appendOnlyKeys.has(key)) {
-      if (Array.isArray(incVal) && incVal.length > 0) {
-        if (!Array.isArray(extVal) || extVal.length === 0) {
-          result[key] = incVal;
-        } else {
-          const itemMap = new Map();
-          extVal.forEach(item => {
-            if (item && (item.id !== undefined || item.report_no !== undefined)) {
-              itemMap.set(String(item.id || item.report_no), item);
-            }
-          });
-          incVal.forEach(item => {
-            if (item && (item.id !== undefined || item.report_no !== undefined)) {
-              const keyId = String(item.id || item.report_no);
-              const prev = itemMap.get(keyId) || {};
-              itemMap.set(keyId, { ...prev, ...item });
-            } else {
-              itemMap.set(Symbol(), item);
-            }
-          });
-          result[key] = Array.from(itemMap.values());
-        }
-      }
-    } else {
-      // Untuk entitas utama (outlets, products, categories, users, dll), adopsi incVal langsung jika berupa array/properti valid
-      if (Array.isArray(incVal)) {
+    if (Array.isArray(incVal)) {
+      if (!Array.isArray(extVal) || extVal.length === 0) {
+        // Safe to adopt incoming if existing is empty
         result[key] = incVal;
-      } else if (incVal !== undefined && incVal !== null) {
-        result[key] = incVal;
+      } else if (incVal.length === 0) {
+        // PROTECT EXISTING DATA: Never wipe out existing server array with incoming empty array []!
+        result[key] = extVal;
+      } else {
+        // Merge existing and incoming arrays by ID/name so additions on Web Admin and POS Mobile COMBINE safely
+        const itemMap = new Map();
+        extVal.forEach(item => {
+          if (item && item.id !== undefined && item.id !== null) {
+            itemMap.set(String(item.id), item);
+          } else if (item && item.report_no) {
+            itemMap.set(String(item.report_no), item);
+          } else if (item && item.name) {
+            itemMap.set(String(item.name).toLowerCase().trim(), item);
+          }
+        });
+        incVal.forEach(item => {
+          if (item && item.id !== undefined && item.id !== null) {
+            const keyId = String(item.id);
+            const prev = itemMap.get(keyId) || {};
+            itemMap.set(keyId, { ...prev, ...item });
+          } else if (item && item.report_no) {
+            const keyNo = String(item.report_no);
+            const prev = itemMap.get(keyNo) || {};
+            itemMap.set(keyNo, { ...prev, ...item });
+          } else if (item && item.name) {
+            const keyName = String(item.name).toLowerCase().trim();
+            const prev = itemMap.get(keyName) || {};
+            itemMap.set(keyName, { ...prev, ...item });
+          } else {
+            itemMap.set(Symbol(), item);
+          }
+        });
+        result[key] = Array.from(itemMap.values());
       }
+    } else if (incVal !== undefined && incVal !== null) {
+      result[key] = incVal;
     }
   });
 

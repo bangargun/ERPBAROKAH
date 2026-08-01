@@ -129,15 +129,19 @@ export default function App() {
     return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
   };
 
-  // Ref flag to distinguish local mutations (add/edit/delete) from remote GET polling updates
-  const isRemoteUpdateRef = useRef(true);
-
   const lastRemoteTsRef = useRef(0);
+  const isInitialMountRef = useRef(true);
 
   // Sync Master Data to localStorage & Central VPS Cloud API (Local Mutations Only)
   useEffect(() => {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
-    
+
+    // Prevent POST on initial mount (always fetch from server first!)
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
     // Ignore automatic POST if this state update came from server GET polling
     if (masterData._lastUpdated && masterData._lastUpdated === lastRemoteTsRef.current) {
       return;
@@ -175,15 +179,17 @@ export default function App() {
         .then(res => res.ok ? res.json() : null)
         .then(serverData => {
           if (serverData && typeof serverData === 'object' && Array.isArray(serverData.products)) {
+            const remoteTs = serverData._lastUpdated || Date.now();
+            lastRemoteTsRef.current = remoteTs;
             setMasterData(prev => {
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
 
-              lastRemoteTsRef.current = serverData?._lastUpdated || Date.now();
               return {
                 ...initialMasterData,
-                ...serverData
+                ...serverData,
+                _lastUpdated: remoteTs
               };
             });
           }
