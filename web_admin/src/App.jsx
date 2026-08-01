@@ -112,7 +112,8 @@ export default function App() {
 
   const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
-  // Ref untuk track kapan terakhir ada mutasi lokal (tambah/edit/hapus)
+  // Ref untuk track timestamp remote dan mutasi lokal
+  const lastRemoteTsRef = useRef(0);
   const lastLocalMutationTsRef = useRef(0);
 
   // Wrapper function that guarantees every local mutation gets a new timestamp & instant push to VPS MySQL
