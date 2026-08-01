@@ -177,9 +177,18 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
  * @param {Function} onSuccess - Callback sukses
  * @param {Function} onError - Callback error
  */
+/**
+ * Cetak struk ke printer Bluetooth (native) atau fallback otomatis ke PDF Print (system print).
+ *
+ * @param {string} mac - MAC address printer
+ * @param {string} textContent - Teks terformat (output buildReceiptText)
+ * @param {string} paperWidth - '58' | '80'
+ * @param {Function} onSuccess - Callback sukses
+ * @param {Function} onError - Callback error
+ */
 export const printToBluetoothPrinter = async (mac, textContent, paperWidth = '58', onSuccess, onError) => {
   if (isCapacitor() && mac) {
-    // Mode Capacitor (Android) — kirim ke native plugin
+    // Mode Capacitor (Android) — kirim ke native plugin Bluetooth
     try {
       const result = await BluetoothPrinter.printText({
         mac,
@@ -189,20 +198,23 @@ export const printToBluetoothPrinter = async (mac, textContent, paperWidth = '58
       if (onSuccess) onSuccess(result);
       return result;
     } catch (err) {
-      console.error('[BTPrinter] printText error:', err);
-      if (onError) onError(err);
-      throw err;
+      console.error('[BTPrinter] Native printText error:', err);
+      console.warn('[BTPrinter] Bluetooth printer error / tidak merespon, otomatis mengalihkan ke Cetak PDF...');
+      _browserPrintFallback(textContent, paperWidth);
+      if (onSuccess) onSuccess({ success: true, fallbackPdf: true, errorMsg: err?.message });
+      return { success: true, fallbackPdf: true, errorMsg: err?.message };
     }
   } else {
-    // Mode Browser / no MAC — fallback ke iframe print dialog
-    console.warn('[BTPrinter] Fallback ke browser print (bukan Capacitor atau MAC kosong).');
+    // Mode Browser / Printer Tidak Ada (MAC Kosong) — langsung alihkan ke PDF Print!
+    console.warn('[BTPrinter] Printer Bluetooth tidak ditemukan / MAC belum dipilih. Otomatis mencetak dalam format PDF.');
     _browserPrintFallback(textContent, paperWidth);
-    if (onSuccess) onSuccess({ success: true, fallback: true });
+    if (onSuccess) onSuccess({ success: true, fallbackPdf: true });
+    return { success: true, fallbackPdf: true };
   }
 };
 
 /**
- * Test print: kirim struk tes sederhana ke printer.
+ * Test print: kirim struk tes sederhana ke printer atau PDF print.
  *
  * @param {string} mac - MAC address printer
  * @param {string} outletName - Nama outlet
@@ -216,16 +228,16 @@ export const testPrint = async (mac, outletName = 'POS KASIR BAROKAH', paperWidt
   const timeStr = now.toLocaleTimeString('id-ID');
 
   const text = [
-    '[C][2]TEST PRINT',
+    '[C][2]TEST PRINT STRUK / PDF',
     '[C]' + (outletName || 'POS KASIR BAROKAH').toUpperCase(),
     '[C]POS KASIR BAROKAH',
     divider,
     `Tanggal : ${dateStr}`,
     `Waktu   : ${timeStr}`,
-    `Printer : ${mac || '-'}`,
+    `Printer : ${mac || 'Mode PDF (Printer Tidak Ada)'}`,
     `Kertas  : ${paperWidth}mm`,
     divider,
-    '[C][B]*** PRINTER SIAP DIGUNAKAN ***',
+    '[C][B]*** STRUK SIAP DICETAK / DISIMPAN PDF ***',
     '[C]POS KASIR BAROKAH Ready',
     '',
     ''
@@ -235,31 +247,112 @@ export const testPrint = async (mac, outletName = 'POS KASIR BAROKAH', paperWidt
 };
 
 /**
- * Fallback: cetak via iframe + window.print() (browser / dev mode)
+ * Fallback: cetak via iframe / window.print() ke PDF System Print
  */
-const _browserPrintFallback = (textContent, paperWidth = '58') => {
+export const _browserPrintFallback = (textContent, paperWidth = '58') => {
   const w = paperWidth === '80' ? '76mm' : '54mm';
-  const html = `<!DOCTYPE html><html><head>
-    <style>
-      @page { size: ${paperWidth}mm auto; margin: 0; }
-      body { font-family: 'Courier New', monospace; width: ${w}; margin: 0 auto;
-             padding: 4mm 2mm; color: #000; background: #fff; font-size: 11px; line-height: 1.4; }
-      pre { white-space: pre-wrap; word-break: break-all; margin: 0; font-family: inherit; font-size: inherit; }
-    </style></head><body><pre>${textContent.replace(/\[C\]|\[L\]|\[B\]|\[2\]|\[DIV\]|\[DIVD\]|\[CUT\]/g, '')}</pre></body></html>`;
+  
+  // Clean ESC/POS tags for clean PDF layout
+  const cleanText = (textContent || '')
+    .replace(/\[C\]|\[L\]|\[R\]|\[B\]|\[2\]|\[DIV\]|\[DIVD\]|\[CUT\]/g, '')
+    .replace(/undefined/g, '');
 
-  let iframe = document.getElementById('mris-silent-print-frame');
-  if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-  iframe = document.createElement('iframe');
-  iframe.id = 'mris-silent-print-frame';
-  Object.assign(iframe.style, { position: 'fixed', left: '-9999px', top: '-9999px', width: '1px', height: '1px', border: '0', opacity: '0' });
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open(); doc.write(html); doc.close();
-  setTimeout(() => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 3000);
-  }, 150);
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cetak Struk POS - PDF</title>
+  <style>
+    @page {
+      size: ${paperWidth === '80' ? '80mm' : '58mm'} auto;
+      margin: 0;
+    }
+    @media print {
+      body {
+        width: 100%;
+        margin: 0;
+        padding: 4mm 2mm;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      width: ${w};
+      margin: 0 auto;
+      padding: 6mm 4mm;
+      color: #000000;
+      background: #ffffff;
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 700;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 0;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+    }
+  </style>
+</head>
+<body>
+  <pre>${cleanText}</pre>
+</body>
+</html>`;
+
+  try {
+    let iframe = document.getElementById('mris-silent-print-frame');
+    if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+
+    iframe = document.createElement('iframe');
+    iframe.id = 'mris-silent-print-frame';
+    Object.assign(iframe.style, {
+      position: 'fixed',
+      left: '-9999px',
+      top: '-9999px',
+      width: '1px',
+      height: '1px',
+      border: '0',
+      opacity: '0',
+      pointerEvents: 'none'
+    });
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        console.warn('[BTPrinter] iframe print exception, using window.open fallback:', e);
+        try {
+          const printWin = window.open('', '_blank');
+          if (printWin) {
+            printWin.document.write(html);
+            printWin.document.close();
+            printWin.focus();
+            printWin.print();
+            setTimeout(() => { try { printWin.close(); } catch(errClose){} }, 1000);
+          }
+        } catch (errWin) {
+          console.error('[BTPrinter] PDF Print popup blocked / failed:', errWin);
+        }
+      }
+      setTimeout(() => {
+        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }, 4000);
+    }, 200);
+  } catch (errGlobal) {
+    console.error('[BTPrinter] _browserPrintFallback global exception:', errGlobal);
+  }
 };
 
 export default { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint };

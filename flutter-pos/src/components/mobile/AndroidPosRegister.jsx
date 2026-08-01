@@ -1479,42 +1479,44 @@ export default function AndroidPosRegister({
     }
   }, []);
 
-  // Print text langsung ke hardware Bluetooth printer (atau fallback ke iframe print di browser)
+  // Print text langsung ke hardware Bluetooth printer (atau fallback otomatis ke PDF Print bila printer tidak terhubung / tidak ditemukan)
   const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
-    showPrintStatus('printing', '🖨️ Mengirim data ke printer...');
+    showPrintStatus('printing', '🖨️ Memproses pencetakan struk...');
     try {
       await printToBluetoothPrinter(
         printerMac,
         textContent,
         printerPaperWidth,
-        () => showPrintStatus('success', '✅ Cetak berhasil!'),
-        (err) => {
-          const msg = err?.message || String(err);
-          if (msg.includes('BLUETOOTH_DISABLED')) {
-            showPrintStatus('error', '❌ Bluetooth tidak aktif. Aktifkan Bluetooth.');
-          } else if (msg.includes('CONNECTION_REFUSED')) {
-            showPrintStatus('error', '❌ Printer menolak koneksi. Pastikan printer menyala.');
-          } else if (msg.includes('DEVICE_BUSY')) {
-            showPrintStatus('error', '❌ Printer sedang sibuk. Coba lagi.');
+        (res) => {
+          if (res?.fallbackPdf) {
+            showPrintStatus('success', '📄 Printer tidak terhubung. Struk dialihkan ke Cetak PDF!');
           } else {
-            showPrintStatus('error', '❌ Gagal cetak: ' + msg);
+            showPrintStatus('success', '✅ Struk berhasil dicetak!');
           }
+        },
+        (err) => {
+          showPrintStatus('success', '📄 Printer tidak terhubung. Struk dialihkan ke Cetak PDF!');
         }
       );
     } catch (err) {
       console.error('[BTPrinter] printTextToBluetooth error:', err);
+      showPrintStatus('success', '📄 Printer tidak terhubung. Struk dialihkan ke Cetak PDF!');
     }
   }, [printerMac, printerPaperWidth, showPrintStatus]);
 
-  // Test print ke hardware printer — kirim struk tes sederhana via Bluetooth
+  // Test print ke hardware printer atau PDF Print
   const handleExecuteTestPrint = useCallback(async () => {
     const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
-    showPrintStatus('printing', '🖨️ Mengirim test print...');
+    showPrintStatus('printing', '🖨️ Memproses test print...');
     try {
-      await btTestPrint(printerMac, outletName, printerPaperWidth);
-      showPrintStatus('success', '✅ Test print berhasil dikirim ke printer!');
+      const res = await btTestPrint(printerMac, outletName, printerPaperWidth);
+      if (res?.fallbackPdf) {
+        showPrintStatus('success', '📄 Printer Bluetooth tidak ada. Test print dialihkan ke Format PDF!');
+      } else {
+        showPrintStatus('success', '✅ Test print berhasil dikirim ke printer!');
+      }
       setTestPrintSuccessToast(true);
-      setTimeout(() => setTestPrintSuccessToast(false), 3000);
+      setTimeout(() => setTestPrintSuccessToast(false), 3500);
     } catch (err) {
       const msg = err?.message || String(err);
       showPrintStatus('error', '❌ Test print gagal: ' + msg);
@@ -5940,34 +5942,34 @@ export default function AndroidPosRegister({
 
                     {/* TEST PRINT */}
                     <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧪 Tes Cetak Printer</div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧪 Tes Cetak Printer / PDF</div>
                       <div style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)' }}>
                         {printerMac
-                          ? 'Kirim struk tes ke printer yang dipilih untuk memastikan koneksi dan format cetak berjalan normal.'
-                          : 'Pilih printer terlebih dahulu untuk mengaktifkan fitur tes cetak.'}
+                          ? 'Kirim struk tes ke printer Bluetooth yang terhubung.'
+                          : 'ℹ️ Tidak ada printer terhubung. Klik tombol di bawah untuk mencoba Tes Cetak Format PDF.'}
                       </div>
                       <button
                         type="button"
                         onClick={handleExecuteTestPrint}
-                        disabled={!printerMac || printStatus === 'printing'}
+                        disabled={printStatus === 'printing'}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                           padding: '14px',
                           borderRadius: '12px',
-                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`,
-                          background: !printerMac ? 'rgba(100,116,139,0.1)' : 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)',
-                          color: !printerMac ? '#64748b' : '#34d399',
+                          border: `1px solid ${printerMac ? '#34d399' : '#38bdf8'}`,
+                          background: printerMac ? 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)' : 'linear-gradient(135deg, rgba(56,189,248,0.25) 0%, rgba(14,165,233,0.25) 100%)',
+                          color: printerMac ? '#34d399' : '#38bdf8',
                           fontWeight: '800',
                           fontSize: '0.92rem',
-                          cursor: !printerMac ? 'not-allowed' : 'pointer'
+                          cursor: printStatus === 'printing' ? 'not-allowed' : 'pointer'
                         }}
                       >
                         <PrinterIcon size={18} />
-                        {printStatus === 'printing' ? 'Mengirim...' : '🖨️ Kirim Test Print Sekarang'}
+                        {printStatus === 'printing' ? 'Memproses...' : printerMac ? '🖨️ Kirim Test Print Ke Bluetooth' : '📄 Tes Cetak Format PDF (System Print)'}
                       </button>
                       {testPrintSuccessToast && (
-                        <div style={{ textAlign: 'center', color: '#34d399', fontSize: '0.85rem', fontWeight: '700', padding: '8px', borderRadius: '8px', background: 'rgba(52,211,153,0.1)' }}>
-                          ✅ Struk tes berhasil dikirim ke printer!
+                        <div style={{ textAlign: 'center', color: printerMac ? '#34d399' : '#38bdf8', fontSize: '0.85rem', fontWeight: '700', padding: '8px', borderRadius: '8px', background: printerMac ? 'rgba(52,211,153,0.1)' : 'rgba(56,189,248,0.1)' }}>
+                          {printerMac ? '✅ Struk tes berhasil dikirim ke printer!' : '📄 Struk tes dialihkan ke Cetak PDF!'}
                         </div>
                       )}
                     </div>
