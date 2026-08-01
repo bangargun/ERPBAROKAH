@@ -137,7 +137,10 @@ export default function AndroidPosRegister({
   const rawProducts = (masterData?.products || []);
   const products = rawProducts.filter(p => 
     !p.outlet_id || 
+    p.outlet_id === 'Semua Outlet' ||
+    p.outlet_id === 'Semua Outlet (Central)' ||
     String(p.outlet_id) === String(currentOutlet.id) || 
+    String(p.outlet_name || '').toLowerCase() === String(currentOutlet.name || '').toLowerCase() ||
     String(currentOutlet.id) === '1' ||
     String(p.outlet_id) === '1'
   );
@@ -148,10 +151,10 @@ export default function AndroidPosRegister({
     .filter(Boolean);
   const productCategoryNames = menuList.map(item => getProductCategoryName(item)).filter(Boolean);
   const allCategoryNames = Array.from(new Set([...masterCategoryNames, ...productCategoryNames]));
-  const categories = ['🔥 Sering Diorder', 'Semua', ...allCategoryNames];
+  const categories = ['Semua', '🔥 Sering Diorder', ...allCategoryNames];
 
-  // POS State
-  const [activeCategory, setActiveCategory] = useState('🔥 Sering Diorder');
+  // POS State (Default 'Semua' agar seluruh produk baru dari Web Admin langsung terlihat)
+  const [activeCategory, setActiveCategory] = useState('Semua');
   const [appTheme, setAppTheme] = useState(() => localStorage.getItem('mris_pos_theme') || 'dark'); // 'dark' | 'light'
 
   const toggleAppTheme = (newTheme) => {

@@ -174,24 +174,17 @@ export default function App() {
       fetch(getApiUrl('/api/master-data'))
         .then(res => res.ok ? res.json() : null)
         .then(serverData => {
-          if (serverData && typeof serverData === 'object') {
+          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.products)) {
             setMasterData(prev => {
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
 
-              const clientUpdated = prev?._lastUpdated || 0;
-              const serverUpdated = serverData?._lastUpdated || 0;
-
-              // Adopt server state if server is strictly newer or client data missing
-              if (serverUpdated > clientUpdated || !clientUpdated) {
-                lastRemoteTsRef.current = serverUpdated;
-                return {
-                  ...initialMasterData,
-                  ...serverData
-                };
-              }
-              return prev;
+              lastRemoteTsRef.current = serverData?._lastUpdated || Date.now();
+              return {
+                ...initialMasterData,
+                ...serverData
+              };
             });
           }
         })
