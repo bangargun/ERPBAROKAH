@@ -673,9 +673,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.85rem' }}>
                               {formatRupiah(primaryPrice)}
                             </div>
+                            {validPriceOutlets.length > 1 && (
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px', fontWeight: '600' }}>
+                                +{validPriceOutlets.length - 1} outlet lainnya
+                              </div>
+                            )}
                           </>
                         ) : (
-                          <span style={{ color: '#f43f5e', fontSize: '0.75rem', fontWeight: '800', background: 'rgba(244,63,94,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(244,63,94,0.3)' }}>⚠️ Belum Di-set (Rp 0)</span>
+                          <span style={{ color: '#f43f5e', fontSize: '0.75rem', fontWeight: '800', background: 'rgba(244,63,94,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(244,63,94,0.3)' }}>⚠️ Belum Di-set</span>
                         )}
                       </td>
 

@@ -577,17 +577,26 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
                   // Primary Outlet Name & Price (HANYA pilih outlet yang memiliki harga > 0)
                   const validPriceOutlets = (masterData.outlets || []).filter(o => {
+                    const oid = String(o.id);
                     let pr = 0;
-                    if (p.standardPrices && p.standardPrices[o.id] !== undefined) {
-                      pr = Number(p.standardPrices[o.id]);
-                    } else if (p.variantPrices && p.variants && p.variants.length > 0) {
+                    if (p.standardPrices) {
+                      const stdKey = Object.keys(p.standardPrices).find(k => String(k) === oid);
+                      if (stdKey && Number(p.standardPrices[stdKey]) > 0) pr = Number(p.standardPrices[stdKey]);
+                    }
+                    if (pr === 0 && p.variantPrices && p.variants && p.variants.length > 0) {
                       const firstV = p.variants[0];
-                      if (p.variantPrices[firstV] && p.variantPrices[firstV][o.id] !== undefined) {
-                        pr = Number(p.variantPrices[firstV][o.id]);
+                      if (p.variantPrices[firstV]) {
+                        const vKey = Object.keys(p.variantPrices[firstV]).find(k => String(k) === oid);
+                        if (vKey && Number(p.variantPrices[firstV][vKey]) > 0) pr = Number(p.variantPrices[firstV][vKey]);
                       }
-                    } else if (p.priceCombinations && p.priceCombinations.length > 0) {
-                      const combo = p.priceCombinations.find(c => c.outletPrices && Number(c.outletPrices[o.id]) > 0);
-                      if (combo) pr = Number(combo.outletPrices[o.id]);
+                    }
+                    if (pr === 0 && p.priceCombinations && p.priceCombinations.length > 0) {
+                      const combo = p.priceCombinations.find(c => c.outletPrices && (
+                        Number(c.outletPrices[o.id]) > 0 || Number(c.outletPrices[oid]) > 0
+                      ));
+                      if (combo) {
+                        pr = Number(combo.outletPrices[o.id] || combo.outletPrices[oid] || 0);
+                      }
                     }
                     return pr > 0;
                   });
@@ -596,20 +605,24 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
                   let primaryPrice = 0;
                   if (firstOutletObj) {
-                    if (p.standardPrices && p.standardPrices[firstOutletObj.id] !== undefined) {
-                      primaryPrice = Number(p.standardPrices[firstOutletObj.id]);
-                    } else if (p.variantPrices && p.variants && p.variants.length > 0) {
-                      const firstV = p.variants[0];
-                      if (p.variantPrices[firstV] && p.variantPrices[firstV][firstOutletObj.id] !== undefined) {
-                        primaryPrice = Number(p.variantPrices[firstV][firstOutletObj.id]);
-                      }
-                    } else if (p.priceCombinations && p.priceCombinations.length > 0) {
-                      const combo = p.priceCombinations.find(c => c.outletPrices && Number(c.outletPrices[firstOutletObj.id]) > 0);
-                      if (combo) primaryPrice = Number(combo.outletPrices[firstOutletObj.id]);
+                    const oid = String(firstOutletObj.id);
+                    if (p.standardPrices) {
+                      const stdKey = Object.keys(p.standardPrices).find(k => String(k) === oid);
+                      if (stdKey) primaryPrice = Number(p.standardPrices[stdKey]);
                     }
-                  }
-                  if (!primaryPrice || primaryPrice <= 0) {
-                    primaryPrice = Number(p.price || p.cost_price || p.cost || 0);
+                    if (primaryPrice <= 0 && p.variantPrices && p.variants && p.variants.length > 0) {
+                      const firstV = p.variants[0];
+                      if (p.variantPrices[firstV]) {
+                        const vKey = Object.keys(p.variantPrices[firstV]).find(k => String(k) === oid);
+                        if (vKey) primaryPrice = Number(p.variantPrices[firstV][vKey]);
+                      }
+                    }
+                    if (primaryPrice <= 0 && p.priceCombinations && p.priceCombinations.length > 0) {
+                      const combo = p.priceCombinations.find(c => c.outletPrices && (
+                        Number(c.outletPrices[firstOutletObj.id]) > 0 || Number(c.outletPrices[oid]) > 0
+                      ));
+                      if (combo) primaryPrice = Number(combo.outletPrices[firstOutletObj.id] || combo.outletPrices[oid] || 0);
+                    }
                   }
 
                   const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
@@ -660,9 +673,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.85rem' }}>
                               {formatRupiah(primaryPrice)}
                             </div>
+                            {validPriceOutlets.length > 1 && (
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px', fontWeight: '600' }}>
+                                +{validPriceOutlets.length - 1} outlet lainnya
+                              </div>
+                            )}
                           </>
                         ) : (
-                          <span style={{ color: '#f43f5e', fontSize: '0.75rem', fontWeight: '800', background: 'rgba(244,63,94,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(244,63,94,0.3)' }}>⚠️ Belum Di-set (Rp 0)</span>
+                          <span style={{ color: '#f43f5e', fontSize: '0.75rem', fontWeight: '800', background: 'rgba(244,63,94,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(244,63,94,0.3)' }}>⚠️ Belum Di-set</span>
                         )}
                       </td>
 

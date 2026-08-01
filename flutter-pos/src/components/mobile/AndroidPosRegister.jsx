@@ -93,6 +93,13 @@ export default function AndroidPosRegister({
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
   const [activeNavTab, setActiveNavTab] = useState('kasir');
 
+  const [currentUserSession, setCurrentUserSession] = useState({
+    name: 'Kasir Utama',
+    role: 'Kasir',
+    outlet: 'Restoran Utama',
+    username: 'kasir'
+  });
+
   const outlets = masterData?.outlets || [];
 
   // Data Sesi Pengguna Aktif (Sync antara state login lokal & userSession prop)
@@ -624,12 +631,6 @@ export default function AndroidPosRegister({
   const [loginPasswordInput, setLoginPasswordInput] = useState('');
   const [loginErrorText, setLoginErrorText] = useState('');
   const [showLoginPasswordEye, setShowLoginPasswordEye] = useState(false);
-  const [currentUserSession, setCurrentUserSession] = useState({
-    name: 'Kasir Utama',
-    role: 'Kasir',
-    outlet: 'Restoran Utama',
-    username: 'kasir'
-  });
 
   // Settings Page Sub-Tab & Preferences States (Matching User Screenshot 100%)
   const [settingSubTab, setSettingSubTab] = useState('umum'); // 'umum' | 'printer' | 'sistem' | 'akun' | 'scanner' | 'dual_display'
