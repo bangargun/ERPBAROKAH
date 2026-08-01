@@ -687,6 +687,19 @@ export default function AndroidPosRegister({
             const now = new Date();
             const formatted = `${now.getDate()} ${now.toLocaleString('id-ID', { month: 'long' })} ${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} WIB`;
             setLastSyncTime(formatted);
+
+            setMasterData(prev => {
+              if (!prev) return data;
+              const prevTs = prev?._lastUpdated || 0;
+              const serverTs = data?._lastUpdated || 0;
+              if (serverTs >= prevTs || !prevTs) {
+                return {
+                  ...prev,
+                  ...data
+                };
+              }
+              return prev;
+            });
           }
         })
         .catch(() => {});
