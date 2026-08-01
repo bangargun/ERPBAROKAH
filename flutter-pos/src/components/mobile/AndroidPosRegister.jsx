@@ -117,36 +117,77 @@ export default function AndroidPosRegister({
     return 'Umum';
   };
 
+  // Helper for computing effective price of a product for current outlet
+  const getProductPriceForOutlet = (item, outletId) => {
+    if (!item) return 0;
+    const outId = outletId || currentOutlet?.id || 1;
+
+    // 1. Check standardPrices for outId
+    const stdPrices = item.standardPrices || {};
+    const stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : stdPrices[String(outId)];
+    if (stdVal !== undefined && Number(stdVal) > 0) {
+      return Number(stdVal);
+    }
+
+    // 2. Check priceCombinations for outId
+    if (item.priceCombinations && item.priceCombinations.length > 0) {
+      for (const combo of item.priceCombinations) {
+        if (combo.outletPrices) {
+          const cVal = combo.outletPrices[outId] !== undefined ? combo.outletPrices[outId] : combo.outletPrices[String(outId)];
+          if (cVal !== undefined && Number(cVal) > 0) {
+            return Number(cVal);
+          }
+        }
+      }
+    }
+
+    // 3. Check variantPrices for outId
+    if (item.variantPrices && typeof item.variantPrices === 'object') {
+      for (const vName in item.variantPrices) {
+        const vMap = item.variantPrices[vName];
+        if (vMap) {
+          const vVal = vMap[outId] !== undefined ? vMap[outId] : vMap[String(outId)];
+          if (vVal !== undefined && Number(vVal) > 0) {
+            return Number(vVal);
+          }
+        }
+      }
+    }
+
+    // If standard price was explicitly 0, return 0
+    if (stdVal !== undefined && Number(stdVal) <= 0) return 0;
+
+    return Number(item.price || item.cost_price || item.cost || 0);
+  };
+
   // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
   const products = rawProducts.filter(p => {
     // 1. Skip if general status is Inaktif
     if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
 
-    // 2. Price validity check
-    const priceVal = Number(p.price || p.cost_price || p.cost || 0);
-    const hasPriceCombo = (p.priceCombinations || []).some(c => c.outletPrices && Object.values(c.outletPrices).some(v => Number(v) > 0));
-    const hasStdPrice = (p.standardPrices && Object.values(p.standardPrices).some(v => Number(v) > 0));
-    if (priceVal <= 0 && !hasPriceCombo && !hasStdPrice) return false;
+    // 2. Outlet assignment check (if selectedOutletIds is set, outlet MUST be selected in array)
+    if (Array.isArray(p.selectedOutletIds)) {
+      const isSelected = p.selectedOutletIds.some(id => String(id) === String(currentOutlet.id));
+      if (!isSelected) return false;
+    } else if (p.outlet_id && p.outlet_id !== 'Semua Outlet' && p.outlet_id !== 'Semua Outlet (Central)') {
+      const isMatch = String(p.outlet_id) === String(currentOutlet.id) ||
+        String(p.outlet_name || '').toLowerCase() === String(currentOutlet.name || '').toLowerCase() ||
+        String(currentOutlet.id) === '1' ||
+        String(p.outlet_id) === '1';
+      if (!isMatch) return false;
+    }
 
-    // 3. Outlet assignment check
-    const isOutletAssigned = !p.outlet_id || 
-      p.outlet_id === 'Semua Outlet' ||
-      p.outlet_id === 'Semua Outlet (Central)' ||
-      String(p.outlet_id) === String(currentOutlet.id) || 
-      String(p.outlet_name || '').toLowerCase() === String(currentOutlet.name || '').toLowerCase() ||
-      String(currentOutlet.id) === '1' ||
-      String(p.outlet_id) === '1' ||
-      (p.selectedOutletIds && p.selectedOutletIds.some(id => String(id) === String(currentOutlet.id)));
-
-    if (!isOutletAssigned) return false;
-
-    // 4. "Tampilkan di APK" status check per outlet
+    // 3. "Tampilkan di APK" status check per outlet
     const apkStatusMap = p.apkStatus || p.outletApkStatus || {};
     const statusForThisOutlet = apkStatusMap[currentOutlet.id] || apkStatusMap[String(currentOutlet.id)];
     if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif') {
       return false;
     }
+
+    // 4. Effective price check for this specific outlet
+    const effectivePrice = getProductPriceForOutlet(p, currentOutlet.id);
+    if (effectivePrice <= 0) return false;
 
     return true;
   });
@@ -2561,10 +2602,7 @@ export default function AndroidPosRegister({
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: '12px' }}>
                     {filteredItems.map(item => {
                       const activeOutletId = currentOutlet?.id || 1;
-                      let displayPrice = item.price;
-                      if (item.standardPrices && item.standardPrices[activeOutletId] !== undefined) {
-                        displayPrice = item.standardPrices[activeOutletId];
-                      }
+                      const displayPrice = getProductPriceForOutlet(item, activeOutletId);
 
                       return (
                         <div

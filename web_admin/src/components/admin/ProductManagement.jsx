@@ -247,13 +247,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       });
     }
 
-    const activeOutletIds = comboOutlets.size > 0 
-      ? Array.from(comboOutlets) 
-      : (masterData.outlets || []).map(o => o.id);
+    const activeOutletIds = Array.isArray(product.selectedOutletIds) 
+      ? product.selectedOutletIds 
+      : (comboOutlets.size > 0 ? Array.from(comboOutlets) : []);
 
     setSelectedOutletIds(activeOutletIds);
     setVariantPrices(vPrices);
-    setStandardPrices(Object.keys(stdPrices).length > 0 ? stdPrices : (masterData.outlets || []).reduce((acc, o) => ({ ...acc, [o.id]: product.price || 0 }), {}));
+    setStandardPrices(product.standardPrices || (Object.keys(stdPrices).length > 0 ? stdPrices : {}));
     setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
     setCompositions(product.compositions || []);
     setShowFormModal(true);
