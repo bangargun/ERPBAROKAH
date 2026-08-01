@@ -1626,6 +1626,13 @@ app.post('/api/master-data/delete-item', async (req, res) => {
           return true;
         });
       }
+    } else if (key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'users' || key === 'userRights' || key === 'userAccounts') {
+      const isUserMatch = item => item && String(item.id !== undefined ? item.id : item.username || item.name) === idStr;
+      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
+      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
+      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
+      if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !isUserMatch(u));
+      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !isUserMatch(u));
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;
@@ -1644,7 +1651,7 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       const relTable = key === 'products' ? 'products' :
                        key === 'categories' ? 'categories' :
                        key === 'outlets' ? 'outlets' :
-                       key === 'users' || key === 'userRights' ? 'users' :
+                       key === 'users' || key === 'userRights' || key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'userAccounts' ? 'users' :
                        key === 'ingredients' ? 'ingredients' :
                        key === 'suppliers' ? 'suppliers' :
                        key === 'customers' ? 'customers' :

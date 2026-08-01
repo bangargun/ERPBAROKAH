@@ -310,20 +310,32 @@ export default function SystemSettings({ masterData, setMasterData }) {
     return Array.from(new Set([...webRoles, ...mobRoles, ...defaults]));
   }, [permissionMatrix, mobilePermissionMatrix]);
 
-  // === WEB ADMIN ACCOUNTS (terpisah dari Mobile) ===
+  // === WEB ADMIN ACCOUNTS ===
   const getWebAdminList = () => {
-    return masterData?.webAdminAccounts?.length ? masterData.webAdminAccounts : [
-      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '1234', role: 'Super Admin', status: 'Aktif' },
-      { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
-    ];
+    if (Array.isArray(masterData?.webAdminAccounts)) {
+      return masterData.webAdminAccounts;
+    }
+    if (Array.isArray(masterData?.userRights) && masterData.userRights.length > 0) {
+      return masterData.userRights;
+    }
+    if (Array.isArray(masterData?.users) && masterData.users.length > 0) {
+      return masterData.users;
+    }
+    return [];
   };
 
-  // === MOBILE ACCOUNTS (terpisah dari Web Admin) ===
+  // === MOBILE ACCOUNTS ===
   const getMobileList = () => {
-    return masterData?.mobileAccounts?.length ? masterData.mobileAccounts : [
-      { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '1234', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '1234' },
-      { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
-    ];
+    if (Array.isArray(masterData?.mobileAccounts)) {
+      return masterData.mobileAccounts;
+    }
+    if (Array.isArray(masterData?.userRights) && masterData.userRights.length > 0) {
+      return masterData.userRights.filter(u => u.canLoginMobile !== false);
+    }
+    if (Array.isArray(masterData?.users) && masterData.users.length > 0) {
+      return masterData.users.filter(u => u.canLoginMobile !== false);
+    }
+    return [];
   };
 
   // Backward compat alias
@@ -367,34 +379,89 @@ export default function SystemSettings({ masterData, setMasterData }) {
       return;
     }
     const currentList = getWebAdminList();
+    let updatedWebList;
     if (editingUserId) {
-      const updatedList = currentList.map(u => {
+      updatedWebList = currentList.map(u => {
         if (u.id === editingUserId) {
-          return { ...u, name: newUserName, outlet: newUserOutlet, username: newUserUsername, password: newUserPassword, role: newUserRole, status: newUserStatus };
+          return { ...u, name: newUserName.trim(), outlet: newUserOutlet, username: newUserUsername.trim(), password: newUserPassword, role: newUserRole, status: newUserStatus };
         }
         return u;
       });
-      setMasterData(prev => ({ ...prev, webAdminAccounts: updatedList }));
     } else {
-      const newAccount = { id: Date.now(), name: newUserName, outlet: newUserOutlet, username: newUserUsername, password: newUserPassword || '123', role: newUserRole, status: newUserStatus };
-      setMasterData(prev => ({ ...prev, webAdminAccounts: [...currentList, newAccount] }));
+      const newAccount = { id: Date.now(), name: newUserName.trim(), outlet: newUserOutlet, username: newUserUsername.trim(), password: newUserPassword || '123', role: newUserRole, status: newUserStatus };
+      updatedWebList = [...currentList, newAccount];
     }
+
+    setMasterData(prev => {
+      const mobList = prev?.mobileAccounts || [];
+      const usersMap = new Map();
+      [...updatedWebList, ...mobList].forEach(u => {
+        if (u && u.name) {
+          const k = String(u.id || u.username || u.name).toLowerCase();
+          if (!usersMap.has(k)) usersMap.set(k, u);
+        }
+      });
+      const combinedUsers = Array.from(usersMap.values());
+      return {
+        ...prev,
+        webAdminAccounts: updatedWebList,
+        mobileAccounts: mobList,
+        userRights: combinedUsers,
+        users: combinedUsers,
+        userAccounts: combinedUsers
+      };
+    });
     setShowAddUserModal(false);
   };
 
   const handleToggleUserStatus = (id) => {
-    const updated = getWebAdminList().map(u => {
+    const updatedWebList = getWebAdminList().map(u => {
       if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
       return u;
     });
-    setMasterData(prev => ({ ...prev, webAdminAccounts: updated }));
+    setMasterData(prev => {
+      const mobList = prev?.mobileAccounts || [];
+      const usersMap = new Map();
+      [...updatedWebList, ...mobList].forEach(u => {
+        if (u && u.name) {
+          const k = String(u.id || u.username || u.name).toLowerCase();
+          if (!usersMap.has(k)) usersMap.set(k, u);
+        }
+      });
+      const combinedUsers = Array.from(usersMap.values());
+      return {
+        ...prev,
+        webAdminAccounts: updatedWebList,
+        mobileAccounts: mobList,
+        userRights: combinedUsers,
+        users: combinedUsers,
+        userAccounts: combinedUsers
+      };
+    });
   };
 
   const handleDeleteUser = (id) => {
-    if (id === 1) { alert('Akun Super Admin utama tidak dapat dihapus'); return; }
     if (window.confirm('Apakah Anda yakin ingin menghapus akun Web Admin ini?')) {
-      const updated = getWebAdminList().filter(u => u.id !== id);
-      setMasterData(prev => ({ ...prev, webAdminAccounts: updated }));
+      const updatedWebList = getWebAdminList().filter(u => u.id !== id);
+      setMasterData(prev => {
+        const mobList = prev?.mobileAccounts || [];
+        const usersMap = new Map();
+        [...updatedWebList, ...mobList].forEach(u => {
+          if (u && u.name) {
+            const k = String(u.id || u.username || u.name).toLowerCase();
+            if (!usersMap.has(k)) usersMap.set(k, u);
+          }
+        });
+        const combinedUsers = Array.from(usersMap.values());
+        return {
+          ...prev,
+          webAdminAccounts: updatedWebList,
+          mobileAccounts: mobList,
+          userRights: combinedUsers,
+          users: combinedUsers,
+          userAccounts: combinedUsers
+        };
+      });
     }
   };
 
@@ -421,7 +488,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
   const handleOpenEditMobileModal = (u) => {
     setEditingMobileId(u.id);
     setNewMobileName(u.name || ''); setNewMobileOutlet(u.outlet || 'Semua Outlet (Central)');
-    setNewMobileUsername(u.username || ''); setNewMobilePwd(u.mobileLoginPassword || '123');
+    setNewMobileUsername(u.username || ''); setNewMobilePwd(u.mobileLoginPassword || u.password || '123');
     setNewMobileRole2(u.role || 'Kasir'); setNewMobileStatus2(u.status || 'Aktif');
     setNewMobileCanReport(u.canAccessMobileReports !== false); setNewMobileReportPwd2(u.mobileReportPassword || '8888');
     setShowAddMobileModal(true);
@@ -431,34 +498,89 @@ export default function SystemSettings({ masterData, setMasterData }) {
     e.preventDefault();
     if (!newMobileName.trim() || !newMobileUsername.trim()) { alert('Nama dan Username wajib diisi!'); return; }
     const currentList = getMobileList();
+    let updatedMobList;
     if (editingMobileId) {
-      const updated = currentList.map(u => {
+      updatedMobList = currentList.map(u => {
         if (u.id === editingMobileId) {
-          return { ...u, name: newMobileName, outlet: newMobileOutlet, username: newMobileUsername, mobileLoginPassword: newMobilePwd, role: newMobileRole2, status: newMobileStatus2, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 };
+          return { ...u, name: newMobileName.trim(), outlet: newMobileOutlet, username: newMobileUsername.trim(), mobileLoginPassword: newMobilePwd, password: newMobilePwd, role: newMobileRole2, status: newMobileStatus2, canLoginMobile: true, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 };
         }
         return u;
       });
-      setMasterData(prev => ({ ...prev, mobileAccounts: updated }));
     } else {
-      const newAcc = { id: Date.now(), name: newMobileName, outlet: newMobileOutlet, username: newMobileUsername, mobileLoginPassword: newMobilePwd || '123', role: newMobileRole2, status: newMobileStatus2, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 || '8888' };
-      setMasterData(prev => ({ ...prev, mobileAccounts: [...currentList, newAcc] }));
+      const newAcc = { id: Date.now(), name: newMobileName.trim(), outlet: newMobileOutlet, username: newMobileUsername.trim(), mobileLoginPassword: newMobilePwd || '123', password: newMobilePwd || '123', role: newMobileRole2, status: newMobileStatus2, canLoginMobile: true, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 || '8888' };
+      updatedMobList = [...currentList, newAcc];
     }
+
+    setMasterData(prev => {
+      const webList = prev?.webAdminAccounts || [];
+      const usersMap = new Map();
+      [...webList, ...updatedMobList].forEach(u => {
+        if (u && u.name) {
+          const k = String(u.id || u.username || u.name).toLowerCase();
+          if (!usersMap.has(k)) usersMap.set(k, u);
+        }
+      });
+      const combinedUsers = Array.from(usersMap.values());
+      return {
+        ...prev,
+        webAdminAccounts: webList,
+        mobileAccounts: updatedMobList,
+        userRights: combinedUsers,
+        users: combinedUsers,
+        userAccounts: combinedUsers
+      };
+    });
     setShowAddMobileModal(false);
   };
 
   const handleToggleMobileStatus = (id) => {
-    const updated = getMobileList().map(u => {
+    const updatedMobList = getMobileList().map(u => {
       if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
       return u;
     });
-    setMasterData(prev => ({ ...prev, mobileAccounts: updated }));
+    setMasterData(prev => {
+      const webList = prev?.webAdminAccounts || [];
+      const usersMap = new Map();
+      [...webList, ...updatedMobList].forEach(u => {
+        if (u && u.name) {
+          const k = String(u.id || u.username || u.name).toLowerCase();
+          if (!usersMap.has(k)) usersMap.set(k, u);
+        }
+      });
+      const combinedUsers = Array.from(usersMap.values());
+      return {
+        ...prev,
+        webAdminAccounts: webList,
+        mobileAccounts: updatedMobList,
+        userRights: combinedUsers,
+        users: combinedUsers,
+        userAccounts: combinedUsers
+      };
+    });
   };
 
   const handleDeleteMobile = (id) => {
-    if (id === 1) { alert('Akun Super Admin utama tidak dapat dihapus'); return; }
     if (window.confirm('Apakah Anda yakin ingin menghapus akun Mobile APK ini?')) {
-      const updated = getMobileList().filter(u => u.id !== id);
-      setMasterData(prev => ({ ...prev, mobileAccounts: updated }));
+      const updatedMobList = getMobileList().filter(u => u.id !== id);
+      setMasterData(prev => {
+        const webList = prev?.webAdminAccounts || [];
+        const usersMap = new Map();
+        [...webList, ...updatedMobList].forEach(u => {
+          if (u && u.name) {
+            const k = String(u.id || u.username || u.name).toLowerCase();
+            if (!usersMap.has(k)) usersMap.set(k, u);
+          }
+        });
+        const combinedUsers = Array.from(usersMap.values());
+        return {
+          ...prev,
+          webAdminAccounts: webList,
+          mobileAccounts: updatedMobList,
+          userRights: combinedUsers,
+          users: combinedUsers,
+          userAccounts: combinedUsers
+        };
+      });
     }
   };
 
