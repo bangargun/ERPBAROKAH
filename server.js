@@ -1676,7 +1676,14 @@ app.post('/api/master-data/delete-item', async (req, res) => {
         });
       }
     } else if (key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'users' || key === 'userRights' || key === 'userAccounts') {
-      const isUserMatch = item => item && String(item.id !== undefined ? item.id : item.username || item.name) === idStr;
+      const isUserMatch = item => {
+        if (!item) return false;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemUser = String(item.username || '').toLowerCase();
+        const itemName = String(item.name || '').toLowerCase();
+        const targetStr = idStr.toLowerCase();
+        return itemId === idStr || itemUser === targetStr || itemName === targetStr;
+      };
       if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
       if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
       if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
@@ -1705,7 +1712,11 @@ app.post('/api/master-data/delete-item', async (req, res) => {
                        key === 'suppliers' ? 'suppliers' :
                        key === 'customers' ? 'customers' :
                        key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
-      if (relTable) {
+      if (relTable === 'users') {
+        try {
+          await mysqlPool.execute(`DELETE FROM \`users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`, [idStr, idStr.toLowerCase(), idStr.toLowerCase()]);
+        } catch (delErr) {}
+      } else if (relTable) {
         try {
           await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
         } catch (delErr) {}

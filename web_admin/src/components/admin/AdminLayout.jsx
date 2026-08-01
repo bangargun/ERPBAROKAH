@@ -26,6 +26,8 @@ import {
   Crown
 } from 'lucide-react';
 
+import { checkWebPermission } from '../../utils/permissionUtils';
+
 export default function AdminLayout({ 
   activeTab, 
   setActiveTab, 
@@ -37,25 +39,31 @@ export default function AdminLayout({
   onOpenAddTransaction,
   onLogout,
   userSession,
+  masterData,
   children
 }) {
   const menuItems = [
-    { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard },
-    { id: 'data', label: '2. Data Master', icon: Database },
-    { id: 'manual_entry', label: '3. Laporan dari Outlet', icon: FileEdit },
-    { id: 'sales', label: '4. Penjualan', icon: ShoppingBag },
-    { id: 'stock', label: '5. Logistik', icon: Package },
-    { id: 'reports', label: '6. Laporan Keuangan', icon: FileText },
-    { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen },
-    { id: 'loyalty', label: '8. Program Loyalitas', icon: Award },
-    { id: 'settings', label: '9. Pengaturan', icon: Settings },
-    { id: 'activity_log', label: '10. Log Aktivitas', icon: History }
+    { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard, permKey: 'dashboard' },
+    { id: 'data', label: '2. Data Master', icon: Database, permKey: 'masterData' },
+    { id: 'manual_entry', label: '3. Laporan dari Outlet', icon: FileEdit, permKey: 'costs' },
+    { id: 'sales', label: '4. Penjualan', icon: ShoppingBag, permKey: 'reports' },
+    { id: 'stock', label: '5. Logistik', icon: Package, permKey: 'stock' },
+    { id: 'reports', label: '6. Laporan Keuangan', icon: FileText, permKey: 'reports' },
+    { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
+    { id: 'loyalty', label: '8. Program Loyalitas', icon: Award, permKey: 'masterData' },
+    { id: 'settings', label: '9. Pengaturan', icon: Settings, permKey: 'settings' },
+    { id: 'activity_log', label: '10. Log Aktivitas', icon: History, permKey: 'settings' }
   ];
 
   const userName = userSession?.name || 'Super Admin Restoran';
   const userRole = userSession?.role || 'Super Admin';
   const userOutlet = userSession?.outlet || 'Semua Outlet (Central)';
   const userInitial = userName ? userName.charAt(0).toUpperCase() : 'S';
+
+  // Filter menu items berdasarkan matriks hak akses untuk role aktif
+  const filteredMenuItems = menuItems.filter(item => 
+    checkWebPermission(userRole, item.permKey, masterData?.permissionMatrix)
+  );
 
   const todayFormatted = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -136,7 +144,7 @@ export default function AdminLayout({
             MENU UTAMA SISTEM
           </div>
 
-          {menuItems.map(item => {
+          {filteredMenuItems.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (

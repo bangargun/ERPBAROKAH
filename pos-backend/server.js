@@ -530,7 +530,8 @@ const syncToMySQL = async (masterData) => {
       ...(masterData.users || []),
       ...(masterData.userAccounts || []),
       ...(masterData.webAdminAccounts || []),
-      ...(masterData.mobileAccounts || [])
+      ...(masterData.mobileAccounts || []),
+      ...(masterData.userRights || [])
     ];
     userSources.forEach(u => {
       if (u && (u.id || u.username)) {
