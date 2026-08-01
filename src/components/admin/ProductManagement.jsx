@@ -29,6 +29,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [searchTerm, setSearchTerm] = useState('');
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid' | 'table'
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('Semua');
   const [showFormModal, setShowFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
@@ -39,6 +40,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // Pagination States (Default 25 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
   // DRAG & DROP PHOTO UPLOAD HANDLERS
   const handleDragOver = (e) => {
@@ -92,10 +95,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [variants, setVariants] = useState([]); // ['Sambal Pecak', 'Sambal Ijo']
   const [tempVariantInput, setTempVariantInput] = useState('');
 
-  // Field 7: Outlet Selection & Per-Outlet Variant Prices
+  // Field 7: Outlet Selection & Per-Outlet Variant Prices & APK Visibility Status
   const [selectedOutletIds, setSelectedOutletIds] = useState([]);
+  const [tempOutletSelectId, setTempOutletSelectId] = useState('');
   const [variantPrices, setVariantPrices] = useState({}); // { 'Sambal Pecak': { 1: 35000, 2: 38000 } }
   const [standardPrices, setStandardPrices] = useState({}); // { 1: 30000, 2: 32000 }
+  const [outletApkStatus, setOutletApkStatus] = useState({}); // { 1785564003169: 'Aktif', 1785537689430: 'Inaktif' }
 
   // Field 8: Komposisi / Ingredients List
   const [compositions, setCompositions] = useState([]);
@@ -127,7 +132,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       // Initialize default per-outlet prices for this new variant
       const initPrices = {};
       masterData.outlets.forEach(o => {
-        initPrices[o.id] = 35000;
+        initPrices[o.id] = 0;
       });
       setVariantPrices(prev => ({ ...prev, [newV]: initPrices }));
     }
@@ -164,7 +169,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
   // 3. Add Composition Row
   const handleAddCompositionRow = () => {
-    const defaultIng = masterData.ingredients?.[0] || { id: 1, name: 'Daging Ayam Segar', unit: 'Gram' };
+    const defaultIng = masterData.ingredients?.[0] || null;
     const defaultUnit = masterData.units?.[0]?.symbol || 'Gram';
 
     setCompositions([
@@ -209,12 +214,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setProdStatus('Aktif');
     setProdImageUrl('');
     setVariants([]);
-    const defaultOutletIds = (masterData.outlets || []).map(o => o.id);
-    setSelectedOutletIds(defaultOutletIds);
+    setSelectedOutletIds([]);
+    setTempOutletSelectId('');
     setVariantPrices({});
-    const initStdPrices = {};
-    (masterData.outlets || []).forEach(o => { initStdPrices[o.id] = 35000; });
-    setStandardPrices(initStdPrices);
+    setStandardPrices({});
+    setOutletApkStatus({});
     setCompositions([]);
     setShowFormModal(true);
   };
@@ -244,13 +248,28 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       });
     }
 
-    const activeOutletIds = comboOutlets.size > 0 
-      ? Array.from(comboOutlets) 
-      : (masterData.outlets || []).map(o => o.id);
+    const stdP = product.standardPrices || (Object.keys(stdPrices).length > 0 ? stdPrices : {});
+    const vP = product.variantPrices || vPrices;
+
+    const rawOutletIds = Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0
+      ? product.selectedOutletIds 
+      : (comboOutlets.size > 0 ? Array.from(comboOutlets) : []);
+
+    const activeOutletIds = rawOutletIds.filter(outId => {
+      const stdVal = Number(stdP[outId] || 0);
+      let varVal = 0;
+      if (product.variants && product.variants.length > 0) {
+        product.variants.forEach(v => {
+          if (vP[v] && Number(vP[v][outId]) > 0) varVal = Number(vP[v][outId]);
+        });
+      }
+      return stdVal > 0 || varVal > 0;
+    });
 
     setSelectedOutletIds(activeOutletIds);
     setVariantPrices(vPrices);
-    setStandardPrices(Object.keys(stdPrices).length > 0 ? stdPrices : (masterData.outlets || []).reduce((acc, o) => ({ ...acc, [o.id]: product.price || 35000 }), {}));
+    setStandardPrices(product.standardPrices || (Object.keys(stdPrices).length > 0 ? stdPrices : {}));
+    setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
     setCompositions(product.compositions || []);
     setShowFormModal(true);
   };
@@ -283,13 +302,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         combinationName: prodName.trim(),
         selectedOutletIds: selectedOutletIds,
         outletPrices: standardPrices,
+        apkStatus: outletApkStatus,
         status: 'Aktif'
       });
     } else {
       variants.forEach((vName, idx) => {
         const pMap = variantPrices[vName] || {};
         selectedOutletIds.forEach(outId => {
-          if (pMap[outId] === undefined) pMap[outId] = 35000;
+          if (pMap[outId] === undefined) pMap[outId] = 0;
         });
 
         generatedPriceCombinations.push({
@@ -297,12 +317,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           combinationName: `${prodName.trim()} (${vName})`,
           selectedOutletIds: selectedOutletIds,
           outletPrices: pMap,
+          apkStatus: outletApkStatus,
           status: 'Aktif'
         });
       });
     }
 
-    const firstPriceVal = Object.values(standardPrices)[0] || Object.values(variantPrices[variants[0]] || {})[0] || 35000;
+    const firstPriceVal = Object.values(standardPrices)[0] || Object.values(variantPrices[variants[0]] || {})[0] || 0;
 
     const productPayload = {
       id: editingProductId || Date.now(),
@@ -311,8 +332,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       name: prodName.trim(),
       category_id: parseInt(prodCategoryId),
       category_name: categoryObj ? categoryObj.name : 'Makanan Utama',
-      price: parseFloat(firstPriceVal) || 35000,
-      cost: (parseFloat(firstPriceVal) || 35000) * 0.4,
+      category: categoryObj ? categoryObj.name : 'Makanan Utama',
+      price: parseFloat(firstPriceVal) || 0,
+      cost: (parseFloat(firstPriceVal) || 0) * 0.4,
       unit: 'Pcs',
       stock: 100,
       min_stock: 10,
@@ -322,6 +344,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       selectedOutletIds,
       variantPrices,
       standardPrices,
+      apkStatus: outletApkStatus,
+      outletApkStatus: outletApkStatus,
       priceCombinations: generatedPriceCombinations,
       compositions
     };
@@ -344,19 +368,52 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   };
 
   // 8. Delete Product
-  const handleDeleteProduct = (id, name) => {
+  const handleDeleteProduct = async (id, name) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus produk "${name}"?`)) {
       const updated = {
         ...masterData,
-        _lastUpdated: Date.now()
+        _lastUpdated: Date.now(),
+        products: (masterData.products || []).filter(p => String(p.id) !== String(id))
       };
-      updated.products = updated.products.filter(p => p.id !== id);
       setMasterData(updated);
+
+      try {
+        const res = await fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'products', id })
+        });
+        if (res.ok) {
+          const resData = await res.json();
+          if (resData && resData.masterData) {
+            setMasterData(resData.masterData);
+          }
+        }
+      } catch (err) {
+        console.error('Delete product API error:', err);
+      }
     }
   };
 
   const formatRupiah = (val) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
+  };
+
+  const getEffectiveProductPrice = (p) => {
+    if (p.price && Number(p.price) > 0) return Number(p.price);
+    if (p.priceCombinations && p.priceCombinations.length > 0) {
+      for (const combo of p.priceCombinations) {
+        if (combo.outletPrices) {
+          const prices = Object.values(combo.outletPrices).map(Number).filter(v => v > 0);
+          if (prices.length > 0) return Math.max(...prices);
+        }
+      }
+    }
+    if (p.standardPrices) {
+      const prices = Object.values(p.standardPrices).map(Number).filter(v => v > 0);
+      if (prices.length > 0) return Math.max(...prices);
+    }
+    return 0;
   };
 
   const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
@@ -367,6 +424,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         (p.selectedOutletIds && (p.selectedOutletIds.includes(selectedBranch) || p.selectedOutletIds.includes(String(selectedBranch)) || p.selectedOutletIds.includes(Number(selectedBranch))));
       if (!matchOutlet) return false;
     }
+
+    const pStatus = p.status || 'Aktif';
+    if (selectedStatusFilter !== 'Semua' && pStatus !== selectedStatusFilter) {
+      return false;
+    }
+
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
     
@@ -416,6 +479,26 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 }}
               />
             </div>
+
+            {/* Status Filter Dropdown */}
+            <select
+              value={selectedStatusFilter}
+              onChange={e => setSelectedStatusFilter(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: '1px solid #334155',
+                fontSize: '0.8rem',
+                background: '#0f172a',
+                color: selectedStatusFilter === 'Aktif' ? '#34d399' : selectedStatusFilter === 'Hide' ? '#94a3b8' : selectedStatusFilter === 'Inaktif' ? '#fb7185' : '#cbd5e1',
+                fontWeight: '700'
+              }}
+            >
+              <option value="Semua">Semua Status</option>
+              <option value="Aktif">🟢 Aktif</option>
+              <option value="Inaktif">🔴 Inaktif</option>
+              <option value="Hide">👁️ Hide (Sembunyi)</option>
+            </select>
 
             {/* Excel Download & Upload Button */}
             <button
@@ -492,21 +575,44 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   const firstLetter = p.name ? p.name.charAt(0).toUpperCase() : 'P';
                   const variantCount = p.variants ? p.variants.length : (p.priceCombinations ? p.priceCombinations.length : 0);
 
-                  // Primary Outlet Name & Price
-                  const activeOutletIds = p.selectedOutletIds && p.selectedOutletIds.length > 0 ? p.selectedOutletIds : masterData.outlets.map(o => o.id);
-                  const firstOutletObj = masterData.outlets.find(o => activeOutletIds.includes(o.id)) || masterData.outlets[0] || { id: 1, name: 'Semua Outlet' };
-                  const outletNameHeader = (firstOutletObj?.name || 'SEMUA OUTLET').toUpperCase();
-
-                  // Calculate primary price
-                  let primaryPrice = p.price || 35000;
-                  if (p.variantPrices && p.variants && p.variants.length > 0) {
-                    const firstV = p.variants[0];
-                    if (p.variantPrices[firstV] && firstOutletObj && p.variantPrices[firstV][firstOutletObj.id] !== undefined) {
-                      primaryPrice = p.variantPrices[firstV][firstOutletObj.id];
+                  // Primary Outlet Name & Price (HANYA pilih outlet yang memiliki harga > 0)
+                  const validPriceOutlets = (masterData.outlets || []).filter(o => {
+                    let pr = 0;
+                    if (p.standardPrices && p.standardPrices[o.id] !== undefined) {
+                      pr = Number(p.standardPrices[o.id]);
+                    } else if (p.variantPrices && p.variants && p.variants.length > 0) {
+                      const firstV = p.variants[0];
+                      if (p.variantPrices[firstV] && p.variantPrices[firstV][o.id] !== undefined) {
+                        pr = Number(p.variantPrices[firstV][o.id]);
+                      }
+                    } else if (p.priceCombinations && p.priceCombinations.length > 0) {
+                      const combo = p.priceCombinations.find(c => c.outletPrices && Number(c.outletPrices[o.id]) > 0);
+                      if (combo) pr = Number(combo.outletPrices[o.id]);
                     }
-                  } else if (p.standardPrices && firstOutletObj && p.standardPrices[firstOutletObj.id] !== undefined) {
-                    primaryPrice = p.standardPrices[firstOutletObj.id];
+                    return pr > 0;
+                  });
+
+                  const firstOutletObj = validPriceOutlets[0] || null;
+
+                  let primaryPrice = 0;
+                  if (firstOutletObj) {
+                    if (p.standardPrices && p.standardPrices[firstOutletObj.id] !== undefined) {
+                      primaryPrice = Number(p.standardPrices[firstOutletObj.id]);
+                    } else if (p.variantPrices && p.variants && p.variants.length > 0) {
+                      const firstV = p.variants[0];
+                      if (p.variantPrices[firstV] && p.variantPrices[firstV][firstOutletObj.id] !== undefined) {
+                        primaryPrice = Number(p.variantPrices[firstV][firstOutletObj.id]);
+                      }
+                    } else if (p.priceCombinations && p.priceCombinations.length > 0) {
+                      const combo = p.priceCombinations.find(c => c.outletPrices && Number(c.outletPrices[firstOutletObj.id]) > 0);
+                      if (combo) primaryPrice = Number(combo.outletPrices[firstOutletObj.id]);
+                    }
                   }
+                  if (!primaryPrice || primaryPrice <= 0) {
+                    primaryPrice = Number(p.price || p.cost_price || p.cost || 0);
+                  }
+
+                  const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
 
                   return (
                     <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
@@ -542,14 +648,22 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         {categoryName}
                       </td>
 
-                      {/* 4. HARGA (Outlet Name cyan + Bold Price) */}
+                      {/* 4. HARGA (Outlet Name cyan + Bold Price, disembunyikan jika 0) */}
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {outletNameHeader}
-                        </div>
-                        <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.85rem' }}>
-                          {formatRupiah(primaryPrice)}
-                        </div>
+                        {primaryPrice > 0 ? (
+                          <>
+                            {outletNameHeader && (
+                              <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {outletNameHeader}
+                              </div>
+                            )}
+                            <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.85rem' }}>
+                              {formatRupiah(primaryPrice)}
+                            </div>
+                          </>
+                        ) : (
+                          <span style={{ color: '#f43f5e', fontSize: '0.75rem', fontWeight: '800', background: 'rgba(244,63,94,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(244,63,94,0.3)' }}>⚠️ Belum Di-set (Rp 0)</span>
+                        )}
                       </td>
 
                       {/* 5. KOMPOSISI */}
@@ -582,9 +696,28 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
                       {/* 7. STATUS */}
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
-                          Aktif
-                        </span>
+                        {(() => {
+                          const st = p.status || 'Aktif';
+                          if (st === 'Aktif') {
+                            return (
+                              <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                                🟢 Aktif
+                              </span>
+                            );
+                          } else if (st === 'Inaktif') {
+                            return (
+                              <span style={{ background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                                🔴 Inaktif
+                              </span>
+                            );
+                          } else {
+                            return (
+                              <span style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                                👁️ Hide
+                              </span>
+                            );
+                          }
+                        })()}
                       </td>
 
                       {/* 8. AKSI (Tombol Edit & Delete) */}
@@ -806,13 +939,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       borderRadius: '8px',
                       border: '1px solid #334155',
                       background: '#0f172a',
-                      color: prodStatus === 'Aktif' ? '#34d399' : '#fb7185',
+                      color: prodStatus === 'Aktif' ? '#34d399' : prodStatus === 'Hide' ? '#94a3b8' : '#fb7185',
                       fontWeight: '700',
                       fontSize: '0.85rem'
                     }}
                   >
-                    <option value="Aktif">Aktif</option>
-                    <option value="Inaktif">Inaktif</option>
+                    <option value="Aktif">🟢 Aktif</option>
+                    <option value="Inaktif">🔴 Inaktif</option>
+                    <option value="Hide">👁️ Hide (Disembunyikan dari POS)</option>
                   </select>
                 </div>
               </div>
@@ -953,52 +1087,103 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
               {/* SECTION 5: HARGA OUTLET MANUAL */}
               <div style={{ border: '1px solid #334155', borderRadius: '12px', padding: '16px', background: '#0f172a' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>
                       Harga Outlet Manual
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                      Tambahkan hanya outlet yang memang menjual produk ini.
+                      Pilih dan tambahkan outlet yang menjual menu ini secara manual.
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedOutletIds(masterData.outlets.map(o => o.id))}
-                    style={{
-                      background: '#1e293b',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.78rem',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <Plus size={14} />
-                    <span>Tambah Harga Outlet</span>
-                  </button>
+                  {/* Dropdown Select Outlet + Button Tambah */}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <select
+                      value={tempOutletSelectId}
+                      onChange={e => setTempOutletSelectId(e.target.value)}
+                      style={{
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        color: '#cbd5e1',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.78rem',
+                        fontWeight: '700'
+                      }}
+                    >
+                      <option value="">-- Pilih Outlet --</option>
+                      {(masterData.outlets || [])
+                        .filter(o => !selectedOutletIds.map(String).includes(String(o.id)))
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!tempOutletSelectId) return;
+                        const targetId = isNaN(tempOutletSelectId) ? tempOutletSelectId : Number(tempOutletSelectId);
+                        if (!selectedOutletIds.includes(targetId)) {
+                          setSelectedOutletIds([...selectedOutletIds, targetId]);
+                          setStandardPrices(prev => ({ ...prev, [targetId]: 0 }));
+                          setOutletApkStatus(prev => ({ ...prev, [targetId]: 'Aktif' }));
+                        }
+                        setTempOutletSelectId('');
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                        border: 'none',
+                        color: '#ffffff',
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        fontSize: '0.78rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>+ Tambah Outlet Ini</span>
+                    </button>
+                  </div>
                 </div>
 
                 {selectedOutletIds.length === 0 ? (
-                  <div style={{ padding: '12px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
-                    Belum ada harga outlet. Produk belum muncul di APK sampai harga outlet ditambahkan.
+                  <div style={{ padding: '16px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
+                    Belum ada outlet ditambahkan. Pilih outlet di atas lalu klik "+ Tambah Outlet Ini" untuk menjual menu ini di outlet tersebut.
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px', marginTop: '10px' }}>
                     {selectedOutletIds.map(outId => {
-                      const outObj = masterData.outlets.find(o => o.id === outId) || { name: `Outlet #${outId}` };
-                      const currentVal = standardPrices[outId] !== undefined ? standardPrices[outId] : 30000;
+                      const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };
+                      const currentVal = standardPrices[outId] !== undefined ? standardPrices[outId] : 0;
+                      const currentApkStat = outletApkStatus[outId] || 'Aktif';
                       return (
                         <div key={outId} style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
-                          <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800', marginBottom: '4px' }}>
-                            🏢 {outObj.name}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800' }}>
+                              🏢 {outObj.name}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedOutletIds(selectedOutletIds.filter(id => String(id) !== String(outId)));
+                                const updatedStd = { ...standardPrices };
+                                delete updatedStd[outId];
+                                setStandardPrices(updatedStd);
+                                const updatedApk = { ...outletApkStatus };
+                                delete updatedApk[outId];
+                                setOutletApkStatus(updatedApk);
+                              }}
+                              title="Hapus outlet ini dari menu"
+                              style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <X size={14} />
+                            </button>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: '800' }}>Rp</span>
@@ -1018,6 +1203,32 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                                 fontSize: '0.85rem'
                               }}
                             />
+                          </div>
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #334155' }}>
+                            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                              📱 Tampilkan di POS APK:
+                            </label>
+                            <select
+                              value={currentApkStat}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setOutletApkStatus(prev => ({ ...prev, [outId]: val }));
+                              }}
+                              style={{
+                                width: '100%',
+                                background: (currentApkStat === 'Inaktif') ? 'rgba(244,63,94,0.15)' : 'rgba(52,211,153,0.15)',
+                                border: `1px solid ${(currentApkStat === 'Inaktif') ? '#f43f5e' : '#10b981'}`,
+                                color: (currentApkStat === 'Inaktif') ? '#f43f5e' : '#34d399',
+                                padding: '6px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.78rem',
+                                fontWeight: '800',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="Aktif" style={{ background: '#1e293b', color: '#34d399' }}>🟢 Aktif (Tampil di POS)</option>
+                              <option value="Inaktif" style={{ background: '#1e293b', color: '#f43f5e' }}>🔴 Inaktif (Sembunyikan dari POS)</option>
+                            </select>
                           </div>
                         </div>
                       );
@@ -1246,14 +1457,23 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               <div>
-                <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Harga per Outlet:</span>
+                <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Harga & Status POS APK per Outlet:</span>
                 {variants.length > 0 ? (
                   variants.map((vName, i) => (
                     <div key={i} style={{ background: '#1e293b', padding: '6px 10px', borderRadius: '6px', marginBottom: '4px', fontSize: '0.78rem' }}>
                       <div style={{ color: '#38bdf8', fontWeight: '700' }}>Varian: {vName}</div>
                       <div style={{ color: '#34d399' }}>
                         {selectedOutletIds.length > 0
-                          ? selectedOutletIds.map(oid => `${masterData.outlets.find(o => o.id === oid)?.name || `Outlet #${oid}`}: ${formatRupiah(variantPrices[vName]?.[oid] || 35000)}`).join(' | ')
+                          ? selectedOutletIds.map(oid => {
+                              const oObj = masterData.outlets.find(o => String(o.id) === String(oid));
+                              const apkSt = outletApkStatus[oid] || 'Aktif';
+                              const tagColor = apkSt === 'Inaktif' ? '#f43f5e' : '#34d399';
+                              return (
+                                <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
+                                  {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(variantPrices[vName]?.[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
+                                </span>
+                              );
+                            })
                           : 'Belum ada outlet'}
                       </div>
                     </div>
@@ -1261,7 +1481,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 ) : (
                   <div style={{ background: '#1e293b', padding: '6px 10px', borderRadius: '6px', fontSize: '0.78rem', color: '#34d399' }}>
                     {selectedOutletIds.length > 0
-                      ? selectedOutletIds.map(oid => `${masterData.outlets.find(o => o.id === oid)?.name || `Outlet #${oid}`}: ${formatRupiah(standardPrices[oid] || 30000)}`).join(' | ')
+                      ? selectedOutletIds.map(oid => {
+                          const oObj = masterData.outlets.find(o => String(o.id) === String(oid));
+                          const apkSt = outletApkStatus[oid] || 'Aktif';
+                          const tagColor = apkSt === 'Inaktif' ? '#f43f5e' : '#34d399';
+                          return (
+                            <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
+                              {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(standardPrices[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
+                            </span>
+                          );
+                        })
                       : 'Belum ada outlet'}
                   </div>
                 )}

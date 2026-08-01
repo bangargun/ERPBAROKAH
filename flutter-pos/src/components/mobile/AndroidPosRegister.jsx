@@ -94,16 +94,26 @@ export default function AndroidPosRegister({
   const [activeNavTab, setActiveNavTab] = useState('kasir');
 
   const outlets = masterData?.outlets || [];
-  const userOutletName = userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
 
-  const matchedOutlet = outlets.find(o => 
-    o.id === selectedBranch || 
-    String(o.id) === String(selectedBranch) || 
-    o.name === selectedBranch || 
-    (userOutletName && o.name === userOutletName)
-  );
+  // Data Sesi Pengguna Aktif (Sync antara state login lokal & userSession prop)
+  const activeSession = currentUserSession || userSession;
+  const activeSessionOutletId = activeSession?.outlet_id;
+  const activeSessionOutletName = activeSession?.outlet || activeSession?.branch_name || activeSession?.outlet_name || '';
 
-  const currentOutlet = matchedOutlet || outlets[0] || { id: 1, name: 'Outlet Central' };
+  const matchedOutlet = outlets.find(o => {
+    if (activeSessionOutletId && (String(o.id) === String(activeSessionOutletId) || Number(o.id) === Number(activeSessionOutletId))) {
+      return true;
+    }
+    if (selectedBranch && (String(o.id) === String(selectedBranch) || Number(o.id) === Number(selectedBranch) || o.name === selectedBranch)) {
+      return true;
+    }
+    if (activeSessionOutletName && activeSessionOutletName !== 'Semua Outlet (Central)' && (o.name.toLowerCase().trim() === activeSessionOutletName.toLowerCase().trim())) {
+      return true;
+    }
+    return false;
+  });
+
+  const currentOutlet = matchedOutlet || (outlets.length > 0 ? outlets[0] : { id: 1, name: activeSessionOutletName || 'Outlet Central' });
 
   // Helper for extracting category name from product
   const getProductCategoryName = (item) => {

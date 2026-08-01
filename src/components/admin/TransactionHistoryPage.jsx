@@ -369,9 +369,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (setMasterData) {
       setMasterData({
         ...masterData,
-        _lastUpdated: Date.now(),
-        salesTransactions: updatedList,
-        transactions: updatedList
+        salesTransactions: updatedList
       });
     }
 
@@ -392,23 +390,71 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (setMasterData) {
       setMasterData({
         ...masterData,
-        _lastUpdated: Date.now(),
-        salesTransactions: updatedList,
-        transactions: updatedList
+        salesTransactions: updatedList
       });
     }
   };
 
-  const handleDeleteTransaction = (id) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${id}?`)) {
-      const updatedList = transactions.filter(t => t.id !== id);
+  const handleDeleteTransaction = async (id) => {
+    if (!id) return;
+    const targetTx = (masterData?.salesTransactions || []).find(t => 
+      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
+    ) || (masterData?.transactions || []).find(t => 
+      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
+    );
+
+    const targetId = targetTx?.id ? String(targetTx.id) : String(id);
+    const targetReceiptNo = targetTx?.receipt_no || targetTx?.receiptNo || targetTx?.invoice_no || null;
+    const displayLabel = targetReceiptNo || targetId;
+
+    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${displayLabel}? Data penjualan ini akan terhapus permanen dari Web Admin, Riwayat Kategori, Laba Rugi, dan Kasir Mobile.`)) {
+      const isMatch = (t) => {
+        if (!t) return false;
+        const tid = String(t.id !== undefined ? t.id : '');
+        const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+        if (tid && (tid === targetId || tid === String(id))) return true;
+        if (targetReceiptNo && trcpt && trcpt === targetReceiptNo) return true;
+        if (trcpt && (trcpt === targetId || trcpt === String(id))) return true;
+        return false;
+      };
+
+      const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => !isMatch(t));
+      const updatedTx = (masterData?.transactions || []).filter(t => !isMatch(t));
+      const updatedOutletTx = (masterData?.outletTransactions || []).filter(t => !isMatch(t));
+
+      const updatedStockMovement = (masterData?.stockMovement || []).filter(m => {
+        if (!m) return false;
+        const refId = String(m.ref_id || m.transaction_id || m.receipt_no || '');
+        if (refId && (refId === targetId || refId === String(id) || (targetReceiptNo && refId === targetReceiptNo))) return false;
+        return true;
+      });
+
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now(),
+        salesTransactions: updatedSalesTx,
+        transactions: updatedTx,
+        outletTransactions: updatedOutletTx,
+        stockMovement: updatedStockMovement
+      };
+
       if (setMasterData) {
-        setMasterData({
-          ...masterData,
-          _lastUpdated: Date.now(),
-          salesTransactions: updatedList,
-          transactions: updatedList
+        setMasterData(updated);
+      }
+
+      try {
+        const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+        await fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'salesTransactions', id: targetId })
         });
+      } catch (err) {
+        console.error('Delete transaction API error:', err);
+      }
+
+      if (viewMode === 'detail') {
+        setViewMode('list');
       }
     }
   };
@@ -494,6 +540,14 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               style={{ background: '#7e22ce', border: 'none', color: '#ffffff', padding: '8px 20px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
             >
               Ubah
+            </button>
+
+            <button 
+              onClick={() => handleDeleteTransaction(inv.id)}
+              style={{ background: '#ef4444', border: 'none', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Trash2 size={16} />
+              <span>Hapus</span>
             </button>
 
             <button style={{ background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}>
@@ -881,17 +935,30 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                       </span>
                     </td>
 
-                    {/* Aksi (PURPLE UBAH BUTTON MATCHING DARK THEME) */}
+                    {/* Aksi (Ubah & Hapus) */}
                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <button 
-                        onClick={() => handleOpenEditModal(item)}
-                        style={{
-                          background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 18px', borderRadius: '16px',
-                          fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
-                        }}
-                      >
-                        Ubah
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                        <button 
+                          onClick={() => handleOpenEditModal(item)}
+                          style={{
+                            background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 14px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                        >
+                          Ubah
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteTransaction(item.id)}
+                          title="Hapus Transaksi Penjualan"
+                          style={{
+                            background: '#ef4444', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
@@ -1128,7 +1195,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               
               {/* Resto Branding Header */}
               <div style={{ textAlign: 'center', borderBottom: '1px dashed #334155', paddingBottom: '12px' }}>
-                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.05em' }}>MRIS RESTO POS</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '0.05em' }}>POS KASIR BAROKAH</div>
                 <div style={{ fontSize: '0.78rem', color: '#38bdf8', marginTop: '2px', fontWeight: '700' }}>🏢 {previewRecord.branch_name}</div>
                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>Terhubung Realtime Kasir System</div>
               </div>
