@@ -94,11 +94,30 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
   };
 
   // Delete Payment Method
-  const handleDeletePayment = (id, payName) => {
+  const handleDeletePayment = async (id, payName) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus metode pembayaran "${payName}"?`)) {
-      const updated = { ...masterData };
-      updated.paymentMethods = updated.paymentMethods.filter(p => p.id !== id);
+      const nowTs = Date.now();
+      const updated = {
+        ...masterData,
+        _lastUpdated: nowTs,
+        paymentMethods: (masterData.paymentMethods || []).filter(p => String(p.id) !== String(id))
+      };
       setMasterData(updated);
+
+      const getApiUrl = (pathStr) => {
+        if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+          return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+        }
+        return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+      };
+
+      try {
+        await fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'paymentMethods', id })
+        });
+      } catch (err) {}
     }
   };
 
