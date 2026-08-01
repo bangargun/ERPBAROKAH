@@ -310,46 +310,20 @@ export default function SystemSettings({ masterData, setMasterData }) {
     return Array.from(new Set([...webRoles, ...mobRoles, ...defaults]));
   }, [permissionMatrix, mobilePermissionMatrix]);
 
-  // Combined User Pool across all keys to prevent missing/hidden users
-  const getAllUsersPool = () => {
-    const map = new Map();
-    const sources = [
-      masterData?.webAdminAccounts,
-      masterData?.mobileAccounts,
-      masterData?.userRights,
-      masterData?.users,
-      masterData?.userAccounts
-    ];
-    sources.forEach(src => {
-      if (Array.isArray(src)) {
-        src.forEach(u => {
-          if (u && (u.id || u.username)) {
-            const key = String(u.id || u.username).toLowerCase();
-            if (!map.has(key)) {
-              map.set(key, u);
-            } else {
-              const prevItem = map.get(key);
-              map.set(key, { ...u, ...prevItem });
-            }
-          }
-        });
-      }
-    });
-    return Array.from(map.values());
-  };
-
-  // === WEB ADMIN ACCOUNTS ===
+  // === WEB ADMIN ACCOUNTS (100% Independen dari Mobile Kasir) ===
   const getWebAdminList = () => {
-    const pool = getAllUsersPool();
-    if (pool.length > 0) return pool;
-    return [];
+    if (Array.isArray(masterData?.webAdminAccounts)) {
+      return masterData.webAdminAccounts;
+    }
+    return masterData?.userRights || [];
   };
 
-  // === MOBILE ACCOUNTS ===
+  // === MOBILE ACCOUNTS (100% Independen dari Web Admin) ===
   const getMobileList = () => {
-    const pool = getAllUsersPool();
-    if (pool.length > 0) return pool.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir' || u.role?.includes('Mobile') || u.role?.includes('Owner') || u.role?.includes('Super Admin'));
-    return [];
+    if (Array.isArray(masterData?.mobileAccounts)) {
+      return masterData.mobileAccounts;
+    }
+    return masterData?.userRights?.filter(u => u.canLoginMobile !== false) || [];
   };
 
   // Backward compat alias
