@@ -2438,9 +2438,9 @@ export default function AndroidPosRegister({
           flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <h1 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>MRIS</span>
-              <span style={{ fontSize: '0.65rem', background: '#2563eb', color: 'var(--pos-txt-white)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)' }}>POS</span>
+            <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>POS KASIR BAROKAH</span>
+              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', fontWeight: '900' }}>v3.0</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
