@@ -93,3 +93,4 @@ mris_pos_kasir/.idea/
 mris_pos_kasir/build/
 bin/
 *.apk
+**/*.apk

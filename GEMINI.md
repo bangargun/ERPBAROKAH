@@ -161,4 +161,5 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 10. **Penanganan Null-Safety & Cache Clearing**:
     - Selalu sertakan pengecekan null (`activeCust ? ... : null`) pada pembacaan objek dari `masterData` untuk mencegah `TypeError: Cannot read properties of null`.
     - Apabila terdapat pembersihan cache lokal tanpa mengganggu database VPS, tingkatkan key `mris_version` di `App.jsx` (contoh: `v57_outlet_clean`).
+11. **Rilis APK Khusus Lokal**: Setiap kali melakukan build file APK Android (`.apk`), file APK cukup dirilis/disimpan di direktori lokal komputer pengguna (misal di root workspace). **DILARANG KERAS** meng-commit atau meng-push file `.apk` ke repository GitHub.
 
