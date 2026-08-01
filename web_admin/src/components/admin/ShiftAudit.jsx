@@ -11,8 +11,18 @@ export default function ShiftAudit({ selectedBranch }) {
 
   const fetchClosings = () => {
     setLoading(true);
-    const url = selectedBranch ? `/api/shift-closings?branchId=${selectedBranch}` : '/api/shift-closings';
-    fetch(url)
+    const getApiUrl = (pathStr) => {
+      if (typeof window !== 'undefined') {
+        const savedServer = localStorage.getItem('MRIS_SERVER_URL');
+        if (savedServer && savedServer.trim() !== '') {
+          return `${savedServer.replace(/\/$/, '')}${pathStr}`;
+        }
+      }
+      return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+    };
+
+    const path = selectedBranch ? `/api/shift-closings?branchId=${selectedBranch}` : '/api/shift-closings';
+    fetch(getApiUrl(path))
       .then(res => res.json())
       .then(data => {
         setClosings(data);

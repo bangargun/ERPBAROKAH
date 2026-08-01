@@ -35,7 +35,17 @@ export default function DailyTransactionEntry({ selectedBranch, categories, outl
       receipt_url: hasReceipt ? `receipt_photo_${Date.now()}.jpg` : null
     };
 
-    fetch('/api/transactions', {
+    const getApiUrl = (pathStr) => {
+      if (typeof window !== 'undefined') {
+        const savedServer = localStorage.getItem('MRIS_SERVER_URL');
+        if (savedServer && savedServer.trim() !== '') {
+          return `${savedServer.replace(/\/$/, '')}${pathStr}`;
+        }
+      }
+      return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+    };
+
+    fetch(getApiUrl('/api/transactions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
