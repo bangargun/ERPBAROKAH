@@ -310,27 +310,45 @@ export default function SystemSettings({ masterData, setMasterData }) {
     return Array.from(new Set([...webRoles, ...mobRoles, ...defaults]));
   }, [permissionMatrix, mobilePermissionMatrix]);
 
+  // Combined User Pool across all keys to prevent missing/hidden users
+  const getAllUsersPool = () => {
+    const map = new Map();
+    const sources = [
+      masterData?.webAdminAccounts,
+      masterData?.mobileAccounts,
+      masterData?.userRights,
+      masterData?.users,
+      masterData?.userAccounts
+    ];
+    sources.forEach(src => {
+      if (Array.isArray(src)) {
+        src.forEach(u => {
+          if (u && (u.id || u.username)) {
+            const key = String(u.id || u.username).toLowerCase();
+            if (!map.has(key)) {
+              map.set(key, u);
+            } else {
+              const prevItem = map.get(key);
+              map.set(key, { ...u, ...prevItem });
+            }
+          }
+        });
+      }
+    });
+    return Array.from(map.values());
+  };
+
   // === WEB ADMIN ACCOUNTS ===
-  // Fallback berlapis: webAdminAccounts → userRights → users → []
   const getWebAdminList = () => {
-    const wa = masterData?.webAdminAccounts;
-    if (Array.isArray(wa) && wa.length > 0) return wa;
-    const ur = masterData?.userRights;
-    if (Array.isArray(ur) && ur.length > 0) return ur;
-    const us = masterData?.users;
-    if (Array.isArray(us) && us.length > 0) return us;
+    const pool = getAllUsersPool();
+    if (pool.length > 0) return pool;
     return [];
   };
 
   // === MOBILE ACCOUNTS ===
-  // Fallback berlapis: mobileAccounts → userRights (canLoginMobile) → users → []
   const getMobileList = () => {
-    const ma = masterData?.mobileAccounts;
-    if (Array.isArray(ma) && ma.length > 0) return ma;
-    const ur = masterData?.userRights;
-    if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false);
-    const us = masterData?.users;
-    if (Array.isArray(us) && us.length > 0) return us.filter(u => u.canLoginMobile !== false);
+    const pool = getAllUsersPool();
+    if (pool.length > 0) return pool.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir' || u.role?.includes('Mobile') || u.role?.includes('Owner') || u.role?.includes('Super Admin'));
     return [];
   };
 
