@@ -1479,14 +1479,8 @@ export default function AndroidPosRegister({
     }
   }, []);
 
-  // Print text langsung ke hardware Bluetooth printer
+  // Print text langsung ke hardware Bluetooth printer (atau fallback ke iframe print di browser)
   const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
-    if (!printerMac) {
-      // Tidak ada printer terkonfigurasi — fallback ke browser print dialog
-      console.warn('[BTPrinter] Tidak ada printer MAC tersimpan, fallback ke browser print.');
-      showPrintStatus('error', '⚠️ Printer belum dikonfigurasi. Buka Pengaturan → Koneksi Printer untuk menyambungkan printer.');
-      return;
-    }
     showPrintStatus('printing', '🖨️ Mengirim data ke printer...');
     try {
       await printToBluetoothPrinter(
@@ -1529,30 +1523,36 @@ export default function AndroidPosRegister({
 
   // BLUETOOTH BATCH PRINT — Cetak semua tiket yang dipilih ke hardware printer
   const handleExecuteBatchPrint = useCallback(async (tx, selections) => {
-    if (!tx) return;
+    if (!tx || !tx.items || tx.items.length === 0) return;
     const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
     const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
 
     const printJobs = [];
 
+    // 1. STRUK DAPUR (KITCHEN TICKET - TANPA HARGA SESUAI TARGET PRINTER DATA MASTER)
     if (selections.printKitchen) {
-      const kitchenTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || 'KITCHEN') === 'KITCHEN') };
-      if (kitchenTx.items.length > 0) {
+      const kitchenItems = filterItemsForTicketTarget(tx.items, 'KITCHEN');
+      if (kitchenItems.length > 0) {
+        const kitchenTx = { ...tx, items: kitchenItems };
         printJobs.push({ type: 'kitchen', text: buildReceiptText(kitchenTx, outletName, 'kitchen', printerPaperWidth, fmtRp) });
       }
     }
 
+    // 2. STRUK BAR (BAR TICKET - TANPA HARGA SESUAI TARGET PRINTER DATA MASTER)
     if (selections.printBar) {
-      const barTx = { ...tx, items: (tx.items || []).filter(it => (it.target || it.ticket_target || '') === 'BAR') };
-      if (barTx.items.length > 0) {
+      const barItems = filterItemsForTicketTarget(tx.items, 'BAR');
+      if (barItems.length > 0) {
+        const barTx = { ...tx, items: barItems };
         printJobs.push({ type: 'bar', text: buildReceiptText(barTx, outletName, 'bar', printerPaperWidth, fmtRp) });
       }
     }
 
+    // 3. STRUK MEJA / BILL SEMENTARA (CONTOH TAGIHAN DENGAN HARGA)
     if (selections.printTableCopy) {
       printJobs.push({ type: 'bill', text: buildReceiptText(tx, outletName, 'bill', printerPaperWidth, fmtRp) });
     }
 
+    // 4. STRUK KASIR / NOTA PEMBAYARAN (DENGAN HARGA)
     if (selections.printCashierCopy) {
       printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp) });
     }
