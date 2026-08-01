@@ -584,18 +584,6 @@ const syncToMySQL = async (masterData) => {
         String(p.description || ''),
         String(p.status || 'Aktif')
       ]);
-    // Sync deleted items in relational tables
-    if (Array.isArray(categories)) {
-      const cIds = categories.map(c => Number(c.id)).filter(id => id > 0);
-      if (cIds.length > 0) {
-        await mysqlPool.execute(`DELETE FROM categories WHERE id NOT IN (${cIds.join(',')})`).catch(() => {});
-      }
-    }
-    if (Array.isArray(products)) {
-      const pIds = products.map(p => Number(p.id)).filter(id => id > 0);
-      if (pIds.length > 0) {
-        await mysqlPool.execute(`DELETE FROM products WHERE id NOT IN (${pIds.join(',')})`).catch(() => {});
-      }
     }
 
     // 5. Sync Transactions to MySQL relational table
