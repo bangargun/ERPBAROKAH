@@ -310,20 +310,64 @@ export default function SystemSettings({ masterData, setMasterData }) {
     return Array.from(new Set([...webRoles, ...mobRoles, ...defaults]));
   }, [permissionMatrix, mobilePermissionMatrix]);
 
-  // === WEB ADMIN ACCOUNTS (100% Independen dari Mobile Kasir) ===
+  // === WEB ADMIN ACCOUNTS (Hak User Web Based Admin) ===
   const getWebAdminList = () => {
-    if (Array.isArray(masterData?.webAdminAccounts)) {
-      return masterData.webAdminAccounts;
+    const listMap = new Map();
+    // 1. Primary source: webAdminAccounts
+    if (Array.isArray(masterData?.webAdminAccounts) && masterData.webAdminAccounts.length > 0) {
+      masterData.webAdminAccounts.forEach(u => {
+        if (u && (u.id || u.username)) {
+          listMap.set(String(u.id || u.username).toLowerCase(), u);
+        }
+      });
     }
-    return masterData?.userRights || [];
+    // 2. Fallback / Merge from userRights / users if missing in webAdminAccounts
+    const otherSources = [masterData?.userRights, masterData?.users, masterData?.userAccounts];
+    otherSources.forEach(arr => {
+      if (Array.isArray(arr)) {
+        arr.forEach(u => {
+          if (u && (u.id || u.username)) {
+            const k = String(u.id || u.username).toLowerCase();
+            if (!listMap.has(k)) {
+              if (u.role !== 'Kasir' || u.canLoginWeb === true || u.password) {
+                listMap.set(k, u);
+              }
+            }
+          }
+        });
+      }
+    });
+    return Array.from(listMap.values());
   };
 
-  // === MOBILE ACCOUNTS (100% Independen dari Web Admin) ===
+  // === MOBILE ACCOUNTS (Hak User POS Mobile) ===
   const getMobileList = () => {
-    if (Array.isArray(masterData?.mobileAccounts)) {
-      return masterData.mobileAccounts;
+    const listMap = new Map();
+    // 1. Primary source: mobileAccounts
+    if (Array.isArray(masterData?.mobileAccounts) && masterData.mobileAccounts.length > 0) {
+      masterData.mobileAccounts.forEach(u => {
+        if (u && (u.id || u.username)) {
+          listMap.set(String(u.id || u.username).toLowerCase(), u);
+        }
+      });
     }
-    return masterData?.userRights?.filter(u => u.canLoginMobile !== false) || [];
+    // 2. Fallback / Merge from userRights / users if missing in mobileAccounts
+    const otherSources = [masterData?.userRights, masterData?.users, masterData?.userAccounts];
+    otherSources.forEach(arr => {
+      if (Array.isArray(arr)) {
+        arr.forEach(u => {
+          if (u && (u.id || u.username)) {
+            const k = String(u.id || u.username).toLowerCase();
+            if (!listMap.has(k)) {
+              if (u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir' || u.role?.includes('Mobile') || u.role?.includes('Owner') || u.role?.includes('Super Admin')) {
+                listMap.set(k, u);
+              }
+            }
+          }
+        });
+      }
+    });
+    return Array.from(listMap.values());
   };
 
   // Backward compat alias
@@ -1583,7 +1627,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
               <div>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
                   <Users size={18} color="#818cf8" />
-                  <span>Manajemen Hak User &amp; Otentikasi Akses Akun</span>
+                  <span>Hak User Web Based Admin &amp; POS Mobile</span>
                 </h3>
                 <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px', margin: 0 }}>
                   Kelola akun pengguna, username, password, outlet cabang, peran, dan status aktif.
@@ -1736,13 +1780,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
             </div>
 
             {/* ========================================================================= */}
-            {/* TABEL 1: 💻 MANAJEMEN AKUN PENGGUNA WEB BASED ADMIN */}
+            {/* TABEL 1: 💻 HAK USER WEB BASED ADMIN */}
             {/* ========================================================================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8' }}>
-                    💻 1. Manajemen Akun Pengguna Web Based Admin
+                    💻 1. Hak User Web Based Admin
                   </span>
                   <span style={{ fontSize: '0.70rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
                     Akses Dashboard, Data Master, Akuntansi & Laporan Web
@@ -1891,13 +1935,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
             </div>
 
             {/* ========================================================================= */}
-            {/* TABEL 2: 📱 OTENTIKASI AKSES AKUN POS MOBILE APK */}
+            {/* TABEL 2: 📱 HAK USER POS MOBILE */}
             {/* ========================================================================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#34d399' }}>
-                    📱 2. Otentikasi Akses Akun POS Mobile APK (Tablet POS)
+                    📱 2. Hak User POS Mobile
                   </span>
                   <span style={{ fontSize: '0.70rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
                     Akses Transaksi Kasir, Void, Diskon, Shift & Laporan Mobile

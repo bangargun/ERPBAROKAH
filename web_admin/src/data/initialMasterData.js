@@ -78,14 +78,28 @@ export const initialMasterData = {
   },
 
   // HAK USER & AKUN PENGGUNA - WEB BASED ADMIN (dari masterData server)
-  webAdminAccounts: [],
+  webAdminAccounts: [
+    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
+    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
+  ],
 
   // OTENTIKASI AKSES AKUN - POS MOBILE APK (dari masterData server)
-  mobileAccounts: [],
+  mobileAccounts: [
+    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '888', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' },
+    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' },
+    { id: 1785586974983, name: 'NURDIANA', outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', username: 'DIANA', mobileLoginPassword: '1234', password: '1234', role: 'Kasir', status: 'Aktif', canLoginMobile: true, canAccessMobileReports: true, mobileReportPassword: '1234' },
+    { id: 1785588852295, name: 'SELLA', outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', username: 'SELLA', mobileLoginPassword: '123', password: '123', role: 'Kasir', status: 'Aktif', canLoginMobile: true, canAccessMobileReports: true, mobileReportPassword: '123' }
+  ],
+
+  userRights: [
+    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
+    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' },
+    { id: 1785586974983, name: 'NURDIANA', outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', username: 'DIANA', mobileLoginPassword: '1234', password: '1234', role: 'Kasir', status: 'Aktif', canLoginMobile: true, canAccessMobileReports: true, mobileReportPassword: '1234' },
+    { id: 1785588852295, name: 'SELLA', outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', username: 'SELLA', mobileLoginPassword: '123', password: '123', role: 'Kasir', status: 'Aktif', canLoginMobile: true, canAccessMobileReports: true, mobileReportPassword: '123' }
+  ],
 
   // (Legacy - tidak digunakan lagi, digantikan webAdminAccounts & mobileAccounts)
   userAccounts: [],
-
 
   // DOKUMEN SOP RESTORAN (dari masterData server)
   sopDocuments: []
