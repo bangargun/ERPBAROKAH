@@ -476,11 +476,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   
   // Start with 5 default empty rows
   const [manualRows, setManualRows] = useState([
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' }
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false }
   ]);
 
   // SINGLE RECORD EDIT STATE
@@ -632,7 +632,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   // MULTI-ROW ACTIONS FOR MANUAL LOGISTICS
   const handleAddRow = () => {
-    setManualRows([...manualRows, { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' }]);
+    setManualRows([...manualRows, { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false }]);
   };
 
   const handleRemoveRow = (idx) => {
@@ -821,26 +821,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   // SUBMIT MANUAL LOGISTICS
   const handleCommitManualLogistics = () => {
-    const validRows = manualRows.filter(row => row.qty && row.priceUnit);
+    const validRows = manualRows.filter(row => (row.searchQuery || row.ingredientId) && Number(row.qty) > 0);
     if (validRows.length === 0) {
-      alert('Isi minimal 1 item dengan Jumlah dan Harga yang valid');
+      alert('Isi minimal 1 item (pilih bahan baku) dengan Jumlah dan Harga yang valid');
       return;
     }
 
     const newMovements = validRows.map((row, idx) => {
-      const ing = ingredientsList.find(i => i.id === Number(row.ingredientId)) || { name: 'Item', unit: 'pcs' };
+      const ing = ingredientsList.find(i => i.id === Number(row.ingredientId) || i.name.toLowerCase() === (row.searchQuery || '').toLowerCase()) || {};
       const sup = suppliersList.find(s => s.id === Number(row.supplierId)) || { name: '-' };
       const qtyVal = Number(row.qty);
-      const prcVal = Number(row.priceUnit);
+      const prcVal = Number(row.priceUnit) || 0;
+      const itemName = row.searchQuery || ing.name || 'Item';
+      const itemUnit = row.unit || ing.unit || 'pcs';
 
       return {
         id: `mv-${Date.now()}-${idx}`,
         date: manualDate,
         outlet_id: Number(manualOutletId),
         type: 'IN',
-        item_name: ing.name,
+        item_name: itemName,
         qty: qtyVal,
-        unit: ing.unit || 'pcs',
+        unit: itemUnit,
         supplier: sup.name,
         created_by: manualCreatedBy,
         price_unit: prcVal,
@@ -856,11 +858,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
     // Reset Form & Close Modals
     setManualRows([
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' }
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false }
     ]);
     setShowPreviewModal(false);
     setShowAddModal(null);
@@ -3363,34 +3365,98 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
 
               {manualRows.map((row, idx) => {
-                // Find selected ingredient unit
-                const selectedIng = ingredientsList.find(i => i.id === Number(row.ingredientId)) || { unit: 'kg' };
-                // Filter ingredients based on text search query
-                const filteredIngs = ingredientsList.filter(i => 
-                  i.name.toLowerCase().includes(row.searchQuery.toLowerCase())
-                );
-
                 const totalVal = (Number(row.qty) || 0) * (Number(row.priceUnit) || 0);
 
                 return (
                   <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 40px', gap: '10px', alignItems: 'center' }}>
                     
-                    {/* Search & Select Combobox */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {/* Autocomplete Input with floating suggestions */}
+                    <div style={{ position: 'relative', width: '100%' }}>
                       <input
                         type="text"
-                        placeholder="Ketik untuk cari..."
-                        value={row.searchQuery}
-                        onChange={e => handleUpdateRow(idx, 'searchQuery', e.target.value)}
-                        style={{ padding: '6px 8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px 4px 0 0', color: 'white', fontSize: '0.78rem' }}
+                        placeholder="Ketik untuk cari bahan baku..."
+                        value={row.searchQuery || ''}
+                        onFocus={() => handleUpdateRow(idx, 'showSuggestions', true)}
+                        onChange={e => {
+                          const q = e.target.value;
+                          const updated = [...manualRows];
+                          updated[idx].searchQuery = q;
+                          updated[idx].showSuggestions = true;
+                          const match = ingredientsList.find(i => i.name.toLowerCase() === q.toLowerCase());
+                          if (match) {
+                            updated[idx].ingredientId = match.id;
+                            updated[idx].unit = match.unit || 'kg';
+                            if (!updated[idx].priceUnit && match.cost) {
+                              updated[idx].priceUnit = match.cost;
+                            }
+                          } else {
+                            updated[idx].ingredientId = '';
+                            updated[idx].unit = '';
+                          }
+                          setManualRows(updated);
+                        }}
+                        style={{ padding: '8px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem', width: '100%' }}
                       />
-                      <select
-                        value={row.ingredientId}
-                        onChange={e => handleUpdateRow(idx, 'ingredientId', Number(e.target.value))}
-                        style={{ padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderTop: 'none', borderRadius: '0 0 4px 4px', color: 'white', fontSize: '0.78rem', cursor: 'pointer' }}
-                      >
-                        {filteredIngs.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                      </select>
+
+                      {row.showSuggestions && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            zIndex: 999,
+                            background: '#0f172a',
+                            border: '1px solid #38bdf8',
+                            borderRadius: '6px',
+                            maxHeight: '180px',
+                            overflowY: 'auto',
+                            marginTop: '4px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                          }}
+                        >
+                          {ingredientsList
+                            .filter(i => (i.name || '').toLowerCase().includes((row.searchQuery || '').toLowerCase()))
+                            .map(ing => (
+                              <div
+                                key={ing.id}
+                                onClick={() => {
+                                  const updated = [...manualRows];
+                                  updated[idx].searchQuery = ing.name;
+                                  updated[idx].ingredientId = ing.id;
+                                  updated[idx].unit = ing.unit || 'kg';
+                                  if (!updated[idx].priceUnit && ing.cost) {
+                                    updated[idx].priceUnit = ing.cost;
+                                  }
+                                  updated[idx].showSuggestions = false;
+                                  setManualRows(updated);
+                                }}
+                                style={{
+                                  padding: '8px 12px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.80rem',
+                                  color: '#f8fafc',
+                                  borderBottom: '1px solid #1e293b',
+                                  display: 'flex',
+                                  justify: 'space-between',
+                                  alignItems: 'center'
+                                }}
+                                onMouseOver={e => e.currentTarget.style.background = '#1e293b'}
+                                onMouseOut={e => e.currentTarget.style.background = '#0f172a'}
+                              >
+                                <span style={{ fontWeight: '700' }}>{ing.name}</span>
+                                <span style={{ fontSize: '0.70rem', color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+                                  Satuan: {ing.unit || 'pcs'}
+                                </span>
+                              </div>
+                            ))}
+                          {ingredientsList.filter(i => (i.name || '').toLowerCase().includes((row.searchQuery || '').toLowerCase())).length === 0 && (
+                            <div style={{ padding: '10px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
+                              Tidak ada bahan baku yang cocok
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Supplier */}
@@ -3411,12 +3477,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', textAlign: 'right' }}
                     />
 
-                    {/* Unit (Locked) */}
+                    {/* Satuan (Auto-filled from selected ingredient) */}
                     <input
                       type="text"
                       readOnly
-                      value={selectedIng.unit || 'pcs'}
-                      style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#94a3b8', fontSize: '0.8rem' }}
+                      placeholder="Satuan"
+                      value={row.unit || ''}
+                      style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: row.unit ? '#34d399' : '#64748b', fontSize: '0.8rem', fontWeight: '700', textAlign: 'center' }}
                     />
 
                     {/* Price Unit */}
