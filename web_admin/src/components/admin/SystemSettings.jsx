@@ -410,22 +410,39 @@ export default function SystemSettings({ masterData, setMasterData }) {
       alert('Nama pengguna dan Username wajib diisi!');
       return;
     }
-    const currentList = getWebAdminList();
-    let updatedWebList;
-    if (editingUserId) {
-      updatedWebList = currentList.map(u => {
-        if (u.id === editingUserId) {
-          return { ...u, name: newUserName.trim(), outlet: newUserOutlet, username: newUserUsername.trim(), password: newUserPassword, role: newUserRole, status: newUserStatus };
-        }
-        return u;
-      });
-    } else {
-      const newAccount = { id: Date.now(), name: newUserName.trim(), outlet: newUserOutlet, username: newUserUsername.trim(), password: newUserPassword || '123', role: newUserRole, status: newUserStatus };
-      updatedWebList = [...currentList, newAccount];
-    }
+    // Capture form values to avoid stale closure inside setState
+    const _editingUserId = editingUserId;
+    const _name = newUserName.trim();
+    const _outlet = newUserOutlet;
+    const _username = newUserUsername.trim();
+    const _password = newUserPassword;
+    const _role = newUserRole;
+    const _status = newUserStatus;
 
     setMasterData(prev => {
-      // Ambil daftar mobile terkini dari prev state (bukan masterData closure lama)
+      // ✅ FIX: Baca webAdminList dari prev (state terbaru), bukan masterData closure
+      const webList = (() => {
+        const wa = prev?.webAdminAccounts;
+        if (Array.isArray(wa) && wa.length > 0) return wa;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.role !== 'Kasir' || u.canLoginWeb === true || u.password);
+        return [];
+      })();
+
+      let updatedWebList;
+      if (_editingUserId) {
+        updatedWebList = webList.map(u => {
+          if (u.id === _editingUserId) {
+            return { ...u, name: _name, outlet: _outlet, username: _username, password: _password, role: _role, status: _status };
+          }
+          return u;
+        });
+      } else {
+        const newAccount = { id: Date.now(), name: _name, outlet: _outlet, username: _username, password: _password || '123', role: _role, status: _status };
+        updatedWebList = [...webList, newAccount];
+      }
+
+      // Ambil daftar mobile terkini dari prev state
       const mobList = (() => {
         const ma = prev?.mobileAccounts;
         if (Array.isArray(ma) && ma.length > 0) return ma;
@@ -455,11 +472,19 @@ export default function SystemSettings({ masterData, setMasterData }) {
   };
 
   const handleToggleUserStatus = (id) => {
-    const updatedWebList = getWebAdminList().map(u => {
-      if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
-      return u;
-    });
     setMasterData(prev => {
+      // ✅ FIX: Baca webAdminList dari prev (state terbaru)
+      const webList = (() => {
+        const wa = prev?.webAdminAccounts;
+        if (Array.isArray(wa) && wa.length > 0) return wa;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.role !== 'Kasir' || u.canLoginWeb === true || u.password);
+        return [];
+      })();
+      const updatedWebList = webList.map(u => {
+        if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
+        return u;
+      });
       const mobList = (() => {
         const ma = prev?.mobileAccounts;
         if (Array.isArray(ma) && ma.length > 0) return ma;
@@ -488,8 +513,16 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
   const handleDeleteUser = (id) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus akun Web Admin ini?')) {
-      const updatedWebList = getWebAdminList().filter(u => u.id !== id);
       setMasterData(prev => {
+        // ✅ FIX: Baca webAdminList dari prev (state terbaru)
+        const webList = (() => {
+          const wa = prev?.webAdminAccounts;
+          if (Array.isArray(wa) && wa.length > 0) return wa;
+          const ur = prev?.userRights;
+          if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.role !== 'Kasir' || u.canLoginWeb === true || u.password);
+          return [];
+        })();
+        const updatedWebList = webList.filter(u => u.id !== id);
         const mobList = (() => {
           const ma = prev?.mobileAccounts;
           if (Array.isArray(ma) && ma.length > 0) return ma;
@@ -549,21 +582,40 @@ export default function SystemSettings({ masterData, setMasterData }) {
   const handleSaveMobile = (e) => {
     e.preventDefault();
     if (!newMobileName.trim() || !newMobileUsername.trim()) { alert('Nama dan Username wajib diisi!'); return; }
-    const currentList = getMobileList();
-    let updatedMobList;
-    if (editingMobileId) {
-      updatedMobList = currentList.map(u => {
-        if (u.id === editingMobileId) {
-          return { ...u, name: newMobileName.trim(), outlet: newMobileOutlet, username: newMobileUsername.trim(), mobileLoginPassword: newMobilePwd, password: newMobilePwd, role: newMobileRole2, status: newMobileStatus2, canLoginMobile: true, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 };
-        }
-        return u;
-      });
-    } else {
-      const newAcc = { id: Date.now(), name: newMobileName.trim(), outlet: newMobileOutlet, username: newMobileUsername.trim(), mobileLoginPassword: newMobilePwd || '123', password: newMobilePwd || '123', role: newMobileRole2, status: newMobileStatus2, canLoginMobile: true, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 || '8888' };
-      updatedMobList = [...currentList, newAcc];
-    }
+    // Capture form values to avoid stale closure inside setState
+    const _editingMobileId = editingMobileId;
+    const _name = newMobileName.trim();
+    const _outlet = newMobileOutlet;
+    const _username = newMobileUsername.trim();
+    const _pwd = newMobilePwd;
+    const _role = newMobileRole2;
+    const _status = newMobileStatus2;
+    const _canReport = newMobileCanReport;
+    const _reportPwd = newMobileReportPwd2;
 
     setMasterData(prev => {
+      // ✅ FIX: Baca mobileList dari prev (state terbaru), bukan masterData closure
+      const mobList = (() => {
+        const ma = prev?.mobileAccounts;
+        if (Array.isArray(ma) && ma.length > 0) return ma;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir' || u.role?.includes('Mobile') || u.role?.includes('Owner') || u.role?.includes('Super Admin'));
+        return [];
+      })();
+
+      let updatedMobList;
+      if (_editingMobileId) {
+        updatedMobList = mobList.map(u => {
+          if (u.id === _editingMobileId) {
+            return { ...u, name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd, password: _pwd, role: _role, status: _status, canLoginMobile: true, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd };
+          }
+          return u;
+        });
+      } else {
+        const newAcc = { id: Date.now(), name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd || '123', password: _pwd || '123', role: _role, status: _status, canLoginMobile: true, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd || '8888' };
+        updatedMobList = [...mobList, newAcc];
+      }
+
       // Ambil daftar web admin terkini dari prev state
       const webList = (() => {
         const wa = prev?.webAdminAccounts;
@@ -593,11 +645,19 @@ export default function SystemSettings({ masterData, setMasterData }) {
   };
 
   const handleToggleMobileStatus = (id) => {
-    const updatedMobList = getMobileList().map(u => {
-      if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
-      return u;
-    });
     setMasterData(prev => {
+      // ✅ FIX: Baca mobileList dari prev (state terbaru)
+      const mobList = (() => {
+        const ma = prev?.mobileAccounts;
+        if (Array.isArray(ma) && ma.length > 0) return ma;
+        const ur = prev?.userRights;
+        if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir');
+        return [];
+      })();
+      const updatedMobList = mobList.map(u => {
+        if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
+        return u;
+      });
       const webList = (() => {
         const wa = prev?.webAdminAccounts;
         if (Array.isArray(wa) && wa.length > 0) return wa;
@@ -626,8 +686,16 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
   const handleDeleteMobile = (id) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus akun Mobile APK ini?')) {
-      const updatedMobList = getMobileList().filter(u => u.id !== id);
       setMasterData(prev => {
+        // ✅ FIX: Baca mobileList dari prev (state terbaru)
+        const mobList = (() => {
+          const ma = prev?.mobileAccounts;
+          if (Array.isArray(ma) && ma.length > 0) return ma;
+          const ur = prev?.userRights;
+          if (Array.isArray(ur) && ur.length > 0) return ur.filter(u => u.canLoginMobile !== false || u.mobileLoginPassword || u.role === 'Kasir');
+          return [];
+        })();
+        const updatedMobList = mobList.filter(u => u.id !== id);
         const webList = (() => {
           const wa = prev?.webAdminAccounts;
           if (Array.isArray(wa) && wa.length > 0) return wa;

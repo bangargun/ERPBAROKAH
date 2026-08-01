@@ -117,15 +117,17 @@ export default function App() {
   const lastLocalMutationTsRef = useRef(0);
 
   // Wrapper function that guarantees every local mutation gets a new timestamp & instant push to VPS MySQL
-  // IMPORTANT: setelah mutasi lokal, polling di-skip selama 5 detik agar save selesai dulu
+  // FIX: lastLocalMutationTsRef diset SINKRON di luar callback setState agar proteksi polling langsung aktif
+  // FIX: window proteksi diperpanjang ke 15 detik untuk koneksi lambat
+  // FIX: setelah POST berhasil, timestamp diperbarui dengan konfirmasi server
   const updateMasterData = (updater) => {
+    // ✅ Set timestamp SINKRON sebelum setState agar polling protection langsung aktif
+    const ts = Date.now();
+    lastLocalMutationTsRef.current = ts;
+
     setMasterData(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      const ts = Date.now();
       const updatedWithTs = { ...next, _lastUpdated: ts };
-
-      // Tandai timestamp mutasi lokal → polling akan skip selama 5 detik
-      lastLocalMutationTsRef.current = ts;
 
       // Instant push to VPS Server Cloud API (MySQL mris_db Primary Storage)
       fetch(getApiUrl('/api/master-data'), {
@@ -137,6 +139,9 @@ export default function App() {
       .then(data => {
         if (data && data._lastUpdated) {
           lastRemoteTsRef.current = data._lastUpdated;
+          // ✅ Perbarui lastLocalMutationTsRef dengan timestamp server agar polling
+          // tidak menimpa data lokal setelah POST berhasil dikonfirmasi server
+          lastLocalMutationTsRef.current = Math.max(lastLocalMutationTsRef.current, data._lastUpdated);
         }
       })
       .catch(err => console.error("Instant push error:", err));
@@ -152,12 +157,12 @@ export default function App() {
 
   // Real-time Live Polling Sync dengan VPS (setiap 5 detik)
   // PROTEKSI: skip overwrite jika data lokal lebih baru dari server
-  // PROTEKSI: skip polling selama 5 detik setelah mutasi lokal
+  // PROTEKSI: skip polling selama 15 detik setelah mutasi lokal (diperpanjang untuk koneksi lambat)
   useEffect(() => {
     const fetchLatestFromServer = () => {
-      // Jika ada mutasi lokal dalam 5 detik terakhir → skip polling
+      // Jika ada mutasi lokal dalam 15 detik terakhir → skip polling
       const msSinceLastMutation = Date.now() - lastLocalMutationTsRef.current;
-      if (msSinceLastMutation < 5000) return;
+      if (msSinceLastMutation < 15000) return;
 
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
