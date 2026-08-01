@@ -96,6 +96,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
   // Field 7: Outlet Selection & Per-Outlet Variant Prices
   const [selectedOutletIds, setSelectedOutletIds] = useState([]);
+  const [tempOutletSelectId, setTempOutletSelectId] = useState('');
   const [variantPrices, setVariantPrices] = useState({}); // { 'Sambal Pecak': { 1: 35000, 2: 38000 } }
   const [standardPrices, setStandardPrices] = useState({}); // { 1: 30000, 2: 32000 }
 
@@ -211,12 +212,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setProdStatus('Aktif');
     setProdImageUrl('');
     setVariants([]);
-    const defaultOutletIds = (masterData.outlets || []).map(o => o.id);
-    setSelectedOutletIds(defaultOutletIds);
+    setSelectedOutletIds([]);
+    setTempOutletSelectId('');
     setVariantPrices({});
-    const initStdPrices = {};
-    (masterData.outlets || []).forEach(o => { initStdPrices[o.id] = 0; });
-    setStandardPrices(initStdPrices);
+    setStandardPrices({});
     setCompositions([]);
     setShowFormModal(true);
   };
@@ -531,21 +530,44 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   const firstLetter = p.name ? p.name.charAt(0).toUpperCase() : 'P';
                   const variantCount = p.variants ? p.variants.length : (p.priceCombinations ? p.priceCombinations.length : 0);
 
-                  // Primary Outlet Name & Price
-                  const activeOutletIds = p.selectedOutletIds && p.selectedOutletIds.length > 0 ? p.selectedOutletIds : masterData.outlets.map(o => o.id);
-                  const firstOutletObj = masterData.outlets.find(o => activeOutletIds.includes(o.id)) || masterData.outlets[0] || { id: 1, name: 'Semua Outlet' };
-                  const outletNameHeader = (firstOutletObj?.name || 'SEMUA OUTLET').toUpperCase();
-
-                  // Calculate primary price
-                  let primaryPrice = p.price || 35000;
-                  if (p.variantPrices && p.variants && p.variants.length > 0) {
-                    const firstV = p.variants[0];
-                    if (p.variantPrices[firstV] && firstOutletObj && p.variantPrices[firstV][firstOutletObj.id] !== undefined) {
-                      primaryPrice = p.variantPrices[firstV][firstOutletObj.id];
+                  // Primary Outlet Name & Price (HANYA pilih outlet yang memiliki harga > 0)
+                  const validPriceOutlets = (masterData.outlets || []).filter(o => {
+                    let pr = 0;
+                    if (p.standardPrices && p.standardPrices[o.id] !== undefined) {
+                      pr = Number(p.standardPrices[o.id]);
+                    } else if (p.variantPrices && p.variants && p.variants.length > 0) {
+                      const firstV = p.variants[0];
+                      if (p.variantPrices[firstV] && p.variantPrices[firstV][o.id] !== undefined) {
+                        pr = Number(p.variantPrices[firstV][o.id]);
+                      }
+                    } else if (p.priceCombinations && p.priceCombinations.length > 0) {
+                      const combo = p.priceCombinations.find(c => c.outletPrices && Number(c.outletPrices[o.id]) > 0);
+                      if (combo) pr = Number(combo.outletPrices[o.id]);
                     }
-                  } else if (p.standardPrices && firstOutletObj && p.standardPrices[firstOutletObj.id] !== undefined) {
-                    primaryPrice = p.standardPrices[firstOutletObj.id];
+                    return pr > 0;
+                  });
+
+                  const firstOutletObj = validPriceOutlets[0] || null;
+
+                  let primaryPrice = 0;
+                  if (firstOutletObj) {
+                    if (p.standardPrices && p.standardPrices[firstOutletObj.id] !== undefined) {
+                      primaryPrice = Number(p.standardPrices[firstOutletObj.id]);
+                    } else if (p.variantPrices && p.variants && p.variants.length > 0) {
+                      const firstV = p.variants[0];
+                      if (p.variantPrices[firstV] && p.variantPrices[firstV][firstOutletObj.id] !== undefined) {
+                        primaryPrice = Number(p.variantPrices[firstV][firstOutletObj.id]);
+                      }
+                    } else if (p.priceCombinations && p.priceCombinations.length > 0) {
+                      const combo = p.priceCombinations.find(c => c.outletPrices && Number(c.outletPrices[firstOutletObj.id]) > 0);
+                      if (combo) primaryPrice = Number(combo.outletPrices[firstOutletObj.id]);
+                    }
                   }
+                  if (!primaryPrice || primaryPrice <= 0) {
+                    primaryPrice = Number(p.price || p.cost_price || p.cost || 0);
+                  }
+
+                  const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
 
                   return (
                     <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
@@ -581,14 +603,22 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         {categoryName}
                       </td>
 
-                      {/* 4. HARGA (Outlet Name cyan + Bold Price) */}
+                      {/* 4. HARGA (Outlet Name cyan + Bold Price, disembunyikan jika 0) */}
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {outletNameHeader}
-                        </div>
-                        <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.85rem' }}>
-                          {formatRupiah(primaryPrice)}
-                        </div>
+                        {primaryPrice > 0 ? (
+                          <>
+                            {outletNameHeader && (
+                              <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {outletNameHeader}
+                              </div>
+                            )}
+                            <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.85rem' }}>
+                              {formatRupiah(primaryPrice)}
+                            </div>
+                          </>
+                        ) : (
+                          <span style={{ color: '#64748b', fontSize: '0.75rem', fontStyle: 'italic' }}>Belum Di-set</span>
+                        )}
                       </td>
 
                       {/* 5. KOMPOSISI */}
@@ -992,52 +1022,98 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
               {/* SECTION 5: HARGA OUTLET MANUAL */}
               <div style={{ border: '1px solid #334155', borderRadius: '12px', padding: '16px', background: '#0f172a' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>
                       Harga Outlet Manual
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                      Tambahkan hanya outlet yang memang menjual produk ini.
+                      Pilih dan tambahkan outlet yang menjual menu ini secara manual.
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedOutletIds(masterData.outlets.map(o => o.id))}
-                    style={{
-                      background: '#1e293b',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.78rem',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <Plus size={14} />
-                    <span>Tambah Harga Outlet</span>
-                  </button>
+                  {/* Dropdown Select Outlet + Button Tambah */}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <select
+                      value={tempOutletSelectId}
+                      onChange={e => setTempOutletSelectId(e.target.value)}
+                      style={{
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        color: '#cbd5e1',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.78rem',
+                        fontWeight: '700'
+                      }}
+                    >
+                      <option value="">-- Pilih Outlet --</option>
+                      {(masterData.outlets || [])
+                        .filter(o => !selectedOutletIds.map(String).includes(String(o.id)))
+                        .map(o => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!tempOutletSelectId) return;
+                        const targetId = isNaN(tempOutletSelectId) ? tempOutletSelectId : Number(tempOutletSelectId);
+                        if (!selectedOutletIds.includes(targetId)) {
+                          setSelectedOutletIds([...selectedOutletIds, targetId]);
+                          setStandardPrices(prev => ({ ...prev, [targetId]: 15000 }));
+                        }
+                        setTempOutletSelectId('');
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                        border: 'none',
+                        color: '#ffffff',
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        fontSize: '0.78rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>+ Tambah Outlet Ini</span>
+                    </button>
+                  </div>
                 </div>
 
                 {selectedOutletIds.length === 0 ? (
-                  <div style={{ padding: '12px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
-                    Belum ada harga outlet. Produk belum muncul di APK sampai harga outlet ditambahkan.
+                  <div style={{ padding: '16px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
+                    Belum ada outlet ditambahkan. Pilih outlet di atas lalu klik "+ Tambah Outlet Ini" untuk menjual menu ini di outlet tersebut.
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px', marginTop: '10px' }}>
                     {selectedOutletIds.map(outId => {
-                      const outObj = masterData.outlets.find(o => o.id === outId) || { name: `Outlet #${outId}` };
-                      const currentVal = standardPrices[outId] !== undefined ? standardPrices[outId] : 30000;
+                      const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };
+                      const currentVal = standardPrices[outId] !== undefined ? standardPrices[outId] : 0;
                       return (
                         <div key={outId} style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
-                          <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800', marginBottom: '4px' }}>
-                            🏢 {outObj.name}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800' }}>
+                              🏢 {outObj.name}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedOutletIds(selectedOutletIds.filter(id => String(id) !== String(outId)));
+                                const updatedStd = { ...standardPrices };
+                                delete updatedStd[outId];
+                                setStandardPrices(updatedStd);
+                              }}
+                              title="Hapus outlet ini dari menu"
+                              style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '2px' }}
+                            >
+                              <X size={14} />
+                            </button>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: '800' }}>Rp</span>
