@@ -2284,6 +2284,10 @@ export default function AndroidPosRegister({
   }
 
   const filteredItems = menuList.filter(item => {
+    if (item.status === 'Inaktif' || item.status === 'Hide') return false;
+    const activeOutletId = currentOutlet?.id || 1;
+    if (getProductPriceForOutlet(item, activeOutletId) <= 0) return false;
+
     const itemCatName = getProductCategoryName(item);
     let matchesCat = activeCategory === 'Semua' || itemCatName.toLowerCase() === activeCategory.toLowerCase();
     if (activeCategory === '🔥 Sering Diorder') {

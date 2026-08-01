@@ -29,6 +29,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [searchTerm, setSearchTerm] = useState('');
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid' | 'table'
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('Semua');
   const [showFormModal, setShowFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
@@ -404,14 +405,22 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
 
   const filteredProducts = masterData.products.filter(p => {
-    // Sembunyikan produk yang harganya 0 atau tidak valid
-    if (getEffectiveProductPrice(p) <= 0) return false;
+    // Hide items with zero effective price
+    if (getEffectiveProductPrice(p) <= 0) {
+      return false;
+    }
 
     if (selectedBranch) {
       const matchOutlet = p.outlet_id === selectedBranch || Number(p.outlet_id) === Number(selectedBranch) ||
         (p.selectedOutletIds && (p.selectedOutletIds.includes(selectedBranch) || p.selectedOutletIds.includes(String(selectedBranch)) || p.selectedOutletIds.includes(Number(selectedBranch))));
       if (!matchOutlet) return false;
     }
+
+    const pStatus = p.status || 'Aktif';
+    if (selectedStatusFilter !== 'Semua' && pStatus !== selectedStatusFilter) {
+      return false;
+    }
+
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
     
@@ -461,6 +470,26 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 }}
               />
             </div>
+
+            {/* Status Filter Dropdown */}
+            <select
+              value={selectedStatusFilter}
+              onChange={e => setSelectedStatusFilter(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: '1px solid #334155',
+                fontSize: '0.8rem',
+                background: '#0f172a',
+                color: selectedStatusFilter === 'Aktif' ? '#34d399' : selectedStatusFilter === 'Hide' ? '#94a3b8' : selectedStatusFilter === 'Inaktif' ? '#fb7185' : '#cbd5e1',
+                fontWeight: '700'
+              }}
+            >
+              <option value="Semua">Semua Status</option>
+              <option value="Aktif">🟢 Aktif</option>
+              <option value="Inaktif">🔴 Inaktif</option>
+              <option value="Hide">👁️ Hide (Sembunyi)</option>
+            </select>
 
             {/* Excel Download & Upload Button */}
             <button
@@ -658,9 +687,28 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
                       {/* 7. STATUS */}
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
-                          Aktif
-                        </span>
+                        {(() => {
+                          const st = p.status || 'Aktif';
+                          if (st === 'Aktif') {
+                            return (
+                              <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                                🟢 Aktif
+                              </span>
+                            );
+                          } else if (st === 'Inaktif') {
+                            return (
+                              <span style={{ background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                                🔴 Inaktif
+                              </span>
+                            );
+                          } else {
+                            return (
+                              <span style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                                👁️ Hide
+                              </span>
+                            );
+                          }
+                        })()}
                       </td>
 
                       {/* 8. AKSI (Tombol Edit & Delete) */}
@@ -882,13 +930,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       borderRadius: '8px',
                       border: '1px solid #334155',
                       background: '#0f172a',
-                      color: prodStatus === 'Aktif' ? '#34d399' : '#fb7185',
+                      color: prodStatus === 'Aktif' ? '#34d399' : prodStatus === 'Hide' ? '#94a3b8' : '#fb7185',
                       fontWeight: '700',
                       fontSize: '0.85rem'
                     }}
                   >
-                    <option value="Aktif">Aktif</option>
-                    <option value="Inaktif">Inaktif</option>
+                    <option value="Aktif">🟢 Aktif</option>
+                    <option value="Inaktif">🔴 Inaktif</option>
+                    <option value="Hide">👁️ Hide (Disembunyikan dari POS)</option>
                   </select>
                 </div>
               </div>
