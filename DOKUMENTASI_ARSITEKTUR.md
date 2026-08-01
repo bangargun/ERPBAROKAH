@@ -124,5 +124,5 @@ npm run build
 ### 3. Meng-update Server VPS Live:
 Jalankan perintah ini di terminal SSH VPS (`mris-admin.barokahgroupindonesia.tech`):
 ```bash
-cd /var/www/MRIS_TECH && git fetch origin && git reset --hard origin/main && npm run build && pm2 restart mris-app-tech
+cd /var/www/erp-barokah && git fetch origin && git reset --hard origin/main && npm run build && pm2 restart erp-barokah && pm2 save
 ```

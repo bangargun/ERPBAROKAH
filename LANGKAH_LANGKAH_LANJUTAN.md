@@ -130,7 +130,7 @@ git commit -m "Fix bug / update fitur"
 git push origin main
 ```
 
-### 3. Deploy Update di VPS Hostinger (1 Baris Perintah)
+### 3. Deploy Update di VPS (1 Baris Perintah & Permanent Autostart)
 ```bash
-cd /var/www/MRIS_TECH && git pull origin main && npm run build && pm2 restart mris-app-tech
+cd /var/www/erp-barokah && git pull origin main && npm run build && pm2 restart erp-barokah && pm2 save
 ```
