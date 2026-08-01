@@ -12,16 +12,7 @@ export default function App() {
     window.location.hash.includes('register-customer')
   );
 
-  // Helper untuk URL VPS Backend Cloud API (mris-api.barokahgroupindonesia.tech)
-  const getApiUrl = (pathStr) => {
-    if (typeof window !== 'undefined') {
-      const savedServer = localStorage.getItem('MRIS_SERVER_URL');
-      if (savedServer && savedServer.trim() !== '') {
-        return `${savedServer.replace(/\/$/, '')}${pathStr}`;
-      }
-    }
-    return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-  };
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
   // User Authentication State
   const [userSession, setUserSession] = useState(() => {

@@ -110,16 +110,7 @@ export default function App() {
     return initialMasterData;
   });
 
-  // Helper for VPS API URL in APK & Web (mris-api.barokahgroupindonesia.tech)
-  const getApiUrl = (pathStr) => {
-    if (typeof window !== 'undefined') {
-      const savedServer = localStorage.getItem('MRIS_SERVER_URL');
-      if (savedServer && savedServer.trim() !== '') {
-        return `${savedServer.replace(/\/$/, '')}${pathStr}`;
-      }
-    }
-    return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-  };
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
   const lastRemoteTsRef = useRef(0);
 

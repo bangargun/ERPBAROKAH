@@ -88,15 +88,7 @@ export default function AndroidPosRegister({
   onSwitchToAdmin,
   onLogout
 }) {
-  const getApiUrl = (pathStr) => {
-    if (typeof window !== 'undefined') {
-      const savedServer = localStorage.getItem('MRIS_SERVER_URL');
-      if (savedServer && savedServer.trim() !== '') {
-        return `${savedServer.replace(/\/$/, '')}${pathStr}`;
-      }
-    }
-    return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-  };
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
   const [activeNavTab, setActiveNavTab] = useState('kasir');
@@ -844,11 +836,7 @@ export default function AndroidPosRegister({
   // Handle Manual Sync Button Click
   const handleTriggerSyncData = () => {
     setIsSyncingNow(true);
-    const getApiUrl = (pathStr) => {
-      const isNativeApp = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
-      const baseUrl = isNativeApp ? 'https://mris-api.barokahgroupindonesia.tech' : '';
-      return `${baseUrl}${pathStr}`;
-    };
+    const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
     fetch(getApiUrl('/api/master-data'), {
       method: 'POST',
