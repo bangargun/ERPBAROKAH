@@ -274,8 +274,10 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
                   Kode: {ingredient.code || `BHN-00${ingredient.id}`}
                 </span>
               </h2>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <span>Satuan Unit: <strong style={{ color: '#38bdf8' }}>{ingredient.unit || 'Gram'}</strong></span>
+                <span>•</span>
+                <span>Supplier: <strong style={{ color: '#38bdf8' }}>🚚 {ingredient.supplier || '-'}</strong></span>
                 <span>•</span>
                 <span>Stok Gudang: <strong style={{ color: '#34d399' }}>{ingredient.stock || 1000} {ingredient.unit || 'Gram'}</strong></span>
                 <span>•</span>

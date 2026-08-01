@@ -22,6 +22,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
   const [ingName, setIngName] = useState('');
   const [ingStatus, setIngStatus] = useState('Aktif');
   const [ingUnit, setIngUnit] = useState('Gram');
+  const [ingSupplier, setIngSupplier] = useState('');
   const [ingStock, setIngStock] = useState('1000');
   const [ingMinStock, setIngMinStock] = useState('500');
 
@@ -49,6 +50,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
     setIngName('');
     setIngStatus('Aktif');
     setIngUnit(masterData.units?.[0]?.symbol || 'Gram');
+    setIngSupplier(masterData.suppliers?.[0]?.name || '');
     setIngStock('1000');
     setIngMinStock('500');
     setShowAddFormModal(true);
@@ -61,6 +63,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
     setIngName(item.name || '');
     setIngStatus(item.status || 'Aktif');
     setIngUnit(item.unit || (masterData.units?.[0]?.symbol || 'Gram'));
+    setIngSupplier(item.supplier || item.supplier_name || (masterData.suppliers?.[0]?.name || ''));
     setIngStock(item.stock !== undefined && item.stock !== null ? String(item.stock) : '1000');
     setIngMinStock(item.min_stock !== undefined && item.min_stock !== null ? String(item.min_stock) : '500');
     setShowAddFormModal(true);
@@ -89,6 +92,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
       code,
       name: ingName.trim(),
       unit: ingUnit,
+      supplier: ingSupplier || '-',
       stock: parseFloat(ingStock) || 0,
       min_stock: parseFloat(ingMinStock) || 500,
       status: ingStatus,
@@ -117,6 +121,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
       code,
       name: ingName.trim(),
       unit: ingUnit,
+      supplier: ingSupplier || '-',
       stock: parseFloat(ingStock) || 0,
       min_stock: parseFloat(ingMinStock) || 500,
       status: ingStatus,
@@ -174,7 +179,8 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
   const ingredientsList = masterData.ingredients || [];
   const filtered = ingredientsList.filter(i => 
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (i.code && i.code.toLowerCase().includes(searchTerm.toLowerCase()))
+    (i.code && i.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (i.supplier && i.supplier.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Pagination calculation
@@ -191,7 +197,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
             Data Bahan Baku (Ingredients Master)
           </h2>
           <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
-            Kelola master bahan baku dapur, batas stok kritis, dan pengelompokan akun Harga Pokok Produksi (HPP)
+            Kelola master bahan baku dapur, supplier pemasok, batas stok kritis, dan pengelompokan akun Harga Pokok Produksi (HPP)
           </p>
         </div>
 
@@ -229,7 +235,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
         <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
-          placeholder="Cari berdasarkan nama atau kode bahan baku..."
+          placeholder="Cari berdasarkan nama, kode, atau supplier..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
@@ -246,6 +252,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                 <th style={{ padding: '12px' }}>Kode Bahan (Auto)</th>
                 <th style={{ padding: '12px' }}>Nama Bahan Baku</th>
                 <th style={{ padding: '12px' }}>Satuan Unit</th>
+                <th style={{ padding: '12px' }}>Nama Supplier</th>
                 <th style={{ padding: '12px' }}>Status</th>
                 <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
               </tr>
@@ -253,7 +260,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedIngredients.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                     Belum ada data bahan baku yang cocok.
                   </td>
                 </tr>
@@ -279,7 +286,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                         </span>
                       </td>
 
-                      {/* 2. NAMA BAHAN BAKU (Klik untuk Papan Informasi Detail Analisis & Resep Menu) */}
+                      {/* 2. NAMA BAHAN BAKU */}
                       <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.88rem' }}>
                         <button
                           type="button"
@@ -308,7 +315,14 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                         </span>
                       </td>
 
-                      {/* 4. STATUS */}
+                      {/* 4. NAMA SUPPLIER */}
+                      <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
+                        <span style={{ background: '#0f172a', padding: '4px 8px', borderRadius: '6px', border: '1px solid #334155', fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700' }}>
+                          🚚 {ing.supplier || '-'}
+                        </span>
+                      </td>
+
+                      {/* 5. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
                           background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
@@ -323,7 +337,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                         </span>
                       </td>
 
-                      {/* 5. AKSI (Edit, Preview, Delete) */}
+                      {/* 6. AKSI (Edit, Preview, Delete) */}
                       <td style={{ padding: '14px 12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                           <button
@@ -500,7 +514,26 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                 </div>
               </div>
 
-              {/* Field 5: Tampilkan di APK */}
+              {/* Field 5: Nama Supplier (Pemasok) */}
+              <div>
+                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  Nama Supplier (Pemasok)
+                </label>
+                <select
+                  value={ingSupplier}
+                  onChange={e => setIngSupplier(e.target.value)}
+                  className="form-select"
+                >
+                  <option value="">-- Pilih Supplier --</option>
+                  {(masterData.suppliers || []).map(s => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Field 6: Tampilkan di APK */}
               <div>
                 <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Tampilkan di APK
@@ -511,13 +544,13 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                 </select>
               </div>
 
-              {/* Field 6: Keterangan Akun HPP */}
+              {/* Field 7: Keterangan Akun HPP */}
               <div style={{ background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #334155', fontSize: '0.78rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShieldCheck size={18} />
                 <span>Terhubung otomatis dengan Akun <strong>Harga Pokok Produksi (HPP/COGS)</strong> Laporan Laba Rugi</span>
               </div>
 
-              {/* Field 7: Tombol Preview & Simpan */}
+              {/* Field 8: Tombol Preview & Simpan */}
               <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                 <button type="button" onClick={() => setShowAddFormModal(false)} className="btn-secondary" style={{ padding: '8px 12px' }}>
                   Batal
@@ -575,6 +608,11 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
                 <span style={{ color: '#94a3b8' }}>Satuan Unit:</span>
                 <strong style={{ color: '#38bdf8' }}>{previewItemData.unit}</strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                <span style={{ color: '#94a3b8' }}>Nama Supplier:</span>
+                <strong style={{ color: '#38bdf8' }}>🚚 {previewItemData.supplier || '-'}</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
