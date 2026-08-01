@@ -112,14 +112,19 @@ export default function App() {
 
   const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
-  const lastRemoteTsRef = useRef(0);
+  // Ref untuk track kapan terakhir ada mutasi lokal (tambah/edit/hapus)
+  const lastLocalMutationTsRef = useRef(0);
 
   // Wrapper function that guarantees every local mutation gets a new timestamp & instant push to VPS MySQL
+  // IMPORTANT: setelah mutasi lokal, polling di-skip selama 5 detik agar save selesai dulu
   const updateMasterData = (updater) => {
     setMasterData(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       const ts = Date.now();
       const updatedWithTs = { ...next, _lastUpdated: ts };
+
+      // Tandai timestamp mutasi lokal → polling akan skip selama 5 detik
+      lastLocalMutationTsRef.current = ts;
 
       // Instant push to VPS Server Cloud API (MySQL mris_db Primary Storage)
       fetch(getApiUrl('/api/master-data'), {
@@ -144,20 +149,32 @@ export default function App() {
     localStorage.setItem('mris_master_data', JSON.stringify(masterData));
   }, [masterData]);
 
-  // Real-time Live Polling Sync with VPS Central Cloud Server (Every 2 Seconds - 100% MySQL mris_db)
+  // Real-time Live Polling Sync dengan VPS (setiap 5 detik)
+  // PROTEKSI: skip overwrite jika data lokal lebih baru dari server
+  // PROTEKSI: skip polling selama 5 detik setelah mutasi lokal
   useEffect(() => {
     const fetchLatestFromServer = () => {
+      // Jika ada mutasi lokal dalam 5 detik terakhir → skip polling
+      const msSinceLastMutation = Date.now() - lastLocalMutationTsRef.current;
+      if (msSinceLastMutation < 5000) return;
+
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
         .then(serverData => {
           if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets)) {
-            const remoteTs = serverData._lastUpdated || Date.now();
-            lastRemoteTsRef.current = remoteTs;
+            const remoteTs = serverData._lastUpdated || 0;
+
             setMasterData(prev => {
+              const localTs = prev._lastUpdated || 0;
+
+              // Jika data lokal LEBIH BARU dari server → jangan timpa
+              if (localTs > remoteTs) return prev;
+
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
 
+              lastRemoteTsRef.current = remoteTs;
               return {
                 ...initialMasterData,
                 ...serverData,
@@ -170,7 +187,7 @@ export default function App() {
     };
 
     fetchLatestFromServer();
-    const livePollTimer = setInterval(fetchLatestFromServer, 2000);
+    const livePollTimer = setInterval(fetchLatestFromServer, 5000);
     return () => clearInterval(livePollTimer);
   }, []);
 
@@ -425,7 +442,7 @@ export default function App() {
         {adminTab === 'data' && (
           <MasterDataManagement
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
           />
         )}
@@ -434,7 +451,7 @@ export default function App() {
         {adminTab === 'sales' && (
           <SalesTransactionsPage
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
           />
         )}
@@ -443,7 +460,7 @@ export default function App() {
         {adminTab === 'transaction_history' && (
           <TransactionHistoryPage
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
           />
         )}
@@ -452,7 +469,7 @@ export default function App() {
         {adminTab === 'loyalty' && (
           <LoyaltyProgramPage
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
           />
         )}
 
@@ -461,7 +478,7 @@ export default function App() {
         {adminTab === 'costs' && (
           <CostsManagement
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
           />
         )}
@@ -470,7 +487,7 @@ export default function App() {
         {adminTab === 'stock' && (
           <StockManagement
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
           />
         )}
@@ -487,7 +504,7 @@ export default function App() {
         {adminTab === 'sop' && (
           <SopManagementPage
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
           />
         )}
@@ -497,7 +514,7 @@ export default function App() {
         {adminTab === 'settings' && (
           <SystemSettings
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
           />
         )}
 
@@ -505,7 +522,7 @@ export default function App() {
         {adminTab === 'manual_entry' && (
           <ManualFinancialEntryPage
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
             setActiveTab={setAdminTab}
             triggerOpenModal={triggerOpenManualModal}
@@ -516,7 +533,7 @@ export default function App() {
         {adminTab === 'activity_log' && (
           <ActivityLogPage
             masterData={masterData}
-            setMasterData={setMasterData}
+            setMasterData={updateMasterData}
             selectedBranch={selectedBranch}
           />
         )}
@@ -558,7 +575,7 @@ export default function App() {
     return (
       <CustomerSelfRegistrationPage
         masterData={masterData}
-        setMasterData={setMasterData}
+        setMasterData={updateMasterData}
         onBackToPos={() => {
           if (typeof window !== 'undefined' && window.history.pushState) {
             window.history.pushState({}, '', '/');
@@ -576,7 +593,7 @@ export default function App() {
       {renderPreviewToggleBar()}
       <AndroidPosRegister
         masterData={masterData}
-        setMasterData={setMasterData}
+        setMasterData={updateMasterData}
         selectedBranch={selectedBranch}
         setSelectedBranch={setSelectedBranch}
         onShiftCloseClick={() => {
