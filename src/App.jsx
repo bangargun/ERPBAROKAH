@@ -122,55 +122,44 @@ export default function App() {
   };
 
   const lastRemoteTsRef = useRef(0);
-  const isInitialMountRef = useRef(true);
 
-  // Sync Master Data to localStorage & Central VPS Cloud API (Local Mutations Only)
-  useEffect(() => {
-    localStorage.setItem('mris_master_data', JSON.stringify(masterData));
+  // Wrapper function that guarantees every local mutation gets a new timestamp & instant push to VPS MySQL
+  const updateMasterData = (updater) => {
+    setMasterData(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      const ts = Date.now();
+      const updatedWithTs = { ...next, _lastUpdated: ts };
 
-    // Prevent POST on initial mount (always fetch from server first!)
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      return;
-    }
-
-    // Ignore automatic POST if this state update came from server GET polling
-    if (masterData._lastUpdated && masterData._lastUpdated === lastRemoteTsRef.current) {
-      return;
-    }
-
-    // Auto Sync local mutation to Central Server API on VPS (Instant 50ms Flush)
-    const syncTimer = setTimeout(() => {
+      // Instant push to VPS Server Cloud API (MySQL mris_db Primary Storage)
       fetch(getApiUrl('/api/master-data'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(masterData)
+        body: JSON.stringify(updatedWithTs)
       })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data._lastUpdated) {
           lastRemoteTsRef.current = data._lastUpdated;
-          setMasterData(prev => ({
-            ...prev,
-            _lastUpdated: data._lastUpdated
-          }));
         }
       })
-      .catch(() => {
-        // Offline-first fallback
-      });
-    }, 50);
+      .catch(err => console.error("Instant push error:", err));
 
-    return () => clearTimeout(syncTimer);
+      return updatedWithTs;
+    });
+  };
+
+  // Sync Master Data to localStorage
+  useEffect(() => {
+    localStorage.setItem('mris_master_data', JSON.stringify(masterData));
   }, [masterData]);
 
-  // Real-time Live Polling Sync with VPS Central Cloud Server (Every 3 Seconds)
+  // Real-time Live Polling Sync with VPS Central Cloud Server (Every 2 Seconds - 100% MySQL mris_db)
   useEffect(() => {
     const fetchLatestFromServer = () => {
-      fetch(getApiUrl('/api/master-data'))
+      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
         .then(serverData => {
-          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.products)) {
+          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets)) {
             const remoteTs = serverData._lastUpdated || Date.now();
             lastRemoteTsRef.current = remoteTs;
             setMasterData(prev => {
@@ -190,7 +179,7 @@ export default function App() {
     };
 
     fetchLatestFromServer();
-    const livePollTimer = setInterval(fetchLatestFromServer, 3000);
+    const livePollTimer = setInterval(fetchLatestFromServer, 2000);
     return () => clearInterval(livePollTimer);
   }, []);
 
