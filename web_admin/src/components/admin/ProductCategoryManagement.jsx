@@ -93,6 +93,8 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
     setEditingCategory(null);
   };
 
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+
   // Handle Delete Category
   const handleDeleteCategory = async (catId, catName) => {
     const associatedCount = getAssociatedProducts(catId, catName).length;

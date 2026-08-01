@@ -40,6 +40,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+
   // DRAG & DROP PHOTO UPLOAD HANDLERS
   const handleDragOver = (e) => {
     e.preventDefault();

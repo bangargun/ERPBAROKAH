@@ -102,8 +102,12 @@ export default function MasterDataManagement({ masterData, setMasterData, select
     setNewItemPrice('');
   };
 
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+
   const handleDeleteItem = async (listKey, id) => {
     if (!masterData[listKey]) return;
+    if (!window.confirm(`Yakin ingin menghapus item ini?`)) return;
+
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
@@ -122,6 +126,8 @@ export default function MasterDataManagement({ masterData, setMasterData, select
         if (resData && resData.masterData) {
           setMasterData(resData.masterData);
         }
+      } else {
+        console.error('Delete API gagal:', res.status);
       }
     } catch (err) {
       console.error('Delete item API error:', err);
