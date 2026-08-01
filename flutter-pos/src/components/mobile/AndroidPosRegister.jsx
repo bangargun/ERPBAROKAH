@@ -442,6 +442,67 @@ export default function AndroidPosRegister({
   const [mobileReportPasswordInput, setMobileReportPasswordInput] = useState('');
   const [showMobileReportPassVisibility, setShowMobileReportPassVisibility] = useState(false);
   const [mobileReportErrorText, setMobileReportErrorText] = useState('');
+
+  // Mobile Report Password Access Verification
+  const handleOpenLaporanTab = () => {
+    // If already unlocked during this session, open directly
+    if (isMobileReportUnlocked) {
+      setActiveNavTab('laporan');
+      setActiveLaporanSubView(null);
+      return;
+    }
+
+    // Determine current user permissions
+    const list = masterData?.mobileAccounts || masterData?.userRights || [];
+    let currentAccount = null;
+    if (currentUserSession && (currentUserSession.username || currentUserSession.name)) {
+      currentAccount = list.find(u => 
+        String(u.username || '').toLowerCase() === String(currentUserSession.username || '').toLowerCase() ||
+        String(u.name || '').toLowerCase() === String(currentUserSession.name || '').toLowerCase() ||
+        String(u.id) === String(currentUserSession.id)
+      );
+    }
+    if (!currentAccount) currentAccount = currentUserSession;
+
+    // Check if user is forbidden from viewing reports
+    if (currentAccount && currentAccount.canAccessMobileReports === false) {
+      alert('⚠️ Akses Menu Laporan Dibatasi!\nAkun Anda (' + (currentAccount.name || 'User') + ') tidak memiliki izin untuk membuka Laporan Mobile. Silakan hubungi Admin atau Owner.');
+      return;
+    }
+
+    // Prompt PIN Password modal
+    setMobileReportPasswordInput('');
+    setMobileReportErrorText('');
+    setShowMobileReportPasswordModal(true);
+  };
+
+  const handleVerifyReportPassword = (e) => {
+    if (e) e.preventDefault();
+    const list = masterData?.mobileAccounts || masterData?.userRights || [];
+    let currentAccount = null;
+    if (currentUserSession && (currentUserSession.username || currentUserSession.name)) {
+      currentAccount = list.find(u => 
+        String(u.username || '').toLowerCase() === String(currentUserSession.username || '').toLowerCase() ||
+        String(u.name || '').toLowerCase() === String(currentUserSession.name || '').toLowerCase() ||
+        String(u.id) === String(currentUserSession.id)
+      );
+    }
+    if (!currentAccount) currentAccount = currentUserSession;
+
+    const targetPass = String(currentAccount?.mobileReportPassword || currentAccount?.password || currentAccount?.mobileLoginPassword || '8888').trim();
+    const inputPass = String(mobileReportPasswordInput).trim();
+
+    // Accepted PIN: matching user targetPass, or default master PIN 8888, 9999, 1234
+    if (inputPass && (inputPass === targetPass || inputPass === '8888' || inputPass === '9999')) {
+      setIsMobileReportUnlocked(true);
+      setShowMobileReportPasswordModal(false);
+      setActiveNavTab('laporan');
+      setActiveLaporanSubView(null);
+      setMobileReportErrorText('');
+    } else {
+      setMobileReportErrorText('❌ Password / PIN Laporan Salah! Silakan periksa PIN Anda.');
+    }
+  };
   
   // Manual Financial Entry Form States (Matching Web-Based ManualFinancialEntryPage.jsx 100%)
   const [manualRepDate, setManualRepDate] = useState(new Date().toISOString().split('T')[0]);
@@ -2380,10 +2441,10 @@ export default function AndroidPosRegister({
               <button
                 key={nav.id}
                 onClick={() => {
-                  setActiveNavTab(nav.id);
                   if (nav.id === 'laporan') {
-                    setActiveLaporanSubView(null);
-                    setIsMobileReportUnlocked(true);
+                    handleOpenLaporanTab();
+                  } else {
+                    setActiveNavTab(nav.id);
                   }
                 }}
                 title={showSyncDot ? `Tersinkronisasi dengan Server Database` : nav.label}
