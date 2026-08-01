@@ -120,18 +120,35 @@ export default function AndroidPosRegister({
   // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
   const products = rawProducts.filter(p => {
+    // 1. Skip if general status is Inaktif
+    if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
+
+    // 2. Price validity check
     const priceVal = Number(p.price || p.cost_price || p.cost || 0);
     const hasPriceCombo = (p.priceCombinations || []).some(c => c.outletPrices && Object.values(c.outletPrices).some(v => Number(v) > 0));
     const hasStdPrice = (p.standardPrices && Object.values(p.standardPrices).some(v => Number(v) > 0));
     if (priceVal <= 0 && !hasPriceCombo && !hasStdPrice) return false;
 
-    return !p.outlet_id || 
-    p.outlet_id === 'Semua Outlet' ||
-    p.outlet_id === 'Semua Outlet (Central)' ||
-    String(p.outlet_id) === String(currentOutlet.id) || 
-    String(p.outlet_name || '').toLowerCase() === String(currentOutlet.name || '').toLowerCase() ||
-    String(currentOutlet.id) === '1' ||
-    String(p.outlet_id) === '1';
+    // 3. Outlet assignment check
+    const isOutletAssigned = !p.outlet_id || 
+      p.outlet_id === 'Semua Outlet' ||
+      p.outlet_id === 'Semua Outlet (Central)' ||
+      String(p.outlet_id) === String(currentOutlet.id) || 
+      String(p.outlet_name || '').toLowerCase() === String(currentOutlet.name || '').toLowerCase() ||
+      String(currentOutlet.id) === '1' ||
+      String(p.outlet_id) === '1' ||
+      (p.selectedOutletIds && p.selectedOutletIds.some(id => String(id) === String(currentOutlet.id)));
+
+    if (!isOutletAssigned) return false;
+
+    // 4. "Tampilkan di APK" status check per outlet
+    const apkStatusMap = p.apkStatus || p.outletApkStatus || {};
+    const statusForThisOutlet = apkStatusMap[currentOutlet.id] || apkStatusMap[String(currentOutlet.id)];
+    if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif') {
+      return false;
+    }
+
+    return true;
   });
   const menuList = products;
   const masterCategoryNames = (masterData?.categories || [])

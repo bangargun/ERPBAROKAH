@@ -94,11 +94,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [variants, setVariants] = useState([]); // ['Sambal Pecak', 'Sambal Ijo']
   const [tempVariantInput, setTempVariantInput] = useState('');
 
-  // Field 7: Outlet Selection & Per-Outlet Variant Prices
+  // Field 7: Outlet Selection & Per-Outlet Variant Prices & APK Visibility Status
   const [selectedOutletIds, setSelectedOutletIds] = useState([]);
   const [tempOutletSelectId, setTempOutletSelectId] = useState('');
   const [variantPrices, setVariantPrices] = useState({}); // { 'Sambal Pecak': { 1: 35000, 2: 38000 } }
   const [standardPrices, setStandardPrices] = useState({}); // { 1: 30000, 2: 32000 }
+  const [outletApkStatus, setOutletApkStatus] = useState({}); // { 1785564003169: 'Aktif', 1785537689430: 'Inaktif' }
 
   // Field 8: Komposisi / Ingredients List
   const [compositions, setCompositions] = useState([]);
@@ -216,6 +217,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setTempOutletSelectId('');
     setVariantPrices({});
     setStandardPrices({});
+    setOutletApkStatus({});
     setCompositions([]);
     setShowFormModal(true);
   };
@@ -252,6 +254,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setSelectedOutletIds(activeOutletIds);
     setVariantPrices(vPrices);
     setStandardPrices(Object.keys(stdPrices).length > 0 ? stdPrices : (masterData.outlets || []).reduce((acc, o) => ({ ...acc, [o.id]: product.price || 0 }), {}));
+    setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
     setCompositions(product.compositions || []);
     setShowFormModal(true);
   };
@@ -284,6 +287,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         combinationName: prodName.trim(),
         selectedOutletIds: selectedOutletIds,
         outletPrices: standardPrices,
+        apkStatus: outletApkStatus,
         status: 'Aktif'
       });
     } else {
@@ -298,6 +302,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           combinationName: `${prodName.trim()} (${vName})`,
           selectedOutletIds: selectedOutletIds,
           outletPrices: pMap,
+          apkStatus: outletApkStatus,
           status: 'Aktif'
         });
       });
@@ -324,6 +329,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       selectedOutletIds,
       variantPrices,
       standardPrices,
+      apkStatus: outletApkStatus,
+      outletApkStatus: outletApkStatus,
       priceCombinations: generatedPriceCombinations,
       compositions
     };
@@ -1062,6 +1069,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         if (!selectedOutletIds.includes(targetId)) {
                           setSelectedOutletIds([...selectedOutletIds, targetId]);
                           setStandardPrices(prev => ({ ...prev, [targetId]: 15000 }));
+                          setOutletApkStatus(prev => ({ ...prev, [targetId]: 'Aktif' }));
                         }
                         setTempOutletSelectId('');
                       }}
@@ -1095,6 +1103,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     {selectedOutletIds.map(outId => {
                       const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };
                       const currentVal = standardPrices[outId] !== undefined ? standardPrices[outId] : 0;
+                      const currentApkStat = outletApkStatus[outId] || 'Aktif';
                       return (
                         <div key={outId} style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -1108,6 +1117,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                                 const updatedStd = { ...standardPrices };
                                 delete updatedStd[outId];
                                 setStandardPrices(updatedStd);
+                                const updatedApk = { ...outletApkStatus };
+                                delete updatedApk[outId];
+                                setOutletApkStatus(updatedApk);
                               }}
                               title="Hapus outlet ini dari menu"
                               style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '2px' }}
@@ -1133,6 +1145,32 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                                 fontSize: '0.85rem'
                               }}
                             />
+                          </div>
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #334155' }}>
+                            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                              📱 Tampilkan di POS APK:
+                            </label>
+                            <select
+                              value={currentApkStat}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setOutletApkStatus(prev => ({ ...prev, [outId]: val }));
+                              }}
+                              style={{
+                                width: '100%',
+                                background: (currentApkStat === 'Inaktif') ? 'rgba(244,63,94,0.15)' : 'rgba(52,211,153,0.15)',
+                                border: `1px solid ${(currentApkStat === 'Inaktif') ? '#f43f5e' : '#10b981'}`,
+                                color: (currentApkStat === 'Inaktif') ? '#f43f5e' : '#34d399',
+                                padding: '6px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.78rem',
+                                fontWeight: '800',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <option value="Aktif" style={{ background: '#1e293b', color: '#34d399' }}>🟢 Aktif (Tampil di POS)</option>
+                              <option value="Inaktif" style={{ background: '#1e293b', color: '#f43f5e' }}>🔴 Inaktif (Sembunyikan dari POS)</option>
+                            </select>
                           </div>
                         </div>
                       );
@@ -1361,14 +1399,23 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               <div>
-                <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Harga per Outlet:</span>
+                <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Harga & Status POS APK per Outlet:</span>
                 {variants.length > 0 ? (
                   variants.map((vName, i) => (
                     <div key={i} style={{ background: '#1e293b', padding: '6px 10px', borderRadius: '6px', marginBottom: '4px', fontSize: '0.78rem' }}>
                       <div style={{ color: '#38bdf8', fontWeight: '700' }}>Varian: {vName}</div>
                       <div style={{ color: '#34d399' }}>
                         {selectedOutletIds.length > 0
-                          ? selectedOutletIds.map(oid => `${masterData.outlets.find(o => o.id === oid)?.name || `Outlet #${oid}`}: ${formatRupiah(variantPrices[vName]?.[oid] || 35000)}`).join(' | ')
+                          ? selectedOutletIds.map(oid => {
+                              const oObj = masterData.outlets.find(o => String(o.id) === String(oid));
+                              const apkSt = outletApkStatus[oid] || 'Aktif';
+                              const tagColor = apkSt === 'Inaktif' ? '#f43f5e' : '#34d399';
+                              return (
+                                <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
+                                  {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(variantPrices[vName]?.[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
+                                </span>
+                              );
+                            })
                           : 'Belum ada outlet'}
                       </div>
                     </div>
@@ -1376,7 +1423,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 ) : (
                   <div style={{ background: '#1e293b', padding: '6px 10px', borderRadius: '6px', fontSize: '0.78rem', color: '#34d399' }}>
                     {selectedOutletIds.length > 0
-                      ? selectedOutletIds.map(oid => `${masterData.outlets.find(o => o.id === oid)?.name || `Outlet #${oid}`}: ${formatRupiah(standardPrices[oid] || 30000)}`).join(' | ')
+                      ? selectedOutletIds.map(oid => {
+                          const oObj = masterData.outlets.find(o => String(o.id) === String(oid));
+                          const apkSt = outletApkStatus[oid] || 'Aktif';
+                          const tagColor = apkSt === 'Inaktif' ? '#f43f5e' : '#34d399';
+                          return (
+                            <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
+                              {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(standardPrices[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
+                            </span>
+                          );
+                        })
                       : 'Belum ada outlet'}
                   </div>
                 )}
