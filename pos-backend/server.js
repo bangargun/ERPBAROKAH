@@ -1610,7 +1610,14 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     const nowTs = Date.now();
 
     // Hapus item dari array di masterData JSON
-    if (Array.isArray(existing[key])) {
+    if (key === 'salesTransactions' || key === 'transactions') {
+      if (Array.isArray(existing.salesTransactions)) {
+        existing.salesTransactions = existing.salesTransactions.filter(item => item && String(item.id) !== idStr);
+      }
+      if (Array.isArray(existing.transactions)) {
+        existing.transactions = existing.transactions.filter(item => item && String(item.id) !== idStr);
+      }
+    } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;
         const itemId = String(item.id !== undefined ? item.id : item.code || item.name);
@@ -1631,10 +1638,11 @@ app.post('/api/master-data/delete-item', async (req, res) => {
                        key === 'users' || key === 'userRights' ? 'users' :
                        key === 'ingredients' ? 'ingredients' :
                        key === 'suppliers' ? 'suppliers' :
-                       key === 'customers' ? 'customers' : null;
+                       key === 'customers' ? 'customers' :
+                       key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
       if (relTable) {
         try {
-          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]);
+          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
         } catch (delErr) {}
       }
     }

@@ -395,14 +395,35 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     }
   };
 
-  const handleDeleteTransaction = (id) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${id}?`)) {
-      const updatedList = transactions.filter(t => t.id !== id);
+  const handleDeleteTransaction = async (id) => {
+    if (!id) return;
+    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${id}? Data penjualan ini akan terhapus permanen dari Web Admin dan Mobile Kasir.`)) {
+      const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => String(t.id) !== String(id));
+      const updatedTx = (masterData?.transactions || []).filter(t => String(t.id) !== String(id));
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now(),
+        salesTransactions: updatedSalesTx,
+        transactions: updatedTx
+      };
+
       if (setMasterData) {
-        setMasterData({
-          ...masterData,
-          salesTransactions: updatedList
+        setMasterData(updated);
+      }
+
+      try {
+        const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+        await fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'salesTransactions', id })
         });
+      } catch (err) {
+        console.error('Delete transaction API error:', err);
+      }
+
+      if (viewMode === 'detail') {
+        setViewMode('list');
       }
     }
   };
@@ -488,6 +509,14 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               style={{ background: '#7e22ce', border: 'none', color: '#ffffff', padding: '8px 20px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
             >
               Ubah
+            </button>
+
+            <button 
+              onClick={() => handleDeleteTransaction(inv.id)}
+              style={{ background: '#ef4444', border: 'none', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Trash2 size={16} />
+              <span>Hapus</span>
             </button>
 
             <button style={{ background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}>
@@ -875,17 +904,30 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                       </span>
                     </td>
 
-                    {/* Aksi (PURPLE UBAH BUTTON MATCHING DARK THEME) */}
+                    {/* Aksi (Ubah & Hapus) */}
                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <button 
-                        onClick={() => handleOpenEditModal(item)}
-                        style={{
-                          background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 18px', borderRadius: '16px',
-                          fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
-                        }}
-                      >
-                        Ubah
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                        <button 
+                          onClick={() => handleOpenEditModal(item)}
+                          style={{
+                            background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 14px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                        >
+                          Ubah
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteTransaction(item.id)}
+                          title="Hapus Transaksi Penjualan"
+                          style={{
+                            background: '#ef4444', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
