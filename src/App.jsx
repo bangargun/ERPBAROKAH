@@ -45,7 +45,12 @@ export default function App() {
   });
 
   // App View Mode: 'admin' | 'mobile'
-  const [viewMode, setViewMode] = useState('admin');
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform()) {
+      return 'mobile';
+    }
+    return 'mobile';
+  });
 
   // Handle login success dari LoginPage
   const handleLoginSuccess = (session, targetMode) => {
