@@ -2075,11 +2075,10 @@ export default function AndroidPosRegister({
         role: selectedUser.role || 'Kasir',
         outlet: selectedOutlet.name || '',
         outlet_id: selectedOutlet.id || null,
-        username: selectedUser.username || '',
         canAccessMobileReports: selectedUser.canAccessMobileReports === true,
         mobileReportPassword: selectedUser.mobileReportPassword || ''
       });
-      if (selectedOutlet.id !== 'central') {
+      if (selectedOutlet.id !== 'ALL') {
         setSelectedBranch(selectedOutlet.id);
       }
       setLoginPasswordInput('');
@@ -2088,26 +2087,26 @@ export default function AndroidPosRegister({
     };
 
     return (
-      <div style={{ minHeight: '100vh', width: '100vw', background: 'radial-gradient(circle at top, #1e293b 0%, #090d16 100%)', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ minHeight: '100vh', width: '100vw', background: 'radial-gradient(circle at top, #1e293b 0%, #090d16 100%)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '540px',
           background: 'rgba(15, 23, 42, 0.95)',
           border: '2px solid #10b981',
           borderRadius: '24px',
-          padding: '32px 24px',
-          boxShadow: '0 0 35px rgba(16, 185, 129, 0.35), inset 0 0 15px rgba(16, 185, 129, 0.1)',
+          padding: '28px 24px',
+          boxShadow: '0 0 35px rgba(16, 185, 129, 0.35)',
           backdropFilter: 'blur(20px)',
           display: 'flex',
           flexDirection: 'column',
           gap: '18px'
         }}>
 
-          {/* HEADER LOGO & JUDUL (NEON GREEN CARD STYLE) */}
-          <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+          {/* APP TITLE HEADER */}
+          <div style={{ textAlign: 'center' }}>
             <div style={{
-              width: '64px',
-              height: '64px',
+              width: '56px',
+              height: '56px',
               borderRadius: '50%',
               background: 'rgba(16, 185, 129, 0.15)',
               border: '2px solid #10b981',
@@ -2115,213 +2114,257 @@ export default function AndroidPosRegister({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 12px'
+              margin: '0 auto 8px'
             }}>
-              <Smartphone size={32} color="#10b981" />
+              <Smartphone size={28} color="#10b981" />
             </div>
 
-            <h2 style={{ fontSize: '1.45rem', fontWeight: '900', color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
               POS Kasir Mobile Barokah
             </h2>
-            <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '6px', fontWeight: '600' }}>
-              Sistem Kasir Tablet &amp; Transaksi Outlet
+            <p style={{ fontSize: '0.80rem', color: '#94a3b8', marginTop: '4px', fontWeight: '600' }}>
+              Pilih Outlet &bull; Pilih User &bull; Masukkan Password
             </p>
           </div>
 
-          {/* FORM USER & OUTLET SELECTION */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* STEP INDICATOR BAR */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ flex: 1, height: '4px', borderRadius: '4px', background: loginStep >= 1 ? '#10b981' : '#334155' }} />
+            <div style={{ flex: 1, height: '4px', borderRadius: '4px', background: loginStep >= 2 ? '#10b981' : '#334155' }} />
+            <div style={{ flex: 1, height: '4px', borderRadius: '4px', background: loginStep >= 3 ? '#10b981' : '#334155' }} />
+          </div>
 
-            {/* 1. PILIH OUTLET CABANG */}
-            <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
-                🏢 Pilih Outlet Cabang:
+          {/* TAHAP 1: GRID THUMBNAIL PILIH OUTLET */}
+          {loginStep === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{ fontSize: '0.86rem', fontWeight: '900', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🏢 LANGKAH 1: Pilih Outlet Cabang</span>
               </label>
-              <select
-                value={activeOutletObj?.id || 'ALL'}
-                onChange={(e) => {
-                  const val = String(e.target.value);
-                  if (val === 'ALL') {
-                    setLoginSelectedOutlet({ id: 'ALL', name: 'Akses Semua Outlet (Central)', code: 'ALL' });
-                    setLoginErrorText('');
-                  } else {
-                    const allOutlets = [...(masterData?.outlets || []), ...availableOutlets];
-                    const found = allOutlets.find(o => String(o.id) === val);
-                    if (found) {
-                      setLoginSelectedOutlet(found);
-                      setLoginErrorText('');
-                    }
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  background: '#0f172a',
-                  border: '1.5px solid #1e293b',
-                  color: '#ffffff',
-                  borderRadius: '12px',
-                  padding: '12px 14px',
-                  fontSize: '0.90rem',
-                  fontWeight: '800',
-                  boxSizing: 'border-box',
-                  outline: 'none'
-                }}
-              >
-                <option value="ALL">🌐 Outlet Central / Pusat</option>
-                {(masterData?.outlets && masterData.outlets.length > 0 ? masterData.outlets : availableOutlets).map(o => (
-                  <option key={o.id} value={o.id}>
-                    📍 {o.name} {o.code ? `(${o.code})` : ''}
-                  </option>
-                ))}
-              </select>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+                {availableOutlets.map(o => {
+                  const isSel = loginSelectedOutlet?.id === o.id;
+                  return (
+                    <div
+                      key={o.id}
+                      onClick={() => {
+                        setLoginSelectedOutlet(o);
+                        setLoginErrorText('');
+                        setLoginStep(2);
+                      }}
+                      style={{
+                        background: isSel ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.25) 100%)' : '#0f172a',
+                        border: isSel ? '2px solid #10b981' : '1.5px solid #334155',
+                        borderRadius: '16px',
+                        padding: '16px 12px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isSel ? '0 0 15px rgba(16, 185, 129, 0.3)' : 'none'
+                      }}
+                    >
+                      <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>
+                        {o.id === 'ALL' ? '🌐' : '📍'}
+                      </div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff', lineHeight: '1.2' }}>
+                        {o.name}
+                      </div>
+                      {o.code && o.id !== 'ALL' && (
+                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: '700', marginTop: '4px', display: 'block' }}>
+                          {o.code}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
 
-            {/* 2. PILIH AKUN CASHIER USERNAME */}
-            <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
-                👤 Cashier Username:
-              </label>
-              <select
-                value={activeSelectedUser?.id || ''}
-                onChange={(e) => {
-                  const found = registeredUsers.find(u => String(u.id) === String(e.target.value));
-                  if (found) {
-                    setSelectedUserAccount(found);
-                    setLoginUsernameInput(found.username || '');
-                    setLoginPasswordInput('');
-                    setLoginErrorText('');
-                  }
-                }}
-                style={{
-                  width: '100%',
-                  background: '#0f172a',
-                  border: registeredUsers.length === 0 ? '1.5px solid #f59e0b' : '1.5px solid #1e293b',
-                  color: '#38bdf8',
-                  borderRadius: '12px',
-                  padding: '12px 14px',
-                  fontSize: '0.90rem',
-                  fontWeight: '800',
-                  boxSizing: 'border-box',
-                  outline: 'none'
-                }}
-              >
-                {registeredUsers.length === 0 ? (
-                  <option value="">— Belum ada pengguna. Tambahkan di Web Admin —</option>
-                ) : (
-                  displayUsers.map(u => (
-                    <option key={u.id} value={u.id}>
-                      👤 @{u.username || u.name.toLowerCase().replace(/\s+/g, '_')} ({u.name} - {u.role || 'Kasir'})
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-
-            {/* 3. INPUT PASSWORD / PIN WITH EYE TOGGLE */}
-            <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
-                🔒 PIN / Password:
-              </label>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <input
-                  type={showLoginPasswordEye ? 'text' : 'password'}
-                  value={loginPasswordInput}
-                  onChange={(e) => {
-                    setLoginPasswordInput(e.target.value);
-                    setLoginErrorText('');
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleDirectLogin(activeSelectedUser, activeOutletObj);
-                  }}
-                  placeholder="• • • •"
-                  style={{
-                    width: '100%',
-                    background: '#0f172a',
-                    border: loginErrorText ? '1.5px solid #ef4444' : '1.5px solid #1e293b',
-                    color: '#ffffff',
-                    borderRadius: '12px',
-                    padding: '12px 42px 12px 14px',
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    boxSizing: 'border-box',
-                    outline: 'none'
-                  }}
-                />
+          {/* TAHAP 2: GRID AVATAR PILIH AKUN PENGGUNA */}
+          {loginStep === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '0.86rem', fontWeight: '900', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>👤 LANGKAH 2: Pilih Akun Pengguna</span>
+                </label>
                 <button
                   type="button"
-                  onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    padding: '4px'
-                  }}
+                  onClick={() => setLoginStep(1)}
+                  style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '4px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
                 >
-                  {showLoginPasswordEye ? '👁️' : '🙈'}
+                  ← Ganti Outlet ({loginSelectedOutlet?.name})
                 </button>
               </div>
-            </div>
 
-            {/* PESAN ERROR */}
-            {loginErrorText && (
-              <div style={{
-                background: 'rgba(239, 68, 68, 0.2)',
-                border: '1.5px solid #ef4444',
-                color: '#fca5a5',
-                padding: '10px 12px',
-                borderRadius: '12px',
-                fontSize: '0.82rem',
-                fontWeight: '800',
-                textAlign: 'center'
-              }}>
-                {loginErrorText}
-              </div>
-            )}
-
-            {/* TOMBOL MASUK HIKAN NEON GREEN */}
-            <button
-              type="button"
-              onClick={() => handleDirectLogin(activeSelectedUser, activeOutletObj)}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                border: 'none',
-                color: '#ffffff',
-                borderRadius: '14px',
-                fontWeight: '900',
-                fontSize: '1.05rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
-                marginTop: '6px',
-                touchAction: 'manipulation',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
-              }}
-            >
-              <span>MASUK KE KASIR MOBILE 📱</span>
-              <span style={{ fontSize: '1.2rem' }}>→</span>
-            </button>
-
-            {/* FOOTER STATUS BADGE */}
-            <div style={{ marginTop: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <span style={{ color: '#34d399', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  🟢 Mode Online
-                </span>
-                <span>•</span>
-                <span style={{ color: '#38bdf8', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  Printer Thermal Ready 🖨️
-                </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+                {displayUsers.map(u => {
+                  const isSel = selectedUserAccount?.id === u.id;
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => {
+                        setSelectedUserAccount(u);
+                        setLoginUsernameInput(u.username || '');
+                        setLoginPasswordInput('');
+                        setLoginErrorText('');
+                        setLoginStep(3);
+                      }}
+                      style={{
+                        background: isSel ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0%, rgba(3, 105, 161, 0.25) 100%)' : '#0f172a',
+                        border: isSel ? '2px solid #38bdf8' : '1.5px solid #334155',
+                        borderRadius: '16px',
+                        padding: '14px 10px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isSel ? '0 0 15px rgba(56, 189, 248, 0.3)' : 'none'
+                      }}
+                    >
+                      <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#1e293b', border: '1.5px solid #38bdf8', color: '#38bdf8', fontWeight: '900', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+                        {(u.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {u.name}
+                      </div>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: '700', marginTop: '2px', display: 'block' }}>
+                        {u.role || 'Kasir'}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )}
 
+          {/* TAHAP 3: MASUKKAN PIN / PASSWORD */}
+          {loginStep === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* TARGET ACC SUMMARY BADGE */}
+              <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '14px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#10b981', color: '#ffffff', fontWeight: '900', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {(selectedUserAccount?.name || 'K').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff' }}>
+                      {selectedUserAccount?.name} <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: '800' }}>({selectedUserAccount?.role || 'Kasir'})</span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>
+                      📍 {loginSelectedOutlet?.name || 'Semua Outlet (Central)'}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLoginStep(2)}
+                  style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '5px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  Ganti ↺
+                </button>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#94a3b8', display: 'block', marginBottom: '6px' }}>
+                  🔒 Masukkan PIN / Password Akun:
+                </label>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showLoginPasswordEye ? 'text' : 'password'}
+                    value={loginPasswordInput}
+                    onChange={(e) => {
+                      setLoginPasswordInput(e.target.value);
+                      setLoginErrorText('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleDirectLogin(selectedUserAccount, loginSelectedOutlet);
+                    }}
+                    placeholder="• • • •"
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      background: '#0f172a',
+                      border: loginErrorText ? '2px solid #ef4444' : '2px solid #10b981',
+                      color: '#ffffff',
+                      borderRadius: '14px',
+                      padding: '14px 42px 14px 16px',
+                      fontSize: '1.1rem',
+                      fontWeight: '800',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      boxShadow: '0 0 15px rgba(16, 185, 129, 0.2)'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPasswordEye(!showLoginPasswordEye)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#94a3b8',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      padding: '4px'
+                    }}
+                  >
+                    {showLoginPasswordEye ? '👁️' : '🙈'}
+                  </button>
+                </div>
+              </div>
+
+              {loginErrorText && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  border: '1.5px solid #ef4444',
+                  color: '#fca5a5',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  fontSize: '0.82rem',
+                  fontWeight: '800',
+                  textAlign: 'center'
+                }}>
+                  {loginErrorText}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleDirectLogin(selectedUserAccount, loginSelectedOutlet)}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: '14px',
+                  fontWeight: '900',
+                  fontSize: '1.05rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>MASUK KE KASIR MOBILE 📱</span>
+                <span style={{ fontSize: '1.2rem' }}>→</span>
+              </button>
+            </div>
+          )}
+
+          {/* FOOTER STATUS */}
+          <div style={{ marginTop: '4px', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <span style={{ color: '#34d399' }}>🟢 Server Connected</span>
+              <span>&bull;</span>
+              <span style={{ color: '#38bdf8' }}>Printer Thermal Ready 🖨️</span>
+            </div>
           </div>
 
         </div>
