@@ -8,101 +8,19 @@ import {
   Download, 
   Printer, 
   Clock, 
-  User, 
-  Store, 
-  ShieldCheck, 
-  CheckCircle2, 
-  AlertCircle,
-  RefreshCw,
   Trash2,
-  ShoppingCart,
-  DollarSign,
-  Package,
-  Settings,
-  BookOpen
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { buildExportFilename } from './SalesTransactionsPage';
 
-// DEFAULT ACTIVITY LOGS ACROSS ALL OUTLETS
-const DEFAULT_INITIAL_LOGS = [
-  {
-    id: 'log-def-1',
-    timestamp: '2026-08-03 06:15:22',
-    platform: 'mobile',
-    platform_label: '📱 Mobile APK Kasir',
-    user: 'Rina Kasir',
-    outlet_id: 1,
-    branch_name: 'PECEL LELE PAK HAJI KISARAN',
-    action_type: '🛒 Transaksi Penjualan Kasir',
-    details: 'Mencatat transaksi penjualan #POS-8821 sebesar Rp 145.000 (Tunai/Cash). Item: Paket Ayam Bakar x2, Es Teh x2.',
-    device_info: 'Android POS Terminal (Capacitor Tablet)'
-  },
-  {
-    id: 'log-def-2',
-    timestamp: '2026-08-03 05:40:10',
-    platform: 'web',
-    platform_label: '💻 Web Based Admin',
-    user: 'Super Admin Restoran',
-    outlet_id: 'ALL',
-    branch_name: 'Semua Outlet (Central)',
-    action_type: '🛡️ Update Matriks Hak Akses User',
-    details: 'Memperbarui Matriks Hak Akses User & Permission Matrix untuk Peran Kasir dan Manajer Cabang.',
-    device_info: 'Chrome Browser MacOS (Web Admin)'
-  },
-  {
-    id: 'log-def-3',
-    timestamp: '2026-08-02 21:30:00',
-    platform: 'mobile',
-    platform_label: '📱 Mobile APK Kasir',
-    user: 'Budi Kasir',
-    outlet_id: 2,
-    branch_name: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
-    action_type: '💵 Shift Closing Kasir',
-    details: 'Pengiriman Laporan Penutupan Shift Kasir Malam. Total Omzet: Rp 2.450.000, Pengeluaran Kas: Rp 150.000, Fisik Laci: Rp 2.300.000.',
-    device_info: 'Android Tablet Kasir (APK v3.0)'
-  },
-  {
-    id: 'log-def-4',
-    timestamp: '2026-08-02 18:20:15',
-    platform: 'web',
-    platform_label: '💻 Web Based Admin',
-    user: 'Owner Restoran',
-    outlet_id: 3,
-    branch_name: 'AYAM BAKAR SURABAYA TEBING TINGGI',
-    action_type: '📦 ACC Persetujuan Audit Stok',
-    details: 'Menyetujui (ACC) pengajuan penyesuaian stok opname bahan baku Ayam Potong Segar (50 kg).',
-    device_info: 'Chrome Browser Windows (Web Admin)'
-  },
-  {
-    id: 'log-def-5',
-    timestamp: '2026-08-02 14:15:40',
-    platform: 'mobile',
-    platform_label: '📱 Mobile APK Kasir',
-    user: 'Siti Kasir',
-    outlet_id: 4,
-    branch_name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI',
-    action_type: '🖨️ Tes Cetak Struk Thermal',
-    details: 'Menjalankan pengujian koneksi Printer Thermal Bluetooth 58mm (Status: BERHASIL CETAK).',
-    device_info: 'Android POS Terminal (Bluetooth Plugin)'
-  },
-  {
-    id: 'log-def-6',
-    timestamp: '2026-08-02 11:05:12',
-    platform: 'web',
-    platform_label: '💻 Web Based Admin',
-    user: 'Super Admin Restoran',
-    outlet_id: 5,
-    branch_name: 'AYAM PECAK 2001 SEAFOOD KISARAN',
-    action_type: '📖 Update SOP Restoran',
-    details: 'Menambahkan SOP Standar Kebersihan Dapur dan Prosedur Pelayanan Kasir Jam Sibuk.',
-    device_info: 'Chrome Browser MacOS (Web Admin)'
-  }
-];
-
 export default function ActivityLogPage({ masterData, setMasterData, selectedBranch }) {
   const [activeSubTab, setActiveSubTab] = useState('all'); // 'all' | 'mobile' | 'web'
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [resetSuccessToast, setResetSuccessToast] = useState(false);
 
   useEffect(() => {
     if (selectedBranch) {
@@ -120,14 +38,29 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
-  const outlets = masterData.outlets || [];
+  const outlets = masterData?.outlets || [];
 
   const formatRupiah = (val) => {
     return 'Rp ' + Number(val || 0).toLocaleString('id-ID');
   };
 
-  // DERIVE COMPREHENSIVE LOGS FROM REAL-TIME MASTER DATA + FALLBACKS
+  // HANDLE RESET LOG AKTIVITAS
+  const handleResetLogs = () => {
+    setMasterData(prev => ({
+      ...prev,
+      systemLogs: [],
+      activityLogs: [],
+      systemLogsCleared: true,
+      _lastUpdated: Date.now()
+    }));
+    setShowResetConfirmModal(false);
+    setResetSuccessToast(true);
+    setTimeout(() => setResetSuccessToast(false), 4000);
+  };
+
+  // DERIVE LOGS - IF CLEARED, SHOW ONLY NEW REAL-TIME LOGS
   const allLogs = useMemo(() => {
+    const isCleared = masterData?.systemLogsCleared === true;
     const list = [];
     const customLogs = masterData?.systemLogs || masterData?.activityLogs || [];
 
@@ -147,68 +80,31 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
       });
     });
 
-    // 2. Logs from POS Mobile Sales Transactions
-    const salesTx = masterData?.salesTransactions || masterData?.recentTransactions || [];
-    salesTx.forEach((tx, idx) => {
-      const branchObj = outlets.find(o => Number(o.id) === Number(tx.outlet_id));
-      list.push({
-        id: `log-tx-${tx.id || idx}`,
-        timestamp: tx.timestamp || `${tx.date || '2026-08-03'} 12:30:${String(10 + idx).padStart(2, '0')}`,
-        platform: 'mobile',
-        platform_label: '📱 Mobile APK Kasir',
-        user: tx.cashier || tx.kasir_name || 'Kasir Restoran',
-        outlet_id: tx.outlet_id || 1,
-        branch_name: branchObj?.name || tx.branch_name || 'PECEL LELE PAK HAJI KISARAN',
-        action_type: '🛒 Transaksi Penjualan Kasir',
-        details: `Mencatat transaksi penjualan #${tx.id || (idx + 1)} sebesar ${formatRupiah(tx.amount)}. Metode Pembayaran: ${tx.payment_method || 'Tunai/Cash'}. ${tx.notes || ''}`,
-        device_info: 'Android POS Terminal (APK)'
+    // If log reset has been triggered and customLogs is empty, return empty list (0 logs)
+    if (isCleared && customLogs.length === 0) {
+      return [];
+    }
+
+    // If not cleared, map live POS transactions
+    if (!isCleared) {
+      const salesTx = masterData?.salesTransactions || masterData?.recentTransactions || [];
+      salesTx.forEach((tx, idx) => {
+        const branchObj = outlets.find(o => Number(o.id) === Number(tx.outlet_id));
+        list.push({
+          id: `log-tx-${tx.id || idx}`,
+          timestamp: tx.timestamp || `${tx.date || '2026-08-03'} 12:30:${String(10 + idx).padStart(2, '0')}`,
+          platform: 'mobile',
+          platform_label: '📱 Mobile APK Kasir',
+          user: tx.cashier || tx.kasir_name || 'Kasir Restoran',
+          outlet_id: tx.outlet_id || 1,
+          branch_name: branchObj?.name || tx.branch_name || 'PECEL LELE PAK HAJI KISARAN',
+          action_type: '🛒 Transaksi Penjualan Kasir',
+          details: `Mencatat transaksi penjualan #${tx.id || (idx + 1)} sebesar ${formatRupiah(tx.amount)}. Metode Pembayaran: ${tx.payment_method || 'Tunai/Cash'}. ${tx.notes || ''}`,
+          device_info: 'Android POS Terminal (APK)'
+        });
       });
-    });
+    }
 
-    // 3. Logs from Shift Closings
-    const closings = masterData?.approvedFinanceDaily || masterData?.shift_closings || [];
-    closings.forEach((cs, idx) => {
-      const branchObj = outlets.find(o => Number(o.id) === Number(cs.outlet_id));
-      list.push({
-        id: `log-cs-${cs.id || idx}`,
-        timestamp: cs.created_at ? cs.created_at.replace('T', ' ').substring(0, 19) : `${cs.date || '2026-08-02'} 21:00:00`,
-        platform: 'mobile',
-        platform_label: '📱 Mobile APK Kasir',
-        user: cs.author_name || cs.cashier || 'Kasir Restoran',
-        outlet_id: cs.outlet_id || 1,
-        branch_name: branchObj?.name || cs.branch_name || 'PECEL LELE PAK HAJI KISARAN',
-        action_type: '💵 Shift Closing Kasir',
-        details: `Pengiriman laporan penutupan kasir shift. Net Sales: ${formatRupiah(cs.net_sales)}, Pengeluaran Kas: ${formatRupiah(cs.total_expense)}, Uang Di Laci: ${formatRupiah(cs.cash_physical)}.`,
-        device_info: 'Android Tablet Kasir'
-      });
-    });
-
-    // 4. Logs from Stock Audits / Logistics
-    const logistics = masterData?.approvedLogistics || masterData?.stockOpname || [];
-    logistics.forEach((lg, idx) => {
-      const branchObj = outlets.find(o => Number(o.id) === Number(lg.outlet_id));
-      list.push({
-        id: `log-lg-${lg.id || idx}`,
-        timestamp: `${lg.date || '2026-08-02'} 10:15:00`,
-        platform: lg.type_input === 'mobile' ? 'mobile' : 'web',
-        platform_label: lg.type_input === 'mobile' ? '📱 Mobile APK Kasir' : '💻 Web Based Admin',
-        user: lg.created_by || lg.approved_by || 'Admin Logistik',
-        outlet_id: lg.outlet_id || 1,
-        branch_name: branchObj?.name || 'Outlet Restoran',
-        action_type: '📦 Audit Stok Opname & Logistik',
-        details: `Pencatatan audit stok bahan baku: ${lg.item_name || 'Bahan Utama'} (${lg.stok_fisik || 0} unit). Status: ${lg.status || 'Disetujui'}.`,
-        device_info: lg.type_input === 'mobile' ? 'Mobile APK Tablet' : 'Web Admin Dashboard'
-      });
-    });
-
-    // Merge default initial logs to ensure 100% active logs coverage across all 5 outlets
-    DEFAULT_INITIAL_LOGS.forEach(defLog => {
-      if (!list.some(l => l.id === defLog.id)) {
-        list.push(defLog);
-      }
-    });
-
-    // Sort descending by timestamp
     return list.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }, [masterData, outlets]);
 
@@ -272,6 +168,26 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
+      {/* SUCCESS TOAST ALERT */}
+      {resetSuccessToast && (
+        <div style={{
+          padding: '14px 18px',
+          borderRadius: '12px',
+          background: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid rgba(16, 185, 129, 0.4)',
+          color: '#34d399',
+          fontSize: '0.86rem',
+          fontWeight: '800',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 8px 20px rgba(16, 185, 129, 0.2)'
+        }}>
+          <CheckCircle2 size={20} color="#34d399" />
+          <span>Log aktivitas sistem berhasil di-reset bersih (0 data). Aktivitas baru akan tercatat secara otomatis.</span>
+        </div>
+      )}
+
       {/* Header Title */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -285,10 +201,32 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            type="button"
+            onClick={() => setShowResetConfirmModal(true)} 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              padding: '8px 14px', 
+              borderRadius: '10px', 
+              background: 'rgba(239, 68, 68, 0.15)', 
+              border: '1px solid rgba(239, 68, 68, 0.4)', 
+              color: '#ef4444', 
+              fontSize: '0.78rem', 
+              fontWeight: '800', 
+              cursor: 'pointer' 
+            }}
+          >
+            <Trash2 size={15} color="#ef4444" />
+            <span>Reset Log Aktivitas</span>
+          </button>
+          
           <button onClick={handleDownloadCSV} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}>
             <Download size={15} color="#38bdf8" />
             <span>Export CSV</span>
           </button>
+          
           <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', background: '#1e293b', border: '1px solid rgba(244,63,94,0.4)', color: '#fb7185', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}>
             <Printer size={15} color="#fb7185" />
             <span>Cetak PDF</span>
@@ -431,7 +369,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
               {paginatedLogs.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontSize: '0.88rem' }}>
-                    📥 Tidak ada log aktivitas yang cocok dengan kriteria pencarian/filter.
+                    📥 Log aktivitas telah di-reset bersih (0 data). Aktivitas transaksi & admin baru akan tercatat di sini secara otomatis.
                   </td>
                 </tr>
               ) : (
@@ -506,6 +444,95 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           onPageSizeChange={setPageSize}
         />
       </div>
+
+      {/* CONFIRMATION RESET MODAL */}
+      {showResetConfirmModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '460px',
+            background: '#0f172a',
+            border: '1.5px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '20px',
+            padding: '28px',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '16px'
+            }}>
+              <AlertTriangle size={28} color="#ef4444" />
+            </div>
+
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: '0 0 8px 0' }}>
+              Konfirmasi Reset Log Aktivitas
+            </h3>
+
+            <p style={{ fontSize: '0.84rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+              Apakah Anda yakin ingin mengosongkan/mengapus seluruh riwayat log aktivitas sistem? Data yang di-reset akan menjadi bersih (0 baris log) dan aktivitas baru akan mulai dicatat kembali secara otomatis.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirmModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: '1px solid #334155',
+                  background: '#1e293b',
+                  color: '#94a3b8',
+                  fontSize: '0.85rem',
+                  fontWeight: '800',
+                  cursor: 'pointer'
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleResetLogs}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)'
+                }}
+              >
+                Ya, Reset Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
