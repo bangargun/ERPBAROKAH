@@ -310,58 +310,31 @@ export default function SystemSettings({ masterData, setMasterData }) {
     return Array.from(new Set([...webRoles, ...mobRoles, ...defaults]));
   }, [permissionMatrix, mobilePermissionMatrix]);
 
-  // === UNIFIED USER ACCOUNT MANAGEMENT (Single Source of Truth) ===
-  const getAllUsersFromState = (data) => {
-    const usersMap = new Map();
-    const addOrMerge = (u) => {
-      if (!u || (!u.id && !u.username)) return;
-      const key = String(u.id || u.username).toLowerCase();
-      const existing = usersMap.get(key);
-      if (!existing) {
-        usersMap.set(key, { ...u });
-      } else {
-        usersMap.set(key, {
-          ...existing,
-          ...u,
-          name: u.name || existing.name,
-          outlet: u.outlet || existing.outlet,
-          username: u.username || existing.username,
-          password: u.password || existing.password,
-          mobileLoginPassword: u.mobileLoginPassword || existing.mobileLoginPassword || u.password || existing.password,
-          role: u.role || existing.role,
-          status: u.status || existing.status,
-          canLoginWeb: u.canLoginWeb !== undefined ? u.canLoginWeb : existing.canLoginWeb,
-          canLoginMobile: u.canLoginMobile !== undefined ? u.canLoginMobile : existing.canLoginMobile,
-          canAccessMobileReports: u.canAccessMobileReports !== undefined ? u.canAccessMobileReports : existing.canAccessMobileReports,
-          mobileReportPassword: u.mobileReportPassword || existing.mobileReportPassword
-        });
-      }
-    };
+  // === 1. WEB ADMIN ACCOUNTS (Hak User Web Based Admin — Independent Table) ===
+  const DEFAULT_WEB_ADMIN_LIST = [
+    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
+    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
+  ];
 
-    if (Array.isArray(data?.webAdminAccounts)) data.webAdminAccounts.forEach(addOrMerge);
-    if (Array.isArray(data?.mobileAccounts)) data.mobileAccounts.forEach(addOrMerge);
-    [data?.userRights, data?.users, data?.userAccounts].forEach(arr => {
-      if (Array.isArray(arr)) arr.forEach(addOrMerge);
-    });
-
-    return Array.from(usersMap.values());
+  const getWebAdminList = () => {
+    if (Array.isArray(masterData?.webAdminAccounts) && masterData.webAdminAccounts.length > 0) {
+      return masterData.webAdminAccounts;
+    }
+    return DEFAULT_WEB_ADMIN_LIST;
   };
 
-  const getWebAdminListFromState = (data) => {
-    const allUsers = getAllUsersFromState(data);
-    return allUsers.filter(u => u.canLoginWeb === true || (u.canLoginWeb !== false && u.role !== 'Kasir'));
+  // === 2. MOBILE POS ACCOUNTS (Hak User POS Mobile — Independent Table) ===
+  const DEFAULT_MOBILE_LIST = [
+    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '888', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' },
+    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
+  ];
+
+  const getMobileList = () => {
+    if (Array.isArray(masterData?.mobileAccounts) && masterData.mobileAccounts.length > 0) {
+      return masterData.mobileAccounts;
+    }
+    return DEFAULT_MOBILE_LIST;
   };
-
-  const getMobileListFromState = (data) => {
-    const allUsers = getAllUsersFromState(data);
-    return allUsers.filter(u => u.canLoginMobile === true || (u.canLoginMobile !== false && (u.role === 'Kasir' || (u.role && (u.role.includes('Mobile') || u.role.includes('Owner') || u.role.includes('Super Admin'))))));
-  };
-
-  // === WEB ADMIN ACCOUNTS (Hak User Web Based Admin) ===
-  const getWebAdminList = () => getWebAdminListFromState(masterData);
-
-  // === MOBILE ACCOUNTS (Hak User POS Mobile) ===
-  const getMobileList = () => getMobileListFromState(masterData);
 
   // Backward compat alias
   const getUserRightsList = () => getWebAdminList();
@@ -387,7 +360,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
     setNewUserOutlet(u.outlet || 'Semua Outlet (Central)');
     setNewUserUsername(u.username || '');
     setNewUserPassword(u.password || '');
-    setNewUserRole(u.role || 'Kasir');
+    setNewUserRole(u.role || 'Super Admin');
     setNewUserStatus(u.status || 'Aktif');
     setNewCanLoginMobile(u.canLoginMobile !== false);
     setNewMobileLoginPassword(u.mobileLoginPassword || u.password || '123');
@@ -396,7 +369,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
     setShowAddUserModal(true);
   };
 
-  // ===== CRUD WEB ADMIN ACCOUNTS =====
+  // ===== CRUD WEB ADMIN ACCOUNTS (100% INDEPENDEN) =====
   const handleSaveUser = (e) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserUsername.trim()) {
@@ -410,35 +383,24 @@ export default function SystemSettings({ masterData, setMasterData }) {
     const _password = newUserPassword;
     const _role = newUserRole;
     const _status = newUserStatus;
-    const _canLoginMobile = newCanLoginMobile;
-    const _mobileLoginPassword = newMobileLoginPassword;
-    const _canAccessMobileReports = newCanAccessMobileReports;
-    const _mobileReportPassword = newMobileReportPassword;
 
     setMasterData(prev => {
-      const allUsers = getAllUsersFromState(prev);
-      let updatedUsers;
+      const currentList = getWebAdminList();
+      let updatedList;
       if (_editingUserId) {
-        updatedUsers = allUsers.map(u =>
+        updatedList = currentList.map(u =>
           u.id === _editingUserId || (u.username && u.username.toLowerCase() === _username.toLowerCase())
-            ? { ...u, name: _name, outlet: _outlet, username: _username, password: _password, role: _role, status: _status, canLoginWeb: true, canLoginMobile: _canLoginMobile, mobileLoginPassword: _mobileLoginPassword, canAccessMobileReports: _canAccessMobileReports, mobileReportPassword: _mobileReportPassword }
+            ? { ...u, name: _name, outlet: _outlet, username: _username, password: _password, role: _role, status: _status }
             : u
         );
       } else {
-        const newAccount = { id: Date.now(), name: _name, outlet: _outlet, username: _username, password: _password || '123', role: _role, status: _status, canLoginWeb: true, canLoginMobile: _canLoginMobile, mobileLoginPassword: _mobileLoginPassword || '123', canAccessMobileReports: _canAccessMobileReports, mobileReportPassword: _mobileReportPassword || '8888' };
-        updatedUsers = [...allUsers, newAccount];
+        const newAccount = { id: Date.now(), name: _name, outlet: _outlet, username: _username, password: _password || '123', role: _role, status: _status };
+        updatedList = [...currentList, newAccount];
       }
-
-      const webAdminList = updatedUsers.filter(u => u.canLoginWeb === true || (u.canLoginWeb !== false && u.role !== 'Kasir'));
-      const mobileList = updatedUsers.filter(u => u.canLoginMobile === true || (u.canLoginMobile !== false && (u.role === 'Kasir' || (u.role && (u.role.includes('Mobile') || u.role.includes('Owner') || u.role.includes('Super Admin'))))));
 
       return {
         ...prev,
-        webAdminAccounts: webAdminList,
-        mobileAccounts: mobileList,
-        userRights: updatedUsers,
-        users: updatedUsers,
-        userAccounts: updatedUsers
+        webAdminAccounts: updatedList
       };
     });
     setShowAddUserModal(false);
@@ -446,20 +408,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
   const handleToggleUserStatus = (id) => {
     setMasterData(prev => {
-      const allUsers = getAllUsersFromState(prev);
-      const updatedUsers = allUsers.map(u =>
+      const currentList = getWebAdminList();
+      const updatedList = currentList.map(u =>
         u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
       );
-      const webAdminList = updatedUsers.filter(u => u.canLoginWeb === true || (u.canLoginWeb !== false && u.role !== 'Kasir'));
-      const mobileList = updatedUsers.filter(u => u.canLoginMobile === true || (u.canLoginMobile !== false && (u.role === 'Kasir' || (u.role && (u.role.includes('Mobile') || u.role.includes('Owner') || u.role.includes('Super Admin'))))));
-
       return {
         ...prev,
-        webAdminAccounts: webAdminList,
-        mobileAccounts: mobileList,
-        userRights: updatedUsers,
-        users: updatedUsers,
-        userAccounts: updatedUsers
+        webAdminAccounts: updatedList
       };
     });
   };
@@ -478,25 +433,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
     };
 
     setMasterData(prev => {
-      const allUsers = getAllUsersFromState(prev);
-      const updatedUsers = allUsers.map(u => {
-        if (isTarget(u)) {
-          return { ...u, canLoginWeb: false };
-        }
-        return u;
-      }).filter(u => u.canLoginWeb === true || u.canLoginMobile === true);
-
-      const webAdminList = updatedUsers.filter(u => u.canLoginWeb === true || (u.canLoginWeb !== false && u.role !== 'Kasir'));
-      const mobileList = updatedUsers.filter(u => u.canLoginMobile === true || (u.canLoginMobile !== false && (u.role === 'Kasir' || (u.role && (u.role.includes('Mobile') || u.role.includes('Owner') || u.role.includes('Super Admin'))))));
+      const currentList = getWebAdminList();
+      const updatedList = currentList.filter(u => !isTarget(u));
 
       return {
         ...prev,
-        webAdminAccounts: webAdminList,
-        mobileAccounts: mobileList,
-        userRights: updatedUsers,
-        users: updatedUsers,
-        userAccounts: updatedUsers,
-        _isExplicitClear: webAdminList.length === 0
+        webAdminAccounts: updatedList,
+        _isExplicitClear: updatedList.length === 0
       };
     });
 
@@ -515,7 +458,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
     }
   };
 
-  // ===== CRUD MOBILE ACCOUNTS (INDEPENDEN dari Web Admin) =====
+  // ===== CRUD MOBILE POS ACCOUNTS (100% INDEPENDEN) =====
   const [showAddMobileModal, setShowAddMobileModal] = useState(false);
   const [editingMobileId, setEditingMobileId] = useState(null);
   const [newMobileName, setNewMobileName] = useState('');
@@ -558,30 +501,22 @@ export default function SystemSettings({ masterData, setMasterData }) {
     const _reportPwd = newMobileReportPwd2;
 
     setMasterData(prev => {
-      const allUsers = getAllUsersFromState(prev);
-      let updatedUsers;
+      const currentList = getMobileList();
+      let updatedList;
       if (_editingMobileId) {
-        updatedUsers = allUsers.map(u =>
+        updatedList = currentList.map(u =>
           u.id === _editingMobileId || (u.username && u.username.toLowerCase() === _username.toLowerCase())
-            ? { ...u, name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd, role: _role, status: _status, canLoginMobile: true, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd }
+            ? { ...u, name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd, role: _role, status: _status, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd }
             : u
         );
       } else {
-        // PENTING: User yang dibuat dari + Tambah User Mobile Kasir memiliki canLoginWeb: false secara eksplisit agar tidak masuk ke Web Admin
-        const newAcc = { id: Date.now(), name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd || '123', role: _role, status: _status, canLoginMobile: true, canLoginWeb: false, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd || '8888' };
-        updatedUsers = [...allUsers, newAcc];
+        const newAcc = { id: Date.now(), name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd || '123', role: _role, status: _status, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd || '8888' };
+        updatedList = [...currentList, newAcc];
       }
-
-      const webAdminList = updatedUsers.filter(u => u.canLoginWeb === true || (u.canLoginWeb !== false && u.role !== 'Kasir'));
-      const mobileList = updatedUsers.filter(u => u.canLoginMobile === true || (u.canLoginMobile !== false && (u.role === 'Kasir' || (u.role && (u.role.includes('Mobile') || u.role.includes('Owner') || u.role.includes('Super Admin'))))));
 
       return {
         ...prev,
-        webAdminAccounts: webAdminList,
-        mobileAccounts: mobileList,
-        userRights: updatedUsers,
-        users: updatedUsers,
-        userAccounts: updatedUsers
+        mobileAccounts: updatedList
       };
     });
     setShowAddMobileModal(false);
@@ -589,20 +524,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
   const handleToggleMobileStatus = (id) => {
     setMasterData(prev => {
-      const allUsers = getAllUsersFromState(prev);
-      const updatedUsers = allUsers.map(u =>
+      const currentList = getMobileList();
+      const updatedList = currentList.map(u =>
         u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
       );
-      const webAdminList = updatedUsers.filter(u => u.canLoginWeb === true || (u.canLoginWeb !== false && u.role !== 'Kasir'));
-      const mobileList = updatedUsers.filter(u => u.canLoginMobile === true || (u.canLoginMobile !== false && (u.role === 'Kasir' || (u.role && (u.role.includes('Mobile') || u.role.includes('Owner') || u.role.includes('Super Admin'))))));
-
       return {
         ...prev,
-        webAdminAccounts: webAdminList,
-        mobileAccounts: mobileList,
-        userRights: updatedUsers,
-        users: updatedUsers,
-        userAccounts: updatedUsers
+        mobileAccounts: updatedList
       };
     });
   };
@@ -623,25 +551,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
     };
 
     setMasterData(prev => {
-      const allUsers = getAllUsersFromState(prev);
-      const updatedUsers = allUsers.map(u => {
-        if (isTarget(u)) {
-          return { ...u, canLoginMobile: false };
-        }
-        return u;
-      }).filter(u => u.canLoginWeb === true || u.canLoginMobile === true);
-
-      const webAdminList = updatedUsers.filter(u => u.canLoginWeb === true || (u.canLoginWeb !== false && u.role !== 'Kasir'));
-      const mobileList = updatedUsers.filter(u => u.canLoginMobile === true || (u.canLoginMobile !== false && (u.role === 'Kasir' || (u.role && (u.role.includes('Mobile') || u.role.includes('Owner') || u.role.includes('Super Admin'))))));
+      const currentList = getMobileList();
+      const updatedList = currentList.filter(u => !isTarget(u));
 
       return {
         ...prev,
-        webAdminAccounts: webAdminList,
-        mobileAccounts: mobileList,
-        userRights: updatedUsers,
-        users: updatedUsers,
-        userAccounts: updatedUsers,
-        _isExplicitClear: mobileList.length === 0
+        mobileAccounts: updatedList,
+        _isExplicitClear: updatedList.length === 0
       };
     });
 
