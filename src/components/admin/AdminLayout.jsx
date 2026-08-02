@@ -41,15 +41,14 @@ export default function AdminLayout({
   const menuItems = [
     { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard, permKey: 'dashboard' },
     { id: 'data', label: '2. Data Master', icon: Database, permKey: 'masterData' },
-    { id: 'manual_entry', label: '3. Laporan dari Outlet', icon: FileEdit, permKey: 'costs' },
-    { id: 'sales', label: '4. Penjualan', icon: ShoppingBag, permKey: 'reports' },
-    { id: 'stock', label: '5. Logistik', icon: Package, permKey: 'stock' },
-    { id: 'reports', label: '6. Laporan Keuangan', icon: FileText, permKey: 'reports' },
-    { id: 'printer_settings', label: '7. Printer & Thermal', icon: Printer, permKey: 'settings' },
-    { id: 'sop', label: '8. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
-    { id: 'loyalty', label: '9. Program Loyalitas', icon: Award, permKey: 'masterData' },
-    { id: 'settings', label: '10. Pengaturan', icon: Settings, permKey: 'settings' },
-    { id: 'activity_log', label: '11. Log Aktivitas', icon: History, permKey: 'settings' }
+    { id: 'sales', label: '3. Penjualan', icon: ShoppingBag, permKey: 'reports' },
+    { id: 'stock', label: '4. Logistik', icon: Package, permKey: 'stock' },
+    { id: 'reports', label: '5. Laporan Keuangan', icon: FileText, permKey: 'reports' },
+    { id: 'printer_settings', label: '6. Printer & Thermal', icon: Printer, permKey: 'settings' },
+    { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
+    { id: 'loyalty', label: '8. Program Loyalitas', icon: Award, permKey: 'masterData' },
+    { id: 'settings', label: '9. Pengaturan', icon: Settings, permKey: 'settings' },
+    { id: 'activity_log', label: '10. Log Aktivitas', icon: History, permKey: 'settings' }
   ];
 
   const financePendingCount = (() => {
@@ -90,8 +89,14 @@ export default function AdminLayout({
         zIndex: 20,
         userSelect: 'none'
       }}>
-        {/* Brand Logo Header */}
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Brand Header */}
+        <div style={{
+          padding: '16px 18px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
           <div style={{
             width: '38px',
             height: '38px',
@@ -103,7 +108,7 @@ export default function AdminLayout({
             boxShadow: '0 4px 14px rgba(217, 119, 6, 0.4)',
             border: '1px solid #f59e0b'
           }}>
-            <Crown size={22} color="#ffffff" />
+            <UtensilsCrossed size={22} color="#ffffff" />
           </div>
           <div>
             <h1 style={{ fontSize: '0.98rem', fontWeight: '900', color: '#f59e0b', letterSpacing: '0.04em', margin: 0, textTransform: 'uppercase' }}>
@@ -113,32 +118,6 @@ export default function AdminLayout({
               RESTAURANT MANAGEMENT SYSTEM
             </p>
           </div>
-        </div>
-
-        {/* Quick Action Button */}
-        <div style={{ padding: '12px 14px' }}>
-          <button 
-            onClick={onOpenAddTransaction}
-            style={{
-              width: '100%',
-              padding: '9px 12px',
-              borderRadius: '8px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-              color: '#ffffff',
-              fontWeight: '800',
-              fontSize: '0.80rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 12px rgba(217, 119, 6, 0.3)'
-            }}
-          >
-            <PlusCircle size={16} />
-            <span>Catat Transaksi Kas</span>
-          </button>
         </div>
 
         {/* Navigation Menu Items */}
