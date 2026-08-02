@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users, Smartphone, Plus, Edit3, Trash2, X, Eye, EyeOff,
-  RefreshCw, Building2, ShieldCheck, Save, AlertTriangle
+  RefreshCw, ShieldCheck, Save, CheckCircle2, Shield, Lock, RotateCcw, Check, Ban
 } from 'lucide-react';
 
 const API = 'https://mris-api.barokahgroupindonesia.tech';
@@ -9,16 +9,34 @@ const API = 'https://mris-api.barokahgroupindonesia.tech';
 const WEB_ROLES = ['Super Admin', 'Owner', 'Admin', 'Manajer Cabang', 'Kasir'];
 const MOBILE_ROLES = ['Super Admin / Owner', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
 
+const DEFAULT_WEB_MATRIX = [
+  { role: 'Super Admin', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: true },
+  { role: 'Owner', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: true },
+  { role: 'Admin', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: false },
+  { role: 'Manajer Cabang', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: false },
+  { role: 'Kasir', dashboard: false, masterData: false, costs: false, stock: true, approved: false, reports: false, policies: true, settings: false }
+];
+
+const DEFAULT_MOBILE_MATRIX = [
+  { role: 'Super Admin / Owner', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, mobileReports: true, shiftClosing: true },
+  { role: 'Kepala Cabang / SPV', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, mobileReports: true, shiftClosing: true },
+  { role: 'Kasir', posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: true },
+  { role: 'Logistik & Dapur', posCashier: false, voidOrder: false, manualDiscount: false, stockOpname: true, receiveGoods: true, mobileReports: false, shiftClosing: false }
+];
+
 const EMPTY_WEB = { name: '', username: '', password: '', role: 'Admin', outlet: 'Semua Outlet (Central)', status: 'Aktif' };
 const EMPTY_MOBILE = { name: '', username: '', mobileLoginPassword: '123', role: 'Kasir', outlet: 'Semua Outlet (Central)', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' };
 
 export default function UserRightsSettings({ masterData, setMasterData }) {
-  const [activeTab, setActiveTab] = useState('mobile'); // 'mobile' | 'web'
+  const [activeTab, setActiveTab] = useState('mobile'); // 'mobile' | 'web' | 'matrix'
+  const [matrixSubTab, setMatrixSubTab] = useState('web'); // 'web' | 'mobile'
   const [loading, setLoading] = useState(false);
   const [webUsers, setWebUsers] = useState([]);
   const [mobileUsers, setMobileUsers] = useState([]);
+  const [webMatrix, setWebMatrix] = useState(DEFAULT_WEB_MATRIX);
+  const [mobileMatrix, setMobileMatrix] = useState(DEFAULT_MOBILE_MATRIX);
 
-  // Modal state
+  // Modal state for user account CRUD
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('mobile'); // 'mobile' | 'web'
   const [editingId, setEditingId] = useState(null);
@@ -34,6 +52,12 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   const loadUsers = useCallback(() => {
     setWebUsers(Array.isArray(masterData?.webAdminAccounts) ? masterData.webAdminAccounts : []);
     setMobileUsers(Array.isArray(masterData?.mobileAccounts) ? masterData.mobileAccounts : []);
+    if (Array.isArray(masterData?.permissionMatrix) && masterData.permissionMatrix.length > 0) {
+      setWebMatrix(masterData.permissionMatrix);
+    }
+    if (Array.isArray(masterData?.mobilePermissionMatrix) && masterData.mobilePermissionMatrix.length > 0) {
+      setMobileMatrix(masterData.mobilePermissionMatrix);
+    }
   }, [masterData]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
@@ -44,16 +68,20 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     try {
       const res = await fetch(`${API}/api/master-data`, { cache: 'no-store' });
       const data = await res.json();
-      if (data && data.mobileAccounts) setMobileUsers(data.mobileAccounts);
-      if (data && data.webAdminAccounts) setWebUsers(data.webAdminAccounts);
-      setMasterData(data);
+      if (data) {
+        if (data.mobileAccounts) setMobileUsers(data.mobileAccounts);
+        if (data.webAdminAccounts) setWebUsers(data.webAdminAccounts);
+        if (data.permissionMatrix) setWebMatrix(data.permissionMatrix);
+        if (data.mobilePermissionMatrix) setMobileMatrix(data.mobilePermissionMatrix);
+        setMasterData(data);
+      }
     } catch (e) {
       alert('Gagal memuat data dari server: ' + e.message);
     }
     setLoading(false);
   };
 
-  // ─── OPEN MODAL ───
+  // ─── OPEN MODAL USER ───
   const openAdd = (type) => {
     setModalType(type);
     setEditingId(null);
@@ -72,8 +100,8 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     setShowModal(true);
   };
 
-  // ─── SAVE (ADD / EDIT) ───
-  const handleSave = async (e) => {
+  // ─── SAVE USER (ADD / EDIT) ───
+  const handleSaveUser = async (e) => {
     e.preventDefault();
     if (!form.name?.trim() || !form.username?.trim()) {
       alert('Nama dan Username wajib diisi!');
@@ -82,17 +110,14 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     setSaving(true);
 
     try {
-      // Ambil data terkini dari server
       const res = await fetch(`${API}/api/master-data`, { cache: 'no-store' });
       const latest = await res.json();
       const key = modalType === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
       let list = Array.isArray(latest[key]) ? [...latest[key]] : [];
 
       if (editingId) {
-        // Edit: update berdasarkan id SAJA
         list = list.map(u => String(u.id) === String(editingId) ? { ...u, ...form, id: u.id } : u);
       } else {
-        // Add: buat ID baru
         const newId = Date.now();
         list = [...list, { ...form, id: newId }];
       }
@@ -106,7 +131,6 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
 
       if (!saveRes.ok) throw new Error('Gagal menyimpan ke server');
 
-      // Update state lokal
       if (modalType === 'web') setWebUsers(list);
       else setMobileUsers(list);
       setMasterData(updated);
@@ -117,21 +141,19 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     setSaving(false);
   };
 
-  // ─── DELETE ───
-  const handleDelete = async (type, user) => {
+  // ─── DELETE USER ───
+  const handleDeleteUser = async (type, user) => {
     setDeleteConfirmId(null);
     try {
       setLoading(true);
       const key = type === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
 
-      // Hapus via endpoint delete-item (strict by ID, masing-masing tabel)
       await fetch(`${API}/api/master-data/delete-item`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, id: user.id })
       });
 
-      // Update state lokal langsung
       if (type === 'web') {
         setWebUsers(prev => prev.filter(u => String(u.id) !== String(user.id)));
         setMasterData(prev => ({
@@ -151,33 +173,65 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     setLoading(false);
   };
 
-  // ─── TOGGLE STATUS ───
-  const handleToggleStatus = async (type, user) => {
-    const key = type === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
-    const newStatus = user.status === 'Aktif' ? 'Inaktif' : 'Aktif';
-    const updated = { ...user, status: newStatus };
-
-    if (type === 'web') setWebUsers(prev => prev.map(u => String(u.id) === String(user.id) ? updated : u));
-    else setMobileUsers(prev => prev.map(u => String(u.id) === String(user.id) ? updated : u));
-
+  // ─── SAVE MATRIX TO SERVER ───
+  const handleSaveMatrix = async () => {
+    setSaving(true);
     try {
       const res = await fetch(`${API}/api/master-data`, { cache: 'no-store' });
       const latest = await res.json();
-      let list = (latest[key] || []).map(u => String(u.id) === String(user.id) ? { ...u, status: newStatus } : u);
-      const latestUpdated = { ...latest, [key]: list, _lastUpdated: Date.now() };
-      await fetch(`${API}/api/master-data`, {
+      const updated = {
+        ...latest,
+        permissionMatrix: webMatrix,
+        mobilePermissionMatrix: mobileMatrix,
+        _lastUpdated: Date.now()
+      };
+
+      const saveRes = await fetch(`${API}/api/master-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(latestUpdated)
+        body: JSON.stringify(updated)
       });
-      setMasterData(latestUpdated);
-    } catch (e) {}
+
+      if (!saveRes.ok) throw new Error('Gagal menyimpan matriks');
+
+      setMasterData(updated);
+      alert('✅ Matriks Hak Akses Peran berhasil diperbarui!');
+    } catch (err) {
+      alert('Gagal menyimpan matriks: ' + err.message);
+    }
+    setSaving(false);
+  };
+
+  // ─── TOGGLE MATRIX PERMISSION ───
+  const toggleWebMatrixPerm = (roleName, permKey) => {
+    setWebMatrix(prev => prev.map(item => {
+      if (item.role === roleName) {
+        return { ...item, [permKey]: !item[permKey] };
+      }
+      return item;
+    }));
+  };
+
+  const toggleMobileMatrixPerm = (roleName, permKey) => {
+    setMobileMatrix(prev => prev.map(item => {
+      if (item.role === roleName) {
+        return { ...item, [permKey]: !item[permKey] };
+      }
+      return item;
+    }));
+  };
+
+  const resetMatrixDefault = () => {
+    if (window.confirm('Reset seluruh Matriks Hak Akses ke pengaturan awal sistem?')) {
+      setWebMatrix(DEFAULT_WEB_MATRIX);
+      setMobileMatrix(DEFAULT_MOBILE_MATRIX);
+    }
   };
 
   const f = (field, val) => setForm(prev => ({ ...prev, [field]: val }));
 
-  // ─── RENDER TABLE ───
-  const renderTable = (type, users) => {
+  // ─── RENDER USER TABLES ───
+  const renderUserTable = (type, users) => {
     const isMobile = type === 'mobile';
     return (
       <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
@@ -228,7 +282,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                   {deleteConfirmId === u.id ? (
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                       <button
-                        onClick={() => handleDelete(type, u)}
+                        onClick={() => handleDeleteUser(type, u)}
                         style={{ padding: '3px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
                       >Hapus</button>
                       <button
@@ -237,18 +291,14 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                       >Batal</button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => handleToggleStatus(type, u)}
-                      style={{
-                        padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
-                        background: u.status === 'Aktif' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
-                        color: u.status === 'Aktif' ? '#34d399' : '#f87171',
-                        border: `1px solid ${u.status === 'Aktif' ? '#34d399' : '#f87171'}`,
-                        cursor: 'pointer'
-                      }}
-                    >
+                    <span style={{
+                      padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
+                      background: u.status === 'Aktif' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
+                      color: u.status === 'Aktif' ? '#34d399' : '#f87171',
+                      border: `1px solid ${u.status === 'Aktif' ? '#34d399' : '#f87171'}`
+                    }}>
                       {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
-                    </button>
+                    </span>
                   )}
                 </td>
                 <td style={{ padding: '10px 8px' }}>
@@ -277,8 +327,121 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     );
   };
 
-  // ─── RENDER MODAL ───
-  const renderModal = () => {
+  // ─── RENDER PERMISSION MATRIX ───
+  const renderPermissionMatrixView = () => {
+    const isWeb = matrixSubTab === 'web';
+    const webCols = [
+      { key: 'dashboard', label: '📊 Dashboard & Penjualan' },
+      { key: 'masterData', label: '📦 Data Master Produk' },
+      { key: 'costs', label: '💰 Biaya & Pengeluaran' },
+      { key: 'stock', label: '🌾 Stok & Bahan Baku' },
+      { key: 'approved', label: '✅ Approval Transaksi' },
+      { key: 'reports', label: '📑 Laporan Keuangan' },
+      { key: 'policies', label: '📜 SOP Restoran' },
+      { key: 'settings', label: '🔒 Pengaturan System & User' },
+    ];
+
+    const mobileCols = [
+      { key: 'posCashier', label: '📱 Mesin Kasir POS' },
+      { key: 'voidOrder', label: '🚫 Batal / Void Struk' },
+      { key: 'manualDiscount', label: '🏷️ Diskon Manual' },
+      { key: 'stockOpname', label: '📋 Stock Opname Mobile' },
+      { key: 'receiveGoods', label: '🚚 Terima Barang Dapur' },
+      { key: 'mobileReports', label: '📊 Laporan Shift Mobile' },
+      { key: 'shiftClosing', label: '🔒 Rekonsiliasi Closing' },
+    ];
+
+    const columns = isWeb ? webCols : mobileCols;
+    const matrixData = isWeb ? webMatrix : mobileMatrix;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Top Controls */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '14px 18px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setMatrixSubTab('web')} style={{
+              padding: '7px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '0.80rem', cursor: 'pointer',
+              background: isWeb ? 'rgba(99,102,241,0.25)' : 'transparent',
+              color: isWeb ? '#818cf8' : '#94a3b8',
+              border: isWeb ? '1px solid #818cf8' : '1px solid transparent'
+            }}>
+              💻 Matriks Web Admin
+            </button>
+            <button onClick={() => setMatrixSubTab('mobile')} style={{
+              padding: '7px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '0.80rem', cursor: 'pointer',
+              background: !isWeb ? 'rgba(52,211,153,0.25)' : 'transparent',
+              color: !isWeb ? '#34d399' : '#94a3b8',
+              border: !isWeb ? '1px solid #34d399' : '1px solid transparent'
+            }}>
+              📱 Matriks POS Mobile APK
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={resetMatrixDefault} style={{
+              padding: '7px 14px', borderRadius: '8px', background: '#334155', color: '#cbd5e1', border: 'none', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+            }}>
+              <RotateCcw size={13} /> Reset Default
+            </button>
+            <button onClick={handleSaveMatrix} disabled={saving} style={{
+              padding: '7px 18px', borderRadius: '8px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', border: 'none', fontSize: '0.78rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+            }}>
+              <Save size={13} /> {saving ? 'Menyimpan...' : 'Simpan Matriks Hak Akses'}
+            </button>
+          </div>
+        </div>
+
+        {/* Matrix Table Grid */}
+        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+            <thead>
+              <tr style={{ background: '#1e293b', color: '#94a3b8', fontWeight: '800', fontSize: '0.72rem', textTransform: 'uppercase' }}>
+                <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '180px' }}>PERAN / ROLE</th>
+                {columns.map(col => (
+                  <th key={col.key} style={{ padding: '12px 10px', textAlign: 'center', minWidth: '130px' }}>{col.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {matrixData.map((row, idx) => (
+                <tr key={idx} style={{ borderTop: '1px solid #1e293b', color: '#f1f5f9' }}>
+                  <td style={{ padding: '14px', fontWeight: '800', background: '#0f172a' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Shield size={14} color={isWeb ? '#818cf8' : '#34d399'} />
+                      <span>{row.role}</span>
+                    </div>
+                  </td>
+                  {columns.map(col => {
+                    const isAllowed = row[col.key] !== false;
+                    return (
+                      <td key={col.key} style={{ padding: '12px 8px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => isWeb ? toggleWebMatrixPerm(row.role, col.key) : toggleMobileMatrixPerm(row.role, col.key)}
+                          style={{
+                            padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: '800', fontSize: '0.74rem',
+                            background: isAllowed ? 'rgba(52,211,153,0.18)' : 'rgba(248,113,113,0.18)',
+                            color: isAllowed ? '#34d399' : '#f87171',
+                            border: `1px solid ${isAllowed ? '#34d399' : '#f87171'}`,
+                            display: 'inline-flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s'
+                          }}
+                        >
+                          {isAllowed ? <Check size={13} /> : <Ban size={13} />}
+                          {isAllowed ? 'Diizinkan' : 'Dilarang'}
+                        </button>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── RENDER MODAL USER ───
+  const renderUserModal = () => {
     const isMobile = modalType === 'mobile';
     return (
       <div style={{
@@ -290,7 +453,6 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
           border: `1px solid ${isMobile ? 'rgba(52,211,153,0.3)' : 'rgba(99,102,241,0.3)'}`,
           borderRadius: '20px', padding: '24px', maxHeight: '90vh', overflowY: 'auto'
         }}>
-          {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #334155' }}>
             <h3 style={{ margin: 0, color: '#fff', fontWeight: '900', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {isMobile ? <Smartphone size={18} color="#34d399" /> : <ShieldCheck size={18} color="#818cf8" />}
@@ -301,16 +463,13 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
             </button>
           </div>
 
-          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* Nama */}
+          <form onSubmit={handleSaveUser} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <label style={lbl}>Nama Lengkap:</label>
               <input required value={form.name || ''} onChange={e => f('name', e.target.value)}
-                placeholder="Contoh: Budi Santoso"
-                style={inp} />
+                placeholder="Contoh: Budi Santoso" style={inp} />
             </div>
 
-            {/* Outlet */}
             <div>
               <label style={lbl}>Outlet Cabang:</label>
               <select value={form.outlet || 'Semua Outlet (Central)'} onChange={e => f('outlet', e.target.value)} style={inp}>
@@ -319,13 +478,11 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               </select>
             </div>
 
-            {/* Username & Password */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={lbl}>Username:</label>
                 <input required value={form.username || ''} onChange={e => f('username', e.target.value)}
-                  placeholder="budi_kasir"
-                  style={{ ...inp, color: '#38bdf8', fontFamily: 'monospace' }} />
+                  placeholder="budi_kasir" style={{ ...inp, color: '#38bdf8', fontFamily: 'monospace' }} />
               </div>
               <div>
                 <label style={lbl}>{isMobile ? 'Password Login Mobile:' : 'Password Web:'}</label>
@@ -345,7 +502,6 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               </div>
             </div>
 
-            {/* Role & Status */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={lbl}>Role / Peran:</label>
@@ -362,7 +518,6 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               </div>
             </div>
 
-            {/* Mobile: akses laporan */}
             {isMobile && (
               <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid rgba(250,204,21,0.2)' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '0.82rem', fontWeight: '800', color: '#facc15' }}>
@@ -392,7 +547,6 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               </div>
             )}
 
-            {/* Actions */}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px' }}>
               <button type="button" onClick={() => setShowModal(false)}
                 style={{ padding: '10px 18px', background: '#334155', border: 'none', color: '#cbd5e1', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
@@ -418,19 +572,19 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   const inp = { width: '100%', padding: '9px 13px', borderRadius: '9px', border: '1px solid #334155', background: '#0f172a', color: '#f1f5f9', fontSize: '0.87rem', boxSizing: 'border-box' };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '1150px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
         <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#f1f5f9', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Users size={22} color="#818cf8" />
-          Pengaturan Hak User (Akses Akun)
+          Pengaturan Hak User &amp; Permission Matrix
         </h2>
         <p style={{ color: '#64748b', fontSize: '0.83rem', margin: 0 }}>
-          Kelola akun pengguna Web Based Admin dan POS Mobile secara independen.
+          Kelola akun pengguna Web Based Admin, POS Mobile, dan Matriks Hak Akses Peran Granular.
         </p>
       </div>
 
-      {/* Sub-Tab */}
+      {/* Main Sub-Tabs */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
         <button onClick={() => setActiveTab('mobile')} style={{
           padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
@@ -438,7 +592,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
           color: activeTab === 'mobile' ? '#fff' : '#64748b',
           display: 'flex', alignItems: 'center', gap: '7px'
         }}>
-          <Smartphone size={15} /> POS Mobile
+          <Smartphone size={15} /> POS Mobile Accounts
         </button>
         <button onClick={() => setActiveTab('web')} style={{
           padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
@@ -446,8 +600,17 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
           color: activeTab === 'web' ? '#fff' : '#64748b',
           display: 'flex', alignItems: 'center', gap: '7px'
         }}>
-          <ShieldCheck size={15} /> Web Admin
+          <ShieldCheck size={15} /> Web Admin Accounts
         </button>
+        <button onClick={() => setActiveTab('matrix')} style={{
+          padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
+          background: activeTab === 'matrix' ? 'linear-gradient(135deg,#d4af37,#b8963e)' : '#1e293b',
+          color: activeTab === 'matrix' ? '#1a0a2e' : '#64748b',
+          display: 'flex', alignItems: 'center', gap: '7px'
+        }}>
+          <Shield size={15} /> Permission Matrix (Matriks Hak Akses)
+        </button>
+
         <button onClick={handleRefresh} disabled={loading} style={{
           padding: '9px 14px', borderRadius: '10px', fontWeight: '700', fontSize: '0.84rem', cursor: 'pointer',
           background: '#1e293b', color: '#94a3b8', border: '1px solid #334155',
@@ -458,7 +621,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
         </button>
       </div>
 
-      {/* Content POS Mobile */}
+      {/* Content POS Mobile Users */}
       {activeTab === 'mobile' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -467,7 +630,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                 <Smartphone size={17} /> Hak User POS Mobile APK
               </h3>
               <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.78rem' }}>
-                {mobileUsers.length} akun terdaftar — independen, tidak terhubung ke Web Admin
+                {mobileUsers.length} akun terdaftar — independen, khusus kasir mobile tablet
               </p>
             </div>
             <button onClick={() => openAdd('mobile')} style={{
@@ -478,11 +641,11 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               <Plus size={15} /> Tambah Akun Mobile
             </button>
           </div>
-          {renderTable('mobile', mobileUsers)}
+          {renderUserTable('mobile', mobileUsers)}
         </div>
       )}
 
-      {/* Content Web Admin */}
+      {/* Content Web Admin Users */}
       {activeTab === 'web' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -491,7 +654,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                 <ShieldCheck size={17} /> Hak User Web Based Admin
               </h3>
               <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.78rem' }}>
-                {webUsers.length} akun terdaftar — independen, tidak terhubung ke POS Mobile
+                {webUsers.length} akun terdaftar — independen, portal manajemen web
               </p>
             </div>
             <button onClick={() => openAdd('web')} style={{
@@ -502,12 +665,15 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               <Plus size={15} /> Tambah Akun Web Admin
             </button>
           </div>
-          {renderTable('web', webUsers)}
+          {renderUserTable('web', webUsers)}
         </div>
       )}
 
-      {/* Modal */}
-      {showModal && renderModal()}
+      {/* Content Permission Matrix */}
+      {activeTab === 'matrix' && renderPermissionMatrixView()}
+
+      {/* Modal User Form */}
+      {showModal && renderUserModal()}
     </div>
   );
 }
