@@ -524,11 +524,9 @@ const syncToMySQL = async (masterData) => {
       ]);
     }
 
-    // 2. Sync Users to MySQL relational table
+    // 2. Sync Users to MySQL relational table (HANYA dari webAdminAccounts & mobileAccounts)
     const usersMap = new Map();
     const userSources = [
-      ...(masterData.users || []),
-      ...(masterData.userAccounts || []),
       ...(masterData.webAdminAccounts || []),
       ...(masterData.mobileAccounts || [])
     ];

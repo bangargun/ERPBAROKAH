@@ -90,9 +90,9 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     try {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v57_outlet_clean') {
+      if (versionKey !== 'v60_isolated_user_tables') {
         localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v57_outlet_clean');
+        localStorage.setItem('mris_version', 'v60_isolated_user_tables');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
