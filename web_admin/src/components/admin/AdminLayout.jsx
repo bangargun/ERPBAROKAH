@@ -14,6 +14,7 @@ import {
   FileEdit,
   Printer,
   Calendar,
+  Bell,
   Crown,
   ChevronDown,
   LogOut,
