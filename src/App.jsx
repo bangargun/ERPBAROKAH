@@ -88,15 +88,9 @@ export default function App() {
   // Selected Branch Filter
   const [selectedBranch, setSelectedBranch] = useState(null);
 
-  // Master Data State initialized with clean dataset and version reset check
+  // Master Data State initialized with clean dataset and multi-key fallback protection
   const [masterData, setMasterData] = useState(() => {
     try {
-      const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v61_isolated_user_tables_restored') {
-        localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v61_isolated_user_tables_restored');
-        return initialMasterData;
-      }
       const saved = localStorage.getItem('mris_master_data');
       let baseData = { ...initialMasterData };
       if (saved) {
@@ -105,7 +99,7 @@ export default function App() {
           baseData = { ...baseData, ...parsed };
         }
       }
-      // Restore persisted user accounts from standalone keys
+      // Restore & preserve user accounts & permission matrices from standalone keys
       const savedWeb = localStorage.getItem('MRIS_WEBADMINACCOUNTS');
       if (savedWeb) {
         try {
@@ -118,6 +112,20 @@ export default function App() {
         try {
           const parsedMobile = JSON.parse(savedMobile);
           if (Array.isArray(parsedMobile) && parsedMobile.length > 0) baseData.mobileAccounts = parsedMobile;
+        } catch (e) {}
+      }
+      const savedPerm = localStorage.getItem('MRIS_PERMISSIONMATRIX');
+      if (savedPerm) {
+        try {
+          const parsedPerm = JSON.parse(savedPerm);
+          if (Array.isArray(parsedPerm) && parsedPerm.length > 0) baseData.permissionMatrix = parsedPerm;
+        } catch (e) {}
+      }
+      const savedMobPerm = localStorage.getItem('MRIS_MOBILEPERMISSIONMATRIX');
+      if (savedMobPerm) {
+        try {
+          const parsedMobPerm = JSON.parse(savedMobPerm);
+          if (Array.isArray(parsedMobPerm) && parsedMobPerm.length > 0) baseData.mobilePermissionMatrix = parsedMobPerm;
         } catch (e) {}
       }
       return baseData;
@@ -207,6 +215,12 @@ export default function App() {
               const mergedMobile = (Array.isArray(serverData.mobileAccounts) && serverData.mobileAccounts.length > 0)
                 ? serverData.mobileAccounts
                 : (prev.mobileAccounts || initialMasterData.mobileAccounts);
+              const mergedPerm = (Array.isArray(serverData.permissionMatrix) && serverData.permissionMatrix.length > 0)
+                ? serverData.permissionMatrix
+                : (prev.permissionMatrix || initialMasterData.permissionMatrix);
+              const mergedMobPerm = (Array.isArray(serverData.mobilePermissionMatrix) && serverData.mobilePermissionMatrix.length > 0)
+                ? serverData.mobilePermissionMatrix
+                : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
 
               lastRemoteTsRef.current = remoteTs;
               return {
@@ -215,6 +229,8 @@ export default function App() {
                 ...serverData,
                 webAdminAccounts: mergedWeb,
                 mobileAccounts: mergedMobile,
+                permissionMatrix: mergedPerm,
+                mobilePermissionMatrix: mergedMobPerm,
                 _lastUpdated: remoteTs
               };
             });
