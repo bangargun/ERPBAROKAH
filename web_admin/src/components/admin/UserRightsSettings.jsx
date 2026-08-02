@@ -211,27 +211,30 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   };
 
   // ─── SAVE MATRIX TO SERVER ───
-  const handleSaveMatrix = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch(`${API}/api/master-data`, { cache: 'no-store' });
-      const latest = await res.json();
-      const updated = {
-        ...latest,
-        permissionMatrix: webMatrix,
-        mobilePermissionMatrix: mobileMatrix,
-        _lastUpdated: Date.now()
-      };
+  const saveMatrixToServer = async (newWebMatrix, newMobileMatrix) => {
+    const updated = {
+      ...masterData,
+      permissionMatrix: newWebMatrix,
+      mobilePermissionMatrix: newMobileMatrix,
+      _lastUpdated: Date.now()
+    };
+    setMasterData(updated);
 
-      const saveRes = await fetch(`${API}/api/master-data`, {
+    try {
+      await fetch(`${API}/api/master-data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
       });
+    } catch (e) {
+      console.error('Auto save matrix error:', e);
+    }
+  };
 
-      if (!saveRes.ok) throw new Error('Gagal menyimpan matriks');
-
-      setMasterData(updated);
+  const handleSaveMatrix = async () => {
+    setSaving(true);
+    try {
+      await saveMatrixToServer(webMatrix, mobileMatrix);
       alert('✅ Matriks Hak Akses Peran berhasil diperbarui!');
     } catch (err) {
       alert('Gagal menyimpan matriks: ' + err.message);
@@ -239,29 +242,34 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     setSaving(false);
   };
 
-  // ─── TOGGLE MATRIX PERMISSION ───
+  // ─── TOGGLE MATRIX PERMISSION (AUTO-SAVE INSTANTLY) ───
   const toggleWebMatrixPerm = (roleName, permKey) => {
-    setWebMatrix(prev => prev.map(item => {
+    const updatedWeb = webMatrix.map(item => {
       if (item.role === roleName) {
         return { ...item, [permKey]: !item[permKey] };
       }
       return item;
-    }));
+    });
+    setWebMatrix(updatedWeb);
+    saveMatrixToServer(updatedWeb, mobileMatrix);
   };
 
   const toggleMobileMatrixPerm = (roleName, permKey) => {
-    setMobileMatrix(prev => prev.map(item => {
+    const updatedMobile = mobileMatrix.map(item => {
       if (item.role === roleName) {
         return { ...item, [permKey]: !item[permKey] };
       }
       return item;
-    }));
+    });
+    setMobileMatrix(updatedMobile);
+    saveMatrixToServer(webMatrix, updatedMobile);
   };
 
   const resetMatrixDefault = () => {
     if (window.confirm('Reset seluruh Matriks Hak Akses ke pengaturan awal sistem?')) {
       setWebMatrix(DEFAULT_WEB_MATRIX);
       setMobileMatrix(DEFAULT_MOBILE_MATRIX);
+      saveMatrixToServer(DEFAULT_WEB_MATRIX, DEFAULT_MOBILE_MATRIX);
     }
   };
 
