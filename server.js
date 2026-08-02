@@ -524,47 +524,64 @@ const syncToMySQL = async (masterData) => {
       ]);
     }
 
-    // 2. Sync Users to MySQL relational table (HANYA dari webAdminAccounts & mobileAccounts)
-    const usersMap = new Map();
-    const userSources = [
-      ...(masterData.webAdminAccounts || []),
-      ...(masterData.mobileAccounts || [])
-    ];
-    userSources.forEach(u => {
-      if (u && (u.id || u.username)) {
-        const key = String(u.id || u.username);
-        usersMap.set(key, u);
-      }
-    });
-
-    for (const u of Array.from(usersMap.values())) {
+    // 2. Sync Web Admin Users & Mobile POS Users to separate relational tables in MySQL
+    const webUsers = masterData.webAdminAccounts || [];
+    const webUserIds = [];
+    for (const u of webUsers) {
+      if (!u || !u.id) continue;
       const uId = Number(u.id) || Date.now();
-      const uName = String(u.name || u.username || 'User');
-      const uUsername = String(u.username || u.name || `user_${uId}`).toLowerCase().replace(/\s+/g, '_');
-      const uPassword = String(u.password || u.mobileLoginPassword || '1234');
-      const uRole = String(u.role || 'Kasir');
-      const uOutlet = String(u.outlet || u.assignedOutlet || 'Semua Outlet (Central)');
+      webUserIds.push(uId);
+      const uName = String(u.name || u.username || 'Admin');
+      const uUsername = String(u.username || u.name || `admin_${uId}`).toLowerCase().replace(/\s+/g, '_');
+      const uPassword = String(u.password || '1234');
+      const uRole = String(u.role || 'Super Admin');
+      const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
       const uStatus = String(u.status || 'Aktif');
-      const canMobile = u.canLoginMobile !== false ? 1 : 0;
-      const mobPass = String(u.mobileLoginPassword || u.password || '');
+
+      await mysqlPool.execute(`
+        INSERT INTO web_admin_users (id, name, username, password, role, outlet, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          name = VALUES(name), username = VALUES(username), password = VALUES(password),
+          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status)
+      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus]);
+    }
+    if (webUserIds.length > 0) {
+      const ph = webUserIds.map(() => '?').join(',');
+      await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id NOT IN (${ph})`, webUserIds);
+    } else {
+      await mysqlPool.execute(`DELETE FROM \`web_admin_users\``);
+    }
+
+    const mobileUsers = masterData.mobileAccounts || [];
+    const mobileUserIds = [];
+    for (const u of mobileUsers) {
+      if (!u || !u.id) continue;
+      const uId = Number(u.id) || Date.now();
+      mobileUserIds.push(uId);
+      const uName = String(u.name || u.username || 'Staf Mobile');
+      const uUsername = String(u.username || u.name || `mobile_${uId}`).toLowerCase().replace(/\s+/g, '_');
+      const uPassword = String(u.mobileLoginPassword || u.password || '123');
+      const uRole = String(u.role || 'Kasir');
+      const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
+      const uStatus = String(u.status || 'Aktif');
       const canReports = u.canAccessMobileReports ? 1 : 0;
       const repPass = String(u.mobileReportPassword || '');
 
       await mysqlPool.execute(`
-        INSERT INTO users (id, name, username, password, role, outlet, status, can_login_mobile, mobile_login_password, can_access_mobile_reports, mobile_report_password)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO mobile_pos_users (id, name, username, password, role, outlet, status, can_access_reports, report_password)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
-          name = VALUES(name),
-          username = VALUES(username),
-          password = VALUES(password),
-          role = VALUES(role),
-          outlet = VALUES(outlet),
-          status = VALUES(status),
-          can_login_mobile = VALUES(can_login_mobile),
-          mobile_login_password = VALUES(mobile_login_password),
-          can_access_mobile_reports = VALUES(can_access_mobile_reports),
-          mobile_report_password = VALUES(mobile_report_password)
-      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canMobile, mobPass, canReports, repPass]);
+          name = VALUES(name), username = VALUES(username), password = VALUES(password),
+          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status),
+          can_access_reports = VALUES(can_access_reports), report_password = VALUES(report_password)
+      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canReports, repPass]);
+    }
+    if (mobileUserIds.length > 0) {
+      const ph = mobileUserIds.map(() => '?').join(',');
+      await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id NOT IN (${ph})`, mobileUserIds);
+    } else {
+      await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\``);
     }
 
     // 3. Sync Categories to MySQL relational table
@@ -1671,37 +1688,33 @@ app.post('/api/master-data/delete-item', async (req, res) => {
         existing.stockMovement = existing.stockMovement.filter(item => {
           if (!item) return false;
           const refId = String(item.ref_id || item.transaction_id || item.receipt_no || '');
-          if (refId && (refId === targetId || refId === idStr || (targetReceiptNo && refId === targetReceiptNo))) return false;
+          if (refId && (refId === targetId || refId === idStr)) return false;
           return true;
         });
       }
-    } else if (key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'users' || key === 'userRights' || key === 'userAccounts') {
-      const isUserMatch = item => {
-        if (!item) return false;
-        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
-        const itemUser = String(item.username || '').toLowerCase();
-        const itemName = String(item.name || '').toLowerCase();
-        
-        if (idStr && itemId === idStr) return true;
-        if (userStr && itemUser === userStr) return true;
-        if (nameStr && itemName === nameStr) return true;
-        if (idStr && (itemUser === idStr.toLowerCase() || itemName === idStr.toLowerCase())) return true;
-        return false;
-      };
-
-      // KUNCI: hapus HANYA dari array yang sesuai key — TIDAK saling silang
-      if (key === 'webAdminAccounts') {
-        if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
-      } else if (key === 'mobileAccounts') {
-        if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
-      } else {
-        // key userRights / users / userAccounts — hapus dari semua (legacy path)
-        if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
-        if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
-        if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
-        if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !isUserMatch(u));
-        if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !isUserMatch(u));
+    } else if (key === 'webAdminAccounts') {
+      if (Array.isArray(existing.webAdminAccounts)) {
+        existing.webAdminAccounts = existing.webAdminAccounts.filter(u => {
+          if (!u) return false;
+          const uId = String(u.id !== undefined && u.id !== null ? u.id : '');
+          return uId !== idStr;
+        });
       }
+    } else if (key === 'mobileAccounts') {
+      if (Array.isArray(existing.mobileAccounts)) {
+        existing.mobileAccounts = existing.mobileAccounts.filter(u => {
+          if (!u) return false;
+          const uId = String(u.id !== undefined && u.id !== null ? u.id : '');
+          return uId !== idStr;
+        });
+      }
+    } else if (key === 'users' || key === 'userRights' || key === 'userAccounts') {
+      const matchStrictId = u => u && String(u.id) === idStr;
+      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !matchStrictId(u));
+      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !matchStrictId(u));
+      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !matchStrictId(u));
+      if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !matchStrictId(u));
+      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !matchStrictId(u));
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;
@@ -1712,34 +1725,26 @@ app.post('/api/master-data/delete-item', async (req, res) => {
 
     existing._lastUpdated = nowTs;
 
-    // Simpan masterData JSON terbaru ke MySQL mris_master_data
-    await saveMasterDataToMySQL(existing);
-
-    // Hapus baris dari tabel relasi MySQL jika ada
-    if (mysqlPool) {
-      const relTable = key === 'products' ? 'products' :
-                       key === 'categories' ? 'categories' :
-                       key === 'outlets' ? 'outlets' :
-                       key === 'users' || key === 'userRights' || key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'userAccounts' ? 'users' :
-                       key === 'ingredients' ? 'ingredients' :
-                       key === 'suppliers' ? 'suppliers' :
-                       key === 'customers' ? 'customers' :
-                       key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
-      if (relTable === 'users') {
-        try {
-          const matchValId = idStr || '0';
-          const matchValUser = userStr || idStr.toLowerCase() || '___none___';
-          const matchValName = nameStr || idStr.toLowerCase() || '___none___';
-          await mysqlPool.execute(
-            `DELETE FROM \`users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`,
-            [matchValId, matchValUser, matchValName]
-          );
-        } catch (delErr) {}
-      } else if (relTable) {
-        try {
-          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
-        } catch (delErr) {}
-      }
+    // Hapus murni dari tabel relasi MySQL berdasarkan Primary Key (ID) masing-masing
+    if (mysqlPool && idStr) {
+      try {
+        if (key === 'webAdminAccounts') {
+          await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id = ?`, [idStr]);
+        } else if (key === 'mobileAccounts') {
+          await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
+        } else {
+          const relTable = key === 'products' ? 'products' :
+                           key === 'categories' ? 'categories' :
+                           key === 'outlets' ? 'outlets' :
+                           key === 'ingredients' ? 'ingredients' :
+                           key === 'suppliers' ? 'suppliers' :
+                           key === 'customers' ? 'customers' :
+                           key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
+          if (relTable) {
+            await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
+          }
+        }
+      } catch (delErr) {}
     }
 
     // Sync ulang sisa data ke relasi

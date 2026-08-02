@@ -421,20 +421,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
   const handleDeleteUser = (user) => {
     if (!window.confirm(`Hapus akun Web Admin "${user.name || user.username}"?`)) return;
-    const idStr = user.id != null ? String(user.id) : null;
-    const usernameStr = user.username ? String(user.username).toLowerCase() : null;
-    const nameStr = user.name ? String(user.name).toLowerCase() : null;
-    const isTarget = (u) => {
-      if (!u) return false;
-      if (idStr && u.id != null && String(u.id) === idStr) return true;
-      if (usernameStr && u.username && String(u.username).toLowerCase() === usernameStr) return true;
-      if (nameStr && u.name && String(u.name).toLowerCase() === nameStr) return true;
-      return false;
-    };
+    const targetIdStr = user.id != null ? String(user.id) : null;
+    if (!targetIdStr) return;
 
     setMasterData(prev => {
       const currentList = getWebAdminList();
-      const updatedList = currentList.filter(u => !isTarget(u));
+      const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
 
       return {
         ...prev,
@@ -443,19 +435,14 @@ export default function SystemSettings({ masterData, setMasterData }) {
       };
     });
 
-    const deleteId = user.id || user.username || user.name;
-    if (deleteId) {
-      fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key: 'webAdminAccounts',
-          id: user.id,
-          username: user.username,
-          name: user.name
-        })
-      }).catch(() => {});
-    }
+    fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: 'webAdminAccounts',
+        id: user.id
+      })
+    }).catch(() => {});
   };
 
   // ===== CRUD MOBILE POS ACCOUNTS (100% INDEPENDEN) =====
@@ -505,7 +492,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
       let updatedList;
       if (_editingMobileId) {
         updatedList = currentList.map(u =>
-          u.id === _editingMobileId || (u.username && u.username.toLowerCase() === _username.toLowerCase())
+          u.id === _editingMobileId
             ? { ...u, name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd, role: _role, status: _status, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd }
             : u
         );
@@ -539,20 +526,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
     const targetObj = typeof user === 'object' ? user : { id: user };
     const targetName = targetObj?.name || targetObj?.username || 'ini';
     if (!window.confirm(`Hapus akun Mobile APK "${targetName}"?`)) return;
-    const idStr = targetObj?.id != null ? String(targetObj.id) : null;
-    const usernameStr = targetObj?.username ? String(targetObj.username).toLowerCase() : null;
-    const nameStr = targetObj?.name ? String(targetObj.name).toLowerCase() : null;
-    const isTarget = (u) => {
-      if (!u) return false;
-      if (idStr && u.id != null && String(u.id) === idStr) return true;
-      if (usernameStr && u.username && String(u.username).toLowerCase() === usernameStr) return true;
-      if (nameStr && u.name && String(u.name).toLowerCase() === nameStr) return true;
-      return false;
-    };
+    const targetIdStr = targetObj?.id != null ? String(targetObj.id) : null;
+    if (!targetIdStr) return;
 
     setMasterData(prev => {
       const currentList = getMobileList();
-      const updatedList = currentList.filter(u => !isTarget(u));
+      const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
 
       return {
         ...prev,
@@ -561,19 +540,14 @@ export default function SystemSettings({ masterData, setMasterData }) {
       };
     });
 
-    const deleteId = targetObj?.id || targetObj?.username || targetObj?.name;
-    if (deleteId) {
-      fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key: 'mobileAccounts',
-          id: targetObj?.id,
-          username: targetObj?.username,
-          name: targetObj?.name
-        })
-      }).catch(() => {});
-    }
+    fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: 'mobileAccounts',
+        id: targetObj.id
+      })
+    }).catch(() => {});
   };
 
   const togglePasswordVisibility = (id) => {
