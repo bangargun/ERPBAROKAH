@@ -326,13 +326,23 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
     const totalExpenseVal = expenseList.reduce((s, e) => s + e.amount, 0);
     const netOperatingIncomeVal = grossProfitVal - totalExpenseVal;
 
-    const totalOtherIncomeVal = financialRecords
+    const otherIncomeItems = financialRecords
       .filter(f => f.type === 'other_income' || f.type === 'income')
-      .reduce((s, f) => s + Number(f.amount || 0), 0);
+      .map((f, idx) => ({
+        codeName: `[7${String(idx + 1).padStart(3, '0')}] ${f.notes || f.category || 'Pendapatan Lain-lain'}`,
+        amount: Number(f.amount || 0)
+      }));
 
-    const totalOtherExpenseVal = financialRecords
+    const totalOtherIncomeVal = otherIncomeItems.reduce((s, e) => s + e.amount, 0);
+
+    const otherExpenseItems = financialRecords
       .filter(f => f.type === 'other_expense')
-      .reduce((s, f) => s + Number(f.amount || 0), 0);
+      .map((f, idx) => ({
+        codeName: `[8${String(idx + 1).padStart(3, '0')}] ${f.notes || f.category || 'Beban Non-Operasional'}`,
+        amount: Number(f.amount || 0)
+      }));
+
+    const totalOtherExpenseVal = otherExpenseItems.reduce((s, e) => s + e.amount, 0);
 
     const netOtherIncomeVal = totalOtherIncomeVal - totalOtherExpenseVal;
     const netIncomeVal = netOperatingIncomeVal + netOtherIncomeVal;
@@ -355,7 +365,9 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
       expenseList,
       totalExpenseVal,
       netOperatingIncomeVal,
+      otherIncomeItems,
       totalOtherIncomeVal,
+      otherExpenseItems,
       totalOtherExpenseVal,
       netOtherIncomeVal,
       netIncomeVal
@@ -368,7 +380,8 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
     pendapatanUsaha, cashRevenueVal, qrisRevenueVal, edcRevenueVal, transferRevenueVal,
     diskonPenjualan, totalIncomeVal, hppVal, hppUtamaVal, hppBumbuVal, hppMinumanVal,
     biayaPengiriman, totalCogsVal, grossProfitVal, expenseList, totalExpenseVal,
-    netOperatingIncomeVal, totalOtherIncomeVal, totalOtherExpenseVal, netOtherIncomeVal, netIncomeVal
+    netOperatingIncomeVal, otherIncomeItems, totalOtherIncomeVal, otherExpenseItems,
+    totalOtherExpenseVal, netOtherIncomeVal, netIncomeVal
   } = currentPnl;
   const dynamicExpenseItems = expenseList;
 
