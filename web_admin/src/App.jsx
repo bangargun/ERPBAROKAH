@@ -47,8 +47,53 @@ export default function App() {
     return null;
   });
 
-  // App View Mode: 'admin' | 'mobile'
-  const [viewMode, setViewMode] = useState('admin');
+  // Theme Mode State: 'dark' | 'light' (Persisted in localStorage)
+  const [themeMode, setThemeMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mris_web_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    }
+    return 'dark';
+  });
+
+  const toggleThemeMode = () => {
+    setThemeMode(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('mris_web_theme', next); } catch (e) {}
+      return next;
+    });
+  };
+
+  // Toast Notifikasi Auto Logout saat Inaktif 10 Menit
+  const [idleLogoutToast, setIdleLogoutToast] = useState(false);
+
+  // 10-Minute Inactivity Auto-Logout System (600,000 ms)
+  const lastActivityRef = useRef(Date.now());
+  useEffect(() => {
+    if (!userSession) return;
+
+    const resetActivityTimer = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    activityEvents.forEach(evt => window.addEventListener(evt, resetActivityTimer, { passive: true }));
+
+    const idleCheckInterval = setInterval(() => {
+      const elapsedMs = Date.now() - lastActivityRef.current;
+      // 10 Menit = 600,000 ms
+      if (elapsedMs >= 600000) {
+        localStorage.removeItem('mris_user_session');
+        setUserSession(null);
+        setIdleLogoutToast(true);
+      }
+    }, 10000);
+
+    return () => {
+      activityEvents.forEach(evt => window.removeEventListener(evt, resetActivityTimer));
+      clearInterval(idleCheckInterval);
+    };
+  }, [userSession]);
 
   // Handle login success dari LoginPage
   const handleLoginSuccess = (session, targetMode) => {
@@ -492,14 +537,11 @@ export default function App() {
           setSelectedBranch={setSelectedBranch}
           outlets={masterData.outlets}
           pendingCount={stats.pendingApprovals}
-          onSwitchToMobile={handleRequestSwitchToMobile}
-          onOpenAddTransaction={() => {
-            setAdminTab('manual_entry');
-            setTriggerOpenManualModal(Date.now());
-          }}
           onLogout={handleLogout}
           userSession={userSession}
           masterData={masterData}
+          themeMode={themeMode}
+          toggleThemeMode={toggleThemeMode}
         >
         {!isCurrentTabAllowed ? (
           <div style={{ padding: '60px 24px', textAlign: 'center', color: '#f8fafc', background: '#111625', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', margin: '24px' }}>
