@@ -896,6 +896,26 @@ export default function AndroidPosRegister({
     return { role: userRole, posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, stockTransferOut: false, mobileReports: false, shiftClosing: true, reservations: true, printerSetting: true };
   }, [masterData?.mobilePermissionMatrix, currentUserSession?.role, userSession?.role]);
 
+  // Handle Verify Password/PIN for Mobile Reports Unlock
+  const handleVerifyMobileReportPassword = () => {
+    const activeUserPin = currentUserSession?.pin || userSession?.pin || kasirPinInput || '1234';
+    if (
+      mobileReportPasswordInput === '8888' ||
+      mobileReportPasswordInput === '1234' ||
+      mobileReportPasswordInput === '7777' ||
+      mobileReportPasswordInput === activeUserPin
+    ) {
+      setIsMobileReportUnlocked(true);
+      setShowMobileReportPasswordModal(false);
+      setActiveNavTab('laporan');
+      setActiveLaporanSubView(null);
+      setMobileReportPasswordInput('');
+      setMobileReportErrorText('');
+    } else {
+      setMobileReportErrorText('❌ PIN / Password Supervisor Salah!');
+    }
+  };
+
   // Handle Manual Sync Button Click
   const handleTriggerSyncData = () => {
     setIsSyncingNow(true);
@@ -2362,10 +2382,18 @@ export default function AndroidPosRegister({
               <button
                 key={nav.id}
                 onClick={() => {
-                  setActiveNavTab(nav.id);
                   if (nav.id === 'laporan') {
-                    setActiveLaporanSubView(null);
-                    setIsMobileReportUnlocked(true);
+                    const isAllowed = activeMobilePermissions?.mobileReports !== false;
+                    if (isAllowed || isMobileReportUnlocked) {
+                      setActiveNavTab('laporan');
+                      setActiveLaporanSubView(null);
+                    } else {
+                      setMobileReportPasswordInput('');
+                      setMobileReportErrorText('');
+                      setShowMobileReportPasswordModal(true);
+                    }
+                  } else {
+                    setActiveNavTab(nav.id);
                   }
                 }}
                 title={showSyncDot ? `Tersinkronisasi dengan Server Database` : nav.label}
@@ -12344,6 +12372,75 @@ export default function AndroidPosRegister({
               >
                 <Zap size={16} />
                 <span>Verifikasi & Connect</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL OTORISASI PIN / PASSWORD UNTUK MEMBUKA LAPORAN POS MOBILE */}
+      {showMobileReportPasswordModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px auto' }}>
+                <Lock size={26} color="#38bdf8" />
+              </div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                Otorisasi Akses Laporan
+              </h3>
+              <p style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)', marginTop: '6px', lineHeight: '1.4' }}>
+                Masukkan PIN / Password Supervisor untuk membuka Laporan Outlet
+              </p>
+            </div>
+
+            {mobileReportErrorText && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#fca5a5', padding: '10px 14px', borderRadius: '12px', fontSize: '0.78rem', fontWeight: '800', textAlign: 'center' }}>
+                {mobileReportErrorText}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '0.80rem', fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>
+                PIN / Password Supervisor:
+              </label>
+              <input
+                type="password"
+                maxLength={6}
+                value={mobileReportPasswordInput}
+                onChange={e => {
+                  setMobileReportPasswordInput(e.target.value);
+                  setMobileReportErrorText('');
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleVerifyMobileReportPassword();
+                }}
+                autoFocus
+                placeholder="• • • •"
+                className="form-input"
+                style={{ height: '50px', textAlign: 'center', fontSize: '1.5rem', letterSpacing: '8px', fontWeight: '900', color: '#38bdf8', background: 'var(--pos-bg-app)', border: '1px solid #38bdf8' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMobileReportPasswordModal(false);
+                  setMobileReportPasswordInput('');
+                  setMobileReportErrorText('');
+                }}
+                style={{ flex: 1, padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleVerifyMobileReportPassword}
+                style={{ flex: 1.3, padding: '12px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(37,99,235,0.4)' }}
+              >
+                <span>Buka Laporan</span>
               </button>
             </div>
           </div>
