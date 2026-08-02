@@ -47,8 +47,8 @@ export default function App() {
     return null;
   });
 
-  // App View Mode: 'admin' | 'mobile'
-  const [viewMode, setViewMode] = useState('admin');
+  // App View Mode: Strictly 'mobile' for POS Kasir Tablet APK
+  const [viewMode, setViewMode] = useState('mobile');
 
   // Handle login success dari LoginPage
   const handleLoginSuccess = (session, targetMode) => {
