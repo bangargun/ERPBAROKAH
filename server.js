@@ -1818,6 +1818,24 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
 });
 
+// ── EMERGENCY ENDPOINT: git pull + rebuild frontend (tidak pakai require()) ──
+app.all('/api/webhook/force-build', (req, res) => {
+  const secret = req.query.secret || req.body?.secret;
+  if (secret !== (process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026')) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  const pullBuildCmd = [
+    'DIR="/var/www/erp-barokah"',
+    'cd "$DIR" && git fetch origin && git reset --hard origin/main',
+    'cd "$DIR/web_admin" && npm run build && cp -r dist/* ../dist/',
+    'echo "FORCE_BUILD_OK"'
+  ].join(' && ');
+  exec(pullBuildCmd, { maxBuffer: 1024 * 1024 * 20, timeout: 300000 }, (err, stdout, stderr) => {
+    if (err) return res.status(500).json({ success: false, error: err.message, stderr: stderr?.slice(-1000) });
+    res.json({ success: true, output: stdout?.slice(-500) });
+  });
+});
+
 // Start Server — PORT resmi produksi: 5001 (dikunci, tidak tergantung env)
 const TARGET_PORT = PORT;
 
