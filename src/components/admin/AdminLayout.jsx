@@ -462,9 +462,28 @@ export default function AdminLayout({
                       inboxNotifications.map(n => {
                         const IconComp = n.icon;
                         const isRead = readNotifIds.includes(n.id);
+                        
+                        const handleNotifClick = () => {
+                          // Mark as read
+                          if (!readNotifIds.includes(n.id)) {
+                            setReadNotifIds(prev => [...prev, n.id]);
+                          }
+                          // Navigate to corresponding tab
+                          if (n.type === 'pos_sale') {
+                            setActiveTab('sales');
+                          } else if (n.type === 'shift_close') {
+                            setActiveTab('reports');
+                          } else if (n.type === 'logistics') {
+                            setActiveTab('stock');
+                          }
+                          setShowInboxDropdown(false);
+                        };
+
                         return (
                           <div
                             key={n.id}
+                            onClick={handleNotifClick}
+                            title="Klik untuk membuka modul halaman ini"
                             style={{
                               padding: '12px 16px',
                               borderBottom: `1px solid ${T.border}`,
@@ -472,12 +491,13 @@ export default function AdminLayout({
                               display: 'flex',
                               alignItems: 'flex-start',
                               gap: '12px',
+                              cursor: 'pointer',
                               transition: 'background 0.15s'
                             }}
                           >
                             <div style={{
-                              width: '32px',
-                              height: '32px',
+                              width: '34px',
+                              height: '34px',
                               borderRadius: '10px',
                               background: `${n.color}20`,
                               display: 'flex',
@@ -486,11 +506,12 @@ export default function AdminLayout({
                               flexShrink: 0,
                               marginTop: '2px'
                             }}>
-                              <IconComp size={16} color={n.color} />
+                              <IconComp size={17} color={n.color} />
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary }}>
-                                {n.title}
+                              <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span>{n.title}</span>
+                                <span style={{ fontSize: '0.68rem', color: T.accentGold, fontWeight: '700' }}>Buka →</span>
                               </div>
                               <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
                                 {n.subtitle}
