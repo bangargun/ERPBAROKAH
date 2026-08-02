@@ -411,10 +411,16 @@ export default function SystemSettings({ masterData, setMasterData }) {
         updatedList = [...currentList, newAccount];
       }
 
-      return {
+      const updatedMaster = {
         ...prev,
-        webAdminAccounts: updatedList
+        webAdminAccounts: updatedList,
+        userAccounts: [...updatedList, ...(prev.mobileAccounts || [])]
       };
+      try {
+        localStorage.setItem('MRIS_WEBADMINACCOUNTS', JSON.stringify(updatedList));
+        localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
+      } catch (e) {}
+      return updatedMaster;
     });
     setShowAddUserModal(false);
   };
@@ -514,10 +520,16 @@ export default function SystemSettings({ masterData, setMasterData }) {
         updatedList = [...currentList, newAcc];
       }
 
-      return {
+      const updatedMaster = {
         ...prev,
-        mobileAccounts: updatedList
+        mobileAccounts: updatedList,
+        userAccounts: [...(prev.webAdminAccounts || []), ...updatedList]
       };
+      try {
+        localStorage.setItem('MRIS_MOBILEACCOUNTS', JSON.stringify(updatedList));
+        localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
+      } catch (e) {}
+      return updatedMaster;
     });
     setShowAddMobileModal(false);
   };

@@ -10,10 +10,12 @@ import StockManagement from './components/admin/StockManagement';
 import FinancialReportsFull from './components/admin/FinancialReportsFull';
 import TermsAndPolicies from './components/admin/TermsAndPolicies';
 import SystemSettings from './components/admin/SystemSettings';
+import UserRightsSettings from './components/admin/UserRightsSettings';
 import ManualFinancialEntryPage from './components/admin/ManualFinancialEntryPage';
 import ActivityLogPage from './components/admin/ActivityLogPage';
 import TransactionHistoryPage from './components/admin/TransactionHistoryPage';
 import SopManagementPage from './components/admin/SopManagementPage';
+import PrinterThermalSettingsPage from './components/admin/PrinterThermalSettingsPage';
 import LoginPage from './components/admin/LoginPage';
 
 import MobileLayout from './components/mobile/MobileLayout';
@@ -24,7 +26,8 @@ import AndroidPosRegister from './components/mobile/AndroidPosRegister';
 import CustomerSelfRegistrationPage from './components/mobile/CustomerSelfRegistrationPage';
 
 import { initialMasterData } from './data/initialMasterData';
-import { X, Lock, Key, ShieldCheck } from 'lucide-react';
+import { checkWebPermission } from './utils/permissionUtils';
+import { X, Lock, Key, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 export default function App() {
   // Check if current URL is Customer Self Registration route
@@ -45,12 +48,7 @@ export default function App() {
   });
 
   // App View Mode: 'admin' | 'mobile'
-  const [viewMode, setViewMode] = useState(() => {
-    if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform()) {
-      return 'mobile';
-    }
-    return 'mobile';
-  });
+  const [viewMode, setViewMode] = useState('admin');
 
   // Handle login success dari LoginPage
   const handleLoginSuccess = (session, targetMode) => {
@@ -94,21 +92,35 @@ export default function App() {
   const [masterData, setMasterData] = useState(() => {
     try {
       const versionKey = localStorage.getItem('mris_version');
-      if (versionKey !== 'v57_outlet_clean') {
+      if (versionKey !== 'v61_isolated_user_tables_restored') {
         localStorage.removeItem('mris_master_data');
-        localStorage.setItem('mris_version', 'v57_outlet_clean');
+        localStorage.setItem('mris_version', 'v61_isolated_user_tables_restored');
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
+      let baseData = { ...initialMasterData };
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          return {
-            ...initialMasterData,
-            ...parsed
-          };
+          baseData = { ...baseData, ...parsed };
         }
       }
+      // Restore persisted user accounts from standalone keys
+      const savedWeb = localStorage.getItem('MRIS_WEBADMINACCOUNTS');
+      if (savedWeb) {
+        try {
+          const parsedWeb = JSON.parse(savedWeb);
+          if (Array.isArray(parsedWeb) && parsedWeb.length > 0) baseData.webAdminAccounts = parsedWeb;
+        } catch (e) {}
+      }
+      const savedMobile = localStorage.getItem('MRIS_MOBILEACCOUNTS');
+      if (savedMobile) {
+        try {
+          const parsedMobile = JSON.parse(savedMobile);
+          if (Array.isArray(parsedMobile) && parsedMobile.length > 0) baseData.mobileAccounts = parsedMobile;
+        } catch (e) {}
+      }
+      return baseData;
     } catch (e) {
       console.error("Master data parse error:", e);
     }
@@ -121,33 +133,42 @@ export default function App() {
   const lastRemoteTsRef = useRef(0);
   const lastLocalMutationTsRef = useRef(0);
 
+  // Ref menyimpan masterData terkini agar bisa dibaca sinkron di updateMasterData
+  const masterDataRef = useRef(masterData);
+  useEffect(() => { masterDataRef.current = masterData; }, [masterData]);
+
   // Wrapper function that guarantees every local mutation gets a new timestamp & instant push to VPS MySQL
-  // IMPORTANT: setelah mutasi lokal, polling di-skip selama 5 detik agar save selesai dulu
+  // FIX: lastLocalMutationTsRef diset SINKRON di luar setState — proteksi polling langsung aktif
+  // FIX: fetch POST dipindahkan ke luar setState callback (bukan anti-pattern lagi)
+  // FIX: window proteksi diperpanjang ke 15 detik untuk koneksi lambat
   const updateMasterData = (updater) => {
-    setMasterData(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      const ts = Date.now();
-      const updatedWithTs = { ...next, _lastUpdated: ts };
+    // ✅ Compute next state secara sinkron dari ref (bukan dari stale closure)
+    const prev = masterDataRef.current;
+    const next = typeof updater === 'function' ? updater(prev) : updater;
+    const ts = Date.now();
+    const updatedWithTs = { ...next, _lastUpdated: ts };
 
-      // Tandai timestamp mutasi lokal → polling akan skip selama 5 detik
-      lastLocalMutationTsRef.current = ts;
+    // ✅ Set timestamp SINKRON sebelum setState agar polling protection langsung aktif
+    lastLocalMutationTsRef.current = ts;
 
-      // Instant push to VPS Server Cloud API (MySQL mris_db Primary Storage)
-      fetch(getApiUrl('/api/master-data'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedWithTs)
-      })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data && data._lastUpdated) {
-          lastRemoteTsRef.current = data._lastUpdated;
-        }
-      })
-      .catch(err => console.error("Instant push error:", err));
+    // ✅ setState dengan nilai final (bukan updater function) — aman dari double-invoke
+    setMasterData(updatedWithTs);
 
-      return updatedWithTs;
-    });
+    // ✅ Instant push ke VPS (MySQL mris_db) — di luar setState, tidak ada side-effect
+    fetch(getApiUrl('/api/master-data'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedWithTs)
+    })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data && data._lastUpdated) {
+        lastRemoteTsRef.current = data._lastUpdated;
+        // Extend protection window dengan timestamp server yang dikonfirmasi
+        lastLocalMutationTsRef.current = Math.max(lastLocalMutationTsRef.current, data._lastUpdated);
+      }
+    })
+    .catch(err => console.error('Instant push error:', err));
   };
 
   // Sync Master Data to localStorage
@@ -157,12 +178,12 @@ export default function App() {
 
   // Real-time Live Polling Sync dengan VPS (setiap 5 detik)
   // PROTEKSI: skip overwrite jika data lokal lebih baru dari server
-  // PROTEKSI: skip polling selama 5 detik setelah mutasi lokal
+  // PROTEKSI: skip polling selama 15 detik setelah mutasi lokal (diperpanjang untuk koneksi lambat)
   useEffect(() => {
     const fetchLatestFromServer = () => {
-      // Jika ada mutasi lokal dalam 5 detik terakhir → skip polling
+      // Jika ada mutasi lokal dalam 15 detik terakhir → skip polling
       const msSinceLastMutation = Date.now() - lastLocalMutationTsRef.current;
-      if (msSinceLastMutation < 5000) return;
+      if (msSinceLastMutation < 15000) return;
 
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
@@ -180,10 +201,20 @@ export default function App() {
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
 
+              const mergedWeb = (Array.isArray(serverData.webAdminAccounts) && serverData.webAdminAccounts.length > 0)
+                ? serverData.webAdminAccounts
+                : (prev.webAdminAccounts || initialMasterData.webAdminAccounts);
+              const mergedMobile = (Array.isArray(serverData.mobileAccounts) && serverData.mobileAccounts.length > 0)
+                ? serverData.mobileAccounts
+                : (prev.mobileAccounts || initialMasterData.mobileAccounts);
+
               lastRemoteTsRef.current = remoteTs;
               return {
                 ...initialMasterData,
+                ...prev,
                 ...serverData,
+                webAdminAccounts: mergedWeb,
+                mobileAccounts: mergedMobile,
                 _lastUpdated: remoteTs
               };
             });
@@ -398,8 +429,8 @@ export default function App() {
     );
   };
 
-  // RENDER LOGIN PAGE hanya untuk Web Admin jika belum ada sesi aktif
-  if (!userSession && !isSelfRegPath && viewMode === 'admin') {
+  // RENDER LOGIN PAGE jika belum ada sesi aktif
+  if (!userSession && !isSelfRegPath) {
     return (
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
@@ -413,6 +444,27 @@ export default function App() {
 
   // RENDER WEB ADMIN DESKTOP VIEW
   if (viewMode === 'admin') {
+    const TAB_PERM_MAP = {
+      'dashboard': 'dashboard',
+      'data': 'masterData',
+      'sales': 'reports',
+      'transaction_history': 'reports',
+      'loyalty': 'masterData',
+      'costs': 'costs',
+      'stock': 'stock',
+      'reports': 'reports',
+      'sop': 'policies',
+      'settings': 'settings',
+      'manual_entry': 'costs',
+      'activity_log': 'settings'
+    };
+
+    const isCurrentTabAllowed = checkWebPermission(
+      userSession?.role,
+      TAB_PERM_MAP[adminTab] || 'dashboard',
+      masterData?.permissionMatrix
+    );
+
     return (
       <>
         {switchWarningModal}
@@ -431,117 +483,139 @@ export default function App() {
           }}
           onLogout={handleLogout}
           userSession={userSession}
+          masterData={masterData}
         >
-        {/* 1. DASHBOARD */}
-        {adminTab === 'dashboard' && (
-          <FinancialOverview
-            stats={stats}
-            chartData={chartData}
-            recentTransactions={recentTransactions}
-            outlets={masterData.outlets}
-            selectedBranch={selectedBranch}
-            masterData={masterData}
-          />
-        )}
+        {!isCurrentTabAllowed ? (
+          <div style={{ padding: '60px 24px', textAlign: 'center', color: '#f8fafc', background: '#111625', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', margin: '24px' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <Lock size={32} color="#ef4444" />
+            </div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px', color: '#f8fafc' }}>Akses Ditolak / Dibatasi</h2>
+            <p style={{ fontSize: '0.88rem', color: '#94a3b8', maxWidth: '520px', margin: '0 auto 20px auto', lineHeight: '1.5' }}>
+              Peran Anda (<strong>{userSession?.role || 'Pengguna'}</strong>) tidak memiliki wewenang untuk membuka modul halaman ini. Silakan hubungi Super Admin untuk penyesuaian hak akses pada Matriks Peran.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* 1. DASHBOARD */}
+            {adminTab === 'dashboard' && (
+              <FinancialOverview
+                stats={stats}
+                chartData={chartData}
+                recentTransactions={recentTransactions}
+                outlets={masterData.outlets}
+                selectedBranch={selectedBranch}
+                masterData={masterData}
+              />
+            )}
 
-        {/* 2. DATA (MASTER DATA) */}
-        {adminTab === 'data' && (
-          <MasterDataManagement
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-          />
-        )}
+            {/* 2. DATA (MASTER DATA) */}
+            {adminTab === 'data' && (
+              <MasterDataManagement
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
 
-        {/* 4. PENDAPATAN (SALES) */}
-        {adminTab === 'sales' && (
-          <SalesTransactionsPage
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-          />
-        )}
+            {/* 4. PENDAPATAN (SALES) */}
+            {adminTab === 'sales' && (
+              <SalesTransactionsPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
 
-        {/* 5. RIWAYAT TRANSAKSI */}
-        {adminTab === 'transaction_history' && (
-          <TransactionHistoryPage
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-          />
-        )}
+            {/* 5. RIWAYAT TRANSAKSI */}
+            {adminTab === 'transaction_history' && (
+              <TransactionHistoryPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
 
-        {/* 4. PROGRAM LOYALITAS */}
-        {adminTab === 'loyalty' && (
-          <LoyaltyProgramPage
-            masterData={masterData}
-            setMasterData={updateMasterData}
-          />
-        )}
+            {/* 4. PROGRAM LOYALITAS */}
+            {adminTab === 'loyalty' && (
+              <LoyaltyProgramPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
+              />
+            )}
+
+            {/* 3. BIAYA (COSTS) */}
+            {adminTab === 'costs' && (
+              <CostsManagement
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
+
+            {/* 4. STOK (STOCK) */}
+            {adminTab === 'stock' && (
+              <StockManagement
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
+
+            {/* 6. LAPORAN (REPORTS) */}
+            {adminTab === 'reports' && (
+              <FinancialReportsFull
+                masterData={masterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
+
+            {/* 7. KELOLA DOKUMEN SOP RESTORAN */}
+            {adminTab === 'sop' && (
+              <SopManagementPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
+
+            {/* PENGATURAN PRINTER & THERMAL OUTPUT */}
+            {adminTab === 'printer_settings' && (
+              <PrinterThermalSettingsPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
+              />
+            )}
 
 
-        {/* 3. BIAYA (COSTS) */}
-        {adminTab === 'costs' && (
-          <CostsManagement
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-          />
-        )}
+            {/* 8. PENGATURAN (HAK USER) */}
+            {adminTab === 'settings' && (
+              <UserRightsSettings
+                masterData={masterData}
+                setMasterData={updateMasterData}
+              />
+            )}
 
-        {/* 4. STOK (STOCK) */}
-        {adminTab === 'stock' && (
-          <StockManagement
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-          />
-        )}
+            {/* 9. INPUT MANUAL LAPORAN KEUANGAN */}
+            {adminTab === 'manual_entry' && (
+              <ManualFinancialEntryPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+                setActiveTab={setAdminTab}
+                triggerOpenModal={triggerOpenManualModal}
+              />
+            )}
 
-        {/* 6. LAPORAN (REPORTS) */}
-        {adminTab === 'reports' && (
-          <FinancialReportsFull
-            masterData={masterData}
-            selectedBranch={selectedBranch}
-          />
-        )}
-
-        {/* 7. KELOLA DOKUMEN SOP RESTORAN */}
-        {adminTab === 'sop' && (
-          <SopManagementPage
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-          />
-        )}
-
-
-        {/* 8. PENGATURAN (SETTINGS) */}
-        {adminTab === 'settings' && (
-          <SystemSettings
-            masterData={masterData}
-            setMasterData={updateMasterData}
-          />
-        )}
-
-        {/* 9. INPUT MANUAL LAPORAN KEUANGAN */}
-        {adminTab === 'manual_entry' && (
-          <ManualFinancialEntryPage
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-            setActiveTab={setAdminTab}
-            triggerOpenModal={triggerOpenManualModal}
-          />
-        )}
-
-        {/* 10. LOG AKTIVITAS SISTEM */}
-        {adminTab === 'activity_log' && (
-          <ActivityLogPage
-            masterData={masterData}
-            setMasterData={updateMasterData}
-            selectedBranch={selectedBranch}
-          />
+            {/* 10. LOG AKTIVITAS SISTEM */}
+            {adminTab === 'activity_log' && (
+              <ActivityLogPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
+                selectedBranch={selectedBranch}
+              />
+            )}
+          </>
         )}
 
 

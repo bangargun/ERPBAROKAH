@@ -170,6 +170,12 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
 
       if (modalType === 'web') setWebUsers(list);
       else setMobileUsers(list);
+
+      try {
+        localStorage.setItem(`MRIS_${key.toUpperCase()}`, JSON.stringify(list));
+        localStorage.setItem('mris_master_data', JSON.stringify(updated));
+      } catch (e) {}
+
       setMasterData(updated);
       setShowModal(false);
     } catch (err) {

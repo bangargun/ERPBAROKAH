@@ -98,15 +98,29 @@ export default function App() {
         return initialMasterData;
       }
       const saved = localStorage.getItem('mris_master_data');
+      let baseData = { ...initialMasterData };
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
-          return {
-            ...initialMasterData,
-            ...parsed
-          };
+          baseData = { ...baseData, ...parsed };
         }
       }
+      // Restore persisted user accounts from standalone keys
+      const savedWeb = localStorage.getItem('MRIS_WEBADMINACCOUNTS');
+      if (savedWeb) {
+        try {
+          const parsedWeb = JSON.parse(savedWeb);
+          if (Array.isArray(parsedWeb) && parsedWeb.length > 0) baseData.webAdminAccounts = parsedWeb;
+        } catch (e) {}
+      }
+      const savedMobile = localStorage.getItem('MRIS_MOBILEACCOUNTS');
+      if (savedMobile) {
+        try {
+          const parsedMobile = JSON.parse(savedMobile);
+          if (Array.isArray(parsedMobile) && parsedMobile.length > 0) baseData.mobileAccounts = parsedMobile;
+        } catch (e) {}
+      }
+      return baseData;
     } catch (e) {
       console.error("Master data parse error:", e);
     }
@@ -187,10 +201,20 @@ export default function App() {
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
 
+              const mergedWeb = (Array.isArray(serverData.webAdminAccounts) && serverData.webAdminAccounts.length > 0)
+                ? serverData.webAdminAccounts
+                : (prev.webAdminAccounts || initialMasterData.webAdminAccounts);
+              const mergedMobile = (Array.isArray(serverData.mobileAccounts) && serverData.mobileAccounts.length > 0)
+                ? serverData.mobileAccounts
+                : (prev.mobileAccounts || initialMasterData.mobileAccounts);
+
               lastRemoteTsRef.current = remoteTs;
               return {
                 ...initialMasterData,
+                ...prev,
                 ...serverData,
+                webAdminAccounts: mergedWeb,
+                mobileAccounts: mergedMobile,
                 _lastUpdated: remoteTs
               };
             });
