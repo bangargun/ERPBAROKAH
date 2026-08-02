@@ -10,6 +10,7 @@ import StockManagement from './components/admin/StockManagement';
 import FinancialReportsFull from './components/admin/FinancialReportsFull';
 import TermsAndPolicies from './components/admin/TermsAndPolicies';
 import SystemSettings from './components/admin/SystemSettings';
+import UserRightsSettings from './components/admin/UserRightsSettings';
 import ManualFinancialEntryPage from './components/admin/ManualFinancialEntryPage';
 import ActivityLogPage from './components/admin/ActivityLogPage';
 import TransactionHistoryPage from './components/admin/TransactionHistoryPage';
@@ -554,6 +555,13 @@ export default function App() {
             )}
 
 
+            {/* 8. PENGATURAN (HAK USER) */}
+            {adminTab === 'settings' && (
+              <UserRightsSettings
+                masterData={masterData}
+                setMasterData={updateMasterData}
+              />
+            )}
 
             {/* 9. INPUT MANUAL LAPORAN KEUANGAN */}
             {adminTab === 'manual_entry' && (
