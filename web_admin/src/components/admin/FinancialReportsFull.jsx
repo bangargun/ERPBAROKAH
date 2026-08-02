@@ -5,6 +5,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   const [activeSubTab, setActiveSubTab] = useState('pnl'); // 'pnl' | 'balance' | 'cashflow' | 'ai'
   const [pnlSubView, setPnlSubView] = useState('single'); // 'single' | 'multi_month'
   const [compareMonthsCount, setCompareMonthsCount] = useState(2); // 2 | 3 | 6 | 12
+
+  const [balanceSubView, setBalanceSubView] = useState('single'); // 'single' | 'multi_month'
+  const [compareBalanceMonthsCount, setCompareBalanceMonthsCount] = useState(2); // 2 | 3 | 6 | 12
+
+  const [cashflowSubView, setCashflowSubView] = useState('single'); // 'single' | 'multi_month'
+  const [compareCashflowMonthsCount, setCompareCashflowMonthsCount] = useState(2); // 2 | 3 | 6 | 12
+
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiReportText, setAiReportText] = useState(null);
 
@@ -405,55 +412,186 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
     return months;
   };
 
-  // DYNAMIC BALANCE SHEET (NERACA LUNA POS HIERARCHY & CALCULATIONS)
-  const totalPhysicalCashInDrawer = approvedReports.reduce((sum, f) => sum + Number(f.actual_cash || f.cash_physical || 0), 0);
-  const totalCashAndBank = totalPhysicalCashInDrawer > 0 ? totalPhysicalCashInDrawer : (cashRevenueVal + transferRevenueVal);
+  // ─── HELPER PERHITUNGAN NERACA PERIODE ───
+  const computeBalanceSheetForDateRange = (sDate, eDate) => {
+    const pnl = computePnlDataForDateRange(sDate, eDate);
 
-  const piutangUsaha = (masterData.salesTransactions || [])
-    .filter(t => isOutletMatch(t.outlet_id) && isDateMatch(t.date) && t.payment_status === 'unpaid')
-    .reduce((s, t) => s + Number(t.amount || 0), 0);
+    const isMatchedDate = (dateStr) => {
+      if (!dateStr) return true;
+      const dt = String(dateStr).substring(0, 10);
+      if (sDate && dt < sDate) return false;
+      if (eDate && dt > eDate) return false;
+      return true;
+    };
 
-  const rawMaterialInventoryValue = (masterData.ingredients || []).reduce((sum, ing) => {
-    return sum + ((Number(ing.stock) || 0) * (Number(ing.cost) || 0));
-  }, 0);
+    const rawShiftReports = masterData?.shiftReports || masterData?.approvedFinanceDaily || masterData?.dailyReports || [];
+    const approvedReportsMap = new Map();
+    rawShiftReports.forEach(r => {
+      if (r && r.id != null) {
+        const isApproved = r.is_approved === true || 
+                           r.status === 'approved' || 
+                           r.status === 'Approved' || 
+                           r.status === 'disetujui' || 
+                           r.status === 'ACC' ||
+                           (masterData?.approvedFinanceDaily && masterData.approvedFinanceDaily.some(a => String(a.id) === String(r.id)));
+        if (isApproved) {
+          approvedReportsMap.set(String(r.id), r);
+        }
+      }
+    });
+    const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
+      isOutletMatch(f.outlet_id || f.branch_id) && 
+      isMatchedDate(f.date || f.created_at)
+    );
 
-  const cadanganGaji = 0;
-  const cadanganSewa = 0;
-  const cadanganTHR = 0;
-  const totalOtherCurrentAsset = cadanganGaji + cadanganSewa + cadanganTHR;
+    const totalPhysicalCashInDrawer = approvedReports.reduce((sum, f) => sum + Number(f.actual_cash || f.cash_physical || 0), 0);
+    const totalCashAndBank = totalPhysicalCashInDrawer > 0 ? totalPhysicalCashInDrawer : (pnl.cashRevenueVal + pnl.transferRevenueVal);
 
-  const totalAssetsVal = totalCashAndBank + piutangUsaha + rawMaterialInventoryValue + totalOtherCurrentAsset;
+    const piutangUsaha = (masterData?.salesTransactions || masterData?.transactions || [])
+      .filter(t => isOutletMatch(t.outlet_id || t.branch_id) && isMatchedDate(t.date || t.created_at) && (t.payment_status === 'unpaid' || t.status === 'unpaid'))
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-  const totalMinusDrawerLiabilities = approvedReports.reduce((sum, f) => sum + (f.is_minus_drawer ? Number(f.minus_drawer_amount || 0) : 0), 0);
-  const totalLiability = totalMinusDrawerLiabilities + Number(masterData.supplierPayablesTotal || 0);
+    const rawMaterialInventoryValue = (masterData?.ingredients || []).reduce((sum, ing) => {
+      return sum + ((Number(ing.stock) || 0) * (Number(ing.cost) || 0));
+    }, 0);
 
-  // EQUILIBRIUM BALANCE SHEET EQUITY FORMULA (Assets = Liabilities + Equity)
-  const ownerCapital = Math.max(0, totalAssetsVal - totalLiability - netIncomeVal);
-  const totalEquity = ownerCapital + netIncomeVal;
+    const cadanganGaji = 0;
+    const cadanganSewa = 0;
+    const cadanganTHR = 0;
+    const totalOtherCurrentAsset = cadanganGaji + cadanganSewa + cadanganTHR;
 
-  // DYNAMIC ARUS KAS (CASH FLOW LUNA POS HIERARCHY & CALCULATIONS)
-  const penerimaanKasJualBeli = totalIncomeVal;
-  const refundPenjualan = 0;
-  const pembelianAssetLancar = 0;
-  const pembayaranPemasok = 0;
-  const refundPembelian = 0;
-  const pembayaranHutang = 0;
-  const pendapatanLainnya = totalOtherIncomeVal;
-  const pengeluaranOperasional = -(totalExpenseVal + totalCogsVal + totalOtherExpenseVal);
+    const totalAssetsVal = totalCashAndBank + piutangUsaha + rawMaterialInventoryValue + totalOtherCurrentAsset;
 
-  const kasBersihOperasional = penerimaanKasJualBeli + refundPenjualan + pembelianAssetLancar + pembayaranPemasok + refundPembelian + pembayaranHutang + pendapatanLainnya + pengeluaranOperasional;
+    const totalMinusDrawerLiabilities = approvedReports.reduce((sum, f) => sum + (f.is_minus_drawer ? Number(f.minus_drawer_amount || 0) : 0), 0);
+    const totalLiability = totalMinusDrawerLiabilities + Number(masterData?.supplierPayablesTotal || 0);
 
-  const perolehanPenjualanAsset = 0;
-  const aktivitasInvestasiLainnya = 0;
-  const kasBersihInvestasi = 0;
+    const ownerCapital = Math.max(0, totalAssetsVal - totalLiability - pnl.netIncomeVal);
+    const totalEquity = ownerCapital + pnl.netIncomeVal;
+    const totalLiabilitiesAndEquity = totalLiability + totalEquity;
 
-  const penerimaanPinjaman = 0;
-  const penambahanModal = 0;
-  const kasBersihKeuangan = 0;
+    return {
+      totalPhysicalCashInDrawer,
+      totalCashAndBank,
+      piutangUsaha,
+      rawMaterialInventoryValue,
+      cadanganGaji,
+      cadanganSewa,
+      cadanganTHR,
+      totalOtherCurrentAsset,
+      totalAssetsVal,
+      totalMinusDrawerLiabilities,
+      totalLiability,
+      ownerCapital,
+      netIncomeVal: pnl.netIncomeVal,
+      totalEquity,
+      totalLiabilitiesAndEquity
+    };
+  };
 
-  const kenaikanPenurunanKas = kasBersihOperasional + kasBersihInvestasi + kasBersihKeuangan;
-  const saldoAwalKas = Math.max(0, totalCashAndBank - kenaikanPenurunanKas);
-  const saldoAkhirKas = saldoAwalKas + kenaikanPenurunanKas;
+  // ─── HELPER PERHITUNGAN ARUS KAS PERIODE ───
+  const computeCashFlowForDateRange = (sDate, eDate) => {
+    const pnl = computePnlDataForDateRange(sDate, eDate);
+    const balance = computeBalanceSheetForDateRange(sDate, eDate);
+
+    const penerimaanKasJualBeli = pnl.totalIncomeVal;
+    const refundPenjualan = 0;
+    const pembelianAssetLancar = 0;
+    const pembayaranPemasok = 0;
+    const refundPembelian = 0;
+    const pembayaranHutang = 0;
+    const pendapatanLainnya = pnl.totalOtherIncomeVal;
+    const pengeluaranOperasional = -(pnl.totalExpenseVal + pnl.totalCogsVal + pnl.totalOtherExpenseVal);
+
+    const kasBersihOperasional = penerimaanKasJualBeli + refundPenjualan + pembelianAssetLancar + pembayaranPemasok + refundPembelian + pembayaranHutang + pendapatanLainnya + pengeluaranOperasional;
+
+    const perolehanPenjualanAsset = 0;
+    const aktivitasInvestasiLainnya = 0;
+    const kasBersihInvestasi = 0;
+
+    const penerimaanPinjaman = 0;
+    const penambahanModal = 0;
+    const kasBersihKeuangan = 0;
+
+    const kenaikanPenurunanKas = kasBersihOperasional + kasBersihInvestasi + kasBersihKeuangan;
+    const saldoAwalKas = Math.max(0, balance.totalCashAndBank - kenaikanPenurunanKas);
+    const saldoAkhirKas = saldoAwalKas + kenaikanPenurunanKas;
+
+    return {
+      penerimaanKasJualBeli,
+      refundPenjualan,
+      pembelianAssetLancar,
+      pembayaranPemasok,
+      refundPembelian,
+      pembayaranHutang,
+      pendapatanLainnya,
+      pengeluaranOperasional,
+      kasBersihOperasional,
+      perolehanPenjualanAsset,
+      aktivitasInvestasiLainnya,
+      kasBersihInvestasi,
+      penerimaanPinjaman,
+      penambahanModal,
+      kasBersihKeuangan,
+      kenaikanPenurunanKas,
+      saldoAwalKas,
+      saldoAkhirKas
+    };
+  };
+
+  // ─── KONSOLIDASI SINGLE PERIODE UNTUK NERACA & ARUS KAS ───
+  const currentBalance = computeBalanceSheetForDateRange(startDate, endDate);
+  const {
+    totalPhysicalCashInDrawer, totalCashAndBank, piutangUsaha, rawMaterialInventoryValue,
+    cadanganGaji, cadanganSewa, cadanganTHR, totalOtherCurrentAsset, totalAssetsVal,
+    totalMinusDrawerLiabilities, totalLiability, ownerCapital, totalEquity
+  } = currentBalance;
+
+  const currentCashFlow = computeCashFlowForDateRange(startDate, endDate);
+  const {
+    penerimaanKasJualBeli, refundPenjualan, pembelianAssetLancar, pembayaranPemasok,
+    refundPembelian, pembayaranHutang, pendapatanLainnya, pengeluaranOperasional,
+    kasBersihOperasional, perolehanPenjualanAsset, aktivitasInvestasiLainnya, kasBersihInvestasi,
+    penerimaanPinjaman, penambahanModal, kasBersihKeuangan, kenaikanPenurunanKas,
+    saldoAwalKas, saldoAkhirKas
+  } = currentCashFlow;
+
+  const getComparedBalanceMonthsData = (count = 2) => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < count; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const yyyyMm = `${y}-${String(m).padStart(2, '0')}`;
+      const monthName = d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+      const lastDay = new Date(y, m, 0).getDate();
+      const startStr = `${yyyyMm}-01`;
+      const endStr = `${yyyyMm}-${String(lastDay).padStart(2, '0')}`;
+      const label = i === 0 ? `${monthName} (Bulan Ini)` : (i === 1 ? `${monthName} (Bulan Lalu)` : monthName);
+      const balance = computeBalanceSheetForDateRange(startStr, endStr);
+      months.push({ label, monthName, yyyyMm, startStr, endStr, balance });
+    }
+    return months;
+  };
+
+  const getComparedCashFlowMonthsData = (count = 2) => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < count; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const yyyyMm = `${y}-${String(m).padStart(2, '0')}`;
+      const monthName = d.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+      const lastDay = new Date(y, m, 0).getDate();
+      const startStr = `${yyyyMm}-01`;
+      const endStr = `${yyyyMm}-${String(lastDay).padStart(2, '0')}`;
+      const label = i === 0 ? `${monthName} (Bulan Ini)` : (i === 1 ? `${monthName} (Bulan Lalu)` : monthName);
+      const cashflow = computeCashFlowForDateRange(startStr, endStr);
+      months.push({ label, monthName, yyyyMm, startStr, endStr, cashflow });
+    }
+    return months;
+  };
 
   // DOWNLOAD EXCEL HANDLER (FOR P&L, BALANCE SHEET & CASH FLOW)
   const handleDownloadExcel = () => {
@@ -993,6 +1131,249 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
 
               {/* 6. NET INCOME */}
               {renderRow('6. NET INCOME (LABA BERSIH AKHIR)', p => p.netIncomeVal, false, true, 0, '#34d399', 'rgba(52, 211, 153, 0.20)')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderMultiMonthBalanceTable = () => {
+    const comparedMonths = getComparedBalanceMonthsData(compareBalanceMonthsCount);
+
+    const renderRow = (title, extractValFn, isHeader = false, isBold = false, indent = 0, color = '#f8fafc', bg = 'transparent', accountCode = '') => {
+      if (isHeader) {
+        return (
+          <tr key={title}>
+            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: '#38bdf8', padding: '18px 10px 8px 10px', fontSize: '0.92rem', background: '#0f172a' }}>
+              {title}
+            </td>
+          </tr>
+        );
+      }
+
+      const vals = comparedMonths.map(m => Number(extractValFn(m.balance) || 0));
+      const m0Val = vals[0];
+      const m1Val = vals[1] || 0;
+      const diff = m0Val - m1Val;
+      let pct = 0;
+      if (m1Val !== 0) {
+        pct = ((m0Val - m1Val) / Math.abs(m1Val)) * 100;
+      }
+
+      const diffColor = diff > 0 ? '#34d399' : (diff < 0 ? '#f87171' : '#94a3b8');
+      const diffPrefix = diff > 0 ? '+' : '';
+
+      return (
+        <tr key={title} style={{ fontWeight: isBold ? '800' : '400', background: bg, borderTop: isBold ? '1px solid #334155' : 'none', borderBottom: isBold ? '1px solid #334155' : 'none' }}>
+          <td
+            onClick={() => accountCode && handleOpenAccountDetail(accountCode, title, m0Val)}
+            style={{
+              padding: `8px 10px 8px ${10 + indent * 18}px`,
+              color: isBold ? color : (indent > 0 ? '#94a3b8' : '#38bdf8'),
+              fontSize: indent > 0 ? '0.82rem' : '0.88rem',
+              cursor: accountCode ? 'pointer' : 'default'
+            }}
+          >
+            {title}
+          </td>
+          {vals.map((v, idx) => (
+            <td key={idx} style={{ textAlign: 'right', padding: '8px 12px', color: isBold ? color : '#f8fafc', fontSize: '0.86rem', fontWeight: '600' }}>
+              {formatLunaCurrency(v)}
+            </td>
+          ))}
+          <td style={{ textAlign: 'right', padding: '8px 12px', color: diffColor, fontSize: '0.84rem', fontWeight: '700' }}>
+            {diffPrefix}{formatLunaCurrency(diff)}
+          </td>
+          <td style={{ textAlign: 'right', padding: '8px 12px', color: diffColor, fontSize: '0.84rem', fontWeight: '800' }}>
+            {pct > 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}
+          </td>
+        </tr>
+      );
+    };
+
+    return (
+      <div style={{
+        background: '#1e293b',
+        color: '#f8fafc',
+        padding: '32px 36px',
+        borderRadius: '16px',
+        border: '1px solid #334155',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <h1 style={{ fontSize: '2.0rem', fontWeight: '900', color: '#38bdf8', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+            📊 Perbandingan Neraca Keuangan Multi-Bulan (Side-by-Side)
+          </h1>
+          <div style={{ fontSize: '0.90rem', color: '#94a3b8', fontWeight: '700' }}>
+            Membandingkan Posisi Neraca {compareBalanceMonthsCount} Bulan Berdampingan dengan Analisis Selisih &amp; Growth (%)
+          </div>
+          {selectedOutlets.length > 0 && (
+            <div style={{ fontSize: '0.8rem', color: '#818cf8', fontWeight: '600', marginTop: '4px' }}>
+              Cabang: {selectedOutlets.map(id => getOutletName(id)).join(', ')}
+            </div>
+          )}
+        </div>
+
+        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
+            <thead>
+              <tr style={{ background: '#0f172a', borderTop: '2px solid #334155', borderBottom: '2px solid #334155', color: '#f8fafc' }}>
+                <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: '800', minWidth: '280px' }}>ACCOUNT DESCRIPTION</th>
+                {comparedMonths.map((m, idx) => (
+                  <th key={idx} style={{ textAlign: 'right', padding: '12px 14px', fontWeight: '800', minWidth: '170px', color: idx === 0 ? '#38bdf8' : (idx === 1 ? '#34d399' : '#cbd5e1') }}>
+                    {m.label}
+                  </th>
+                ))}
+                <th style={{ textAlign: 'right', padding: '12px 14px', fontWeight: '800', minWidth: '170px', color: '#facc15' }}>Selisih (Bulan Ini - Lalu)</th>
+                <th style={{ textAlign: 'right', padding: '12px 14px', fontWeight: '800', minWidth: '120px', color: '#facc15' }}>Growth (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* 1. ASSET SECTION */}
+              {renderRow('1. ASSET (AKTIVA)', null, true)}
+              {renderRow('[1101] Kas Laci Kasir & Rekening Bank', b => b.totalCashAndBank, false, false, 1, '#38bdf8', 'transparent', '1101')}
+              {renderRow('[1201] Piutang Usaha', b => b.piutangUsaha, false, false, 1, '#38bdf8', 'transparent', '1201')}
+              {renderRow('[1301] Persediaan Stok Bahan Baku Dapur', b => b.rawMaterialInventoryValue, false, false, 1, '#38bdf8', 'transparent', '1301')}
+              {renderRow('[1431] Dana Cadangan Gaji Karyawan', b => b.cadanganGaji, false, false, 1, '#38bdf8', 'transparent', '1431')}
+              {renderRow('[1432] Dana Cadangan Sewa Gedung', b => b.cadanganSewa, false, false, 1, '#38bdf8', 'transparent', '1432')}
+              {renderRow('[1433] Dana Cadangan Tunjangan Hari Raya (THR)', b => b.cadanganTHR, false, false, 1, '#38bdf8', 'transparent', '1433')}
+              {renderRow('TOTAL ASSET', b => b.totalAssetsVal, false, true, 0, '#38bdf8', 'rgba(56, 189, 248, 0.12)')}
+
+              {/* 2. LIABILITIES SECTION */}
+              {renderRow('2. LIABILITIES AND EQUITY (PASIVA)', null, true)}
+              {renderRow('LIABILITY (KEWAJIBAN & HUTANG)', null, true)}
+              {renderRow('[2101] Hutang Operasional Kasir & Supplier', b => b.totalLiability, false, false, 1, '#fb7185', 'transparent', '2101')}
+              {renderRow('Total Liability', b => b.totalLiability, false, true, 0, '#fb7185', 'rgba(255,255,255,0.02)')}
+
+              {/* 3. EQUITY SECTION */}
+              {renderRow('EQUITY (MODAL & LABA)', null, true)}
+              {renderRow('[3101] Modal Disetor Owner / Investor', b => b.ownerCapital, false, false, 1, '#38bdf8', 'transparent', '3101')}
+              {renderRow('Net Income (Laba Berjalan)', b => b.netIncomeVal, false, false, 1, '#34d399')}
+              {renderRow('Total Equity', b => b.totalEquity, false, true, 0, '#34d399', 'rgba(255,255,255,0.02)')}
+              {renderRow('TOTAL LIABILITIES AND EQUITY', b => b.totalLiabilitiesAndEquity, false, true, 0, '#34d399', 'rgba(52, 211, 153, 0.15)')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderMultiMonthCashFlowTable = () => {
+    const comparedMonths = getComparedCashFlowMonthsData(compareCashflowMonthsCount);
+
+    const renderRow = (title, extractValFn, isHeader = false, isBold = false, indent = 0, color = '#f8fafc', bg = 'transparent') => {
+      if (isHeader) {
+        return (
+          <tr key={title}>
+            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: '#38bdf8', padding: '18px 10px 8px 10px', fontSize: '0.92rem', background: '#0f172a' }}>
+              {title}
+            </td>
+          </tr>
+        );
+      }
+
+      const vals = comparedMonths.map(m => Number(extractValFn(m.cashflow) || 0));
+      const m0Val = vals[0];
+      const m1Val = vals[1] || 0;
+      const diff = m0Val - m1Val;
+      let pct = 0;
+      if (m1Val !== 0) {
+        pct = ((m0Val - m1Val) / Math.abs(m1Val)) * 100;
+      }
+
+      const diffColor = diff > 0 ? '#34d399' : (diff < 0 ? '#f87171' : '#94a3b8');
+      const diffPrefix = diff > 0 ? '+' : '';
+
+      return (
+        <tr key={title} style={{ fontWeight: isBold ? '800' : '400', background: bg, borderTop: isBold ? '1px solid #334155' : 'none', borderBottom: isBold ? '1px solid #334155' : 'none' }}>
+          <td style={{ padding: `8px 10px 8px ${10 + indent * 18}px`, color: isBold ? color : (indent > 0 ? '#94a3b8' : '#38bdf8'), fontSize: indent > 0 ? '0.82rem' : '0.88rem' }}>
+            {title}
+          </td>
+          {vals.map((v, idx) => (
+            <td key={idx} style={{ textAlign: 'right', padding: '8px 12px', color: isBold ? color : '#f8fafc', fontSize: '0.86rem', fontWeight: '600' }}>
+              {formatLunaCurrency(v)}
+            </td>
+          ))}
+          <td style={{ textAlign: 'right', padding: '8px 12px', color: diffColor, fontSize: '0.84rem', fontWeight: '700' }}>
+            {diffPrefix}{formatLunaCurrency(diff)}
+          </td>
+          <td style={{ textAlign: 'right', padding: '8px 12px', color: diffColor, fontSize: '0.84rem', fontWeight: '800' }}>
+            {pct > 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}
+          </td>
+        </tr>
+      );
+    };
+
+    return (
+      <div style={{
+        background: '#1e293b',
+        color: '#f8fafc',
+        padding: '32px 36px',
+        borderRadius: '16px',
+        border: '1px solid #334155',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <h1 style={{ fontSize: '2.0rem', fontWeight: '900', color: '#38bdf8', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+            📊 Perbandingan Arus Kas Multi-Bulan (Side-by-Side)
+          </h1>
+          <div style={{ fontSize: '0.90rem', color: '#94a3b8', fontWeight: '700' }}>
+            Membandingkan Pergerakan Arus Kas {compareCashflowMonthsCount} Bulan Berdampingan dengan Analisis Selisih &amp; Growth (%)
+          </div>
+          {selectedOutlets.length > 0 && (
+            <div style={{ fontSize: '0.8rem', color: '#818cf8', fontWeight: '600', marginTop: '4px' }}>
+              Cabang: {selectedOutlets.map(id => getOutletName(id)).join(', ')}
+            </div>
+          )}
+        </div>
+
+        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
+            <thead>
+              <tr style={{ background: '#0f172a', borderTop: '2px solid #334155', borderBottom: '2px solid #334155', color: '#f8fafc' }}>
+                <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: '800', minWidth: '320px' }}>DESKRIPSI ARUS KAS</th>
+                {comparedMonths.map((m, idx) => (
+                  <th key={idx} style={{ textAlign: 'right', padding: '12px 14px', fontWeight: '800', minWidth: '170px', color: idx === 0 ? '#38bdf8' : (idx === 1 ? '#34d399' : '#cbd5e1') }}>
+                    {m.label}
+                  </th>
+                ))}
+                <th style={{ textAlign: 'right', padding: '12px 14px', fontWeight: '800', minWidth: '170px', color: '#facc15' }}>Selisih (Bulan Ini - Lalu)</th>
+                <th style={{ textAlign: 'right', padding: '12px 14px', fontWeight: '800', minWidth: '120px', color: '#facc15' }}>Growth (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* 1. OPERATING ACTIVITIES */}
+              {renderRow('Arus Kas dari Aktivitas Operasional', null, true)}
+              {renderRow('Penerimaan Kas dari Aktivitas Jual Beli', c => c.penerimaanKasJualBeli, false, false, 1)}
+              {renderRow('Refund atas Penjualan Barang', c => c.refundPenjualan, false, false, 1)}
+              {renderRow('Pembelian Asset Lancar', c => c.pembelianAssetLancar, false, false, 1)}
+              {renderRow('Pembayaran ke Pemasok (Supplier)', c => c.pembayaranPemasok, false, false, 1)}
+              {renderRow('Refund atas Pembelian Barang', c => c.refundPembelian, false, false, 1)}
+              {renderRow('Pembayaran Hutang (Liabilitas)', c => c.pembayaranHutang, false, false, 1)}
+              {renderRow('Pendapatan Lainnya (Diluar Jual Beli)', c => c.pendapatanLainnya, false, false, 1)}
+              {renderRow('Pengeluaran Operasional & HPP', c => c.pengeluaranOperasional, false, false, 1, '#fb7185')}
+              {renderRow('Kas Bersih Aktivitas Operasional', c => c.kasBersihOperasional, false, true, 0, '#34d399', 'rgba(52, 211, 153, 0.12)')}
+
+              {/* 2. INVESTING ACTIVITIES */}
+              {renderRow('Arus Kas dari Aktivitas Investasi', null, true)}
+              {renderRow('Perolehan / Pelepasan Asset', c => c.perolehanPenjualanAsset, false, false, 1)}
+              {renderRow('Aktivitas Investasi Lainnya', c => c.aktivitasInvestasiLainnya, false, false, 1)}
+              {renderRow('Kas Bersih Aktivitas Investasi', c => c.kasBersihInvestasi, false, true, 0, '#38bdf8', 'rgba(255,255,255,0.02)')}
+
+              {/* 3. FINANCING ACTIVITIES */}
+              {renderRow('Arus Kas dari Aktivitas Keuangan (Pendanaan)', null, true)}
+              {renderRow('Pembayaran / Penerimaan Pinjaman', c => c.penerimaanPinjaman, false, false, 1)}
+              {renderRow('Penambahan Modal Owner / Investor', c => c.penambahanModal, false, false, 1)}
+              {renderRow('Kas Bersih Aktivitas Keuangan', c => c.kasBersihKeuangan, false, true, 0, '#38bdf8', 'rgba(255,255,255,0.02)')}
+
+              {/* 4. SUMMARY */}
+              {renderRow('RINGKASAN PERUBAHAN KAS', null, true)}
+              {renderRow('KENAIKAN (PENURUNAN) BERSIH KAS', c => c.kenaikanPenurunanKas, false, true, 0, '#facc15', 'rgba(250, 204, 21, 0.10)')}
+              {renderRow('SALDO AWAL KAS', c => c.saldoAwalKas, false, true, 0, '#38bdf8', 'rgba(255,255,255,0.02)')}
+              {renderRow('SALDO AKHIR KAS', c => c.saldoAkhirKas, false, true, 0, '#34d399', 'rgba(52, 211, 153, 0.20)')}
             </tbody>
           </table>
         </div>
@@ -1858,16 +2239,71 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
         {activeSubTab === 'balance' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            {/* MAIN BALANCE SHEET CARD (MRIS GLASSMORPHISM THEME) */}
-            <div style={{
-              background: '#1e293b',
-              color: '#f8fafc',
-              padding: '36px 48px',
-              borderRadius: '16px',
-              border: '1px solid #334155',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-            }}>
+            {/* SUB-TAB NAVIGASI NERACA (PERIODE AKTIF VS PERBANDINGAN MULTI-BULAN) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setBalanceSubView('single')}
+                  style={{
+                    padding: '9px 18px', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+                    background: balanceSubView === 'single' ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : '#1e293b',
+                    color: balanceSubView === 'single' ? '#ffffff' : '#94a3b8',
+                    border: balanceSubView === 'single' ? '1px solid #818cf8' : '1px solid #334155',
+                    display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
+                >
+                  <Scale size={15} /> Laporan Neraca Periode Aktif
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBalanceSubView('multi_month')}
+                  style={{
+                    padding: '9px 18px', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+                    background: balanceSubView === 'multi_month' ? 'linear-gradient(135deg, #059669, #047857)' : '#1e293b',
+                    color: balanceSubView === 'multi_month' ? '#ffffff' : '#94a3b8',
+                    border: balanceSubView === 'multi_month' ? '1px solid #34d399' : '1px solid #334155',
+                    display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
+                >
+                  <ArrowLeftRight size={15} /> Perbandingan Antar Bulan (Berdampingan)
+                </button>
+              </div>
+
+              {balanceSubView === 'multi_month' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{ fontSize: '0.80rem', color: '#cbd5e1', fontWeight: '800' }}>
+                    📅 Jumlah Bulan Perbandingan:
+                  </label>
+                  <select
+                    value={compareBalanceMonthsCount}
+                    onChange={e => setCompareBalanceMonthsCount(Number(e.target.value))}
+                    style={{
+                      padding: '8px 14px', borderRadius: '8px', background: '#1e293b', color: '#38bdf8',
+                      border: '1.5px solid #38bdf8', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer'
+                    }}
+                  >
+                    <option value={2}>2 Bulan (Bulan Berjalan vs Bulan Lalu)</option>
+                    <option value={3}>3 Bulan Berdampingan</option>
+                    <option value={6}>6 Bulan Berdampingan</option>
+                    <option value={12}>12 Bulan (1 Tahun Berdampingan)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* IF SINGLE PERIOD VIEW */}
+            {balanceSubView === 'single' ? (
+              <div style={{
+                background: '#1e293b',
+                color: '#f8fafc',
+                padding: '36px 48px',
+                borderRadius: '16px',
+                border: '1px solid #334155',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+              }}>
 
               {/* REPORT TITLE & SUBTITLE */}
               <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -2120,23 +2556,81 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
                 </tbody>
               </table>
             </div>
+            ) : (
+              renderMultiMonthBalanceTable()
+            )}
           </div>
         )}
 
-        {/* 3. ARUS KAS (CASH FLOW STATEMENT) VIEW - EXACT LUNA POS HIERARCHY MATCH */}
+        {/* 3. ARUS KAS (CASH FLOW STATEMENT) VIEW */}
         {activeSubTab === 'cashflow' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            {/* MAIN CASH FLOW REPORT CARD (MRIS GLASSMORPHISM THEME) */}
-            <div style={{
-              background: '#1e293b',
-              color: '#f8fafc',
-              padding: '36px 48px',
-              borderRadius: '16px',
-              border: '1px solid #334155',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-            }}>
+            {/* SUB-TAB NAVIGASI ARUS KAS (PERIODE AKTIF VS PERBANDINGAN MULTI-BULAN) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setCashflowSubView('single')}
+                  style={{
+                    padding: '9px 18px', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+                    background: cashflowSubView === 'single' ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : '#1e293b',
+                    color: cashflowSubView === 'single' ? '#ffffff' : '#94a3b8',
+                    border: cashflowSubView === 'single' ? '1px solid #818cf8' : '1px solid #334155',
+                    display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
+                >
+                  <ArrowLeftRight size={15} /> Laporan Arus Kas Periode Aktif
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCashflowSubView('multi_month')}
+                  style={{
+                    padding: '9px 18px', borderRadius: '8px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+                    background: cashflowSubView === 'multi_month' ? 'linear-gradient(135deg, #059669, #047857)' : '#1e293b',
+                    color: cashflowSubView === 'multi_month' ? '#ffffff' : '#94a3b8',
+                    border: cashflowSubView === 'multi_month' ? '1px solid #34d399' : '1px solid #334155',
+                    display: 'flex', alignItems: 'center', gap: '6px'
+                  }}
+                >
+                  <ArrowLeftRight size={15} /> Perbandingan Antar Bulan (Berdampingan)
+                </button>
+              </div>
+
+              {cashflowSubView === 'multi_month' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{ fontSize: '0.80rem', color: '#cbd5e1', fontWeight: '800' }}>
+                    📅 Jumlah Bulan Perbandingan:
+                  </label>
+                  <select
+                    value={compareCashflowMonthsCount}
+                    onChange={e => setCompareCashflowMonthsCount(Number(e.target.value))}
+                    style={{
+                      padding: '8px 14px', borderRadius: '8px', background: '#1e293b', color: '#38bdf8',
+                      border: '1.5px solid #38bdf8', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer'
+                    }}
+                  >
+                    <option value={2}>2 Bulan (Bulan Berjalan vs Bulan Lalu)</option>
+                    <option value={3}>3 Bulan Berdampingan</option>
+                    <option value={6}>6 Bulan Berdampingan</option>
+                    <option value={12}>12 Bulan (1 Tahun Berdampingan)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* IF SINGLE PERIOD VIEW */}
+            {cashflowSubView === 'single' ? (
+              <div style={{
+                background: '#1e293b',
+                color: '#f8fafc',
+                padding: '36px 48px',
+                borderRadius: '16px',
+                border: '1px solid #334155',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+              }}>
 
               {/* REPORT TITLE & SUBTITLE */}
               <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -2363,6 +2857,9 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
                 </tbody>
               </table>
             </div>
+            ) : (
+              renderMultiMonthCashFlowTable()
+            )}
           </div>
         )}
 
