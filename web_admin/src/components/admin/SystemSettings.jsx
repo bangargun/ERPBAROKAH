@@ -1541,70 +1541,15 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* SUB-TAB NAVIGATOR PADA TABEL HAK USER */}
-              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #334155', paddingBottom: '12px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => setActiveSubTab('user_rights_web')}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: currentTab === 'web' ? '#38bdf8' : '#334155',
-                    background: currentTab === 'web' ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
-                    color: currentTab === 'web' ? '#38bdf8' : '#94a3b8',
-                    fontWeight: '800',
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Monitor size={16} />
-                  <span>💻 Hak User Web Based Admin</span>
-                  <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.25)', padding: '2px 8px', borderRadius: '10px', color: '#ffffff', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
-                    {rawWebList.length} User
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveSubTab('user_rights_mobile')}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: currentTab === 'mobile' ? '#34d399' : '#334155',
-                    background: currentTab === 'mobile' ? 'rgba(52, 211, 153, 0.2)' : '#1e293b',
-                    color: currentTab === 'mobile' ? '#34d399' : '#94a3b8',
-                    fontWeight: '800',
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Smartphone size={16} />
-                  <span>📱 Hak User POS Mobile</span>
-                  <span style={{ fontSize: '0.68rem', background: 'rgba(52, 211, 153, 0.25)', padding: '2px 8px', borderRadius: '10px', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.4)' }}>
-                    {rawMobileList.length} User
-                  </span>
-                </button>
-              </div>
-
-              {/* HEADER ACTIONS PER TAB */}
+              {/* HEADER ACTIONS HAK USER POS MOBILE */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: currentTab === 'web' ? '#38bdf8' : '#34d399', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                    {currentTab === 'web' ? <Monitor size={18} /> : <Smartphone size={18} />}
-                    <span>{currentTab === 'web' ? '💻 Hak User Web Based Admin' : '📱 Hak User POS Mobile'}</span>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                    <Smartphone size={18} />
+                    <span>📱 Hak User POS Mobile</span>
                   </h3>
                   <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px', margin: 0 }}>
-                    {currentTab === 'web'
-                      ? 'Kelola akun pengguna Web Admin (Akses Dashboard, Data Master, Akuntansi & Laporan Portal Web)'
-                      : 'Kelola otentikasi akun pengguna Aplikasi Kasir Mobile (Akses Transaksi, Shift, Void & Laporan POS Mobile)'}
+                    Kelola otentikasi akun pengguna Aplikasi Kasir Mobile (Akses Transaksi, Shift, Void &amp; Laporan POS Mobile)
                   </p>
                 </div>
 
@@ -1632,53 +1577,28 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     <span>{showAllPasswords ? '🙈 Sembunyikan Password' : '👁️ Tampilkan Semua Password'}</span>
                   </button>
 
-                  {currentTab === 'web' ? (
-                    <button
-                      type="button"
-                      onClick={handleOpenAddUserModal}
-                      style={{
-                        padding: '6px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '0.78rem',
-                        fontWeight: '800',
-                        borderRadius: '10px',
-                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                        color: '#ffffff',
-                        border: 'none',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-                      }}
-                      title="Tambah akun pengguna baru khusus untuk akses Web Based Admin"
-                    >
-                      <Plus size={15} />
-                      <span>💻 + Tambah User Web Admin</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleOpenAddMobileModal}
-                      style={{
-                        padding: '6px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '0.78rem',
-                        fontWeight: '800',
-                        borderRadius: '10px',
-                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                        color: '#ffffff',
-                        border: 'none',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
-                      }}
-                      title="Tambah otentikasi akun pengguna baru khusus untuk akses Aplikasi Kasir (Mobile APK)"
-                    >
-                      <Plus size={15} />
-                      <span>📱 + Tambah User Mobile Kasir</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleOpenAddMobileModal}
+                    style={{
+                      padding: '6px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
+                    }}
+                    title="Tambah otentikasi akun pengguna baru khusus untuk akses Aplikasi Kasir (Mobile APK)"
+                  >
+                    <Plus size={15} />
+                    <span>📱 + Tambah User Mobile Kasir</span>
+                  </button>
                 </div>
               </div>
 
@@ -1755,265 +1675,136 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 </div>
               </div>
 
-              {/* RENDER TABEL HAK USER SESUAI TAB AKTIF */}
-              {currentTab === 'web' ? (
-                /* TABEL 💻 HAK USER WEB BASED ADMIN */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
-                    <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
-                      <thead>
-                        <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                          <th style={{ padding: '8px 8px', width: '40%' }}>Nama Pengguna (Klik Detail)</th>
-                          <th style={{ padding: '8px 8px', width: '35%' }}>Outlet Cabang</th>
-                          <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Status</th>
-                          <th style={{ padding: '8px 4px', textAlign: 'center', width: '13%' }}>Aksi</th>
+              {/* TABEL 📱 HAK USER POS MOBILE */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
+                  <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
+                    <thead>
+                      <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                        <th style={{ padding: '8px 8px', width: '38%' }}>Nama Pengguna (Klik Detail)</th>
+                        <th style={{ padding: '8px 8px', width: '30%' }}>Outlet Cabang</th>
+                        <th style={{ padding: '8px 8px', width: '17%' }}>Peran Mobile (Role)</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center', width: '8%' }}>Status</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredMobileList.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
+                            Belum ada akun pengguna Mobile POS.
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {filteredWebList.length === 0 ? (
-                          <tr>
-                            <td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                              🔍 Tidak ada akun Web Admin yang sesuai dengan filter pencarian.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredWebList.map(u => {
-                            let roleBadgeColor = '#818cf8';
-                            let roleBgColor = 'rgba(99,102,241,0.15)';
-                            if (u.role === 'Super Admin') { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
-                            else if (u.role === 'Owner') { roleBadgeColor = '#fbbf24'; roleBgColor = 'rgba(251,191,36,0.2)'; }
-                            else if (u.role === 'Admin') { roleBadgeColor = '#38bdf8'; roleBgColor = 'rgba(56,189,248,0.2)'; }
-                            else if (u.role === 'Kasir') { roleBadgeColor = '#34d399'; roleBgColor = 'rgba(52,211,153,0.2)'; }
+                      ) : (
+                        filteredMobileList.map(u => {
+                          let roleBadgeColor = '#34d399';
+                          let roleBgColor = 'rgba(52,211,153,0.2)';
+                          if (u.role?.includes('Super Admin') || u.role?.includes('Owner')) { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
+                          else if (u.role?.includes('Kepala Cabang') || u.role?.includes('SPV')) { roleBadgeColor = '#fbbf24'; roleBgColor = 'rgba(251,191,36,0.2)'; }
+                          else if (u.role?.includes('Logistik')) { roleBadgeColor = '#38bdf8'; roleBgColor = 'rgba(56,189,248,0.2)'; }
 
-                            return (
-                              <tr key={u.id || u.username} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '8px 8px', fontWeight: '800', color: '#f8fafc' }}>
-                                  <div
-                                    onClick={() => setPreviewUserAccount(u)}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(56,189,248,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.2)', transition: 'all 0.15s ease' }}
-                                    className="hover:border-sky-400 hover:bg-sky-950/40"
-                                    title="Klik untuk Pratinjau Detail Akses User Ini"
-                                  >
-                                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
-                                      {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                      <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '900' }}>{u.name}</span>
-                                      <span style={{ fontSize: '0.66rem', color: '#38bdf8', fontWeight: '700' }}>🔍 Klik Preview Detail</span>
-                                    </div>
+                          return (
+                            <tr key={u.id || u.username} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                              <td style={{ padding: '8px 8px', fontWeight: '800', color: '#f8fafc' }}>
+                                <div
+                                  onClick={() => setPreviewUserAccount(u)}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(56,189,248,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.2)', transition: 'all 0.15s ease' }}
+                                  className="hover:border-sky-400 hover:bg-sky-950/40"
+                                  title="Klik untuk Pratinjau Detail Akses User Ini"
+                                >
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
+                                    {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
                                   </div>
-                                </td>
-                                <td style={{ padding: '8px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>
-                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                    <Building2 size={12} color="#94a3b8" />
-                                    <span>{u.outlet || 'Semua Outlet (Central)'}</span>
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '900' }}>{u.name}</span>
+                                    <span style={{ fontSize: '0.66rem', color: '#38bdf8', fontWeight: '700' }}>🔍 Klik Preview Detail</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '8px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                  <Building2 size={12} color="#94a3b8" />
+                                  <span>{u.outlet || 'Semua Outlet (Central)'}</span>
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 8px' }}>
+                                <span style={{ fontSize: '0.70rem', fontWeight: '800', color: roleBadgeColor, background: roleBgColor, border: `1px solid ${roleBadgeColor}44`, padding: '2px 8px', borderRadius: '6px' }}>
+                                  {u.role || 'Kasir'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleMobileStatus(u.id)}
+                                  style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '16px',
+                                    fontSize: '0.70rem',
+                                    fontWeight: '900',
+                                    background: u.status === 'Aktif' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(244, 63, 94, 0.2)',
+                                    color: u.status === 'Aktif' ? '#34d399' : '#fb7185',
+                                    border: '1px solid',
+                                    borderColor: u.status === 'Aktif' ? '#34d399' : '#fb7185',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
+                                </button>
+                              </td>
+                              <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                                   <button
                                     type="button"
-                                    onClick={() => handleToggleUserStatus(u.id)}
+                                    onClick={() => handleOpenEditMobileModal(u)}
                                     style={{
-                                      padding: '3px 8px',
-                                      borderRadius: '16px',
+                                      padding: '4px 7px',
+                                      background: 'rgba(56, 189, 248, 0.15)',
+                                      color: '#38bdf8',
+                                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                                      borderRadius: '6px',
                                       fontSize: '0.70rem',
-                                      fontWeight: '900',
-                                      background: u.status === 'Aktif' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-                                      color: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                      border: '1px solid',
-                                      borderColor: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                      cursor: 'pointer'
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px'
                                     }}
+                                    title="Edit Akses Mobile User Ini"
                                   >
-                                    {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
+                                    <Edit3 size={12} />
+                                    <span>Edit</span>
                                   </button>
-                                </td>
-                                <td style={{ padding: '8px 4px', textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenEditUserModal(u)}
-                                      style={{
-                                        padding: '4px 7px',
-                                        background: 'rgba(56, 189, 248, 0.15)',
-                                        color: '#38bdf8',
-                                        border: '1px solid rgba(56, 189, 248, 0.3)',
-                                        borderRadius: '6px',
-                                        fontSize: '0.70rem',
-                                        fontWeight: '800',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px'
-                                      }}
-                                      title="Edit Akses User Ini"
-                                    >
-                                      <Edit3 size={12} />
-                                      <span>Edit</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteUser(u)}
-                                      style={{
-                                        padding: '4px 7px',
-                                        background: 'rgba(244, 63, 94, 0.15)',
-                                        color: '#fb7185',
-                                        border: '1px solid rgba(244, 63, 94, 0.3)',
-                                        borderRadius: '6px',
-                                        fontSize: '0.70rem',
-                                        fontWeight: '800',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px'
-                                      }}
-                                      title="Hapus Akses User Ini"
-                                    >
-                                      <Trash2 size={12} />
-                                      <span>Hapus</span>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                /* TABEL 📱 HAK USER POS MOBILE */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
-                    <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
-                      <thead>
-                        <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                          <th style={{ padding: '8px 8px', width: '38%' }}>Nama Pengguna (Klik Detail)</th>
-                          <th style={{ padding: '8px 8px', width: '30%' }}>Outlet Cabang</th>
-                          <th style={{ padding: '8px 8px', width: '17%' }}>Peran Mobile (Role)</th>
-                          <th style={{ padding: '8px 4px', textAlign: 'center', width: '8%' }}>Status</th>
-                          <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredMobileList.length === 0 ? (
-                          <tr>
-                            <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                              Belum ada akun pengguna Mobile POS.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredMobileList.map(u => {
-                            let roleBadgeColor = '#34d399';
-                            let roleBgColor = 'rgba(52,211,153,0.2)';
-                            if (u.role?.includes('Super Admin') || u.role?.includes('Owner')) { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
-                            else if (u.role?.includes('Kepala Cabang') || u.role?.includes('SPV')) { roleBadgeColor = '#fbbf24'; roleBgColor = 'rgba(251,191,36,0.2)'; }
-                            else if (u.role?.includes('Logistik')) { roleBadgeColor = '#38bdf8'; roleBgColor = 'rgba(56,189,248,0.2)'; }
-
-                            return (
-                              <tr key={u.id || u.username} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '8px 8px', fontWeight: '800', color: '#f8fafc' }}>
-                                  <div
-                                    onClick={() => setPreviewUserAccount(u)}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(56,189,248,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.2)', transition: 'all 0.15s ease' }}
-                                    className="hover:border-sky-400 hover:bg-sky-950/40"
-                                    title="Klik untuk Pratinjau Detail Akses User Ini"
-                                  >
-                                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
-                                      {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                      <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '900' }}>{u.name}</span>
-                                      <span style={{ fontSize: '0.66rem', color: '#38bdf8', fontWeight: '700' }}>🔍 Klik Preview Detail</span>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td style={{ padding: '8px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>
-                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                    <Building2 size={12} color="#94a3b8" />
-                                    <span>{u.outlet || 'Semua Outlet (Central)'}</span>
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px 8px' }}>
-                                  <span style={{ fontSize: '0.70rem', fontWeight: '800', color: roleBadgeColor, background: roleBgColor, border: `1px solid ${roleBadgeColor}44`, padding: '2px 8px', borderRadius: '6px' }}>
-                                    {u.role || 'Kasir'}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px 4px', textAlign: 'center' }}>
                                   <button
                                     type="button"
-                                    onClick={() => handleToggleMobileStatus(u.id)}
+                                    onClick={() => handleDeleteMobile(u)}
                                     style={{
-                                      padding: '3px 8px',
-                                      borderRadius: '16px',
+                                      padding: '4px 7px',
+                                      background: 'rgba(244, 63, 94, 0.15)',
+                                      color: '#fb7185',
+                                      border: '1px solid rgba(244, 63, 94, 0.3)',
+                                      borderRadius: '6px',
                                       fontSize: '0.70rem',
-                                      fontWeight: '900',
-                                      background: u.status === 'Aktif' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-                                      color: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                      border: '1px solid',
-                                      borderColor: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                      cursor: 'pointer'
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px'
                                     }}
+                                    title="Hapus Akses Mobile User Ini"
                                   >
-                                    {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
+                                    <Trash2 size={12} />
+                                    <span>Hapus</span>
                                   </button>
-                                </td>
-                                <td style={{ padding: '8px 4px', textAlign: 'center' }}>
-                                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenEditMobileModal(u)}
-                                      style={{
-                                        padding: '4px 7px',
-                                        background: 'rgba(56, 189, 248, 0.15)',
-                                        color: '#38bdf8',
-                                        border: '1px solid rgba(56, 189, 248, 0.3)',
-                                        borderRadius: '6px',
-                                        fontSize: '0.70rem',
-                                        fontWeight: '800',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px'
-                                      }}
-                                      title="Edit Akses Mobile User Ini"
-                                    >
-                                      <Edit3 size={12} />
-                                      <span>Edit</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteMobile(u)}
-                                      style={{
-                                        padding: '4px 7px',
-                                        background: 'rgba(244, 63, 94, 0.15)',
-                                        color: '#fb7185',
-                                        border: '1px solid rgba(244, 63, 94, 0.3)',
-                                        borderRadius: '6px',
-                                        fontSize: '0.70rem',
-                                        fontWeight: '800',
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px'
-                                      }}
-                                      title="Hapus Akses Mobile User Ini"
-                                    >
-                                      <Trash2 size={12} />
-                                      <span>Hapus</span>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
             </div>
           );
         })()}
