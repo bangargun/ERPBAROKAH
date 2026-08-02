@@ -553,13 +553,7 @@ export default function App() {
               />
             )}
 
-            {/* 8. PENGATURAN (SETTINGS) */}
-            {adminTab === 'settings' && (
-              <SystemSettings
-                masterData={masterData}
-                setMasterData={updateMasterData}
-              />
-            )}
+
 
             {/* 9. INPUT MANUAL LAPORAN KEUANGAN */}
             {adminTab === 'manual_entry' && (

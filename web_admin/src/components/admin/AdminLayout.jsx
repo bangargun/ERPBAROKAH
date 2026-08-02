@@ -51,8 +51,7 @@ export default function AdminLayout({
     { id: 'reports', label: '6. Laporan Keuangan', icon: FileText, permKey: 'reports' },
     { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
     { id: 'loyalty', label: '8. Program Loyalitas', icon: Award, permKey: 'masterData' },
-    { id: 'settings', label: '9. Pengaturan', icon: Settings, permKey: 'settings' },
-    { id: 'activity_log', label: '10. Log Aktivitas', icon: History, permKey: 'settings' }
+    { id: 'activity_log', label: '9. Log Aktivitas', icon: History, permKey: 'settings' }
   ];
 
   const userName = userSession?.name || 'Super Admin Restoran';
