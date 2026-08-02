@@ -276,23 +276,21 @@ export default function AndroidPosRegister({
       }
 
       if (!devices || devices.length === 0) {
-        // Daftar printer thermal standar & fallback system print jika tidak ada device bluetooth terpair
-        devices = [
-          { name: '🖨️ Printer Thermal Kasir (58mm)', address: '00:11:22:33:44:55', type: 'bluetooth' },
-          { name: '🍳 RPP02N Kitchen Printer (80mm)', address: '66:77:88:99:AA:BB', type: 'bluetooth' },
-          { name: '🍹 POS-58 Bar Printer (58mm)', address: 'CC:DD:EE:FF:00:11', type: 'bluetooth' },
-          { name: '📄 System PDF & Thermal Fallback', address: 'SYSTEM_PDF_PRINT', type: 'system' }
-        ];
-        setPrintStatusMsg('✅ Ditemukan 4 Perangkat Thermal Printer & System Print. Silakan pilih printer aktif.');
+        setPrintStatusMsg('⚠️ Belum ada printer Bluetooth yang dipasangkan (paired) di Pengaturan Tablet. Silakan hubungkan printer di Settings Bluetooth Tablet, lalu klik Pindai Ulang.');
+        setPairedDevices([
+          { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
+        ]);
       } else {
-        setPrintStatusMsg(`✅ Ditemukan ${devices.length} perangkat Bluetooth paired.`);
+        setPrintStatusMsg(`✅ Ditemukan ${devices.length} printer Bluetooth paired.`);
+        setPairedDevices([
+          ...devices,
+          { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
+        ]);
       }
-      setPairedDevices(devices);
     } catch (err) {
-      setPrintStatusMsg('⚠️ Scan Printer: Menampilkan printer thermal & system PDF...');
+      setPrintStatusMsg('⚠️ Gagal membaca printer Bluetooth: ' + (err.message || 'Pastikan Bluetooth aktif'));
       setPairedDevices([
-        { name: '🖨️ Printer Thermal Kasir (58mm)', address: '00:11:22:33:44:55', type: 'bluetooth' },
-        { name: '📄 System PDF & Thermal Fallback', address: 'SYSTEM_PDF_PRINT', type: 'system' }
+        { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
       ]);
     } finally {
       setIsScanningPaired(false);
