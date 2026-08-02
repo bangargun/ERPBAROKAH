@@ -1,13 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users, Smartphone, Plus, Edit3, Trash2, X, Eye, EyeOff,
-  RefreshCw, ShieldCheck, Save, CheckCircle2, Shield, Lock, RotateCcw, Check, Ban
+  RefreshCw, ShieldCheck, Save, Shield, RotateCcw, Check, Ban, Key
 } from 'lucide-react';
 
 const API = 'https://mris-api.barokahgroupindonesia.tech';
 
 const WEB_ROLES = ['Super Admin', 'Owner', 'Admin', 'Manajer Cabang', 'Kasir'];
 const MOBILE_ROLES = ['Super Admin / Owner', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
+
+const WEB_PERM_FIELDS = [
+  { key: 'dashboard', label: '📊 Dashboard & Penjualan' },
+  { key: 'masterData', label: '📦 Data Master Produk' },
+  { key: 'costs', label: '💰 Biaya & Pengeluaran' },
+  { key: 'stock', label: '🌾 Stok & Bahan Baku' },
+  { key: 'approved', label: '✅ Approval Transaksi' },
+  { key: 'reports', label: '📑 Laporan Keuangan' },
+  { key: 'policies', label: '📜 SOP Restoran' },
+  { key: 'settings', label: '🔒 Pengaturan System & User' },
+];
+
+const MOBILE_PERM_FIELDS = [
+  { key: 'posCashier', label: '📱 Mesin Kasir POS' },
+  { key: 'voidOrder', label: '🚫 Batal / Void Struk' },
+  { key: 'manualDiscount', label: '🏷️ Diskon Manual Kasir' },
+  { key: 'stockOpname', label: '📋 Stock Opname Mobile' },
+  { key: 'receiveGoods', label: '🚚 Terima Barang Dapur' },
+  { key: 'mobileReports', label: '📊 Laporan Shift Mobile' },
+  { key: 'shiftClosing', label: '🔒 Rekonsiliasi Shift Closing' },
+];
 
 const DEFAULT_WEB_MATRIX = [
   { role: 'Super Admin', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: true },
@@ -24,8 +45,16 @@ const DEFAULT_MOBILE_MATRIX = [
   { role: 'Logistik & Dapur', posCashier: false, voidOrder: false, manualDiscount: false, stockOpname: true, receiveGoods: true, mobileReports: false, shiftClosing: false }
 ];
 
-const EMPTY_WEB = { name: '', username: '', password: '', role: 'Admin', outlet: 'Semua Outlet (Central)', status: 'Aktif' };
-const EMPTY_MOBILE = { name: '', username: '', mobileLoginPassword: '123', role: 'Kasir', outlet: 'Semua Outlet (Central)', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' };
+const EMPTY_WEB = {
+  name: '', username: '', password: '', role: 'Admin', outlet: 'Semua Outlet (Central)', status: 'Aktif',
+  useCustomPermissions: false, permissions: { dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: false }
+};
+
+const EMPTY_MOBILE = {
+  name: '', username: '', mobileLoginPassword: '123', role: 'Kasir', outlet: 'Semua Outlet (Central)', status: 'Aktif',
+  canAccessMobileReports: true, mobileReportPassword: '8888',
+  useCustomPermissions: false, permissions: { posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: true }
+};
 
 export default function UserRightsSettings({ masterData, setMasterData }) {
   const [activeTab, setActiveTab] = useState('mobile'); // 'mobile' | 'web' | 'matrix'
@@ -85,7 +114,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   const openAdd = (type) => {
     setModalType(type);
     setEditingId(null);
-    setForm(type === 'web' ? { ...EMPTY_WEB } : { ...EMPTY_MOBILE });
+    setForm(type === 'web' ? JSON.parse(JSON.stringify(EMPTY_WEB)) : JSON.parse(JSON.stringify(EMPTY_MOBILE)));
     setShowPwd(false);
     setShowRepPwd(false);
     setShowModal(true);
@@ -94,7 +123,15 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   const openEdit = (type, user) => {
     setModalType(type);
     setEditingId(user.id);
-    setForm({ ...user });
+    const defaults = type === 'web' ? EMPTY_WEB : EMPTY_MOBILE;
+    setForm({
+      ...defaults,
+      ...user,
+      permissions: {
+        ...(defaults.permissions || {}),
+        ...(user.permissions || user.customPermissions || {})
+      }
+    });
     setShowPwd(false);
     setShowRepPwd(false);
     setShowModal(true);
@@ -230,6 +267,17 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
 
   const f = (field, val) => setForm(prev => ({ ...prev, [field]: val }));
 
+  const toggleUserCustomPerm = (permKey) => {
+    setForm(prev => ({
+      ...prev,
+      useCustomPermissions: true,
+      permissions: {
+        ...(prev.permissions || {}),
+        [permKey]: !prev.permissions?.[permKey]
+      }
+    }));
+  };
+
   // ─── RENDER USER TABLES ───
   const renderUserTable = (type, users) => {
     const isMobile = type === 'mobile';
@@ -243,7 +291,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               <th style={{ padding: '10px 12px', textAlign: 'left' }}>{isMobile ? 'Password Login' : 'Password'}</th>
               <th style={{ padding: '10px 12px', textAlign: 'left' }}>Role</th>
               <th style={{ padding: '10px 12px', textAlign: 'left' }}>Outlet</th>
-              {isMobile && <th style={{ padding: '10px 8px', textAlign: 'center' }}>Lap. Mobile</th>}
+              <th style={{ padding: '10px 8px', textAlign: 'center' }}>Permission</th>
               <th style={{ padding: '10px 8px', textAlign: 'center' }}>Status</th>
               <th style={{ padding: '10px 8px', textAlign: 'center', width: '120px' }}>Aksi</th>
             </tr>
@@ -251,7 +299,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan={isMobile ? 8 : 7} style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
                   Belum ada data. Klik tombol "Tambah" untuk menambahkan.
                 </td>
               </tr>
@@ -271,13 +319,19 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                 <td style={{ padding: '10px 12px', color: '#cbd5e1', fontSize: '0.76rem' }}>
                   {u.outlet || 'Semua Outlet'}
                 </td>
-                {isMobile && (
-                  <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                    <span style={{ color: u.canAccessMobileReports !== false ? '#34d399' : '#f87171', fontWeight: '800', fontSize: '0.76rem' }}>
-                      {u.canAccessMobileReports !== false ? '✅' : '❌'}
+                <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                  {u.useCustomPermissions ? (
+                    <span style={{
+                      padding: '3px 8px', borderRadius: '12px', fontSize: '0.70rem', fontWeight: '800',
+                      background: 'rgba(250,204,21,0.15)', color: '#facc15', border: '1px solid rgba(250,204,21,0.3)',
+                      display: 'inline-flex', alignItems: 'center', gap: '4px'
+                    }}>
+                      <Key size={11} /> Custom User
                     </span>
-                  </td>
-                )}
+                  ) : (
+                    <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Ikuti Matriks Role</span>
+                  )}
+                </td>
                 <td style={{ padding: '10px 8px', textAlign: 'center' }}>
                   {deleteConfirmId === u.id ? (
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
@@ -305,10 +359,10 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                   <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                     <button
                       onClick={() => openEdit(type, u)}
-                      title="Edit"
+                      title="Edit & Custom Permission"
                       style={{ padding: '5px 8px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.76rem', fontWeight: '800' }}
                     >
-                      <Edit3 size={12} /> Edit
+                      <Edit3 size={12} /> Edit / Access
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(u.id)}
@@ -330,28 +384,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   // ─── RENDER PERMISSION MATRIX ───
   const renderPermissionMatrixView = () => {
     const isWeb = matrixSubTab === 'web';
-    const webCols = [
-      { key: 'dashboard', label: '📊 Dashboard & Penjualan' },
-      { key: 'masterData', label: '📦 Data Master Produk' },
-      { key: 'costs', label: '💰 Biaya & Pengeluaran' },
-      { key: 'stock', label: '🌾 Stok & Bahan Baku' },
-      { key: 'approved', label: '✅ Approval Transaksi' },
-      { key: 'reports', label: '📑 Laporan Keuangan' },
-      { key: 'policies', label: '📜 SOP Restoran' },
-      { key: 'settings', label: '🔒 Pengaturan System & User' },
-    ];
-
-    const mobileCols = [
-      { key: 'posCashier', label: '📱 Mesin Kasir POS' },
-      { key: 'voidOrder', label: '🚫 Batal / Void Struk' },
-      { key: 'manualDiscount', label: '🏷️ Diskon Manual' },
-      { key: 'stockOpname', label: '📋 Stock Opname Mobile' },
-      { key: 'receiveGoods', label: '🚚 Terima Barang Dapur' },
-      { key: 'mobileReports', label: '📊 Laporan Shift Mobile' },
-      { key: 'shiftClosing', label: '🔒 Rekonsiliasi Closing' },
-    ];
-
-    const columns = isWeb ? webCols : mobileCols;
+    const columns = isWeb ? WEB_PERM_FIELDS : MOBILE_PERM_FIELDS;
     const matrixData = isWeb ? webMatrix : mobileMatrix;
 
     return (
@@ -365,7 +398,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               color: isWeb ? '#818cf8' : '#94a3b8',
               border: isWeb ? '1px solid #818cf8' : '1px solid transparent'
             }}>
-              💻 Matriks Web Admin
+              💻 Matriks Role Web Admin
             </button>
             <button onClick={() => setMatrixSubTab('mobile')} style={{
               padding: '7px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '0.80rem', cursor: 'pointer',
@@ -373,7 +406,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               color: !isWeb ? '#34d399' : '#94a3b8',
               border: !isWeb ? '1px solid #34d399' : '1px solid transparent'
             }}>
-              📱 Matriks POS Mobile APK
+              📱 Matriks Role POS Mobile APK
             </button>
           </div>
 
@@ -443,20 +476,22 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   // ─── RENDER MODAL USER ───
   const renderUserModal = () => {
     const isMobile = modalType === 'mobile';
+    const permFields = isMobile ? MOBILE_PERM_FIELDS : WEB_PERM_FIELDS;
+
     return (
       <div style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
       }}>
         <div style={{
-          width: '100%', maxWidth: '520px', background: '#1e293b',
+          width: '100%', maxWidth: '640px', background: '#1e293b',
           border: `1px solid ${isMobile ? 'rgba(52,211,153,0.3)' : 'rgba(99,102,241,0.3)'}`,
-          borderRadius: '20px', padding: '24px', maxHeight: '90vh', overflowY: 'auto'
+          borderRadius: '20px', padding: '24px', maxHeight: '92vh', overflowY: 'auto'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #334155' }}>
             <h3 style={{ margin: 0, color: '#fff', fontWeight: '900', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {isMobile ? <Smartphone size={18} color="#34d399" /> : <ShieldCheck size={18} color="#818cf8" />}
-              {editingId ? '✏️ Edit Akun' : '➕ Tambah Akun'} {isMobile ? 'POS Mobile' : 'Web Admin'}
+              {editingId ? '✏️ Edit Akun & Custom Permission' : '➕ Tambah Akun'} {isMobile ? 'POS Mobile' : 'Web Admin'}
             </h3>
             <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
               <X size={20} />
@@ -504,7 +539,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={lbl}>Role / Peran:</label>
+                <label style={lbl}>Role / Peran Utama:</label>
                 <select value={form.role || ''} onChange={e => f('role', e.target.value)} style={inp}>
                   {(isMobile ? MOBILE_ROLES : WEB_ROLES).map((r, i) => <option key={i} value={r}>{r}</option>)}
                 </select>
@@ -518,36 +553,46 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               </div>
             </div>
 
-            {isMobile && (
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid rgba(250,204,21,0.2)' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '10px', fontSize: '0.82rem', fontWeight: '800', color: '#facc15' }}>
-                  <input type="checkbox" checked={form.canAccessMobileReports !== false}
-                    onChange={e => f('canAccessMobileReports', e.target.checked)}
-                    style={{ width: '16px', height: '16px', accentColor: '#facc15' }} />
-                  🔒 Boleh Akses Menu Laporan di Mobile
+            {/* SEKSI HAK AKSES INDIVIDUAL USER (CUSTOM PERMISSIONS) */}
+            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(250,204,21,0.25)', marginTop: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '900', color: '#facc15' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!form.useCustomPermissions}
+                    onChange={e => f('useCustomPermissions', e.target.checked)}
+                    style={{ width: '16px', height: '16px', accentColor: '#facc15' }}
+                  />
+                  🔑 Aktifkan Hak Akses Khusus User Ini (Individual Override)
                 </label>
-                {form.canAccessMobileReports !== false && (
-                  <div>
-                    <label style={{ ...lbl, color: '#facc15' }}>Password Laporan Mobile:</label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showRepPwd ? 'text' : 'password'}
-                        value={form.mobileReportPassword || ''}
-                        onChange={e => f('mobileReportPassword', e.target.value)}
-                        placeholder="8888"
-                        style={{ ...inp, color: '#facc15', fontFamily: 'monospace', paddingRight: '36px' }}
-                      />
-                      <button type="button" onClick={() => setShowRepPwd(!showRepPwd)}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                        {showRepPwd ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
-            )}
 
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '4px' }}>
+              {form.useCustomPermissions && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', paddingTop: '8px', borderTop: '1px solid #1e293b' }}>
+                  {permFields.map(field => {
+                    const isChecked = form.permissions?.[field.key] !== false;
+                    return (
+                      <label key={field.key} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '8px 12px', borderRadius: '8px', background: '#1e293b',
+                        border: isChecked ? '1px solid rgba(52,211,153,0.4)' : '1px solid rgba(248,113,113,0.3)',
+                        cursor: 'pointer', fontSize: '0.78rem', color: '#f1f5f9', fontWeight: '700'
+                      }}>
+                        <span>{field.label}</span>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleUserCustomPerm(field.key)}
+                          style={{ width: '15px', height: '15px', accentColor: '#10b981' }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '8px' }}>
               <button type="button" onClick={() => setShowModal(false)}
                 style={{ padding: '10px 18px', background: '#334155', border: 'none', color: '#cbd5e1', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
                 Batal
@@ -580,7 +625,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
           Pengaturan Hak User &amp; Permission Matrix
         </h2>
         <p style={{ color: '#64748b', fontSize: '0.83rem', margin: 0 }}>
-          Kelola akun pengguna Web Based Admin, POS Mobile, dan Matriks Hak Akses Peran Granular.
+          Kelola akun pengguna Web Based Admin, POS Mobile, dan Matriks Hak Akses Peran / Individual User.
         </p>
       </div>
 
@@ -608,7 +653,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
           color: activeTab === 'matrix' ? '#1a0a2e' : '#64748b',
           display: 'flex', alignItems: 'center', gap: '7px'
         }}>
-          <Shield size={15} /> Permission Matrix (Matriks Hak Akses)
+          <Shield size={15} /> Permission Matrix (Matriks Role)
         </button>
 
         <button onClick={handleRefresh} disabled={loading} style={{
@@ -630,7 +675,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                 <Smartphone size={17} /> Hak User POS Mobile APK
               </h3>
               <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.78rem' }}>
-                {mobileUsers.length} akun terdaftar — independen, khusus kasir mobile tablet
+                {mobileUsers.length} akun terdaftar — Atur hak akses khusus per user atau per role
               </p>
             </div>
             <button onClick={() => openAdd('mobile')} style={{
@@ -654,7 +699,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                 <ShieldCheck size={17} /> Hak User Web Based Admin
               </h3>
               <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.78rem' }}>
-                {webUsers.length} akun terdaftar — independen, portal manajemen web
+                {webUsers.length} akun terdaftar — Atur hak akses khusus per user atau per role
               </p>
             </div>
             <button onClick={() => openAdd('web')} style={{

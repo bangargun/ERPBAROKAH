@@ -30,7 +30,18 @@ export const NORMALIZE_ROLE_MAP = {
  * @param {Array} permissionMatrix - Array of permission objects from masterData.permissionMatrix
  * @returns {boolean}
  */
-export function checkWebPermission(userRole, moduleKey, permissionMatrix) {
+export function checkWebPermission(userRoleOrUser, moduleKey, permissionMatrix) {
+  if (!userRoleOrUser) return false;
+  
+  // Support passing user object or userRole string
+  const userRole = typeof userRoleOrUser === 'object' ? userRoleOrUser.role : userRoleOrUser;
+  const userPermissions = typeof userRoleOrUser === 'object' ? (userRoleOrUser.permissions || userRoleOrUser.customPermissions) : null;
+  
+  // 1. Check individual user custom permission override first if present
+  if (userPermissions && userPermissions[moduleKey] !== undefined) {
+    return !!userPermissions[moduleKey];
+  }
+
   if (!userRole) return false;
   
   const lowerRole = userRole.trim().toLowerCase();
