@@ -260,10 +260,9 @@ export default function AndroidPosRegister({
   const handleScanPairedPrinters = useCallback(async () => {
     setIsScanningPaired(true);
     setPrintStatusMsg('⏳ Sedang memindai printer Bluetooth & thermal...');
-    setPairedDevices([]);
     
-    // Delay 600ms untuk efek memindai yang responsif
-    await new Promise(r => setTimeout(r, 600));
+    // Delay 400ms untuk efek memindai yang responsif
+    await new Promise(r => setTimeout(r, 400));
 
     try {
       let devices = [];
@@ -271,25 +270,30 @@ export default function AndroidPosRegister({
         try {
           devices = await scanPairedPrinters();
         } catch (e) {
-          console.warn('[BTScan] Native scan failed, using fallback list:', e);
+          console.warn('[BTScan] Native scan failed:', e);
         }
       }
 
-      if (!devices || devices.length === 0) {
-        setPrintStatusMsg('⚠️ Belum ada printer Bluetooth yang dipasangkan (paired) di Pengaturan Tablet. Silakan hubungkan printer di Settings Bluetooth Tablet, lalu klik Pindai Ulang.');
-        setPairedDevices([
-          { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
-        ]);
-      } else {
-        setPrintStatusMsg(`✅ Ditemukan ${devices.length} printer Bluetooth paired.`);
+      // Preset fallback devices agar printer selalu 100% dapat dipilih kasir
+      const presetPrinters = [
+        { name: '🖨️ Printer Thermal Bluetooth Kasir (Auto-Detect)', address: 'BT_THERMAL_AUTO', type: 'bluetooth' },
+        { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
+      ];
+
+      if (devices && devices.length > 0) {
+        setPrintStatusMsg(`✅ Ditemukan ${devices.length} perangkat Bluetooth paired.`);
         setPairedDevices([
           ...devices,
-          { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
+          ...presetPrinters
         ]);
+      } else {
+        setPrintStatusMsg('⚠️ Pemindaian selesai. Jika printer belum muncul di atas, silakan pilih "Auto-Detect" atau masukkan Alamat MAC Manual di bawah.');
+        setPairedDevices(presetPrinters);
       }
     } catch (err) {
       setPrintStatusMsg('⚠️ Gagal membaca printer Bluetooth: ' + (err.message || 'Pastikan Bluetooth aktif'));
       setPairedDevices([
+        { name: '🖨️ Printer Thermal Bluetooth Kasir (Auto-Detect)', address: 'BT_THERMAL_AUTO', type: 'bluetooth' },
         { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
       ]);
     } finally {
@@ -6063,6 +6067,47 @@ export default function AndroidPosRegister({
                           })}
                         </div>
                       )}
+
+                      {/* MANUAL MAC ADDRESS / CUSTOM DEVICE INPUT */}
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed var(--pos-border)' }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--pos-txt-secondary)', marginBottom: '8px' }}>
+                          ⌨️ Atau Input Alamat MAC / Nama Printer Manual:
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            placeholder="Contoh: 00:11:22:33:44:55 atau RPP02N"
+                            value={printerMac}
+                            onChange={(e) => setPrinterMac(e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              borderRadius: '10px',
+                              border: '1px solid var(--pos-border)',
+                              background: 'var(--pos-bg-app)',
+                              color: 'var(--pos-txt-primary)',
+                              fontSize: '0.88rem',
+                              fontWeight: '600'
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSavePrinterConfig(printerMac, printerPaperWidth)}
+                            style={{
+                              padding: '10px 16px',
+                              borderRadius: '10px',
+                              border: 'none',
+                              background: '#6366f1',
+                              color: '#ffffff',
+                              fontWeight: '700',
+                              fontSize: '0.82rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Simpan MAC
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* TEST PRINT */}

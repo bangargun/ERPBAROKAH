@@ -8,11 +8,13 @@ import android.util.Log;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.OutputStream;
 import java.lang.reflect.Method;
@@ -36,6 +38,19 @@ public class BluetoothPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void scanPairedDevices(PluginCall call) {
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            requestPermissionForAlias("bluetooth", call, "scanCallback");
+            return;
+        }
+        scanPairedDevicesInternal(call);
+    }
+
+    @PermissionCallback
+    private void scanCallback(PluginCall call) {
+        scanPairedDevicesInternal(call);
+    }
+
+    private void scanPairedDevicesInternal(PluginCall call) {
         try {
             BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
             if (adapter == null) {
@@ -51,11 +66,18 @@ public class BluetoothPrinterPlugin extends Plugin {
             Set<BluetoothDevice> pairedDevices = adapter.getBondedDevices();
             JSArray deviceList = new JSArray();
 
-            if (pairedDevices != null) {
+            if (pairedDevices != null && !pairedDevices.isEmpty()) {
                 for (BluetoothDevice device : pairedDevices) {
                     JSObject devObj = new JSObject();
-                    devObj.put("name", device.getName() != null ? device.getName() : "Perangkat Bluetooth");
-                    devObj.put("address", device.getAddress());
+                    String name = device.getName();
+                    String address = device.getAddress();
+
+                    if (name == null || name.trim().isEmpty()) {
+                        name = "Printer Bluetooth (" + (address != null ? address : "POS") + ")";
+                    }
+
+                    devObj.put("name", name);
+                    devObj.put("address", address != null ? address : "");
                     devObj.put("type", "bluetooth");
                     deviceList.put(devObj);
                 }
@@ -73,6 +95,19 @@ public class BluetoothPrinterPlugin extends Plugin {
 
     @PluginMethod
     public void printText(PluginCall call) {
+        if (getPermissionState("bluetooth") != PermissionState.GRANTED) {
+            requestPermissionForAlias("bluetooth", call, "printCallback");
+            return;
+        }
+        printTextInternal(call);
+    }
+
+    @PermissionCallback
+    private void printCallback(PluginCall call) {
+        printTextInternal(call);
+    }
+
+    private void printTextInternal(PluginCall call) {
         String macAddress = call.getString("mac");
         String textToPrint = call.getString("text");
 
@@ -81,14 +116,9 @@ public class BluetoothPrinterPlugin extends Plugin {
             return;
         }
 
-        if (textToPrint == null) {
-            textToPrint = "";
-        }
-
         final String finalMac = macAddress.trim();
-        final String finalPrintText = textToPrint;
+        final String finalPrintText = textToPrint != null ? textToPrint : "";
 
-        // Print asynchronously in background thread to avoid blocking main UI loop
         new Thread(() -> {
             BluetoothSocket socket = null;
             OutputStream outputStream = null;
@@ -99,17 +129,15 @@ public class BluetoothPrinterPlugin extends Plugin {
                     return;
                 }
 
-                // Sanitize MAC address
                 String cleanMac = finalMac.toUpperCase().replaceAll("[^0-9A-F:]", "");
                 BluetoothDevice device = adapter.getRemoteDevice(cleanMac);
 
-                // Cancel discovery before connecting to maximize connection success rate
                 try { adapter.cancelDiscovery(); } catch (Exception ignored) {}
 
                 // 3-Tier Fallback Socket Connection Strategy:
                 // 1. Standard Secure SPP RFCOMM
-                // 2. Insecure SPP RFCOMM (Required for cheap 58mm/80mm Chinese thermal printers)
-                // 3. Direct Reflection Channel 1 Port
+                // 2. Insecure SPP RFCOMM
+                // 3. Direct Reflection Channel 1
                 try {
                     Log.d(TAG, "Attempting Method 1 (Secure SPP RFCOMM)...");
                     socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
@@ -131,22 +159,20 @@ public class BluetoothPrinterPlugin extends Plugin {
                 outputStream = socket.getOutputStream();
 
                 // ESC/POS Initialization bytes: ESC @ (Reset Printer)
-                byte[] initPrinter = new byte[]{0x1B, 0x40};
-                outputStream.write(initPrinter);
+                outputStream.write(new byte[]{0x1B, 0x40});
 
-                // Process text lines and ESC/POS tags
                 String[] lines = finalPrintText.split("\n");
                 for (String line : lines) {
-                    byte[] alignCmd = new byte[]{0x1B, 0x61, 0x00}; // Left align default
+                    byte[] alignCmd = new byte[]{0x1B, 0x61, 0x00}; // Left
                     byte[] fontBoldCmd = new byte[]{0x1B, 0x45, 0x00}; // Bold off
 
                     String cleanLine = line;
 
                     if (cleanLine.contains("[C]")) {
-                        alignCmd = new byte[]{0x1B, 0x61, 0x01}; // Center align
+                        alignCmd = new byte[]{0x1B, 0x61, 0x01}; // Center
                         cleanLine = cleanLine.replace("[C]", "");
                     } else if (cleanLine.contains("[R]")) {
-                        alignCmd = new byte[]{0x1B, 0x61, 0x02}; // Right align
+                        alignCmd = new byte[]{0x1B, 0x61, 0x02}; // Right
                         cleanLine = cleanLine.replace("[R]", "");
                     }
 
@@ -166,7 +192,7 @@ public class BluetoothPrinterPlugin extends Plugin {
                     outputStream.write((cleanLine + "\n").getBytes(StandardCharsets.UTF_8));
                 }
 
-                // Feed 3 lines & Paper Cut command (ESC i)
+                // Feed 3 lines & Paper Cut (ESC i)
                 byte[] feedAndCut = new byte[]{0x1B, 0x64, 0x03, 0x1D, 0x56, 0x42, 0x00};
                 outputStream.write(feedAndCut);
                 outputStream.flush();
