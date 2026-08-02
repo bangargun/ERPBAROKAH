@@ -1689,11 +1689,19 @@ app.post('/api/master-data/delete-item', async (req, res) => {
         return false;
       };
 
-      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !isUserMatch(u));
+      // KUNCI: hapus HANYA dari array yang sesuai key — TIDAK saling silang
+      if (key === 'webAdminAccounts') {
+        if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
+      } else if (key === 'mobileAccounts') {
+        if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
+      } else {
+        // key userRights / users / userAccounts — hapus dari semua (legacy path)
+        if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
+        if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
+        if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
+        if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !isUserMatch(u));
+        if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !isUserMatch(u));
+      }
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;
