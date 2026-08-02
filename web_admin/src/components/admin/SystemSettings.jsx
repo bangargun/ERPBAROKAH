@@ -251,6 +251,19 @@ export default function SystemSettings({ masterData, setMasterData }) {
     }));
   };
 
+  const handleUpdateMobileReportPassword = (idx, newPassword) => {
+    const updated = mobilePermissionMatrix.map((pm, i) => {
+      if (i === idx) {
+        return { ...pm, reportPassword: newPassword, mobileReportPassword: newPassword };
+      }
+      return pm;
+    });
+    setMasterData(prev => ({
+      ...prev,
+      mobilePermissionMatrix: updated
+    }));
+  };
+
   const handleTogglePermissionField = (idx, field) => {
     const updated = permissionMatrix.map((pm, i) => {
       if (i === idx) {
@@ -966,10 +979,11 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Terima</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Trf Out</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Laporan</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Shift</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Reservasi</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Printer</th>
-                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '7%' }}>Aksi</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Shift</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Reservasi</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '6%' }}>Printer</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%', color: '#38bdf8' }}>🔑 Pass Laporan</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '6%' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1079,6 +1093,25 @@ export default function SystemSettings({ masterData, setMasterData }) {
                           >
                             {pm.printerSetting ? '✅' : '❌'}
                           </button>
+                        </td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>
+                          <input
+                            type="text"
+                            value={pm.reportPassword || pm.mobileReportPassword || '1234'}
+                            onChange={(e) => handleUpdateMobileReportPassword(idx, e.target.value)}
+                            style={{
+                              width: '64px',
+                              padding: '3px 4px',
+                              background: '#0f172a',
+                              border: '1px solid #38bdf8',
+                              borderRadius: '5px',
+                              color: '#38bdf8',
+                              fontSize: '0.74rem',
+                              fontWeight: '800',
+                              textAlign: 'center'
+                            }}
+                            title="Password / PIN Otorisasi Akses Laporan Kasir Mobile"
+                          />
                         </td>
                         <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
