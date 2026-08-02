@@ -394,7 +394,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
 
   // DYNAMIC BALANCE SHEET (NERACA LUNA POS HIERARCHY & CALCULATIONS)
   const totalPhysicalCashInDrawer = approvedReports.reduce((sum, f) => sum + Number(f.actual_cash || f.cash_physical || 0), 0);
-  const totalCashAndBank = totalPhysicalCashInDrawer > 0 ? totalPhysicalCashInDrawer : (cashSalesTotal + transferRevenueVal);
+  const totalCashAndBank = totalPhysicalCashInDrawer > 0 ? totalPhysicalCashInDrawer : (cashRevenueVal + transferRevenueVal);
 
   const piutangUsaha = (masterData.salesTransactions || [])
     .filter(t => isOutletMatch(t.outlet_id) && isDateMatch(t.date) && t.payment_status === 'unpaid')
