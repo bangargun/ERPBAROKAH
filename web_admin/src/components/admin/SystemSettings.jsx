@@ -389,7 +389,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
       let updatedList;
       if (_editingUserId) {
         updatedList = currentList.map(u =>
-          u.id === _editingUserId || (u.username && u.username.toLowerCase() === _username.toLowerCase())
+          u.id === _editingUserId
             ? { ...u, name: _name, outlet: _outlet, username: _username, password: _password, role: _role, status: _status }
             : u
         );
@@ -1940,91 +1940,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 </div>
               </div>
 
-              {/* SECTION KHUSUS HAK USER & PASSWORD APLIKASI MOBILE APK */}
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid #334155', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', borderBottom: '1px solid #1e293b', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📱 Pengaturan Hak Akses &amp; Password Mobile APK (Tablet POS):
-                </div>
 
-                {/* HAK LOGIN & PASSWORD LOGIN MOBILE APK */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
-                  <div>
-                    <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={newCanLoginMobile}
-                        onChange={e => setNewCanLoginMobile(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: '#38bdf8' }}
-                      />
-                      <span>Izinkan Login Mobile APK</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.76rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-                      Password Login Mobile APK:
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showModalMobileLoginPasswordEye ? 'text' : 'password'}
-                        placeholder="123"
-                        value={newMobileLoginPassword}
-                        onChange={e => setNewMobileLoginPassword(e.target.value)}
-                        disabled={!newCanLoginMobile}
-                        style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '8px', border: '1px solid #334155', background: '#1e293b', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.85rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowModalMobileLoginPasswordEye(!showModalMobileLoginPasswordEye)}
-                        disabled={!newCanLoginMobile}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: newCanLoginMobile ? 'pointer' : 'default', opacity: newCanLoginMobile ? 1 : 0.4 }}
-                        title={showModalMobileLoginPasswordEye ? 'Sembunyikan Password' : 'Tampilkan Password'}
-                      >
-                        {showModalMobileLoginPasswordEye ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* HAK AKSES & PASSWORD LAPORAN MOBILE APK */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center', borderTop: '1px dashed #1e293b', paddingTop: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#facc15', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={newCanAccessMobileReports}
-                        onChange={e => setNewCanAccessMobileReports(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: '#facc15' }}
-                      />
-                      <span>Hak Akses Menu Laporan Mobile APK</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.76rem', color: '#facc15', fontWeight: '800', display: 'block', marginBottom: '4px' }}>
-                      🔒 Password Laporan Mobile APK:
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showModalMobileReportPasswordEye ? 'text' : 'password'}
-                        placeholder="8888"
-                        value={newMobileReportPassword}
-                        onChange={e => setNewMobileReportPassword(e.target.value)}
-                        disabled={!newCanAccessMobileReports}
-                        style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '8px', border: '1px solid #facc15', background: '#1e293b', color: '#facc15', fontFamily: 'monospace', fontWeight: '800', fontSize: '0.88rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowModalMobileReportPasswordEye(!showModalMobileReportPasswordEye)}
-                        disabled={!newCanAccessMobileReports}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: newCanAccessMobileReports ? 'pointer' : 'default', opacity: newCanAccessMobileReports ? 1 : 0.4 }}
-                        title={showModalMobileReportPasswordEye ? 'Sembunyikan Password' : 'Tampilkan Password'}
-                      >
-                        {showModalMobileReportPasswordEye ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
                 <button
