@@ -165,34 +165,59 @@ class _MainPosContainerState extends State<MainPosContainer> {
   Widget _buildLoginView() {
     final pinController = TextEditingController(text: '');
     return Scaffold(
+      backgroundColor: const Color(0xFF0B0F19),
       body: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 420),
-          padding: const EdgeInsets.all(28.0),
+          constraints: const BoxConstraints(maxWidth: 440),
+          padding: const EdgeInsets.all(32.0),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10),
-            boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 20)],
+            color: const Color(0xFF0F172A),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF10B981).withOpacity(0.15),
+                blurRadius: 30,
+                spreadRadius: 2,
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(color: Color(0xFF6366F1), shape: BoxShape.circle),
-                child: const Icon(Icons.point_of_sale, size: 40, color: Colors.white),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4), width: 1.5),
+                ),
+                child: const Icon(Icons.phone_android, size: 36, color: Color(0xFF10B981)),
               ),
-              const SizedBox(height: 16),
-              const Text('MRIS POS KASIR', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-              const Text('Terminal Android POS Mobile v2.4', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
+              const Text(
+                'POS Kasir Mobile Barokah',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.3),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Sistem Kasir Tablet & Transaksi Outlet',
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 28),
               DropdownButtonFormField<OutletBranch>(
                 initialValue: _selectedOutlet,
-                decoration: const InputDecoration(
+                dropdownColor: const Color(0xFF1E293B),
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
                   labelText: 'Pilih Outlet Cabang',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.store),
+                  labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                  filled: true,
+                  fillColor: const Color(0xFF0B0F19),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF334155))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF334155))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5)),
+                  prefixIcon: const Icon(Icons.storefront, color: Color(0xFF10B981)),
                 ),
                 items: _outlets.map((o) => DropdownMenuItem(value: o, child: Text(o.name))).toList(),
                 onChanged: (val) => setState(() => _selectedOutlet = val),
@@ -202,28 +227,65 @@ class _MainPosContainerState extends State<MainPosContainer> {
                 controller: pinController,
                 obscureText: true,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Masukkan PIN Kasir',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  labelText: 'PIN / Password Kasir',
+                  labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                  hintText: '••••',
+                  hintStyle: const TextStyle(color: Color(0xFF64748B)),
+                  filled: true,
+                  fillColor: const Color(0xFF0B0F19),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF334155))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF334155))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5)),
+                  prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF10B981)),
+                  suffixIcon: const Icon(Icons.visibility_off_outlined, color: Color(0xFF64748B)),
                 ),
               ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                height: 48,
-                child: ElevatedButton.icon(
+                height: 50,
+                child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: const Color(0xFF0F172A),
+                    elevation: 4,
+                    shadowColor: const Color(0xFF10B981).withOpacity(0.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () {
                     setState(() {
                       _currentView = 'shift_open';
                     });
                   },
-                  icon: const Icon(Icons.login, color: Colors.white),
-                  label: const Text('LOGIN KASIR', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('MASUK KE KASIR MOBILE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.5)),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 20),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B0F19),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF334155)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('🟢 ', style: TextStyle(fontSize: 10)),
+                    Text(
+                      'Mode Online · Printer Thermal Ready 🖨️',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
               ),
             ],
