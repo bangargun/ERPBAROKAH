@@ -15,6 +15,7 @@ import ManualFinancialEntryPage from './components/admin/ManualFinancialEntryPag
 import ActivityLogPage from './components/admin/ActivityLogPage';
 import TransactionHistoryPage from './components/admin/TransactionHistoryPage';
 import SopManagementPage from './components/admin/SopManagementPage';
+import PrinterThermalSettingsPage from './components/admin/PrinterThermalSettingsPage';
 import LoginPage from './components/admin/LoginPage';
 
 import MobileLayout from './components/mobile/MobileLayout';
@@ -551,6 +552,14 @@ export default function App() {
                 masterData={masterData}
                 setMasterData={updateMasterData}
                 selectedBranch={selectedBranch}
+              />
+            )}
+
+            {/* PENGATURAN PRINTER & THERMAL OUTPUT */}
+            {adminTab === 'printer_settings' && (
+              <PrinterThermalSettingsPage
+                masterData={masterData}
+                setMasterData={updateMasterData}
               />
             )}
 

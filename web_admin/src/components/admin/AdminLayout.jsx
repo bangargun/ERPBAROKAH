@@ -8,22 +8,16 @@ import {
   CheckSquare, 
   FileText, 
   BookOpen, 
+  Award, 
   Settings, 
-  PlusCircle, 
-  Building2, 
-  Smartphone,
-  Award,
+  History, 
   FileEdit,
-  History,
-  Receipt,
-  LogOut,
-  Bell,
+  Printer,
+  Crown,
   ChevronDown,
-  Calendar,
-  Sparkles,
-  Users,
-  BarChart3,
-  Crown
+  LogOut,
+  PlusCircle,
+  Smartphone
 } from 'lucide-react';
 
 import { checkWebPermission } from '../../utils/permissionUtils';
@@ -49,11 +43,18 @@ export default function AdminLayout({
     { id: 'sales', label: '4. Penjualan', icon: ShoppingBag, permKey: 'reports' },
     { id: 'stock', label: '5. Logistik', icon: Package, permKey: 'stock' },
     { id: 'reports', label: '6. Laporan Keuangan', icon: FileText, permKey: 'reports' },
-    { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
-    { id: 'loyalty', label: '8. Program Loyalitas', icon: Award, permKey: 'masterData' },
-    { id: 'settings', label: '9. Pengaturan', icon: Settings, permKey: 'settings' },
-    { id: 'activity_log', label: '10. Log Aktivitas', icon: History, permKey: 'settings' }
+    { id: 'printer_settings', label: '7. Printer & Thermal', icon: Printer, permKey: 'settings' },
+    { id: 'sop', label: '8. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
+    { id: 'loyalty', label: '9. Program Loyalitas', icon: Award, permKey: 'masterData' },
+    { id: 'settings', label: '10. Pengaturan', icon: Settings, permKey: 'settings' },
+    { id: 'activity_log', label: '11. Log Aktivitas', icon: History, permKey: 'settings' }
   ];
+
+  const financePendingCount = (() => {
+    const dailyPending = (masterData?.approvedFinanceDaily || []).filter(f => f.status === 'Pending' || f.status === 'ditunda').length;
+    const manualPending = (masterData?.manualEntryRecords || []).filter(m => m.status === 'Pending' || m.status === 'ditunda').length;
+    return dailyPending + manualPending;
+  })();
 
   const userName = userSession?.name || 'Super Admin Restoran';
   const userRole = userSession?.role || 'Super Admin';
@@ -176,6 +177,11 @@ export default function AdminLayout({
                 {item.id === 'stock' && pendingCount > 0 && (
                   <span style={{ background: '#ef4444', color: 'white', fontSize: '0.66rem', fontWeight: '800', padding: '2px 6px', borderRadius: '10px' }}>
                     {pendingCount}
+                  </span>
+                )}
+                {(item.id === 'reports' || item.id === 'manual_entry') && financePendingCount > 0 && (
+                  <span style={{ background: '#ef4444', color: 'white', fontSize: '0.66rem', fontWeight: '800', padding: '2px 6px', borderRadius: '10px' }}>
+                    {financePendingCount}
                   </span>
                 )}
               </button>

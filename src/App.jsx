@@ -398,8 +398,8 @@ export default function App() {
     );
   };
 
-  // RENDER LOGIN PAGE jika belum ada sesi aktif
-  if (!userSession && !isSelfRegPath) {
+  // RENDER LOGIN PAGE hanya untuk Web Admin jika belum ada sesi aktif
+  if (!userSession && !isSelfRegPath && viewMode === 'admin') {
     return (
       <LoginPage
         onLoginSuccess={handleLoginSuccess}

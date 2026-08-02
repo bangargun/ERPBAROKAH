@@ -1834,6 +1834,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             onClick={() => {
               if (activeSubTab === 'perbandingan_harga') {
                 handleOpenAddPriceModal();
+              } else if (activeSubTab === 'stock_opname' || activeSubTab === 'opname') {
+                setShowAddModal('opname');
               } else {
                 setShowAddModal(activeSubTab.replace('stok_', ''));
               }
