@@ -13,6 +13,7 @@ import {
   History, 
   FileEdit,
   Printer,
+  Calendar,
   Crown,
   ChevronDown,
   LogOut,
