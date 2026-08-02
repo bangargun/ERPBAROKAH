@@ -1,5 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Monitor, Lock, Eye, EyeOff, AlertCircle, ChevronRight, Utensils, Crown, ShieldCheck } from 'lucide-react';
+import { 
+  Monitor, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  AlertCircle, 
+  ChevronRight, 
+  Utensils, 
+  Crown 
+} from 'lucide-react';
 
 const DEFAULT_WEB_ADMIN_ACCOUNTS = [
   { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
@@ -26,7 +35,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
     setTimeout(() => setMounted(true), 50);
   }, []);
 
-  // Filter Web Admin Accounts
+  // Prioritas fallback berlapis: webAdminAccounts → userRights → users → DEFAULT
   const webAdminAccounts = useMemo(() => {
     const wa = masterData?.webAdminAccounts;
     if (Array.isArray(wa) && wa.length > 0) return wa;
@@ -41,13 +50,6 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
     webAdminAccounts.filter(u => u.status === 'Aktif'),
     [webAdminAccounts]
   );
-
-  // Auto select superadmin on mount
-  useEffect(() => {
-    if (adminUsers.length > 0 && !selectedUsername) {
-      setSelectedUsername(adminUsers[0].username);
-    }
-  }, [adminUsers, selectedUsername]);
 
   const selectedUser = useMemo(() =>
     adminUsers.find(u => u.username === selectedUsername) || adminUsers[0],
@@ -90,135 +92,142 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
     <div style={{
       minHeight: '100vh',
       width: '100vw',
-      background: 'radial-gradient(circle at center, #0f172a 0%, #090d16 100%)',
+      background: 'radial-gradient(ellipse at center, #0f172a 0%, #080c16 60%, #04060b 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-      padding: '24px',
+      padding: '20px',
       boxSizing: 'border-box'
     }}>
 
-      {/* CENTERED GLASS FORM CARD (MATCHING USER SCREENSHOT 100%) */}
+      {/* CENTER CARD - 100% PRESERVED EXACT DESIGN FROM USER SCREENSHOT */}
       <div style={{
         width: '100%',
-        maxWidth: '520px',
-        background: 'rgba(15, 23, 42, 0.95)',
-        border: '1px solid rgba(212, 175, 55, 0.35)',
-        borderRadius: '28px',
-        padding: '36px 32px',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 35px rgba(212, 175, 55, 0.15)',
+        maxWidth: '440px',
+        background: 'rgba(15, 23, 42, 0.94)',
+        border: '1px solid rgba(212, 175, 55, 0.3)',
+        borderRadius: '24px',
+        padding: '32px 28px',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.65), 0 0 35px rgba(212, 175, 55, 0.12)',
         backdropFilter: 'blur(20px)',
         opacity: mounted ? 1 : 0,
-        transform: mounted ? 'translateY(0)' : 'translateY(20px)',
-        transition: 'all 0.4s ease',
+        transform: mounted ? 'translateY(0)' : 'translateY(16px)',
+        transition: 'all 0.4s cubic-bezier(0.16,1,0.3,1)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center'
       }}>
 
-        {/* TOP EMBLEM LOGO */}
+        {/* LOGO EMBLEM CIRCLE WITH CROWN BADGE */}
         <div style={{ position: 'relative', marginBottom: '16px' }}>
           <div style={{
-            width: '72px',
-            height: '72px',
+            width: '68px',
+            height: '68px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(212,175,55,0.2) 0%, rgba(15,23,42,0.8) 100%)',
+            background: 'radial-gradient(circle, rgba(212,175,55,0.18) 0%, rgba(15,23,42,0.9) 100%)',
             border: '2px solid #d4af37',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             boxShadow: '0 0 20px rgba(212,175,55,0.3)'
           }}>
-            <Utensils size={32} color="#f59e0b" />
+            <Utensils size={28} color="#ffffff" />
           </div>
           <div style={{
             position: 'absolute',
-            top: '-4px',
-            right: '-4px',
-            width: '22px',
-            height: '22px',
+            top: '-2px',
+            right: '-2px',
+            width: '20px',
+            height: '20px',
             borderRadius: '50%',
             background: '#d97706',
             border: '1.5px solid #fbbf24',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.70rem'
+            fontSize: '0.65rem'
           }}>
             👑
           </div>
         </div>
 
         {/* BRAND TITLE */}
-        <h1 style={{
-          fontSize: '1.8rem',
+        <div style={{
+          fontSize: '1.65rem',
           fontWeight: '900',
-          color: '#f59e0b',
-          letterSpacing: '0.02em',
-          margin: '0 0 4px 0',
-          textAlign: 'center'
+          background: 'linear-gradient(135deg, #d4af37 0%, #f8f0d0 50%, #d4af37 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          marginBottom: '2px',
+          letterSpacing: '-0.3px'
         }}>
           MRIS Restoran
-        </h1>
+        </div>
 
-        <p style={{
-          fontSize: '0.68rem',
-          fontWeight: '800',
+        <div style={{
+          fontSize: '0.66rem',
           color: '#94a3b8',
-          letterSpacing: '0.1em',
+          letterSpacing: '0.12em',
           textTransform: 'uppercase',
-          margin: '0 0 16px 0',
-          textAlign: 'center'
+          fontWeight: '700',
+          marginBottom: '16px'
         }}>
           MULTI RESTAURANT INFORMATION SYSTEM
-        </p>
+        </div>
 
-        {/* DIVIDER DOT */}
-        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#d5a832', marginBottom: '20px' }} />
+        {/* SINGLE GOLD SEPARATOR DOT */}
+        <div style={{
+          width: '5px',
+          height: '5px',
+          borderRadius: '50%',
+          background: '#d4af37',
+          marginBottom: '20px'
+        }} />
 
         {/* PORTAL BANNER CARD */}
         <div style={{
           width: '100%',
-          padding: '14px 18px',
-          borderRadius: '14px',
-          background: 'rgba(212, 175, 55, 0.08)',
-          border: '1px solid rgba(212, 175, 55, 0.25)',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          marginBottom: '24px',
+          gap: '10px',
+          padding: '12px 14px',
+          borderRadius: '12px',
+          background: 'rgba(212,175,55,0.08)',
+          border: '1px solid rgba(212,175,55,0.2)',
+          marginBottom: '20px',
           boxSizing: 'border-box'
         }}>
           <div style={{
-            width: '36px',
-            height: '36px',
+            width: '34px',
+            height: '34px',
             borderRadius: '10px',
-            background: 'rgba(212, 175, 55, 0.15)',
-            border: '1px solid rgba(212, 175, 55, 0.4)',
+            background: 'rgba(212,175,55,0.15)',
+            border: '1px solid rgba(212,175,55,0.3)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0
           }}>
-            <Monitor size={18} color="#f59e0b" />
+            <Monitor size={17} color="#d4af37" />
           </div>
           <div>
-            <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#f8fafc' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8f0d0' }}>
               Portal Web Based Admin
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '1px' }}>
-              Dashboard & Manajemen Restoran
+            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+              Dashboard &amp; Manajemen Restoran
             </div>
           </div>
         </div>
 
-        {/* FORM INPUTS */}
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        {/* FORM CONTAINER */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          {/* USERNAME DROPDOWN */}
+          {/* USERNAME SELECT DROPDOWN */}
           <div>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '800', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               USERNAME
             </label>
             <div style={{ position: 'relative' }}>
@@ -227,48 +236,44 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                 onChange={e => { setSelectedUsername(e.target.value); setError(''); }}
                 style={{
                   width: '100%',
-                  padding: '12px 16px',
+                  padding: '12px 44px 12px 16px',
                   borderRadius: '12px',
-                  border: '1.5px solid #334155',
-                  background: '#0f172a',
-                  color: '#f8fafc',
+                  border: selectedUsername ? '1.5px solid rgba(212,175,55,0.5)' : '1.5px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.04)',
+                  color: selectedUsername ? '#f8f0d0' : '#475569',
                   fontSize: '0.88rem',
-                  fontWeight: '700',
                   outline: 'none',
                   cursor: 'pointer',
                   appearance: 'none',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  fontWeight: '700'
                 }}
               >
                 {adminUsers.map(u => (
-                  <option key={u.id} value={u.username} style={{ background: '#0f172a', color: '#f8fafc' }}>
+                  <option key={u.id} value={u.username} style={{ background: '#1e293b', color: '#f8fafc' }}>
                     {u.username} · {u.name} ({u.role})
                   </option>
                 ))}
               </select>
-              <ChevronRight size={16} color="#94a3b8" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%) rotate(90deg)', pointerEvents: 'none' }} />
+              <ChevronRight size={14} color="#64748b" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%) rotate(90deg)', pointerEvents: 'none' }} />
             </div>
 
-            {/* SELECTED USER CARD BADGE */}
+            {/* SELECTED USER CARD */}
             {selectedUser && (
               <div style={{
-                marginTop: '10px',
-                padding: '10px 14px',
-                borderRadius: '12px',
-                background: 'rgba(212, 175, 55, 0.09)',
-                border: '1px solid rgba(212, 175, 55, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px'
+                gap: '8px',
+                marginTop: '8px',
+                padding: '8px 12px',
+                background: 'rgba(212,175,55,0.08)',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,175,55,0.15)'
               }}>
-                <span style={{ fontSize: '1.1rem' }}>{ROLE_ICONS[selectedUser.role] || '👑'}</span>
+                <span style={{ fontSize: '1rem' }}>{ROLE_ICONS[selectedUser.role] || '👤'}</span>
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f59e0b' }}>
-                    {selectedUser.name}
-                  </div>
-                  <div style={{ fontSize: '0.68rem', color: '#d97706', fontWeight: '700' }}>
-                    {selectedUser.role} - {selectedUser.outlet}
-                  </div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#f8f0d0' }}>{selectedUser.name}</div>
+                  <div style={{ fontSize: '0.65rem', color: '#d4af37' }}>{selectedUser.role} · {selectedUser.outlet}</div>
                 </div>
               </div>
             )}
@@ -276,12 +281,12 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
 
           {/* PASSWORD WEB ADMIN */}
           <div>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '800', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               PASSWORD WEB ADMIN
             </label>
             <div style={{ position: 'relative' }}>
               <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}>
-                <Lock size={16} color="#94a3b8" />
+                <Lock size={15} color="#64748b" />
               </div>
               <input
                 type={showPass ? 'text' : 'password'}
@@ -291,15 +296,15 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
                 style={{
                   width: '100%',
-                  padding: '12px 44px 12px 40px',
+                  padding: '12px 44px 12px 42px',
                   borderRadius: '12px',
-                  border: password ? '1.5px solid #d4af37' : '1.5px solid #334155',
-                  background: '#0f172a',
+                  border: password ? '1.5px solid rgba(212,175,55,0.45)' : '1.5px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.04)',
                   color: '#f8fafc',
-                  fontSize: '0.88rem',
-                  fontWeight: '600',
+                  fontSize: '0.9rem',
                   outline: 'none',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  letterSpacing: showPass ? 'normal' : '0.1em',
                 }}
               />
               <button
@@ -313,11 +318,11 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#94a3b8',
+                  color: '#64748b',
                   padding: 0
                 }}
               >
-                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
           </div>
@@ -328,16 +333,14 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.35)',
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.25)',
               borderRadius: '10px',
               padding: '10px 14px',
               color: '#fca5a5',
-              fontSize: '0.82rem',
-              fontWeight: '700'
+              fontSize: '0.8rem'
             }}>
-              <AlertCircle size={16} />
-              <span>{error}</span>
+              <AlertCircle size={14} /> {error}
             </div>
           )}
 
@@ -349,18 +352,18 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
             style={{
               width: '100%',
               padding: '14px',
-              marginTop: '8px',
+              marginTop: '12px',
               borderRadius: '14px',
               border: 'none',
               background: isLoading
-                ? 'rgba(212,175,55,0.4)'
-                : 'linear-gradient(135deg, #d4af37 0%, #ca8a04 100%)',
+                ? 'rgba(212,175,55,0.3)'
+                : 'linear-gradient(135deg, #d4af37 0%, #b8963e 50%, #d4af37 100%)',
               color: '#0f172a',
               fontSize: '0.92rem',
               fontWeight: '900',
               cursor: isLoading ? 'wait' : 'pointer',
-              boxShadow: '0 8px 24px rgba(212, 175, 55, 0.35)',
-              transition: 'all 0.2s ease',
+              boxShadow: isLoading ? 'none' : '0 8px 24px rgba(212,175,55,0.25)',
+              transition: 'all 0.3s ease',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -368,19 +371,30 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
             }}
           >
             {isLoading ? (
-              <span>⏳ Memverifikasi Password...</span>
+              <><div style={{ width: '16px', height: '16px', border: '2px solid #0f172a', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Memverifikasi...</>
             ) : (
-              <span>💻 Masuk ke Dashboard Admin</span>
+              <>💻 Masuk ke Dashboard Admin</>
             )}
           </button>
         </div>
 
-        {/* SSL FOOTER */}
-        <div style={{ marginTop: '24px', fontSize: '0.70rem', color: '#64748b', fontWeight: '600', textAlign: 'center' }}>
-          &copy; 2025 MRIS &bull; Barokah Group &bull; v2.0
+        {/* FOOTER */}
+        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', width: '100%' }}>
+          <div style={{ fontSize: '0.68rem', color: '#64748b', letterSpacing: '0.08em' }}>
+            &copy; 2025 MRIS &bull; Barokah Group &bull; v2.0
+          </div>
         </div>
 
       </div>
+
+      {/* ANIMATIONS */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        select option { background: #1e293b !important; }
+      `}</style>
     </div>
   );
 }
