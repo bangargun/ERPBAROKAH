@@ -1436,10 +1436,11 @@ app.all('/api/webhook/build-frontend', (req, res) => {
   }
 
   let projectDir = '/var/www/erp-barokah';
-  if (require('fs').existsSync('/var/www/ERPBAROKAH')) projectDir = '/var/www/ERPBAROKAH';
-  else if (require('fs').existsSync('/var/www/MRIS')) projectDir = '/var/www/MRIS';
+  if (fs.existsSync('/var/www/ERPBAROKAH')) projectDir = '/var/www/ERPBAROKAH';
+  else if (fs.existsSync('/var/www/MRIS')) projectDir = '/var/www/MRIS';
 
   const buildCmd = `cd "${projectDir}/web_admin" && npm run build && cp -r dist/* ../dist/ && echo "BUILD_OK"`;
+
 
   exec(buildCmd, { maxBuffer: 1024 * 1024 * 10, timeout: 300000 }, (error, stdout, stderr) => {
     if (error) {
