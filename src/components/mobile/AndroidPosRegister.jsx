@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { initialMasterData } from '../../data/initialMasterData';
 import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
@@ -771,6 +772,46 @@ export default function AndroidPosRegister({
       window.removeEventListener('offline', handleOffline);
       clearInterval(timer);
     };
+  }, [isAppLoggedIn]);
+
+  // LIVE AUTO-FETCH MASTER DATA / USER ACCOUNTS ON LOGIN SCREEN
+  useEffect(() => {
+    const syncUsersFromServer = () => {
+      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+        .then(res => res.ok ? res.json() : null)
+        .then(serverMaster => {
+          if (!serverMaster || typeof serverMaster !== 'object') return;
+          setMasterData(prev => {
+            const mergedWeb = (Array.isArray(serverMaster.webAdminAccounts) && serverMaster.webAdminAccounts.length > 0)
+              ? serverMaster.webAdminAccounts
+              : (prev.webAdminAccounts || initialMasterData.webAdminAccounts);
+            const mergedMobile = (Array.isArray(serverMaster.mobileAccounts) && serverMaster.mobileAccounts.length > 0)
+              ? serverMaster.mobileAccounts
+              : (prev.mobileAccounts || initialMasterData.mobileAccounts);
+            const mergedPerm = (Array.isArray(serverMaster.permissionMatrix) && serverMaster.permissionMatrix.length > 0)
+              ? serverMaster.permissionMatrix
+              : (prev.permissionMatrix || initialMasterData.permissionMatrix);
+            const mergedMobPerm = (Array.isArray(serverMaster.mobilePermissionMatrix) && serverMaster.mobilePermissionMatrix.length > 0)
+              ? serverMaster.mobilePermissionMatrix
+              : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
+
+            return {
+              ...prev,
+              ...serverMaster,
+              webAdminAccounts: mergedWeb,
+              mobileAccounts: mergedMobile,
+              permissionMatrix: mergedPerm,
+              mobilePermissionMatrix: mergedMobPerm,
+              _lastUpdated: serverMaster._lastUpdated || Date.now()
+            };
+          });
+        })
+        .catch(() => {});
+    };
+
+    syncUsersFromServer();
+    const loginUsersTimer = setInterval(syncUsersFromServer, 3000);
+    return () => clearInterval(loginUsersTimer);
   }, [isAppLoggedIn]);
 
   // AUTOMATIC 15-MINUTE INACTIVITY AUTO-LOCK TO PAPAN LOGIN
@@ -1971,8 +2012,8 @@ export default function AndroidPosRegister({
   if (!isAppLoggedIn) {
     // Kumpulkan semua akun dari masterData (HANYA data real dari Web Admin)
     const rawUsersList = [
-      ...(masterData?.mobileAccounts || []),
-      ...(masterData?.webAdminAccounts || []),
+      ...(Array.isArray(masterData?.mobileAccounts) && masterData.mobileAccounts.length > 0 ? masterData.mobileAccounts : (initialMasterData.mobileAccounts || [])),
+      ...(Array.isArray(masterData?.webAdminAccounts) && masterData.webAdminAccounts.length > 0 ? masterData.webAdminAccounts : (initialMasterData.webAdminAccounts || [])),
       ...(masterData?.userRights || []),
       ...(masterData?.users || []),
       ...(masterData?.userAccounts || [])

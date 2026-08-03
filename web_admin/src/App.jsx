@@ -220,11 +220,6 @@ export default function App() {
 
             setMasterData(prev => {
               const localTs = prev._lastUpdated || 0;
-              if (localTs > remoteTs) return prev;
-
-              const prevStr = JSON.stringify(prev);
-              const serverStr = JSON.stringify(serverData);
-              if (prevStr === serverStr) return prev;
 
               const mergedWeb = (Array.isArray(serverData.webAdminAccounts) && serverData.webAdminAccounts.length > 0)
                 ? serverData.webAdminAccounts
@@ -238,6 +233,14 @@ export default function App() {
               const mergedMobPerm = (Array.isArray(serverData.mobilePermissionMatrix) && serverData.mobilePermissionMatrix.length > 0)
                 ? serverData.mobilePermissionMatrix
                 : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
+
+              if (localTs > remoteTs && (prev.mobileAccounts?.length > 0 && prev.webAdminAccounts?.length > 0)) {
+                return prev;
+              }
+
+              const prevStr = JSON.stringify(prev);
+              const serverStr = JSON.stringify(serverData);
+              if (prevStr === serverStr) return prev;
 
               lastRemoteTsRef.current = remoteTs;
               return {
