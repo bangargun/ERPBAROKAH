@@ -42,9 +42,30 @@ export default function AdminLayout({
   children
 }) {
   const [showInboxDropdown, setShowInboxDropdown] = useState(false);
-  const [readNotifIds, setReadNotifIds] = useState([]);
+  const [readNotifIds, setReadNotifIds] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mris_read_notif_ids');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [];
+  });
 
-  const isLight = themeMode === 'light';
+  const markNotifAsRead = (id) => {
+    setReadNotifIds(prev => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      try { localStorage.setItem('mris_read_notif_ids', JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  };
+
+  const handleMarkAllRead = () => {
+    const allIds = inboxNotifications.map(n => n.id);
+    setReadNotifIds(allIds);
+    try { localStorage.setItem('mris_read_notif_ids', JSON.stringify(allIds)); } catch (e) {}
+  };
 
   // THEME COLOR PALETTE (Max 3 Primary Colors per view, Ultra-High Contrast)
   const T = {
@@ -152,9 +173,7 @@ export default function AdminLayout({
     return inboxNotifications.filter(n => !readNotifIds.includes(n.id)).length;
   }, [inboxNotifications, readNotifIds]);
 
-  const handleMarkAllRead = () => {
-    setReadNotifIds(inboxNotifications.map(n => n.id));
-  };
+
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: T.appBg, color: T.txtPrimary, fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif", transition: 'background 0.2s ease, color 0.2s ease' }}>
@@ -464,10 +483,9 @@ export default function AdminLayout({
                         const isRead = readNotifIds.includes(n.id);
                         
                         const handleNotifClick = () => {
-                          // Mark as read
-                          if (!readNotifIds.includes(n.id)) {
-                            setReadNotifIds(prev => [...prev, n.id]);
-                          }
+                          // Mark as read and decrement badge count
+                          markNotifAsRead(n.id);
+                          
                           // Navigate to corresponding tab
                           if (n.type === 'pos_sale') {
                             setActiveTab('sales');
