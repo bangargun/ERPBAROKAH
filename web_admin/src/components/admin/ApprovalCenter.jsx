@@ -1383,7 +1383,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               {/* MODAL IDEAL INPUT */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>Modal Ideal (Modal Awal Laci Kasir):</label>
+                  <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>Modal saat ini:</label>
                   <input
                     type="number"
                     value={addForm.modal_ideal}
@@ -1459,7 +1459,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                 </div>
 
                 <div style={{ background: '#1e293b', padding: '12px 14px', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8' }}>Sisa Hutang Modal (Modal Ideal - Total Dikembalikan):</span>
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8' }}>Sisa Hutang Modal (Modal saat ini - Total Dikembalikan):</span>
                   <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(computedModalDebtRemaining)}</span>
                 </div>
               </div>
