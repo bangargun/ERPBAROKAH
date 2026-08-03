@@ -15,7 +15,8 @@ import {
   Building2, 
   AlertCircle,
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Calendar
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 
@@ -25,6 +26,10 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACC' | 'Approved' | 'Done'
   const [submitterFilter, setSubmitterFilter] = useState('ALL'); // 'ALL' | 'POS Kasir' | 'Admin'
+
+  // DATE RANGE FILTER STATES
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // PAGINATION STATES (25 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,6 +152,16 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
     // Submitter Filter
     if (submitterFilter !== 'ALL' && item.submitter_type !== submitterFilter) return false;
+
+    // Date Range Filter (Tanggal Mulai - Tanggal Selesai)
+    if (startDate) {
+      const itemDateStr = String(item.date).substring(0, 10);
+      if (itemDateStr < startDate) return false;
+    }
+    if (endDate) {
+      const itemDateStr = String(item.date).substring(0, 10);
+      if (itemDateStr > endDate) return false;
+    }
 
     // Search Query
     if (searchQuery.trim()) {
@@ -364,65 +379,143 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       </div>
 
       {/* FILTER & SEARCH BAR */}
-      <div style={{ background: '#0f172a', padding: '16px 20px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px' }}>
-          <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
-            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      <div style={{ background: '#0f172a', padding: '16px 20px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        
+        {/* BARIS 1: SEARCH & FILTER UTAMA */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px' }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+              <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                placeholder="Cari No. Laporan, Kasir, Outlet..."
+                style={{ width: '100%', padding: '9px 12px 9px 36px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {/* FILTER NAMA OUTLET */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Building2 size={14} color="#38bdf8" />
+                <span>Outlet:</span>
+              </label>
+              <select
+                value={outletFilter}
+                onChange={e => { setOutletFilter(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                <option value="ALL">Semua Outlet (Central)</option>
+                {outletsList.map(o => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* PENGAJU FILTER */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Pengaju:</label>
+              <select
+                value={submitterFilter}
+                onChange={e => { setSubmitterFilter(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                <option value="ALL">Semua Pengaju</option>
+                <option value="POS Kasir">POS Kasir</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+
+            {/* STATUS FILTER */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Status:</label>
+              <select
+                value={statusFilter}
+                onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                <option value="ALL">Semua Status</option>
+                <option value="ACC">ACC (Menunggu Persetujuan)</option>
+                <option value="Approved">Approved (Disetujui)</option>
+                <option value="Done">Done (Selesai / Dibaca)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* BARIS 2: WIDGET RENTANG WAKTU (TANGGAL) */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', paddingTop: '10px', borderTop: '1px dashed #334155' }}>
+          <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Calendar size={15} color="#38bdf8" />
+            <span>Rentang Tanggal:</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <input
-              type="text"
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder="Cari No. Laporan, Kasir, Outlet..."
-              style={{ width: '100%', padding: '9px 12px 9px 36px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+              type="date"
+              value={startDate}
+              onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '7px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.80rem' }}
             />
+            <span style={{ color: '#94a3b8', fontSize: '0.80rem', fontWeight: '700' }}>s/d</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '7px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.80rem' }}
+            />
+
+            {(startDate || endDate) && (
+              <button
+                onClick={() => { setStartDate(''); setEndDate(''); setCurrentPage(1); }}
+                style={{ padding: '6px 12px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', borderRadius: '6px', color: '#f87171', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
+              >
+                Reset Tanggal
+              </button>
+            )}
+          </div>
+
+          {/* QUICK PRESETS TANGGAL */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
+            <button
+              onClick={() => {
+                const today = new Date().toISOString().split('T')[0];
+                setStartDate(today);
+                setEndDate(today);
+                setCurrentPage(1);
+              }}
+              style={{ padding: '5px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+            >
+              Hari Ini
+            </button>
+            <button
+              onClick={() => {
+                const now = new Date();
+                const past7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                setStartDate(past7);
+                setEndDate(now.toISOString().split('T')[0]);
+                setCurrentPage(1);
+              }}
+              style={{ padding: '5px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+            >
+              7 Hari Terakhir
+            </button>
+            <button
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+                setCurrentPage(1);
+              }}
+              style={{ padding: '5px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+            >
+              Semua Waktu
+            </button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* OUTLET FILTER */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Outlet:</label>
-            <select
-              value={outletFilter}
-              onChange={e => { setOutletFilter(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
-            >
-              <option value="ALL">Semua Outlet (Central)</option>
-              {outletsList.map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* PENGAJU FILTER */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Pengaju:</label>
-            <select
-              value={submitterFilter}
-              onChange={e => { setSubmitterFilter(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
-            >
-              <option value="ALL">Semua Pengaju</option>
-              <option value="POS Kasir">POS Kasir</option>
-              <option value="Admin">Admin</option>
-            </select>
-          </div>
-
-          {/* STATUS FILTER */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Status:</label>
-            <select
-              value={statusFilter}
-              onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
-            >
-              <option value="ALL">Semua Status</option>
-              <option value="ACC">ACC (Menunggu Persetujuan)</option>
-              <option value="Approved">Approved (Disetujui)</option>
-              <option value="Done">Done (Selesai / Dibaca)</option>
-            </select>
-          </div>
-        </div>
       </div>
 
       {/* MAIN TABLE: 5 REQUIRED COLUMNS */}
