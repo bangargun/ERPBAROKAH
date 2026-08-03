@@ -1458,8 +1458,16 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   const incTs = Number(incoming._lastUpdated) || 0;
   const extTs = Number(existing._lastUpdated) || 0;
 
-  // Field kritis yang TIDAK BOLEH di-overwrite dengan [] kosong (perlindungan data user)
-  const USER_CRITICAL_KEYS = new Set(['webAdminAccounts', 'mobileAccounts', 'userRights', 'users', 'userAccounts']);
+  // Field kritis yang TIDAK BOLEH di-overwrite dengan [] kosong (perlindungan data user & permission matrix)
+  const USER_CRITICAL_KEYS = new Set([
+    'webAdminAccounts',
+    'mobileAccounts',
+    'userRights',
+    'users',
+    'userAccounts',
+    'permissionMatrix',
+    'mobilePermissionMatrix'
+  ]);
 
   Object.keys(incoming).forEach(key => {
     const incVal = incoming[key];
@@ -1496,6 +1504,13 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     }
   });
 
+  // Jaminan Tambahan: jika incoming payload sama sekali TIDAK menyertakan key kritis, wajib pertahankan dari existing
+  USER_CRITICAL_KEYS.forEach(critKey => {
+    if ((!incoming[critKey] || (Array.isArray(incoming[critKey]) && incoming[critKey].length === 0)) && Array.isArray(existing[critKey]) && existing[critKey].length > 0 && !incoming._isExplicitClear) {
+      result[critKey] = existing[critKey];
+    }
+  });
+
   return result;
 };
 
@@ -1529,149 +1544,74 @@ app.get('/api/master-data', async (req, res) => {
     if (mysqlData && typeof mysqlData === 'object') {
       return res.json(sanitizeMasterDataPayload(mysqlData));
     }
-    // Jika MySQL belum pernah diisi, gunakan data awal default
-    res.json(sanitizeMasterDataPayload(defaultMasterData));
+    return res.json(sanitizeMasterDataPayload(masterData));
   } catch (err) {
-    console.error('GET /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal mengambil data master terpusat dari MySQL mris_db' });
+    return res.json(sanitizeMasterDataPayload(masterData));
   }
 });
 
-// POST /api/master-data — 100% MySQL PRIMARY STORAGE
+// POST /api/master-data — 100% MySQL PRIMARY STORAGE UPDATE
 app.post('/api/master-data', async (req, res) => {
   try {
-    const payload = req.body;
-    if (!payload || typeof payload !== 'object') {
-      return res.status(400).json({ error: 'Payload tidak valid' });
-    }
-    const nowTs = Date.now();
+    const incomingData = req.body;
 
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      existing = defaultMasterData;
+    if (!incomingData || typeof incomingData !== 'object') {
+      return res.status(400).json({ success: false, error: 'Payload tidak valid' });
     }
 
-    const sanitizedPayload = sanitizeMasterDataPayload(payload);
-    const mergedData = mergeMasterDataSafely(existing, sanitizedPayload);
-    const newMasterData = sanitizeMasterDataPayload({ ...mergedData, _lastUpdated: nowTs });
+    const currentData = (await getMasterDataFromMySQL()) || masterData;
+    const sanitizedIncoming = sanitizeMasterDataPayload(incomingData);
 
-    // Simpan ke MySQL mris_db
-    const mysqlOk = await saveMasterDataToMySQL(newMasterData);
+    masterData = mergeMasterDataSafely(currentData, sanitizedIncoming);
+    masterData._lastUpdated = Date.now();
 
-    // Sinkronisasi langsung ke tabel relasi MySQL (sales_transactions, outlets, products, dll)
-    await syncToMySQL(newMasterData);
+    await syncToMySQL(masterData);
 
-    const timestamp = new Date().toISOString();
-    res.json({
+    return res.json({
       success: true,
-      message: 'Data master berhasil disimpan ke MySQL mris_db (Database Utama)',
-      storage: 'mysql_mris_db',
-      timestamp,
-      _lastUpdated: nowTs
+      message: 'Master data berhasil diperbarui & tersinkronisasi ke MySQL mris_db',
+      data: masterData,
+      _lastUpdated: masterData._lastUpdated
     });
   } catch (err) {
-    console.error('POST /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal menyinkronkan data master ke MySQL mris_db' });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE /api/master-data/:key/:id — Direct Permanent Item Deletion Endpoint
-app.delete('/api/master-data/:key/:id', async (req, res) => {
+// POST /api/master-data/delete-item — Hapus spesifik item dari masterData & MySQL
+app.post('/api/master-data/delete-item', async (req, res) => {
   try {
-    const { key, id } = req.params;
-    if (!key || !id) {
-      return res.status(400).json({ error: 'Key dan ID wajib diisi' });
+    const { key, id } = req.body;
+    if (!key || id === undefined || id === null) {
+      return res.status(400).json({ success: false, error: 'Parameter key dan id wajib diisi' });
     }
 
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      return res.status(404).json({ error: 'Master data tidak ditemukan' });
-    }
-
+    const existing = (await getMasterDataFromMySQL()) || masterData;
     const idStr = String(id);
     const nowTs = Date.now();
 
-    // Hapus item dari array di masterData JSON
-    if (Array.isArray(existing[key])) {
-      existing[key] = existing[key].filter(item => {
-        if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : item.code || item.name);
-        return itemId !== idStr;
+    // Hapus spesifik report dari SEMUA 6 key laporan harian jika key merupakan salah satu key laporan
+    const reportKeys = ['approvedFinanceDaily', 'shiftClosings', 'shift_closings', 'closedShifts', 'dailyReports', 'manualEntryRecords'];
+    if (reportKeys.includes(key)) {
+      const matchReport = r => {
+        if (!r) return false;
+        const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+        const rNo = String(r.report_no || '');
+        return rId === idStr || rNo === idStr;
+      };
+
+      reportKeys.forEach(rk => {
+        if (Array.isArray(existing[rk])) {
+          existing[rk] = existing[rk].filter(r => !matchReport(r));
+        }
       });
-    }
-
-    existing._lastUpdated = nowTs;
-
-    // Simpan masterData JSON terbaru ke MySQL mris_master_data
-    await saveMasterDataToMySQL(existing);
-
-    // Hapus baris dari tabel relasi MySQL jika ada
-    if (mysqlPool) {
-      const relTable = key === 'products' ? 'products' :
-                       key === 'categories' ? 'categories' :
-                       key === 'outlets' ? 'outlets' :
-                       key === 'users' || key === 'userRights' ? 'users' :
-                       key === 'ingredients' ? 'ingredients' :
-                       key === 'suppliers' ? 'suppliers' :
-                       key === 'customers' ? 'customers' : null;
-      if (relTable) {
-        try {
-          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]);
-        } catch (delErr) {}
-      }
-    }
-
-    // Sync ulang sisa data ke relasi
-    await syncToMySQL(existing);
-
-    res.json({
-      success: true,
-      message: `Item ID ${id} dari ${key} berhasil dihapus permanen`,
-      masterData: existing,
-      _lastUpdated: nowTs
-    });
-  } catch (err) {
-    console.error('DELETE /api/master-data/:key/:id error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/master-data/delete-item — Nginx/Cloudflare Compatible Deletion Endpoint
-app.post('/api/master-data/delete-item', async (req, res) => {
-  try {
-    const { key, id, username, name } = req.body || {};
-    if (!key || (id === undefined && !username && !name)) {
-      return res.status(400).json({ error: 'Key dan ID/Username wajib diisi' });
-    }
-
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      return res.status(404).json({ error: 'Master data tidak ditemukan' });
-    }
-
-    const idStr = id != null ? String(id) : '';
-    const userStr = username ? String(username).toLowerCase() : '';
-    const nameStr = name ? String(name).toLowerCase() : '';
-    const nowTs = Date.now();
-
-    // Hapus item dari array di masterData JSON
-    if (key === 'salesTransactions' || key === 'transactions') {
-      const findTx = (arr) => Array.isArray(arr) ? arr.find(item => item && (String(item.id) === idStr || String(item.receipt_no) === idStr || String(item.receiptNo) === idStr || String(item.invoice_no) === idStr)) : null;
-      const found = findTx(existing.salesTransactions) || findTx(existing.transactions) || findTx(existing.outletTransactions);
-      
-      let targetId = idStr;
-      let targetReceiptNo = null;
-      if (found) {
-        targetId = String(found.id || idStr);
-        targetReceiptNo = found.receipt_no || found.receiptNo || found.invoice_no || null;
-      }
-
-      const isMatch = (item) => {
+    } else if (key === 'salesTransactions' || key === 'transactions' || key === 'outletTransactions') {
+      const targetId = idStr;
+      const isMatch = item => {
         if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : '');
-        const itemRcpt = String(item.receipt_no || item.receiptNo || item.invoice_no || '');
-        if (itemId && (itemId === targetId || itemId === idStr)) return true;
-        if (targetReceiptNo && itemRcpt && itemRcpt === targetReceiptNo) return true;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemRcpt = String(item.receipt_no || item.transaction_id || '');
+        if (itemId === targetId || itemId === idStr) return true;
         if (itemRcpt && (itemRcpt === targetId || itemRcpt === idStr)) return true;
         return false;
       };
@@ -1685,37 +1625,6 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       if (Array.isArray(existing.outletTransactions)) {
         existing.outletTransactions = existing.outletTransactions.filter(item => !isMatch(item));
       }
-      if (Array.isArray(existing.stockMovement)) {
-        existing.stockMovement = existing.stockMovement.filter(item => {
-          if (!item) return false;
-          const refId = String(item.ref_id || item.transaction_id || item.receipt_no || '');
-          if (refId && (refId === targetId || refId === idStr)) return false;
-          return true;
-        });
-      }
-    } else if (key === 'webAdminAccounts') {
-      if (Array.isArray(existing.webAdminAccounts)) {
-        existing.webAdminAccounts = existing.webAdminAccounts.filter(u => {
-          if (!u) return false;
-          const uId = String(u.id !== undefined && u.id !== null ? u.id : '');
-          return uId !== idStr;
-        });
-      }
-    } else if (key === 'mobileAccounts') {
-      if (Array.isArray(existing.mobileAccounts)) {
-        existing.mobileAccounts = existing.mobileAccounts.filter(u => {
-          if (!u) return false;
-          const uId = String(u.id !== undefined && u.id !== null ? u.id : '');
-          return uId !== idStr;
-        });
-      }
-    } else if (key === 'users' || key === 'userRights' || key === 'userAccounts') {
-      const matchStrictId = u => u && String(u.id) === idStr;
-      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !matchStrictId(u));
-      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !matchStrictId(u));
-      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !matchStrictId(u));
-      if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !matchStrictId(u));
-      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !matchStrictId(u));
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;

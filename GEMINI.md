@@ -37,8 +37,9 @@ const ingredients = masterData?.ingredients || [
   <div style={{ color: '#94a3b8', textAlign: 'center', padding: '24px' }}>
     Belum ada data. Tambahkan melalui menu pengaturan.
   </div>
-)}
-```
+### ⚠️ KLARIFIKASI PENTING: DATA INPUT MANUAL PENGGUNA BUKAN FAKE / MOCK!
+> **DATA YANG DI-INPUT MANUALL OLEH PENGGUNA** (seperti akun pengguna di **Pengaturan Hak User & Permission Matrix**, data outlet, transaksi, produk, biaya, bahan baku, serta laporan harian) adalah **DATA REAL PENGGUNA (BUKAN DATA MOCK / FAKE)**.
+> **DILARANG KERAS** menghapus, mem-bypass, meng-overwrite, atau mengosongkan data yang telah dimasukkan oleh pengguna secara manual dalam kondisi apa pun (baik saat update fitur, sinkronisasi API, maupun build APK). Data pengguna wajib dipertahankan secara utuh dan aman!
 
 ---
 

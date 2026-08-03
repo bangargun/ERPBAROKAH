@@ -279,10 +279,12 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedReports = filteredReports.slice(startIndex, startIndex + pageSize);
 
+  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+
   // UPDATE STATUS HANDLER (ACC -> Approved -> Done)
   const handleUpdateStatus = (item, nextStatus) => {
-    const targetId = String(item.id);
-    const targetReportNo = String(item.report_no);
+    const targetId = String(item.id || item.report_no || '');
+    const targetReportNo = String(item.report_no || '');
 
     const mapFn = r => {
       if (!r) return r;
@@ -294,13 +296,27 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       return r;
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedFinanceDaily: (prev.approvedFinanceDaily || []).map(mapFn),
-      shiftClosings: (prev.shiftClosings || []).map(mapFn),
-      closedShifts: (prev.closedShifts || []).map(mapFn),
-      dailyReports: (prev.dailyReports || []).map(mapFn)
-    }));
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        approvedFinanceDaily: (prev.approvedFinanceDaily || []).map(mapFn),
+        shiftClosings: (prev.shiftClosings || []).map(mapFn),
+        shift_closings: (prev.shift_closings || []).map(mapFn),
+        closedShifts: (prev.closedShifts || []).map(mapFn),
+        dailyReports: (prev.dailyReports || []).map(mapFn),
+        manualEntryRecords: (prev.manualEntryRecords || []).map(mapFn)
+      };
+
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
+    });
   };
 
   // OPEN EDIT MODAL
@@ -324,8 +340,8 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       return;
     }
 
-    const targetId = String(editModalItem.id);
-    const targetReportNo = String(editModalItem.report_no);
+    const targetId = String(editModalItem.id || editModalItem.report_no || '');
+    const targetReportNo = String(editModalItem.report_no || '');
 
     const editLog = {
       timestamp: new Date().toLocaleString('id-ID'),
@@ -349,19 +365,34 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
           non_cash_sales: Number(editForm.non_cash_sales),
           cogs_expense: Number(editForm.cogs_expense),
           total_expense: Number(editForm.total_expense),
+          gross_profit: Number(editForm.net_sales) - Number(editForm.total_expense),
           edit_history: [...(r.edit_history || []), editLog]
         };
       }
       return r;
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedFinanceDaily: (prev.approvedFinanceDaily || []).map(mapFn),
-      shiftClosings: (prev.shiftClosings || []).map(mapFn),
-      closedShifts: (prev.closedShifts || []).map(mapFn),
-      dailyReports: (prev.dailyReports || []).map(mapFn)
-    }));
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        approvedFinanceDaily: (prev.approvedFinanceDaily || []).map(mapFn),
+        shiftClosings: (prev.shiftClosings || []).map(mapFn),
+        shift_closings: (prev.shift_closings || []).map(mapFn),
+        closedShifts: (prev.closedShifts || []).map(mapFn),
+        dailyReports: (prev.dailyReports || []).map(mapFn),
+        manualEntryRecords: (prev.manualEntryRecords || []).map(mapFn)
+      };
+
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
+    });
 
     setEditModalItem(null);
   };
@@ -480,11 +511,27 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       notes: addForm.notes || 'Input Manual Laporan Harian Admin Central'
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedFinanceDaily: [newReport, ...(prev.approvedFinanceDaily || [])],
-      shiftClosings: [newReport, ...(prev.shiftClosings || [])]
-    }));
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        approvedFinanceDaily: [newReport, ...(prev.approvedFinanceDaily || [])],
+        shiftClosings: [newReport, ...(prev.shiftClosings || [])],
+        shift_closings: [newReport, ...(prev.shift_closings || [])],
+        closedShifts: [newReport, ...(prev.closedShifts || [])],
+        dailyReports: [newReport, ...(prev.dailyReports || [])],
+        manualEntryRecords: [newReport, ...(prev.manualEntryRecords || [])]
+      };
+
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
+    });
 
     setShowAddModal(false);
   };
@@ -492,23 +539,45 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   // CONFIRM DELETE HANDLER
   const handleConfirmDelete = () => {
     if (!deleteConfirmItem) return;
-    const targetId = String(deleteConfirmItem.id);
-    const targetReportNo = String(deleteConfirmItem.report_no);
+    const targetId = String(deleteConfirmItem.id || deleteConfirmItem.report_no || '');
+    const targetReportNo = String(deleteConfirmItem.report_no || '');
 
     const filterFn = r => {
       if (!r) return false;
-      const rId = String(r.id || r.report_no || '');
+      const rId = String(r.id !== undefined ? r.id : r.report_no || '');
       const rNo = String(r.report_no || '');
       return rId !== targetId && rNo !== targetReportNo;
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedFinanceDaily: (prev.approvedFinanceDaily || []).filter(filterFn),
-      shiftClosings: (prev.shiftClosings || []).filter(filterFn),
-      closedShifts: (prev.closedShifts || []).filter(filterFn),
-      dailyReports: (prev.dailyReports || []).filter(filterFn)
-    }));
+    // 1. Trigger explicit delete-item on backend API
+    fetch(getApiUrl('/api/master-data/delete-item'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId })
+    }).catch(() => {});
+
+    // 2. Filter local state & post master data update
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        approvedFinanceDaily: (prev.approvedFinanceDaily || []).filter(filterFn),
+        shiftClosings: (prev.shiftClosings || []).filter(filterFn),
+        shift_closings: (prev.shift_closings || []).filter(filterFn),
+        closedShifts: (prev.closedShifts || []).filter(filterFn),
+        dailyReports: (prev.dailyReports || []).filter(filterFn),
+        manualEntryRecords: (prev.manualEntryRecords || []).filter(filterFn)
+      };
+
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMaster)
+      }).catch(() => {});
+
+      return newMaster;
+    });
 
     setDeleteConfirmItem(null);
   };
