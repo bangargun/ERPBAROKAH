@@ -102,10 +102,10 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         {/* 🍳 PRINTER DAPUR (KITCHEN) */}
         <div className="glass-card" style={{ padding: '20px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#fbbf24', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               🍳 Printer Dapur (Kitchen)
             </h3>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
+            <span style={{ fontSize: '0.72rem', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Struk Kerja Koki
             </span>
           </div>
@@ -117,7 +117,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
               value={printerSettings.kitchenPrinter?.ip || ''}
               onChange={e => setPrinterSettings({ ...printerSettings, kitchenPrinter: { ...printerSettings.kitchenPrinter, ip: e.target.value } })}
               placeholder="Contoh: 192.168.1.200 atau RPP02N"
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
             />
           </div>
 
@@ -126,7 +126,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
             <select
               value={printerSettings.kitchenPrinter?.paperWidth || '80'}
               onChange={e => setPrinterSettings({ ...printerSettings, kitchenPrinter: { ...printerSettings.kitchenPrinter, paperWidth: e.target.value } })}
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
             >
               <option value="58">58mm (Kecil - 32 Karakter)</option>
               <option value="80">80mm (Besar - 48 Karakter)</option>
@@ -137,7 +137,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         {/* 🍹 PRINTER BAR (MINUMAN) */}
         <div className="glass-card" style={{ padding: '20px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#38bdf8', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               🍹 Printer Bar (Minuman)
             </h3>
             <span style={{ fontSize: '0.72rem', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
@@ -152,7 +152,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
               value={printerSettings.barPrinter?.ip || ''}
               onChange={e => setPrinterSettings({ ...printerSettings, barPrinter: { ...printerSettings.barPrinter, ip: e.target.value } })}
               placeholder="Contoh: 192.168.1.201 atau BT-BAR"
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
             />
           </div>
 
@@ -161,7 +161,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
             <select
               value={printerSettings.barPrinter?.paperWidth || '58'}
               onChange={e => setPrinterSettings({ ...printerSettings, barPrinter: { ...printerSettings.barPrinter, paperWidth: e.target.value } })}
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
             >
               <option value="58">58mm (Kecil - 32 Karakter)</option>
               <option value="80">80mm (Besar - 48 Karakter)</option>
@@ -172,10 +172,10 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         {/* 🧾 PRINTER KASIR (RECEIPT & BILL) */}
         <div className="glass-card" style={{ padding: '20px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#4ade80', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               🧾 Printer Kasir (Nota Pembayaran)
             </h3>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(74,222,128,0.15)', color: '#4ade80', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
+            <span style={{ fontSize: '0.72rem', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Nota Pelanggan
             </span>
           </div>
@@ -187,7 +187,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
               value={printerSettings.cashierPrinter?.ip || ''}
               onChange={e => setPrinterSettings({ ...printerSettings, cashierPrinter: { ...printerSettings.cashierPrinter, ip: e.target.value } })}
               placeholder="Contoh: 192.168.1.202 atau Thermal_Printer_Kasir"
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
             />
           </div>
 
@@ -196,7 +196,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
             <select
               value={printerSettings.cashierPrinter?.paperWidth || '58'}
               onChange={e => setPrinterSettings({ ...printerSettings, cashierPrinter: { ...printerSettings.cashierPrinter, paperWidth: e.target.value } })}
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
             >
               <option value="58">58mm (Kecil - 32 Karakter)</option>
               <option value="80">80mm (Besar - 48 Karakter)</option>

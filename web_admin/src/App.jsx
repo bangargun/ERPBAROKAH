@@ -7,6 +7,7 @@ import LoyaltyProgramPage from './components/admin/LoyaltyProgramPage';
 import CostsManagement from './components/admin/CostsManagement';
 
 import StockManagement from './components/admin/StockManagement';
+import ApprovalCenter from './components/admin/ApprovalCenter';
 import FinancialReportsFull from './components/admin/FinancialReportsFull';
 import TermsAndPolicies from './components/admin/TermsAndPolicies';
 import SystemSettings from './components/admin/SystemSettings';
@@ -435,6 +436,14 @@ export default function App() {
 
           {adminTab === 'stock' && (
             <StockManagement
+              masterData={masterData}
+              setMasterData={updateMasterData}
+              selectedBranch={selectedBranch}
+            />
+          )}
+
+          {adminTab === 'daily_approval' && (
+            <ApprovalCenter
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}

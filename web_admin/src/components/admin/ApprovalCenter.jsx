@@ -243,8 +243,6 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       transfer_keluar: Number(formTransferKeluar || 0),
       stok_rusak: Number(formStokRusak || 0),
       stok_fisik: Number(formStokFisik || 0),
-      stok_rusak: Number(formStokRusak || 0),
-      stok_fisik: Number(formStokFisik || 0),
       status: 'acc_pending_send',
       approved_by: 'Admin / Owner',
       notes: formNotes || 'Telah di-ACC (Siap Kirim ke POS Mobile)'

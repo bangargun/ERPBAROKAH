@@ -99,7 +99,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const [formOutletId, setFormOutletId] = useState(1);
   const [formSubmitter, setFormSubmitter] = useState('');
   const [formIngredientId, setFormIngredientId] = useState(ingredientsList[0]?.id || 1);
-  const [formItemName, setFormItemName] = useState(ingredientsList[0]?.name || 'Beras Pandan Wangi');
+  const [formItemName, setFormItemName] = useState(ingredientsList[0]?.name || '');
   const [formUnit, setFormUnit] = useState(ingredientsList[0]?.unit || 'kg');
   const [formSearchQuery, setFormSearchQuery] = useState('');
 
@@ -185,7 +185,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     setFormDate(log.date || new Date().toISOString().split('T')[0]);
     setFormOutletId(log.outlet_id || 1);
     setFormSubmitter(log.submitted_by || 'Adi Wijaya (Kasir POS)');
-    setFormItemName(log.item_name || 'Beras Pandan Wangi');
+    setFormItemName(log.item_name || '');
     setFormUnit(log.unit || 'kg');
     setFormStokAwal(log.stok_awal || '0');
     setFormStokMasuk(log.stok_masuk || '0');
@@ -206,7 +206,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     setFormDate(log.date || new Date().toISOString().split('T')[0]);
     setFormOutletId(log.outlet_id || 1);
     setFormSubmitter(log.submitted_by || 'Adi Wijaya (Kasir POS)');
-    setFormItemName(log.item_name || 'Beras Pandan Wangi');
+    setFormItemName(log.item_name || '');
     setFormUnit(log.unit || 'kg');
     setFormStokAwal(log.stok_awal || '0');
     setFormStokMasuk(log.stok_masuk || '0');
@@ -243,9 +243,9 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       transfer_keluar: Number(formTransferKeluar || 0),
       stok_rusak: Number(formStokRusak || 0),
       stok_fisik: Number(formStokFisik || 0),
-      status: 'ok',
-      approved_by: 'Budi Santoso (Admin)',
-      notes: formNotes || 'Disetujui & diselaraskan dari Approval Center'
+      status: 'acc_pending_send',
+      approved_by: 'Admin / Owner',
+      notes: formNotes || 'Telah di-ACC (Siap Kirim ke POS Mobile)'
     };
 
     if (index !== -1) {
@@ -254,32 +254,62 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       list.push(updatedItem);
     }
 
-    const newOpname = {
-      id: `op-app-${Date.now()}`,
-      date: formDate,
-      outlet_id: Number(formOutletId),
-      item_name: formItemName,
-      unit: formUnit,
-      stok_awal: Number(formStokAwal || 0),
-      stok_masuk: Number(formStokMasuk || 0),
-      stok_keluar: Number(formStokKeluar || 0),
-      transfer_masuk: Number(formTransferMasuk || 0),
-      transfer_keluar: Number(formTransferKeluar || 0),
-      stok_rusak: Number(formStokRusak || 0),
-      stok_fisik: Number(formStokFisik || 0),
-      created_by: formSubmitter,
-      type_input: 'by kasir',
-      notes: formNotes || `Audit Opname ${accModalRecord.report_no || accModalRecord.id} disetujui`
-    };
-
     setMasterData({
       ...masterData,
-      approvedLogistics: list,
-      stockOpname: [...(masterData.stockOpname || []), newOpname]
+      _lastUpdated: Date.now(),
+      approvedLogistics: list
     });
 
     setAccModalRecord(null);
-    alert(`✅ Audit Stok Opname ${updatedItem.report_no || updatedItem.id} berhasil di-ACC! Status berubah menjadi OK dan data didistribusikan ke halaman Logistik (Stok Opname).`);
+    alert(`✅ Audit Stok Opname ${updatedItem.report_no || updatedItem.id} berhasil di-ACC!\nSilakan klik tombol "🚀 Kirim (Approve)" untuk mengirim status Approved ke POS Mobile APK.`);
+  };
+
+  const handleSendFinalApprovalLogistics = (log) => {
+    const list = [...getLogisticsApprovals()];
+    const index = list.findIndex(l => l.id === log.id);
+
+    const updatedItem = {
+      ...log,
+      status: 'approved',
+      approved_by: 'Admin / Owner',
+      notes: log.notes || 'Disetujui & Terkirim ke POS Mobile APK'
+    };
+
+    if (index !== -1) list[index] = updatedItem;
+    else list.unshift(updatedItem);
+
+    const stockOpnameList = [...(masterData.stockOpname || [])];
+    const opIdx = stockOpnameList.findIndex(o => o.id === log.id || o.report_no === log.report_no);
+    if (opIdx !== -1) {
+      stockOpnameList[opIdx] = { ...stockOpnameList[opIdx], status: 'approved' };
+    } else {
+      stockOpnameList.push({
+        id: `op-app-${Date.now()}`,
+        report_no: log.report_no || log.id,
+        date: log.date,
+        outlet_id: Number(log.outlet_id),
+        item_name: log.item_name,
+        unit: log.unit,
+        stok_awal: Number(log.stok_awal || 0),
+        stok_masuk: Number(log.stok_masuk || 0),
+        stok_keluar: Number(log.stok_keluar || 0),
+        transfer_masuk: Number(log.transfer_masuk || 0),
+        transfer_keluar: Number(log.transfer_keluar || 0),
+        stok_rusak: Number(log.stok_rusak || 0),
+        stok_fisik: Number(log.stok_fisik || 0),
+        status: 'approved',
+        created_by: log.submitted_by
+      });
+    }
+
+    setMasterData({
+      ...masterData,
+      _lastUpdated: Date.now(),
+      approvedLogistics: list,
+      stockOpname: stockOpnameList
+    });
+
+    alert(`🚀 Laporan Logistik ${log.report_no || log.id} BERHASIL DIKIRIM!\nStatus di POS Mobile APK telah berubah dari PENDING menjadi APPROVED.`);
   };
 
   const handleSaveEditLogistics = (e) => {
@@ -367,15 +397,45 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
     const updatedItem = {
       ...fin,
-      status: 'approved',
+      status: 'acc_pending_send',
       approved_by: 'Admin / Owner',
-      notes: fin.notes || 'Penutupan keuangan kasir disetujui & didistribusikan'
+      notes: fin.notes || 'Telah di-ACC (Siap Kirim ke POS Mobile)'
     };
 
     if (index !== -1) {
       list[index] = updatedItem;
     } else {
       list.unshift(updatedItem);
+    }
+
+    setMasterData({
+      ...masterData,
+      _lastUpdated: Date.now(),
+      approvedFinanceDaily: list
+    });
+
+    alert(`✅ Penutupan Keuangan Kasir ${updatedItem.report_no || updatedItem.id} Berhasil Di-ACC!\nSilakan klik tombol "🚀 Kirim (Approve)" untuk merubah status PENDING menjadi APPROVED di POS Mobile APK.`);
+  };
+
+  const handleSendFinalApprovalFinance = (fin) => {
+    const list = [...getFinanceApprovals()];
+    const index = list.findIndex(f => f.id === fin.id);
+
+    const updatedItem = {
+      ...fin,
+      status: 'approved',
+      approved_by: 'Admin / Owner',
+      notes: fin.notes || 'Penutupan keuangan kasir disetujui & terkirim ke POS Mobile'
+    };
+
+    if (index !== -1) list[index] = updatedItem;
+    else list.unshift(updatedItem);
+
+    // Sync status with shiftClosings / closedShifts array
+    const shiftList = [...(masterData.shiftClosings || masterData.closedShifts || masterData.shift_closings || [])];
+    const sIdx = shiftList.findIndex(s => String(s.id) === String(fin.id) || String(s.report_no) === String(fin.report_no));
+    if (sIdx !== -1) {
+      shiftList[sIdx] = { ...shiftList[sIdx], status: 'approved' };
     }
 
     const updatedIngredients = [...(masterData.ingredients || [])];
@@ -419,12 +479,15 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
     setMasterData({
       ...masterData,
+      _lastUpdated: Date.now(),
       ingredients: updatedIngredients,
       approvedFinanceDaily: list,
+      shiftClosings: shiftList,
+      closedShifts: shiftList,
       financialRecords: [...(masterData.financialRecords || []), ...newExpenses]
     });
 
-    alert(`✅ Penutupan Keuangan Kasir ${updatedItem.report_no || updatedItem.id} Berhasil Di-ACC!\nStok Bahan Mentah & Laporan Keuangan Ter-update secara otomatis.`);
+    alert(`🚀 Penutupan Keuangan Kasir ${updatedItem.report_no || updatedItem.id} BERHASIL DIKIRIM!\nStatus di POS Mobile APK telah berubah dari PENDING menjadi APPROVED.`);
   };
 
   const handleSaveAccFinance = (e) => {
@@ -465,7 +528,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       total_expense: totalExp,
       actual_cash: calculatedFisikKas,
       status: 'ok',
-      approved_by: 'Budi Santoso (Admin)',
+      approved_by: '',
       notes: finFormNotes || 'Penutupan keuangan kasir disetujui & didistribusikan'
     };
 
@@ -820,60 +883,58 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
   // TRANSFER & WASTE OTHER HANDLERS
   const handleApproveTransfer = (id) => {
-    const updated = { ...masterData };
-    const list = getTransferApprovals();
-    const item = list.find(t => t.id === id);
-    if (item) {
-      item.status = 'ok';
-      item.approved_by = 'Budi Santoso';
+    const list = [...(masterData.approvedTransfers || masterData.stockTransfer || [])];
+    const index = list.findIndex(t => t.id === id);
 
-      const newTransfer = {
-        id: `tx-app-${Date.now()}`,
-        date: item.date,
-        from_outlet_id: item.from_outlet_id,
-        to_outlet_id: item.to_outlet_id,
-        item_name: item.item_name,
-        qty: item.qty,
-        unit: item.unit,
-        status: 'Terkirim',
-        created_by: item.submitted_by,
-        type_input: 'by approval',
-        is_returned: false,
-        notes: 'Disetujui dari Approval Center'
-      };
-
-      updated.stockTransfer = [...(updated.stockTransfer || []), newTransfer];
-      updated.approvedTransfers = list;
-      setMasterData(updated);
-      alert(`✅ Transfer Stok ${id} berhasil disetujui (Status: OK).`);
+    if (index !== -1) {
+      const currentStatus = list[index].status;
+      if (currentStatus !== 'acc_pending_send' && currentStatus !== 'approved' && currentStatus !== 'ok') {
+        list[index] = { ...list[index], status: 'acc_pending_send', approved_by: 'Admin / Owner' };
+        setMasterData({
+          ...masterData,
+          _lastUpdated: Date.now(),
+          approvedTransfers: list,
+          stockTransfer: list
+        });
+        alert(`✅ Transfer Stok ${id} berhasil di-ACC (Siap Kirim).\nKlik tombol "🚀 Kirim (Approve)" untuk merubah status di POS Mobile APK.`);
+      } else {
+        list[index] = { ...list[index], status: 'approved', is_approved: true, approved_by: 'Admin / Owner' };
+        setMasterData({
+          ...masterData,
+          _lastUpdated: Date.now(),
+          approvedTransfers: list,
+          stockTransfer: list
+        });
+        alert(`🚀 Transfer Stok ${id} BERHASIL DIKIRIM!\nStatus di POS Mobile APK telah berubah dari PENDING menjadi APPROVED.`);
+      }
     }
   };
 
   const handleApproveWaste = (id) => {
-    const updated = { ...masterData };
-    const list = getWasteApprovals();
-    const item = list.find(w => w.id === id);
-    if (item) {
-      item.status = 'ok';
-      item.approved_by = 'Budi Santoso';
+    const list = [...(masterData.approvedWaste || masterData.damagedGoods || [])];
+    const index = list.findIndex(w => w.id === id);
 
-      const newWaste = {
-        id: `mv-app-wst-${Date.now()}`,
-        date: item.date,
-        outlet_id: item.outlet_id,
-        type: 'WASTE',
-        item_name: item.item_name,
-        qty: item.qty,
-        unit: item.unit,
-        created_by: item.submitted_by,
-        type_input: 'by approval',
-        notes: item.notes || 'Disetujui dari Approval Center'
-      };
-
-      updated.stockMovement = [...(updated.stockMovement || []), newWaste];
-      updated.approvedWaste = list;
-      setMasterData(updated);
-      alert(`✅ Laporan Stok Rusak ${id} berhasil disetujui (Status: OK).`);
+    if (index !== -1) {
+      const currentStatus = list[index].status;
+      if (currentStatus !== 'acc_pending_send' && currentStatus !== 'approved' && currentStatus !== 'ok') {
+        list[index] = { ...list[index], status: 'acc_pending_send', approved_by: 'Admin / Owner' };
+        setMasterData({
+          ...masterData,
+          _lastUpdated: Date.now(),
+          approvedWaste: list,
+          damagedGoods: list
+        });
+        alert(`✅ Laporan Stok Rusak ${id} berhasil di-ACC (Siap Kirim).\nKlik tombol "🚀 Kirim (Approve)" untuk merubah status di POS Mobile APK.`);
+      } else {
+        list[index] = { ...list[index], status: 'approved', approved_by: 'Admin / Owner' };
+        setMasterData({
+          ...masterData,
+          _lastUpdated: Date.now(),
+          approvedWaste: list,
+          damagedGoods: list
+        });
+        alert(`🚀 Laporan Stok Rusak ${id} BERHASIL DIKIRIM!\nStatus di POS Mobile APK telah berubah dari PENDING menjadi APPROVED.`);
+      }
     }
   };
 
@@ -1067,7 +1128,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                     }
 
                     return paginatedLogistics.map(log => {
-                      const isOk = log.status === 'ok' || log.status === 'Approved';
+                      const isOk = log.status === 'ok' || log.status === 'approved' || log.status === 'Approved';
                       return (
                         <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
                           
@@ -1130,7 +1191,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                             </td>
                           )}
 
-                          {/* Status: ditunda / ok */}
+                          {/* Status */}
                           {visibleColsLogistics.status && (
                             <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                               <span style={{
@@ -1139,35 +1200,54 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                                 fontSize: '0.75rem',
                                 fontWeight: '800',
                                 textTransform: 'lowercase',
-                                background: isOk ? 'rgba(52, 211, 153, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                color: isOk ? '#34d399' : '#fbbf24',
+                                background: isOk ? 'rgba(52, 211, 153, 0.15)' : (log.status === 'acc_pending_send' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)'),
+                                color: isOk ? '#34d399' : (log.status === 'acc_pending_send' ? '#38bdf8' : '#fbbf24'),
                                 border: '1px solid',
-                                borderColor: isOk ? 'rgba(52, 211, 153, 0.3)' : 'rgba(245, 158, 11, 0.3)'
+                                borderColor: isOk ? 'rgba(52, 211, 153, 0.3)' : (log.status === 'acc_pending_send' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)')
                               }}>
-                                {isOk ? 'ok' : 'ditunda'}
+                                {isOk ? 'approved' : (log.status === 'acc_pending_send' ? 'ACC (siap kirim)' : 'ditunda')}
                               </span>
                             </td>
                           )}
 
-                          {/* Tombol ACC, Edit & Delete */}
+                          {/* Tombol ACC, Kirim, Edit & Delete */}
                           {visibleColsLogistics.actions && (
                             <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                               
-                              {/* Tombol ACC */}
-                              {!isOk ? (
+                              {/* Step 1: Tombol ACC */}
+                              {!isOk && log.status !== 'acc_pending_send' && (
                                 <button
                                   onClick={() => handleOpenAccModal(log)}
                                   className="btn-emerald"
                                   style={{ padding: '5px 10px', fontSize: '0.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  title="Setujui pengajuan audit opname (Buka papan informasi & edit)"
+                                  title="ACC pengajuan audit opname (Buka tahap kirim)"
                                 >
                                   <CheckCircle2 size={13} />
                                   <span>ACC</span>
                                 </button>
-                              ) : (
+                              )}
+
+                              {/* Step 2: Tombol Kirim (Approve) */}
+                              {!isOk && log.status === 'acc_pending_send' && (
+                                <button
+                                  onClick={() => handleSendFinalApprovalLogistics(log)}
+                                  style={{
+                                    padding: '5px 12px', fontSize: '0.75rem', fontWeight: '900',
+                                    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                                    color: '#ffffff', border: 'none', borderRadius: '6px',
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                                    boxShadow: '0 2px 8px rgba(2, 132, 199, 0.3)'
+                                  }}
+                                  title="Kirim status Approved ke POS Mobile APK"
+                                >
+                                  <span>🚀 Kirim (Approve)</span>
+                                </button>
+                              )}
+
+                              {isOk && (
                                 <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                   <ShieldCheck size={14} color="#34d399" />
-                                  <span>Telah ACC</span>
+                                  <span>Approved</span>
                                 </span>
                               )}
 

@@ -4,6 +4,7 @@ import {
   Database, 
   ShoppingBag,
   Package, 
+  ClipboardCheck,
   FileText, 
   BookOpen, 
   Award, 
@@ -94,12 +95,13 @@ export default function AdminLayout({
     { id: 'data', label: '2. Data Master', icon: Database, permKey: 'masterData' },
     { id: 'sales', label: '3. Penjualan', icon: ShoppingBag, permKey: 'reports' },
     { id: 'stock', label: '4. Logistik', icon: Package, permKey: 'stock' },
-    { id: 'reports', label: '5. Laporan Keuangan', icon: FileText, permKey: 'reports' },
-    { id: 'printer_settings', label: '6. Printer & Thermal', icon: Printer, permKey: 'settings' },
-    { id: 'sop', label: '7. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
-    { id: 'loyalty', label: '8. Program Loyalitas', icon: Award, permKey: 'masterData' },
-    { id: 'settings', label: '9. Pengaturan', icon: Settings, permKey: 'settings' },
-    { id: 'activity_log', label: '10. Log Aktivitas', icon: History, permKey: 'settings' }
+    { id: 'daily_approval', label: '5. Laporan Harian Outlet', icon: ClipboardCheck, permKey: 'reports' },
+    { id: 'reports', label: '6. Laporan Keuangan', icon: FileText, permKey: 'reports' },
+    { id: 'printer_settings', label: '7. Printer & Thermal', icon: Printer, permKey: 'settings' },
+    { id: 'sop', label: '8. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
+    { id: 'loyalty', label: '9. Program Loyalitas', icon: Award, permKey: 'masterData' },
+    { id: 'settings', label: '10. Pengaturan', icon: Settings, permKey: 'settings' },
+    { id: 'activity_log', label: '11. Log Aktivitas', icon: History, permKey: 'settings' }
   ];
 
   const userName = userSession?.name || 'Super Admin Restoran';
