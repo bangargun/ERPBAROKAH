@@ -56,7 +56,7 @@ export const scanPairedPrinters = async () => {
  * @param {function} formatRupiah - Function formatter angka ke Rupiah
  * @returns {string} Teks terformat siap dikirim ke printer
  */
-export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWidth = '58', formatRupiah) => {
+export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWidth = '58', formatRupiah, headerFooter) => {
   const charsPerLine = paperWidth === '80' ? 48 : 32;
   const lines = [];
   const outlet = (outletName || 'POS KASIR BAROKAH').toUpperCase();
@@ -130,8 +130,15 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
 
   } else {
     // ===== STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT) =====
-    lines.push('[C][B]' + outlet);
-    lines.push('[C]POS KASIR BAROKAH');
+    const restoName = (headerFooter?.restaurantName || outletName || 'MRIS RESTORAN').toUpperCase();
+    const groupName = headerFooter?.groupName;
+    const address = headerFooter?.address;
+    const phone = headerFooter?.phone;
+
+    lines.push('[C][B]' + restoName);
+    if (groupName) lines.push('[C]' + groupName);
+    if (address) lines.push('[C]' + address);
+    if (phone) lines.push('[C]Telp: ' + phone);
     lines.push('[C]NOTA PEMBAYARAN');
     lines.push('[DIV]');
     lines.push(rowLine('No. Struk:', tx.id || tx.receipt_no || '-'));
@@ -158,8 +165,16 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push(rowLine('Bayar:', fmt(payVal)));
     lines.push('[B]' + rowLine('Kembalian:', fmt(changeVal)));
     lines.push('[DIV]');
-    lines.push('[C]*** TERIMA KASIH ***');
-    lines.push('[C]Atas kunjungan Anda');
+
+    const line1 = headerFooter?.footerLine1 || 'TERIMA KASIH ATAS KUNJUNGAN ANDA';
+    const line2 = headerFooter?.footerLine2 || 'SUDAH TERMASUK PB1 PAJAK RESTORAN';
+    const ssid = headerFooter?.wifiSsid;
+    const pass = headerFooter?.wifiPassword;
+
+    lines.push('[C][B]' + line1);
+    if (line2) lines.push('[C]' + line2);
+    if (ssid) lines.push('[C]WIFI: ' + ssid);
+    if (pass) lines.push('[C]PASS: ' + pass);
   }
 
   lines.push('');

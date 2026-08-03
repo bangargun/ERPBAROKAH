@@ -1620,6 +1620,7 @@ export default function AndroidPosRegister({
     if (!tx || !tx.items || tx.items.length === 0) return;
     const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
     const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
+    const headerFooter = masterData?.printerSettings?.headerFooter;
 
     const printJobs = [];
 
@@ -1628,7 +1629,7 @@ export default function AndroidPosRegister({
       const kitchenItems = filterItemsForTicketTarget(tx.items, 'KITCHEN');
       if (kitchenItems.length > 0) {
         const kitchenTx = { ...tx, items: kitchenItems };
-        printJobs.push({ type: 'kitchen', text: buildReceiptText(kitchenTx, outletName, 'kitchen', printerPaperWidth, fmtRp) });
+        printJobs.push({ type: 'kitchen', text: buildReceiptText(kitchenTx, outletName, 'kitchen', printerPaperWidth, fmtRp, headerFooter) });
       }
     }
 
@@ -1637,18 +1638,18 @@ export default function AndroidPosRegister({
       const barItems = filterItemsForTicketTarget(tx.items, 'BAR');
       if (barItems.length > 0) {
         const barTx = { ...tx, items: barItems };
-        printJobs.push({ type: 'bar', text: buildReceiptText(barTx, outletName, 'bar', printerPaperWidth, fmtRp) });
+        printJobs.push({ type: 'bar', text: buildReceiptText(barTx, outletName, 'bar', printerPaperWidth, fmtRp, headerFooter) });
       }
     }
 
     // 3. STRUK MEJA / BILL SEMENTARA (CONTOH TAGIHAN DENGAN HARGA)
     if (selections.printTableCopy) {
-      printJobs.push({ type: 'bill', text: buildReceiptText(tx, outletName, 'bill', printerPaperWidth, fmtRp) });
+      printJobs.push({ type: 'bill', text: buildReceiptText(tx, outletName, 'bill', printerPaperWidth, fmtRp, headerFooter) });
     }
 
     // 4. STRUK KASIR / NOTA PEMBAYARAN (DENGAN HARGA)
     if (selections.printCashierCopy) {
-      printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp) });
+      printJobs.push({ type: 'receipt', text: buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp, headerFooter) });
     }
 
     if (printJobs.length === 0) return;
@@ -1658,16 +1659,17 @@ export default function AndroidPosRegister({
     const combined = printJobs.map(j => j.text).join(separator);
 
     await printTextToBluetooth(combined);
-  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth, masterData]);
 
   // CETAK ULANG RIWAYAT TRANSAKSI ke hardware Bluetooth printer
   const handlePrintSingleReceipt = useCallback(async (tx) => {
     if (!tx) return;
     const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
     const fmtRp = (n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`;
-    const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp);
+    const headerFooter = masterData?.printerSettings?.headerFooter;
+    const text = buildReceiptText(tx, outletName, 'receipt', printerPaperWidth, fmtRp, headerFooter);
     await printTextToBluetooth(text);
-  }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
+  }, [currentOutlet, printerPaperWidth, printTextToBluetooth, masterData]);
 
 
   // LAPORAN SHIFT CLOSING ke hardware Bluetooth printer
