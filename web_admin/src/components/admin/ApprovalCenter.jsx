@@ -116,7 +116,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         outlet_id: r.outlet_id || r.branch_id || 1,
         outlet_name: r.branch_name || getOutletName(r.outlet_id || r.branch_id),
         date: r.date || r.created_at || new Date().toISOString(),
-        cashier_name: r.cashier_name || r.cashier || (isFromAdmin ? 'Admin Central' : 'Kasir POS'),
+        cashier_name: r.cashier_name || r.cashier || (isFromAdmin ? 'Admin' : 'Kasir'),
         submitter_type: submitterText,
         net_sales: Number(r.net_sales || r.total_sales || r.actual_cash || 0),
         cash_sales: Number(r.cash_sales || (r.net_sales - (r.non_cash_sales || 0)) || 0),
@@ -252,7 +252,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       outlet_id: Number(addForm.outlet_id),
       branch_name: getOutletName(addForm.outlet_id),
       date: addForm.date,
-      cashier_name: 'Admin Central',
+      cashier_name: 'Admin',
       submitter_type: 'Admin',
       net_sales: Number(addForm.net_sales || 0),
       cash_sales: Number(addForm.cash_sales || 0),
@@ -260,7 +260,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       cogs_expense: Number(addForm.cogs_expense || 0),
       total_expense: Number(addForm.total_expense || 0),
       status: 'Done', // Direct Status for Admin
-      notes: addForm.notes || 'Input Manual oleh Admin Central'
+      notes: addForm.notes || 'Input Manual oleh Admin'
     };
 
     setMasterData(prev => ({
