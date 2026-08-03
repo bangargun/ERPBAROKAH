@@ -882,6 +882,19 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     return list.sort((a, b) => b.date.localeCompare(a.date));
   };
 
+  const getProductVariants = (productName) => {
+    const products = masterData.products || [];
+    const matched = products.find(p => p.name === productName || (p.name && productName && (productName.startsWith(p.name) || p.name.startsWith(productName))));
+    if (!matched) return [];
+    const rawVariants = matched.variants || matched.options || matched.variations || matched.variant || [];
+    if (Array.isArray(rawVariants)) {
+      return rawVariants.map(v => typeof v === 'string' ? { name: v, price: 0 } : { name: v.name || v.label || String(v), price: Number(v.price || v.extraPrice || 0) });
+    } else if (typeof rawVariants === 'string') {
+      return rawVariants.split(',').map(s => s.trim()).filter(Boolean).map(v => ({ name: v, price: 0 }));
+    }
+    return [];
+  };
+
   const handleOpenEditOutflowModal = (tx) => {
     setEditingOutflowRecord(tx);
     setSalesDate(tx.date || new Date().toISOString().split('T')[0]);
@@ -892,20 +905,38 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     setSalesPaymentMethod(tx.payment_method || 'Cash');
 
     if (tx.items && tx.items.length > 0) {
-      setSalesMenuRows(tx.items.map((it, idx) => ({
-        id: it.id || (Date.now() + idx),
-        product_id: it.id || it.product_id || 1,
-        product_name: it.name || it.product_name || 'Item Penjualan',
-        qty: Number(it.qty || 1),
-        price: Number(it.price || 0),
-        total: Number(it.total || (it.qty * it.price))
-      })));
+      setSalesMenuRows(tx.items.map((it, idx) => {
+        let pName = it.product_name || it.name || 'Item Penjualan';
+        let vName = it.variant_name || it.variant || '';
+        
+        if (!vName && pName.includes('(') && pName.includes(')')) {
+          const match = pName.match(/^(.*?)\s*\((.*?)\)$/);
+          if (match) {
+            pName = match[1].trim();
+            vName = match[2].trim();
+          }
+        }
+
+        return {
+          id: it.id || (Date.now() + idx),
+          product_id: it.id || it.product_id || 1,
+          product_name: pName,
+          variant_name: vName,
+          base_price: Number(it.price || 0),
+          qty: Number(it.qty || 1),
+          price: Number(it.price || 0),
+          total: Number(it.total || (it.qty * it.price))
+        };
+      }));
     } else {
       const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+      const firstVars = firstProd ? getProductVariants(firstProd.name) : [];
       setSalesMenuRows([{
         id: Date.now(),
         product_id: firstProd ? firstProd.id : 1,
         product_name: firstProd ? firstProd.name : 'Item Penjualan',
+        variant_name: firstVars[0] ? firstVars[0].name : '',
+        base_price: firstProd ? (firstProd.price || 25000) : 25000,
         qty: 1,
         price: firstProd ? (firstProd.price || 25000) : 25000,
         total: firstProd ? (firstProd.price || 25000) : 25000
@@ -916,12 +947,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   const handleAddSalesMenuRow = () => {
     const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+    const firstVars = firstProd ? getProductVariants(firstProd.name) : [];
     setSalesMenuRows([
       ...salesMenuRows,
       {
         id: Date.now() + Math.random(),
         product_id: firstProd ? firstProd.id : 1,
         product_name: firstProd ? firstProd.name : 'Nasi Goreng Spesial',
+        variant_name: firstVars[0] ? firstVars[0].name : '',
+        base_price: firstProd ? (firstProd.price || 25000) : 25000,
         qty: 1,
         price: firstProd ? (firstProd.price || 25000) : 25000,
         total: firstProd ? (firstProd.price || 25000) : 25000
@@ -940,7 +974,29 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       const matchedProd = (masterData.products || []).find(p => p.name === value);
       if (matchedProd) {
         updated[idx].product_id = matchedProd.id;
-        updated[idx].price = Number(matchedProd.price || 0);
+        const baseP = Number(matchedProd.price || 0);
+        updated[idx].base_price = baseP;
+        updated[idx].price = baseP;
+        const vars = getProductVariants(value);
+        if (vars.length > 0) {
+          updated[idx].variant_name = vars[0].name;
+          if (vars[0].price) {
+            updated[idx].price = baseP + Number(vars[0].price);
+          }
+        } else {
+          updated[idx].variant_name = '';
+        }
+      }
+    } else if (field === 'variant_name') {
+      updated[idx].variant_name = value;
+      const matchedProd = (masterData.products || []).find(p => p.name === updated[idx].product_name);
+      const baseP = updated[idx].base_price || (matchedProd ? Number(matchedProd.price || 0) : updated[idx].price);
+      const vars = getProductVariants(updated[idx].product_name);
+      const selectedVarObj = vars.find(v => v.name === value);
+      if (selectedVarObj && selectedVarObj.price) {
+        updated[idx].price = baseP + Number(selectedVarObj.price);
+      } else {
+        updated[idx].price = baseP;
       }
     } else {
       updated[idx][field] = value;
@@ -958,13 +1014,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       return;
     }
 
-    const items = salesMenuRows.map(r => ({
-      id: r.product_id,
-      name: r.product_name,
-      qty: Number(r.qty || 1),
-      price: Number(r.price || 0),
-      total: Number(r.total || (r.qty * r.price))
-    }));
+    const items = salesMenuRows.map(r => {
+      const displayName = r.variant_name
+        ? `${r.product_name} (${r.variant_name})`
+        : r.product_name;
+
+      return {
+        id: r.product_id,
+        name: displayName,
+        product_name: r.product_name,
+        variant_name: r.variant_name || '',
+        qty: Number(r.qty || 1),
+        price: Number(r.price || 0),
+        total: Number(r.total || (r.qty * r.price))
+      };
+    });
 
     const totalAmount = items.reduce((sum, i) => sum + i.total, 0);
 
@@ -973,7 +1037,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
     items.forEach(item => {
       const qtySold = item.qty;
-      const itemLower = (item.name || '').toLowerCase().trim();
+      const itemLower = (item.product_name || item.name || '').toLowerCase().trim();
       const matchedProd = activeProducts.find(p => p.name?.toLowerCase() === itemLower || itemLower.startsWith(p.name?.toLowerCase()));
 
       if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
@@ -1055,7 +1119,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
     setShowAddSalesModal(false);
     setEditingOutflowRecord(null);
-    alert(`✓ Transaksi Penjualan (${targetId}) Berhasil Disimpan & Stok Bahan Baku Terpotong Otomats!`);
+    alert(`✓ Transaksi Penjualan (${targetId}) Berhasil Disimpan & Stok Bahan Baku Terpotong Otomatis!`);
   };
 
   // FILTERED DATA SELECTORS
@@ -5062,66 +5126,115 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   <thead>
                     <tr style={{ background: '#1e293b', color: '#cbd5e1', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
                       <th style={{ padding: '10px 12px' }}>Pilih Product / Menu</th>
-                      <th style={{ padding: '10px 12px', width: '100px', textAlign: 'center' }}>Qty Sold</th>
-                      <th style={{ padding: '10px 12px', width: '140px', textAlign: 'right' }}>Harga Satuan</th>
-                      <th style={{ padding: '10px 12px', width: '150px', textAlign: 'right' }}>Subtotal</th>
-                      <th style={{ padding: '10px 12px', width: '60px', textAlign: 'center' }}>Aksi</th>
+                      <th style={{ padding: '10px 12px', width: '190px' }}>🌶️ Varian Menu / Opsi</th>
+                      <th style={{ padding: '10px 12px', width: '90px', textAlign: 'center' }}>Qty Sold</th>
+                      <th style={{ padding: '10px 12px', width: '130px', textAlign: 'right' }}>Harga Satuan</th>
+                      <th style={{ padding: '10px 12px', width: '140px', textAlign: 'right' }}>Subtotal</th>
+                      <th style={{ padding: '10px 12px', width: '50px', textAlign: 'center' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {salesMenuRows.map((row, idx) => (
-                      <tr key={row.id || idx} style={{ borderBottom: '1px solid #334155' }}>
-                        <td style={{ padding: '10px 12px' }}>
-                          <input
-                            type="text"
-                            list={`prod-list-${idx}`}
-                            placeholder="Cari / Pilih Nama Menu..."
-                            value={row.product_name}
-                            onChange={e => handleUpdateSalesMenuRow(idx, 'product_name', e.target.value)}
-                            style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', fontWeight: '700' }}
-                          />
-                          <datalist id={`prod-list-${idx}`}>
-                            {(masterData.products || []).map(p => (
-                              <option key={p.id} value={p.name} />
-                            ))}
-                          </datalist>
-                        </td>
+                    {salesMenuRows.map((row, idx) => {
+                      const availVars = getProductVariants(row.product_name);
 
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          <input
-                            type="number"
-                            min="1"
-                            value={row.qty}
-                            onChange={e => handleUpdateSalesMenuRow(idx, 'qty', Math.max(1, Number(e.target.value)))}
-                            style={{ width: '80px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#34d399', fontSize: '0.85rem', fontWeight: '900', textAlign: 'center' }}
-                          />
-                        </td>
+                      return (
+                        <tr key={row.id || idx} style={{ borderBottom: '1px solid #334155' }}>
+                          {/* 1. PRODUCT NAME */}
+                          <td style={{ padding: '10px 12px' }}>
+                            <input
+                              type="text"
+                              list={`prod-list-${idx}`}
+                              placeholder="Cari / Pilih Nama Menu..."
+                              value={row.product_name}
+                              onChange={e => handleUpdateSalesMenuRow(idx, 'product_name', e.target.value)}
+                              style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', fontWeight: '700' }}
+                            />
+                            <datalist id={`prod-list-${idx}`}>
+                              {(masterData.products || []).map(p => (
+                                <option key={p.id} value={p.name} />
+                              ))}
+                            </datalist>
+                          </td>
 
-                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                          <input
-                            type="number"
-                            value={row.price}
-                            onChange={e => handleUpdateSalesMenuRow(idx, 'price', Number(e.target.value))}
-                            style={{ width: '120px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', textAlign: 'right' }}
-                          />
-                        </td>
+                          {/* 2. VARIAN MENU / OPSI */}
+                          <td style={{ padding: '10px 12px' }}>
+                            {availVars.length > 0 ? (
+                              <select
+                                value={row.variant_name || ''}
+                                onChange={e => handleUpdateSalesMenuRow(idx, 'variant_name', e.target.value)}
+                                style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #6366f1', borderRadius: '6px', color: '#818cf8', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
+                              >
+                                <option value="">-- Normal / Standard --</option>
+                                {availVars.map((v, vIdx) => (
+                                  <option key={vIdx} value={v.name}>
+                                    {v.name} {v.price ? `(+${formatRupiah(v.price)})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                list={`var-list-${idx}`}
+                                placeholder="Ketik varian (opsional)..."
+                                value={row.variant_name || ''}
+                                onChange={e => handleUpdateSalesMenuRow(idx, 'variant_name', e.target.value)}
+                                style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#818cf8', fontSize: '0.82rem', fontWeight: '700' }}
+                              />
+                            )}
+                            <datalist id={`var-list-${idx}`}>
+                              <option value="Sambal Pecak" />
+                              <option value="Sambal Ijo" />
+                              <option value="Pedas Level 1" />
+                              <option value="Pedas Level 2" />
+                              <option value="Pedas Level 3" />
+                              <option value="Hot" />
+                              <option value="Ice / Dingin" />
+                              <option value="Large" />
+                              <option value="Regular" />
+                              <option value="Extra Topping" />
+                            </datalist>
+                          </td>
 
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>
-                          {formatRupiah(row.total || (row.qty * row.price))}
-                        </td>
+                          {/* 3. QTY */}
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            <input
+                              type="number"
+                              min="1"
+                              value={row.qty}
+                              onChange={e => handleUpdateSalesMenuRow(idx, 'qty', Math.max(1, Number(e.target.value)))}
+                              style={{ width: '70px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#34d399', fontSize: '0.85rem', fontWeight: '900', textAlign: 'center' }}
+                            />
+                          </td>
 
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSalesMenuRow(idx)}
-                            style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.4)', color: '#fb7185', borderRadius: '6px', padding: '6px', cursor: 'pointer' }}
-                            title="Hapus baris menu"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          {/* 4. HARGA SATUAN */}
+                          <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                            <input
+                              type="number"
+                              value={row.price}
+                              onChange={e => handleUpdateSalesMenuRow(idx, 'price', Number(e.target.value))}
+                              style={{ width: '110px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', textAlign: 'right' }}
+                            />
+                          </td>
+
+                          {/* 5. SUBTOTAL */}
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>
+                            {formatRupiah(row.total || (row.qty * row.price))}
+                          </td>
+
+                          {/* 6. AKSI */}
+                          <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSalesMenuRow(idx)}
+                              style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.4)', color: '#fb7185', borderRadius: '6px', padding: '6px', cursor: 'pointer' }}
+                              title="Hapus baris menu"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
