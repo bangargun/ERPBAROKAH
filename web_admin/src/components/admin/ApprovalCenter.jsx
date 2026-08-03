@@ -286,6 +286,20 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     setDeleteConfirmItem(null);
   };
 
+  // RESET ALL DAILY REPORTS HANDLER
+  const handleResetAllReports = () => {
+    if (window.confirm('⚠️ MERESET DATA LAPORAN HARIAN?\n\nSemua data Persetujuan Laporan Harian Outlet & Admin akan DIBERSIHKAN TOTAL (Nihil / Kosong). Apakah Anda yakin?')) {
+      setMasterData(prev => ({
+        ...prev,
+        approvedFinanceDaily: [],
+        shiftClosings: [],
+        closedShifts: [],
+        dailyReports: []
+      }));
+      alert('✅ Semua data Persetujuan Laporan Harian telah berhasil di-reset (Kosong / Nihil)!');
+    }
+  };
+
   // EXPORT EXCEL HANDLER
   const handleExportCSV = () => {
     let csv = "TANGGAL,NO LAPORAN,PENGAJU,OUTLET,NET SALES (IDR),TOTAL EXPENSE (IDR),STATUS,CATATAN\n";
@@ -319,6 +333,15 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={handleResetAllReports}
+            style={{ padding: '9px 16px', background: '#1e293b', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '10px', color: '#fb7185', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Bersihkan / Reset Seluruh Data Laporan Harian"
+          >
+            <Trash2 size={16} />
+            <span>Reset Data Laporan</span>
+          </button>
+
           <button
             onClick={handleExportCSV}
             style={{ padding: '9px 16px', background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
