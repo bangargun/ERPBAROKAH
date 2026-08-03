@@ -1481,7 +1481,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
           }}
         >
           <Sparkles size={18} />
-          <span>Laporan Perbandingan AI</span>
+          <span>📊 Perbandingan Laba/Rugi &amp; AI</span>
         </button>
       </div>
 
@@ -2863,52 +2863,130 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
           </div>
         )}
 
-        {/* 4. PERBANDINGAN GENERATE AI VIEW */}
+        {/* 4. PERBANDINGAN LABA RUGI MULTI-BULAN & ANALISIS AI */}
         {activeSubTab === 'ai' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* CONTROL PANEL HEADER: MONTH COUNT SELECTOR & AI SYNC BUTTON */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '14px',
+              background: '#0f172a',
+              padding: '16px 20px',
+              borderRadius: '14px',
+              border: '1.5px solid rgba(16, 185, 129, 0.3)'
+            }}>
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#34d399', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={20} />
-                  <span>Generator Laporan Perbandingan AI</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#34d399', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={20} color="#34d399" />
+                  <span>Perbandingan Laba/Rugi Multi-Bulan &amp; Analisis AI</span>
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                  Analisis perbandingan efisiensi &amp; profitabilitas antar outlet restoran menggunakan kecerdasan buatan
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                  Bandingkan tren omzet, HPP, beban operasional, dan laba bersih bulan ini dengan 1 bulan, 2 bulan, atau hingga 12 bulan ke belakang secara berdampingan.
                 </p>
               </div>
 
-              <button onClick={handleGenerateAIReport} disabled={aiGenerating} className="btn-emerald">
-                {aiGenerating ? <Sparkles size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                <span>{aiGenerating ? 'Menganalisis Data...' : 'Generate Laporan AI'}</span>
-              </button>
-            </div>
-
-            {aiReportText ? (
-              <div style={{ background: '#0f172a', border: '1px solid rgba(16,185,129,0.3)', padding: '20px', borderRadius: '14px' }}>
-                <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '700', marginBottom: '12px' }}>
-                  🤖 Laporan AI Dihasilkan Pada: {aiReportText.timestamp}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontSize: '0.80rem', color: '#cbd5e1', fontWeight: '800' }}>
+                    📅 Bandingkan Ke Belakang:
+                  </label>
+                  <select
+                    value={compareMonthsCount}
+                    onChange={e => setCompareMonthsCount(Number(e.target.value))}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      background: '#1e293b',
+                      color: '#34d399',
+                      border: '1.5px solid #10b981',
+                      fontSize: '0.82rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value={2}>1 Bulan Lalu (Bulan Ini vs 1 Bulan Lalu)</option>
+                    <option value={3}>2 Bulan Lalu (3 Bulan Berdampingan)</option>
+                    <option value={4}>3 Bulan Lalu (Triwulan / 4 Bulan)</option>
+                    <option value={7}>6 Bulan Lalu (Semester / 7 Bulan)</option>
+                    <option value={13}>12 Bulan Lalu (1 Tahun Penuh)</option>
+                  </select>
                 </div>
 
-                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: '#f8fafc', marginBottom: '8px' }}>📌 Insight Perbandingan Kinerja Outlet:</h4>
-                <ul style={{ paddingLeft: '20px', color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '16px' }}>
-                  {aiReportText.highlights.map((h, i) => (
-                    <li key={i} style={{ marginBottom: '6px' }}>{h}</li>
-                  ))}
-                </ul>
-
-                <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: '#f8fafc', marginBottom: '8px' }}>💡 Rekomendasi Strategis AI:</h4>
-                <ul style={{ paddingLeft: '20px', color: '#34d399', fontSize: '0.85rem' }}>
-                  {aiReportText.recommendations.map((r, i) => (
-                    <li key={i} style={{ marginBottom: '6px' }}>{r}</li>
-                  ))}
-                </ul>
+                <button 
+                  onClick={handleGenerateAIReport} 
+                  disabled={aiGenerating} 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    fontSize: '0.82rem',
+                    fontWeight: '800',
+                    cursor: aiGenerating ? 'wait' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+                  }}
+                >
+                  <Sparkles size={16} />
+                  <span>{aiGenerating ? 'Menganalisis Data...' : '⚡ Analisis AI Live'}</span>
+                </button>
               </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                <Sparkles size={36} color="#34d399" style={{ marginBottom: '12px' }} />
-                <p>Klik tombol <strong>"Generate Laporan AI"</strong> untuk menganalisis data keuangan antar cabang restoran.</p>
+            </div>
+
+            {/* AI FINANCIAL INSIGHT & RECOMMENDATION CARD */}
+            {aiReportText && (
+              <div style={{ background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(6, 182, 212, 0.08) 100%)', border: '1.5px solid rgba(52, 211, 153, 0.35)', padding: '20px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.4)' }}>
+                <div style={{ fontSize: '0.76rem', color: '#34d399', fontWeight: '800', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🤖 RINGKASAN REKOMENDASI AI KEUANGAN (Dihasilkan: {aiReportText.timestamp})</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#f8fafc', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      📌 Performa &amp; Kenaikan Omzet:
+                    </h4>
+                    <ul style={{ paddingLeft: '18px', color: '#cbd5e1', fontSize: '0.82rem', margin: 0, lineHeight: '1.5' }}>
+                      {aiReportText.highlights.map((h, i) => (
+                        <li key={i} style={{ marginBottom: '6px' }}>{h}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#34d399', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      💡 Rekomendasi Efisiensi Profitabilitas:
+                    </h4>
+                    <ul style={{ paddingLeft: '18px', color: '#34d399', fontSize: '0.82rem', margin: 0, lineHeight: '1.5' }}>
+                      {aiReportText.recommendations.map((r, i) => (
+                        <li key={i} style={{ marginBottom: '6px' }}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
             )}
+
+            {/* MULTI-MONTH SIDE-BY-SIDE P&L COMPARISON TABLE */}
+            <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '20px', overflowX: 'auto' }}>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '0.92rem', fontWeight: '800', color: '#f8fafc' }}>
+                  📈 Tabel Perbandingan Laba Rugi Multi-Bulan ({compareMonthsCount} Bulan Berdampingan)
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  🟢 Tanda Hijau = Kenaikan Laba / Penghematan Biaya &bull; 🔴 Tanda Merah = Penurunan Omzet / Pembengkakan
+                </div>
+              </div>
+              {renderMultiMonthComparisonTable()}
+            </div>
+
           </div>
         )}
       </div>
