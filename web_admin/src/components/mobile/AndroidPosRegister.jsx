@@ -4944,18 +4944,14 @@ export default function AndroidPosRegister({
                   </div>
 
                   <div style={{ width: '100%', overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.70rem', whiteSpace: 'nowrap' }}>
-                          <th style={{ padding: '10px 8px' }}>Tanggal</th>
-                          <th style={{ padding: '10px 8px' }}>No Laporan</th>
-                          <th style={{ padding: '10px 8px' }}>Pengaju / Dibuat Oleh</th>
-                          <th style={{ padding: '10px 8px' }}>Tipe Input</th>
-                          <th style={{ padding: '10px 8px', color: '#34d399' }}>📥 Transfer In (Outlet Penerima)</th>
-                          <th style={{ padding: '10px 8px', color: '#fb7185' }}>📤 Transfer Out (Outlet Pengirim)</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Satuan</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Status</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Aksi</th>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: '800' }}>
+                          <th style={{ padding: '12px 16px', width: '180px' }}>TANGGAL</th>
+                          <th style={{ padding: '12px 16px' }}>NO LAPORAN</th>
+                          <th style={{ padding: '12px 16px', width: '150px' }}>PENGAJU</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', width: '140px' }}>STATUS</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'right', width: '140px' }}>AKSI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4975,7 +4971,7 @@ export default function AndroidPosRegister({
                           if (list.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={9} style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                                <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
                                   Belum ada data laporan transfer stok antarcabang. Klik "+ Tambah Transfer Bahan Baku" di atas untuk membuat laporan.
                                 </td>
                               </tr>
@@ -4983,114 +4979,71 @@ export default function AndroidPosRegister({
                           }
 
                           return list.map((item, idx) => {
-                            const isApproved = item.status === 'ok' || item.status === 'approved' || item.status === 'Approved' || item.status === 'ACC' || item.status === 'Terkirim' || item.sent_to_apk || item.is_approved;
+                            const isDone = item.status === 'Done' || item.status === 'Approved' || item.status === 'approved' || item.status === 'ok' || item.status === 'ACC' || item.status === 'Terkirim' || item.sent_to_apk || item.is_approved;
                             const toOutletName = item.to_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(item.to_outlet_id || item.toOutletId))?.name || 'Outlet Tujuan';
                             const fromOutletName = item.from_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(item.from_outlet_id || item.fromOutletId))?.name || currentOutlet.name;
 
                             return (
                               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
-                                <td style={{ padding: '8px 8px', color: 'var(--pos-txt-secondary)', fontWeight: '700', whiteSpace: 'nowrap' }}>{item.date}</td>
-                                <td style={{ padding: '8px 8px', fontWeight: '900', color: '#38bdf8', whiteSpace: 'nowrap' }}>
+                                {/* 1. TANGGAL */}
+                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-primary)', fontWeight: '600' }}>
+                                  <div>{item.date}</div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                    🔴 {fromOutletName} ➔ 🟢 {toOutletName}
+                                  </div>
+                                </td>
+
+                                {/* 2. NO LAPORAN */}
+                                <td style={{ padding: '12px 16px' }}>
                                   <button
                                     type="button"
                                     onClick={() => setPreviewTransferReport(item)}
-                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer', fontWeight: '900', fontSize: '0.78rem' }}
-                                    title="Klik untuk lihat pratinjau laporan"
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }}
+                                    title="Klik untuk membuka rincian laporan"
                                   >
-                                    📋 {item.report_no || item.id} 👁️
+                                    {item.report_no || item.id}
                                   </button>
+                                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                    Item: {item.item_name || 'Bahan Baku'} &bull; Qty: {item.qty} {item.unit}
+                                  </div>
                                 </td>
-                                <td style={{ padding: '8px 8px', color: 'var(--pos-txt-primary)', whiteSpace: 'nowrap' }}>👤 {item.submitted_by || item.created_by}</td>
-                                <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
+
+                                {/* 3. PENGAJU */}
+                                <td style={{ padding: '12px 16px' }}>
                                   <span style={{
-                                    padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
-                                    background: item.type_input === 'manual' ? 'rgba(129, 140, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                    color: item.type_input === 'manual' ? '#818cf8' : '#fbbf24',
-                                    border: '1px solid',
-                                    borderColor: item.type_input === 'manual' ? 'rgba(129, 140, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)',
-                                    textTransform: 'uppercase'
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: '800',
+                                    background: item.type_input === 'manual' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                                    color: item.type_input === 'manual' ? '#38bdf8' : '#818cf8',
+                                    border: item.type_input === 'manual' ? '1px solid #38bdf8' : '1px solid #6366f1'
                                   }}>
-                                    {item.type_input === 'manual' ? 'manual' : 'by approval'}
+                                    {item.type_input === 'manual' ? '👤 Admin' : '📱 POS Kasir'}
+                                  </span>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>{item.submitted_by || item.created_by || 'Kasir'}</div>
+                                </td>
+
+                                {/* 4. STATUS */}
+                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                  <span style={{
+                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
+                                    background: isDone ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
+                                    color: isDone ? '#34d399' : '#fbbf24',
+                                    border: `1px solid ${isDone ? '#34d399' : '#fbbf24'}`
+                                  }}>
+                                    {isDone ? '🟢 Done' : '⏳ Pending'}
                                   </span>
                                 </td>
-                                <td style={{ padding: '8px 8px', color: '#34d399', fontWeight: '800', whiteSpace: 'nowrap' }}>
-                                  🟢 {toOutletName}
-                                </td>
-                                <td style={{ padding: '8px 8px', color: '#fb7185', fontWeight: '800', whiteSpace: 'nowrap' }}>
-                                  🔴 {fromOutletName}
-                                </td>
-                                <td style={{ padding: '8px 8px', textAlign: 'center', fontWeight: '900', color: '#c084fc', whiteSpace: 'nowrap' }}>
-                                  🏷️ {item.unit}
-                                </td>
-                                <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                  <span style={{
-                                    padding: '3px 8px', borderRadius: '10px', fontSize: '0.68rem', fontWeight: '900',
-                                    background: isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
-                                    color: isApproved ? '#34d399' : '#fbbf24',
-                                    border: `1px solid ${isApproved ? '#34d399' : '#fbbf24'}`
-                                  }}>
-                                    {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+
+                                {/* 5. AKSI */}
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      const itemCreatedAt = item.created_at || item.createdAt || item.timestamp;
-                                      let diffH = 0;
-                                      if (itemCreatedAt) {
-                                        diffH = (Date.now() - new Date(itemCreatedAt).getTime()) / (1000 * 60 * 60);
-                                      } else if (item.date) {
-                                        diffH = (Date.now() - new Date(item.date).getTime()) / (1000 * 60 * 60);
-                                      }
-
-                                      if (diffH > 12) {
-                                        alert(`⚠️ Akses Edit Kadaluarsa!\nLaporan transfer (${item.report_no || item.id}) ini diinput lebih dari 12 jam yang lalu (${diffH.toFixed(1)} jam yang lalu). Tombol Edit hanya dapat diakses maksimal 12 jam dari waktu input data.`);
-                                        return;
-                                      }
-
-                                      setEditingTransferId(item.id || item.report_no);
-                                      setTransferNo(item.report_no || item.id);
-                                      setTransferDate(item.date || new Date().toISOString().split('T')[0]);
-                                      setTransferSubmittedBy(item.submitted_by || item.created_by || userSession?.name || '');
-                                      setTransferFromOutletId(item.from_outlet_id || item.fromOutletId || 1);
-                                      setTransferToOutletId(item.to_outlet_id || item.toOutletId || 2);
-                                      setTransferNotes(item.notes || '');
-
-                                      const matchingBatch = (masterData.stockTransfer || []).filter(x => (x.report_no && x.report_no === item.report_no) || x.id === item.id);
-                                      if (matchingBatch.length > 0) {
-                                        setTransferBatchRows(matchingBatch.map((b, i) => ({
-                                          id: b.id || (Date.now() + i),
-                                          item_name: b.item_name,
-                                          custom_item_name: '',
-                                          qty: b.qty,
-                                          unit: b.unit
-                                        })));
-                                      } else {
-                                        setTransferBatchRows([{
-                                          id: item.id || Date.now(),
-                                          item_name: item.item_name,
-                                          custom_item_name: '',
-                                          qty: item.qty,
-                                          unit: item.unit
-                                        }]);
-                                      }
-
-                                      setShowAddTransferModal(true);
-                                    }}
-                                    style={{
-                                      padding: '4px 10px',
-                                      background: 'rgba(56, 189, 248, 0.15)',
-                                      border: '1px solid rgba(56, 189, 248, 0.4)',
-                                      color: '#38bdf8',
-                                      borderRadius: '6px',
-                                      fontSize: '0.74rem',
-                                      fontWeight: '800',
-                                      cursor: 'pointer'
-                                    }}
-                                    title="Edit Laporan (Maksimal 12 jam dari waktu input)"
+                                    onClick={() => setPreviewTransferReport(item)}
+                                    style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
                                   >
-                                    ✏️ Edit
+                                    👁️ Pratinjau
                                   </button>
                                 </td>
                               </tr>
@@ -5155,19 +5108,14 @@ export default function AndroidPosRegister({
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem', minWidth: '720px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.05em' }}>
-                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📅 Tanggal</th>
-                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📋 No Laporan</th>
-                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>👤 Pengaju / Dibuat Oleh</th>
-                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>🏢 Nama Outlet</th>
-                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>🌾 Nama Bahan Baku</th>
-                          <th style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>⚖️ Jumlah Rusak</th>
-                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>📝 Alasan Rusak</th>
-                          <th style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>🔖 Tipe Input</th>
-                          <th style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>🔖 Status</th>
-                          <th style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>⚙️ Aksi</th>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: '800' }}>
+                          <th style={{ padding: '12px 16px', width: '180px' }}>TANGGAL</th>
+                          <th style={{ padding: '12px 16px' }}>NO LAPORAN</th>
+                          <th style={{ padding: '12px 16px', width: '150px' }}>PENGAJU</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', width: '140px' }}>STATUS</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'right', width: '140px' }}>AKSI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -5208,7 +5156,7 @@ export default function AndroidPosRegister({
                           if (list.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={10} style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
+                                <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
                                   Belum ada data laporan barang rusak. Klik "+ Tambah Barang Rusak" di atas untuk membuat laporan.
                                 </td>
                               </tr>
@@ -5216,15 +5164,12 @@ export default function AndroidPosRegister({
                           }
 
                           return list.map((item, idx) => {
-                            const isApproved = item.status === 'ok' || item.status === 'approved' || item.status === 'Approved' || item.status === 'ACC' || item.status === 'Terkirim' || item.sent_to_apk || item.is_approved;
+                            const isDone = item.status === 'Done' || item.status === 'ok' || item.status === 'approved' || item.status === 'Approved' || item.status === 'ACC' || item.status === 'Terkirim' || item.sent_to_apk || item.is_approved;
                             const isWebAdminInput = item.sumber_input === 'web_admin' || item.status_keterangan === 'by manual' || item.type_input === 'manual';
 
                             const displayDate = item.tanggal_waktu
                               ? new Date(item.tanggal_waktu).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
                               : (item.date || '-');
-                            const displayTime = item.tanggal_waktu
-                              ? new Date(item.tanggal_waktu).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-                              : '';
 
                             const rawItems = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])].filter(x => (x.report_no && x.report_no === (item.report_no || item.id)) || x.id === item.id);
                             const uniqueItemsMap = new Map();
@@ -5235,7 +5180,6 @@ export default function AndroidPosRegister({
                               }
                             });
                             const reportItems = Array.from(uniqueItemsMap.values());
-                            const itemCount = reportItems.length || 1;
 
                             const displayItemName = reportItems.length > 0
                               ? reportItems.map(r => r.item_name || r.nama_barang || 'Bahan Baku').join(', ')
@@ -5247,161 +5191,67 @@ export default function AndroidPosRegister({
                               ? reportItems.map(r => r.alasan_rusak || r.reason || r.damage_reason || 'Terlalu kecil').filter((v, i, a) => a.indexOf(v) === i).join(', ')
                               : (item.alasan_rusak || item.reason || item.damage_reason || '-');
 
-                            const itemCreatedAt = item.tanggal_waktu || item.created_at || item.createdAt || item.timestamp || item.date;
-                            let diffHours = 0;
-                            if (itemCreatedAt) {
-                              diffHours = (Date.now() - new Date(itemCreatedAt).getTime()) / (1000 * 60 * 60);
-                            }
-                            const canEdit = diffHours <= 12;
+                            const outletName = (masterData.outlets || []).find(o => String(o.id) === String(item.outlet_id) || Number(o.id) === Number(item.outlet_id))?.name || item.branch_name || currentOutlet?.name || 'Outlet Cabang';
 
                             return (
-                              <tr
-                                key={idx}
-                                style={{
-                                  borderBottom: '1px solid rgba(255,255,255,0.06)',
-                                  color: 'var(--pos-txt-primary)',
-                                  background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)',
-                                  transition: 'background 0.15s'
-                                }}
-                              >
-                                {/* Tanggal & Waktu */}
-                                <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                                    <span style={{ color: 'var(--pos-txt-primary)', fontWeight: '700', fontSize: '0.8rem' }}>{displayDate}</span>
-                                    {displayTime && <span style={{ color: '#64748b', fontSize: '0.68rem' }}>{displayTime} WIB</span>}
-                                  </div>
+                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                                {/* 1. TANGGAL */}
+                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-primary)', fontWeight: '600' }}>
+                                  <div>{displayDate}</div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>📍 {outletName}</div>
                                 </td>
 
-                                {/* No Laporan */}
-                                <td style={{ padding: '10px 12px', fontWeight: '900', whiteSpace: 'nowrap' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setPreviewWasteReport(item);
-                                      }}
-                                      style={{ background: 'rgba(251, 113, 133, 0.12)', border: '1px solid rgba(251, 113, 133, 0.3)', padding: '4px 10px', borderRadius: '6px', color: '#fb7185', cursor: 'pointer', fontWeight: '900', fontSize: '0.78rem', textAlign: 'left', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                      title="Klik untuk lihat pratinjau detail laporan barang rusak"
-                                    >
-                                      📋 {item.report_no || item.id} 👁️
-                                    </button>
-                                    <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '600' }}>{itemCount} item bahan baku</span>
-                                  </div>
-                                </td>
-
-                                {/* Pengaju / Dibuat Oleh */}
-                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-primary)', whiteSpace: 'nowrap', fontWeight: '700', fontSize: '0.8rem' }}>
-                                  👤 {item.input_by || item.submitted_by || item.created_by || 'Kasir'}
-                                </td>
-
-                                {/* Nama Outlet */}
-                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-secondary)', whiteSpace: 'nowrap', fontSize: '0.78rem', fontWeight: '700' }}>
-                                  🏢 {(masterData.outlets || []).find(o => String(o.id) === String(item.outlet_id) || Number(o.id) === Number(item.outlet_id))?.name || item.branch_name || currentOutlet?.name || 'Outlet Cabang'}
-                                </td>
-
-                                {/* Nama Bahan Baku */}
-                                <td style={{ padding: '10px 12px', color: '#38bdf8', whiteSpace: 'nowrap', fontSize: '0.8rem', fontWeight: '800' }}>
-                                  {displayItemName}
-                                </td>
-
-                                {/* Jumlah Rusak */}
-                                <td style={{ padding: '10px 12px', color: '#fb7185', whiteSpace: 'nowrap', fontSize: '0.8rem', fontWeight: '900', textAlign: 'right' }}>
-                                  {displayQty}
-                                </td>
-
-                                {/* Alasan Rusak */}
-                                <td style={{ padding: '10px 12px', color: '#fbbf24', whiteSpace: 'nowrap', fontSize: '0.78rem', fontWeight: '700' }}>
-                                  {displayReason}
-                                </td>
-
-                                {/* Tipe Input */}
-                                <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                  <span style={{
-                                    padding: '2px 8px', borderRadius: '4px', fontSize: '0.64rem', fontWeight: '900',
-                                    background: isWebAdminInput ? 'rgba(129, 140, 248, 0.2)' : 'rgba(52, 211, 153, 0.2)',
-                                    color: isWebAdminInput ? '#818cf8' : '#34d399',
-                                    border: `1px solid ${isWebAdminInput ? 'rgba(129,140,248,0.4)' : 'rgba(52,211,153,0.4)'}`
-                                  }}>
-                                    {isWebAdminInput ? 'By manual' : 'By approved'}
-                                  </span>
-                                </td>
-
-                                {/* Status Approval */}
-                                <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                  <span style={{
-                                    padding: '4px 10px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: '900', display: 'inline-block',
-                                    background: isApproved ? 'rgba(52, 211, 153, 0.15)' : 'rgba(251, 191, 36, 0.15)',
-                                    color: isApproved ? '#34d399' : '#fbbf24',
-                                    border: `1px solid ${isApproved ? 'rgba(52,211,153,0.4)' : 'rgba(251,191,36,0.4)'}`
-                                  }}>
-                                    {isApproved ? '✅ APPROVED' : '⏳ PENDING'}
-                                  </span>
-                                </td>
-
-                                {/* Aksi Edit (Maks 12 Jam) */}
-                                <td style={{ padding: '10px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                {/* 2. NO LAPORAN */}
+                                <td style={{ padding: '12px 16px' }}>
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      if (!canEdit) {
-                                        alert(`⚠️ Akses Edit Kadaluarsa!\nLaporan (${item.report_no || item.id}) dibuat ${diffHours.toFixed(1)} jam lalu.\nEdit hanya dapat dilakukan maksimal 12 jam dari waktu input.`);
-                                        return;
-                                      }
-
-                                      setEditingWasteId(item.id || item.report_no);
-                                      setWasteNo(item.report_no || item.id);
-                                      setWasteDate(item.date || new Date().toISOString().split('T')[0]);
-                                      setWasteSubmittedBy(item.submitted_by || item.created_by || item.input_by || 'Kasir');
-                                      setWasteOutletId(item.outlet_id || currentOutlet.id || 1);
-                                      setWasteNotes(item.notes || '');
-                                      setWasteEditingNotes(item.editing_notes || '');
-
-                                      const allWaste = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])];
-                                      const matchingBatch = allWaste.filter(x =>
-                                        item.report_no ? (x.report_no === item.report_no) : (x.id === item.id)
-                                      );
-                                      if (matchingBatch.length > 0) {
-                                        setWasteBatchRows(matchingBatch.map((b, i) => ({
-                                          id: b.id || (Date.now() + i),
-                                          item_name: b.item_name || b.nama_barang || b.itemName || '',
-                                          custom_item_name: '',
-                                          qty: b.qty || b.stok_rusak || b.jumlah_rusak || 1,
-                                          unit: b.unit || 'kg',
-                                          reason: b.alasan_rusak || b.damage_reason || b.reason || 'Terlalu kecil',
-                                          notes: b.notes || ''
-                                        })));
-                                      } else {
-                                        setWasteBatchRows([{
-                                          id: item.id || Date.now(),
-                                          item_name: item.item_name || item.nama_barang || '',
-                                          custom_item_name: '',
-                                          qty: item.qty || item.stok_rusak || item.jumlah_rusak || 1,
-                                          unit: item.unit || 'kg',
-                                          reason: item.alasan_rusak || item.damage_reason || item.reason || 'Terlalu kecil',
-                                          notes: item.notes || ''
-                                        }]);
-                                      }
-
-                                      setShowAddWasteModal(true);
-                                    }}
-                                    style={{
-                                      padding: '5px 12px',
-                                      background: canEdit ? 'rgba(251,113,133,0.15)' : 'rgba(100,116,139,0.2)',
-                                      border: `1px solid ${canEdit ? 'rgba(251,113,133,0.4)' : 'rgba(100,116,139,0.4)'}`,
-                                      color: canEdit ? '#fb7185' : '#64748b',
-                                      borderRadius: '6px',
-                                      fontSize: '0.74rem',
-                                      fontWeight: '800',
-                                      cursor: canEdit ? 'pointer' : 'not-allowed',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      opacity: canEdit ? 1 : 0.6
-                                    }}
-                                    title={canEdit ? 'Edit Laporan Barang Rusak (Maksimal 12 Jam)' : 'Akses edit kadaluarsa (> 12 jam)'}
+                                    onClick={() => setPreviewWasteReport(item)}
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#fb7185', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }}
+                                    title="Klik untuk membuka rincian laporan"
                                   >
-                                    ✏️ {canEdit ? 'Edit' : 'Kadaluarsa'}
+                                    {item.report_no || item.id}
+                                  </button>
+                                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                    Bahan: {displayItemName} &bull; Qty: {displayQty} &bull; Alasan: {displayReason}
+                                  </div>
+                                </td>
+
+                                {/* 3. PENGAJU */}
+                                <td style={{ padding: '12px 16px' }}>
+                                  <span style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: '800',
+                                    background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                                    color: isWebAdminInput ? '#38bdf8' : '#818cf8',
+                                    border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
+                                  }}>
+                                    {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
+                                  </span>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>{item.input_by || item.submitted_by || item.created_by || 'Kasir'}</div>
+                                </td>
+
+                                {/* 4. STATUS */}
+                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                  <span style={{
+                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
+                                    background: isDone ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
+                                    color: isDone ? '#34d399' : '#fbbf24',
+                                    border: `1px solid ${isDone ? '#34d399' : '#fbbf24'}`
+                                  }}>
+                                    {isDone ? '🟢 Done' : '⏳ Pending'}
+                                  </span>
+                                </td>
+
+                                {/* 5. AKSI */}
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewWasteReport(item)}
+                                    style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
+                                  >
+                                    👁️ Pratinjau
                                   </button>
                                 </td>
                               </tr>
