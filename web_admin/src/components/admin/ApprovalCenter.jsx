@@ -169,17 +169,25 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
   // UPDATE STATUS HANDLER (ACC -> Approved -> Done)
   const handleUpdateStatus = (item, nextStatus) => {
-    const updatedList = allReportsList.map(r => {
-      if (String(r.id) === String(item.id) || r.report_no === item.report_no) {
-        return { ...r, status: nextStatus };
+    const targetId = String(item.id);
+    const targetReportNo = String(item.report_no);
+
+    const mapFn = r => {
+      if (!r) return r;
+      const rId = String(r.id || r.report_no || '');
+      const rNo = String(r.report_no || '');
+      if (rId === targetId || rNo === targetReportNo) {
+        return { ...r, status: nextStatus, approval_status: nextStatus };
       }
       return r;
-    });
+    };
 
     setMasterData(prev => ({
       ...prev,
-      approvedFinanceDaily: updatedList,
-      shiftClosings: updatedList
+      approvedFinanceDaily: (prev.approvedFinanceDaily || []).map(mapFn),
+      shiftClosings: (prev.shiftClosings || []).map(mapFn),
+      closedShifts: (prev.closedShifts || []).map(mapFn),
+      dailyReports: (prev.dailyReports || []).map(mapFn)
     }));
   };
 
@@ -204,6 +212,9 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       return;
     }
 
+    const targetId = String(editModalItem.id);
+    const targetReportNo = String(editModalItem.report_no);
+
     const editLog = {
       timestamp: new Date().toLocaleString('id-ID'),
       edited_by: 'Super Admin',
@@ -214,8 +225,11 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       new_expense: Number(editForm.total_expense)
     };
 
-    const updatedList = allReportsList.map(r => {
-      if (String(r.id) === String(editModalItem.id) || r.report_no === editModalItem.report_no) {
+    const mapFn = r => {
+      if (!r) return r;
+      const rId = String(r.id || r.report_no || '');
+      const rNo = String(r.report_no || '');
+      if (rId === targetId || rNo === targetReportNo) {
         return {
           ...r,
           net_sales: Number(editForm.net_sales),
@@ -227,12 +241,14 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         };
       }
       return r;
-    });
+    };
 
     setMasterData(prev => ({
       ...prev,
-      approvedFinanceDaily: updatedList,
-      shiftClosings: updatedList
+      approvedFinanceDaily: (prev.approvedFinanceDaily || []).map(mapFn),
+      shiftClosings: (prev.shiftClosings || []).map(mapFn),
+      closedShifts: (prev.closedShifts || []).map(mapFn),
+      dailyReports: (prev.dailyReports || []).map(mapFn)
     }));
 
     setEditModalItem(null);
@@ -275,29 +291,25 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   // CONFIRM DELETE HANDLER
   const handleConfirmDelete = () => {
     if (!deleteConfirmItem) return;
-    const updatedList = allReportsList.filter(r => String(r.id) !== String(deleteConfirmItem.id) && r.report_no !== deleteConfirmItem.report_no);
+    const targetId = String(deleteConfirmItem.id);
+    const targetReportNo = String(deleteConfirmItem.report_no);
+
+    const filterFn = r => {
+      if (!r) return false;
+      const rId = String(r.id || r.report_no || '');
+      const rNo = String(r.report_no || '');
+      return rId !== targetId && rNo !== targetReportNo;
+    };
 
     setMasterData(prev => ({
       ...prev,
-      approvedFinanceDaily: updatedList,
-      shiftClosings: updatedList
+      approvedFinanceDaily: (prev.approvedFinanceDaily || []).filter(filterFn),
+      shiftClosings: (prev.shiftClosings || []).filter(filterFn),
+      closedShifts: (prev.closedShifts || []).filter(filterFn),
+      dailyReports: (prev.dailyReports || []).filter(filterFn)
     }));
 
     setDeleteConfirmItem(null);
-  };
-
-  // RESET ALL DAILY REPORTS HANDLER
-  const handleResetAllReports = () => {
-    if (window.confirm('⚠️ MERESET DATA LAPORAN HARIAN?\n\nSemua data Persetujuan Laporan Harian Outlet & Admin akan DIBERSIHKAN TOTAL (Nihil / Kosong). Apakah Anda yakin?')) {
-      setMasterData(prev => ({
-        ...prev,
-        approvedFinanceDaily: [],
-        shiftClosings: [],
-        closedShifts: [],
-        dailyReports: []
-      }));
-      alert('✅ Semua data Persetujuan Laporan Harian telah berhasil di-reset (Kosong / Nihil)!');
-    }
   };
 
   // EXPORT EXCEL HANDLER
@@ -333,15 +345,6 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={handleResetAllReports}
-            style={{ padding: '9px 16px', background: '#1e293b', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '10px', color: '#fb7185', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            title="Bersihkan / Reset Seluruh Data Laporan Harian"
-          >
-            <Trash2 size={16} />
-            <span>Reset Data Laporan</span>
-          </button>
-
           <button
             onClick={handleExportCSV}
             style={{ padding: '9px 16px', background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
