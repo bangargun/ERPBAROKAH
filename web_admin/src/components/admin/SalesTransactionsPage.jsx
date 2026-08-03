@@ -2936,36 +2936,68 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // Helper for Service Type Sales Summary Data (Dine In vs Take Away)
   const getServiceTypeSalesSummaryData = () => {
-    const activeOutlets = rcptSelectedOutletIds.includes('ALL') 
-      ? outlets 
-      : outlets.filter(o => rcptSelectedOutletIds.includes(o.id));
+    const activeOutlets = outlets || [];
+    const filteredOutlets = rcptSelectedOutletIds.includes('ALL') 
+      ? activeOutlets 
+      : activeOutlets.filter(o => rcptSelectedOutletIds.includes(o.id));
 
-    // Dynamic outlet filter scaling factor
-    let outletMultiplier = 1;
-    if (!rcptSelectedOutletIds.includes('ALL')) {
-      const selectedCount = rcptSelectedOutletIds.length;
-      const totalCount = Math.max(outlets.length, 1);
-      outletMultiplier = selectedCount / totalCount;
-    }
+    const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
 
-    // Dynamic date preset scaling factor
-    let dateMultiplier = 1;
-    if (rcptDatePreset === 'today') dateMultiplier = 0.05;
-    else if (rcptDatePreset === '7days') dateMultiplier = 0.25;
-    else if (rcptDatePreset === 'month') dateMultiplier = 1.0;
+    const filteredTxs = salesTx.filter(t => {
+      if (rcptStartDate && t.date < rcptStartDate) return false;
+      if (rcptEndDate && t.date > rcptEndDate) return false;
+      if (!rcptSelectedOutletIds.includes('ALL') && !rcptSelectedOutletIds.includes(t.outlet_id)) return false;
+      if (selectedBranch && t.outlet_id !== selectedBranch) return false;
+      if (t.status === 'Void') return false;
+      return true;
+    });
 
-    const factor = Math.max(outletMultiplier * dateMultiplier, 0.02);
+    let dineInCount = 0, dineInQty = 0, dineInGross = 0, dineInDisc = 0;
+    let takeAwayCount = 0, takeAwayQty = 0, takeAwayGross = 0, takeAwayDisc = 0;
 
-    const dineInCount = Math.round(2201 * factor);
-    const dineInQty = Math.round(6840 * factor);
-    const dineInGross = Math.round(169198000 * factor);
-    const dineInDisc = Math.round(475000 * factor);
+    const dineInOutletMap = {};
+    const takeAwayOutletMap = {};
+
+    filteredTxs.forEach(t => {
+      const isTakeAway = (t.type || t.service_type || t.notes || '').toLowerCase().includes('take') ||
+                         (t.notes || '').toLowerCase().includes('bungkus') ||
+                         (t.notes || '').toLowerCase().includes('delivery') ||
+                         (t.notes || '').toLowerCase().includes('ojol') ||
+                         (t.notes || '').toLowerCase().includes('online');
+
+      const gross = Number(t.amount || t.total_amount || t.grand_total || 0);
+      const disc = Number(t.discount || t.discount_amount || 0);
+      const qty = (t.items && Array.isArray(t.items)) 
+        ? t.items.reduce((s, i) => s + Number(i.qty || 1), 0)
+        : Number(t.qty || t.quantity || 1);
+      const otlId = t.outlet_id;
+
+      if (isTakeAway) {
+        takeAwayCount += 1;
+        takeAwayQty += qty;
+        takeAwayGross += gross;
+        takeAwayDisc += disc;
+        if (!takeAwayOutletMap[otlId]) takeAwayOutletMap[otlId] = { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
+        takeAwayOutletMap[otlId].receiptCount += 1;
+        takeAwayOutletMap[otlId].totalQty += qty;
+        takeAwayOutletMap[otlId].gross += gross;
+        takeAwayOutletMap[otlId].disc += disc;
+        takeAwayOutletMap[otlId].net += (gross - disc);
+      } else {
+        dineInCount += 1;
+        dineInQty += qty;
+        dineInGross += gross;
+        dineInDisc += disc;
+        if (!dineInOutletMap[otlId]) dineInOutletMap[otlId] = { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
+        dineInOutletMap[otlId].receiptCount += 1;
+        dineInOutletMap[otlId].totalQty += qty;
+        dineInOutletMap[otlId].gross += gross;
+        dineInOutletMap[otlId].disc += disc;
+        dineInOutletMap[otlId].net += (gross - disc);
+      }
+    });
+
     const dineInNet = dineInGross - dineInDisc;
-
-    const takeAwayCount = Math.round(774 * factor);
-    const takeAwayQty = Math.round(2310 * factor);
-    const takeAwayGross = Math.round(59448000 * factor);
-    const takeAwayDisc = Math.round(167000 * factor);
     const takeAwayNet = takeAwayGross - takeAwayDisc;
 
     const serviceTypeBuckets = [
@@ -2979,15 +3011,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         discount: dineInDisc,
         netSales: dineInNet,
         color: '#38bdf8',
-        outletBreakdown: [
-          { name: 'Kopi MRIS - Cabang Jakarta Pusat', receiptCount: Math.round(dineInCount * 0.55), totalQty: Math.round(dineInQty * 0.55), gross: Math.round(dineInGross * 0.55), disc: Math.round(dineInDisc * 0.55), net: Math.round(dineInNet * 0.55) },
-          { name: 'Kopi MRIS - Cabang Bandung', receiptCount: Math.round(dineInCount * 0.30), totalQty: Math.round(dineInQty * 0.30), gross: Math.round(dineInGross * 0.30), disc: Math.round(dineInDisc * 0.30), net: Math.round(dineInNet * 0.30) },
-          { name: 'Barokah Fried Chicken - Surabaya', receiptCount: Math.round(dineInCount * 0.15), totalQty: Math.round(dineInQty * 0.15), gross: Math.round(dineInGross * 0.15), disc: Math.round(dineInDisc * 0.15), net: Math.round(dineInNet * 0.15) }
-        ]
+        outletBreakdown: filteredOutlets.map(otl => {
+          const m = dineInOutletMap[otl.id] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
+          return { name: otl.name, ...m };
+        })
       },
       {
         id: 'take_away',
-        name: 'Take Away (Bawa Pulang & Online Delivery / GrabFood / GoFood)',
+        name: 'Take Away (Bawa Pulang & Online Delivery)',
         icon: '🥡',
         receiptCount: takeAwayCount,
         totalQty: takeAwayQty,
@@ -2995,11 +3026,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         discount: takeAwayDisc,
         netSales: takeAwayNet,
         color: '#fbbf24',
-        outletBreakdown: [
-          { name: 'Kopi MRIS - Cabang Jakarta Pusat', receiptCount: Math.round(takeAwayCount * 0.58), totalQty: Math.round(takeAwayQty * 0.58), gross: Math.round(takeAwayGross * 0.58), disc: Math.round(takeAwayDisc * 0.58), net: Math.round(takeAwayNet * 0.58) },
-          { name: 'Kopi MRIS - Cabang Bandung', receiptCount: Math.round(takeAwayCount * 0.26), totalQty: Math.round(takeAwayQty * 0.26), gross: Math.round(takeAwayGross * 0.26), disc: Math.round(takeAwayDisc * 0.26), net: Math.round(takeAwayNet * 0.26) },
-          { name: 'Barokah Fried Chicken - Surabaya', receiptCount: Math.round(takeAwayCount * 0.16), totalQty: Math.round(takeAwayQty * 0.16), gross: Math.round(takeAwayGross * 0.16), disc: Math.round(takeAwayDisc * 0.16), net: Math.round(takeAwayNet * 0.16) }
-        ]
+        outletBreakdown: filteredOutlets.map(otl => {
+          const m = takeAwayOutletMap[otl.id] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
+          return { name: otl.name, ...m };
+        })
       }
     ];
 
@@ -3010,7 +3040,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const totalNet = serviceTypeBuckets.reduce((s, b) => s + b.netSales, 0);
 
     return {
-      activeOutlets,
+      activeOutlets: filteredOutlets,
       serviceTypeBuckets,
       totalReceipts,
       totalQty,
@@ -3038,7 +3068,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       csvContent += `"${b.name}",${b.receiptCount},${b.totalQty},${avgQty},${b.grossSales},${b.discount},${b.netSales},${avgSpend},${pct}%\n`;
     });
 
-    csvContent += `"TOTAL KESELURUHAN",${data.totalReceipts},${data.totalQty},${(data.totalQty / data.totalReceipts).toFixed(1)},${data.totalGross},${data.totalDiscount},${data.totalNet},${Math.round(data.totalNet / data.totalReceipts)},100%\n`;
+    csvContent += `"TOTAL KESELURUHAN",${data.totalReceipts},${data.totalQty},${data.totalReceipts > 0 ? (data.totalQty / data.totalReceipts).toFixed(1) : 0},${data.totalGross},${data.totalDiscount},${data.totalNet},${data.totalReceipts > 0 ? Math.round(data.totalNet / data.totalReceipts) : 0},100%\n`;
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -3075,7 +3105,6 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <body>
           <h2>Laporan Penjualan By Layanan (Dine In & Take Away)</h2>
           <p>Outlet: ${outletStr} | Tanggal Cetak: ${new Date().toLocaleDateString('id-ID')}</p>
-          <p>Tanggal Cetak: ${new Date().toLocaleDateString('id-ID')} | Filter Outlet Terintegrasi</p>
           <p>Total Struk: ${data.totalReceipts.toLocaleString('id-ID')} | Total Qty Terjual: ${data.totalQty.toLocaleString('id-ID')} Porsi | Total Omzet Bersih: ${formatRupiah(data.totalNet)}</p>
           <table>
             <thead>
@@ -3114,7 +3143,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <td class="text-right">${formatRupiah(data.totalGross)}</td>
                 <td class="text-right" style="color: #e11d48;">${formatRupiah(data.totalDiscount)}</td>
                 <td class="text-right font-bold" style="color: #059669;">${formatRupiah(data.totalNet)}</td>
-                <td class="text-right">${formatRupiah(data.totalNet / data.totalReceipts)}</td>
+                <td class="text-right">${data.totalReceipts > 0 ? formatRupiah(data.totalNet / data.totalReceipts) : 0}</td>
                 <td class="text-right">100%</td>
               </tr>
             </tbody>
@@ -3150,99 +3179,96 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     setMomVisibleColumns(prev => ({ ...prev, [colKey]: !prev[colKey] }));
   };
 
+  // Generate MoM Comparison Data per Outlet across Months
   const generateMonthlyComparisonData = () => {
-    const list = [];
-    const activeOutlets = outlets.length > 0 ? outlets : [
-      { id: 1, name: 'Senopati', code: 'SN' },
-      { id: 2, name: 'Kemang', code: 'KM' }
-    ];
+    const activeOutlets = outlets || [];
+    const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
 
-    // Filter outlets currently selected by filter bar
-    const selectedOutletsList = activeOutlets.filter(o => {
-      if (selectedBranch && o.id !== selectedBranch) return false;
-      if (!momSelectedOutletIds.includes('ALL') && !momSelectedOutletIds.includes(o.id)) return false;
-      return true;
+    if (salesTx.length === 0) {
+      return [];
+    }
+
+    const monthlyMap = {}; // { 'YYYY-MM': { monthLabel, outlets: { outletId: { txCount, grossSales, discount, netSales } } } }
+
+    salesTx.forEach(t => {
+      if (t.status === 'Void') return;
+      const d = t.date;
+      if (!d) return;
+      
+      let monthKey = '';
+      if (d.includes('-')) {
+        const parts = d.split('-');
+        if (parts.length >= 2) monthKey = `${parts[0]}-${parts[1]}`;
+      } else if (d.includes('/')) {
+        const parts = d.split('/');
+        if (parts.length === 3) monthKey = `${parts[2]}-${parts[1].padStart(2, '0')}`;
+      }
+
+      if (!monthKey) return;
+
+      const otlId = Number(t.outlet_id || 1);
+      const gross = Number(t.amount || t.total_amount || t.grand_total || 0);
+      const disc = Number(t.discount || t.discount_amount || 0);
+      const net = gross - disc;
+
+      if (!monthlyMap[monthKey]) {
+        const parts = monthKey.split('-');
+        const year = parts[0];
+        const monthIdx = parseInt(parts[1], 10) - 1;
+        const monthName = monthNamesIndo[monthIdx] || parts[1];
+        const monthLabel = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
+
+        monthlyMap[monthKey] = {
+          monthKey,
+          monthLabel,
+          outlets: {}
+        };
+      }
+
+      if (!monthlyMap[monthKey].outlets[otlId]) {
+        monthlyMap[monthKey].outlets[otlId] = {
+          txCount: 0,
+          grossSales: 0,
+          discount: 0,
+          netSales: 0
+        };
+      }
+
+      monthlyMap[monthKey].outlets[otlId].txCount += 1;
+      monthlyMap[monthKey].outlets[otlId].grossSales += gross;
+      monthlyMap[monthKey].outlets[otlId].discount += disc;
+      monthlyMap[monthKey].outlets[otlId].netSales += net;
     });
 
-    // Build groups: for each selected outlet, get metrics for each of the 3 months
-    selectedOutletsList.forEach(outlet => {
-      // Historical base numbers for deterministic simulation
-      const baseVal = (outlet.id === 1 ? 95000000 : outlet.id === 2 ? 68000000 : 50000000);
-      const baseTx = (outlet.id === 1 ? 920 : outlet.id === 2 ? 650 : 420);
+    const sortedMonthKeys = Object.keys(monthlyMap).sort();
+    const list = [];
 
-      // Mei 2026 (Simulated)
-      const meiGross = baseVal * 0.95;
-      const meiDisc = meiGross * 0.035;
-      const meiNet = meiGross - meiDisc;
-      const meiTx = Math.round(baseTx * 0.96);
+    sortedMonthKeys.forEach((mKey, idx) => {
+      const monthData = monthlyMap[mKey];
+      const prevMonthKey = idx > 0 ? sortedMonthKeys[idx - 1] : null;
+      const prevMonthData = prevMonthKey ? monthlyMap[prevMonthKey] : null;
 
-      // Juni 2026 (Simulated)
-      const juniGross = baseVal * 1.05;
-      const juniDisc = juniGross * 0.04;
-      const juniNet = juniGross - juniDisc;
-      const juniTx = Math.round(baseTx * 1.03);
+      activeOutlets.forEach(outlet => {
+        const currentStats = monthData.outlets[outlet.id] || { txCount: 0, grossSales: 0, discount: 0, netSales: 0 };
+        const prevStats = prevMonthData ? (prevMonthData.outlets[outlet.id] || { netSales: 0 }) : { netSales: 0 };
 
-      // Juli 2026 (Real from salesTransactions)
-      const juliTxs = transactions.filter(t => {
-        if (t.status !== 'Success') return false;
-        if (t.outlet_id !== outlet.id) return false;
-        return t.date && t.date.startsWith('2026-07');
-      });
+        let growth = 0;
+        if (prevStats.netSales > 0) {
+          growth = ((currentStats.netSales - prevStats.netSales) / prevStats.netSales) * 100;
+        }
 
-      const juliGross = juliTxs.reduce((acc, t) => acc + (t.amount || 0), 0);
-      const juliDisc = juliTxs.reduce((acc, t) => acc + (t.discount || 0), 0);
-      const juliNet = juliGross - juliDisc;
-      const juliTxCount = juliTxs.length;
-
-      // Real or fallback if no real transactions are entered yet
-      const finalJuliGross = juliTxCount > 0 ? juliGross : baseVal * 1.15;
-      const finalJuliDisc = juliTxCount > 0 ? juliDisc : finalJuliGross * 0.045;
-      const finalJuliNet = finalJuliGross - finalJuliDisc;
-      const finalJuliTx = juliTxCount > 0 ? juliTxCount : Math.round(baseTx * 1.1);
-
-      // Add to list
-      // Mei 2026
-      list.push({
-        monthKey: '2026-05',
-        monthLabel: 'Mei 2026',
-        outletId: outlet.id,
-        outletName: outlet.name,
-        txCount: meiTx,
-        grossSales: meiGross,
-        discount: meiDisc,
-        netSales: meiNet,
-        avgSpend: meiTx > 0 ? meiNet / meiTx : 0,
-        growth: 0 // Baseline
-      });
-
-      // Juni 2026
-      const juniGrowth = ((juniNet - meiNet) / meiNet) * 100;
-      list.push({
-        monthKey: '2026-06',
-        monthLabel: 'Juni 2026',
-        outletId: outlet.id,
-        outletName: outlet.name,
-        txCount: juniTx,
-        grossSales: juniGross,
-        discount: juniDisc,
-        netSales: juniNet,
-        avgSpend: juniTx > 0 ? juniNet / juniTx : 0,
-        growth: juniGrowth
-      });
-
-      // Juli 2026
-      const juliGrowth = ((finalJuliNet - juniNet) / juniNet) * 100;
-      list.push({
-        monthKey: '2026-07',
-        monthLabel: 'Juli 2026',
-        outletId: outlet.id,
-        outletName: outlet.name,
-        txCount: finalJuliTx,
-        grossSales: finalJuliGross,
-        discount: finalJuliDisc,
-        netSales: finalJuliNet,
-        avgSpend: finalJuliTx > 0 ? finalJuliNet / finalJuliTx : 0,
-        growth: juliGrowth
+        list.push({
+          monthKey: mKey,
+          monthLabel: monthData.monthLabel,
+          outletId: outlet.id,
+          outletName: outlet.name,
+          txCount: currentStats.txCount,
+          grossSales: currentStats.grossSales,
+          discount: currentStats.discount,
+          netSales: currentStats.netSales,
+          avgSpend: currentStats.txCount > 0 ? currentStats.netSales / currentStats.txCount : 0,
+          growth: growth
+        });
       });
     });
 
@@ -3253,10 +3279,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // Aggregate data by month for overall chart/table totals
   const aggregateMomByMonth = () => {
-    const monthlyList = ['Mei 2026', 'Juni 2026', 'Juli 2026'];
+    const uniqueMonths = Array.from(new Set(momComparisonData.map(r => r.monthLabel)));
     const result = [];
 
-    monthlyList.forEach((month, idx) => {
+    uniqueMonths.forEach((month, idx) => {
       const records = momComparisonData.filter(r => r.monthLabel === month);
       const gross = records.reduce((acc, r) => acc + r.grossSales, 0);
       const disc = records.reduce((acc, r) => acc + r.discount, 0);
@@ -3287,8 +3313,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // Format dataset for Recharts BarChart
   const getChartDataset = () => {
-    const months = ['Mei 2026', 'Juni 2026', 'Juli 2026'];
-    return months.map(m => {
+    const uniqueMonths = Array.from(new Set(momComparisonData.map(r => r.monthLabel)));
+    return uniqueMonths.map(m => {
       const dataObj = { name: m };
       const records = momComparisonData.filter(r => r.monthLabel === m);
       records.forEach(r => {
@@ -5601,14 +5627,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   {momComparisonData.length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                        Tidak ada data perbandingan bulanan. Pastikan outlet aktif terdaftar.
+                        📭 Belum ada data perbandingan penjualan bulanan. Data akan terbentuk otomatis seiring berjalannya transaksi kasir.
                       </td>
                     </tr>
                   ) : (
                     momComparisonData.map((r, idx) => {
-                      const isMei = r.monthLabel === 'Mei 2026';
+                      const isFirstMonth = idx === 0;
                       const isUp = r.growth >= 0;
-                      const growthColor = isMei ? '#cbd5e1' : isUp ? '#34d399' : '#fb7185';
+                      const growthColor = isFirstMonth ? '#cbd5e1' : isUp ? '#34d399' : '#fb7185';
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
                           {momVisibleColumns.month && (
