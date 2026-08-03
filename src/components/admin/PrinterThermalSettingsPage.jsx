@@ -16,15 +16,32 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
     };
   });
 
+  const [headerFooter, setHeaderFooter] = useState(() => {
+    return masterData?.printerSettings?.headerFooter || {
+      restaurantName: 'MRIS RESTORAN',
+      groupName: 'BAROKAH GROUP INDONESIA',
+      address: 'Jl. Pemuda No. 88, Surabaya',
+      phone: '(031) 555-8899',
+      footerLine1: 'TERIMA KASIH ATAS KUNJUNGAN ANDA',
+      footerLine2: 'SUDAH TERMASUK PB1 PAJAK RESTORAN',
+      wifiSsid: 'BarokahResto_5G',
+      wifiPassword: 'berkahselalu'
+    };
+  });
+
   const [savedSuccessToast, setSavedSuccessToast] = useState(false);
 
   const categories = masterData?.categories || masterData?.menuCategories || [];
 
   const handleSaveSettings = (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    const updatedSettings = {
+      ...printerSettings,
+      headerFooter: headerFooter
+    };
     setMasterData(prev => ({
       ...prev,
-      printerSettings: printerSettings
+      printerSettings: updatedSettings
     }));
     setSavedSuccessToast(true);
     setTimeout(() => setSavedSuccessToast(false), 3000);
@@ -242,14 +259,136 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         </div>
       </div>
 
+      {/* ✍️ EDIT HEADER & FOOTER STRUK THERMAL */}
+      <div className="glass-card" style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>✍️ Pengaturan Header &amp; Footer Struk Restoran</span>
+            </h3>
+            <p style={{ fontSize: '0.80rem', color: '#94a3b8', margin: 0 }}>
+              Kustomisasi tulisan nama restoran, alamat, telepon, ucapan terima kasih, dan info WiFi pada cetakan struk thermal.
+            </p>
+          </div>
+
+          <button
+            onClick={handleSaveSettings}
+            style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Save size={16} />
+            <span>Simpan Header/Footer</span>
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          {/* HEADER INPUTS */}
+          <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>📌 Header Struk (Bagian Atas)</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Nama Restoran (Judul Utama):</label>
+              <input
+                type="text"
+                value={headerFooter.restaurantName}
+                onChange={e => setHeaderFooter({ ...headerFooter, restaurantName: e.target.value })}
+                placeholder="MRIS RESTORAN"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Nama Perusahaan / Group:</label>
+              <input
+                type="text"
+                value={headerFooter.groupName}
+                onChange={e => setHeaderFooter({ ...headerFooter, groupName: e.target.value })}
+                placeholder="BAROKAH GROUP INDONESIA"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Alamat Lengkap Restoran:</label>
+              <input
+                type="text"
+                value={headerFooter.address}
+                onChange={e => setHeaderFooter({ ...headerFooter, address: e.target.value })}
+                placeholder="Jl. Pemuda No. 88, Surabaya"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>No. Telepon / Hotline:</label>
+              <input
+                type="text"
+                value={headerFooter.phone}
+                onChange={e => setHeaderFooter({ ...headerFooter, phone: e.target.value })}
+                placeholder="(031) 555-8899"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+          </div>
+
+          {/* FOOTER INPUTS */}
+          <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#4ade80' }}>📌 Footer Struk (Bagian Bawah)</div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Pesan Ucapan Baris 1:</label>
+              <input
+                type="text"
+                value={headerFooter.footerLine1}
+                onChange={e => setHeaderFooter({ ...headerFooter, footerLine1: e.target.value })}
+                placeholder="TERIMA KASIH ATAS KUNJUNGAN ANDA"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Pesan Ucapan Baris 2:</label>
+              <input
+                type="text"
+                value={headerFooter.footerLine2}
+                onChange={e => setHeaderFooter({ ...headerFooter, footerLine2: e.target.value })}
+                placeholder="SUDAH TERMASUK PB1 PAJAK RESTORAN"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Nama SSID WiFi Restoran:</label>
+              <input
+                type="text"
+                value={headerFooter.wifiSsid}
+                onChange={e => setHeaderFooter({ ...headerFooter, wifiSsid: e.target.value })}
+                placeholder="BarokahResto_5G"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Password WiFi Restoran:</label>
+              <input
+                type="text"
+                value={headerFooter.wifiPassword}
+                onChange={e => setHeaderFooter({ ...headerFooter, wifiPassword: e.target.value })}
+                placeholder="berkahselalu"
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 🖨️ PRATINJAU REAL-TIME THERMAL RECEIPT OUTPUT */}
-      <ThermalReceiptPreviewSection printerSettings={printerSettings} />
+      <ThermalReceiptPreviewSection printerSettings={printerSettings} headerFooter={headerFooter} />
 
     </div>
   );
 }
 
-function ThermalReceiptPreviewSection({ printerSettings }) {
+function ThermalReceiptPreviewSection({ printerSettings, headerFooter }) {
   const [receiptType, setReceiptType] = useState('cashier'); // 'cashier' | 'kitchen' | 'bar'
   const [paperWidth, setPaperWidth] = useState('58'); // '58' | '80'
   const [printingToast, setPrintingToast] = useState(false);
@@ -345,10 +484,18 @@ function ThermalReceiptPreviewSection({ printerSettings }) {
             <div>
               {/* HEADER */}
               <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                <div style={{ fontSize: is58mm ? '1rem' : '1.15rem', letterSpacing: '1px' }}>MRIS RESTORAN</div>
-                <div style={{ fontSize: '0.74rem' }}>BAROKAH GROUP INDONESIA</div>
-                <div style={{ fontSize: '0.70rem', color: '#444' }}>Jl. Pemuda No. 88, Surabaya</div>
-                <div style={{ fontSize: '0.70rem', color: '#444' }}>Telp: (031) 555-8899</div>
+                <div style={{ fontSize: is58mm ? '1rem' : '1.15rem', letterSpacing: '1px' }}>
+                  {headerFooter?.restaurantName || 'MRIS RESTORAN'}
+                </div>
+                {headerFooter?.groupName && (
+                  <div style={{ fontSize: '0.74rem' }}>{headerFooter.groupName}</div>
+                )}
+                {headerFooter?.address && (
+                  <div style={{ fontSize: '0.70rem', color: '#444' }}>{headerFooter.address}</div>
+                )}
+                {headerFooter?.phone && (
+                  <div style={{ fontSize: '0.70rem', color: '#444' }}>Telp: {headerFooter.phone}</div>
+                )}
               </div>
               
               <div style={{ margin: '8px 0', borderBottom: '1px dashed #111' }}></div>
@@ -433,10 +580,18 @@ function ThermalReceiptPreviewSection({ printerSettings }) {
 
               {/* FOOTER */}
               <div style={{ textAlign: 'center', fontSize: '0.70rem', color: '#333' }}>
-                <div style={{ fontWeight: 'bold' }}>TERIMA KASIH ATAS KUNJUNGAN ANDA</div>
-                <div>SUDAH TERMASUK PB1 PAJAK RESTORAN</div>
-                <div style={{ marginTop: '4px' }}>WIFI: BarokahResto_5G</div>
-                <div>PASS: berkahselalu</div>
+                {headerFooter?.footerLine1 && (
+                  <div style={{ fontWeight: 'bold' }}>{headerFooter.footerLine1}</div>
+                )}
+                {headerFooter?.footerLine2 && (
+                  <div>{headerFooter.footerLine2}</div>
+                )}
+                {headerFooter?.wifiSsid && (
+                  <div style={{ marginTop: '4px' }}>WIFI: {headerFooter.wifiSsid}</div>
+                )}
+                {headerFooter?.wifiPassword && (
+                  <div>PASS: {headerFooter.wifiPassword}</div>
+                )}
               </div>
             </div>
           )}
