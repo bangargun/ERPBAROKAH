@@ -4615,7 +4615,7 @@ export default function AndroidPosRegister({
                         ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
                       );
 
-                      const matchedDailyMasuk = (masterData.approvedFinanceDaily || []).filter(f =>
+                      const matchedDailyMasuk = [...(masterData.approvedFinanceDaily || []), ...(masterData.manualEntryRecords || [])].filter(f =>
                         (Number(f.outlet_id) === Number(currentOutlet.id) || f.branch_name === currentOutlet.name || f.outlet_name === currentOutlet.name)
                       );
                       const allTransfers = masterData.approvedTransfers || masterData.stockTransfer || [];
@@ -4625,7 +4625,12 @@ export default function AndroidPosRegister({
                         let inQty = 0;
                         matchedDailyMasuk.forEach(f => {
                           (f.cogs_items || []).forEach(c => {
-                            if ((c.name || c.item_name || '').toLowerCase() === ing.name.toLowerCase()) {
+                            if ((c.name || c.item_name || '').toLowerCase().trim() === ing.name.toLowerCase().trim()) {
+                              inQty += Number(c.qty || 0);
+                            }
+                          });
+                          (f.expense_rows || []).filter(r => (r.category_type || '').includes('HPP')).forEach(c => {
+                            if ((c.item_name || '').toLowerCase().trim() === ing.name.toLowerCase().trim()) {
                               inQty += Number(c.qty || 0);
                             }
                           });
@@ -4702,9 +4707,59 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {(() => {
-                          const combinedOpname = (masterData.approvedLogistics && masterData.approvedLogistics.length > 0)
-                            ? masterData.approvedLogistics
-                            : (masterData.stockOpname || []);
+                          const combinedOpnameMap = new Map();
+
+                          // 1. Manual logistics / stock opname entries
+                          [...(masterData.approvedLogistics || []), ...(masterData.stockOpname || [])].forEach(op => {
+                            if (op && (op.id || op.report_no)) {
+                              combinedOpnameMap.set(String(op.id || op.report_no), op);
+                            }
+                          });
+
+                          // 2. Auto-stream entries from Laporan Harian (approvedFinanceDaily & manualEntryRecords)
+                          const dailyList = [...(masterData.approvedFinanceDaily || []), ...(masterData.manualEntryRecords || [])];
+                          const seenDailyIds = new Set();
+                          dailyList.forEach(f => {
+                            const dId = String(f.id || f.report_no || '');
+                            if (!dId || seenDailyIds.has(dId)) return;
+                            seenDailyIds.add(dId);
+
+                            const hppRows = [
+                              ...(f.cogs_items || []),
+                              ...(f.expense_rows || []).filter(r => (r.category_type || '').includes('HPP'))
+                            ];
+
+                            hppRows.forEach((r, idx) => {
+                              const autoLogId = `LOG-AUTO-${f.report_no || f.id}-${idx}`;
+                              if (!combinedOpnameMap.has(autoLogId) && r.item_name) {
+                                const existingIng = (masterData.ingredients || []).find(ing => (ing.name || '').toLowerCase() === (r.item_name || '').toLowerCase());
+                                const currentStock = existingIng ? Number(existingIng.stock || 0) : 0;
+                                const addQty = Number(r.qty || 1);
+                                combinedOpnameMap.set(autoLogId, {
+                                  id: autoLogId,
+                                  report_no: f.report_no || f.id,
+                                  date: f.date || new Date().toISOString().split('T')[0],
+                                  outlet_id: f.outlet_id,
+                                  branch_name: f.branch_name || f.outlet_name || currentOutlet.name,
+                                  submitted_by: f.author_name || f.submitted_by || 'Kasir',
+                                  created_by: f.author_name || f.submitted_by || 'Kasir',
+                                  item_name: r.item_name || r.name,
+                                  stok_awal: currentStock,
+                                  stok_masuk: addQty,
+                                  transfer_masuk: 0,
+                                  transfer_keluar: 0,
+                                  stok_rusak: 0,
+                                  stok_fisik: currentStock + addQty,
+                                  unit: r.unit || 'kg',
+                                  status: f.status || 'Pending',
+                                  type_input: 'by laporan harian (otomatis)',
+                                  notes: `HPP Laporan Harian ${f.report_no || f.id}`
+                                });
+                              }
+                            });
+                          });
+
+                          const combinedOpname = Array.from(combinedOpnameMap.values());
 
                           const filteredOpname = combinedOpname.filter(op => 
                             !op.outlet_id || Number(op.outlet_id) === Number(currentOutlet.id) || op.branch_name === currentOutlet.name
@@ -9934,16 +9989,60 @@ export default function AndroidPosRegister({
                     notes: manualRepNotes || 'Laporan Harian POS Kasir Tablet'
                   };
 
+                  // Auto-generate Logistics (Stok Masuk HPP) entries from HPP expense rows
+                  const autoLogisticsEntries = (manualExpenseRows || [])
+                    .filter(r => (r.category_type || '').includes('HPP') && r.item_name)
+                    .map((r, idx) => {
+                      const existingIng = (masterData.ingredients || []).find(ing => (ing.name || '').toLowerCase() === (r.item_name || '').toLowerCase());
+                      const currentStock = existingIng ? Number(existingIng.stock || 0) : 0;
+                      const addQty = Number(r.qty || 1);
+                      return {
+                        id: `LOG-AUTO-${manualRepNo}-${idx}`,
+                        report_no: manualRepNo,
+                        date: manualRepDate,
+                        outlet_id: manualRepOutletId,
+                        branch_name: (masterData.outlets || []).find(o => o.id === manualRepOutletId)?.name || currentOutlet.name || 'Restoran Utama',
+                        submitted_by: manualRepAuthor || userSession?.name || 'Kasir',
+                        created_by: manualRepAuthor || userSession?.name || 'Kasir',
+                        item_name: r.item_name,
+                        stok_awal: currentStock,
+                        stok_masuk: addQty,
+                        transfer_masuk: 0,
+                        transfer_keluar: 0,
+                        stok_rusak: 0,
+                        stok_fisik: currentStock + addQty,
+                        unit: r.unit || 'kg',
+                        status: 'Pending',
+                        type_input: 'by laporan harian (otomatis)',
+                        notes: `Auto-stream HPP Laporan Harian ${manualRepNo}`
+                      };
+                    });
+
                   setShowAddManualReportModal(false);
 
                   setMasterData(prev => {
                     const now = Date.now();
+
+                    // Update ingredient stock for matching HPP items
+                    const updatedIngredients = (prev.ingredients || []).map(ing => {
+                      const matchedRows = (manualExpenseRows || []).filter(r => (r.category_type || '').includes('HPP') && (r.item_name || '').toLowerCase() === (ing.name || '').toLowerCase());
+                      if (matchedRows.length > 0) {
+                        const totalAddedQty = matchedRows.reduce((sum, r) => sum + Number(r.qty || 0), 0);
+                        const newStock = Number(ing.stock || 0) + totalAddedQty;
+                        return { ...ing, stock: newStock, stok: newStock };
+                      }
+                      return ing;
+                    });
+
                     const newMaster = {
                       ...prev,
                       _lastUpdated: now,
                       clientUpdated: now,
+                      ingredients: updatedIngredients,
                       manualEntryRecords: [newReportObj, ...(prev.manualEntryRecords || []).filter(i => i.id !== newReportObj.id)],
-                      approvedFinanceDaily: [newReportObj, ...(prev.approvedFinanceDaily || []).filter(i => i.id !== newReportObj.id)]
+                      approvedFinanceDaily: [newReportObj, ...(prev.approvedFinanceDaily || []).filter(i => i.id !== newReportObj.id)],
+                      stockOpname: [...autoLogisticsEntries, ...(prev.stockOpname || []).filter(s => !autoLogisticsEntries.some(a => a.id === s.id))],
+                      approvedLogistics: [...autoLogisticsEntries, ...(prev.approvedLogistics || []).filter(s => !autoLogisticsEntries.some(a => a.id === s.id))]
                     };
 
                     fetch(getApiUrl('/api/master-data'), {
