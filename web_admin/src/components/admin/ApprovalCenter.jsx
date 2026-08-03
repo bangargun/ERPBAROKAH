@@ -507,7 +507,8 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       total_modal_returned: computedTotalModalReturned,
       modal_debt_remaining: computedModalDebtRemaining,
 
-      status: 'Done', // Direct Status for Admin
+      status: 'Pending', // Initial Status: Pending (Menunggu Persetujuan Admin)
+      approval_status: 'Pending',
       notes: addForm.notes || 'Input Manual Laporan Harian Admin Central'
     };
 
@@ -837,9 +838,25 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
                       {/* 4. STATUS */}
                       <td style={{ padding: '14px 16px' }}>
-                        {item.status === 'ACC' && (
+                        {(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? (
+                          <span style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(34, 197, 94, 0.15)',
+                            border: '1px solid #22c55e',
+                            color: '#4ade80',
+                            fontWeight: '900',
+                            fontSize: '0.78rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            <CheckSquare size={14} />
+                            <span>Done (Disetujui)</span>
+                          </span>
+                        ) : (
                           <button
-                            onClick={() => handleUpdateStatus(item, 'Approved')}
+                            onClick={() => handleUpdateStatus(item, 'Done')}
                             style={{
                               padding: '6px 12px',
                               borderRadius: '8px',
@@ -856,49 +873,8 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                             title="Klik untuk menyetujui (Approve) laporan ini"
                           >
                             <Clock size={14} />
-                            <span>ACC (Klik Setuju)</span>
+                            <span>⏳ Pending (Klik Approve)</span>
                           </button>
-                        )}
-
-                        {item.status === 'Approved' && (
-                          <button
-                            onClick={() => handleUpdateStatus(item, 'Done')}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: 'rgba(34, 197, 94, 0.2)',
-                              border: '1px solid #22c55e',
-                              color: '#4ade80',
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                            title="Klik untuk mengubah ke status Selesai (Done)"
-                          >
-                            <CheckCircle2 size={14} />
-                            <span>Approved (Setuju)</span>
-                          </button>
-                        )}
-
-                        {item.status === 'Done' && (
-                          <span style={{
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            background: 'rgba(56, 189, 248, 0.15)',
-                            border: '1px solid #38bdf8',
-                            color: '#38bdf8',
-                            fontWeight: '900',
-                            fontSize: '0.78rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}>
-                            <CheckSquare size={14} />
-                            <span>Done (Selesai)</span>
-                          </span>
                         )}
                       </td>
 

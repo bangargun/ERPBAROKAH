@@ -4489,17 +4489,12 @@ export default function AndroidPosRegister({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.72rem' }}>
-                          <th style={{ padding: '12px 16px' }}>Tanggal</th>
-                          <th style={{ padding: '12px 16px' }}>Nomor Laporan</th>
-                          <th style={{ padding: '12px 16px' }}>Pembuat / Kasir</th>
-                          <th style={{ padding: '12px 16px' }}>Outlet Cabang</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Pendapatan (Net Sales)</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Kas Non-Tunai</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Pengeluaran</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Uang di Laci Kasir</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'center' }}>Status</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'center' }}>Aksi</th>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: '800' }}>
+                          <th style={{ padding: '12px 16px', width: '180px' }}>TANGGAL</th>
+                          <th style={{ padding: '12px 16px' }}>NO LAPORAN</th>
+                          <th style={{ padding: '12px 16px', width: '150px' }}>PENGAJU</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', width: '140px' }}>STATUS</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'right', width: '140px' }}>AKSI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4511,7 +4506,7 @@ export default function AndroidPosRegister({
                           if (combinedRecords.length === 0) {
                             return (
                               <tr>
-                                <td colSpan="10" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
                                   Belum ada log laporan keuangan harian kasir terdaftar.
                                 </td>
                               </tr>
@@ -4519,39 +4514,67 @@ export default function AndroidPosRegister({
                           }
 
                           return combinedRecords.map((item, idx) => {
-                            const isApproved = item.status === 'approved' || item.status === 'ok';
+                            const isDone = item.status === 'Done' || item.status === 'Approved' || item.status === 'approved' || item.status === 'ok' || item.approval_status === 'Done';
 
                             return (
                               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
-                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{item.date}</td>
-                                <td style={{ padding: '12px 16px', fontWeight: '900', color: '#38bdf8' }}>{item.report_no || item.id}</td>
-                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-primary)' }}>👤 {item.author_name}</td>
-                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-secondary)' }}>🏢 {item.branch_name}</td>
-                                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{formatRupiah(item.net_sales)}</td>
-                                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#a78bfa' }}>{formatRupiah(item.non_cash_sales)}</td>
-                                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>-{formatRupiah(item.total_expense)}</td>
-                                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(item.cash_physical)}</td>
-                                
-                                {/* STATUS: PENDING ATAU APPROVED (MATCHING USER DIRECTIVE) */}
-                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                                  <span style={{
-                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
-                                    background: isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
-                                    color: isApproved ? '#34d399' : '#fbbf24',
-                                    border: `1px solid ${isApproved ? '#34d399' : '#fbbf24'}`
-                                  }}>
-                                    {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
-                                  </span>
+                                {/* 1. TANGGAL */}
+                                <td style={{ padding: '12px 16px', color: 'var(--pos-txt-primary)', fontWeight: '600' }}>
+                                  <div>{item.date}</div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>📍 {item.branch_name || item.outlet_name || currentOutlet.name}</div>
                                 </td>
 
-                                {/* AKSI */}
-                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                {/* 2. NO LAPORAN */}
+                                <td style={{ padding: '12px 16px' }}>
                                   <button
                                     type="button"
                                     onClick={() => setPreviewManualReport(item)}
-                                    style={{ padding: '5px 10px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }}
+                                    title="Klik untuk membuka rincian laporan"
                                   >
-                                    👁️ Preview
+                                    {item.report_no || item.id}
+                                  </button>
+                                  <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                    Net Sales: {formatRupiah(item.net_sales)} &bull; Expense: {formatRupiah(item.total_expense)}
+                                  </div>
+                                </td>
+
+                                {/* 3. PENGAJU */}
+                                <td style={{ padding: '12px 16px' }}>
+                                  <span style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: '800',
+                                    background: item.submitter_type === 'Admin' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                                    color: item.submitter_type === 'Admin' ? '#38bdf8' : '#818cf8',
+                                    border: item.submitter_type === 'Admin' ? '1px solid #38bdf8' : '1px solid #6366f1'
+                                  }}>
+                                    {item.submitter_type === 'Admin' ? '👤 Admin' : '📱 POS Kasir'}
+                                  </span>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '4px' }}>{item.author_name || item.cashier_name || 'Kasir'}</div>
+                                </td>
+
+                                {/* 4. STATUS */}
+                                <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                                  <span style={{
+                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
+                                    background: isDone ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
+                                    color: isDone ? '#34d399' : '#fbbf24',
+                                    border: `1px solid ${isDone ? '#34d399' : '#fbbf24'}`
+                                  }}>
+                                    {isDone ? '🟢 Done' : '⏳ Pending'}
+                                  </span>
+                                </td>
+
+                                {/* 5. AKSI */}
+                                <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewManualReport(item)}
+                                    style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
+                                  >
+                                    👁️ Pratinjau
                                   </button>
                                 </td>
                               </tr>
@@ -9906,7 +9929,8 @@ export default function AndroidPosRegister({
                     modal_refund_rows: manualCashReturnRows,
                     total_modal_returned: totalModalReturned,
                     modal_debt_remaining: sisaHutangModal,
-                    status: 'ACC', // Initial Status for POS Kasir: ACC (Menunggu Persetujuan Web Admin)
+                    status: 'Pending', // Initial Status for POS Kasir: Pending (Menunggu Persetujuan Web Admin)
+                    approval_status: 'Pending',
                     notes: manualRepNotes || 'Laporan Harian POS Kasir Tablet'
                   };
 
@@ -9931,7 +9955,7 @@ export default function AndroidPosRegister({
                     return newMaster;
                   });
 
-                  alert(`✅ Laporan Harian ${manualRepNo} berhasil dikirim ke Web Admin (Status: ACC / Menunggu Persetujuan)!`);
+                  alert(`✅ Laporan Harian ${manualRepNo} berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
                   {/* 1. HEADER PARAMETERS */}
@@ -10320,7 +10344,7 @@ export default function AndroidPosRegister({
                   </div>
 
                   <div style={{ fontSize: '0.76rem', color: '#fbbf24', fontWeight: '800' }}>
-                    ⏳ Laporan Harian yang Anda kirim akan masuk dengan status &quot;ACC&quot; (Menunggu Persetujuan Admin Central).
+                    ⏳ Laporan Harian yang Anda kirim akan masuk dengan status &quot;Pending&quot; (Menunggu Persetujuan Admin Central).
                   </div>
 
                   {/* SUBMIT BUTTONS */}
