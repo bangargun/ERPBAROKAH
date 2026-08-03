@@ -870,7 +870,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const [voidReason, setVoidReason] = useState('Salah input menu');
 
   // OMZET FILTER STATES
-  const [selectedOmzetMonth, setSelectedOmzetMonth] = useState('2026-07'); // YYYY-MM for Line Chart & Comparison Table
+  const [selectedOmzetMonth, setSelectedOmzetMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM for Line Chart & Comparison Table
   // 1. Date Range Filter & Calendar Widget Popover
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -893,8 +893,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // PENJUALAN BY MENU FILTER STATES
   const [selectedMenuFilter, setSelectedMenuFilter] = useState('ALL');
-  const [catStartDate, setCatStartDate] = useState('2026-07-01');
-  const [catEndDate, setCatEndDate] = useState('2026-07-31');
+  const [catStartDate, setCatStartDate] = useState('');
+  const [catEndDate, setCatEndDate] = useState('');
   const [catDatePreset, setCatDatePreset] = useState('month');
   const [catShowCalendarPopover, setCatShowCalendarPopover] = useState(false);
   const [catSelectedOutletIds, setCatSelectedOutletIds] = useState(['ALL']);
@@ -2356,7 +2356,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const map = {};
 
     txs.forEach(t => {
-      const d = t.date || '2026-07-01';
+      const d = t.date || new Date().toISOString().split('T')[0];
       if (!map[d]) {
         map[d] = {
           date: d,
@@ -2369,10 +2369,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           total: 0
         };
       }
-      const gross = Number(t.amount || 0);
-      const disc = Number(t.discount || 0);
-      const sc = Number(t.service_charge || 0);
-      const tax = Number(t.tax || 0);
+      const gross = Number(t.amount || t.total_amount || t.grand_total || 0);
+      const disc = Number(t.discount || t.discount_amount || 0);
+      const sc = Number(t.service_charge || t.serviceCharge || 0);
+      const tax = Number(t.tax || t.tax_amount || 0);
       const adj = Number(t.adjustment || 0);
 
       map[d].totalSales += gross;
@@ -2384,42 +2384,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     });
 
     const sortedDates = Object.keys(map).sort();
-    if (sortedDates.length > 0) {
-      return sortedDates.map(d => map[d]);
-    }
-
-    // Demo dataset matching user's screenshot for July 2026 (01/07/2026 - 31/07/2026)
-    const julyData = [
-      { date: '2026-07-01', totalSales: 10719000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-02', totalSales: 9293000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-03', totalSales: 9122000, discount: 221000, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-04', totalSales: 11943000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-05', totalSales: 15075000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-06', totalSales: 13550000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-07', totalSales: 10111000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-08', totalSales: 10921000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-09', totalSales: 8408000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-10', totalSales: 10842000, discount: 187000, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-11', totalSales: 11830000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-12', totalSales: 14781000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-13', totalSales: 8942000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-14', totalSales: 7256000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-15', totalSales: 7518000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-16', totalSales: 6955000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-17', totalSales: 9091000, discount: 187000, serviceCharge: 0, tax: 0, adjustment: 0 },
-      { date: '2026-07-18', totalSales: 12189000, discount: 0, serviceCharge: 0, tax: 0, adjustment: 0 }
-    ];
-
-    return julyData.map(item => ({
-      date: item.date,
-      formattedDate: formatToDMY(item.date),
-      totalSales: item.totalSales,
-      discount: item.discount,
-      serviceCharge: item.serviceCharge,
-      tax: item.tax,
-      adjustment: item.adjustment,
-      total: item.totalSales - item.discount + item.serviceCharge + item.tax + item.adjustment
-    }));
+    return sortedDates.map(d => map[d]);
   };
 
   // Daily Download Excel (CSV)
@@ -4567,7 +4532,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 Ringkasan Penjualan Harian
               </h1>
               <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#cbd5e1', marginTop: '6px' }}>
-                {dailyStartDate ? formatToDMY(dailyStartDate) : '01/07/2026'} - {dailyEndDate ? formatToDMY(dailyEndDate) : '31/07/2026'}
+                {dailyStartDate ? formatToDMY(dailyStartDate) : 'Semua Tanggal'} {dailyEndDate ? `- ${formatToDMY(dailyEndDate)}` : ''}
               </div>
             </div>
 
@@ -4588,6 +4553,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <tbody>
                   {(() => {
                     const data = getSalesSummaryByDayData();
+                    if (data.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.88rem' }}>
+                            📭 Belum ada data transaksi penjualan harian. Data penjualan akan muncul otomatis ketika transaksi kasir diinput.
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     const totalSalesSum = data.reduce((s, r) => s + r.totalSales, 0);
                     const discountSum = data.reduce((s, r) => s + r.discount, 0);
                     const serviceChargeSum = data.reduce((s, r) => s + r.serviceCharge, 0);
