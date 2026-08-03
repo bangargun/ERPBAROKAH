@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ClipboardCheck, 
   Search, 
@@ -16,7 +16,14 @@ import {
   AlertCircle,
   Eye,
   FileSpreadsheet,
-  Calendar
+  Calendar,
+  Calculator,
+  DollarSign,
+  TrendingUp,
+  Receipt,
+  Layers,
+  Inbox,
+  Minus
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 
@@ -51,20 +58,90 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     reason_for_edit: ''
   });
 
-  // ADD FORM STATE (ADMIN MANUAL ENTRY)
+  // MASTER DATA LISTS FOR AUTO-SUGGESTION
+  const outletsList = masterData?.outlets || [];
+  const ingredientsList = masterData?.ingredients || [];
+  const expenseMasterList = masterData?.expenseMaster || [];
+
+  // MASTER DATA AUTO-SUGGESTION COMBINED OPTIONS
+  const expenseSuggestions = [
+    ...ingredientsList.map(i => ({
+      name: i.name,
+      category_type: 'HPP Bahan Baku',
+      unit: i.unit || 'kg',
+      price: i.cost || i.price || 0
+    })),
+    ...expenseMasterList.map(e => ({
+      name: e.name || e.title,
+      category_type: e.category || e.type || 'Beban Operasional',
+      unit: e.unit || 'bulan',
+      price: e.price || e.amount || 0
+    }))
+  ];
+
+  // ADD FORM STATE (COMPREHENSIVE MANUAL ENTRY BY ADMIN)
   const [addForm, setAddForm] = useState({
     outlet_id: selectedBranch || (masterData?.outlets?.[0]?.id || 1),
     date: new Date().toISOString().split('T')[0],
     report_no: `LAP-ADM-${Date.now().toString().slice(-6)}`,
-    net_sales: '',
-    cash_sales: '',
-    non_cash_sales: '',
-    cogs_expense: '',
-    total_expense: '',
+    cashier_name: 'Admin',
+
+    // BAGIAN 1: PENJUALAN & DISKON
+    cash_sales: 0,
+    non_cash_sales: 0,
+    sales_discount: 0,
+
+    // BAGIAN 2: MULTI-ROW PENGELUARAN
+    expense_rows: [
+      { id: 1, item_name: '', category_type: 'HPP Bahan Baku', qty: 1, unit: 'kg', price_per_unit: 0, subtotal: 0 }
+    ],
+
+    // BAGIAN 5: PEMBAYARAN PENGAMBILAN MODAL
+    modal_ideal: 500000,
+    modal_refund_rows: [
+      { id: 1, date: new Date().toISOString().split('T')[0], amount_returned: 0, notes: 'Pengembalian Modal Initial' }
+    ],
+
     notes: ''
   });
 
-  const outletsList = masterData?.outlets || [];
+  // AUTO CALCULATE POS SALES FOR SELECTED DATE & OUTLET UP TO 23:59:59
+  useEffect(() => {
+    if (!showAddModal) return;
+
+    const salesList = masterData?.salesTransactions || [];
+    const targetDate = addForm.date;
+    const targetOutlet = Number(addForm.outlet_id);
+
+    let calcCash = 0;
+    let calcNonCash = 0;
+    let calcDiscount = 0;
+
+    salesList.forEach(tx => {
+      const txDate = String(tx.date || tx.created_at || '').substring(0, 10);
+      const txOutlet = Number(tx.outlet_id || tx.branch_id || 1);
+
+      if (txDate === targetDate && (targetOutlet === 0 || txOutlet === targetOutlet)) {
+        const amount = Number(tx.amount || tx.total || 0);
+        const method = String(tx.payment_method || tx.method || '').toLowerCase();
+        const disc = Number(tx.discount || tx.discount_amount || 0);
+
+        if (method.includes('cash') || method.includes('tunai')) {
+          calcCash += amount;
+        } else {
+          calcNonCash += amount;
+        }
+        calcDiscount += disc;
+      }
+    });
+
+    setAddForm(prev => ({
+      ...prev,
+      cash_sales: calcCash,
+      non_cash_sales: calcNonCash,
+      sales_discount: calcDiscount
+    }));
+  }, [addForm.date, addForm.outlet_id, showAddModal, masterData?.salesTransactions]);
 
   const getOutletName = (id) => {
     const found = outletsList.find(o => Number(o.id) === Number(id));
@@ -80,6 +157,20 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     const str = String(dateStr).substring(0, 16).replace('T', ' ');
     return str;
   };
+
+  // FORMULA KALKULASI BAGIAN PENJUALAN, LABA KOTOR & UANG DI LACI
+  const computedTotalIncome = Math.max(0, (Number(addForm.cash_sales || 0) + Number(addForm.non_cash_sales || 0)) - Number(addForm.sales_discount || 0));
+  
+  const computedTotalExpense = (addForm.expense_rows || []).reduce((sum, r) => sum + (Number(r.subtotal) || 0), 0);
+  
+  const computedGrossProfit = computedTotalIncome - computedTotalExpense;
+
+  // Uang di laci = Laba Kotor - Penjualan Non Cash - Diskon Penjualan
+  const computedCashInDrawer = computedGrossProfit - Number(addForm.non_cash_sales || 0) - Number(addForm.sales_discount || 0);
+
+  // FORMULA PENGAMBILAN MODAL
+  const computedTotalModalReturned = (addForm.modal_refund_rows || []).reduce((sum, r) => sum + (Number(r.amount_returned) || 0), 0);
+  const computedModalDebtRemaining = Number(addForm.modal_ideal || 0) - computedTotalModalReturned;
 
   // KONSOLIDASI SELURUH LAPORAN HARIAN DARI POS KASIR & WEB ADMIN
   const rawReports = [
@@ -123,15 +214,21 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         date: r.date || r.created_at || new Date().toISOString(),
         cashier_name: r.cashier_name || r.cashier || (isFromAdmin ? 'Admin' : 'Kasir'),
         submitter_type: submitterText,
-        net_sales: Number(r.net_sales || r.total_sales || r.actual_cash || 0),
+        net_sales: Number(r.net_sales || r.total_sales || r.total_income || 0),
         cash_sales: Number(r.cash_sales || (r.net_sales - (r.non_cash_sales || 0)) || 0),
         non_cash_sales: Number(r.non_cash_sales || 0),
+        sales_discount: Number(r.sales_discount || 0),
         cogs_expense: Number(r.cogs_expense || 0),
         total_expense: Number(r.total_expense || 0),
+        gross_profit: Number(r.gross_profit || (r.net_sales - r.total_expense)),
+        cash_in_drawer: Number(r.cash_in_drawer || 0),
+        modal_ideal: Number(r.modal_ideal || 0),
+        modal_debt_remaining: Number(r.modal_debt_remaining || 0),
+        modal_refund_rows: r.modal_refund_rows || [],
         status: currentStatus,
         notes: r.notes || r.closing_notes || '-',
         edit_history: r.edit_history || [],
-        expenses_breakdown: r.expenses_breakdown || []
+        expense_rows: r.expense_rows || []
       };
 
       if (!reportsMap.has(key)) {
@@ -269,13 +366,85 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     setEditModalItem(null);
   };
 
+  // HANDLERS UNTUK MULTI-ROW PENGELUARAN
+  const handleAddExpenseRow = () => {
+    setAddForm(prev => ({
+      ...prev,
+      expense_rows: [
+        ...prev.expense_rows,
+        { id: Date.now(), item_name: '', category_type: 'HPP Bahan Baku', qty: 1, unit: 'kg', price_per_unit: 0, subtotal: 0 }
+      ]
+    }));
+  };
+
+  const handleRemoveExpenseRow = (id) => {
+    setAddForm(prev => ({
+      ...prev,
+      expense_rows: prev.expense_rows.filter(r => r.id !== id)
+    }));
+  };
+
+  const handleExpenseRowChange = (id, field, value) => {
+    setAddForm(prev => ({
+      ...prev,
+      expense_rows: prev.expense_rows.map(r => {
+        if (r.id !== id) return r;
+
+        let updated = { ...r, [field]: value };
+
+        // AUTO FILL KATEGORI & SATUAN SAAT AUTO-SUGGESTION DIPILIH
+        if (field === 'item_name') {
+          const suggested = expenseSuggestions.find(s => s.name === value);
+          if (suggested) {
+            updated.category_type = suggested.category_type;
+            updated.unit = suggested.unit;
+            if (suggested.price && !updated.price_per_unit) {
+              updated.price_per_unit = suggested.price;
+            }
+          }
+        }
+
+        // RE-CALCULATE SUBTOTAL (QTY * HARGA SATUAN)
+        const q = Number(field === 'qty' ? value : updated.qty) || 0;
+        const p = Number(field === 'price_per_unit' ? value : updated.price_per_unit) || 0;
+        updated.subtotal = q * p;
+
+        return updated;
+      })
+    }));
+  };
+
+  // HANDLERS UNTUK RIWAYAT PENGAMBILAN MODAL
+  const handleAddModalRefundRow = () => {
+    setAddForm(prev => ({
+      ...prev,
+      modal_refund_rows: [
+        ...prev.modal_refund_rows,
+        { id: Date.now(), date: new Date().toISOString().split('T')[0], amount_returned: 0, notes: 'Pengembalian Modal' }
+      ]
+    }));
+  };
+
+  const handleRemoveModalRefundRow = (id) => {
+    setAddForm(prev => ({
+      ...prev,
+      modal_refund_rows: prev.modal_refund_rows.filter(r => r.id !== id)
+    }));
+  };
+
+  const handleModalRefundRowChange = (id, field, value) => {
+    setAddForm(prev => ({
+      ...prev,
+      modal_refund_rows: prev.modal_refund_rows.map(r => {
+        if (r.id !== id) return r;
+        return { ...r, [field]: value };
+      })
+    }));
+  };
+
   // SAVE NEW MANUAL REPORT HANDLER (BY ADMIN -> STATUS AUTO DONE)
   const handleSaveAddManualReport = (e) => {
     e.preventDefault();
-    if (!addForm.net_sales) {
-      alert('⚠️ Silakan isi total omzet penjualan!');
-      return;
-    }
 
     const newReport = {
       id: `LAP-ADM-${Date.now()}`,
@@ -283,15 +452,32 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       outlet_id: Number(addForm.outlet_id),
       branch_name: getOutletName(addForm.outlet_id),
       date: addForm.date,
-      cashier_name: 'Admin',
+      cashier_name: addForm.cashier_name || 'Admin',
       submitter_type: 'Admin',
-      net_sales: Number(addForm.net_sales || 0),
+
+      // BAGIAN 1: PENJUALAN
       cash_sales: Number(addForm.cash_sales || 0),
       non_cash_sales: Number(addForm.non_cash_sales || 0),
-      cogs_expense: Number(addForm.cogs_expense || 0),
-      total_expense: Number(addForm.total_expense || 0),
+      sales_discount: Number(addForm.sales_discount || 0),
+      net_sales: computedTotalIncome,
+
+      // BAGIAN 2: PENGELUARAN
+      expense_rows: addForm.expense_rows,
+      cogs_expense: addForm.expense_rows.filter(r => r.category_type.includes('HPP')).reduce((sum, r) => sum + r.subtotal, 0),
+      total_expense: computedTotalExpense,
+
+      // BAGIAN 3 & 4: LABA KOTOR & UANG DI LACI
+      gross_profit: computedGrossProfit,
+      cash_in_drawer: computedCashInDrawer,
+
+      // BAGIAN 5: MODAL
+      modal_ideal: Number(addForm.modal_ideal || 0),
+      modal_refund_rows: addForm.modal_refund_rows,
+      total_modal_returned: computedTotalModalReturned,
+      modal_debt_remaining: computedModalDebtRemaining,
+
       status: 'Done', // Direct Status for Admin
-      notes: addForm.notes || 'Input Manual oleh Admin'
+      notes: addForm.notes || 'Input Manual Laporan Harian Admin Central'
     };
 
     setMasterData(prev => ({
@@ -329,9 +515,9 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
   // EXPORT EXCEL HANDLER
   const handleExportCSV = () => {
-    let csv = "TANGGAL,NO LAPORAN,PENGAJU,OUTLET,NET SALES (IDR),TOTAL EXPENSE (IDR),STATUS,CATATAN\n";
+    let csv = "TANGGAL,NO LAPORAN,PENGAJU,OUTLET,NET SALES (IDR),TOTAL EXPENSE (IDR),LABA KOTOR (IDR),STATUS,CATATAN\n";
     filteredReports.forEach(r => {
-      csv += `"${formatDateIndo(r.date)}","${r.report_no}","${r.submitter_type}","${r.outlet_name}",${r.net_sales},${r.total_expense},"${r.status}","${r.notes.replace(/"/g, '""')}"\n`;
+      csv += `"${formatDateIndo(r.date)}","${r.report_no}","${r.submitter_type}","${r.outlet_name}",${r.net_sales},${r.total_expense},${r.gross_profit || (r.net_sales - r.total_expense)},"${r.status}","${r.notes.replace(/"/g, '""')}"\n`;
     });
 
     const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
@@ -560,7 +746,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                           <Eye size={14} color="#38bdf8" />
                         </button>
                         <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
-                          Omzet: {formatRupiah(item.net_sales)} &bull; Expense: {formatRupiah(item.total_expense)}
+                          Pendapatan: {formatRupiah(item.net_sales)} &bull; Expense: {formatRupiah(item.total_expense)}
                         </div>
                       </td>
 
@@ -690,7 +876,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       {/* 📄 MODAL DETAIL LAPORAN (KLIK NO LAPORAN) */}
       {detailModalItem && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
               <div>
@@ -718,9 +904,10 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               </div>
             </div>
 
+            {/* FINANCIAL SUMMARY */}
             <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', borderBottom: '1px dashed #334155', paddingBottom: '8px' }}>
-                💵 Ringkasan Transaksi Keuangan Shift:
+                💵 Ringkasan Penjualan &amp; Laba Kotor:
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
                 <span style={{ color: '#94a3b8' }}>Penjualan Tunai (Cash):</span>
@@ -730,20 +917,74 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                 <span style={{ color: '#94a3b8' }}>Penjualan Non-Tunai (QRIS/EDC):</span>
                 <span style={{ color: '#f8fafc', fontWeight: '800' }}>{formatRupiah(detailModalItem.non_cash_sales)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: '800', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#38bdf8' }}>TOTAL NET SALES:</span>
-                <span style={{ color: '#38bdf8' }}>{formatRupiah(detailModalItem.net_sales)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
+                <span style={{ color: '#94a3b8' }}>Diskon Penjualan:</span>
+                <span style={{ color: '#fb7185', fontWeight: '800' }}>- {formatRupiah(detailModalItem.sales_discount || 0)}</span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', marginTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Total Pembelian HPP Bahan:</span>
-                <span style={{ color: '#fb7185', fontWeight: '800' }}>{formatRupiah(detailModalItem.cogs_expense)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: '800', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
+                <span style={{ color: '#38bdf8' }}>TOTAL PENDAPATAN:</span>
+                <span style={{ color: '#38bdf8' }}>{formatRupiah(detailModalItem.net_sales)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                <span style={{ color: '#94a3b8' }}>Total Beban Kasir / Pengeluaran:</span>
-                <span style={{ color: '#fb7185', fontWeight: '800' }}>{formatRupiah(detailModalItem.total_expense)}</span>
+                <span style={{ color: '#94a3b8' }}>Total Pengeluaran:</span>
+                <span style={{ color: '#fb7185', fontWeight: '800' }}>- {formatRupiah(detailModalItem.total_expense)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.92rem', fontWeight: '900', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
+                <span style={{ color: '#34d399' }}>LABA KOTOR:</span>
+                <span style={{ color: '#34d399' }}>{formatRupiah(detailModalItem.gross_profit || (detailModalItem.net_sales - detailModalItem.total_expense))}</span>
               </div>
             </div>
+
+            {/* UANG DI LACI & MODAL METRICS */}
+            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', borderBottom: '1px dashed #334155', paddingBottom: '8px' }}>
+                💰 Metrik Uang Di Laci &amp; Hutang Modal:
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
+                <span style={{ color: '#94a3b8' }}>Uang Di Laci (Cash in Drawer):</span>
+                <span style={{ color: '#fbbf24', fontWeight: '900' }}>{formatRupiah(detailModalItem.cash_in_drawer || (detailModalItem.net_sales - detailModalItem.total_expense - detailModalItem.non_cash_sales))}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
+                <span style={{ color: '#94a3b8' }}>Modal Ideal Kasir:</span>
+                <span style={{ color: '#f8fafc', fontWeight: '800' }}>{formatRupiah(detailModalItem.modal_ideal || 0)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
+                <span style={{ color: '#94a3b8' }}>Sisa Hutang Modal:</span>
+                <span style={{ color: '#38bdf8', fontWeight: '800' }}>{formatRupiah(detailModalItem.modal_debt_remaining || 0)}</span>
+              </div>
+            </div>
+
+            {/* MULTI-ROW EXPENSES BREAKDOWN */}
+            {detailModalItem.expense_rows && detailModalItem.expense_rows.length > 0 && (
+              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155' }}>
+                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', marginBottom: '8px' }}>
+                  📦 Rincian Pengeluaran ({detailModalItem.expense_rows.length} Baris):
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                      <th style={{ padding: '6px 8px' }}>Nama Item</th>
+                      <th style={{ padding: '6px 8px' }}>Kategori</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center' }}>Qty</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'right' }}>Harga Satuan</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'right' }}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailModalItem.expense_rows.map((row, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '6px 8px', color: '#f8fafc', fontWeight: '700' }}>{row.item_name || '-'}</td>
+                        <td style={{ padding: '6px 8px', color: '#38bdf8' }}>{row.category_type}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center', color: '#94a3b8' }}>{row.qty} {row.unit}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(row.price_per_unit)}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>{formatRupiah(row.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* RIWAYAT EDIT KETERANGAN / ALASAN PERUBAHAN */}
             {detailModalItem.edit_history && detailModalItem.edit_history.length > 0 && (
@@ -785,7 +1026,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Net Sales (Omzet Penjualan):</label>
+                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Total Pendapatan:</label>
                 <input
                   type="number"
                   value={editForm.net_sales}
@@ -864,27 +1105,35 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
       )}
 
-      {/* ➕ MODAL TAMBAH LAPORAN HARIAN MANUAL (ADMIN -> AUTO STATUS DONE) */}
+      {/* ➕ MODAL INPUT LAPORAN HARIAN MANUAL (ADMIN CENTRAL) - FORMULIR LENGKAP */}
       {showAddModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <form onSubmit={handleSaveAddManualReport} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '580px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <form onSubmit={handleSaveAddManualReport} style={{ background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '18px', width: '100%', maxWidth: '840px', maxHeight: '92vh', overflowY: 'auto', padding: '26px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#38bdf8', margin: 0 }}>
-                ➕ Input Laporan Harian Manual (Admin Central)
-              </h3>
-              <button type="button" onClick={() => setShowAddModal(false)} style={{ background: '#334155', border: 'none', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', cursor: 'pointer' }}>
-                <X size={16} />
+            {/* HEADER MODAL */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#38bdf8', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={22} color="#38bdf8" />
+                  <span>➕ Input Laporan Harian Manual (Admin Central)</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  Input otomatis &amp; manual laporan pendapatan, multi-row pengeluaran, laba kotor, uang di laci, dan pengembalian modal.
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowAddModal(false)} style={{ background: '#334155', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', cursor: 'pointer' }}>
+                <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {/* HEADER PARAMETERS (OUTLET, TANGGAL, NO LAPORAN) */}
+            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Target Outlet:</label>
+                <label style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '800' }}>Target Outlet:</label>
                 <select
                   value={addForm.outlet_id}
                   onChange={e => setAddForm({ ...addForm, outlet_id: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+                  style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem' }}
                 >
                   {outletsList.map(o => (
                     <option key={o.id} value={o.id}>{o.name}</option>
@@ -893,102 +1142,352 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Laporan:</label>
+                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Pelaporan:</label>
                 <input
                   type="date"
                   value={addForm.date}
                   onChange={e => setAddForm({ ...addForm, date: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+                  style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>No Laporan (Auto/Custom):</label>
                 <input
                   type="text"
                   value={addForm.report_no}
                   onChange={e => setAddForm({ ...addForm, report_no: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+                  style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
                 />
+              </div>
+            </div>
+
+            {/* 📈 BAGIAN 1: LAPORAN PENJUALAN & TOTAL PENDAPATAN */}
+            <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px dashed #334155', paddingBottom: '10px' }}>
+                <DollarSign size={18} color="#38bdf8" />
+                <span>1. Laporan Penjualan &amp; Total Pendapatan (s/d Pukul 23:59:59)</span>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Net Sales (Omzet):</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={addForm.net_sales}
-                  onChange={e => setAddForm({ ...addForm, net_sales: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
-                />
+              <div style={{ fontSize: '0.74rem', color: '#94a3b8', background: 'rgba(56, 189, 248, 0.08)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                💡 Data Penjualan Cash &amp; Non Cash terisi otomatis berdasarkan transaksi POS tanggal <strong>{addForm.date}</strong> hingga pukul 23:59:59. Anda dapat menyesuaikannya secara manual.
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Penjualan Tunai (Cash):</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={addForm.cash_sales}
-                  onChange={e => setAddForm({ ...addForm, cash_sales: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Penjualan Cash (Tunai):</label>
+                  <input
+                    type="number"
+                    value={addForm.cash_sales}
+                    onChange={e => setAddForm({ ...addForm, cash_sales: e.target.value })}
+                    style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Penjualan Non-Cash (QRIS/EDC/Bank):</label>
+                  <input
+                    type="number"
+                    value={addForm.non_cash_sales}
+                    onChange={e => setAddForm({ ...addForm, non_cash_sales: e.target.value })}
+                    style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.74rem', color: '#fb7185', fontWeight: '700' }}>Diskon Penjualan (Potongan):</label>
+                  <input
+                    type="number"
+                    value={addForm.sales_discount}
+                    onChange={e => setAddForm({ ...addForm, sales_discount: e.target.value })}
+                    style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid rgba(251, 113, 133, 0.4)', borderRadius: '8px', color: '#fb7185', fontWeight: '800', fontSize: '0.85rem' }}
+                  />
+                </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Penjualan Non-Tunai (QRIS/EDC):</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={addForm.non_cash_sales}
-                  onChange={e => setAddForm({ ...addForm, non_cash_sales: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
-                />
+              {/* AUTOMATIC TOTAL PENDAPATAN */}
+              <div style={{ background: '#1e293b', padding: '12px 16px', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>TOTAL PENDAPATAN (Cash + Non Cash - Diskon):</span>
+                <span style={{ fontSize: '1.15rem', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(computedTotalIncome)}</span>
+              </div>
+            </div>
+
+            {/* 📦 BAGIAN 2: DATA PENGELUARAN (MULTI-ROW WITH AUTO-SUGGESTION & SATUAN) */}
+            <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #334155', paddingBottom: '10px' }}>
+                <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#fb7185', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Receipt size={18} color="#fb7185" />
+                  <span>2. Data Pengeluaran (Bahan Baku &amp; Beban Operasional)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddExpenseRow}
+                  style={{ padding: '6px 12px', background: 'rgba(251, 113, 133, 0.15)', border: '1px solid #fb7185', borderRadius: '8px', color: '#fb7185', fontWeight: '800', fontSize: '0.76rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Plus size={14} /> + Tambah Baris Pengeluaran
+                </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Total Pembelian HPP:</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={addForm.cogs_expense}
-                  onChange={e => setAddForm({ ...addForm, cogs_expense: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
-                />
+              {/* TABLE MULTI-ROW PENGELUARAN */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                      <th style={{ padding: '8px 10px', minWidth: '180px' }}>Sugesti Nama Bahan / Item *</th>
+                      <th style={{ padding: '8px 10px', minWidth: '140px' }}>Kategori (HPP / Biaya)</th>
+                      <th style={{ padding: '8px 10px', width: '90px' }}>Jumlah (Qty)</th>
+                      <th style={{ padding: '8px 10px', width: '90px' }}>Satuan</th>
+                      <th style={{ padding: '8px 10px', minWidth: '120px' }}>Harga Satuan (IDR)</th>
+                      <th style={{ padding: '8px 10px', minWidth: '120px', textAlign: 'right' }}>Subtotal</th>
+                      <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Hapus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {addForm.expense_rows.map((row, index) => (
+                      <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        {/* ITEM NAME WITH AUTOCOMPLETE / SUGGESTIONS */}
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="text"
+                            list={`expense-suggestions-${row.id}`}
+                            value={row.item_name}
+                            onChange={e => handleExpenseRowChange(row.id, 'item_name', e.target.value)}
+                            placeholder="Ketik / Pilih nama item..."
+                            style={{ width: '100%', padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.80rem' }}
+                          />
+                          <datalist id={`expense-suggestions-${row.id}`}>
+                            {expenseSuggestions.map((sug, i) => (
+                              <option key={i} value={sug.name}>{sug.name} ({sug.category_type})</option>
+                            ))}
+                          </datalist>
+                        </td>
+
+                        {/* KATEGORI (AUTOMATIC BASED ON MASTER DATA) */}
+                        <td style={{ padding: '6px 8px' }}>
+                          <select
+                            value={row.category_type}
+                            onChange={e => handleExpenseRowChange(row.id, 'category_type', e.target.value)}
+                            style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontSize: '0.78rem' }}
+                          >
+                            <option value="HPP Bahan Baku">HPP Bahan Baku</option>
+                            <option value="Beban Operasional">Beban Operasional</option>
+                            <option value="Beban Listrik/Air/Internet">Beban Listrik/Air/Utilitas</option>
+                            <option value="Beban Gaji & Upah">Beban Gaji &amp; Upah</option>
+                            <option value="Kas Kecil / Petty Cash">Kas Kecil / Petty Cash</option>
+                          </select>
+                        </td>
+
+                        {/* JUMLAH (QTY MANUAL) */}
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={row.qty}
+                            onChange={e => handleExpenseRowChange(row.id, 'qty', e.target.value)}
+                            style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.80rem', textAlign: 'center' }}
+                          />
+                        </td>
+
+                        {/* SATUAN / UNIT (AUTOMATIC/MANUAL) */}
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="text"
+                            value={row.unit}
+                            onChange={e => handleExpenseRowChange(row.id, 'unit', e.target.value)}
+                            placeholder="kg/liter/pcs"
+                            style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8', fontSize: '0.78rem', textAlign: 'center' }}
+                          />
+                        </td>
+
+                        {/* HARGA SATUAN (MANUAL IDR) */}
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            value={row.price_per_unit}
+                            onChange={e => handleExpenseRowChange(row.id, 'price_per_unit', e.target.value)}
+                            placeholder="0"
+                            style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.80rem', textAlign: 'right' }}
+                          />
+                        </td>
+
+                        {/* SUBTOTAL (AUTO-CALCULATED = QTY * HARGA SATUAN) */}
+                        <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>
+                          {formatRupiah(row.subtotal)}
+                        </td>
+
+                        {/* ACTION REMOVE ROW */}
+                        <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExpenseRow(row.id)}
+                            disabled={addForm.expense_rows.length <= 1}
+                            style={{ background: 'none', border: 'none', color: addForm.expense_rows.length <= 1 ? '#475569' : '#f87171', cursor: addForm.expense_rows.length <= 1 ? 'not-allowed' : 'pointer' }}
+                          >
+                            <X size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Total Beban / Pengeluaran Kasir:</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={addForm.total_expense}
-                  onChange={e => setAddForm({ ...addForm, total_expense: e.target.value })}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
-                />
+              {/* TOTAL PENGELUARAN */}
+              <div style={{ background: '#1e293b', padding: '12px 16px', borderRadius: '10px', border: '1px solid #fb7185', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#fb7185' }}>TOTAL PENGELUARAN (Hasil Perkalian Qty &times; Harga Satuan):</span>
+                <span style={{ fontSize: '1.15rem', fontWeight: '900', color: '#fb7185' }}>{formatRupiah(computedTotalExpense)}</span>
+              </div>
+            </div>
+
+            {/* 📊 BAGIAN 3 & 4: LABA KOTOR & UANG DI LACI */}
+            <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              
+              {/* LABA KOTOR */}
+              <div style={{ background: '#1e293b', padding: '14px', borderRadius: '12px', border: '1px solid #34d399', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800' }}>📊 3. TOTAL LABA KOTOR:</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#34d399' }}>{formatRupiah(computedGrossProfit)}</span>
+                <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>(Total Pendapatan dikurangi Total Pengeluaran)</span>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Catatan / Keterangan Admin:</label>
-                <textarea
-                  rows={2}
-                  value={addForm.notes}
-                  onChange={e => setAddForm({ ...addForm, notes: e.target.value })}
-                  placeholder="Keterangan opsional laporan manual..."
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem', resize: 'none' }}
-                />
+              {/* UANG DI LACI (INTERNAL SHIFT METRIC) */}
+              <div style={{ background: '#1e293b', padding: '14px', borderRadius: '12px', border: '1px solid #fbbf24', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}>💵 4. UANG DI LACI (CASH IN DRAWER):</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#fbbf24' }}>{formatRupiah(computedCashInDrawer)}</span>
+                <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>(Laba Kotor dikurangi Penjualan Non-Cash &amp; Diskon Penjualan)</span>
               </div>
+
+            </div>
+
+            <div style={{ fontSize: '0.74rem', color: '#94a3b8', background: 'rgba(251, 191, 36, 0.08)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
+              ℹ️ <strong>Catatan Metrik:</strong> Indikator &quot;Uang Di Laci&quot; merupakan metrik fisik internal kasir shift dan tidak dimasukkan ke dalam Laporan Laba Rugi / Financial Overview resmi.
+            </div>
+
+            {/* 💰 BAGIAN 5: PEMBAYARAN PENGAMBILAN MODAL (MODAL RESTORAN / KASIR) */}
+            <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #334155', paddingBottom: '10px' }}>
+                <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Layers size={18} color="#c084fc" />
+                  <span>5. Pembayaran Pengambilan Modal (Kasir / Restoran)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddModalRefundRow}
+                  style={{ padding: '6px 12px', background: 'rgba(192, 132, 252, 0.15)', border: '1px solid #c084fc', borderRadius: '8px', color: '#c084fc', fontWeight: '800', fontSize: '0.76rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Plus size={14} /> + Tambah Baris Pengembalian Modal
+                </button>
+              </div>
+
+              {/* MODAL IDEAL INPUT */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>Modal Ideal (Modal Awal Laci Kasir):</label>
+                  <input
+                    type="number"
+                    value={addForm.modal_ideal}
+                    onChange={e => setAddForm({ ...addForm, modal_ideal: e.target.value })}
+                    placeholder="Contoh: 500000"
+                    style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid #c084fc', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.85rem' }}
+                  />
+                </div>
+              </div>
+
+              {/* TABEL RIWAYAT PENGEMBALIAN MODAL */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                      <th style={{ padding: '8px 10px', width: '140px' }}>Tanggal Pengembalian</th>
+                      <th style={{ padding: '8px 10px', minWidth: '160px' }}>Jumlah Modal Dikembalikan (IDR)</th>
+                      <th style={{ padding: '8px 10px' }}>Keterangan / Catatan</th>
+                      <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Hapus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {addForm.modal_refund_rows.map(row => (
+                      <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="date"
+                            value={row.date}
+                            onChange={e => handleModalRefundRowChange(row.id, 'date', e.target.value)}
+                            style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.78rem' }}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            value={row.amount_returned}
+                            onChange={e => handleModalRefundRowChange(row.id, 'amount_returned', e.target.value)}
+                            placeholder="0"
+                            style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#c084fc', fontWeight: '800', fontSize: '0.80rem' }}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <input
+                            type="text"
+                            value={row.notes}
+                            onChange={e => handleModalRefundRowChange(row.id, 'notes', e.target.value)}
+                            placeholder="Catatan pengembalian modal..."
+                            style={{ width: '100%', padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.78rem' }}
+                          />
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveModalRefundRow(row.id)}
+                            disabled={addForm.modal_refund_rows.length <= 1}
+                            style={{ background: 'none', border: 'none', color: addForm.modal_refund_rows.length <= 1 ? '#475569' : '#f87171', cursor: addForm.modal_refund_rows.length <= 1 ? 'not-allowed' : 'pointer' }}
+                          >
+                            <X size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* RINGKASAN TOTAL MODAL & SISA HUTANG MODAL */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                <div style={{ background: '#1e293b', padding: '12px 14px', borderRadius: '10px', border: '1px solid #c084fc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#c084fc' }}>Total Modal Dikembalikan:</span>
+                  <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#c084fc' }}>{formatRupiah(computedTotalModalReturned)}</span>
+                </div>
+
+                <div style={{ background: '#1e293b', padding: '12px 14px', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8' }}>Sisa Hutang Modal (Modal Ideal - Total Dikembalikan):</span>
+                  <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(computedModalDebtRemaining)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* CATATAN ADMIN */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Catatan / Keterangan Tambahan Admin:</label>
+              <textarea
+                rows={2}
+                value={addForm.notes}
+                onChange={e => setAddForm({ ...addForm, notes: e.target.value })}
+                placeholder="Keterangan opsional laporan harian..."
+                style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem', resize: 'none' }}
+              />
             </div>
 
             <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: '800' }}>
-              💡 Status laporan yang di-input manual oleh Admin akan langsung diset ke &quot;Done&quot; (Selesai).
+              💡 Status laporan yang di-input manual oleh Admin Central akan langsung diset ke &quot;Done&quot; (Selesai).
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button type="button" onClick={() => setShowAddModal(false)} style={{ padding: '8px 16px', background: '#334155', border: 'none', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', cursor: 'pointer' }}>
+            {/* FOOTER ACTION BUTTONS */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+              <button type="button" onClick={() => setShowAddModal(false)} style={{ padding: '10px 20px', background: '#334155', border: 'none', borderRadius: '10px', color: '#f8fafc', fontWeight: '800', cursor: 'pointer' }}>
                 Batal
               </button>
-              <button type="submit" style={{ padding: '8px 18px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '8px', color: '#0f172a', fontWeight: '900', cursor: 'pointer' }}>
-                Simpan Laporan Admin
+              <button type="submit" style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '10px', color: '#0f172a', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(56, 189, 248, 0.4)' }}>
+                💾 Simpan Laporan Harian (Admin)
               </button>
             </div>
 
