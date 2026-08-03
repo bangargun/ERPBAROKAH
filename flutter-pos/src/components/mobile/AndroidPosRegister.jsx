@@ -452,6 +452,8 @@ export default function AndroidPosRegister({
   const [manualRepOutletId, setManualRepOutletId] = useState(1);
   const [manualRepNetSales, setManualRepNetSales] = useState(0);
   const [manualRepNonCash, setManualRepNonCash] = useState(0);
+  const [manualRepSalesDiscount, setManualRepSalesDiscount] = useState(0);
+  const [manualModalIdeal, setManualModalIdeal] = useState(500000);
   const [manualRepDebtPayment, setManualRepDebtPayment] = useState(0);
   const [manualRepStatus, setManualRepStatus] = useState('pending');
   const [manualRepNotes, setManualRepNotes] = useState('');
