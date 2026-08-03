@@ -1394,6 +1394,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   // Detailed Menu Sales Aggregation for Tables & Top 5 Cards
   const getDetailedMenuSalesData = () => {
     const activeOutlets = outlets || [];
+    const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
 
     const filteredOutlets = catSelectedOutletIds.includes('ALL') 
       ? activeOutlets 
@@ -1411,7 +1412,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       let totalQtyAll = 0;
 
       filteredOutlets.forEach(otl => {
-        const itemTxs = (salesTransactions || []).filter(t => 
+        const itemTxs = salesTx.filter(t => 
           Number(t.outlet_id) === Number(otl.id) &&
           (t.item_name === item.name || t.product_name === item.name || (t.items && t.items.some(i => i.name === item.name)))
         );
@@ -1456,6 +1457,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   // Helper for Line Chart Daily Movement of Filtered Menu Item
   const getMenuLineChartData = () => {
     const { activeOutlets, start, end } = getDetailedMenuSalesData();
+    const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
     const startDateObj = new Date(start || '2026-07-01');
     const endDateObj = new Date(end || '2026-07-31');
     const daysDiff = Math.max(1, Math.min(31, Math.round((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1));
@@ -1477,7 +1479,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       };
 
       activeOutlets.forEach(otl => {
-        const dayTxs = (salesTransactions || []).filter(t => 
+        const dayTxs = salesTx.filter(t => 
           Number(t.outlet_id) === Number(otl.id) &&
           (t.date === formattedDate || t.date === `${yearNum}-${monthPad}-${dayPad}`) &&
           (selectedMenuFilter === 'ALL' || t.item_name === activeMenuName || t.product_name === activeMenuName)
@@ -3185,7 +3187,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   const generateMonthlyComparisonData = () => {
     const list = [];
-    const activeOutlets = outlets.length > 0 ? outlets : [];
+    const activeOutlets = outlets.length > 0 ? outlets : [
+      { id: 1, name: 'Senopati', code: 'SN' },
+      { id: 2, name: 'Kemang', code: 'KM' }
+    ];
 
     // Filter outlets currently selected by filter bar
     const selectedOutletsList = activeOutlets.filter(o => {
