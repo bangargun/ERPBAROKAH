@@ -21,7 +21,10 @@ import {
   FileText,
   DollarSign,
   Edit3,
-  Smartphone
+  Smartphone,
+  Eye,
+  Clock,
+  ShoppingBag
 } from 'lucide-react';
 import { DoubleCalendarPicker, buildExportFilename, getOutletNameStrForExport } from './SalesTransactionsPage';
 import PaginationControls from './PaginationControls';
@@ -524,6 +527,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [previewTransferModalData, setPreviewTransferModalData] = useState(null);
   const [previewWasteModalData, setPreviewWasteModalData] = useState(null);
 
+  // Stok Keluar / Sales Transaction Form States
+  const [showAddSalesModal, setShowAddSalesModal] = useState(false);
+  const [salesDate, setSalesDate] = useState(new Date().toISOString().split('T')[0]);
+  const [salesNo, setSalesNo] = useState(`TRX-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-001`);
+  const [salesCreatedBy, setSalesCreatedBy] = useState(userRightsList[0] ? userRightsList[0].name : 'Admin');
+  const [salesOutletId, setSalesOutletId] = useState(1);
+  const [salesStatus, setSalesStatus] = useState('Paid');
+  const [salesPaymentMethod, setSalesPaymentMethod] = useState('Cash');
+  const [salesMenuRows, setSalesMenuRows] = useState([]);
+  const [previewOutflowModalData, setPreviewOutflowModalData] = useState(null);
+  const [editingOutflowRecord, setEditingOutflowRecord] = useState(null);
+
   // Stok Rusak Form States
   const [rusakDate, setRusakDate] = useState(new Date().toISOString().split('T')[0]);
   const [rusakNo, setRusakNo] = useState(`WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-001`);
@@ -740,6 +755,308 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   const filteredStockOutflow = generateStockDeductions();
+
+  // Get all Sales Transactions for Log Mutasi Keluar (Autoconsumption Stock Deductions)
+  const getFilteredSalesOutflowTransactions = () => {
+    const rawSales = [
+      ...(masterData.salesTransactions || []),
+      ...(masterData.transactions || []),
+      ...(masterData.sales || []),
+      ...(masterData.manualSales || [])
+    ];
+
+    const groupedMap = new Map();
+
+    rawSales.forEach(tx => {
+      const txId = tx.receipt_no || tx.receiptNo || tx.report_no || tx.order_no || tx.id;
+      if (!txId) return;
+      const key = String(txId);
+
+      if (!groupedMap.has(key)) {
+        const txOutletId = Number(tx.outlet_id || tx.outletId || tx.branch_id || 1);
+        const txDate = tx.date || tx.tanggal || new Date().toISOString().split('T')[0];
+        const txTime = tx.time || tx.waktu || '12:00';
+        const txCreatedBy = tx.created_by || tx.submitted_by || tx.kasir || tx.author_name || 'Kasir';
+        const isWebAdmin = tx.type_input === 'manual' || tx.sumber_input === 'web_admin' || tx.created_by === 'Admin' || (tx.type_input && tx.type_input.includes('admin'));
+        
+        const rawStatus = tx.status || tx.payment_status || 'Paid';
+        const isPaid = rawStatus === 'Paid' || rawStatus === 'Lunas' || rawStatus === 'Success' || rawStatus === 'Selesai' || rawStatus === 'Paid (Disetujui)' || rawStatus === 'approved';
+
+        const itemsSold = tx.items || tx.menu_items || [];
+        
+        let deductedIngs = tx.deducted_ingredients || tx.ingredients || [];
+        if (deductedIngs.length === 0 && itemsSold.length > 0) {
+          const activeProducts = masterData.products || [];
+          itemsSold.forEach(item => {
+            const qtySold = Number(item.qty || 1);
+            const itemLower = (item.name || item.product_name || '').toLowerCase().trim();
+            const matchedProd = activeProducts.find(p => p.name?.toLowerCase() === itemLower || itemLower.startsWith(p.name?.toLowerCase()));
+
+            if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
+              matchedProd.compositions.forEach(comp => {
+                const ingQty = Number(comp.qty || comp.amount || 1) * qtySold;
+                deductedIngs.push({
+                  ingredient_name: comp.ingredient_name || comp.name || 'Bahan Baku',
+                  qty: ingQty,
+                  unit: comp.unit || 'Gram',
+                  cogs: Math.round((comp.cogs || 1500) * ingQty)
+                });
+              });
+            } else {
+              let matchedIng = ingredientsList.find(ing => {
+                const ingLower = ing.name.toLowerCase();
+                if (itemLower.includes('kopi') || itemLower.includes('espresso') || itemLower.includes('latte')) return ingLower.includes('kopi');
+                if (itemLower.includes('ayam') || itemLower.includes('chicken')) return ingLower.includes('ayam');
+                if (itemLower.includes('sapi') || itemLower.includes('steak')) return ingLower.includes('sapi') || ingLower.includes('daging');
+                if (itemLower.includes('nasi') || itemLower.includes('rice')) return ingLower.includes('beras');
+                if (itemLower.includes('susu') || itemLower.includes('milk')) return ingLower.includes('susu');
+                if (itemLower.includes('teh') || itemLower.includes('tea')) return ingLower.includes('teh');
+                return ingLower.includes(itemLower) || itemLower.includes(ingLower);
+              });
+              if (!matchedIng) matchedIng = ingredientsList[0] || { name: 'Bahan Mentah Dapur', unit: 'kg', cost: 15000 };
+              const ingQty = qtySold * (matchedIng.unit === 'Gram' || matchedIng.unit === 'ml' ? 150 : 0.2);
+              deductedIngs.push({
+                ingredient_name: matchedIng.name,
+                qty: ingQty,
+                unit: matchedIng.unit || 'kg',
+                cogs: Math.round((matchedIng.cost || 15000) * ingQty)
+              });
+            }
+          });
+        }
+
+        groupedMap.set(key, {
+          id: key,
+          receiptNo: key,
+          report_no: key,
+          date: txDate,
+          time: txTime,
+          outlet_id: txOutletId,
+          outlet_name: tx.outlet_name || getOutletName(txOutletId),
+          created_by: txCreatedBy,
+          type_input: isWebAdmin ? 'manual' : 'by pos kasir',
+          sumber_input: isWebAdmin ? 'web_admin' : 'pos_kasir',
+          status: isPaid ? 'Paid' : 'Pending',
+          isPaid,
+          payment_method: tx.payment_method || 'Cash',
+          items: itemsSold,
+          deducted_ingredients: deductedIngs,
+          total_amount: tx.total_amount || tx.grand_total || itemsSold.reduce((s, i) => s + (Number(i.price || 0) * Number(i.qty || 1)), 0)
+        });
+      }
+    });
+
+    (masterData.stockOutflow || []).forEach(s => {
+      const sKey = String(s.receiptNo || s.report_no || s.id || `TRX-STK-${s.date}`);
+      if (!groupedMap.has(sKey) && !deletedOutflowIds.includes(s.id)) {
+        groupedMap.set(sKey, {
+          id: s.id || sKey,
+          receiptNo: sKey,
+          report_no: sKey,
+          date: s.date || new Date().toISOString().split('T')[0],
+          time: s.time || '12:00',
+          outlet_id: Number(s.outletId || s.outlet_id || 1),
+          outlet_name: getOutletName(s.outletId || s.outlet_id || 1),
+          created_by: s.created_by || s.submitted_by || 'Kasir',
+          type_input: s.type_input || 'by pos kasir',
+          sumber_input: s.sumber_input || 'pos_kasir',
+          status: s.status === 'Pending' ? 'Pending' : 'Paid',
+          isPaid: s.status !== 'Pending',
+          payment_method: s.payment_method || 'Cash',
+          items: s.items || [{ name: s.itemName || 'Produk Penjualan', qty: Math.abs(s.qty || 1), price: s.cogsValue || 15000 }],
+          deducted_ingredients: s.deducted_ingredients || [{ ingredient_name: s.itemName || 'Bahan Baku', qty: Math.abs(s.qty || 1), unit: s.unit || 'kg', cogs: s.cogsValue || 15000 }],
+          total_amount: s.cogsValue || 15000
+        });
+      }
+    });
+
+    const list = Array.from(groupedMap.values()).filter(item => {
+      if (deletedOutflowIds.includes(item.id)) return false;
+      if (logStartDate && item.date < logStartDate) return false;
+      if (logEndDate && item.date > logEndDate) return false;
+      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(item.outlet_id)) return false;
+      if (selectedBranch && Number(item.outlet_id) !== Number(selectedBranch)) return false;
+      return true;
+    });
+
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  const handleOpenEditOutflowModal = (tx) => {
+    setEditingOutflowRecord(tx);
+    setSalesDate(tx.date || new Date().toISOString().split('T')[0]);
+    setSalesNo(tx.receiptNo || tx.report_no || tx.id);
+    setSalesCreatedBy(tx.created_by || 'Admin');
+    setSalesOutletId(tx.outlet_id || 1);
+    setSalesStatus(tx.isPaid ? 'Paid' : 'Pending');
+    setSalesPaymentMethod(tx.payment_method || 'Cash');
+
+    if (tx.items && tx.items.length > 0) {
+      setSalesMenuRows(tx.items.map((it, idx) => ({
+        id: it.id || (Date.now() + idx),
+        product_id: it.id || it.product_id || 1,
+        product_name: it.name || it.product_name || 'Item Penjualan',
+        qty: Number(it.qty || 1),
+        price: Number(it.price || 0),
+        total: Number(it.total || (it.qty * it.price))
+      })));
+    } else {
+      const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+      setSalesMenuRows([{
+        id: Date.now(),
+        product_id: firstProd ? firstProd.id : 1,
+        product_name: firstProd ? firstProd.name : 'Item Penjualan',
+        qty: 1,
+        price: firstProd ? (firstProd.price || 25000) : 25000,
+        total: firstProd ? (firstProd.price || 25000) : 25000
+      }]);
+    }
+    setShowAddSalesModal(true);
+  };
+
+  const handleAddSalesMenuRow = () => {
+    const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+    setSalesMenuRows([
+      ...salesMenuRows,
+      {
+        id: Date.now() + Math.random(),
+        product_id: firstProd ? firstProd.id : 1,
+        product_name: firstProd ? firstProd.name : 'Nasi Goreng Spesial',
+        qty: 1,
+        price: firstProd ? (firstProd.price || 25000) : 25000,
+        total: firstProd ? (firstProd.price || 25000) : 25000
+      }
+    ]);
+  };
+
+  const handleRemoveSalesMenuRow = (idx) => {
+    setSalesMenuRows(salesMenuRows.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateSalesMenuRow = (idx, field, value) => {
+    const updated = [...salesMenuRows];
+    if (field === 'product_name') {
+      updated[idx].product_name = value;
+      const matchedProd = (masterData.products || []).find(p => p.name === value);
+      if (matchedProd) {
+        updated[idx].product_id = matchedProd.id;
+        updated[idx].price = Number(matchedProd.price || 0);
+      }
+    } else {
+      updated[idx][field] = value;
+    }
+    const q = Number(updated[idx].qty || 1);
+    const p = Number(updated[idx].price || 0);
+    updated[idx].total = q * p;
+    setSalesMenuRows(updated);
+  };
+
+  const handleSaveSalesTransaction = (e) => {
+    if (e) e.preventDefault();
+    if (salesMenuRows.length === 0 || salesMenuRows.some(r => !r.product_name || !r.qty)) {
+      alert('Harap lengkapi item menu penjualan dan jumlah Qty!');
+      return;
+    }
+
+    const items = salesMenuRows.map(r => ({
+      id: r.product_id,
+      name: r.product_name,
+      qty: Number(r.qty || 1),
+      price: Number(r.price || 0),
+      total: Number(r.total || (r.qty * r.price))
+    }));
+
+    const totalAmount = items.reduce((sum, i) => sum + i.total, 0);
+
+    const deductedIngredients = [];
+    const activeProducts = masterData.products || [];
+
+    items.forEach(item => {
+      const qtySold = item.qty;
+      const itemLower = (item.name || '').toLowerCase().trim();
+      const matchedProd = activeProducts.find(p => p.name?.toLowerCase() === itemLower || itemLower.startsWith(p.name?.toLowerCase()));
+
+      if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
+        matchedProd.compositions.forEach(comp => {
+          const ingQty = Number(comp.qty || comp.amount || 1) * qtySold;
+          deductedIngredients.push({
+            ingredient_name: comp.ingredient_name || comp.name || 'Bahan Baku',
+            qty: ingQty,
+            unit: comp.unit || 'Gram',
+            cogs: Math.round((comp.cogs || 1500) * ingQty)
+          });
+        });
+      } else {
+        let matchedIng = ingredientsList.find(ing => {
+          const ingLower = ing.name.toLowerCase();
+          if (itemLower.includes('kopi') || itemLower.includes('espresso') || itemLower.includes('latte')) return ingLower.includes('kopi');
+          if (itemLower.includes('ayam') || itemLower.includes('chicken')) return ingLower.includes('ayam');
+          if (itemLower.includes('sapi') || itemLower.includes('steak')) return ingLower.includes('sapi') || ingLower.includes('daging');
+          if (itemLower.includes('nasi') || itemLower.includes('rice')) return ingLower.includes('beras');
+          if (itemLower.includes('susu') || itemLower.includes('milk')) return ingLower.includes('susu');
+          if (itemLower.includes('teh') || itemLower.includes('tea')) return ingLower.includes('teh');
+          return ingLower.includes(itemLower) || itemLower.includes(ingLower);
+        });
+        if (!matchedIng) matchedIng = ingredientsList[0] || { name: 'Bahan Mentah Dapur', unit: 'kg', cost: 15000 };
+        const ingQty = qtySold * (matchedIng.unit === 'Gram' || matchedIng.unit === 'ml' ? 150 : 0.2);
+        deductedIngredients.push({
+          ingredient_name: matchedIng.name,
+          qty: ingQty,
+          unit: matchedIng.unit || 'kg',
+          cogs: Math.round((matchedIng.cost || 15000) * ingQty)
+        });
+      }
+    });
+
+    const isPaid = salesStatus === 'Paid' || salesStatus === 'Lunas';
+    const targetId = editingOutflowRecord ? editingOutflowRecord.id : salesNo;
+
+    const newTx = {
+      id: targetId,
+      receipt_no: targetId,
+      report_no: targetId,
+      date: salesDate,
+      time: editingOutflowRecord ? editingOutflowRecord.time : new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      outlet_id: Number(salesOutletId),
+      created_by: salesCreatedBy,
+      type_input: 'manual',
+      sumber_input: 'web_admin',
+      status: isPaid ? 'Paid' : 'Pending',
+      payment_status: isPaid ? 'Paid' : 'Pending',
+      payment_method: salesPaymentMethod,
+      items: items,
+      deducted_ingredients: deductedIngredients,
+      total_amount: totalAmount
+    };
+
+    setMasterData(prev => {
+      const filterOutOld = (arr = []) => arr.filter(x => String(x.id) !== String(targetId) && String(x.receipt_no || x.report_no || '') !== String(targetId));
+      
+      const updatedSales = [newTx, ...filterOutOld(prev.salesTransactions || [])];
+      
+      const updatedIngredients = (prev.ingredients || []).map(ing => {
+        const matchRecord = deductedIngredients.find(r => 
+          (r.ingredient_name || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim()
+        );
+        if (matchRecord) {
+          const currentStok = Number(ing.stok || ing.stock || ing.qty || 0);
+          const newStok = Math.max(0, currentStok - Number(matchRecord.qty || 1));
+          return { ...ing, stok: newStok, stock: newStok };
+        }
+        return ing;
+      });
+
+      return {
+        ...prev,
+        salesTransactions: updatedSales,
+        ingredients: updatedIngredients
+      };
+    });
+
+    setShowAddSalesModal(false);
+    setEditingOutflowRecord(null);
+    alert(`✓ Transaksi Penjualan (${targetId}) Berhasil Disimpan & Stok Bahan Baku Terpotong Otomats!`);
+  };
 
   // FILTERED DATA SELECTORS
   const getFilteredMasuk = () => {
@@ -2197,75 +2514,187 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         {/* SUBTAB 2: STOK KELUAR */}
         {activeSubTab === 'stok_keluar' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ArrowUpRight size={18} color="#fb7185" />
-              <span>Log Mutasi Keluar Penjualan POS (Autoconsumption Stock Deductions)</span>
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ArrowUpRight size={18} color="#fb7185" />
+                  <span>Log Mutasi Keluar Penjualan POS (Autoconsumption Stock Deductions)</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                  Pemotongan stok bahan baku otomatis dari transaksi penjualan POS Kasir & penginputan transaksi penjualan manual.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  setSalesDate(todayStr);
+                  setSalesNo(`TRX-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
+                  setSalesCreatedBy(userRightsList[0] ? userRightsList[0].name : 'Admin');
+                  setSalesOutletId(selectedBranch || (outlets[0] ? outlets[0].id : 1));
+                  setSalesStatus('Paid');
+                  setSalesPaymentMethod('Cash');
+                  const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+                  setSalesMenuRows([{
+                    id: Date.now(),
+                    product_id: firstProd ? firstProd.id : 1,
+                    product_name: firstProd ? firstProd.name : 'Nasi Goreng Spesial',
+                    qty: 1,
+                    price: firstProd ? (firstProd.price || 25000) : 25000,
+                    total: firstProd ? (firstProd.price || 25000) : 25000
+                  }]);
+                  setEditingOutflowRecord(null);
+                  setShowAddSalesModal(true);
+                }}
+                style={{
+                  padding: '8px 16px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  color: '#ffffff', border: 'none', borderRadius: '8px',
+                  fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  boxShadow: '0 4px 12px rgba(99,102,241,0.3)'
+                }}
+              >
+                <PlusCircle size={15} />
+                <span>+ Tambahkan Transaksi Penjualan</span>
+              </button>
+            </div>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {visibleColsKeluar.receiptNo && <th style={{ padding: '12px 10px' }}>🎫 No. Struk</th>}
-                    {visibleColsKeluar.dateTime && <th style={{ padding: '12px 10px' }}>Tanggal & Waktu</th>}
-                    {visibleColsKeluar.outletName && <th style={{ padding: '12px 10px' }}>Nama Outlet</th>}
-                    {visibleColsKeluar.itemName && <th style={{ padding: '12px 10px' }}>Nama Item</th>}
-                    {visibleColsKeluar.itemType && <th style={{ padding: '12px 10px' }}>Tipe</th>}
-                    {visibleColsKeluar.qty && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Qty</th>}
-                    {visibleColsKeluar.unit && <th style={{ padding: '12px 10px' }}>Satuan</th>}
-                    {visibleColsKeluar.cogsValue && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Estimasi HPP</th>}
-                    {visibleColsKeluar.status && <th style={{ padding: '12px 10px' }}>Status</th>}
-                    <th style={{ padding: '12px 10px', textAlign: 'center', width: '120px' }}>Aksi</th>
+                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO TRANSAKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '160px' }}>STATUS</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '180px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStockOutflow.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                        Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredStockOutflow.map((d, index) => (
-                      <tr key={d.id || index} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        {visibleColsKeluar.receiptNo && <td style={{ padding: '12px 10px', color: '#818cf8', fontWeight: '700', fontFamily: 'monospace' }}>{d.receiptNo}</td>}
-                        {visibleColsKeluar.dateTime && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{d.date} <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>({d.time})</span></td>}
-                        {visibleColsKeluar.outletName && <td style={{ padding: '12px 10px' }}>🏢 {getOutletName(d.outletId)}</td>}
-                        {visibleColsKeluar.itemName && <td style={{ padding: '12px 10px', fontWeight: '800' }}>{d.itemName}</td>}
-                        {visibleColsKeluar.itemType && (
-                          <td style={{ padding: '12px 10px' }}>
+                  {(() => {
+                    const salesList = getFilteredSalesOutflowTransactions();
+                    const paginatedSales = salesList.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+                    if (paginatedSales.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                            📭 Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih. Klik "+ Tambahkan Transaksi Penjualan" di atas.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return paginatedSales.map((tx) => {
+                      const isWebAdminInput = tx.type_input === 'manual' || tx.sumber_input === 'web_admin';
+                      const isPaid = tx.status === 'Paid' || tx.status === 'Lunas' || tx.status === 'Success' || tx.status === 'Selesai' || tx.isPaid;
+
+                      const itemsSummary = tx.items && tx.items.length > 0
+                        ? tx.items.map(i => `${i.name || i.product_name} (x${i.qty || 1})`).join(', ')
+                        : 'Produk Penjualan';
+
+                      const ingredientsSummary = tx.deducted_ingredients && tx.deducted_ingredients.length > 0
+                        ? tx.deducted_ingredients.map(ing => `${ing.ingredient_name || ing.name}: ${ing.qty} ${ing.unit || 'kg'}`).join(', ')
+                        : 'Bahan Baku';
+
+                      return (
+                        <tr key={tx.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                          {/* 1. TANGGAL */}
+                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                            <div>{tx.date}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {getOutletName(tx.outlet_id)}</div>
+                          </td>
+
+                          {/* 2. NO TRANSAKSI */}
+                          <td style={{ padding: '14px 16px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewOutflowModalData(tx)}
+                              style={{ background: 'none', border: 'none', padding: 0, color: '#818cf8', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                              title="Klik untuk melihat pratinjau detail transaksi & bahan baku terpotong"
+                            >
+                              <span>{tx.receiptNo || tx.id}</span>
+                              <Eye size={14} color="#818cf8" />
+                            </button>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                              Menu: <strong style={{ color: '#f8fafc' }}>{itemsSummary}</strong>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#fb7185', marginTop: '1px' }}>
+                              Bahan Terpotong: <strong>{ingredientsSummary}</strong>
+                            </div>
+                          </td>
+
+                          {/* 3. PENGAJU */}
+                          <td style={{ padding: '14px 16px' }}>
                             <span style={{
-                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '700',
-                              background: d.itemType === 'Produk Jadi' ? 'rgba(56,189,248,0.12)' : 'rgba(251,191,36,0.12)',
-                              color: d.itemType === 'Produk Jadi' ? '#38bdf8' : '#fbbf24',
-                              border: '1px solid',
-                              borderColor: d.itemType === 'Produk Jadi' ? 'rgba(56,189,248,0.2)' : 'rgba(251,191,36,0.2)'
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.78rem',
+                              fontWeight: '800',
+                              background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
+                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
                             }}>
-                              {d.itemType}
+                              {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{tx.created_by || 'Kasir'}</div>
+                          </td>
+
+                          {/* 4. STATUS */}
+                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isPaid ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isPaid ? '#22c55e' : '#f59e0b'}`,
+                              color: isPaid ? '#4ade80' : '#fbbf24',
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              {isPaid ? <CheckSquare size={14} /> : <Clock size={14} />}
+                              <span>{isPaid ? '🟢 Paid' : '⏳ Pending'}</span>
                             </span>
                           </td>
-                        )}
-                        {visibleColsKeluar.qty && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#f43f5e' }}>-{Math.abs(d.qty).toFixed(1)}</td>}
-                        {visibleColsKeluar.unit && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{d.unit}</td>}
-                        {visibleColsKeluar.cogsValue && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{formatRupiah(d.cogsValue)}</td>}
-                        {visibleColsKeluar.status && <td style={{ padding: '12px 10px', color: '#34d399', fontWeight: '700' }}>{d.status}</td>}
-                        <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                          <button
-                            onClick={() => handleDeleteRecord(d.id, 'stok_keluar')}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            <Trash2 size={12} />
-                            <span>Hapus</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+
+                          {/* 5. AKSI */}
+                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                              <button
+                                onClick={() => handleOpenEditOutflowModal(tx)}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Edit3 size={14} /> Edit
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteRecord(tx.id, 'stok_keluar', tx.receiptNo || tx.id)}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Trash2 size={14} /> Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
+
+            {/* PAGINATION CONTROLS */}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={Math.ceil(getFilteredSalesOutflowTransactions().length / pageSize) || 1}
+              pageSize={pageSize}
+              totalItems={getFilteredSalesOutflowTransactions().length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
           </div>
         )}
 
@@ -4506,6 +4935,346 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+      {/* ========================================================= */}
+      {/* ADD / EDIT SALES TRANSACTION MODAL                        */}
+      {/* ========================================================= */}
+      {showAddSalesModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '780px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #6366f1', background: '#0f172a', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShoppingBag size={22} color="#818cf8" />
+                  <span>{editingOutflowRecord ? `Edit Transaksi Penjualan (${salesNo})` : '🛍️ Tambah Transaksi Penjualan (Input Order POS Manual)'}</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                  Input transaksi penjualan menu. Stok bahan baku akan terhitung & terpotong secara otomatis berdasarkan resep.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSalesModal(false);
+                  setEditingOutflowRecord(null);
+                }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* General Info Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>📅 Tanggal Transaksi</label>
+                <input
+                  type="date"
+                  value={salesDate}
+                  onChange={e => setSalesDate(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>🎫 No. Transaksi / Struk</label>
+                <input
+                  type="text"
+                  value={salesNo}
+                  onChange={e => setSalesNo(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#818cf8', fontSize: '0.85rem', fontWeight: '900' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>🏢 Outlet / Cabang</label>
+                <select
+                  value={salesOutletId}
+                  onChange={e => setSalesOutletId(Number(e.target.value))}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                >
+                  {outlets.map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>👤 Kasir / Admin Pengaju</label>
+                <input
+                  type="text"
+                  value={salesCreatedBy}
+                  onChange={e => setSalesCreatedBy(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>⚡ Status Pembayaran</label>
+                <select
+                  value={salesStatus}
+                  onChange={e => setSalesStatus(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: salesStatus === 'Paid' ? '#4ade80' : '#fbbf24', fontSize: '0.85rem', fontWeight: '900' }}
+                >
+                  <option value="Paid">🟢 Paid (Lunas)</option>
+                  <option value="Pending">⏳ Pending (Belum Lunas)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>💳 Metode Pembayaran</label>
+                <select
+                  value={salesPaymentMethod}
+                  onChange={e => setSalesPaymentMethod(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                >
+                  <option value="Cash">Cash (Tunai)</option>
+                  <option value="QRIS">QRIS</option>
+                  <option value="Transfer">Transfer Bank</option>
+                  <option value="Debit">Kartu Debit</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Menu Items Batch Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🍔 Rincian Menu Penjualan</span>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({salesMenuRows.length} item)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddSalesMenuRow}
+                  style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f1', color: '#818cf8', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  + Tambah Menu
+                </button>
+              </div>
+
+              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', color: '#cbd5e1', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
+                      <th style={{ padding: '10px 12px' }}>Pilih Product / Menu</th>
+                      <th style={{ padding: '10px 12px', width: '100px', textAlign: 'center' }}>Qty Sold</th>
+                      <th style={{ padding: '10px 12px', width: '140px', textAlign: 'right' }}>Harga Satuan</th>
+                      <th style={{ padding: '10px 12px', width: '150px', textAlign: 'right' }}>Subtotal</th>
+                      <th style={{ padding: '10px 12px', width: '60px', textAlign: 'center' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salesMenuRows.map((row, idx) => (
+                      <tr key={row.id || idx} style={{ borderBottom: '1px solid #334155' }}>
+                        <td style={{ padding: '10px 12px' }}>
+                          <input
+                            type="text"
+                            list={`prod-list-${idx}`}
+                            placeholder="Cari / Pilih Nama Menu..."
+                            value={row.product_name}
+                            onChange={e => handleUpdateSalesMenuRow(idx, 'product_name', e.target.value)}
+                            style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', fontWeight: '700' }}
+                          />
+                          <datalist id={`prod-list-${idx}`}>
+                            {(masterData.products || []).map(p => (
+                              <option key={p.id} value={p.name} />
+                            ))}
+                          </datalist>
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            value={row.qty}
+                            onChange={e => handleUpdateSalesMenuRow(idx, 'qty', Math.max(1, Number(e.target.value)))}
+                            style={{ width: '80px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#34d399', fontSize: '0.85rem', fontWeight: '900', textAlign: 'center' }}
+                          />
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <input
+                            type="number"
+                            value={row.price}
+                            onChange={e => handleUpdateSalesMenuRow(idx, 'price', Number(e.target.value))}
+                            style={{ width: '120px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', textAlign: 'right' }}
+                          />
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>
+                          {formatRupiah(row.total || (row.qty * row.price))}
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSalesMenuRow(idx)}
+                            style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.4)', color: '#fb7185', borderRadius: '6px', padding: '6px', cursor: 'pointer' }}
+                            title="Hapus baris menu"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Total Omset Sales Summary */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', background: '#1e293b', padding: '12px 16px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#cbd5e1' }}>Total Omset Penjualan:</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399' }}>
+                  {formatRupiah(salesMenuRows.reduce((sum, r) => sum + (Number(r.total) || 0), 0))}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSalesModal(false);
+                  setEditingOutflowRecord(null);
+                }}
+                className="btn-secondary"
+                style={{ padding: '10px 18px', fontSize: '0.85rem' }}
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveSalesTransaction}
+                className="btn-primary"
+                style={{ padding: '10px 24px', fontSize: '0.85rem', background: '#6366f1', color: '#ffffff' }}
+              >
+                ✓ Simpan Transaksi Penjualan
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* PREVIEW OUTFLOW TRANSACTION MODAL                         */}
+      {/* ========================================================= */}
+      {previewOutflowModalData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '680px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid #818cf8', background: '#0f172a', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#818cf8', margin: 0 }}>
+                  📋 Detail Transaksi Penjualan ({previewOutflowModalData.receiptNo})
+                </h3>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                  Outlet: <strong style={{ color: '#f8fafc' }}>{getOutletName(previewOutflowModalData.outlet_id)}</strong> &bull; Tanggal: <strong style={{ color: '#f8fafc' }}>{previewOutflowModalData.date} ({previewOutflowModalData.time})</strong>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPreviewOutflowModalData(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Info Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Pengaju / Kasir</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', marginTop: '2px' }}>👤 {previewOutflowModalData.created_by}</div>
+              </div>
+              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Status Pembayaran</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '900', color: previewOutflowModalData.isPaid ? '#4ade80' : '#fbbf24', marginTop: '2px' }}>
+                  {previewOutflowModalData.isPaid ? '🟢 Paid (Lunas)' : '⏳ Pending'}
+                </div>
+              </div>
+              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Metode Pembayaran</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', marginTop: '2px' }}>💳 {previewOutflowModalData.payment_method || 'Cash'}</div>
+              </div>
+            </div>
+
+            {/* Menu Items Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>🍔 Rincian Menu Penjualan</div>
+              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+                      <th style={{ padding: '8px 12px' }}>Nama Menu</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Qty</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Harga Satuan</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previewOutflowModalData.items || []).map((it, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #334155' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: '700', color: '#f8fafc' }}>{it.name || it.product_name}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '800', color: '#34d399' }}>{it.qty}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(it.price)}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{formatRupiah(it.total || (it.qty * it.price))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '0.9rem', fontWeight: '900', color: '#34d399', marginTop: '4px' }}>
+                Total Omset: {formatRupiah(previewOutflowModalData.total_amount)}
+              </div>
+            </div>
+
+            {/* Ingredients Deducted Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#fb7185' }}>🌾 Rincian Bahan Baku Terpotong Otomatis (Autoconsumption)</div>
+              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+                      <th style={{ padding: '8px 12px' }}>Nama Bahan Baku</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Qty Terpotong</th>
+                      <th style={{ padding: '8px 12px' }}>Satuan</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Estimasi HPP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previewOutflowModalData.deducted_ingredients || []).map((ing, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #334155' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: '700', color: '#38bdf8' }}>{ing.ingredient_name || ing.name}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{ing.qty}</td>
+                        <td style={{ padding: '8px 12px', color: '#cbd5e1' }}>{ing.unit || 'kg'}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#34d399', fontWeight: '700' }}>{formatRupiah(ing.cogs || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #334155', paddingTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setPreviewOutflowModalData(null)}
+                className="btn-primary"
+                style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+              >
+                Tutup
+              </button>
+            </div>
+
           </div>
         </div>
       )}

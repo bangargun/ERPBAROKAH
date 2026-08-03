@@ -21,7 +21,10 @@ import {
   FileText,
   DollarSign,
   Edit3,
-  Smartphone
+  Smartphone,
+  Eye,
+  Clock,
+  ShoppingBag
 } from 'lucide-react';
 import { DoubleCalendarPicker, buildExportFilename, getOutletNameStrForExport } from './SalesTransactionsPage';
 import PaginationControls from './PaginationControls';
@@ -476,11 +479,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   
   // Start with 5 default empty rows
   const [manualRows, setManualRows] = useState([
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' },
-    { ingredientId: ingredientsList[0]?.id || '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '' }
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+    { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false }
   ]);
 
   // SINGLE RECORD EDIT STATE
@@ -523,6 +526,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [transferBatchRows, setTransferBatchRows] = useState([]);
   const [previewTransferModalData, setPreviewTransferModalData] = useState(null);
   const [previewWasteModalData, setPreviewWasteModalData] = useState(null);
+
+  // Stok Keluar / Sales Transaction Form States
+  const [showAddSalesModal, setShowAddSalesModal] = useState(false);
+  const [salesDate, setSalesDate] = useState(new Date().toISOString().split('T')[0]);
+  const [salesNo, setSalesNo] = useState(`TRX-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-001`);
+  const [salesCreatedBy, setSalesCreatedBy] = useState(userRightsList[0] ? userRightsList[0].name : 'Admin');
+  const [salesOutletId, setSalesOutletId] = useState(1);
+  const [salesStatus, setSalesStatus] = useState('Paid');
+  const [salesPaymentMethod, setSalesPaymentMethod] = useState('Cash');
+  const [salesMenuRows, setSalesMenuRows] = useState([]);
+  const [previewOutflowModalData, setPreviewOutflowModalData] = useState(null);
+  const [editingOutflowRecord, setEditingOutflowRecord] = useState(null);
 
   // Stok Rusak Form States
   const [rusakDate, setRusakDate] = useState(new Date().toISOString().split('T')[0]);
@@ -632,7 +647,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   // MULTI-ROW ACTIONS FOR MANUAL LOGISTICS
   const handleAddRow = () => {
-    setManualRows([...manualRows, { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' }]);
+    setManualRows([...manualRows, { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false }]);
   };
 
   const handleRemoveRow = (idx) => {
@@ -741,6 +756,308 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   const filteredStockOutflow = generateStockDeductions();
 
+  // Get all Sales Transactions for Log Mutasi Keluar (Autoconsumption Stock Deductions)
+  const getFilteredSalesOutflowTransactions = () => {
+    const rawSales = [
+      ...(masterData.salesTransactions || []),
+      ...(masterData.transactions || []),
+      ...(masterData.sales || []),
+      ...(masterData.manualSales || [])
+    ];
+
+    const groupedMap = new Map();
+
+    rawSales.forEach(tx => {
+      const txId = tx.receipt_no || tx.receiptNo || tx.report_no || tx.order_no || tx.id;
+      if (!txId) return;
+      const key = String(txId);
+
+      if (!groupedMap.has(key)) {
+        const txOutletId = Number(tx.outlet_id || tx.outletId || tx.branch_id || 1);
+        const txDate = tx.date || tx.tanggal || new Date().toISOString().split('T')[0];
+        const txTime = tx.time || tx.waktu || '12:00';
+        const txCreatedBy = tx.created_by || tx.submitted_by || tx.kasir || tx.author_name || 'Kasir';
+        const isWebAdmin = tx.type_input === 'manual' || tx.sumber_input === 'web_admin' || tx.created_by === 'Admin' || (tx.type_input && tx.type_input.includes('admin'));
+        
+        const rawStatus = tx.status || tx.payment_status || 'Paid';
+        const isPaid = rawStatus === 'Paid' || rawStatus === 'Lunas' || rawStatus === 'Success' || rawStatus === 'Selesai' || rawStatus === 'Paid (Disetujui)' || rawStatus === 'approved';
+
+        const itemsSold = tx.items || tx.menu_items || [];
+        
+        let deductedIngs = tx.deducted_ingredients || tx.ingredients || [];
+        if (deductedIngs.length === 0 && itemsSold.length > 0) {
+          const activeProducts = masterData.products || [];
+          itemsSold.forEach(item => {
+            const qtySold = Number(item.qty || 1);
+            const itemLower = (item.name || item.product_name || '').toLowerCase().trim();
+            const matchedProd = activeProducts.find(p => p.name?.toLowerCase() === itemLower || itemLower.startsWith(p.name?.toLowerCase()));
+
+            if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
+              matchedProd.compositions.forEach(comp => {
+                const ingQty = Number(comp.qty || comp.amount || 1) * qtySold;
+                deductedIngs.push({
+                  ingredient_name: comp.ingredient_name || comp.name || 'Bahan Baku',
+                  qty: ingQty,
+                  unit: comp.unit || 'Gram',
+                  cogs: Math.round((comp.cogs || 1500) * ingQty)
+                });
+              });
+            } else {
+              let matchedIng = ingredientsList.find(ing => {
+                const ingLower = ing.name.toLowerCase();
+                if (itemLower.includes('kopi') || itemLower.includes('espresso') || itemLower.includes('latte')) return ingLower.includes('kopi');
+                if (itemLower.includes('ayam') || itemLower.includes('chicken')) return ingLower.includes('ayam');
+                if (itemLower.includes('sapi') || itemLower.includes('steak')) return ingLower.includes('sapi') || ingLower.includes('daging');
+                if (itemLower.includes('nasi') || itemLower.includes('rice')) return ingLower.includes('beras');
+                if (itemLower.includes('susu') || itemLower.includes('milk')) return ingLower.includes('susu');
+                if (itemLower.includes('teh') || itemLower.includes('tea')) return ingLower.includes('teh');
+                return ingLower.includes(itemLower) || itemLower.includes(ingLower);
+              });
+              if (!matchedIng) matchedIng = ingredientsList[0] || { name: 'Bahan Mentah Dapur', unit: 'kg', cost: 15000 };
+              const ingQty = qtySold * (matchedIng.unit === 'Gram' || matchedIng.unit === 'ml' ? 150 : 0.2);
+              deductedIngs.push({
+                ingredient_name: matchedIng.name,
+                qty: ingQty,
+                unit: matchedIng.unit || 'kg',
+                cogs: Math.round((matchedIng.cost || 15000) * ingQty)
+              });
+            }
+          });
+        }
+
+        groupedMap.set(key, {
+          id: key,
+          receiptNo: key,
+          report_no: key,
+          date: txDate,
+          time: txTime,
+          outlet_id: txOutletId,
+          outlet_name: tx.outlet_name || getOutletName(txOutletId),
+          created_by: txCreatedBy,
+          type_input: isWebAdmin ? 'manual' : 'by pos kasir',
+          sumber_input: isWebAdmin ? 'web_admin' : 'pos_kasir',
+          status: isPaid ? 'Paid' : 'Pending',
+          isPaid,
+          payment_method: tx.payment_method || 'Cash',
+          items: itemsSold,
+          deducted_ingredients: deductedIngs,
+          total_amount: tx.total_amount || tx.grand_total || itemsSold.reduce((s, i) => s + (Number(i.price || 0) * Number(i.qty || 1)), 0)
+        });
+      }
+    });
+
+    (masterData.stockOutflow || []).forEach(s => {
+      const sKey = String(s.receiptNo || s.report_no || s.id || `TRX-STK-${s.date}`);
+      if (!groupedMap.has(sKey) && !deletedOutflowIds.includes(s.id)) {
+        groupedMap.set(sKey, {
+          id: s.id || sKey,
+          receiptNo: sKey,
+          report_no: sKey,
+          date: s.date || new Date().toISOString().split('T')[0],
+          time: s.time || '12:00',
+          outlet_id: Number(s.outletId || s.outlet_id || 1),
+          outlet_name: getOutletName(s.outletId || s.outlet_id || 1),
+          created_by: s.created_by || s.submitted_by || 'Kasir',
+          type_input: s.type_input || 'by pos kasir',
+          sumber_input: s.sumber_input || 'pos_kasir',
+          status: s.status === 'Pending' ? 'Pending' : 'Paid',
+          isPaid: s.status !== 'Pending',
+          payment_method: s.payment_method || 'Cash',
+          items: s.items || [{ name: s.itemName || 'Produk Penjualan', qty: Math.abs(s.qty || 1), price: s.cogsValue || 15000 }],
+          deducted_ingredients: s.deducted_ingredients || [{ ingredient_name: s.itemName || 'Bahan Baku', qty: Math.abs(s.qty || 1), unit: s.unit || 'kg', cogs: s.cogsValue || 15000 }],
+          total_amount: s.cogsValue || 15000
+        });
+      }
+    });
+
+    const list = Array.from(groupedMap.values()).filter(item => {
+      if (deletedOutflowIds.includes(item.id)) return false;
+      if (logStartDate && item.date < logStartDate) return false;
+      if (logEndDate && item.date > logEndDate) return false;
+      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(item.outlet_id)) return false;
+      if (selectedBranch && Number(item.outlet_id) !== Number(selectedBranch)) return false;
+      return true;
+    });
+
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  };
+
+  const handleOpenEditOutflowModal = (tx) => {
+    setEditingOutflowRecord(tx);
+    setSalesDate(tx.date || new Date().toISOString().split('T')[0]);
+    setSalesNo(tx.receiptNo || tx.report_no || tx.id);
+    setSalesCreatedBy(tx.created_by || 'Admin');
+    setSalesOutletId(tx.outlet_id || 1);
+    setSalesStatus(tx.isPaid ? 'Paid' : 'Pending');
+    setSalesPaymentMethod(tx.payment_method || 'Cash');
+
+    if (tx.items && tx.items.length > 0) {
+      setSalesMenuRows(tx.items.map((it, idx) => ({
+        id: it.id || (Date.now() + idx),
+        product_id: it.id || it.product_id || 1,
+        product_name: it.name || it.product_name || 'Item Penjualan',
+        qty: Number(it.qty || 1),
+        price: Number(it.price || 0),
+        total: Number(it.total || (it.qty * it.price))
+      })));
+    } else {
+      const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+      setSalesMenuRows([{
+        id: Date.now(),
+        product_id: firstProd ? firstProd.id : 1,
+        product_name: firstProd ? firstProd.name : 'Item Penjualan',
+        qty: 1,
+        price: firstProd ? (firstProd.price || 25000) : 25000,
+        total: firstProd ? (firstProd.price || 25000) : 25000
+      }]);
+    }
+    setShowAddSalesModal(true);
+  };
+
+  const handleAddSalesMenuRow = () => {
+    const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+    setSalesMenuRows([
+      ...salesMenuRows,
+      {
+        id: Date.now() + Math.random(),
+        product_id: firstProd ? firstProd.id : 1,
+        product_name: firstProd ? firstProd.name : 'Nasi Goreng Spesial',
+        qty: 1,
+        price: firstProd ? (firstProd.price || 25000) : 25000,
+        total: firstProd ? (firstProd.price || 25000) : 25000
+      }
+    ]);
+  };
+
+  const handleRemoveSalesMenuRow = (idx) => {
+    setSalesMenuRows(salesMenuRows.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateSalesMenuRow = (idx, field, value) => {
+    const updated = [...salesMenuRows];
+    if (field === 'product_name') {
+      updated[idx].product_name = value;
+      const matchedProd = (masterData.products || []).find(p => p.name === value);
+      if (matchedProd) {
+        updated[idx].product_id = matchedProd.id;
+        updated[idx].price = Number(matchedProd.price || 0);
+      }
+    } else {
+      updated[idx][field] = value;
+    }
+    const q = Number(updated[idx].qty || 1);
+    const p = Number(updated[idx].price || 0);
+    updated[idx].total = q * p;
+    setSalesMenuRows(updated);
+  };
+
+  const handleSaveSalesTransaction = (e) => {
+    if (e) e.preventDefault();
+    if (salesMenuRows.length === 0 || salesMenuRows.some(r => !r.product_name || !r.qty)) {
+      alert('Harap lengkapi item menu penjualan dan jumlah Qty!');
+      return;
+    }
+
+    const items = salesMenuRows.map(r => ({
+      id: r.product_id,
+      name: r.product_name,
+      qty: Number(r.qty || 1),
+      price: Number(r.price || 0),
+      total: Number(r.total || (r.qty * r.price))
+    }));
+
+    const totalAmount = items.reduce((sum, i) => sum + i.total, 0);
+
+    const deductedIngredients = [];
+    const activeProducts = masterData.products || [];
+
+    items.forEach(item => {
+      const qtySold = item.qty;
+      const itemLower = (item.name || '').toLowerCase().trim();
+      const matchedProd = activeProducts.find(p => p.name?.toLowerCase() === itemLower || itemLower.startsWith(p.name?.toLowerCase()));
+
+      if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
+        matchedProd.compositions.forEach(comp => {
+          const ingQty = Number(comp.qty || comp.amount || 1) * qtySold;
+          deductedIngredients.push({
+            ingredient_name: comp.ingredient_name || comp.name || 'Bahan Baku',
+            qty: ingQty,
+            unit: comp.unit || 'Gram',
+            cogs: Math.round((comp.cogs || 1500) * ingQty)
+          });
+        });
+      } else {
+        let matchedIng = ingredientsList.find(ing => {
+          const ingLower = ing.name.toLowerCase();
+          if (itemLower.includes('kopi') || itemLower.includes('espresso') || itemLower.includes('latte')) return ingLower.includes('kopi');
+          if (itemLower.includes('ayam') || itemLower.includes('chicken')) return ingLower.includes('ayam');
+          if (itemLower.includes('sapi') || itemLower.includes('steak')) return ingLower.includes('sapi') || ingLower.includes('daging');
+          if (itemLower.includes('nasi') || itemLower.includes('rice')) return ingLower.includes('beras');
+          if (itemLower.includes('susu') || itemLower.includes('milk')) return ingLower.includes('susu');
+          if (itemLower.includes('teh') || itemLower.includes('tea')) return ingLower.includes('teh');
+          return ingLower.includes(itemLower) || itemLower.includes(ingLower);
+        });
+        if (!matchedIng) matchedIng = ingredientsList[0] || { name: 'Bahan Mentah Dapur', unit: 'kg', cost: 15000 };
+        const ingQty = qtySold * (matchedIng.unit === 'Gram' || matchedIng.unit === 'ml' ? 150 : 0.2);
+        deductedIngredients.push({
+          ingredient_name: matchedIng.name,
+          qty: ingQty,
+          unit: matchedIng.unit || 'kg',
+          cogs: Math.round((matchedIng.cost || 15000) * ingQty)
+        });
+      }
+    });
+
+    const isPaid = salesStatus === 'Paid' || salesStatus === 'Lunas';
+    const targetId = editingOutflowRecord ? editingOutflowRecord.id : salesNo;
+
+    const newTx = {
+      id: targetId,
+      receipt_no: targetId,
+      report_no: targetId,
+      date: salesDate,
+      time: editingOutflowRecord ? editingOutflowRecord.time : new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      outlet_id: Number(salesOutletId),
+      created_by: salesCreatedBy,
+      type_input: 'manual',
+      sumber_input: 'web_admin',
+      status: isPaid ? 'Paid' : 'Pending',
+      payment_status: isPaid ? 'Paid' : 'Pending',
+      payment_method: salesPaymentMethod,
+      items: items,
+      deducted_ingredients: deductedIngredients,
+      total_amount: totalAmount
+    };
+
+    setMasterData(prev => {
+      const filterOutOld = (arr = []) => arr.filter(x => String(x.id) !== String(targetId) && String(x.receipt_no || x.report_no || '') !== String(targetId));
+      
+      const updatedSales = [newTx, ...filterOutOld(prev.salesTransactions || [])];
+      
+      const updatedIngredients = (prev.ingredients || []).map(ing => {
+        const matchRecord = deductedIngredients.find(r => 
+          (r.ingredient_name || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim()
+        );
+        if (matchRecord) {
+          const currentStok = Number(ing.stok || ing.stock || ing.qty || 0);
+          const newStok = Math.max(0, currentStok - Number(matchRecord.qty || 1));
+          return { ...ing, stok: newStok, stock: newStok };
+        }
+        return ing;
+      });
+
+      return {
+        ...prev,
+        salesTransactions: updatedSales,
+        ingredients: updatedIngredients
+      };
+    });
+
+    setShowAddSalesModal(false);
+    setEditingOutflowRecord(null);
+    alert(`✓ Transaksi Penjualan (${targetId}) Berhasil Disimpan & Stok Bahan Baku Terpotong Otomats!`);
+  };
+
   // FILTERED DATA SELECTORS
   const getFilteredMasuk = () => {
     return getMovementsList().filter(m => {
@@ -821,26 +1138,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   // SUBMIT MANUAL LOGISTICS
   const handleCommitManualLogistics = () => {
-    const validRows = manualRows.filter(row => row.qty && row.priceUnit);
+    const validRows = manualRows.filter(row => (row.searchQuery || row.ingredientId) && Number(row.qty) > 0);
     if (validRows.length === 0) {
-      alert('Isi minimal 1 item dengan Jumlah dan Harga yang valid');
+      alert('Isi minimal 1 item (pilih bahan baku) dengan Jumlah dan Harga yang valid');
       return;
     }
 
     const newMovements = validRows.map((row, idx) => {
-      const ing = ingredientsList.find(i => i.id === Number(row.ingredientId)) || { name: 'Item', unit: 'pcs' };
+      const ing = ingredientsList.find(i => i.id === Number(row.ingredientId) || i.name.toLowerCase() === (row.searchQuery || '').toLowerCase()) || {};
       const sup = suppliersList.find(s => s.id === Number(row.supplierId)) || { name: '-' };
       const qtyVal = Number(row.qty);
-      const prcVal = Number(row.priceUnit);
+      const prcVal = Number(row.priceUnit) || 0;
+      const itemName = row.searchQuery || ing.name || 'Item';
+      const itemUnit = row.unit || ing.unit || 'pcs';
 
       return {
         id: `mv-${Date.now()}-${idx}`,
         date: manualDate,
         outlet_id: Number(manualOutletId),
         type: 'IN',
-        item_name: ing.name,
+        item_name: itemName,
         qty: qtyVal,
-        unit: ing.unit || 'pcs',
+        unit: itemUnit,
         supplier: sup.name,
         created_by: manualCreatedBy,
         price_unit: prcVal,
@@ -856,11 +1175,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
     // Reset Form & Close Modals
     setManualRows([
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' },
-      { ingredientId: ingredientsList[0].id, supplierId: suppliersList[0].id, qty: '', priceUnit: '', searchQuery: '' }
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false },
+      { ingredientId: '', supplierId: suppliersList[0]?.id || '', qty: '', priceUnit: '', searchQuery: '', unit: '', showSuggestions: false }
     ]);
     setShowPreviewModal(false);
     setShowAddModal(null);
@@ -967,7 +1286,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       ...op,
       stok_keluar: autoStokKeluarPenjualan,
       harga_satuan: activePrice,
-      status: 'ACC',
+      status: 'Approved',
+      sent_to_apk: true,
       approved_at: new Date().toISOString(),
       approved_by: 'Admin Web'
     };
@@ -981,12 +1301,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
       return {
         ...prev,
+        _lastUpdated: Date.now(),
         approvedLogistics: updatedApp.some(item => item.id === op.id) ? updatedApp : [updatedRecord, ...updatedApp],
         stockOpname: updatedOp.some(item => item.id === op.id) ? updatedOp : [updatedRecord, ...updatedOp]
       };
     });
 
-    alert(`✅ Laporan Stok Opname (${op.item_name}) berhasil disetujui (ACC)!\nStok Keluar Penjualan otomatis terisi dari Web Admin: ${autoStokKeluarPenjualan} ${op.unit || 'kg'}.\nKini Anda dapat menekan tombol "Kirim APK".`);
+    alert(`✅ Laporan Stok Opname (${op.item_name}) BERHASIL DI-ACC & APPROVED!\nStok Keluar Penjualan otomatis terisi (${autoStokKeluarPenjualan} ${op.unit || 'kg'}).\nStatus di POS Mobile APK kini langsung berubah dari PENDING menjadi 🟢 APPROVED.`);
   };
 
   // SEND TO MOBILE APK (REQUIRES ACC FIRST)
@@ -1830,6 +2151,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             onClick={() => {
               if (activeSubTab === 'perbandingan_harga') {
                 handleOpenAddPriceModal();
+              } else if (activeSubTab === 'stock_opname' || activeSubTab === 'opname') {
+                setShowAddModal('opname');
               } else {
                 setShowAddModal(activeSubTab.replace('stok_', ''));
               }
@@ -2025,12 +2348,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           ))}
         </div>
 
-        {/* Row 2: 3 Tabs */}
+        {/* Row 2: 2 Tabs */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
           {[
             { id: 'stok_opname_system', label: '🤖 Stock Opname by Sistem', color: '#34d399' },
-            { id: 'stok_opname_report', label: '📱 Stok Opname by Report Outlet', color: '#a78bfa' },
-            { id: 'perbandingan_harga', label: '🏷️ Perbandingan Harga', color: '#c084fc' }
+            { id: 'stok_opname_report', label: '📱 Stok Opname by Report Outlet', color: '#a78bfa' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -2074,76 +2396,104 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             </h3>
             
             <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {visibleColsMasuk.date && <th style={{ padding: '12px 10px' }}>Tanggal</th>}
-                    {visibleColsMasuk.outletId && <th style={{ padding: '12px 10px' }}>Outlet</th>}
-                    {visibleColsMasuk.createdBy && <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>}
-                    {visibleColsMasuk.itemName && <th style={{ padding: '12px 10px' }}>Nama Item</th>}
-                    {visibleColsMasuk.supplier && <th style={{ padding: '12px 10px' }}>Supplier</th>}
-                    {visibleColsMasuk.qty && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Jumlah</th>}
-                    {visibleColsMasuk.unit && <th style={{ padding: '12px 10px' }}>Satuan</th>}
-                    {visibleColsMasuk.priceUnit && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Harga Satuan</th>}
-                    {visibleColsMasuk.totalPrice && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Total Harga</th>}
-                    {visibleColsMasuk.typeInput && <th style={{ padding: '12px 10px' }}>Tipe Input</th>}
-                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Aksi</th>
+                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '160px' }}>STATUS</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '160px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
                     const filteredMasuk = getFilteredMasuk();
-                    const totalMasuk = filteredMasuk.length;
                     const paginatedMasuk = filteredMasuk.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
                     if (paginatedMasuk.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                            Tidak ada log stok masuk untuk outlet / tanggal terpilih.
+                          <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                            📭 Tidak ada log stok masuk untuk outlet / tanggal terpilih.
                           </td>
                         </tr>
                       );
                     }
 
-                    return paginatedMasuk.map(m => (
-                      <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        {visibleColsMasuk.date && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{m.date}</td>}
-                        {visibleColsMasuk.outletId && <td style={{ padding: '12px 10px', fontWeight: '700' }}>🏢 {getOutletName(m.outlet_id)}</td>}
-                        {visibleColsMasuk.createdBy && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{m.created_by || 'Admin'}</td>}
-                        {visibleColsMasuk.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: '#38bdf8' }}>{m.item_name}</td>}
-                        {visibleColsMasuk.supplier && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{m.supplier || '-'}</td>}
-                        {visibleColsMasuk.qty && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>+{m.qty}</td>}
-                        {visibleColsMasuk.unit && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{m.unit}</td>}
-                        {visibleColsMasuk.priceUnit && <td style={{ padding: '12px 10px', textAlign: 'right' }}>{formatRupiah(m.price_unit || 0)}</td>}
-                        {visibleColsMasuk.totalPrice && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{formatRupiah(m.total_price || (m.qty * (m.price_unit || 0)))}</td>}
-                        {visibleColsMasuk.typeInput && (
-                          <td style={{ padding: '12px 10px' }}>
+                    return paginatedMasuk.map(m => {
+                      const isDone = m.status === 'Done' || m.status === 'Approved' || m.status === 'approved' || m.status === 'ok' || m.approval_status === 'Done';
+                      const isWebAdminInput = m.type_input === 'manual' || m.type_input === 'by laporan keuangan (ACC)';
+
+                      return (
+                        <tr key={m.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                          {/* 1. TANGGAL */}
+                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                            <div>{m.date}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {getOutletName(m.outlet_id)}</div>
+                          </td>
+
+                          {/* 2. NO LAPORAN */}
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ color: '#38bdf8', fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{m.report_no || m.id}</span>
+                              <Eye size={14} color="#38bdf8" />
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                              Bahan: <strong style={{ color: '#f8fafc' }}>{m.item_name}</strong> &bull; Qty: <strong style={{ color: '#34d399' }}>+{m.qty} {m.unit}</strong> &bull; Total: <strong style={{ color: '#38bdf8' }}>{formatRupiah(m.total_price || (m.qty * (m.price_unit || 0)))}</strong>
+                            </div>
+                          </td>
+
+                          {/* 3. PENGAJU */}
+                          <td style={{ padding: '14px 16px' }}>
                             <span style={{
-                              padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700',
-                              background: m.type_input === 'manual' ? 'rgba(129, 140, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                              color: m.type_input === 'manual' ? '#818cf8' : '#fbbf24',
-                              border: '1px solid',
-                              borderColor: m.type_input === 'manual' ? 'rgba(129, 140, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)',
-                              textTransform: 'uppercase'
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.78rem',
+                              fontWeight: '800',
+                              background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
+                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
                             }}>
-                              {m.type_input === 'manual' ? 'manual' : 'by kasir'}
+                              {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{m.created_by || 'Admin Logistik'}</div>
+                          </td>
+
+                          {/* 4. STATUS */}
+                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isDone ? '#22c55e' : '#f59e0b'}`,
+                              color: isDone ? '#4ade80' : '#fbbf24',
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              {isDone ? <CheckSquare size={14} /> : <Clock size={14} />}
+                              <span>{isDone ? 'Done (Disetujui)' : '⏳ Pending'}</span>
                             </span>
                           </td>
-                        )}
-                        <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                          <button
-                            onClick={() => handleDeleteRecord(m.id, 'stok_masuk', m.report_no || m.id)}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            <Trash2 size={12} />
-                            <span>Hapus</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ));
+
+                          {/* 5. AKSI */}
+                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleDeleteRecord(m.id, 'stok_masuk', m.report_no || m.id)}
+                              style={{
+                                padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                              }}
+                              title="Hapus Log Stok Masuk"
+                            >
+                              <Trash2 size={14} /> Hapus
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
                   })()}
                 </tbody>
               </table>
@@ -2164,75 +2514,187 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         {/* SUBTAB 2: STOK KELUAR */}
         {activeSubTab === 'stok_keluar' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ArrowUpRight size={18} color="#fb7185" />
-              <span>Log Mutasi Keluar Penjualan POS (Autoconsumption Stock Deductions)</span>
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ArrowUpRight size={18} color="#fb7185" />
+                  <span>Log Mutasi Keluar Penjualan POS (Autoconsumption Stock Deductions)</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                  Pemotongan stok bahan baku otomatis dari transaksi penjualan POS Kasir & penginputan transaksi penjualan manual.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  setSalesDate(todayStr);
+                  setSalesNo(`TRX-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
+                  setSalesCreatedBy(userRightsList[0] ? userRightsList[0].name : 'Admin');
+                  setSalesOutletId(selectedBranch || (outlets[0] ? outlets[0].id : 1));
+                  setSalesStatus('Paid');
+                  setSalesPaymentMethod('Cash');
+                  const firstProd = masterData.products && masterData.products[0] ? masterData.products[0] : null;
+                  setSalesMenuRows([{
+                    id: Date.now(),
+                    product_id: firstProd ? firstProd.id : 1,
+                    product_name: firstProd ? firstProd.name : 'Nasi Goreng Spesial',
+                    qty: 1,
+                    price: firstProd ? (firstProd.price || 25000) : 25000,
+                    total: firstProd ? (firstProd.price || 25000) : 25000
+                  }]);
+                  setEditingOutflowRecord(null);
+                  setShowAddSalesModal(true);
+                }}
+                style={{
+                  padding: '8px 16px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  color: '#ffffff', border: 'none', borderRadius: '8px',
+                  fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  boxShadow: '0 4px 12px rgba(99,102,241,0.3)'
+                }}
+              >
+                <PlusCircle size={15} />
+                <span>+ Tambahkan Transaksi Penjualan</span>
+              </button>
+            </div>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {visibleColsKeluar.receiptNo && <th style={{ padding: '12px 10px' }}>🎫 No. Struk</th>}
-                    {visibleColsKeluar.dateTime && <th style={{ padding: '12px 10px' }}>Tanggal & Waktu</th>}
-                    {visibleColsKeluar.outletName && <th style={{ padding: '12px 10px' }}>Nama Outlet</th>}
-                    {visibleColsKeluar.itemName && <th style={{ padding: '12px 10px' }}>Nama Item</th>}
-                    {visibleColsKeluar.itemType && <th style={{ padding: '12px 10px' }}>Tipe</th>}
-                    {visibleColsKeluar.qty && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Qty</th>}
-                    {visibleColsKeluar.unit && <th style={{ padding: '12px 10px' }}>Satuan</th>}
-                    {visibleColsKeluar.cogsValue && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Estimasi HPP</th>}
-                    {visibleColsKeluar.status && <th style={{ padding: '12px 10px' }}>Status</th>}
-                    <th style={{ padding: '12px 10px', textAlign: 'center', width: '120px' }}>Aksi</th>
+                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO TRANSAKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '160px' }}>STATUS</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '180px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStockOutflow.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                        Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredStockOutflow.map((d, index) => (
-                      <tr key={d.id || index} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        {visibleColsKeluar.receiptNo && <td style={{ padding: '12px 10px', color: '#818cf8', fontWeight: '700', fontFamily: 'monospace' }}>{d.receiptNo}</td>}
-                        {visibleColsKeluar.dateTime && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{d.date} <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>({d.time})</span></td>}
-                        {visibleColsKeluar.outletName && <td style={{ padding: '12px 10px' }}>🏢 {getOutletName(d.outletId)}</td>}
-                        {visibleColsKeluar.itemName && <td style={{ padding: '12px 10px', fontWeight: '800' }}>{d.itemName}</td>}
-                        {visibleColsKeluar.itemType && (
-                          <td style={{ padding: '12px 10px' }}>
+                  {(() => {
+                    const salesList = getFilteredSalesOutflowTransactions();
+                    const paginatedSales = salesList.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+                    if (paginatedSales.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                            📭 Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih. Klik "+ Tambahkan Transaksi Penjualan" di atas.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return paginatedSales.map((tx) => {
+                      const isWebAdminInput = tx.type_input === 'manual' || tx.sumber_input === 'web_admin';
+                      const isPaid = tx.status === 'Paid' || tx.status === 'Lunas' || tx.status === 'Success' || tx.status === 'Selesai' || tx.isPaid;
+
+                      const itemsSummary = tx.items && tx.items.length > 0
+                        ? tx.items.map(i => `${i.name || i.product_name} (x${i.qty || 1})`).join(', ')
+                        : 'Produk Penjualan';
+
+                      const ingredientsSummary = tx.deducted_ingredients && tx.deducted_ingredients.length > 0
+                        ? tx.deducted_ingredients.map(ing => `${ing.ingredient_name || ing.name}: ${ing.qty} ${ing.unit || 'kg'}`).join(', ')
+                        : 'Bahan Baku';
+
+                      return (
+                        <tr key={tx.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                          {/* 1. TANGGAL */}
+                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                            <div>{tx.date}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {getOutletName(tx.outlet_id)}</div>
+                          </td>
+
+                          {/* 2. NO TRANSAKSI */}
+                          <td style={{ padding: '14px 16px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewOutflowModalData(tx)}
+                              style={{ background: 'none', border: 'none', padding: 0, color: '#818cf8', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                              title="Klik untuk melihat pratinjau detail transaksi & bahan baku terpotong"
+                            >
+                              <span>{tx.receiptNo || tx.id}</span>
+                              <Eye size={14} color="#818cf8" />
+                            </button>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                              Menu: <strong style={{ color: '#f8fafc' }}>{itemsSummary}</strong>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#fb7185', marginTop: '1px' }}>
+                              Bahan Terpotong: <strong>{ingredientsSummary}</strong>
+                            </div>
+                          </td>
+
+                          {/* 3. PENGAJU */}
+                          <td style={{ padding: '14px 16px' }}>
                             <span style={{
-                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '700',
-                              background: d.itemType === 'Produk Jadi' ? 'rgba(56,189,248,0.12)' : 'rgba(251,191,36,0.12)',
-                              color: d.itemType === 'Produk Jadi' ? '#38bdf8' : '#fbbf24',
-                              border: '1px solid',
-                              borderColor: d.itemType === 'Produk Jadi' ? 'rgba(56,189,248,0.2)' : 'rgba(251,191,36,0.2)'
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.78rem',
+                              fontWeight: '800',
+                              background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
+                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
                             }}>
-                              {d.itemType}
+                              {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{tx.created_by || 'Kasir'}</div>
+                          </td>
+
+                          {/* 4. STATUS */}
+                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isPaid ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isPaid ? '#22c55e' : '#f59e0b'}`,
+                              color: isPaid ? '#4ade80' : '#fbbf24',
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              {isPaid ? <CheckSquare size={14} /> : <Clock size={14} />}
+                              <span>{isPaid ? '🟢 Paid' : '⏳ Pending'}</span>
                             </span>
                           </td>
-                        )}
-                        {visibleColsKeluar.qty && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#f43f5e' }}>-{Math.abs(d.qty).toFixed(1)}</td>}
-                        {visibleColsKeluar.unit && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{d.unit}</td>}
-                        {visibleColsKeluar.cogsValue && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{formatRupiah(d.cogsValue)}</td>}
-                        {visibleColsKeluar.status && <td style={{ padding: '12px 10px', color: '#34d399', fontWeight: '700' }}>{d.status}</td>}
-                        <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                          <button
-                            onClick={() => handleDeleteRecord(d.id, 'stok_keluar')}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            <Trash2 size={12} />
-                            <span>Hapus</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+
+                          {/* 5. AKSI */}
+                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                              <button
+                                onClick={() => handleOpenEditOutflowModal(tx)}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Edit3 size={14} /> Edit
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteRecord(tx.id, 'stok_keluar', tx.receiptNo || tx.id)}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Trash2 size={14} /> Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
+
+            {/* PAGINATION CONTROLS */}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={Math.ceil(getFilteredSalesOutflowTransactions().length / pageSize) || 1}
+              pageSize={pageSize}
+              totalItems={getFilteredSalesOutflowTransactions().length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
           </div>
         )}
 
@@ -2245,160 +2707,120 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             </h3>
             
             <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.70rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                    {visibleColsTransfer.date && <th style={{ padding: '10px 8px' }}>Tanggal</th>}
-                    {visibleColsTransfer.itemName && <th style={{ padding: '10px 8px' }}>No. Laporan</th>}
-                    {visibleColsTransfer.createdBy && <th style={{ padding: '10px 8px' }}>Dibuat Oleh</th>}
-                    {visibleColsTransfer.typeInput && <th style={{ padding: '10px 8px' }}>Tipe Input</th>}
-                    {visibleColsTransfer.fromOutlet && <th style={{ padding: '10px 8px', color: '#fb7185' }}>Outlet Asal (Pengirim)</th>}
-                    {visibleColsTransfer.transferOut && <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Out</th>}
-                    {visibleColsTransfer.toOutlet && <th style={{ padding: '10px 8px', color: '#34d399' }}>Outlet Tujuan (Penerima)</th>}
-                    {visibleColsTransfer.transferIn && <th style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399' }}>📥 Transfer In</th>}
-                    {visibleColsTransfer.status && <th style={{ padding: '10px 8px' }}>Status</th>}
-                    {visibleColsTransfer.returnStatus && <th style={{ padding: '10px 8px' }}>Analisis Pengembalian</th>}
-                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Aksi</th>
+                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '160px' }}>STATUS</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '180px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
                   {getFilteredTransfer().length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                        Tidak ada log transfer stok untuk outlet terpilih.
+                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                        📭 Tidak ada log transfer stok untuk outlet terpilih.
                       </td>
                     </tr>
                   ) : (
-                    getFilteredTransfer().map(t => (
-                      <tr key={t.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        {visibleColsTransfer.date && <td style={{ padding: '8px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{t.date}</td>}
-                        {visibleColsTransfer.itemName && (
-                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
+                    getFilteredTransfer().map(t => {
+                      const isApproved = t.status === 'Approved' || t.status === 'Terkirim' || t.status === 'Done' || t.is_approved;
+                      const isWebAdminInput = t.type_input === 'manual';
+
+                      return (
+                        <tr key={t.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                          {/* 1. TANGGAL */}
+                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                            <div>{t.date}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                              🔴 {getOutletName(t.from_outlet_id || t.fromOutletId, t.from_outlet_name)} ➔ 🟢 {getOutletName(t.to_outlet_id || t.toOutletId, t.to_outlet_name)}
+                            </div>
+                          </td>
+
+                          {/* 2. NO LAPORAN */}
+                          <td style={{ padding: '14px 16px' }}>
                             <button
                               type="button"
                               onClick={() => setPreviewTransferModalData(t)}
-                              style={{
-                                background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)',
-                                borderRadius: '6px', padding: '3px 8px', color: '#38bdf8', fontWeight: '900',
-                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                fontSize: '0.78rem'
-                              }}
+                              style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
                               title="Klik untuk melihat pratinjau detail laporan"
                             >
-                              <span>📋 {t.report_no || t.id}</span>
-                              <span style={{ fontSize: '0.68rem' }}>👁️</span>
+                              <span>{t.report_no || t.id}</span>
+                              <Eye size={14} color="#38bdf8" />
                             </button>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                              Item: <strong style={{ color: '#f8fafc' }}>{t.item_name}</strong> &bull; Qty: <strong style={{ color: '#c084fc' }}>{t.qty} {t.unit}</strong>
+                            </div>
                           </td>
-                        )}
-                        {visibleColsTransfer.createdBy && <td style={{ padding: '8px 8px', color: '#cbd5e1', fontWeight: '600', whiteSpace: 'nowrap' }}>👤 {t.created_by || t.submitted_by || 'Admin'}</td>}
-                        {visibleColsTransfer.typeInput && (
-                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
+
+                          {/* 3. PENGAJU */}
+                          <td style={{ padding: '14px 16px' }}>
                             <span style={{
-                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
-                              background: t.type_input === 'manual' ? 'rgba(129, 140, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                              color: t.type_input === 'manual' ? '#818cf8' : '#fbbf24',
-                              border: '1px solid',
-                              borderColor: t.type_input === 'manual' ? 'rgba(129, 140, 248, 0.3)' : 'rgba(245, 158, 11, 0.3)',
-                              textTransform: 'uppercase'
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.78rem',
+                              fontWeight: '800',
+                              background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
+                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
                             }}>
-                              {t.type_input === 'manual' ? 'manual' : 'by approval'}
+                              {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{t.created_by || t.submitted_by || 'Admin'}</div>
+                          </td>
+
+                          {/* 4. STATUS */}
+                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isApproved ? '#22c55e' : '#f59e0b'}`,
+                              color: isApproved ? '#4ade80' : '#fbbf24',
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
+                              <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
                             </span>
                           </td>
-                        )}
-                        {visibleColsTransfer.fromOutlet && <td style={{ padding: '8px 8px', fontWeight: '700', color: '#fb7185', whiteSpace: 'nowrap' }}>🔴 {getOutletName(t.from_outlet_id || t.fromOutletId, t.from_outlet_name || t.fromOutletName)}</td>}
-                        {visibleColsTransfer.transferOut && <td style={{ padding: '8px 8px', textAlign: 'right', fontWeight: '800', color: '#fb7185', whiteSpace: 'nowrap' }}>-{t.qty} {t.unit}</td>}
-                        {visibleColsTransfer.toOutlet && <td style={{ padding: '8px 8px', fontWeight: '700', color: '#34d399', whiteSpace: 'nowrap' }}>🟢 {getOutletName(t.to_outlet_id || t.toOutletId, t.to_outlet_name || t.toOutletName)}</td>}
-                        {visibleColsTransfer.transferIn && <td style={{ padding: '8px 8px', textAlign: 'right', fontWeight: '800', color: '#34d399', whiteSpace: 'nowrap' }}>+{t.qty} {t.unit}</td>}
-                        {visibleColsTransfer.status && (
-                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
-                            <span style={{
-                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700',
-                              background: t.status === 'Terkirim' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                              color: t.status === 'Terkirim' ? '#34d399' : '#fbbf24'
-                            }}>
-                              {t.status}
-                            </span>
+
+                          {/* 5. AKSI */}
+                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                              <button
+                                onClick={() => handleOpenEditRecord(t, 'transfer')}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Edit3 size={14} /> Edit
+                              </button>
+
+                              {!isApproved && (
+                                <button
+                                  onClick={() => handleApproveTransferRecord(t)}
+                                  style={{ padding: '6px 10px', background: 'rgba(251, 191, 36, 0.2)', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fbbf24', fontWeight: '900', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  title="Setujui Laporan Transfer Stok"
+                                >
+                                  <CheckCircle size={14} /> ACC
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => handleDeleteRecord(t.id, 'transfer_stok', t.report_no || t.id)}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Trash2 size={14} /> Hapus
+                              </button>
+                            </div>
                           </td>
-                        )}
-                        
-                        {/* Analisis Pengembalian */}
-                        {visibleColsTransfer.returnStatus && (
-                          <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
-                            {t.is_returned ? (
-                              <span style={{ color: '#34d399', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
-                                🟢 Sudah Kembali
-                              </span>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span style={{ color: '#fb7185', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem' }}>
-                                  ⚠️ Belum Dikembalikan
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                        )}
-
-                        {/* Aksi Edit, ACC, Kirim APK & Hapus */}
-                        <td style={{ padding: '8px 8px', display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', whiteSpace: 'nowrap' }}>
-                          <button
-                            onClick={() => handleOpenEditRecord(t, 'transfer')}
-                            style={{
-                              background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '3px 6px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.70rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px'
-                            }}
-                          >
-                            <Edit3 size={11} />
-                            <span>Edit</span>
-                          </button>
-
-                          {/* Tombol ACC (Jika Belum Approved/Terkirim) */}
-                          {t.status !== 'Approved' && t.status !== 'Terkirim' && !t.is_approved && (
-                            <button
-                              onClick={() => handleApproveTransferRecord(t)}
-                              style={{
-                                background: 'rgba(251, 191, 36, 0.2)', border: '1px solid #fbbf24', color: '#fbbf24', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.70rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '3px'
-                              }}
-                              title="Setujui Laporan Transfer Stok"
-                            >
-                              <CheckCircle size={11} />
-                              <span>ACC</span>
-                            </button>
-                          )}
-
-                          {/* Tombol Kirim APK (Jika Sudah ACC / Approved) */}
-                          {(t.status === 'Approved' || t.is_approved) && t.status !== 'Terkirim' && !t.sent_to_apk && (
-                            <button
-                              onClick={() => handleSendTransferToAPK(t)}
-                              style={{
-                                background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(52,211,153,0.3)'
-                              }}
-                              title="Kirim status Terkirim & distribusikan data ke Mobile APK Kasir"
-                            >
-                              <Smartphone size={12} />
-                              <span>Kirim APK</span>
-                            </button>
-                          )}
-
-                          {/* Indicator Terkirim ke APK */}
-                          {(t.status === 'Terkirim' || t.sent_to_apk) && (
-                            <span style={{
-                              background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}>
-                              🟢 Terkirim
-                            </span>
-                          )}
-
-                          <button
-                            onClick={() => handleDeleteRecord(t.id, 'transfer_stok', t.report_no || t.id)}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            <Trash2 size={12} />
-                            <span>Hapus</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -2450,33 +2872,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
             </div>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    <th style={{ padding: '12px 10px' }}>Tanggal</th>
-                    <th style={{ padding: '12px 10px' }}>No Laporan</th>
-                    <th style={{ padding: '12px 10px' }}>Pengaju / Dibuat Oleh</th>
-                    <th style={{ padding: '12px 10px' }}>Nama Outlet</th>
-                    <th style={{ padding: '12px 10px' }}>Nama Bahan Baku</th>
-                    <th style={{ padding: '12px 10px', textAlign: 'right' }}>Jumlah Rusak</th>
-                    <th style={{ padding: '12px 10px' }}>Alasan Rusak</th>
-                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Tipe Input</th>
-                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Status</th>
-                    <th style={{ padding: '12px 10px', textAlign: 'center' }}>Aksi</th>
+                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '160px' }}>STATUS</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '180px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
                   {getFilteredRusak().length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                        Belum ada log laporan barang rusak / waste untuk outlet terpilih. Klik "+ Tambah Stok Rusak" untuk membuat laporan.
+                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                        📭 Belum ada log laporan barang rusak / waste untuk outlet terpilih. Klik "+ Tambah Stok Rusak" untuk membuat laporan.
                       </td>
                     </tr>
                   ) : (
                     getFilteredRusak().map(m => {
                       const isSent = m.status === 'Terkirim' || m.sent_to_apk;
-                      const isApproved = isSent || m.status === 'ok' || m.status === 'approved' || m.status === 'Approved' || m.status === 'ACC' || m.is_approved;
+                      const isApproved = isSent || m.status === 'ok' || m.status === 'approved' || m.status === 'Approved' || m.status === 'ACC' || m.is_approved || m.status === 'Done';
                       const isWebAdminInput = m.sumber_input === 'web_admin' || m.status_keterangan === 'by manual' || m.type_input === 'manual';
 
                       const rawItems = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])].filter(x => (x.report_no && x.report_no === (m.report_no || m.id)) || x.id === m.id);
@@ -2500,109 +2917,84 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                         : (m.alasan_rusak || m.reason || m.damage_reason || '-');
 
                       return (
-                        <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                          <td style={{ padding: '12px 10px', color: '#94a3b8', fontWeight: '700' }}>{m.date}</td>
-                          <td style={{ padding: '12px 10px', fontWeight: '900', color: '#fb7185' }}>
+                        <tr key={m.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                          {/* 1. TANGGAL */}
+                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                            <div>{m.date}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {getOutletName(m.outlet_id, m.branch_name)}</div>
+                          </td>
+
+                          {/* 2. NO LAPORAN */}
+                          <td style={{ padding: '14px 16px' }}>
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setPreviewWasteModalData(m);
                               }}
-                              style={{ background: 'rgba(251, 113, 133, 0.12)', border: '1px solid rgba(251, 113, 133, 0.3)', padding: '4px 10px', borderRadius: '6px', color: '#fb7185', cursor: 'pointer', fontWeight: '900', fontSize: '0.80rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              style={{ background: 'none', border: 'none', padding: 0, color: '#fb7185', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
                               title="Klik untuk lihat pratinjau rincian barang rusak"
                             >
-                              📋 {m.report_no || m.id} 👁️
+                              <span>{m.report_no || m.id}</span>
+                              <Eye size={14} color="#fb7185" />
                             </button>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
+                              Bahan: <strong style={{ color: '#38bdf8' }}>{displayItemName}</strong> &bull; Qty: <strong style={{ color: '#fb7185' }}>{displayQty}</strong> &bull; Alasan: <strong style={{ color: '#fbbf24' }}>{displayReason}</strong>
+                            </div>
                           </td>
-                          <td style={{ padding: '12px 10px', color: '#cbd5e1', fontWeight: '600' }}>
-                            👤 {m.input_by || m.submitted_by || m.created_by || 'Admin Logistik'}
-                          </td>
-                          <td style={{ padding: '12px 10px', fontWeight: '700', color: '#cbd5e1' }}>🏢 {getOutletName(m.outlet_id, m.branch_name)}</td>
-                          <td style={{ padding: '12px 10px', fontWeight: '800', color: '#38bdf8' }}>{displayItemName}</td>
-                          <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>{displayQty}</td>
-                          <td style={{ padding: '12px 10px', color: '#fbbf24', fontSize: '0.80rem', fontWeight: '700' }}>{displayReason}</td>
-                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+
+                          {/* 3. PENGAJU */}
+                          <td style={{ padding: '14px 16px' }}>
                             <span style={{
-                              padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '800',
-                              background: isWebAdminInput ? 'rgba(129, 140, 248, 0.15)' : 'rgba(52, 211, 153, 0.15)',
-                              color: isWebAdminInput ? '#818cf8' : '#34d399',
-                              border: `1px solid ${isWebAdminInput ? 'rgba(129, 140, 248, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.78rem',
+                              fontWeight: '800',
+                              background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
+                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
                             }}>
-                              {isWebAdminInput ? 'By manual' : 'By approved'}
+                              {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{m.input_by || m.submitted_by || m.created_by || 'Admin Logistik'}</div>
+                          </td>
+
+                          {/* 4. STATUS */}
+                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isApproved ? '#22c55e' : '#f59e0b'}`,
+                              color: isApproved ? '#4ade80' : '#fbbf24',
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
+                              <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
                             </span>
                           </td>
-                          <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '3px 10px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: '900',
-                              background: isSent ? 'rgba(16, 185, 129, 0.25)' : (isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)'),
-                              color: isSent ? '#10b981' : (isApproved ? '#34d399' : '#fbbf24'),
-                              border: `1px solid ${isSent ? '#10b981' : (isApproved ? '#34d399' : '#fbbf24')}`
-                            }}>
-                              {isSent ? '🟢 TERKIRIM' : (isApproved ? '🟢 APPROVED' : '⏳ PENDING')}
-                            </span>
-                          </td>
-                          
-                          {/* Aksi ACC, Edit, Delete & Kirim APK */}
-                          <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                            {/* Tombol ACC (HANYA untuk laporan dari POS Mobile yang belum disetujui) */}
-                            {!isWebAdminInput && !isApproved && !isSent && (
+
+                          {/* 5. AKSI */}
+                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                               <button
-                                onClick={() => handleApproveWasteRecord(m)}
-                                style={{
-                                  background: 'rgba(251, 191, 36, 0.2)', border: '1px solid #fbbf24', color: '#fbbf24', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px'
-                                }}
-                                title="Setujui Laporan Barang Rusak dari POS Mobile"
+                                onClick={() => handleOpenEditRecord(m, 'waste')}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                <CheckCircle size={12} />
-                                <span>ACC</span>
+                                <Edit3 size={14} /> Edit
                               </button>
-                            )}
 
-                            {/* Tombol Kirim APK (Untuk Web Admin Input langsung muncul, atau POS input setelah di-ACC) */}
-                            {((isWebAdminInput && !isSent) || (!isWebAdminInput && isApproved && !isSent)) && (
                               <button
-                                onClick={() => handleSendWasteToAPK(m)}
-                                style={{
-                                  background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(52,211,153,0.3)'
-                                }}
-                                title="Kirim data ke Mobile APK Kasir"
+                                onClick={() => handleDeleteRecord(m.id, 'stok_rusak', m.report_no || m.id)}
+                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                <Smartphone size={12} />
-                                <span>Kirim APK</span>
+                                <Trash2 size={14} /> Hapus
                               </button>
-                            )}
-
-                            {/* Indicator Terkirim ke APK */}
-                            {isSent && (
-                              <span style={{
-                                background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px'
-                              }}>
-                                🟢 Terkirim
-                              </span>
-                            )}
-
-                            {/* Edit button */}
-                            <button
-                              onClick={() => handleOpenEditRecord(m, 'waste')}
-                              style={{
-                                background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                              }}
-                            >
-                              <Edit3 size={12} />
-                              <span>Edit</span>
-                            </button>
-
-                            {/* Hapus */}
-                            <button
-                              onClick={() => handleDeleteRecord(m.id, 'stok_rusak', m.report_no || m.id)}
-                              style={{
-                                background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                              }}
-                            >
-                              <Trash2 size={12} />
-                              <span>Hapus</span>
-                            </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2988,310 +3380,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           </div>
         )}
 
-        {/* SUBTAB 6: PERBANDINGAN HARGA */}
-        {activeSubTab === 'perbandingan_harga' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <DollarSign size={18} color="#c084fc" />
-                  <span>Perbandingan Harga Bahan Baku Antar Outlet (Tanggal ke Tanggal)</span>
-                </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                  Perbandingan harga bahan baku tiap outlet berdasarkan tanggal. Harga bahan baku diambil secara otomatis dari <b>Halaman Logistik -&gt; Stok Masuk</b> (dibagian <b>Harga Satuan</b>).
-                </p>
-              </div>
-            </div>
 
-            {/* KPI HIGHLIGHT CARDS: ANALISIS HARGA TERTINGGI BAHAN BAKU */}
-            {(() => {
-              const listPrc = getFilteredPriceComparison();
-              const activeCardItem = priceItemFilter !== 'ALL' ? priceItemFilter : (ingredientsList[0]?.name || 'Daging Ayam Fillet');
-              const itemRecords = listPrc.filter(r => (r.item_name || '').toLowerCase().trim() === activeCardItem.toLowerCase().trim());
-
-              let maxPriceRecord = { price: 0, outletName: '-', date: '-', unit: 'kg' };
-              let lowestPriceRecord = { price: Infinity, outletName: '-', date: '-' };
-              let totalPriceSum = 0;
-              let totalCount = 0;
-
-              itemRecords.forEach(row => {
-                outlets.forEach(out => {
-                  const pVal = Number(row.prices?.[out.id] || 0);
-                  if (pVal > 0) {
-                    totalPriceSum += pVal;
-                    totalCount++;
-
-                    if (pVal > maxPriceRecord.price) {
-                      maxPriceRecord = {
-                        price: pVal,
-                        outletName: out.name,
-                        date: row.date,
-                        unit: row.unit || 'kg'
-                      };
-                    }
-
-                    if (pVal < lowestPriceRecord.price) {
-                      lowestPriceRecord = {
-                        price: pVal,
-                        outletName: out.name,
-                        date: row.date
-                      };
-                    }
-                  }
-                });
-              });
-
-              if (lowestPriceRecord.price === Infinity) lowestPriceRecord.price = 0;
-              const avgPrice = totalCount > 0 ? Math.round(totalPriceSum / totalCount) : 0;
-              const priceGap = maxPriceRecord.price - lowestPriceRecord.price;
-              const gapPercent = lowestPriceRecord.price > 0 ? Math.round((priceGap / lowestPriceRecord.price) * 100) : 0;
-
-              return (
-                <div style={{ background: '#1e293b', border: '1px solid rgba(192, 132, 252, 0.3)', padding: '18px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  
-                  {/* CARD HEADER & INGREDIENT FILTER DROPDOWN */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '1.1rem' }}>👑</span>
-                      <div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '900', color: '#c084fc', textTransform: 'uppercase' }}>
-                          Analisis Harga Satuan Tertinggi Bahan Baku
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                          Periode Rentang Waktu: <span style={{ color: '#38bdf8', fontWeight: '800' }}>{logStartDate || 'Semua Tanggal'}</span> s/d <span style={{ color: '#38bdf8', fontWeight: '800' }}>{logEndDate || 'Hari Ini'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '800' }}>🥦 Pilih Bahan Baku:</span>
-                      <select
-                        value={priceItemFilter}
-                        onChange={e => setPriceItemFilter(e.target.value)}
-                        style={{ height: '36px', padding: '0 12px', background: '#0f172a', border: '1px solid #c084fc', color: '#f8fafc', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
-                      >
-                        <option value="ALL">Semua Item (Pilih Spesifik)</option>
-                        {ingredientsList.map(ing => (
-                          <option key={ing.id} value={ing.name}>{ing.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* THREE METRIC BOXES */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-                    
-                    {/* BOX 1: HARGA SATUAN TERTINGGI */}
-                    <div style={{ background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', padding: '14px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#fb7185', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>🔴 HARGA SATUAN TERTINGGI</span>
-                      </div>
-                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-                        {maxPriceRecord.price > 0 ? formatRupiah(maxPriceRecord.price) : '-'} <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>/ {maxPriceRecord.unit}</span>
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: '700' }}>
-                        📦 Item: <span style={{ color: '#c084fc' }}>{activeCardItem}</span>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        🏢 Outlet: <span style={{ color: '#fb7185', fontWeight: '800' }}>{maxPriceRecord.outletName}</span> (Tanggal: {maxPriceRecord.date})
-                      </div>
-                    </div>
-
-                    {/* BOX 2: HARGA TERENDAH & DISPARITAS GAP */}
-                    <div style={{ background: '#0f172a', border: '1px solid rgba(52, 211, 153, 0.4)', padding: '14px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#34d399', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>🟢 HARGA SATUAN TERENDAH</span>
-                      </div>
-                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-                        {lowestPriceRecord.price > 0 ? formatRupiah(lowestPriceRecord.price) : '-'}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: '700' }}>
-                        🏢 Outlet: <span style={{ color: '#34d399' }}>{lowestPriceRecord.outletName}</span> (Tanggal: {lowestPriceRecord.date})
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: priceGap > 0 ? '#fb7185' : '#34d399', fontWeight: '800' }}>
-                        ⚡ Selisih (Disparitas): {priceGap > 0 ? `+${formatRupiah(priceGap)} (+${gapPercent}%)` : 'Harga Seragam (0%)'}
-                      </div>
-                    </div>
-
-                    {/* BOX 3: RATA-RATA HARGA ANTAR OUTLET */}
-                    <div style={{ background: '#0f172a', border: '1px solid rgba(56, 189, 248, 0.4)', padding: '14px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>📊 RATA-RATA HARGA SATUAN</span>
-                      </div>
-                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-                        {avgPrice > 0 ? formatRupiah(avgPrice) : '-'}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: '700' }}>
-                        📈 Total Pencatatan Stok Masuk: {totalCount} Data
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        Rata-rata harga pembelian dari seluruh outlet ter-filter
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* SEARCH & ITEM FILTER BAR */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', background: '#1e293b', padding: '12px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
-                <input
-                  type="text"
-                  placeholder="Cari nama item / bahan baku..."
-                  value={priceSearchQuery}
-                  onChange={e => setPriceSearchQuery(e.target.value)}
-                  className="form-input"
-                  style={{ paddingLeft: '36px', height: '38px', fontSize: '0.82rem' }}
-                />
-                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>🔍</span>
-              </div>
-
-              <div style={{ minWidth: '220px' }}>
-                <select
-                  value={priceItemFilter}
-                  onChange={e => setPriceItemFilter(e.target.value)}
-                  className="form-select"
-                  style={{ height: '38px', fontSize: '0.82rem' }}
-                >
-                  <option value="ALL">Semua Bahan Baku (Master Data)</option>
-                  {ingredientsList.map(ing => (
-                    <option key={ing.id} value={ing.name}>{ing.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* TABLE PERBANDINGAN HARGA */}
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {visibleColsHarga.date && <th style={{ padding: '12px 10px' }}>Tanggal</th>}
-                    {visibleColsHarga.itemName && <th style={{ padding: '12px 10px' }}>Nama Item (Bahan Baku)</th>}
-                    {visibleColsHarga.category && <th style={{ padding: '12px 10px' }}>Kategori</th>}
-                    {visibleColsHarga.unit && <th style={{ padding: '12px 10px' }}>Satuan</th>}
-                    
-                    {/* DYNAMIC OUTLET PRICE COLUMNS */}
-                    {visibleColsHarga.outletPrices && outlets.map(o => (
-                      <th key={o.id} style={{ padding: '12px 10px', textAlign: 'right' }}>
-                        Harga {o.name}
-                      </th>
-                    ))}
-
-                    {visibleColsHarga.highestPrice && <th style={{ padding: '12px 10px', textAlign: 'center' }}>Analisis Selisih</th>}
-                    {visibleColsHarga.actions && <th style={{ padding: '12px 10px', textAlign: 'center' }}>Aksi</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {getFilteredPriceComparison().length === 0 ? (
-                    <tr>
-                      <td colSpan={5 + outlets.length} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
-                        Belum ada data perbandingan harga stok. Silakan klik tombol "+ Tambah Perbandingan Harga".
-                      </td>
-                    </tr>
-                  ) : (
-                    getFilteredPriceComparison().map(item => {
-                      const allPrices = outlets.map(o => Number(item.prices?.[o.id] || 0));
-                      const maxPrice = Math.max(...allPrices);
-                      const minPrice = Math.min(...allPrices.filter(p => p > 0));
-                      const hasPriceDiff = maxPrice > minPrice && maxPrice > 0;
-
-                      return (
-                        <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                          {visibleColsHarga.date && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{item.date}</td>}
-                          {visibleColsHarga.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: '#c084fc' }}>{item.item_name}</td>}
-                          {visibleColsHarga.category && (
-                            <td style={{ padding: '12px 10px' }}>
-                              <span style={{ background: '#1e293b', padding: '2px 8px', borderRadius: '4px', border: '1px solid #334155', fontSize: '0.75rem', color: '#cbd5e1' }}>
-                                {item.category || 'Bahan Baku'}
-                              </span>
-                            </td>
-                          )}
-                          {visibleColsHarga.unit && <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{item.unit || 'kg'}</td>}
-
-                          {/* OUTLET PRICE CELLS WITH RED HIGHLIGHT FOR HIGHEST PRICE */}
-                          {visibleColsHarga.outletPrices && outlets.map(o => {
-                            const pVal = Number(item.prices?.[o.id] || 0);
-                            const isHighest = pVal === maxPrice && hasPriceDiff;
-
-                            return (
-                              <td key={o.id} style={{ padding: '12px 10px', textAlign: 'right' }}>
-                                {isHighest ? (
-                                  <span style={{
-                                    background: 'rgba(244, 63, 94, 0.15)',
-                                    color: '#fb7185',
-                                    border: '1px solid rgba(244, 63, 94, 0.4)',
-                                    padding: '4px 8px',
-                                    borderRadius: '6px',
-                                    fontWeight: '800',
-                                    fontSize: '0.8rem',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}>
-                                    <span>🔴</span>
-                                    <span>{formatRupiah(pVal)}</span>
-                                  </span>
-                                ) : (
-                                  <span style={{ fontWeight: '700', color: pVal > 0 ? '#f8fafc' : '#64748b' }}>
-                                    {pVal > 0 ? formatRupiah(pVal) : '-'}
-                                  </span>
-                                )}
-                              </td>
-                            );
-                          })}
-
-                          {/* HIGHEST PRICE SUMMARY */}
-                          {visibleColsHarga.highestPrice && (
-                            <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                              {hasPriceDiff ? (
-                                <span style={{ color: '#fb7185', fontWeight: '800', fontSize: '0.75rem', background: 'rgba(244,63,94,0.1)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(244,63,94,0.2)' }}>
-                                  ⚠️ Selisih {formatRupiah(maxPrice - minPrice)}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#34d399', fontWeight: '700', fontSize: '0.75rem' }}>
-                                  ✓ Harga Seragam
-                                </span>
-                              )}
-                            </td>
-                          )}
-
-                          {/* ACTIONS EDIT & DELETE */}
-                          {visibleColsHarga.actions && (
-                            <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                <button
-                                  onClick={() => handleOpenEditPriceModal(item)}
-                                  style={{
-                                    background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                                  }}
-                                >
-                                  <Edit3 size={12} />
-                                  <span>Edit</span>
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePriceRecord(item.id)}
-                                  style={{
-                                    background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
-                                  }}
-                                >
-                                  <Trash2 size={12} />
-                                  <span>Hapus</span>
-                                </button>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
 
       {showAddModal === 'masuk' && (
@@ -3361,34 +3450,98 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
 
               {manualRows.map((row, idx) => {
-                // Find selected ingredient unit
-                const selectedIng = ingredientsList.find(i => i.id === Number(row.ingredientId)) || { unit: 'kg' };
-                // Filter ingredients based on text search query
-                const filteredIngs = ingredientsList.filter(i => 
-                  i.name.toLowerCase().includes(row.searchQuery.toLowerCase())
-                );
-
                 const totalVal = (Number(row.qty) || 0) * (Number(row.priceUnit) || 0);
 
                 return (
                   <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 40px', gap: '10px', alignItems: 'center' }}>
                     
-                    {/* Search & Select Combobox */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {/* Autocomplete Input with floating suggestions */}
+                    <div style={{ position: 'relative', width: '100%' }}>
                       <input
                         type="text"
-                        placeholder="Ketik untuk cari..."
-                        value={row.searchQuery}
-                        onChange={e => handleUpdateRow(idx, 'searchQuery', e.target.value)}
-                        style={{ padding: '6px 8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px 4px 0 0', color: 'white', fontSize: '0.78rem' }}
+                        placeholder="Ketik untuk cari bahan baku..."
+                        value={row.searchQuery || ''}
+                        onFocus={() => handleUpdateRow(idx, 'showSuggestions', true)}
+                        onChange={e => {
+                          const q = e.target.value;
+                          const updated = [...manualRows];
+                          updated[idx].searchQuery = q;
+                          updated[idx].showSuggestions = true;
+                          const match = ingredientsList.find(i => i.name.toLowerCase() === q.toLowerCase());
+                          if (match) {
+                            updated[idx].ingredientId = match.id;
+                            updated[idx].unit = match.unit || 'kg';
+                            if (!updated[idx].priceUnit && match.cost) {
+                              updated[idx].priceUnit = match.cost;
+                            }
+                          } else {
+                            updated[idx].ingredientId = '';
+                            updated[idx].unit = '';
+                          }
+                          setManualRows(updated);
+                        }}
+                        style={{ padding: '8px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem', width: '100%' }}
                       />
-                      <select
-                        value={row.ingredientId}
-                        onChange={e => handleUpdateRow(idx, 'ingredientId', Number(e.target.value))}
-                        style={{ padding: '6px 8px', background: '#0f172a', border: '1px solid #334155', borderTop: 'none', borderRadius: '0 0 4px 4px', color: 'white', fontSize: '0.78rem', cursor: 'pointer' }}
-                      >
-                        {filteredIngs.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                      </select>
+
+                      {row.showSuggestions && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            zIndex: 999,
+                            background: '#0f172a',
+                            border: '1px solid #38bdf8',
+                            borderRadius: '6px',
+                            maxHeight: '180px',
+                            overflowY: 'auto',
+                            marginTop: '4px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                          }}
+                        >
+                          {ingredientsList
+                            .filter(i => (i.name || '').toLowerCase().includes((row.searchQuery || '').toLowerCase()))
+                            .map(ing => (
+                              <div
+                                key={ing.id}
+                                onClick={() => {
+                                  const updated = [...manualRows];
+                                  updated[idx].searchQuery = ing.name;
+                                  updated[idx].ingredientId = ing.id;
+                                  updated[idx].unit = ing.unit || 'kg';
+                                  if (!updated[idx].priceUnit && ing.cost) {
+                                    updated[idx].priceUnit = ing.cost;
+                                  }
+                                  updated[idx].showSuggestions = false;
+                                  setManualRows(updated);
+                                }}
+                                style={{
+                                  padding: '8px 12px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.80rem',
+                                  color: '#f8fafc',
+                                  borderBottom: '1px solid #1e293b',
+                                  display: 'flex',
+                                  justify: 'space-between',
+                                  alignItems: 'center'
+                                }}
+                                onMouseOver={e => e.currentTarget.style.background = '#1e293b'}
+                                onMouseOut={e => e.currentTarget.style.background = '#0f172a'}
+                              >
+                                <span style={{ fontWeight: '700' }}>{ing.name}</span>
+                                <span style={{ fontSize: '0.70rem', color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+                                  Satuan: {ing.unit || 'pcs'}
+                                </span>
+                              </div>
+                            ))}
+                          {ingredientsList.filter(i => (i.name || '').toLowerCase().includes((row.searchQuery || '').toLowerCase())).length === 0 && (
+                            <div style={{ padding: '10px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
+                              Tidak ada bahan baku yang cocok
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Supplier */}
@@ -3409,12 +3562,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', textAlign: 'right' }}
                     />
 
-                    {/* Unit (Locked) */}
+                    {/* Satuan (Auto-filled from selected ingredient) */}
                     <input
                       type="text"
                       readOnly
-                      value={selectedIng.unit || 'pcs'}
-                      style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: '#94a3b8', fontSize: '0.8rem' }}
+                      placeholder="Satuan"
+                      value={row.unit || ''}
+                      style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: row.unit ? '#34d399' : '#64748b', fontSize: '0.8rem', fontWeight: '700', textAlign: 'center' }}
                     />
 
                     {/* Price Unit */}
@@ -4781,6 +4935,346 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+      {/* ========================================================= */}
+      {/* ADD / EDIT SALES TRANSACTION MODAL                        */}
+      {/* ========================================================= */}
+      {showAddSalesModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '780px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #6366f1', background: '#0f172a', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShoppingBag size={22} color="#818cf8" />
+                  <span>{editingOutflowRecord ? `Edit Transaksi Penjualan (${salesNo})` : '🛍️ Tambah Transaksi Penjualan (Input Order POS Manual)'}</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                  Input transaksi penjualan menu. Stok bahan baku akan terhitung & terpotong secara otomatis berdasarkan resep.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSalesModal(false);
+                  setEditingOutflowRecord(null);
+                }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* General Info Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>📅 Tanggal Transaksi</label>
+                <input
+                  type="date"
+                  value={salesDate}
+                  onChange={e => setSalesDate(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>🎫 No. Transaksi / Struk</label>
+                <input
+                  type="text"
+                  value={salesNo}
+                  onChange={e => setSalesNo(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#818cf8', fontSize: '0.85rem', fontWeight: '900' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>🏢 Outlet / Cabang</label>
+                <select
+                  value={salesOutletId}
+                  onChange={e => setSalesOutletId(Number(e.target.value))}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                >
+                  {outlets.map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>👤 Kasir / Admin Pengaju</label>
+                <input
+                  type="text"
+                  value={salesCreatedBy}
+                  onChange={e => setSalesCreatedBy(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>⚡ Status Pembayaran</label>
+                <select
+                  value={salesStatus}
+                  onChange={e => setSalesStatus(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: salesStatus === 'Paid' ? '#4ade80' : '#fbbf24', fontSize: '0.85rem', fontWeight: '900' }}
+                >
+                  <option value="Paid">🟢 Paid (Lunas)</option>
+                  <option value="Pending">⏳ Pending (Belum Lunas)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>💳 Metode Pembayaran</label>
+                <select
+                  value={salesPaymentMethod}
+                  onChange={e => setSalesPaymentMethod(e.target.value)}
+                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                >
+                  <option value="Cash">Cash (Tunai)</option>
+                  <option value="QRIS">QRIS</option>
+                  <option value="Transfer">Transfer Bank</option>
+                  <option value="Debit">Kartu Debit</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Menu Items Batch Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🍔 Rincian Menu Penjualan</span>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({salesMenuRows.length} item)</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddSalesMenuRow}
+                  style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f1', color: '#818cf8', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
+                >
+                  + Tambah Menu
+                </button>
+              </div>
+
+              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', color: '#cbd5e1', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
+                      <th style={{ padding: '10px 12px' }}>Pilih Product / Menu</th>
+                      <th style={{ padding: '10px 12px', width: '100px', textAlign: 'center' }}>Qty Sold</th>
+                      <th style={{ padding: '10px 12px', width: '140px', textAlign: 'right' }}>Harga Satuan</th>
+                      <th style={{ padding: '10px 12px', width: '150px', textAlign: 'right' }}>Subtotal</th>
+                      <th style={{ padding: '10px 12px', width: '60px', textAlign: 'center' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {salesMenuRows.map((row, idx) => (
+                      <tr key={row.id || idx} style={{ borderBottom: '1px solid #334155' }}>
+                        <td style={{ padding: '10px 12px' }}>
+                          <input
+                            type="text"
+                            list={`prod-list-${idx}`}
+                            placeholder="Cari / Pilih Nama Menu..."
+                            value={row.product_name}
+                            onChange={e => handleUpdateSalesMenuRow(idx, 'product_name', e.target.value)}
+                            style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', fontWeight: '700' }}
+                          />
+                          <datalist id={`prod-list-${idx}`}>
+                            {(masterData.products || []).map(p => (
+                              <option key={p.id} value={p.name} />
+                            ))}
+                          </datalist>
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            value={row.qty}
+                            onChange={e => handleUpdateSalesMenuRow(idx, 'qty', Math.max(1, Number(e.target.value)))}
+                            style={{ width: '80px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#34d399', fontSize: '0.85rem', fontWeight: '900', textAlign: 'center' }}
+                          />
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                          <input
+                            type="number"
+                            value={row.price}
+                            onChange={e => handleUpdateSalesMenuRow(idx, 'price', Number(e.target.value))}
+                            style={{ width: '120px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', textAlign: 'right' }}
+                          />
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>
+                          {formatRupiah(row.total || (row.qty * row.price))}
+                        </td>
+
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSalesMenuRow(idx)}
+                            style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.4)', color: '#fb7185', borderRadius: '6px', padding: '6px', cursor: 'pointer' }}
+                            title="Hapus baris menu"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Total Omset Sales Summary */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', background: '#1e293b', padding: '12px 16px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#cbd5e1' }}>Total Omset Penjualan:</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399' }}>
+                  {formatRupiah(salesMenuRows.reduce((sum, r) => sum + (Number(r.total) || 0), 0))}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSalesModal(false);
+                  setEditingOutflowRecord(null);
+                }}
+                className="btn-secondary"
+                style={{ padding: '10px 18px', fontSize: '0.85rem' }}
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveSalesTransaction}
+                className="btn-primary"
+                style={{ padding: '10px 24px', fontSize: '0.85rem', background: '#6366f1', color: '#ffffff' }}
+              >
+                ✓ Simpan Transaksi Penjualan
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* PREVIEW OUTFLOW TRANSACTION MODAL                         */}
+      {/* ========================================================= */}
+      {previewOutflowModalData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '680px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid #818cf8', background: '#0f172a', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#818cf8', margin: 0 }}>
+                  📋 Detail Transaksi Penjualan ({previewOutflowModalData.receiptNo})
+                </h3>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                  Outlet: <strong style={{ color: '#f8fafc' }}>{getOutletName(previewOutflowModalData.outlet_id)}</strong> &bull; Tanggal: <strong style={{ color: '#f8fafc' }}>{previewOutflowModalData.date} ({previewOutflowModalData.time})</strong>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPreviewOutflowModalData(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Info Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Pengaju / Kasir</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', marginTop: '2px' }}>👤 {previewOutflowModalData.created_by}</div>
+              </div>
+              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Status Pembayaran</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '900', color: previewOutflowModalData.isPaid ? '#4ade80' : '#fbbf24', marginTop: '2px' }}>
+                  {previewOutflowModalData.isPaid ? '🟢 Paid (Lunas)' : '⏳ Pending'}
+                </div>
+              </div>
+              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Metode Pembayaran</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', marginTop: '2px' }}>💳 {previewOutflowModalData.payment_method || 'Cash'}</div>
+              </div>
+            </div>
+
+            {/* Menu Items Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>🍔 Rincian Menu Penjualan</div>
+              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+                      <th style={{ padding: '8px 12px' }}>Nama Menu</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center' }}>Qty</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Harga Satuan</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previewOutflowModalData.items || []).map((it, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #334155' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: '700', color: '#f8fafc' }}>{it.name || it.product_name}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '800', color: '#34d399' }}>{it.qty}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(it.price)}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{formatRupiah(it.total || (it.qty * it.price))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '0.9rem', fontWeight: '900', color: '#34d399', marginTop: '4px' }}>
+                Total Omset: {formatRupiah(previewOutflowModalData.total_amount)}
+              </div>
+            </div>
+
+            {/* Ingredients Deducted Table */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#fb7185' }}>🌾 Rincian Bahan Baku Terpotong Otomatis (Autoconsumption)</div>
+              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+                      <th style={{ padding: '8px 12px' }}>Nama Bahan Baku</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Qty Terpotong</th>
+                      <th style={{ padding: '8px 12px' }}>Satuan</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right' }}>Estimasi HPP</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previewOutflowModalData.deducted_ingredients || []).map((ing, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #334155' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: '700', color: '#38bdf8' }}>{ing.ingredient_name || ing.name}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{ing.qty}</td>
+                        <td style={{ padding: '8px 12px', color: '#cbd5e1' }}>{ing.unit || 'kg'}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#34d399', fontWeight: '700' }}>{formatRupiah(ing.cogs || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #334155', paddingTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setPreviewOutflowModalData(null)}
+                className="btn-primary"
+                style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+              >
+                Tutup
+              </button>
+            </div>
+
           </div>
         </div>
       )}
