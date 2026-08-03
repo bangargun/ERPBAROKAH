@@ -1718,105 +1718,90 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // EXECUTIVE SALES SUMMARY REPORT DATA HELPER (MATCHING LUNA POS REPORT SCREENSHOT)
   const getExecutiveSummaryReportData = () => {
-    const start = sumStartDate ? formatToDMY(sumStartDate) : '01/07/2026';
-    const end = sumEndDate ? formatToDMY(sumEndDate) : '31/07/2026';
+    const start = sumStartDate ? formatToDMY(sumStartDate) : 'Semua Tanggal';
+    const end = sumEndDate ? formatToDMY(sumEndDate) : '';
 
     const activeOutlets = sumSelectedOutletIds.includes('ALL') 
       ? outlets 
       : outlets.filter(o => sumSelectedOutletIds.includes(o.id));
     
-    const outletNameStr = selectedBranch
-      ? (outlets.find(o => o.id === selectedBranch)?.name || 'AYAM PECAK 2001 SEAFOOD - KISARAN')
-      : (activeOutlets.length === 1 
-          ? activeOutlets[0].name 
-          : (activeOutlets.length > 1 ? `${activeOutlets[0].name} (+${activeOutlets.length - 1} Outlet)` : 'AYAM PECAK 2001 SEAFOOD - KISARAN'));
+    const outletNameStr = getOutletNameStrForExport(sumSelectedOutletIds, outlets, selectedBranch);
 
-    const totalSales = 228646000;
-    const totalDiscount = 642000;
-    const totalServiceCharge = 0;
-    const totalTax = 0;
-    const totalAdjustment = 0;
+    const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
+
+    const filteredTxs = salesTx.filter(t => {
+      if (sumStartDate && t.date < sumStartDate) return false;
+      if (sumEndDate && t.date > sumEndDate) return false;
+      if (!sumSelectedOutletIds.includes('ALL') && !sumSelectedOutletIds.includes(t.outlet_id)) return false;
+      if (selectedBranch && t.outlet_id !== selectedBranch) return false;
+      return true;
+    });
+
+    const activeTxs = filteredTxs.filter(t => t.status !== 'Void');
+    const voidTxs = filteredTxs.filter(t => t.status === 'Void');
+
+    const totalSales = activeTxs.reduce((s, t) => s + Number(t.amount || t.total_amount || t.grand_total || 0), 0);
+    const totalDiscount = activeTxs.reduce((s, t) => s + Number(t.discount || t.discount_amount || 0), 0);
+    const totalServiceCharge = activeTxs.reduce((s, t) => s + Number(t.service_charge || t.serviceCharge || 0), 0);
+    const totalTax = activeTxs.reduce((s, t) => s + Number(t.tax || t.tax_amount || 0), 0);
+    const totalAdjustment = activeTxs.reduce((s, t) => s + Number(t.adjustment || 0), 0);
     const netTotal = totalSales - totalDiscount + totalServiceCharge + totalTax + totalAdjustment;
 
-    const numberOfInvoices = 2975;
-    const avgBillPerInvoice = 76640;
+    const numberOfInvoices = activeTxs.length;
+    const avgBillPerInvoice = numberOfInvoices > 0 ? netTotal / numberOfInvoices : 0;
 
-    const voidInvoices = 6;
-    const voidItems = 22;
-    const voidTotal = 262000;
+    const voidInvoices = voidTxs.length;
+    const voidItems = voidTxs.reduce((s, t) => {
+      if (t.items && Array.isArray(t.items)) return s + t.items.reduce((is, i) => is + Number(i.qty || 1), 0);
+      return s + Number(t.qty || t.quantity || 1);
+    }, 0);
+    const voidTotal = voidTxs.reduce((s, t) => s + Number(t.amount || t.total_amount || 0), 0);
 
-    const productSummary = [
-      {
-        name: 'AIR MINERAL 600ML',
-        variants: [
-          { type: 'Normal', qty: 448, sales: 2240000 },
-          { type: 'Take Away', qty: 1, sales: 5000 }
-        ]
-      },
-      {
-        name: 'AYAM / BAKAR',
-        variants: [
-          { type: 'Normal', qty: 1380, sales: 26220000 },
-          { type: 'Take Away', qty: 377, sales: 7163000 }
-        ]
-      },
-      {
-        name: 'AYAM / SAMBAL LAMONGAN',
-        variants: [
-          { type: 'Normal', qty: 120, sales: 2040000 },
-          { type: 'Take Away', qty: 344, sales: 5848000 }
-        ]
-      },
-      {
-        name: 'AYAM / SAMBAL PECAK',
-        variants: [
-          { type: 'Normal', qty: 1857, sales: 31161000 },
-          { type: 'Take Away', qty: 658, sales: 11186000 }
-        ]
-      },
-      {
-        name: 'AYAM / SAUS PADANG',
-        variants: [
-          { type: 'Normal', qty: 31, sales: 620000 },
-          { type: 'Take Away', qty: 3, sales: 60000 }
-        ]
-      },
-      {
-        name: 'AYAM KAMPUNG / BAKAR',
-        variants: [
-          { type: 'Normal', qty: 61, sales: 1952000 },
-          { type: 'Take Away', qty: 20, sales: 640000 }
-        ]
-      },
-      {
-        name: 'AYAM KAMPUNG / SAMBAL LAMONGAN',
-        variants: [
-          { type: 'Normal', qty: 3, sales: 90000 },
-          { type: 'Take Away', qty: 9, sales: 270000 }
-        ]
-      },
-      {
-        name: 'AYAM KAMPUNG / SAMBAL PECAK',
-        variants: [
-          { type: 'Normal', qty: 99, sales: 2970000 },
-          { type: 'Take Away', qty: 25, sales: 750000 }
-        ]
-      },
-      {
-        name: 'ES JERUK PERAS SEGAR',
-        variants: [
-          { type: 'Normal', qty: 740, sales: 7400000 },
-          { type: 'Take Away', qty: 180, sales: 1800000 }
-        ]
-      },
-      {
-        name: 'TEH MANIS DINGIN / HANGAT',
-        variants: [
-          { type: 'Normal', qty: 2150, sales: 10750000 },
-          { type: 'Take Away', qty: 410, sales: 2050000 }
-        ]
+    // Group active transactions by product and order type (Dine In / Take Away)
+    const productMap = {}; // { prodName: { Normal: { qty, sales }, 'Take Away': { qty, sales } } }
+
+    activeTxs.forEach(t => {
+      const isTakeAway = (t.type || t.service_type || t.notes || '').toLowerCase().includes('take') ||
+                         (t.notes || '').toLowerCase().includes('bungkus') ||
+                         (t.notes || '').toLowerCase().includes('delivery') ||
+                         (t.notes || '').toLowerCase().includes('ojol') ||
+                         (t.notes || '').toLowerCase().includes('online');
+      const orderType = isTakeAway ? 'Take Away' : 'Normal';
+
+      if (t.items && Array.isArray(t.items) && t.items.length > 0) {
+        t.items.forEach(item => {
+          const pName = item.name || item.product_name || 'Item Penjualan';
+          const q = Number(item.qty || 1);
+          const s = Number(item.total || (item.qty * item.price) || 0);
+
+          if (!productMap[pName]) productMap[pName] = { Normal: { qty: 0, sales: 0 }, 'Take Away': { qty: 0, sales: 0 } };
+          productMap[pName][orderType].qty += q;
+          productMap[pName][orderType].sales += s;
+        });
+      } else {
+        const pName = t.item_name || t.product_name || 'Item Penjualan';
+        const q = Number(t.qty || t.quantity || 1);
+        const s = Number(t.amount || 0);
+
+        if (!productMap[pName]) productMap[pName] = { Normal: { qty: 0, sales: 0 }, 'Take Away': { qty: 0, sales: 0 } };
+        productMap[pName][orderType].qty += q;
+        productMap[pName][orderType].sales += s;
       }
-    ];
+    });
+
+    const productSummary = Object.keys(productMap).map(name => {
+      const variants = [];
+      if (productMap[name].Normal.qty > 0 || productMap[name].Normal.sales > 0) {
+        variants.push({ type: 'Normal', qty: productMap[name].Normal.qty, sales: productMap[name].Normal.sales });
+      }
+      if (productMap[name]['Take Away'].qty > 0 || productMap[name]['Take Away'].sales > 0) {
+        variants.push({ type: 'Take Away', qty: productMap[name]['Take Away'].qty, sales: productMap[name]['Take Away'].sales });
+      }
+      if (variants.length === 0) {
+        variants.push({ type: 'Normal', qty: 0, sales: 0 });
+      }
+      return { name, variants };
+    });
 
     return {
       start,
@@ -4453,26 +4438,34 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         </tr>
                       </thead>
                       <tbody>
-                        {data.productSummary.map((prod, pIdx) => (
-                          <React.Fragment key={pIdx}>
-                            {prod.variants.map((v, vIdx) => (
-                              <tr key={vIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                <td style={{ padding: '10px 16px', fontWeight: vIdx === 0 ? '800' : '400', color: vIdx === 0 ? '#f8fafc' : 'transparent' }}>
-                                  {vIdx === 0 ? prod.name : ''}
-                                </td>
-                                <td style={{ padding: '10px 16px', color: v.type === 'Take Away' ? '#fbbf24' : '#38bdf8', fontWeight: '700' }}>
-                                  {v.type}
-                                </td>
-                                <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '800', color: '#cbd5e1' }}>
-                                  x{v.qty.toLocaleString('id-ID')}
-                                </td>
-                                <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>
-                                  {formatRupiahDecimals(v.sales)}
-                                </td>
-                              </tr>
-                            ))}
-                          </React.Fragment>
-                        ))}
+                        {data.productSummary.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                              📭 Belum ada rincian produk transaksi untuk periode ini.
+                            </td>
+                          </tr>
+                        ) : (
+                          data.productSummary.map((prod, pIdx) => (
+                            <React.Fragment key={pIdx}>
+                              {prod.variants.map((v, vIdx) => (
+                                <tr key={vIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                                  <td style={{ padding: '10px 16px', fontWeight: vIdx === 0 ? '800' : '400', color: vIdx === 0 ? '#f8fafc' : 'transparent' }}>
+                                    {vIdx === 0 ? prod.name : ''}
+                                  </td>
+                                  <td style={{ padding: '10px 16px', color: v.type === 'Take Away' ? '#fbbf24' : '#38bdf8', fontWeight: '700' }}>
+                                    {v.type}
+                                  </td>
+                                  <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '800', color: '#cbd5e1' }}>
+                                    x{v.qty.toLocaleString('id-ID')}
+                                  </td>
+                                  <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>
+                                    {formatRupiahDecimals(v.sales)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </React.Fragment>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -4488,11 +4481,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     <p style={{ margin: 0 }}>
                       • <strong>Performa Finansial:</strong> Total omzet bersih yang diraih pada periode ini adalah <strong style={{ color: '#34d399' }}>{formatRupiah(data.netTotal)}</strong> dari <strong style={{ color: '#38bdf8' }}>{data.numberOfInvoices.toLocaleString('id-ID')} struk transaksi</strong> dengan rata-rata belanja <strong style={{ color: '#fbbf24' }}>{formatRupiah(data.avgBillPerInvoice)} per struk</strong>.
                     </p>
+                    {data.productSummary.length > 0 && (
+                      <p style={{ margin: 0 }}>
+                        • <strong>Menu Terlaris:</strong> Menu utama terdaftar pada periode ini mencakup <strong style={{ color: '#f8fafc' }}>{data.productSummary[0]?.name}</strong>.
+                      </p>
+                    )}
                     <p style={{ margin: 0 }}>
-                      • <strong>Menu Terlaris & Tipe Layanan:</strong> Menu utama yang paling banyak dipesan adalah <strong style={{ color: '#f8fafc' }}>AYAM / SAMBAL PECAK</strong> (total {1857 + 658} porsi), di mana sekitar <strong style={{ color: '#38bdf8' }}>74% pelanggan makan di tempat (Dine In)</strong> dan <strong style={{ color: '#fbbf24' }}>26% memilih dibawa pulang (Take Away)</strong>.
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      • <strong>Tingkat Pembatalan (Void):</strong> Terjadi pembatalan sebanyak <strong style={{ color: '#fb7185' }}>{data.voidInvoices} struk ({data.voidItems} item)</strong> dengan nominal <strong style={{ color: '#fb7185' }}>{formatRupiah(data.voidTotal)}</strong> (sangat rendah & aman, di bawah 0,15% dari total omzet).
+                      • <strong>Tingkat Pembatalan (Void):</strong> Terjadi pembatalan sebanyak <strong style={{ color: '#fb7185' }}>{data.voidInvoices} struk ({data.voidItems} item)</strong> dengan nominal <strong style={{ color: '#fb7185' }}>{formatRupiah(data.voidTotal)}</strong>.
                     </p>
                   </div>
                 </div>
