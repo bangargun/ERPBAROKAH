@@ -431,11 +431,11 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>1. TANGGAL</th>
-                <th style={{ padding: '14px 16px', fontWeight: '800' }}>2. NO LAPORAN</th>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>3. PENGAJU</th>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>4. STATUS</th>
-                <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '160px' }}>5. AKSI</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>STATUS</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '160px' }}>AKSI</th>
               </tr>
             </thead>
             <tbody>
