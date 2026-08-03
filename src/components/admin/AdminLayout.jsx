@@ -67,6 +67,8 @@ export default function AdminLayout({
     try { localStorage.setItem('mris_read_notif_ids', JSON.stringify(allIds)); } catch (e) {}
   };
 
+  const isLight = themeMode === 'light';
+
   // THEME COLOR PALETTE (Max 3 Primary Colors per view, Ultra-High Contrast)
   const T = {
     appBg: isLight ? '#f1f5f9' : '#0b0f19',
