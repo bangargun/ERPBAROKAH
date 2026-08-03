@@ -242,6 +242,287 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         </div>
       </div>
 
+      {/* 🖨️ PRATINJAU REAL-TIME THERMAL RECEIPT OUTPUT */}
+      <ThermalReceiptPreviewSection printerSettings={printerSettings} />
+
+    </div>
+  );
+}
+
+function ThermalReceiptPreviewSection({ printerSettings }) {
+  const [receiptType, setReceiptType] = useState('cashier'); // 'cashier' | 'kitchen' | 'bar'
+  const [paperWidth, setPaperWidth] = useState('58'); // '58' | '80'
+  const [printingToast, setPrintingToast] = useState(false);
+
+  const handleSimulatePrint = () => {
+    setPrintingToast(true);
+    setTimeout(() => setPrintingToast(false), 3000);
+  };
+
+  const is58mm = paperWidth === '58';
+  const widthPx = is58mm ? '320px' : '420px';
+  const fontSz = is58mm ? '0.78rem' : '0.86rem';
+
+  return (
+    <div className="glass-card" style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1.5px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      
+      {/* HEADER PREVIEW */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+        <div>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#38bdf8', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Printer size={22} color="#38bdf8" />
+            <span>Contoh Output Struk Thermal POS Kasir (Real-Time Preview)</span>
+          </h3>
+          <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+            Simulasi fisik tampilan struk thermal 58mm &amp; 80mm yang akan dicetak oleh printer kasir, dapur, dan bar.
+          </p>
+        </div>
+
+        {/* CONTROLS */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700' }}>Tipe Struk:</label>
+            <select
+              value={receiptType}
+              onChange={e => setReceiptType(e.target.value)}
+              style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #38bdf8', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+            >
+              <option value="cashier">🧾 Struk Pembayaran Kasir (Nota Pelanggan)</option>
+              <option value="kitchen">🍳 Struk Kerja Dapur (Kitchen Ticket)</option>
+              <option value="bar">🍹 Struk Kerja Bar (Bar Ticket)</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700' }}>Lebar Kertas:</label>
+            <select
+              value={paperWidth}
+              onChange={e => setPaperWidth(e.target.value)}
+              style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '8px', color: '#34d399', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+            >
+              <option value="58">58mm (Kecil - 32 Karakter)</option>
+              <option value="80">80mm (Besar - 48 Karakter)</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleSimulatePrint}
+            style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '8px', color: '#0f172a', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(56, 189, 248, 0.3)' }}
+          >
+            <Printer size={16} />
+            <span>🖨️ Cetak Struk Contoh</span>
+          </button>
+        </div>
+      </div>
+
+      {printingToast && (
+        <div style={{ background: 'rgba(56,189,248,0.2)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '10px 16px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <RefreshCw size={16} className="animate-spin" />
+          <span>Mengirim perintah cetak contoh struk thermal ke printer (Port 9100 / ESC POS Bluetooth)...</span>
+        </div>
+      )}
+
+      {/* PHYSICAL RECEIPT CONTAINER (PAPER SIMULATION) */}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0', background: '#0f172a', borderRadius: '14px', border: '1px solid #334155' }}>
+        
+        {/* THERMAL PAPER ROLL MOCKUP */}
+        <div style={{
+          width: widthPx,
+          background: '#fefefe',
+          color: '#111111',
+          padding: '24px 20px',
+          fontFamily: "'Courier New', Courier, monospace",
+          fontSize: fontSz,
+          lineHeight: '1.4',
+          borderRadius: '4px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1)',
+          position: 'relative',
+          transition: 'width 0.2s ease'
+        }}>
+          
+          {/* RECEIPT CONTENT BASED ON TYPE */}
+          {receiptType === 'cashier' && (
+            <div>
+              {/* HEADER */}
+              <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                <div style={{ fontSize: is58mm ? '1rem' : '1.15rem', letterSpacing: '1px' }}>MRIS RESTORAN</div>
+                <div style={{ fontSize: '0.74rem' }}>BAROKAH GROUP INDONESIA</div>
+                <div style={{ fontSize: '0.70rem', color: '#444' }}>Jl. Pemuda No. 88, Surabaya</div>
+                <div style={{ fontSize: '0.70rem', color: '#444' }}>Telp: (031) 555-8899</div>
+              </div>
+              
+              <div style={{ margin: '8px 0', borderBottom: '1px dashed #111' }}></div>
+
+              {/* META INFO */}
+              <div style={{ fontSize: '0.74rem' }}>
+                <div>No. Struk : TRX-20260803-0042</div>
+                <div>Tanggal   : 03/08/2026 14:35:12</div>
+                <div>Kasir     : Budi (Shift Siang)</div>
+                <div>Pelanggan : Meja #07 (Bpk. Ahmad)</div>
+              </div>
+
+              <div style={{ margin: '8px 0', borderBottom: '1px dashed #111' }}></div>
+
+              {/* ITEMS HEADER */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.74rem' }}>
+                <span>QTY ITEM</span>
+                <span>HARGA    TOTAL</span>
+              </div>
+              <div style={{ margin: '4px 0', borderBottom: '1px dashed #111' }}></div>
+
+              {/* ITEMS LIST */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.74rem' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                    <span>2x Ayam Bakar Madu</span>
+                    <span>35.000   70.000</span>
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#555', paddingLeft: '12px' }}>*Pedas Manis Extra</div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                    <span>1x Es Teh Manis Jumbo</span>
+                    <span> 8.000    8.000</span>
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#555', paddingLeft: '12px' }}>*Less Ice</div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                    <span>1x Nasi Putih Pulen</span>
+                    <span> 6.000    6.000</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ margin: '8px 0', borderBottom: '1px dashed #111' }}></div>
+
+              {/* TOTALS SUMMARY */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.74rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>SUBTOTAL</span>
+                  <span>Rp 84.000</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>DISKON PROMO (10%)</span>
+                  <span>-Rp  8.400</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>PB1 RESTORAN (10%)</span>
+                  <span>Rp  7.560</span>
+                </div>
+                
+                <div style={{ margin: '6px 0', borderBottom: '1px dashed #111' }}></div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.88rem' }}>
+                  <span>TOTAL BAYAR</span>
+                  <span>Rp 83.160</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>CASH (TUNAI)</span>
+                  <span>Rp 100.000</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                  <span>KEMBALIAN</span>
+                  <span>Rp 16.840</span>
+                </div>
+              </div>
+
+              <div style={{ margin: '12px 0 8px 0', borderBottom: '1px dashed #111' }}></div>
+
+              {/* FOOTER */}
+              <div style={{ textAlign: 'center', fontSize: '0.70rem', color: '#333' }}>
+                <div style={{ fontWeight: 'bold' }}>TERIMA KASIH ATAS KUNJUNGAN ANDA</div>
+                <div>SUDAH TERMASUK PB1 PAJAK RESTORAN</div>
+                <div style={{ marginTop: '4px' }}>WIFI: BarokahResto_5G</div>
+                <div>PASS: berkahselalu</div>
+              </div>
+            </div>
+          )}
+
+          {receiptType === 'kitchen' && (
+            <div>
+              {/* KITCHEN TICKET HEADER */}
+              <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                <div style={{ fontSize: '1.1rem', background: '#000', color: '#fff', padding: '2px 0' }}>*** STRUK KERJA DAPUR ***</div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>ORDER #042 - MEJA #07</div>
+              </div>
+
+              <div style={{ margin: '8px 0', borderBottom: '2px solid #000' }}></div>
+
+              <div style={{ fontSize: '0.74rem' }}>
+                <div>Waktu  : 14:35:12 (03/08/2026)</div>
+                <div>Server : Kasir Budi</div>
+                <div>Tipe   : DINE-IN (Makan di Tempat)</div>
+              </div>
+
+              <div style={{ margin: '8px 0', borderBottom: '2px solid #000' }}></div>
+
+              {/* KITCHEN ITEMS LIST (LARGE FONT) */}
+              <div style={{ fontSize: '0.90rem', fontWeight: 'bold', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>[ 2x ] AYAM BAKAR MADU</span>
+                  </div>
+                  <div style={{ fontSize: '0.76rem', fontWeight: 'normal', color: '#333', paddingLeft: '14px' }}>
+                    &gt;&gt; Catatan: Pedas Manis Extra + Sambal Terpisah
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>[ 1x ] NASI PUTIH PULEN</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ margin: '12px 0 8px 0', borderBottom: '2px solid #000' }}></div>
+              <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                *** HARAP SEGERA DISAJIKAN ***
+              </div>
+            </div>
+          )}
+
+          {receiptType === 'bar' && (
+            <div>
+              {/* BAR TICKET HEADER */}
+              <div style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                <div style={{ fontSize: '1.1rem', background: '#000', color: '#fff', padding: '2px 0' }}>*** STRUK KERJA BAR ***</div>
+                <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>ORDER #042 - MEJA #07</div>
+              </div>
+
+              <div style={{ margin: '8px 0', borderBottom: '2px solid #000' }}></div>
+
+              <div style={{ fontSize: '0.74rem' }}>
+                <div>Waktu  : 14:35:12 (03/08/2026)</div>
+                <div>Server : Kasir Budi</div>
+                <div>Tipe   : DINE-IN (Makan di Tempat)</div>
+              </div>
+
+              <div style={{ margin: '8px 0', borderBottom: '2px solid #000' }}></div>
+
+              {/* BAR ITEMS LIST */}
+              <div style={{ fontSize: '0.90rem', fontWeight: 'bold', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>[ 1x ] ES TEH MANIS JUMBO</span>
+                  </div>
+                  <div style={{ fontSize: '0.76rem', fontWeight: 'normal', color: '#333', paddingLeft: '14px' }}>
+                    &gt;&gt; Catatan: Less Ice / Es Sedikit
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ margin: '12px 0 8px 0', borderBottom: '2px solid #000' }}></div>
+              <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                *** BARTENDER TICKET ***
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
     </div>
   );
 }
