@@ -18,6 +18,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  Palette,
   CheckCircle2,
   Inbox,
   Sparkles,
@@ -40,6 +41,7 @@ export default function AdminLayout({
   masterData,
   themeMode = 'dark',
   toggleThemeMode,
+  setThemeMode,
   children
 }) {
   const [showInboxDropdown, setShowInboxDropdown] = useState(false);
@@ -69,25 +71,60 @@ export default function AdminLayout({
   };
 
   const isLight = themeMode === 'light';
+  const isWarmMinimalist = themeMode === 'warm_minimalist';
 
-  // THEME COLOR PALETTE (Max 3 Primary Colors per view, Ultra-High Contrast)
-  const T = {
-    appBg: isLight ? '#f1f5f9' : '#0b0f19',
-    sidebarBg: isLight ? '#ffffff' : '#111625',
-    headerBg: isLight ? '#ffffff' : '#111625',
-    cardBg: isLight ? '#ffffff' : '#1e293b',
-    txtPrimary: isLight ? '#0f172a' : '#f8fafc',
-    txtSecondary: isLight ? '#475569' : '#94a3b8',
-    txtMuted: isLight ? '#64748b' : '#64748b',
-    border: isLight ? '#e2e8f0' : 'rgba(255,255,255,0.08)',
-    borderHover: isLight ? '#cbd5e1' : 'rgba(255,255,255,0.2)',
-    accentGold: isLight ? '#d97706' : '#f59e0b',
-    accentIndigo: isLight ? '#4f46e5' : '#6366f1',
-    activeNavBg: isLight ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' : 'linear-gradient(135deg, #ca8a04 0%, #a16207 100%)',
+  // THEME COLOR PALETTE (Warm Minimalist: Deep Forest Green & Amber Gold on Off-White Ground)
+  const T = isWarmMinimalist ? {
+    appBg: '#faf8f5', // Warm off-white ground
+    sidebarBg: '#143022', // Deep forest green sidebar anchor
+    headerBg: '#ffffff', // Crisp white header
+    cardBg: '#ffffff', // Crisp white card background
+    txtPrimary: '#143022', // Deep forest green primary text
+    txtSecondary: '#405649', // Muted forest sage
+    txtMuted: '#687d71', // Soft sage grey
+    border: '#e4e0d7', // Warm subtle border
+    borderHover: '#b8b09f',
+    accentGold: '#d97706', // Amber gold
+    accentIndigo: '#1b4330', // Deep forest green accent
+    activeNavBg: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', // Amber gold active navigation
     activeNavTxt: '#ffffff',
-    controlBg: isLight ? '#f8fafc' : '#1e293b',
-    dropdownBg: isLight ? '#ffffff' : '#0f172a',
-    dropdownBorder: isLight ? '#cbd5e1' : '#334155'
+    controlBg: '#f4f1ea',
+    dropdownBg: '#ffffff',
+    dropdownBorder: '#d6cfc0'
+  } : isLight ? {
+    appBg: '#f1f5f9',
+    sidebarBg: '#ffffff',
+    headerBg: '#ffffff',
+    cardBg: '#ffffff',
+    txtPrimary: '#0f172a',
+    txtSecondary: '#475569',
+    txtMuted: '#64748b',
+    border: '#e2e8f0',
+    borderHover: '#cbd5e1',
+    accentGold: '#d97706',
+    accentIndigo: '#4f46e5',
+    activeNavBg: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+    activeNavTxt: '#ffffff',
+    controlBg: '#f8fafc',
+    dropdownBg: '#ffffff',
+    dropdownBorder: '#cbd5e1'
+  } : {
+    appBg: '#0b0f19',
+    sidebarBg: '#111625',
+    headerBg: '#111625',
+    cardBg: '#1e293b',
+    txtPrimary: '#f8fafc',
+    txtSecondary: '#94a3b8',
+    txtMuted: '#64748b',
+    border: 'rgba(255,255,255,0.08)',
+    borderHover: 'rgba(255,255,255,0.2)',
+    accentGold: '#f59e0b',
+    accentIndigo: '#6366f1',
+    activeNavBg: 'linear-gradient(135deg, #ca8a04 0%, #a16207 100%)',
+    activeNavTxt: '#ffffff',
+    controlBg: '#1e293b',
+    dropdownBg: '#0f172a',
+    dropdownBorder: '#334155'
   };
 
   const menuItems = [
@@ -333,30 +370,32 @@ export default function AdminLayout({
           {/* Right Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             
-            {/* 1. THEME SWITCHER BUTTON (DARK / LIGHT MODE) */}
-            <button
-              type="button"
-              onClick={toggleThemeMode}
-              title={isLight ? 'Beralih ke Mode Gelap (Dark)' : 'Beralih ke Mode Terang (Light)'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '10px',
-                border: `1px solid ${T.border}`,
-                background: T.controlBg,
-                color: isLight ? '#d97706' : '#f59e0b',
-                fontSize: '0.78rem',
-                fontWeight: '800',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {isLight ? <Sun size={16} color="#d97706" /> : <Moon size={16} color="#f59e0b" />}
-              <span>{isLight ? '☀️ Mode Terang' : '🌙 Mode Gelap'}</span>
-            </button>
+            {/* 1. THEME SWITCHER DROPDOWN (DARK / LIGHT / WARM MINIMALIST) */}
+            <div style={{ position: 'relative' }}>
+              <select
+                value={themeMode}
+                onChange={(e) => setThemeMode ? setThemeMode(e.target.value) : toggleThemeMode()}
+                title="Pilih Tema Tampilan Web Admin"
+                style={{
+                  padding: '7px 28px 7px 12px',
+                  background: T.controlBg,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: '10px',
+                  color: isWarmMinimalist ? '#d97706' : (isLight ? '#d97706' : '#f59e0b'),
+                  fontSize: '0.78rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <option value="dark" style={{ background: '#1e293b', color: '#f8fafc' }}>🌙 Mode Gelap (Dark)</option>
+                <option value="light" style={{ background: '#ffffff', color: '#0f172a' }}>☀️ Mode Terang (Light)</option>
+                <option value="warm_minimalist" style={{ background: '#faf8f5', color: '#143022' }}>🌿 Warm Minimalist (Forest & Amber)</option>
+              </select>
+              <Palette size={14} color={isWarmMinimalist ? '#d97706' : (isLight ? '#d97706' : '#f59e0b')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            </div>
 
             {/* 2. OUTLET SWITCHER DROPDOWN */}
             <div style={{ position: 'relative' }}>

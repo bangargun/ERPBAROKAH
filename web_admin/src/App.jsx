@@ -55,18 +55,23 @@ export default function App() {
     return 'admin';
   });
 
-  // Theme Mode State: 'dark' | 'light' (Persisted in localStorage)
-  const [themeMode, setThemeMode] = useState(() => {
+  // Theme Mode State: 'dark' | 'light' | 'warm_minimalist' (Persisted in localStorage)
+  const [themeMode, setThemeModeState] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mris_web_theme');
-      if (saved === 'light' || saved === 'dark') return saved;
+      if (saved === 'light' || saved === 'dark' || saved === 'warm_minimalist') return saved;
     }
     return 'dark';
   });
 
+  const setThemeMode = (mode) => {
+    setThemeModeState(mode);
+    try { localStorage.setItem('mris_web_theme', mode); } catch (e) {}
+  };
+
   const toggleThemeMode = () => {
-    setThemeMode(prev => {
-      const next = prev === 'dark' ? 'light' : 'dark';
+    setThemeModeState(prev => {
+      const next = prev === 'dark' ? 'warm_minimalist' : (prev === 'warm_minimalist' ? 'light' : 'dark');
       try { localStorage.setItem('mris_web_theme', next); } catch (e) {}
       return next;
     });
@@ -397,6 +402,7 @@ export default function App() {
       masterData={masterData}
       themeMode={themeMode}
       toggleThemeMode={toggleThemeMode}
+      setThemeMode={setThemeMode}
     >
       {!isCurrentTabAllowed ? (
         <div style={{ padding: '60px 24px', textAlign: 'center', color: '#f8fafc', background: '#111625', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', margin: '24px' }}>
