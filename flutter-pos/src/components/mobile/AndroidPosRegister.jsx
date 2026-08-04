@@ -5974,7 +5974,7 @@ export default function AndroidPosRegister({
                           border: 'none',
                           background: isSubActive ? 'rgba(99,102,241,0.2)' : 'transparent',
                           borderLeft: isSubActive ? '4px solid #6366f1' : '4px solid transparent',
-                          color: isSubActive ? '#ffffff' : '#94a3b8',
+                          color: isSubActive ? '#ffffff' : '#cbd5e1',
                           fontWeight: isSubActive ? '800' : '600',
                           fontSize: '0.88rem',
                           cursor: 'pointer',
@@ -5982,8 +5982,8 @@ export default function AndroidPosRegister({
                           transition: 'all 0.15s ease'
                         }}
                       >
-                        <SubIcon size={18} color={isSubActive ? '#6366f1' : '#94a3b8'} />
-                        <span>{tab.label}</span>
+                        <SubIcon size={18} color={isSubActive ? '#818cf8' : '#cbd5e1'} />
+                        <span style={{ color: isSubActive ? '#ffffff' : '#cbd5e1' }}>{tab.label}</span>
                       </button>
                     );
                   })}
@@ -6122,7 +6122,7 @@ export default function AndroidPosRegister({
                 {/* SUB-TAB: PRINTER BLUETOOTH */}
                 {settingSubTab === 'printer' && (
                   <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <PrinterIcon size={26} color="#6366f1" />
                       <span>Koneksi Printer Bluetooth</span>
                     </h2>
@@ -6148,7 +6148,7 @@ export default function AndroidPosRegister({
 
                     {/* PRINTER TERKONFIGURASI */}
                     <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🖨️ Printer Aktif</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>🖨️ Printer Aktif</div>
                       {printerMac ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(52,211,153,0.1)', border: '1px solid #34d399' }}>
                           <BluetoothConnected size={20} color="#34d399" />
@@ -6156,29 +6156,29 @@ export default function AndroidPosRegister({
                             <div style={{ fontWeight: '800', color: '#34d399', fontSize: '0.9rem' }}>
                               {pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}
                             </div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
                               {printerMac} • Kertas {printerPaperWidth}mm
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
-                            style={{ background: 'rgba(244,63,94,0.12)', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#f43f5e', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}
+                            style={{ background: 'rgba(244,63,94,0.15)', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#f43f5e', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
                           >
                             Lepas
                           </button>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(100,116,139,0.1)', border: '1px dashed var(--pos-border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px dashed #475569' }}>
                           <BluetoothOff size={20} color="#94a3b8" />
-                          <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.88rem' }}>Belum ada printer dipilih</span>
+                          <span style={{ color: '#cbd5e1', fontSize: '0.88rem', fontWeight: '700' }}>Belum ada printer dipilih</span>
                         </div>
                       )}
                     </div>
 
                     {/* LEBAR KERTAS */}
                     <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📄 Lebar Kertas Thermal</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>📄 Lebar Kertas Thermal</div>
                       <div style={{ display: 'flex', gap: '10px' }}>
                         {['58', '80'].map(w => (
                           <button
@@ -6189,17 +6189,17 @@ export default function AndroidPosRegister({
                               flex: 1,
                               padding: '14px',
                               borderRadius: '12px',
-                              border: `2px solid ${printerPaperWidth === w ? '#6366f1' : 'var(--pos-border)'}`,
-                              background: printerPaperWidth === w ? 'rgba(99,102,241,0.15)' : 'transparent',
-                              color: printerPaperWidth === w ? '#a5b4fc' : 'var(--pos-txt-secondary)',
-                              fontWeight: '800',
+                              border: `2px solid ${printerPaperWidth === w ? '#6366f1' : '#334155'}`,
+                              background: printerPaperWidth === w ? 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' : '#1e293b',
+                              color: printerPaperWidth === w ? '#ffffff' : '#cbd5e1',
+                              fontWeight: '900',
                               fontSize: '1.05rem',
                               cursor: 'pointer',
                               transition: 'all 0.15s'
                             }}
                           >
                             {w}mm
-                            <div style={{ fontSize: '0.72rem', fontWeight: '600', marginTop: '3px', opacity: 0.7 }}>
+                            <div style={{ fontSize: '0.74rem', fontWeight: '700', marginTop: '3px', color: printerPaperWidth === w ? '#e0e7ff' : '#cbd5e1' }}>
                               {w === '58' ? 'Mini Kasir' : 'Lebar Standar'}
                             </div>
                           </button>
@@ -6211,8 +6211,8 @@ export default function AndroidPosRegister({
                     <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                         <div>
-                          <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🔍 Perangkat Bluetooth Terpair</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>Pair printer terlebih dahulu di: Pengaturan Android → Bluetooth</div>
+                          <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>🔍 Perangkat Bluetooth Terpair</div>
+                          <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>Pair printer terlebih dahulu di: Pengaturan Android → Bluetooth</div>
                         </div>
                         <button
                           type="button"
@@ -6223,11 +6223,12 @@ export default function AndroidPosRegister({
                             padding: '10px 18px',
                             borderRadius: '10px',
                             border: 'none',
-                            background: isScanningPaired ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.2)',
-                            color: '#a5b4fc',
-                            fontWeight: '800',
+                            background: isScanningPaired ? 'rgba(99,102,241,0.2)' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                            color: '#ffffff',
+                            fontWeight: '900',
                             fontSize: '0.82rem',
                             cursor: isScanningPaired ? 'not-allowed' : 'pointer',
+                            boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
                             transition: 'all 0.15s'
                           }}
                         >
@@ -6238,7 +6239,7 @@ export default function AndroidPosRegister({
 
                       {/* DEVICE LIST */}
                       {pairedDevices.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '28px', color: 'var(--pos-txt-secondary)', fontSize: '0.85rem', borderRadius: '12px', background: 'var(--pos-bg-app)' }}>
+                        <div style={{ textAlign: 'center', padding: '28px', color: '#cbd5e1', fontSize: '0.85rem', borderRadius: '12px', background: '#1e293b' }}>
                           {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
                         </div>
                       ) : (
@@ -6254,8 +6255,8 @@ export default function AndroidPosRegister({
                                   display: 'flex', alignItems: 'center', gap: '14px',
                                   padding: '14px 16px',
                                   borderRadius: '12px',
-                                  border: `2px solid ${isSelected ? '#6366f1' : 'var(--pos-border)'}`,
-                                  background: isSelected ? 'rgba(99,102,241,0.12)' : 'var(--pos-bg-app)',
+                                  border: `2px solid ${isSelected ? '#6366f1' : '#334155'}`,
+                                  background: isSelected ? 'rgba(99,102,241,0.25)' : '#1e293b',
                                   cursor: 'pointer',
                                   textAlign: 'left',
                                   transition: 'all 0.15s',
@@ -6263,18 +6264,18 @@ export default function AndroidPosRegister({
                                 }}
                               >
                                 {isSelected
-                                  ? <BluetoothConnected size={22} color="#6366f1" />
-                                  : <Bluetooth size={22} color="#94a3b8" />}
+                                  ? <BluetoothConnected size={22} color="#818cf8" />
+                                  : <Bluetooth size={22} color="#38bdf8" />}
                                 <div style={{ flex: 1 }}>
-                                  <div style={{ fontWeight: '800', color: isSelected ? '#a5b4fc' : 'var(--pos-txt-primary)', fontSize: '0.92rem' }}>
+                                  <div style={{ fontWeight: '800', color: '#ffffff', fontSize: '0.92rem' }}>
                                     {device.name || 'Unnamed Device'}
                                   </div>
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
                                     {device.address}
                                   </div>
                                 </div>
                                 {isSelected && (
-                                  <span style={{ fontSize: '0.72rem', background: '#6366f1', color: '#fff', borderRadius: '6px', padding: '3px 8px', fontWeight: '800', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
+                                  <span style={{ fontSize: '0.72rem', background: '#6366f1', color: '#fff', borderRadius: '6px', padding: '3px 8px', fontWeight: '900', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
                                 )}
                               </button>
                             );
@@ -6283,8 +6284,8 @@ export default function AndroidPosRegister({
                       )}
 
                       {/* MANUAL MAC ADDRESS / CUSTOM DEVICE INPUT */}
-                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed var(--pos-border)' }}>
-                        <div style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--pos-txt-secondary)', marginBottom: '8px' }}>
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #475569' }}>
+                        <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', marginBottom: '8px' }}>
                           ⌨️ Atau Input Alamat MAC / Nama Printer Manual:
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -6297,11 +6298,11 @@ export default function AndroidPosRegister({
                               flex: 1,
                               padding: '10px 14px',
                               borderRadius: '10px',
-                              border: '1px solid var(--pos-border)',
-                              background: 'var(--pos-bg-app)',
-                              color: 'var(--pos-txt-primary)',
+                              border: '1px solid #475569',
+                              background: '#0f172a',
+                              color: '#ffffff',
                               fontSize: '0.88rem',
-                              fontWeight: '600'
+                              fontWeight: '700'
                             }}
                           />
                           <button
@@ -6311,7 +6312,7 @@ export default function AndroidPosRegister({
                               padding: '10px 16px',
                               borderRadius: '10px',
                               border: 'none',
-                              background: '#6366f1',
+                              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                               color: '#ffffff',
                               fontWeight: '700',
                               fontSize: '0.82rem',
