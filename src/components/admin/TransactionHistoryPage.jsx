@@ -160,8 +160,48 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [dateRangeText, setDateRangeText] = useState('24/07/2026 - 24/07/2026');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
   const [itemFilter, setItemFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleYearChange = (yr) => {
+    setSelectedYear(yr);
+    if (!yr) {
+      setStartDate('');
+      setEndDate('');
+      setSelectedMonth('');
+      return;
+    }
+    const m = selectedMonth || '01';
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    if (selectedMonth) {
+      setStartDate(`${yr}-${m}-01`);
+      setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+    } else {
+      setStartDate(`${yr}-01-01`);
+      setEndDate(`${yr}-12-31`);
+    }
+  };
+
+  const handleMonthChange = (m) => {
+    setSelectedMonth(m);
+    const yr = selectedYear || new Date().getFullYear().toString();
+    if (!selectedYear) setSelectedYear(yr);
+    if (!m) {
+      if (selectedYear) {
+        setStartDate(`${yr}-01-01`);
+        setEndDate(`${yr}-12-31`);
+      } else {
+        setStartDate('');
+        setEndDate('');
+      }
+      return;
+    }
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    setStartDate(`${yr}-${m}-01`);
+    setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+  };
 
   // COLUMN VISIBILITY TOGGLE STATE
   const [showColDropdown, setShowColDropdown] = useState(false);
@@ -807,38 +847,111 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       </div>
 
       {/* 2. FILTER & SEARCH CONTROL BAR MATCHING DARK THEME */}
-      <div style={{ background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', position: 'relative', zIndex: 100 }}>
+      <div style={{ background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px', position: 'relative', zIndex: 100 }}>
         
         {/* Search Bar Input */}
-        <div style={{ width: '240px', position: 'relative' }}>
-          <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input 
-            type="text" 
-            placeholder="Cari penjualan" 
-            value={searchQuery} 
-            onChange={e => setSearchQuery(e.target.value)} 
-            style={{ paddingLeft: '36px', height: '38px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', background: '#0f172a', color: '#f8fafc' }} 
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '220px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🔍 Pencarian Struk</span>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input 
+              type="text" 
+              placeholder="Cari no. struk/item..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              style={{ paddingLeft: '36px', height: '36px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', background: '#0f172a', color: '#f8fafc' }} 
+            />
+          </div>
         </div>
 
-        {/* Date Range Picker Input */}
-        <div style={{ width: '220px' }}>
-          <input 
-            type="text" 
-            value={dateRangeText} 
-            onChange={e => setDateRangeText(e.target.value)}
-            style={{ height: '38px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', padding: '0 12px', color: '#cbd5e1', fontWeight: '500', background: '#0f172a' }} 
-          />
+        {/* 1. Tahun Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📅 Tahun</span>
+          <select
+            value={selectedYear}
+            onChange={e => handleYearChange(e.target.value)}
+            style={{
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              background: '#0f172a',
+              color: '#f8fafc',
+              fontSize: '0.85rem',
+              fontWeight: '700',
+              height: '36px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">Semua Tahun</option>
+            {Array.from({ length: 17 }, (_, i) => 2024 + i).map(yr => (
+              <option key={yr} value={String(yr)}>{yr}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Outlet Selector Dropdown */}
-        <div style={{ width: '200px' }}>
+        {/* 2. Bulan Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🗓️ Bulan</span>
+          <select
+            value={selectedMonth}
+            onChange={e => handleMonthChange(e.target.value)}
+            style={{
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              background: '#0f172a',
+              color: '#f8fafc',
+              fontSize: '0.85rem',
+              fontWeight: '700',
+              height: '36px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">Semua Bulan</option>
+            <option value="01">Januari</option>
+            <option value="02">Februari</option>
+            <option value="03">Maret</option>
+            <option value="04">April</option>
+            <option value="05">Mei</option>
+            <option value="06">Juni</option>
+            <option value="07">Juli</option>
+            <option value="08">Agustus</option>
+            <option value="09">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+        </div>
+
+        {/* 3. Tanggal (Rentang Waktu) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)}
+              style={{ height: '36px', fontSize: '0.82rem', border: '1px solid #334155', borderRadius: '6px', padding: '0 8px', color: '#cbd5e1', fontWeight: '600', background: '#0f172a' }} 
+            />
+            <span style={{ color: '#64748b', fontSize: '0.80rem' }}>s/d</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)}
+              style={{ height: '36px', fontSize: '0.82rem', border: '1px solid #334155', borderRadius: '6px', padding: '0 8px', color: '#cbd5e1', fontWeight: '600', background: '#0f172a' }} 
+            />
+          </div>
+        </div>
+
+        {/* 4. Outlet Selector Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '200px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🏢 Outlet</span>
           <select 
             value={outletFilter} 
             onChange={e => setOutletFilter(e.target.value)} 
-            style={{ height: '38px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', padding: '0 12px', color: '#cbd5e1', fontWeight: '500', background: '#0f172a' }}
+            style={{ height: '36px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', padding: '0 12px', color: '#cbd5e1', fontWeight: '700', background: '#0f172a', cursor: 'pointer' }}
           >
-            <option value="ALL">RUMAH PRODUKSI</option>
+            <option value="ALL">SEMUA OUTLET CABANG</option>
             {outlets.map(o => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}

@@ -160,8 +160,48 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [dateRangeText, setDateRangeText] = useState('24/07/2026 - 24/07/2026');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
   const [itemFilter, setItemFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleYearChange = (yr) => {
+    setSelectedYear(yr);
+    if (!yr) {
+      setStartDate('');
+      setEndDate('');
+      setSelectedMonth('');
+      return;
+    }
+    const m = selectedMonth || '01';
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    if (selectedMonth) {
+      setStartDate(`${yr}-${m}-01`);
+      setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+    } else {
+      setStartDate(`${yr}-01-01`);
+      setEndDate(`${yr}-12-31`);
+    }
+  };
+
+  const handleMonthChange = (m) => {
+    setSelectedMonth(m);
+    const yr = selectedYear || new Date().getFullYear().toString();
+    if (!selectedYear) setSelectedYear(yr);
+    if (!m) {
+      if (selectedYear) {
+        setStartDate(`${yr}-01-01`);
+        setEndDate(`${yr}-12-31`);
+      } else {
+        setStartDate('');
+        setEndDate('');
+      }
+      return;
+    }
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    setStartDate(`${yr}-${m}-01`);
+    setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+  };
 
   // COLUMN VISIBILITY TOGGLE STATE
   const [showColDropdown, setShowColDropdown] = useState(false);
@@ -395,14 +435,66 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     }
   };
 
-  const handleDeleteTransaction = (id) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${id}?`)) {
-      const updatedList = transactions.filter(t => t.id !== id);
+  const handleDeleteTransaction = async (id) => {
+    if (!id) return;
+    const targetTx = (masterData?.salesTransactions || []).find(t => 
+      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
+    ) || (masterData?.transactions || []).find(t => 
+      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
+    );
+
+    const targetId = targetTx?.id ? String(targetTx.id) : String(id);
+    const targetReceiptNo = targetTx?.receipt_no || targetTx?.receiptNo || targetTx?.invoice_no || null;
+    const displayLabel = targetReceiptNo || targetId;
+
+    if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${displayLabel}? Data penjualan ini akan terhapus permanen dari Web Admin, Riwayat Kategori, Laba Rugi, dan Kasir Mobile.`)) {
+      const isMatch = (t) => {
+        if (!t) return false;
+        const tid = String(t.id !== undefined ? t.id : '');
+        const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+        if (tid && (tid === targetId || tid === String(id))) return true;
+        if (targetReceiptNo && trcpt && trcpt === targetReceiptNo) return true;
+        if (trcpt && (trcpt === targetId || trcpt === String(id))) return true;
+        return false;
+      };
+
+      const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => !isMatch(t));
+      const updatedTx = (masterData?.transactions || []).filter(t => !isMatch(t));
+      const updatedOutletTx = (masterData?.outletTransactions || []).filter(t => !isMatch(t));
+
+      const updatedStockMovement = (masterData?.stockMovement || []).filter(m => {
+        if (!m) return false;
+        const refId = String(m.ref_id || m.transaction_id || m.receipt_no || '');
+        if (refId && (refId === targetId || refId === String(id) || (targetReceiptNo && refId === targetReceiptNo))) return false;
+        return true;
+      });
+
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now(),
+        salesTransactions: updatedSalesTx,
+        transactions: updatedTx,
+        outletTransactions: updatedOutletTx,
+        stockMovement: updatedStockMovement
+      };
+
       if (setMasterData) {
-        setMasterData({
-          ...masterData,
-          salesTransactions: updatedList
+        setMasterData(updated);
+      }
+
+      try {
+        const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+        await fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'salesTransactions', id: targetId })
         });
+      } catch (err) {
+        console.error('Delete transaction API error:', err);
+      }
+
+      if (viewMode === 'detail') {
+        setViewMode('list');
       }
     }
   };
@@ -488,6 +580,14 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               style={{ background: '#7e22ce', border: 'none', color: '#ffffff', padding: '8px 20px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
             >
               Ubah
+            </button>
+
+            <button 
+              onClick={() => handleDeleteTransaction(inv.id)}
+              style={{ background: '#ef4444', border: 'none', color: '#ffffff', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Trash2 size={16} />
+              <span>Hapus</span>
             </button>
 
             <button style={{ background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}>
@@ -747,38 +847,111 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       </div>
 
       {/* 2. FILTER & SEARCH CONTROL BAR MATCHING DARK THEME */}
-      <div style={{ background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', position: 'relative', zIndex: 100 }}>
+      <div style={{ background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px', position: 'relative', zIndex: 100 }}>
         
         {/* Search Bar Input */}
-        <div style={{ width: '240px', position: 'relative' }}>
-          <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input 
-            type="text" 
-            placeholder="Cari penjualan" 
-            value={searchQuery} 
-            onChange={e => setSearchQuery(e.target.value)} 
-            style={{ paddingLeft: '36px', height: '38px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', background: '#0f172a', color: '#f8fafc' }} 
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '220px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🔍 Pencarian Struk</span>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input 
+              type="text" 
+              placeholder="Cari no. struk/item..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              style={{ paddingLeft: '36px', height: '36px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', background: '#0f172a', color: '#f8fafc' }} 
+            />
+          </div>
         </div>
 
-        {/* Date Range Picker Input */}
-        <div style={{ width: '220px' }}>
-          <input 
-            type="text" 
-            value={dateRangeText} 
-            onChange={e => setDateRangeText(e.target.value)}
-            style={{ height: '38px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', padding: '0 12px', color: '#cbd5e1', fontWeight: '500', background: '#0f172a' }} 
-          />
+        {/* 1. Tahun Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📅 Tahun</span>
+          <select
+            value={selectedYear}
+            onChange={e => handleYearChange(e.target.value)}
+            style={{
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              background: '#0f172a',
+              color: '#f8fafc',
+              fontSize: '0.85rem',
+              fontWeight: '700',
+              height: '36px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">Semua Tahun</option>
+            {Array.from({ length: 17 }, (_, i) => 2024 + i).map(yr => (
+              <option key={yr} value={String(yr)}>{yr}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Outlet Selector Dropdown */}
-        <div style={{ width: '200px' }}>
+        {/* 2. Bulan Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🗓️ Bulan</span>
+          <select
+            value={selectedMonth}
+            onChange={e => handleMonthChange(e.target.value)}
+            style={{
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #334155',
+              background: '#0f172a',
+              color: '#f8fafc',
+              fontSize: '0.85rem',
+              fontWeight: '700',
+              height: '36px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">Semua Bulan</option>
+            <option value="01">Januari</option>
+            <option value="02">Februari</option>
+            <option value="03">Maret</option>
+            <option value="04">April</option>
+            <option value="05">Mei</option>
+            <option value="06">Juni</option>
+            <option value="07">Juli</option>
+            <option value="08">Agustus</option>
+            <option value="09">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+        </div>
+
+        {/* 3. Tanggal (Rentang Waktu) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)}
+              style={{ height: '36px', fontSize: '0.82rem', border: '1px solid #334155', borderRadius: '6px', padding: '0 8px', color: '#cbd5e1', fontWeight: '600', background: '#0f172a' }} 
+            />
+            <span style={{ color: '#64748b', fontSize: '0.80rem' }}>s/d</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)}
+              style={{ height: '36px', fontSize: '0.82rem', border: '1px solid #334155', borderRadius: '6px', padding: '0 8px', color: '#cbd5e1', fontWeight: '600', background: '#0f172a' }} 
+            />
+          </div>
+        </div>
+
+        {/* 4. Outlet Selector Dropdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '200px' }}>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🏢 Outlet</span>
           <select 
             value={outletFilter} 
             onChange={e => setOutletFilter(e.target.value)} 
-            style={{ height: '38px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', padding: '0 12px', color: '#cbd5e1', fontWeight: '500', background: '#0f172a' }}
+            style={{ height: '36px', fontSize: '0.85rem', width: '100%', border: '1px solid #334155', borderRadius: '6px', padding: '0 12px', color: '#cbd5e1', fontWeight: '700', background: '#0f172a', cursor: 'pointer' }}
           >
-            <option value="ALL">RUMAH PRODUKSI</option>
+            <option value="ALL">SEMUA OUTLET CABANG</option>
             {outlets.map(o => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}
@@ -875,17 +1048,30 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                       </span>
                     </td>
 
-                    {/* Aksi (PURPLE UBAH BUTTON MATCHING DARK THEME) */}
+                    {/* Aksi (Ubah & Hapus) */}
                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <button 
-                        onClick={() => handleOpenEditModal(item)}
-                        style={{
-                          background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 18px', borderRadius: '16px',
-                          fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
-                        }}
-                      >
-                        Ubah
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                        <button 
+                          onClick={() => handleOpenEditModal(item)}
+                          style={{
+                            background: '#7e22ce', color: '#ffffff', border: 'none', padding: '6px 14px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                        >
+                          Ubah
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteTransaction(item.id)}
+                          title="Hapus Transaksi Penjualan"
+                          style={{
+                            background: '#ef4444', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '16px',
+                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
