@@ -393,11 +393,9 @@ export function DoubleCalendarPicker({
           }}
         >
           <option value="">Semua Tahun</option>
-          <option value="2024">2024</option>
-          <option value="2025">2025</option>
-          <option value="2026">2026</option>
-          <option value="2027">2027</option>
-          <option value="2028">2028</option>
+          {Array.from({ length: 17 }, (_, i) => 2024 + i).map(yr => (
+            <option key={yr} value={String(yr)}>{yr}</option>
+          ))}
         </select>
       </div>
 
