@@ -1559,22 +1559,24 @@ app.post('/api/master-data', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Payload tidak valid' });
     }
 
-    const currentData = (await getMasterDataFromMySQL()) || masterData;
+    // Baca data terkini dari MySQL; jika gagal/null, gunakan defaultMasterData sebagai base
+    const currentData = (await getMasterDataFromMySQL()) || defaultMasterData;
     const sanitizedIncoming = sanitizeMasterDataPayload(incomingData);
 
-    masterData = mergeMasterDataSafely(currentData, sanitizedIncoming);
-    masterData._lastUpdated = Date.now();
+    // Merge data incoming dengan data server terkini
+    const mergedData = mergeMasterDataSafely(currentData, sanitizedIncoming);
+    mergedData._lastUpdated = Date.now();
 
     // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — FIX KRITIS SINKRONISASI
-    await saveMasterDataToMySQL(masterData);
+    await saveMasterDataToMySQL(mergedData);
     // Sync ke tabel-tabel relasional MySQL (shift_closings, stock_movement, dll)
-    await syncToMySQL(masterData);
+    await syncToMySQL(mergedData);
 
     return res.json({
       success: true,
       message: 'Master data berhasil diperbarui & tersinkronisasi ke MySQL mris_db',
-      data: masterData,
-      _lastUpdated: masterData._lastUpdated
+      data: mergedData,
+      _lastUpdated: mergedData._lastUpdated
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
@@ -1589,7 +1591,7 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Parameter key dan id wajib diisi' });
     }
 
-    const existing = (await getMasterDataFromMySQL()) || masterData;
+    const existing = (await getMasterDataFromMySQL()) || defaultMasterData;
     const idStr = String(id);
     const nowTs = Date.now();
 
