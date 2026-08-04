@@ -614,3 +614,20 @@ table td span, table td div {
   table { border-collapse: collapse !important; width: 100% !important; }
   th, td { border: 1px solid #cbd5e1 !important; padding: 8px !important; white-space: nowrap !important; }
 }
+
+/* ═══════════════════════════════════════════
+   POS KASIR PRINTER SETTINGS & TEXT CONTRAST FIX
+   ═══════════════════════════════════════════ */
+.pos-printer-container button,
+.pos-printer-container button div,
+.pos-printer-container button span {
+  color: #ffffff !important;
+}
+.pos-printer-container .device-name {
+  color: #ffffff !important;
+  font-weight: 900 !important;
+}
+.pos-printer-container .device-mac,
+.pos-printer-container .subtext-light {
+  color: #cbd5e1 !important;
+}

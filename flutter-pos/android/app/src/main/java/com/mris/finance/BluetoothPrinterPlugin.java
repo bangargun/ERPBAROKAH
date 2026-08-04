@@ -54,43 +54,74 @@ public class BluetoothPrinterPlugin extends Plugin {
      */
     @PluginMethod
     public void scanPairedDevices(PluginCall call) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (getActivity().checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
-                    != PackageManager.PERMISSION_GRANTED) {
-                requestPermissionForAlias("bluetoothConnect", call, "bluetoothConnectCallback");
+        try {
+            BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+            if (adapter == null) {
+                call.reject("BLUETOOTH_NOT_SUPPORTED", "Perangkat tidak memiliki hardware Bluetooth.");
                 return;
             }
+            if (!adapter.isEnabled()) {
+                call.reject("BLUETOOTH_DISABLED", "Bluetooth tidak aktif. Aktifkan Bluetooth terlebih dahulu di Pengaturan Android.");
+                return;
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (getActivity().checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissionForAlias("bluetoothConnect", call, "bluetoothConnectCallback");
+                    return;
+                }
+            }
+
+            fetchAndReturnBondedDevices(adapter, call);
+
+        } catch (SecurityException se) {
+            Log.e(TAG, "SecurityException scanning Bluetooth devices", se);
+            requestPermissionForAlias("bluetoothConnect", call, "bluetoothConnectCallback");
+        } catch (Exception e) {
+            Log.e(TAG, "Error scanning paired devices", e);
+            call.reject("SCAN_ERROR", "Gagal membaca printer paired: " + e.getMessage());
         }
+    }
 
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        if (adapter == null || !adapter.isEnabled()) {
-            call.reject("BLUETOOTH_DISABLED", "Bluetooth tidak aktif. Aktifkan Bluetooth terlebih dahulu.");
-            return;
+    private void fetchAndReturnBondedDevices(BluetoothAdapter adapter, PluginCall call) {
+        try {
+            Set<BluetoothDevice> pairedDevices = adapter.getBondedDevices();
+            JSArray deviceArray = new JSArray();
+
+            if (pairedDevices != null) {
+                for (BluetoothDevice device : pairedDevices) {
+                    JSObject dev = new JSObject();
+                    String devName = device.getName();
+                    if (devName == null || devName.trim().isEmpty()) {
+                        devName = "Printer Bluetooth (" + device.getAddress() + ")";
+                    }
+                    dev.put("name", devName);
+                    dev.put("address", device.getAddress());
+                    dev.put("type", device.getType() == BluetoothDevice.DEVICE_TYPE_CLASSIC ? "classic" : "le");
+                    deviceArray.put(dev);
+                }
+            }
+
+            JSObject result = new JSObject();
+            result.put("devices", deviceArray);
+            call.resolve(result);
+        } catch (Exception e) {
+            Log.e(TAG, "Error reading bonded devices", e);
+            call.reject("READ_BONDED_ERROR", "Gagal membaca daftar paired printer: " + e.getMessage());
         }
-
-        Set<BluetoothDevice> pairedDevices = adapter.getBondedDevices();
-        JSArray deviceArray = new JSArray();
-
-        for (BluetoothDevice device : pairedDevices) {
-            JSObject dev = new JSObject();
-            dev.put("name", device.getName() != null ? device.getName() : "Unknown Device");
-            dev.put("address", device.getAddress());
-            dev.put("type", device.getType() == BluetoothDevice.DEVICE_TYPE_CLASSIC ? "classic" : "le");
-            deviceArray.put(dev);
-        }
-
-        JSObject result = new JSObject();
-        result.put("devices", deviceArray);
-        call.resolve(result);
     }
 
     @PermissionCallback
     private void bluetoothConnectCallback(PluginCall call) {
-        if (getActivity().checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
-                == PackageManager.PERMISSION_GRANTED) {
-            scanPairedDevices(call);
-        } else {
-            call.reject("PERMISSION_DENIED", "Izin Bluetooth tidak diberikan.");
+        try {
+            BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+            if (adapter != null && adapter.isEnabled()) {
+                fetchAndReturnBondedDevices(adapter, call);
+            } else {
+                call.reject("BLUETOOTH_DISABLED", "Bluetooth tidak aktif.");
+            }
+        } catch (Exception e) {
+            call.reject("PERMISSION_CALLBACK_ERROR", "Gagal setelah meminta izin: " + e.getMessage());
         }
     }
 

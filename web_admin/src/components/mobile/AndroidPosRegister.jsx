@@ -6121,7 +6121,7 @@ export default function AndroidPosRegister({
 
                 {/* SUB-TAB: PRINTER BLUETOOTH */}
                 {settingSubTab === 'printer' && (
-                  <div style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div className="pos-printer-container" style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <PrinterIcon size={26} color="#6366f1" />
                       <span>Koneksi Printer Bluetooth</span>
@@ -6239,7 +6239,7 @@ export default function AndroidPosRegister({
 
                       {/* DEVICE LIST */}
                       {pairedDevices.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '28px', color: '#cbd5e1', fontSize: '0.85rem', borderRadius: '12px', background: '#1e293b' }}>
+                        <div style={{ textAlign: 'center', padding: '28px', color: '#f8fafc', fontSize: '0.88rem', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155' }}>
                           {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
                         </div>
                       ) : (
@@ -6255,8 +6255,9 @@ export default function AndroidPosRegister({
                                   display: 'flex', alignItems: 'center', gap: '14px',
                                   padding: '14px 16px',
                                   borderRadius: '12px',
-                                  border: `2px solid ${isSelected ? '#6366f1' : '#334155'}`,
-                                  background: isSelected ? 'rgba(99,102,241,0.25)' : '#1e293b',
+                                  border: `2px solid ${isSelected ? '#6366f1' : '#475569'}`,
+                                  background: isSelected ? 'rgba(99,102,241,0.35)' : '#1e293b',
+                                  color: '#ffffff',
                                   cursor: 'pointer',
                                   textAlign: 'left',
                                   transition: 'all 0.15s',
@@ -6264,18 +6265,18 @@ export default function AndroidPosRegister({
                                 }}
                               >
                                 {isSelected
-                                  ? <BluetoothConnected size={22} color="#818cf8" />
-                                  : <Bluetooth size={22} color="#38bdf8" />}
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontWeight: '800', color: '#ffffff', fontSize: '0.92rem' }}>
+                                  ? <BluetoothConnected size={24} color="#a5b4fc" />
+                                  : <Bluetooth size={24} color="#38bdf8" />}
+                                <div style={{ flex: 1, color: '#ffffff' }}>
+                                  <div className="device-name" style={{ fontWeight: '900', color: '#ffffff', fontSize: '0.98rem', letterSpacing: '0.3px' }}>
                                     {device.name || 'Unnamed Device'}
                                   </div>
-                                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                                  <div className="device-mac" style={{ fontSize: '0.80rem', color: '#e2e8f0', marginTop: '3px', fontWeight: '700' }}>
                                     {device.address}
                                   </div>
                                 </div>
                                 {isSelected && (
-                                  <span style={{ fontSize: '0.72rem', background: '#6366f1', color: '#fff', borderRadius: '6px', padding: '3px 8px', fontWeight: '900', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
+                                  <span style={{ fontSize: '0.75rem', background: '#6366f1', color: '#ffffff', borderRadius: '6px', padding: '4px 10px', fontWeight: '900', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
                                 )}
                               </button>
                             );
@@ -6285,7 +6286,7 @@ export default function AndroidPosRegister({
 
                       {/* MANUAL MAC ADDRESS / CUSTOM DEVICE INPUT */}
                       <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #475569' }}>
-                        <div style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', marginBottom: '8px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff', marginBottom: '8px' }}>
                           ⌨️ Atau Input Alamat MAC / Nama Printer Manual:
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -6296,31 +6297,34 @@ export default function AndroidPosRegister({
                             onChange={(e) => setPrinterMac(e.target.value)}
                             style={{
                               flex: 1,
-                              padding: '10px 14px',
+                              padding: '12px 14px',
                               borderRadius: '10px',
-                              border: '1px solid #475569',
+                              border: '1px solid #64748b',
                               background: '#0f172a',
                               color: '#ffffff',
-                              fontSize: '0.88rem',
-                              fontWeight: '700'
+                              fontSize: '0.90rem',
+                              fontWeight: '800'
                             }}
                           />
                           <button
                             type="button"
                             onClick={() => handleSavePrinterConfig(printerMac, printerPaperWidth)}
                             style={{
-                              padding: '10px 16px',
+                              padding: '10px 18px',
                               borderRadius: '10px',
                               border: 'none',
                               background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                               color: '#ffffff',
-                              fontWeight: '700',
-                              fontSize: '0.82rem',
+                              fontWeight: '900',
+                              fontSize: '0.85rem',
                               cursor: 'pointer'
                             }}
                           >
                             Simpan MAC
                           </button>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '6px', fontWeight: '700' }}>
+                          Contoh: 00:11:22:33:44:55 atau RPP02N
                         </div>
                       </div>
                     </div>
