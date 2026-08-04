@@ -259,6 +259,8 @@ export default function AndroidPosRegister({
   const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
   const [printStatusMsg, setPrintStatusMsg] = useState('');
   const [printerOfflineModal, setPrinterOfflineModal] = useState({ open: false, errorMsg: '', onFallback: null }); // Papan info printer tidak terhubung
+  const [liveDeviceMap, setLiveDeviceMap] = useState({});
+  const [checkingMacMap, setCheckingMacMap] = useState({});
 
   // Scan bonded Bluetooth devices dari pengaturan Android & System Printer Fallback
   const handleScanPairedPrinters = useCallback(async () => {
@@ -330,6 +332,48 @@ export default function AndroidPosRegister({
       }, 4000);
     }
   }, []);
+
+  const handleCheckLiveStatus = useCallback(async (mac) => {
+    if (!mac || mac === 'BT_THERMAL_AUTO' || mac === 'SYSTEM_PDF_PRINT') return;
+    setCheckingMacMap(prev => ({ ...prev, [mac]: true }));
+    showPrintStatus('info', '🔍 Memeriksa respon sinyal daya saklar printer...');
+
+    const res = await checkPrinterLiveStatus(mac);
+    setCheckingMacMap(prev => ({ ...prev, [mac]: false }));
+    setLiveDeviceMap(prev => ({ ...prev, [mac]: res.isLive }));
+
+    if (res.isLive) {
+      showPrintStatus('success', `🟢 SAKLAR PRINTER MENYALA! Printer ${mac} terhubung & merespon.`);
+    } else {
+      showPrintStatus('error', `🔴 SAKLAR PRINTER MATI / TERPUTUS! (${res.reason || 'Printer tidak merespon'})`);
+    }
+  }, [showPrintStatus]);
+
+  useEffect(() => {
+    const sub = listenBluetoothStatusChange((data) => {
+      if (data && data.address) {
+        const isConn = !!data.isConnected;
+        setLiveDeviceMap(prev => ({
+          ...prev,
+          [data.address]: isConn
+        }));
+
+        if (data.address === printerMac) {
+          if (isConn) {
+            showPrintStatus('success', `🟢 SAKLAR PRINTER MENYALA! Printer ${data.name || printerMac} terhubung.`);
+          } else {
+            showPrintStatus('error', `🔴 PERINGATAN: Saklar Printer ${data.name || printerMac} TERDETEKSI MATI / TERPUTUS!`);
+          }
+        }
+      }
+    });
+
+    return () => {
+      if (sub && typeof sub.remove === 'function') {
+        sub.remove();
+      }
+    };
+  }, [printerMac, showPrintStatus]);
 
   // Modal Pilihan Struk saat Simpan Order
   const [showSaveOrderReceiptModal, setShowSaveOrderReceiptModal] = useState(false);
@@ -2879,7 +2923,7 @@ export default function AndroidPosRegister({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
-              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.3 GOLD</span>
+              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.4 GOLD</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
