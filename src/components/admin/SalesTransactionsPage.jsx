@@ -846,7 +846,8 @@ export function DoubleCalendarPicker({
   );
 }
 
-export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColumn }) {
+export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColumn, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -3753,7 +3754,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <TrendingUp size={22} color="#38bdf8" />
+                  <TrendingUp size={22} color={T.info} />
                   <span>Grafik Tren Pergerakan Omzet Harian Antar Outlet ({selectedOmzetMonth})</span>
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
@@ -3775,14 +3776,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <div style={{ background: T.cardBg, padding: '24px 16px 16px 8px', borderRadius: '14px', border: `1px solid ${T.border}` }}>
                   <ReResponsiveContainer width="100%" height={340}>
                     <ReLineChart data={chartData} margin={{ top: 15, right: 30, left: 10, bottom: 5 }}>
-                      <ReCartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
-                      <ReXAxis dataKey="dayLabel" stroke="#94a3b8" fontSize={11} />
-                      <ReYAxis stroke="#94a3b8" fontSize={11} tickFormatter={v => `Rp ${(v / 1000000).toFixed(1)}M`} />
+                      <ReCartesianGrid strokeDasharray="3 3" stroke={T.border} />
+                      <ReXAxis dataKey="dayLabel" stroke={T.txtSecondary} fontSize={11} />
+                      <ReYAxis stroke={T.txtSecondary} fontSize={11} tickFormatter={v => `Rp ${(v / 1000000).toFixed(1)}M`} />
                       <ReTooltip
-                        contentStyle={{ background: T.cardBg2, borderColor: '#38bdf8', borderRadius: '10px', color: T.txtPrimary, fontSize: '0.82rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
+                        contentStyle={{ background: T.cardBg2, borderColor: T.info, borderRadius: '10px', color: T.txtPrimary, fontSize: '0.82rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
                         formatter={(val, name) => [formatRupiah(val), name]}
                       />
-                      <ReLegend wrapperStyle={{ paddingTop: '12px', fontSize: '0.8rem', fontWeight: '700' }} />
+                      <ReLegend wrapperStyle={{ paddingTop: '12px', fontSize: '0.8rem', fontWeight: '700', color: T.txtPrimary }} />
                       {activeOutlets.map((otl, idx) => (
                         <ReLine
                           key={otl.id}
