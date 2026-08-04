@@ -3807,7 +3807,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <DollarSign size={22} color="#34d399" />
+                  <DollarSign size={22} color={T.success} />
                   <span>Tabel Perbandingan Omzet Antar Outlet (Sebelum & Setelah Diskon)</span>
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
@@ -3857,19 +3857,19 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
                       {/* HEADER ROW 1 */}
-                      <tr style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
-                        {showDate && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: '1px solid #334155', textAlign: 'center', width: '110px' }}>Tanggal</th>}
+                      <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
+                        {showDate && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: `1px solid ${T.border}`, textAlign: 'center', width: '110px' }}>Tanggal</th>}
                         {activeOutlets.map(otl => {
                           const colSpanVal = (showGross ? 1 : 0) + (showNet ? 1 : 0);
                           if (colSpanVal === 0) return null;
                           return (
-                            <th key={otl.id} colSpan={colSpanVal} style={{ padding: '10px', textAlign: 'center', borderRight: '1px solid #334155', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
+                            <th key={otl.id} colSpan={colSpanVal} style={{ padding: '10px', textAlign: 'center', borderRight: `1px solid ${T.border}`, background: 'rgba(56, 189, 248, 0.1)', color: T.info }}>
                               🏢 {otl.name}
                             </th>
                           );
                         })}
                         {(showTotalGross || showTotalNet) && (
-                          <th colSpan={(showTotalGross ? 1 : 0) + (showTotalNet ? 1 : 0)} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: '#34d399' }}>
+                          <th colSpan={(showTotalGross ? 1 : 0) + (showTotalNet ? 1 : 0)} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: T.success }}>
                             📊 Total Akumulasi Seluruh Outlet
                           </th>
                         )}
@@ -3879,18 +3879,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         {activeOutlets.map(otl => (
                           <React.Fragment key={otl.id}>
                             {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
-                            {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>Setelah Diskon</th>}
+                            {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>Setelah Diskon</th>}
                           </React.Fragment>
                         ))}
                         {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
-                        {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#34d399' }}>Setelah Diskon</th>}
+                        {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.success }}>Setelah Diskon</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((row, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
+                        <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, background: T.cardBg }}>
                           {showDate && (
-                            <td style={{ padding: '10px 14px', fontWeight: '700', color: T.txtPrimary, borderRight: '1px solid #334155', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 14px', fontWeight: '700', color: T.txtPrimary, borderRight: `1px solid ${T.border}`, textAlign: 'center' }}>
                               {row.formattedDate}
                             </td>
                           )}
@@ -3904,7 +3904,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                                   </td>
                                 )}
                                 {showNet && (
-                                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: '#38bdf8', borderRight: '1px solid #334155' }}>
+                                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}` }}>
                                     {formatRupiah(d.net)}
                                   </td>
                                 )}
@@ -3917,7 +3917,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             </td>
                           )}
                           {showTotalNet && (
-                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: '#34d399', fontSize: '0.9rem' }}>
+                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.9rem' }}>
                               {formatRupiah(row.totalNet)}
                             </td>
                           )}
@@ -3926,20 +3926,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </tbody>
                     {/* FOOTER TOTAL ROW */}
                     <tfoot>
-                      <tr style={{ background: T.cardBg, borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
-                        {showDate && <td style={{ padding: '14px', borderRight: '1px solid #334155', textAlign: 'center' }}>TOTAL AKUMULASI</td>}
+                      <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.info}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.85rem' }}>
+                        {showDate && <td style={{ padding: '14px', borderRight: `1px solid ${T.border}`, textAlign: 'center' }}>TOTAL AKUMULASI</td>}
                         {activeOutlets.map(otl => {
                           const sumGross = rows.reduce((s, r) => s + (r.outlets[otl.id]?.gross || 0), 0);
                           const sumNet = rows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
                           return (
                             <React.Fragment key={otl.id}>
                               {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(sumGross)}</td>}
-                              {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>{formatRupiah(sumNet)}</td>}
+                              {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>{formatRupiah(sumNet)}</td>}
                             </React.Fragment>
                           );
                         })}
                         {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(grandTotalGrossAll)}</td>}
-                        {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
+                        {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.success, fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
                       </tr>
                     </tfoot>
                   </table>
