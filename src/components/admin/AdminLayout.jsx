@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { checkWebPermission } from '../../utils/permissionUtils';
+import { getThemePalette } from '../../utils/themeUtils';
 
 export default function AdminLayout({ 
   activeTab, 
@@ -73,58 +74,19 @@ export default function AdminLayout({
   const isLight = themeMode === 'light';
   const isWarmMinimalist = themeMode === 'warm_minimalist';
 
-  // THEME COLOR PALETTE (Warm Minimalist: Deep Forest Green & Amber Gold on Off-White Ground)
-  const T = isWarmMinimalist ? {
-    appBg: '#faf8f5', // Warm off-white ground
-    sidebarBg: '#143022', // Deep forest green sidebar anchor
-    headerBg: '#ffffff', // Crisp white header
-    cardBg: '#ffffff', // Crisp white card background
-    txtPrimary: '#143022', // Deep forest green primary text
-    txtSecondary: '#405649', // Muted forest sage
-    txtMuted: '#687d71', // Soft sage grey
-    border: '#e4e0d7', // Warm subtle border
-    borderHover: '#b8b09f',
-    accentGold: '#d97706', // Amber gold
-    accentIndigo: '#1b4330', // Deep forest green accent
-    activeNavBg: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', // Amber gold active navigation
-    activeNavTxt: '#ffffff',
-    controlBg: '#f4f1ea',
-    dropdownBg: '#ffffff',
-    dropdownBorder: '#d6cfc0'
-  } : isLight ? {
-    appBg: '#f1f5f9',
-    sidebarBg: '#ffffff',
-    headerBg: '#ffffff',
-    cardBg: '#ffffff',
-    txtPrimary: '#0f172a',
-    txtSecondary: '#475569',
-    txtMuted: '#64748b',
-    border: '#e2e8f0',
-    borderHover: '#cbd5e1',
-    accentGold: '#d97706',
-    accentIndigo: '#4f46e5',
-    activeNavBg: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-    activeNavTxt: '#ffffff',
-    controlBg: '#f8fafc',
-    dropdownBg: '#ffffff',
-    dropdownBorder: '#cbd5e1'
-  } : {
-    appBg: '#0b0f19',
-    sidebarBg: '#111625',
-    headerBg: '#111625',
-    cardBg: '#1e293b',
-    txtPrimary: '#f8fafc',
-    txtSecondary: '#94a3b8',
-    txtMuted: '#64748b',
-    border: 'rgba(255,255,255,0.08)',
-    borderHover: 'rgba(255,255,255,0.2)',
-    accentGold: '#f59e0b',
-    accentIndigo: '#6366f1',
-    activeNavBg: 'linear-gradient(135deg, #ca8a04 0%, #a16207 100%)',
-    activeNavTxt: '#ffffff',
-    controlBg: '#1e293b',
-    dropdownBg: '#0f172a',
-    dropdownBorder: '#334155'
+  const T = getThemePalette(themeMode);
+
+  // Add backward compatibility for keys used in layout that map differently
+  const mappedT = {
+    ...T,
+    sidebarBg: T.cardBg2,
+    headerBg: T.cardBg,
+    sidebarTxtPrimary: T.txtPrimary,
+    sidebarTxtSecondary: T.txtSecondary,
+    sidebarTxtMuted: T.txtMuted,
+    activeNavBg: T.navActiveBg,
+    activeNavTxt: T.navActiveTxt,
+    dropdownBorder: T.borderStrong
   };
 
   const menuItems = [
@@ -171,7 +133,7 @@ export default function AdminLayout({
         id: `tx-${tx.id || idx}`,
         type: 'pos_sale',
         icon: ShoppingCart,
-        color: '#34d399',
+        color: T.success,
         title: `🛒 Transaksi POS Baru #${tx.id || (idx + 1)}`,
         subtitle: `Total Rp ${(tx.amount || 0).toLocaleString('id-ID')} • ${tx.payment_method || 'Kasir'}`,
         time: tx.date || 'Baru saja',
@@ -185,7 +147,7 @@ export default function AdminLayout({
         id: `cs-${cs.id || idx}`,
         type: 'shift_close',
         icon: Clock,
-        color: '#38bdf8',
+        color: T.info,
         title: `💵 Penutupan Shift Kasir (${cs.kasir_name || cs.cashier || 'Kasir'})`,
         subtitle: `Net Sales: Rp ${(cs.net_sales || cs.total_omzet || 0).toLocaleString('id-ID')}`,
         time: cs.date || 'Hari ini',
@@ -258,7 +220,7 @@ export default function AdminLayout({
             <h1 style={{ fontSize: '0.98rem', fontWeight: '900', color: T.accentGold, letterSpacing: '0.04em', margin: 0, textTransform: 'uppercase' }}>
               BAROKAH GROUP
             </h1>
-            <p style={{ fontSize: '0.62rem', color: T.txtSecondary, fontWeight: '700', margin: '1px 0 0 0', letterSpacing: '0.05em' }}>
+            <p style={{ fontSize: '0.62rem', color: T.sidebarTxtSecondary, fontWeight: '700', margin: '1px 0 0 0', letterSpacing: '0.05em' }}>
               RESTAURANT MANAGEMENT SYSTEM
             </p>
           </div>
@@ -266,7 +228,7 @@ export default function AdminLayout({
 
         {/* Navigation Menu Items */}
         <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
-          <div style={{ fontSize: '0.64rem', textTransform: 'uppercase', color: T.txtMuted, fontWeight: '800', padding: '6px 10px 4px 10px', letterSpacing: '0.05em' }}>
+          <div style={{ fontSize: '0.64rem', textTransform: 'uppercase', color: T.sidebarTxtMuted, fontWeight: '800', padding: '6px 10px 4px 10px', letterSpacing: '0.05em' }}>
             MENU UTAMA SISTEM
           </div>
           {filteredMenuItems.map(item => {
@@ -284,8 +246,8 @@ export default function AdminLayout({
                   padding: '10px 14px',
                   borderRadius: '10px',
                   border: 'none',
-                  background: isActive ? T.activeNavBg : 'transparent',
-                  color: isActive ? T.activeNavTxt : T.txtSecondary,
+                  background: isActive ? T.activeNavBg : (isWarmMinimalist ? 'rgba(255,255,255,0.05)' : 'transparent'),
+                  color: isActive ? T.activeNavTxt : T.sidebarTxtSecondary,
                   fontWeight: isActive ? '800' : '600',
                   fontSize: '0.84rem',
                   cursor: 'pointer',
@@ -295,11 +257,11 @@ export default function AdminLayout({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
-                  <Icon size={18} color={isActive ? '#ffffff' : T.txtSecondary} />
+                  <Icon size={18} color={isActive ? '#ffffff' : T.sidebarTxtSecondary} />
                   <span>{item.label}</span>
                 </div>
                 {item.id === 'stock' && pendingCount > 0 && (
-                  <span style={{ background: '#ef4444', color: '#ffffff', fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px' }}>
+                  <span style={{ background: T.danger, color: '#ffffff', fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px' }}>
                     {pendingCount}
                   </span>
                 )}
@@ -314,7 +276,7 @@ export default function AdminLayout({
             {userInitial}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
+            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.sidebarTxtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
             <div style={{ fontSize: '0.66rem', color: T.accentGold, fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userRole} • {userOutlet}</div>
           </div>
           {onLogout && (
@@ -449,7 +411,7 @@ export default function AdminLayout({
                     position: 'absolute',
                     top: '-4px',
                     right: '-4px',
-                    background: '#ef4444',
+                    background: T.danger,
                     color: '#ffffff',
                     fontSize: '0.64rem',
                     fontWeight: '900',
@@ -498,7 +460,7 @@ export default function AdminLayout({
                         Inbox Notifikasi POS
                       </span>
                       {unreadNotifCount > 0 && (
-                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.65rem', fontWeight: '900', padding: '2px 6px', borderRadius: '10px' }}>
+                        <span style={{ background: T.danger, color: '#fff', fontSize: '0.65rem', fontWeight: '900', padding: '2px 6px', borderRadius: '10px' }}>
                           {unreadNotifCount} Baru
                         </span>
                       )}

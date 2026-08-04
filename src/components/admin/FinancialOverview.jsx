@@ -44,8 +44,10 @@ import {
   Bar,
   Legend
 } from 'recharts';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function FinancialOverview({ stats, chartData, recentTransactions, outlets, selectedBranch, masterData }) {
+export default function FinancialOverview({ stats, chartData, recentTransactions, outlets, selectedBranch, masterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const allOutlets = outlets || masterData?.outlets || [];
   const allProducts = masterData?.products || [];
   const allIngredients = masterData?.ingredients || [];
@@ -293,19 +295,19 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: '#0b0f19', color: '#f8fafc' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease, color 0.25s ease' }} className="animate-fade-in">
       
       {/* 🟢 INTERACTIVE HEADER BANNER */}
-      <div style={{ background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)', padding: '18px 22px', borderRadius: '16px', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
+      <div style={{ background: themeMode === 'warm_minimalist' ? 'linear-gradient(135deg, #1a3826 0%, #143022 100%)' : themeMode === 'light' ? 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' : 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)', padding: '18px 22px', borderRadius: '16px', border: `1px solid ${themeMode === 'warm_minimalist' ? 'rgba(217,119,6,0.3)' : T.borderStrong}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', boxShadow: T.shadowMd }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 12px #10b981' }} className="animate-pulse" />
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: T.success, boxShadow: `0 0 12px ${T.success}` }} className="animate-pulse" />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: themeMode === 'warm_minimalist' ? '#e8f0ea' : T.txtPrimary, margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span>Dashboard Executive Multi-Restoran</span>
-              <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '6px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', fontWeight: '800' }}>INTERACTIVE LIVE</span>
+              <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '6px', background: T.accentGoldBg, color: T.accentGold, border: `1px solid ${T.accentGoldBorder}`, fontWeight: '800' }}>INTERACTIVE LIVE</span>
             </h2>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '4px', margin: 0 }}>
+          <p style={{ color: themeMode === 'warm_minimalist' ? '#a8c4ae' : T.txtSecondary, fontSize: '0.78rem', marginTop: '4px', margin: 0 }}>
             Pemantauan omzet harian, komparasi per outlet, analisis HPP, dan Rekomendasi Analisis AI real-time.
           </p>
         </div>

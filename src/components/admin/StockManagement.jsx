@@ -28,8 +28,10 @@ import {
 } from 'lucide-react';
 import { DoubleCalendarPicker, buildExportFilename, getOutletNameStrForExport } from './SalesTransactionsPage';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function StockManagement({ masterData, setMasterData, selectedBranch }) {
+export default function StockManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const outlets = masterData.outlets || [];
   const formatRupiah = (num) => {
     return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
@@ -2197,16 +2199,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
       
       {/* Title Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Package size={28} color="#6366f1" />
-            <span>Pusat Kontrol Logistik & Stok (Logistics & Supply)</span>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Package size={28} color={T.accentGold} />
+            <span>Pusat Kontrol Logistik &amp; Stok (Logistics &amp; Supply)</span>
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Pantau barang masuk supplier, pemotongan stok kasir otomatis, transfer antarcabang, barang rusak (waste), dan stock opname fisik.
           </p>
         </div>
@@ -2375,16 +2377,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         )}
       </div>
 
-      {/* Sub-Tab Navigation Bar (Sleek Glassmorphism Single Grid) */}
-      <div style={{ background: '#0f172a', padding: '8px', borderRadius: '16px', border: '1px solid #334155', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+      {/* Sub-Tab Navigation Bar — 2-baris grid rapi (3 tab per baris) */}
+      <div style={{ background: T.cardBg2, padding: '8px', borderRadius: '16px', border: `1px solid ${T.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
           {[
-            { id: 'stok_masuk', label: '📥 Stok Masuk', color: '#38bdf8' },
-            { id: 'stok_keluar', label: '📤 Stok Keluar', color: '#fb7185' },
-            { id: 'transfer_stok', label: '🚚 Transfer Stok', color: '#fbbf24' },
-            { id: 'stok_rusak', label: '⚠️ Stok Rusak (Waste)', color: '#f43f5e' },
-            { id: 'stok_opname_system', label: '🤖 Opname by Sistem', color: '#34d399' },
-            { id: 'stok_opname_report', label: '📱 Opname Report Outlet', color: '#a78bfa' }
+            { id: 'stok_masuk',        label: 'Stok Masuk',          icon: '📥', color: T.info },
+            { id: 'stok_keluar',       label: 'Stok Keluar',         icon: '📤', color: T.danger },
+            { id: 'transfer_stok',     label: 'Transfer Stok',       icon: '🚚', color: T.accentGold },
+            { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',  icon: '⚠️', color: T.danger },
+            { id: 'stok_opname_system',label: 'Opname by Sistem',    icon: '🤖', color: T.success },
+            { id: 'stok_opname_report',label: 'Opname Report Outlet',icon: '📱', color: '#a78bfa' }
           ].map(tab => {
             const isActive = activeSubTab === tab.id;
             return (
@@ -2398,21 +2400,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
-                  padding: '12px 10px',
+                  gap: '6px',
+                  padding: '10px 8px',
                   borderRadius: '10px',
-                  border: isActive ? `1px solid ${tab.color}` : '1px solid #1e293b',
-                  background: isActive ? `linear-gradient(135deg, ${tab.color}25 0%, #0f172a 100%)` : '#1e293b',
-                  color: isActive ? '#ffffff' : '#94a3b8',
-                  fontWeight: isActive ? '900' : '600',
-                  fontSize: '0.82rem',
+                  border: isActive ? `1.5px solid ${tab.color}` : `1px solid ${T.border}`,
+                  background: isActive ? `${tab.color}18` : T.cardBg,
+                  color: isActive ? tab.color : T.txtSecondary,
+                  fontWeight: isActive ? '800' : '600',
+                  fontSize: '0.80rem',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: isActive ? `0 4px 14px ${tab.color}35` : 'none'
+                  boxShadow: isActive ? `0 3px 12px ${tab.color}30` : 'none'
                 }}
               >
-                <span style={{ color: tab.color, fontSize: '0.90rem' }}>●</span>
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
+                <span style={{ fontSize: '0.85rem' }}>{tab.icon}</span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '130px' }}>{tab.label}</span>
               </button>
             );
           })}
@@ -2420,7 +2422,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       </div>
 
       {/* RENDER ACTIVE TAB TABLE */}
-      <div className="glass-card" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}>
+      <div className="glass-card" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '12px' }}>
         
         {/* SUBTAB 1: STOK MASUK */}
         {activeSubTab === 'stok_masuk' && (

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { CreditCard, Plus, Search, Edit3, Trash2, X, CheckCircle2, Wallet, QrCode, Banknote, Landmark, HelpCircle } from 'lucide-react';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function PaymentMethodManagement({ masterData, setMasterData }) {
+export default function PaymentMethodManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
@@ -27,15 +29,15 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
   const getCodeBadgeStyle = (code) => {
     switch (code) {
       case 'Cash':
-        return { bg: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: 'rgba(16, 185, 129, 0.3)' };
+        return { bg: T.successBg, color: T.success, border: T.successBorder };
       case 'Transfer':
-        return { bg: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: 'rgba(99, 102, 241, 0.3)' };
+        return { bg: T.accentGreenBg, color: T.accentGreen, border: T.accentGreenBg };
       case 'QRIS':
-        return { bg: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: 'rgba(56, 189, 248, 0.3)' };
+        return { bg: T.infoBg, color: T.info, border: T.infoBorder };
       case 'E-Wallet':
-        return { bg: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: 'rgba(245, 158, 11, 0.3)' };
+        return { bg: T.warningBg, color: T.warning, border: T.warningBorder };
       default:
-        return { bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: 'rgba(168, 85, 247, 0.3)' };
+        return { bg: T.accentGoldBg, color: T.accentGold, border: T.accentGoldBorder };
     }
   };
 
@@ -137,10 +139,10 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Data Metode Pembayaran
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Kelola pilihan saluran pembayaran kasir (Cash, Transfer, QRIS, E-Wallet, dan Pendapatan Lain-lain)
           </p>
         </div>
@@ -153,23 +155,23 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
 
       {/* Search Bar */}
       <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama atau kode metode pembayaran..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px' }}
+          style={{ paddingLeft: '36px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: '12px' }}>Kode (Jenis Pembayaran)</th>
                 <th style={{ padding: '12px' }}>Nama Metode Pembayaran</th>
                 <th style={{ padding: '12px' }}>Status</th>
@@ -179,7 +181,7 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
                     Belum ada data metode pembayaran.
                   </td>
                 </tr>
@@ -189,7 +191,7 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                   const isAktif = (item.status || 'Aktif') === 'Aktif';
 
                   return (
-                    <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. KODE (JENIS PEMBAYARAN) */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
@@ -207,9 +209,9 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                       </td>
 
                       {/* 2. NAMA METODE PEMBAYARAN */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: '#f8fafc' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <CreditCard size={16} color="#38bdf8" />
+                          <CreditCard size={16} color={T.info} />
                           <span>{item.name}</span>
                         </div>
                       </td>
@@ -217,9 +219,9 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                       {/* 3. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                          color: isAktif ? '#34d399' : '#fb7185',
-                          border: `1px solid ${isAktif ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          background: isAktif ? T.successBg : T.dangerBg,
+                          color: isAktif ? T.success : T.danger,
+                          border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
                           padding: '4px 10px',
                           borderRadius: '20px',
                           fontSize: '0.75rem',
@@ -235,9 +237,9 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                           <button
                             onClick={() => handleOpenEditModal(item)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -248,16 +250,16 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeletePayment(item.id, item.name)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -285,6 +287,7 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
           totalItems={totalItems}
           onPageChange={setCurrentPage}
           onPageSizeChange={setPageSize}
+          themeMode={themeMode}
         />
       </div>
 
@@ -300,12 +303,12 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '26px', background: T.cardBg, border: `1px solid ${T.borderStrong}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 {editingPayment ? 'Edit Metode Pembayaran' : 'Tambahkan Metode Pembayaran'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -313,13 +316,14 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
             <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Jenis Pembayaran */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   1. Kode (Jenis Pembayaran) *
                 </label>
                 <select
                   value={codeCategory}
                   onChange={e => setCodeCategory(e.target.value)}
                   className="form-select"
+                  style={{ background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                 >
                   {paymentCodeOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>
@@ -331,7 +335,7 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
 
               {/* Field 2: Nama Metode Pembayaran */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   2. Nama Metode Pembayaran *
                 </label>
                 <input
@@ -342,12 +346,13 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                   onChange={e => setName(e.target.value)}
                   className="form-input"
                   autoFocus
+                  style={{ background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                 />
               </div>
 
               {/* Field 3: Status */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   3. Status Pembayaran
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -358,9 +363,9 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Aktif' ? '#10b981' : '#334155',
-                      background: status === 'Aktif' ? 'rgba(16, 185, 129, 0.2)' : '#0f172a',
-                      color: status === 'Aktif' ? '#34d399' : '#94a3b8',
+                      borderColor: status === 'Aktif' ? T.success : T.border,
+                      background: status === 'Aktif' ? T.successBg : T.inputBg,
+                      color: status === 'Aktif' ? T.success : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'
@@ -375,9 +380,9 @@ export default function PaymentMethodManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Inaktif' ? '#f43f5e' : '#334155',
-                      background: status === 'Inaktif' ? 'rgba(244, 63, 94, 0.2)' : '#0f172a',
-                      color: status === 'Inaktif' ? '#fb7185' : '#94a3b8',
+                      borderColor: status === 'Inaktif' ? T.danger : T.border,
+                      background: status === 'Inaktif' ? T.dangerBg : T.inputBg,
+                      color: status === 'Inaktif' ? T.danger : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'

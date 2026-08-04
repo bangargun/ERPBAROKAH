@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getThemePalette } from '../../utils/themeUtils';
 import { 
   Award, 
   Star, 
@@ -17,7 +18,8 @@ import {
   Coins 
 } from 'lucide-react';
 
-export default function LoyaltyProgramPage({ masterData, setMasterData }) {
+export default function LoyaltyProgramPage({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [activeTab, setActiveTab] = useState('tiers');
 
   const customers = masterData?.customers || [];
@@ -240,25 +242,25 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Award size={28} color="#fbbf24" />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Award size={28} color={T.warning} />
             <span>Program Loyalitas Pelanggan (Loyalty &amp; Rewards)</span>
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Kelola tingkatan membership (New, Loyal, VIP), sistem poin belanja, benefit reward, dan katalog penukaran voucher
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setActiveTab('tiers')} className={activeTab === 'tiers' ? 'btn-primary' : 'btn-secondary'}>
+          <button onClick={() => setActiveTab('tiers')} style={{ background: activeTab === 'tiers' ? T.tabActiveBg : T.tabInactiveBg, color: activeTab === 'tiers' ? T.tabActiveColor : T.tabInactiveColor, border: `1px solid ${T.tabBorder}` }} className={activeTab === 'tiers' ? 'btn-primary' : 'btn-secondary'}>
             <Star size={16} />
             <span>Tingkatan Membership</span>
           </button>
-          <button onClick={() => setActiveTab('rewards')} className={activeTab === 'rewards' ? 'btn-primary' : 'btn-secondary'}>
+          <button onClick={() => setActiveTab('rewards')} style={{ background: activeTab === 'rewards' ? T.tabActiveBg : T.tabInactiveBg, color: activeTab === 'rewards' ? T.tabActiveColor : T.tabInactiveColor, border: `1px solid ${T.tabBorder}` }} className={activeTab === 'rewards' ? 'btn-primary' : 'btn-secondary'}>
             <Gift size={16} />
             <span>Katalog Hadiah</span>
           </button>
@@ -267,51 +269,51 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
 
       {/* Overview Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '600' }}>Total Member Terdaftar</div>
-          <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#818cf8', marginTop: '8px' }}>{customers.length} Member</div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Member aktif di database</div>
+        <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderColor: T.border }}>
+          <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '600' }}>Total Member Terdaftar</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: '900', color: T.accentGreen, marginTop: '8px' }}>{customers.length} Member</div>
+          <div style={{ fontSize: '0.75rem', color: T.txtMuted, marginTop: '4px' }}>Member aktif di database</div>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px', position: 'relative' }}>
+        <div className="glass-card" style={{ padding: '20px', position: 'relative', background: T.cardBg, borderColor: T.border }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '600' }}>Rasio Perolehan Poin</div>
+            <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '600' }}>Rasio Perolehan Poin</div>
             <button
               type="button"
               onClick={() => {
                 setRatioInput(pointRatio);
                 setShowRatioModal(true);
               }}
-              style={{ padding: '3px 8px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', borderRadius: '6px', fontSize: '0.70rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ padding: '3px 8px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, color: T.info, borderRadius: '6px', fontSize: '0.70rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               <Edit3 size={12} />
               <span>Edit Rasio</span>
             </button>
           </div>
-          <div style={{ fontSize: '1.3rem', fontWeight: '900', color: '#38bdf8', marginTop: '8px' }}>
+          <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.info, marginTop: '8px' }}>
             {formatRupiah(pointRatio)} = 1 Poin
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '700', marginTop: '4px' }}>
+          <div style={{ fontSize: '0.75rem', color: T.success, fontWeight: '700', marginTop: '4px' }}>
             ● berlaku kelipatan (otomatis dari kasir POS)
           </div>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '600' }}>Nilai Pembayaran Poin</div>
-          <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#fbbf24', marginTop: '8px' }}>
+        <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderColor: T.border }}>
+          <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '600' }}>Nilai Pembayaran Poin</div>
+          <div style={{ fontSize: '1.4rem', fontWeight: '900', color: T.warning, marginTop: '8px' }}>
             1 Poin = Rp 1.000 Menu
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '700', marginTop: '4px' }}>
+          <div style={{ fontSize: '0.75rem', color: T.info, fontWeight: '700', marginTop: '4px' }}>
             ● Setiap Rp 1.000 menu senilai 1 Poin
           </div>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '600' }}>Pelanggan VIP Level</div>
-          <div style={{ fontSize: '1.8rem', fontWeight: '900', color: '#fbbf24', marginTop: '8px' }}>
+        <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderColor: T.border }}>
+          <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '600' }}>Pelanggan VIP Level</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: '900', color: T.warning, marginTop: '8px' }}>
             {customers.filter(c => (c.total_spend || 0) >= 5000000).length} VIP Member
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Total belanja diatas Rp 5 Juta</div>
+          <div style={{ fontSize: '0.75rem', color: T.txtMuted, marginTop: '4px' }}>Total belanja diatas Rp 5 Juta</div>
         </div>
       </div>
 
@@ -319,48 +321,48 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
       {activeTab === 'tiers' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
               Ketentuan &amp; Benefit Tier Membership Pelanggan
             </h3>
-            <button onClick={handleOpenAddTierModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.80rem' }}>
+            <button onClick={handleOpenAddTierModal} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.80rem', background: T.primaryBtn, color: T.navActiveTxt }}>
               <Plus size={16} />
               <span>+ Tambah Tier Baru</span>
             </button>
           </div>
 
           {tiersList.length === 0 ? (
-            <div className="glass-card" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-              <Star size={40} color="#64748b" style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
-              <div style={{ fontSize: '1rem', fontWeight: '700', color: '#cbd5e1' }}>Belum Ada Tier Membership Terdaftar</div>
+            <div className="glass-card" style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, background: T.cardBg, borderColor: T.border }}>
+              <Star size={40} color={T.txtMuted} style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
+              <div style={{ fontSize: '1rem', fontWeight: '700', color: T.txtPrimary }}>Belum Ada Tier Membership Terdaftar</div>
               <div style={{ fontSize: '0.8rem', marginTop: '4px' }}>Silakan klik tombol "+ Tambah Tier Baru" di atas untuk menambahkan tingkatan membership.</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
               {tiersList.map((tier) => (
-                <div key={tier.id} className="glass-card" style={{ padding: '24px', position: 'relative', overflow: 'hidden', borderTop: `4px solid ${tier.badgeColor}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div key={tier.id} className="glass-card" style={{ padding: '24px', position: 'relative', overflow: 'hidden', borderTop: `4px solid ${tier.badgeColor}`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: T.cardBg, borderColor: T.border }}>
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Award size={22} color={tier.badgeColor} />
-                        <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>{tier.name}</h4>
+                        <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>{tier.name}</h4>
                       </div>
-                      <span style={{ background: '#0f172a', color: tier.badgeColor, border: `1px solid ${tier.badgeColor}`, padding: '3px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '800' }}>
+                      <span style={{ background: T.cardBg2, color: tier.badgeColor, border: `1px solid ${tier.badgeColor}`, padding: '3px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '800' }}>
                         {tier.multiplier}
                       </span>
                     </div>
 
-                    <div style={{ marginTop: '12px', padding: '10px 14px', background: '#0f172a', borderRadius: '8px', border: '1px solid #334155', fontSize: '0.82rem' }}>
-                      <span style={{ color: '#94a3b8' }}>Syarat Total Belanja: </span>
-                      <strong style={{ color: '#f8fafc' }}>{tier.spendThreshold}</strong>
+                    <div style={{ marginTop: '12px', padding: '10px 14px', background: T.cardBg2, borderRadius: '8px', border: `1px solid ${T.borderStrong}`, fontSize: '0.82rem' }}>
+                      <span style={{ color: T.txtSecondary }}>Syarat Total Belanja: </span>
+                      <strong style={{ color: T.txtPrimary }}>{tier.spendThreshold}</strong>
                     </div>
 
                     <div style={{ marginTop: '16px' }}>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase', marginBottom: '8px' }}>
                         Daftar Keuntungan &amp; Benefit:
                       </div>
                       <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {(tier.benefits || []).map((b, bIdx) => (
-                          <li key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.83rem', color: '#cbd5e1' }}>
+                          <li key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.83rem', color: T.txtPrimary }}>
                             <CheckCircle2 size={16} color={tier.badgeColor} />
                             <span>{b}</span>
                           </li>
@@ -370,19 +372,19 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                   </div>
 
                   {/* EDIT & DELETE TIER ACTIONS */}
-                  <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                     <button
                       type="button"
                       onClick={() => handleOpenEditTierModal(tier)}
-                      style={{ padding: '6px 12px', background: '#334155', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      style={{ padding: '6px 12px', background: T.controlBg, border: `1px solid ${T.border}`, color: T.txtPrimary, borderRadius: '6px', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
-                      <Edit3 size={14} color="#818cf8" />
+                      <Edit3 size={14} color={T.accentGreen} />
                       <span>Edit Tier</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteTier(tier.id, tier.name)}
-                      style={{ padding: '6px 10px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#f43f5e', borderRadius: '6px', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
+                      style={{ padding: '6px 10px', background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, color: T.danger, borderRadius: '6px', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -396,17 +398,17 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
 
       {/* 2. REWARD CATALOG */}
       {activeTab === 'rewards' && (
-        <div className="glass-card" style={{ padding: '24px' }}>
+        <div className="glass-card" style={{ padding: '24px', background: T.cardBg, borderColor: T.border }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
                 Katalog Hadiah &amp; Redeem Voucher
               </h3>
-              <p style={{ color: '#94a3b8', fontSize: '0.83rem', marginTop: '2px', margin: 0 }}>
+              <p style={{ color: T.txtSecondary, fontSize: '0.83rem', marginTop: '2px', margin: 0 }}>
                 Daftar voucher dan reward yang dapat ditukarkan member menggunakan poin belanja
               </p>
             </div>
-            <button onClick={handleOpenAddRewardModal} className="btn-primary">
+            <button onClick={handleOpenAddRewardModal} className="btn-primary" style={{ background: T.primaryBtn, color: T.navActiveTxt }}>
               <Plus size={16} />
               <span>+ Tambah Hadiah Baru</span>
             </button>
@@ -415,7 +417,7 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase' }}>
                   <th style={{ padding: '12px' }}>Nama Reward / Voucher</th>
                   <th style={{ padding: '12px' }}>Poin Dibutuhkan</th>
                   <th style={{ padding: '12px' }}>Khusus Tier</th>
@@ -426,30 +428,30 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
               <tbody>
                 {rewardCatalog.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '36px', color: T.txtMuted }}>
                       <Gift size={32} style={{ margin: '0 auto 8px auto', opacity: 0.4 }} />
                       <div>Belum ada hadiah / voucher reward terdaftar.</div>
                     </td>
                   </tr>
                 ) : (
                   rewardCatalog.map(item => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                      <td style={{ padding: '14px 12px', fontWeight: '800', color: '#f8fafc' }}>
+                    <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', color: T.txtPrimary }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Gift size={16} color="#fbbf24" />
+                          <Gift size={16} color={T.warning} />
                           <span>{item.title}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '14px 12px', fontWeight: '900', color: '#38bdf8', fontFamily: 'monospace' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '900', color: T.info, fontFamily: 'monospace' }}>
                         {item.points} Poin
                       </td>
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
-                        <span style={{ background: '#0f172a', padding: '3px 8px', borderRadius: '6px', border: '1px solid #334155', fontSize: '0.75rem' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtPrimary }}>
+                        <span style={{ background: T.cardBg2, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.borderStrong}`, fontSize: '0.75rem' }}>
                           ★ {item.tier}
                         </span>
                       </td>
                       <td style={{ padding: '14px 12px' }}>
-                        <span style={{ background: item.status === 'Aktif' ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)', color: item.status === 'Aktif' ? '#34d399' : '#fb7185', border: `1px solid ${item.status === 'Aktif' ? 'rgba(16,185,129,0.3)' : 'rgba(244,63,94,0.3)'}`, padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700' }}>
+                        <span style={{ background: item.status === 'Aktif' ? T.successBg : T.dangerBg, color: item.status === 'Aktif' ? T.success : T.danger, border: `1px solid ${item.status === 'Aktif' ? T.successBorder : T.dangerBorder}`, padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700' }}>
                           ● {item.status}
                         </span>
                       </td>
@@ -458,15 +460,15 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                           <button
                             type="button"
                             onClick={() => handleOpenEditRewardModal(item)}
-                            style={{ padding: '5px 10px', background: '#334155', border: '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            style={{ padding: '5px 10px', background: T.controlBg, border: `1px solid ${T.border}`, color: T.txtPrimary, borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.accentGreen} />
                             <span>Edit</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteReward(item.id, item.title)}
-                            style={{ padding: '5px 10px', background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(244, 63, 94, 0.3)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }}
+                            style={{ padding: '5px 10px', background: T.dangerBg, color: T.danger, border: `1px solid ${T.dangerBorder}`, borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }}
                           >
                             <Trash2 size={14} />
                           </button>
@@ -484,17 +486,17 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
       {/* MODAL 1: EDIT TIER MEMBERSHIP */}
       {showEditTierModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '26px', background: T.cardBg, borderColor: T.border }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
                 {tierForm.id ? 'Edit Tier Membership' : 'Tambah Tier Membership Baru'}
               </h3>
-              <button onClick={() => setShowEditTierModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+              <button onClick={() => setShowEditTierModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
             <form onSubmit={handleSaveTier} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Nama Tier Membership *</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Nama Tier Membership *</label>
                 <input
                   type="text"
                   required
@@ -502,12 +504,13 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                   onChange={e => setTierForm({ ...tierForm, name: e.target.value })}
                   placeholder="Contoh: Customer VIP, Customer Loyal"
                   className="form-input"
+                  style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Syarat Total Belanja *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Syarat Total Belanja *</label>
                   <input
                     type="text"
                     required
@@ -515,11 +518,12 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                     onChange={e => setTierForm({ ...tierForm, spendThreshold: e.target.value })}
                     placeholder="Contoh: Diatas Rp 5.000.000"
                     className="form-input"
+                    style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Multiplier Poin *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Multiplier Poin *</label>
                   <input
                     type="text"
                     required
@@ -527,12 +531,13 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                     onChange={e => setTierForm({ ...tierForm, multiplier: e.target.value })}
                     placeholder="Contoh: 2x Poin Double Bonus"
                     className="form-input"
+                    style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                   />
                 </div>
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Warna Badge Tier</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Warna Badge Tier</label>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   {['#38bdf8', '#34d399', '#fbbf24', '#a855f7', '#f43f5e'].map(col => (
                     <button
@@ -549,11 +554,11 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '600' }}>Daftar Keuntungan / Benefit:</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '600' }}>Daftar Keuntungan / Benefit:</label>
                   <button
                     type="button"
                     onClick={() => setTierForm({ ...tierForm, benefits: [...tierForm.benefits, ''] })}
-                    style={{ padding: '3px 8px', background: 'rgba(52,211,153,0.15)', border: '1px solid #34d399', color: '#34d399', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                    style={{ padding: '3px 8px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
                   >
                     + Tambah Benefit
                   </button>
@@ -572,7 +577,7 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                         }}
                         placeholder={`Benefit ${bIdx + 1}...`}
                         className="form-input"
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                       />
                       {tierForm.benefits.length > 1 && (
                         <button
@@ -581,7 +586,7 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                             const updated = tierForm.benefits.filter((_, idx) => idx !== bIdx);
                             setTierForm({ ...tierForm, benefits: updated });
                           }}
-                          style={{ padding: '6px', background: 'rgba(244,63,94,0.15)', border: '1px solid rgba(244,63,94,0.3)', color: '#f43f5e', borderRadius: '6px', cursor: 'pointer' }}
+                          style={{ padding: '6px', background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, color: T.danger, borderRadius: '6px', cursor: 'pointer' }}
                         >
                           <X size={14} />
                         </button>
@@ -603,17 +608,17 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
       {/* MODAL 2: TAMBAH / EDIT HADIAH KATALOG */}
       {showRewardModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: T.cardBg, borderColor: T.border }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
                 {rewardForm.id ? 'Edit Item Reward / Voucher' : 'Tambah Hadiah Reward Baru'}
               </h3>
-              <button onClick={() => setShowRewardModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+              <button onClick={() => setShowRewardModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
             <form onSubmit={handleSaveReward} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Nama Reward / Voucher *</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Nama Reward / Voucher *</label>
                 <input
                   type="text"
                   required
@@ -621,11 +626,12 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                   onChange={e => setRewardForm({ ...rewardForm, title: e.target.value })}
                   placeholder="Contoh: Voucher Diskon Rp 50.000"
                   className="form-input"
+                  style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Poin Dibutuhkan *</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Poin Dibutuhkan *</label>
                 <input
                   type="number"
                   required
@@ -634,17 +640,18 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                   onChange={e => setRewardForm({ ...rewardForm, points: e.target.value })}
                   placeholder="Contoh: 10"
                   className="form-input"
+                  style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Khusus Tier</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Khusus Tier</label>
                   <select
                     value={rewardForm.tier}
                     onChange={e => setRewardForm({ ...rewardForm, tier: e.target.value })}
                     className="form-input"
-                    style={{ background: '#0f172a', color: '#ffffff' }}
+                    style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                   >
                     <option value="Semua Tier">Semua Tier</option>
                     {tiersList.map(t => (
@@ -654,12 +661,12 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>Status</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>Status</label>
                   <select
                     value={rewardForm.status}
                     onChange={e => setRewardForm({ ...rewardForm, status: e.target.value })}
                     className="form-input"
-                    style={{ background: '#0f172a', color: '#ffffff' }}
+                    style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                   >
                     <option value="Aktif">Aktif</option>
                     <option value="Inaktif">Inaktif</option>
@@ -679,17 +686,17 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
       {/* MODAL 3: EDIT RASIO PEROLEHAN POIN */}
       {showRatioModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '26px', background: T.cardBg, borderColor: T.border }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
                 Edit Rasio Perolehan Poin
               </h3>
-              <button onClick={() => setShowRatioModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+              <button onClick={() => setShowRatioModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
             <form onSubmit={handleSaveRatio} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '600' }}>
                   Nominal Belanja untuk 1 Poin (Rp) *
                 </label>
                 <input
@@ -701,9 +708,9 @@ export default function LoyaltyProgramPage({ masterData, setMasterData }) {
                   onChange={e => setRatioInput(e.target.value)}
                   placeholder="Contoh: 100000"
                   className="form-input"
-                  style={{ fontSize: '1.1rem', fontWeight: '900', color: '#38bdf8' }}
+                  style={{ background: T.inputBg, border: `1px solid ${T.border}`, fontSize: '1.1rem', fontWeight: '900', color: T.info }}
                 />
-                <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                <span style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', display: 'block' }}>
                   Setiap belanja kelipatan nominal di atas, pelanggan akan otomatis memperoleh 1 Poin.
                 </span>
               </div>

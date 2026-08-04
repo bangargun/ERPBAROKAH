@@ -64,6 +64,12 @@ export default function App() {
     return 'dark';
   });
 
+  // Apply data-theme attribute to root element so CSS variables cascade globally to ALL components
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', themeMode);
+    document.body.setAttribute('data-theme', themeMode);
+  }, [themeMode]);
+
   const setThemeMode = (mode) => {
     setThemeModeState(mode);
     try { localStorage.setItem('mris_web_theme', mode); } catch (e) {}
@@ -364,9 +370,11 @@ export default function App() {
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
         masterData={masterData}
+        themeMode={themeMode}
       />
     );
   }
+
 
   // 4. Web Admin Dashboard Desktop View
   const TAB_PERM_MAP = {
@@ -405,12 +413,12 @@ export default function App() {
       setThemeMode={setThemeMode}
     >
       {!isCurrentTabAllowed ? (
-        <div style={{ padding: '60px 24px', textAlign: 'center', color: '#f8fafc', background: '#111625', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', margin: '24px' }}>
+        <div style={{ padding: '60px 24px', textAlign: 'center', color: themeMode === 'warm_minimalist' ? '#2d2d2d' : '#f8fafc', background: themeMode === 'warm_minimalist' ? '#f9f6f1' : '#111625', borderRadius: '16px', border: `1px solid rgba(239, 68, 68, 0.2)`, margin: '24px' }}>
           <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
             <Lock size={32} color="#ef4444" />
           </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px', color: '#f8fafc' }}>Akses Ditolak / Dibatasi</h2>
-          <p style={{ fontSize: '0.88rem', color: '#94a3b8', maxWidth: '520px', margin: '0 auto 20px auto', lineHeight: '1.5' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '8px' }}>Akses Ditolak / Dibatasi</h2>
+          <p style={{ fontSize: '0.88rem', color: themeMode === 'warm_minimalist' ? '#6b5e4e' : '#94a3b8', maxWidth: '520px', margin: '0 auto 20px auto', lineHeight: '1.5' }}>
             Peran Anda (<strong>{userSession?.role || 'Pengguna'}</strong>) tidak memiliki wewenang untuk membuka modul halaman ini. Silakan hubungi Super Admin untuk penyesuaian hak akses pada Matriks Peran.
           </p>
         </div>
@@ -424,6 +432,7 @@ export default function App() {
               outlets={masterData.outlets}
               selectedBranch={selectedBranch}
               masterData={masterData}
+              themeMode={themeMode}
             />
           )}
 
@@ -432,6 +441,7 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
 
@@ -440,6 +450,7 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
 
@@ -448,6 +459,7 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
 
@@ -456,6 +468,7 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
 
@@ -463,6 +476,7 @@ export default function App() {
             <FinancialReportsFull
               masterData={masterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
 
@@ -470,6 +484,7 @@ export default function App() {
             <PrinterThermalSettingsPage
               masterData={masterData}
               setMasterData={updateMasterData}
+              themeMode={themeMode}
             />
           )}
 
@@ -478,6 +493,7 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
 
@@ -485,6 +501,7 @@ export default function App() {
             <LoyaltyProgramPage
               masterData={masterData}
               setMasterData={updateMasterData}
+              themeMode={themeMode}
             />
           )}
 
@@ -492,6 +509,7 @@ export default function App() {
             <UserRightsSettings
               masterData={masterData}
               setMasterData={updateMasterData}
+              themeMode={themeMode}
             />
           )}
 
@@ -500,6 +518,7 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
         </>
@@ -507,3 +526,5 @@ export default function App() {
     </AdminLayout>
   );
 }
+
+

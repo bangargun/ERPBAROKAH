@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Printer, Save, CheckCircle, Wifi, Bluetooth, RefreshCw, Layers, ShieldCheck } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function PrinterThermalSettingsPage({ masterData, setMasterData }) {
+export default function PrinterThermalSettingsPage({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [printerSettings, setPrinterSettings] = useState(() => {
     return masterData?.printerSettings || {
       kitchenPrinter: { ip: '192.168.1.200', paperWidth: '80', enabled: true },
@@ -65,16 +67,16 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
   };
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', color: '#f8fafc' }}>
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', color: T.txtPrimary, background: T.pageBg, minHeight: '100vh' }}>
       
       {/* HEADER PAGE */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Printer size={28} color="#38bdf8" />
+          <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Printer size={28} color={T.info} />
             <span>Pengaturan Printer &amp; Thermal Output POS Kasir</span>
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '4px' }}>
             Kelola printer dapur, printer bar, printer kasir, routing kategori menu, dan mode cetak otomatis.
           </p>
         </div>
@@ -82,7 +84,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         <button
           onClick={handleSaveSettings}
           className="btn-primary"
-          style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', borderRadius: '12px', fontWeight: '900', cursor: 'pointer' }}
+          style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', background: T.primaryBtn, borderRadius: '12px', fontWeight: '900', cursor: 'pointer', color: '#ffffff', border: 'none', boxShadow: `0 4px 14px ${T.primaryBtnShadow}` }}
         >
           <Save size={18} />
           <span>Simpan Pengaturan</span>
@@ -90,8 +92,8 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
       </div>
 
       {savedSuccessToast && (
-        <div style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22c55e', color: '#86efac', padding: '12px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <CheckCircle size={20} color="#22c55e" />
+        <div style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, padding: '12px 16px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CheckCircle size={20} color={T.success} />
           <span>Pengaturan Printer Thermal Berhasil Disimpan &amp; Disinkronkan ke POS Kasir Mobile!</span>
         </div>
       )}
@@ -100,33 +102,33 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         
         {/* 🍳 PRINTER DAPUR (KITCHEN) */}
-        <div className="glass-card" style={{ padding: '20px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               🍳 Printer Dapur (Kitchen)
             </h3>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
+            <span style={{ fontSize: '0.72rem', background: T.infoBg, color: T.info, padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Struk Kerja Koki
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Alamat IP / Nama Bluetooth Printer:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Alamat IP / Nama Bluetooth Printer:</label>
             <input
               type="text"
               value={printerSettings.kitchenPrinter?.ip || ''}
               onChange={e => setPrinterSettings({ ...printerSettings, kitchenPrinter: { ...printerSettings.kitchenPrinter, ip: e.target.value } })}
               placeholder="Contoh: 192.168.1.200 atau RPP02N"
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Ukuran Kertas Thermal:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Ukuran Kertas Thermal:</label>
             <select
               value={printerSettings.kitchenPrinter?.paperWidth || '80'}
               onChange={e => setPrinterSettings({ ...printerSettings, kitchenPrinter: { ...printerSettings.kitchenPrinter, paperWidth: e.target.value } })}
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
             >
               <option value="58">58mm (Kecil - 32 Karakter)</option>
               <option value="80">80mm (Besar - 48 Karakter)</option>
@@ -135,33 +137,33 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         </div>
 
         {/* 🍹 PRINTER BAR (MINUMAN) */}
-        <div className="glass-card" style={{ padding: '20px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               🍹 Printer Bar (Minuman)
             </h3>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
+            <span style={{ fontSize: '0.72rem', background: T.infoBg, color: T.info, padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Struk Bartender
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Alamat IP / Nama Bluetooth Printer:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Alamat IP / Nama Bluetooth Printer:</label>
             <input
               type="text"
               value={printerSettings.barPrinter?.ip || ''}
               onChange={e => setPrinterSettings({ ...printerSettings, barPrinter: { ...printerSettings.barPrinter, ip: e.target.value } })}
               placeholder="Contoh: 192.168.1.201 atau BT-BAR"
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Ukuran Kertas Thermal:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Ukuran Kertas Thermal:</label>
             <select
               value={printerSettings.barPrinter?.paperWidth || '58'}
               onChange={e => setPrinterSettings({ ...printerSettings, barPrinter: { ...printerSettings.barPrinter, paperWidth: e.target.value } })}
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
             >
               <option value="58">58mm (Kecil - 32 Karakter)</option>
               <option value="80">80mm (Besar - 48 Karakter)</option>
@@ -170,33 +172,33 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
         </div>
 
         {/* 🧾 PRINTER KASIR (RECEIPT & BILL) */}
-        <div className="glass-card" style={{ padding: '20px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               🧾 Printer Kasir (Nota Pembayaran)
             </h3>
-            <span style={{ fontSize: '0.72rem', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
+            <span style={{ fontSize: '0.72rem', background: T.infoBg, color: T.info, padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Nota Pelanggan
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Alamat IP / Nama Bluetooth Printer:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Alamat IP / Nama Bluetooth Printer:</label>
             <input
               type="text"
               value={printerSettings.cashierPrinter?.ip || ''}
               onChange={e => setPrinterSettings({ ...printerSettings, cashierPrinter: { ...printerSettings.cashierPrinter, ip: e.target.value } })}
               placeholder="Contoh: 192.168.1.202 atau Thermal_Printer_Kasir"
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Ukuran Kertas Thermal:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Ukuran Kertas Thermal:</label>
             <select
               value={printerSettings.cashierPrinter?.paperWidth || '58'}
               onChange={e => setPrinterSettings({ ...printerSettings, cashierPrinter: { ...printerSettings.cashierPrinter, paperWidth: e.target.value } })}
-              style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.85rem' }}
+              style={{ padding: '10px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
             >
               <option value="58">58mm (Kecil - 32 Karakter)</option>
               <option value="80">80mm (Besar - 48 Karakter)</option>
@@ -207,46 +209,46 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
       </div>
 
       {/* CATEGORY PRINTER TARGET ALLOCATION TABLE */}
-      <div className="glass-card" style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="glass-card" style={{ padding: '24px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Layers size={22} color="#a855f7" />
-          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+          <Layers size={22} color={T.accentGold} />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
             Routing Target Printer per Kategori Menu
           </h3>
         </div>
-        <p style={{ fontSize: '0.80rem', color: '#94a3b8', margin: 0 }}>
+        <p style={{ fontSize: '0.80rem', color: T.txtSecondary, margin: 0 }}>
           Atur ke printer mana pesanan item pada kategori menu berikut akan otomatis dikirim (Dapur / Bar / Keduanya).
         </p>
 
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', background: T.tableBg }}>
             <thead>
-              <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155', textAlign: 'left' }}>
-                <th style={{ padding: '12px', color: '#94a3b8' }}>Kategori Menu</th>
-                <th style={{ padding: '12px', color: '#94a3b8' }}>Target Printer Output</th>
-                <th style={{ padding: '12px', color: '#94a3b8' }}>Keterangan Struk</th>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, textAlign: 'left' }}>
+                <th style={{ padding: '12px', color: T.txtSecondary }}>Kategori Menu</th>
+                <th style={{ padding: '12px', color: T.txtSecondary }}>Target Printer Output</th>
+                <th style={{ padding: '12px', color: T.txtSecondary }}>Keterangan Struk</th>
               </tr>
             </thead>
             <tbody>
               {categories.map(cat => {
                 const target = cat.target_printer || cat.printer_type || 'dapur';
                 return (
-                  <tr key={cat.id} style={{ borderBottom: '1px solid #334155' }}>
-                    <td style={{ padding: '12px', fontWeight: '800', color: '#ffffff' }}>
+                  <tr key={cat.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                    <td style={{ padding: '12px', fontWeight: '800', color: T.txtPrimary }}>
                       {cat.name}
                     </td>
                     <td style={{ padding: '12px' }}>
                       <select
                         value={target}
                         onChange={e => handleUpdateCategoryPrinter(cat.id, e.target.value)}
-                        style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #38bdf8', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', cursor: 'pointer' }}
+                        style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', cursor: 'pointer' }}
                       >
                         <option value="dapur">🍳 Printer Dapur (Kitchen)</option>
                         <option value="bar">🍹 Printer Bar (Beverages)</option>
                         <option value="keduanya">🔄 Dapur &amp; Bar (Keduanya)</option>
                       </select>
                     </td>
-                    <td style={{ padding: '12px', color: '#94a3b8', fontSize: '0.78rem' }}>
+                    <td style={{ padding: '12px', color: T.txtMuted, fontSize: '0.78rem' }}>
                       {target === 'dapur' && 'Item makanan akan dicetak di Printer Dapur tanpa harga.'}
                       {target === 'bar' && 'Item minuman akan dicetak di Printer Bar tanpa harga.'}
                       {target === 'keduanya' && 'Item akan dicetak di Dapur dan Bar sekaligus.'}
@@ -260,20 +262,20 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
       </div>
 
       {/* ✍️ EDIT HEADER & FOOTER STRUK THERMAL */}
-      <div className="glass-card" style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="glass-card" style={{ padding: '24px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span>✍️ Pengaturan Header &amp; Footer Struk Restoran</span>
             </h3>
-            <p style={{ fontSize: '0.80rem', color: '#94a3b8', margin: 0 }}>
+            <p style={{ fontSize: '0.80rem', color: T.txtSecondary, margin: 0 }}>
               Kustomisasi tulisan nama restoran, alamat, telepon, ucapan terima kasih, dan info WiFi pada cetakan struk thermal.
             </p>
           </div>
 
           <button
             onClick={handleSaveSettings}
-            style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ padding: '8px 16px', background: T.primaryBtn, border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: `0 2px 8px ${T.primaryBtnShadow}` }}
           >
             <Save size={16} />
             <span>Simpan Header/Footer</span>
@@ -282,99 +284,99 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           {/* HEADER INPUTS */}
-          <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8' }}>📌 Header Struk (Bagian Atas)</div>
+          <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.info }}>📌 Header Struk (Bagian Atas)</div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Nama Restoran (Judul Utama):</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Nama Restoran (Judul Utama):</label>
               <input
                 type="text"
                 value={headerFooter.restaurantName}
                 onChange={e => setHeaderFooter({ ...headerFooter, restaurantName: e.target.value })}
                 placeholder="MRIS RESTORAN"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Nama Perusahaan / Group:</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Nama Perusahaan / Group:</label>
               <input
                 type="text"
                 value={headerFooter.groupName}
                 onChange={e => setHeaderFooter({ ...headerFooter, groupName: e.target.value })}
                 placeholder="BAROKAH GROUP INDONESIA"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Alamat Lengkap Restoran:</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Alamat Lengkap Restoran:</label>
               <input
                 type="text"
                 value={headerFooter.address}
                 onChange={e => setHeaderFooter({ ...headerFooter, address: e.target.value })}
                 placeholder="Jl. Pemuda No. 88, Surabaya"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>No. Telepon / Hotline:</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>No. Telepon / Hotline:</label>
               <input
                 type="text"
                 value={headerFooter.phone}
                 onChange={e => setHeaderFooter({ ...headerFooter, phone: e.target.value })}
                 placeholder="(031) 555-8899"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
           </div>
 
           {/* FOOTER INPUTS */}
-          <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#4ade80' }}>📌 Footer Struk (Bagian Bawah)</div>
+          <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.success }}>📌 Footer Struk (Bagian Bawah)</div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Pesan Ucapan Baris 1:</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Pesan Ucapan Baris 1:</label>
               <input
                 type="text"
                 value={headerFooter.footerLine1}
                 onChange={e => setHeaderFooter({ ...headerFooter, footerLine1: e.target.value })}
                 placeholder="TERIMA KASIH ATAS KUNJUNGAN ANDA"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Pesan Ucapan Baris 2:</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Pesan Ucapan Baris 2:</label>
               <input
                 type="text"
                 value={headerFooter.footerLine2}
                 onChange={e => setHeaderFooter({ ...headerFooter, footerLine2: e.target.value })}
                 placeholder="SUDAH TERMASUK PB1 PAJAK RESTORAN"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Nama SSID WiFi Restoran:</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Nama SSID WiFi Restoran:</label>
               <input
                 type="text"
                 value={headerFooter.wifiSsid}
                 onChange={e => setHeaderFooter({ ...headerFooter, wifiSsid: e.target.value })}
                 placeholder="BarokahResto_5G"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700' }}>Password WiFi Restoran:</label>
+              <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Password WiFi Restoran:</label>
               <input
                 type="text"
                 value={headerFooter.wifiPassword}
                 onChange={e => setHeaderFooter({ ...headerFooter, wifiPassword: e.target.value })}
                 placeholder="berkahselalu"
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.82rem' }}
+                style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
             </div>
           </div>
@@ -382,13 +384,14 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData }
       </div>
 
       {/* 🖨️ PRATINJAU REAL-TIME THERMAL RECEIPT OUTPUT */}
-      <ThermalReceiptPreviewSection printerSettings={printerSettings} headerFooter={headerFooter} />
+      <ThermalReceiptPreviewSection printerSettings={printerSettings} headerFooter={headerFooter} themeMode={themeMode} />
 
     </div>
   );
 }
 
-function ThermalReceiptPreviewSection({ printerSettings, headerFooter }) {
+function ThermalReceiptPreviewSection({ printerSettings, headerFooter, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [receiptType, setReceiptType] = useState('cashier'); // 'cashier' | 'kitchen' | 'bar'
   const [paperWidth, setPaperWidth] = useState('58'); // '58' | '80'
   const [printingToast, setPrintingToast] = useState(false);
@@ -403,16 +406,16 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter }) {
   const fontSz = is58mm ? '0.78rem' : '0.86rem';
 
   return (
-    <div className="glass-card" style={{ padding: '24px', background: '#1e293b', borderRadius: '16px', border: '1.5px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="glass-card" style={{ padding: '24px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* HEADER PREVIEW */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
         <div>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#38bdf8', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Printer size={22} color="#38bdf8" />
+          <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.info, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Printer size={22} color={T.info} />
             <span>Contoh Output Struk Thermal POS Kasir (Real-Time Preview)</span>
           </h3>
-          <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+          <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: 0 }}>
             Simulasi fisik tampilan struk thermal 58mm &amp; 80mm yang akan dicetak oleh printer kasir, dapur, dan bar.
           </p>
         </div>
@@ -420,11 +423,11 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter }) {
         {/* CONTROLS */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700' }}>Tipe Struk:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtLabel, fontWeight: '700' }}>Tipe Struk:</label>
             <select
               value={receiptType}
               onChange={e => setReceiptType(e.target.value)}
-              style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #38bdf8', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+              style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
             >
               <option value="cashier">🧾 Struk Pembayaran Kasir (Nota Pelanggan)</option>
               <option value="kitchen">🍳 Struk Kerja Dapur (Kitchen Ticket)</option>
@@ -433,11 +436,11 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700' }}>Lebar Kertas:</label>
+            <label style={{ fontSize: '0.78rem', color: T.txtLabel, fontWeight: '700' }}>Lebar Kertas:</label>
             <select
               value={paperWidth}
               onChange={e => setPaperWidth(e.target.value)}
-              style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '8px', color: '#34d399', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+              style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
             >
               <option value="58">58mm (Kecil - 32 Karakter)</option>
               <option value="80">80mm (Besar - 48 Karakter)</option>
@@ -446,7 +449,7 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter }) {
 
           <button
             onClick={handleSimulatePrint}
-            style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '8px', color: '#0f172a', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(56, 189, 248, 0.3)' }}
+            style={{ padding: '8px 16px', background: T.primaryBtn, border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: `0 4px 12px ${T.primaryBtnShadow}` }}
           >
             <Printer size={16} />
             <span>🖨️ Cetak Struk Contoh</span>
@@ -455,14 +458,14 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter }) {
       </div>
 
       {printingToast && (
-        <div style={{ background: 'rgba(56,189,248,0.2)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '10px 16px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ background: T.infoBg, border: `1px solid ${T.infoBorder}`, color: T.info, padding: '10px 16px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <RefreshCw size={16} className="animate-spin" />
           <span>Mengirim perintah cetak contoh struk thermal ke printer (Port 9100 / ESC POS Bluetooth)...</span>
         </div>
       )}
 
       {/* PHYSICAL RECEIPT CONTAINER (PAPER SIMULATION) */}
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0', background: '#0f172a', borderRadius: '14px', border: '1px solid #334155' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0', background: T.cardBg2, borderRadius: '14px', border: `1px solid ${T.border}` }}>
         
         {/* THERMAL PAPER ROLL MOCKUP */}
         <div style={{

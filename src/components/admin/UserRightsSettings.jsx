@@ -3,6 +3,7 @@ import {
   Users, Smartphone, Plus, Edit3, Trash2, X, Eye, EyeOff,
   RefreshCw, ShieldCheck, Save, Shield, RotateCcw, Check, Ban, Key
 } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
 const API = 'https://mris-api.barokahgroupindonesia.tech';
 
@@ -56,7 +57,8 @@ const EMPTY_MOBILE = {
   useCustomPermissions: false, permissions: { posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: true }
 };
 
-export default function UserRightsSettings({ masterData, setMasterData }) {
+export default function UserRightsSettings({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [activeTab, setActiveTab] = useState('mobile'); // 'mobile' | 'web' | 'matrix'
   const [matrixSubTab, setMatrixSubTab] = useState('web'); // 'web' | 'mobile'
   const [loading, setLoading] = useState(false);
@@ -296,10 +298,10 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
   const renderUserTable = (type, users) => {
     const isMobile = type === 'mobile';
     return (
-      <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+      <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${T.borderStrong}` }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem', background: T.tableBg }}>
           <thead>
-            <tr style={{ background: '#1e293b', color: '#94a3b8', fontWeight: '800', fontSize: '0.72rem', textTransform: 'uppercase' }}>
+            <tr style={{ background: T.tableHeaderBg, color: T.txtSecondary, fontWeight: '800', fontSize: '0.72rem', textTransform: 'uppercase' }}>
               <th style={{ padding: '10px 12px', textAlign: 'left' }}>Nama</th>
               <th style={{ padding: '10px 12px', textAlign: 'left' }}>Username</th>
               <th style={{ padding: '10px 12px', textAlign: 'left' }}>{isMobile ? 'Password Login' : 'Password'}</th>
@@ -313,37 +315,37 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: T.txtMuted }}>
                   Belum ada data. Klik tombol "Tambah" untuk menambahkan.
                 </td>
               </tr>
             ) : users.map(u => (
-              <tr key={u.id} style={{ borderTop: '1px solid #1e293b', color: '#f1f5f9' }}>
+              <tr key={u.id} style={{ borderTop: `1px solid ${T.border}`, color: T.txtPrimary }}>
                 <td style={{ padding: '10px 12px', fontWeight: '700' }}>{u.name}</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: '#38bdf8' }}>@{u.username}</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: '#34d399' }}>
+                <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: T.info }}>@{u.username}</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: T.success }}>
                   {isMobile ? (u.mobileLoginPassword || u.password || '—') : (u.password || '—')}
                 </td>
                 <td style={{ padding: '10px 12px' }}>
                   <span style={{
                     padding: '2px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
-                    background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)'
+                    background: T.accentGreenBg, color: T.accentGreen, border: `1px solid ${T.borderHover}`
                   }}>{u.role}</span>
                 </td>
-                <td style={{ padding: '10px 12px', color: '#cbd5e1', fontSize: '0.76rem' }}>
+                <td style={{ padding: '10px 12px', color: T.txtSecondary, fontSize: '0.76rem' }}>
                   {u.outlet || 'Semua Outlet'}
                 </td>
                 <td style={{ padding: '10px 8px', textAlign: 'center' }}>
                   {u.useCustomPermissions ? (
                     <span style={{
                       padding: '3px 8px', borderRadius: '12px', fontSize: '0.70rem', fontWeight: '800',
-                      background: 'rgba(250,204,21,0.15)', color: '#facc15', border: '1px solid rgba(250,204,21,0.3)',
+                      background: T.warningBg, color: T.warning, border: `1px solid ${T.warningBorder}`,
                       display: 'inline-flex', alignItems: 'center', gap: '4px'
                     }}>
                       <Key size={11} /> Custom User
                     </span>
                   ) : (
-                    <span style={{ color: '#64748b', fontSize: '0.72rem' }}>Ikuti Matriks Role</span>
+                    <span style={{ color: T.txtMuted, fontSize: '0.72rem' }}>Ikuti Matriks Role</span>
                   )}
                 </td>
                 <td style={{ padding: '10px 8px', textAlign: 'center' }}>
@@ -351,19 +353,19 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                       <button
                         onClick={() => handleDeleteUser(type, u)}
-                        style={{ padding: '3px 8px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                        style={{ padding: '3px 8px', background: T.danger, color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
                       >Hapus</button>
                       <button
                         onClick={() => setDeleteConfirmId(null)}
-                        style={{ padding: '3px 6px', background: '#334155', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer' }}
+                        style={{ padding: '3px 6px', background: T.controlBg, color: T.txtPrimary, border: 'none', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer' }}
                       >Batal</button>
                     </div>
                   ) : (
                     <span style={{
                       padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
-                      background: u.status === 'Aktif' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
-                      color: u.status === 'Aktif' ? '#34d399' : '#f87171',
-                      border: `1px solid ${u.status === 'Aktif' ? '#34d399' : '#f87171'}`
+                      background: u.status === 'Aktif' ? T.successBg : T.dangerBg,
+                      color: u.status === 'Aktif' ? T.success : T.danger,
+                      border: `1px solid ${u.status === 'Aktif' ? T.successBorder : T.dangerBorder}`
                     }}>
                       {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
                     </span>
@@ -374,14 +376,14 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                     <button
                       onClick={() => openEdit(type, u)}
                       title="Edit & Custom Permission"
-                      style={{ padding: '5px 8px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.76rem', fontWeight: '800' }}
+                      style={{ padding: '5px 8px', background: T.infoBg, color: T.info, border: `1px solid ${T.infoBorder}`, borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.76rem', fontWeight: '800' }}
                     >
                       <Edit3 size={12} /> Edit / Access
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(u.id)}
                       title="Hapus"
-                      style={{ padding: '5px 8px', background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.76rem', fontWeight: '800' }}
+                      style={{ padding: '5px 8px', background: T.dangerBg, color: T.danger, border: `1px solid ${T.dangerBorder}`, borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.76rem', fontWeight: '800' }}
                     >
                       <Trash2 size={12} /> Hapus
                     </button>
@@ -404,21 +406,21 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Top Controls */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '14px 18px', borderRadius: '12px', border: '1px solid #334155' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.cardBg, padding: '14px 18px', borderRadius: '12px', border: `1px solid ${T.borderStrong}` }}>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => setMatrixSubTab('web')} style={{
               padding: '7px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '0.80rem', cursor: 'pointer',
-              background: isWeb ? 'rgba(99,102,241,0.25)' : 'transparent',
-              color: isWeb ? '#818cf8' : '#94a3b8',
-              border: isWeb ? '1px solid #818cf8' : '1px solid transparent'
+              background: isWeb ? T.accentGreenBg : 'transparent',
+              color: isWeb ? T.accentGreen : T.txtSecondary,
+              border: isWeb ? `1px solid ${T.accentGreen}` : '1px solid transparent'
             }}>
               💻 Matriks Role Web Admin
             </button>
             <button onClick={() => setMatrixSubTab('mobile')} style={{
               padding: '7px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '0.80rem', cursor: 'pointer',
-              background: !isWeb ? 'rgba(52,211,153,0.25)' : 'transparent',
-              color: !isWeb ? '#34d399' : '#94a3b8',
-              border: !isWeb ? '1px solid #34d399' : '1px solid transparent'
+              background: !isWeb ? T.successBg : 'transparent',
+              color: !isWeb ? T.success : T.txtSecondary,
+              border: !isWeb ? `1px solid ${T.success}` : '1px solid transparent'
             }}>
               📱 Matriks Role POS Mobile APK
             </button>
@@ -426,12 +428,12 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={resetMatrixDefault} style={{
-              padding: '7px 14px', borderRadius: '8px', background: '#334155', color: '#cbd5e1', border: 'none', fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+              padding: '7px 14px', borderRadius: '8px', background: T.controlBg, color: T.txtPrimary, border: `1px solid ${T.border}`, fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
             }}>
               <RotateCcw size={13} /> Reset Default
             </button>
             <button onClick={handleSaveMatrix} disabled={saving} style={{
-              padding: '7px 18px', borderRadius: '8px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', border: 'none', fontSize: '0.78rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+              padding: '7px 18px', borderRadius: '8px', background: T.primaryBtn, color: '#fff', border: 'none', fontSize: '0.78rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
             }}>
               <Save size={13} /> {saving ? 'Menyimpan...' : 'Simpan Matriks Hak Akses'}
             </button>
@@ -439,23 +441,23 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
         </div>
 
         {/* Matrix Table Grid */}
-        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #334155' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+        <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${T.borderStrong}` }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem', background: T.tableBg }}>
             <thead>
-              <tr style={{ background: '#1e293b', color: '#94a3b8', fontWeight: '800', fontSize: '0.72rem', textTransform: 'uppercase' }}>
+              <tr style={{ background: T.tableHeaderBg, color: T.txtSecondary, fontWeight: '800', fontSize: '0.72rem', textTransform: 'uppercase' }}>
                 <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '180px' }}>PERAN / ROLE</th>
                 {columns.map(col => (
                   <th key={col.key} style={{ padding: '12px 10px', textAlign: 'center', minWidth: '130px' }}>{col.label}</th>
                 ))}
-                {!isWeb && <th style={{ padding: '12px 10px', textAlign: 'center', minWidth: '150px', color: '#38bdf8' }}>🔑 PASSWORD LAPORAN POS</th>}
+                {!isWeb && <th style={{ padding: '12px 10px', textAlign: 'center', minWidth: '150px', color: T.info }}>🔑 PASSWORD LAPORAN POS</th>}
               </tr>
             </thead>
             <tbody>
               {matrixData.map((row, idx) => (
-                <tr key={idx} style={{ borderTop: '1px solid #1e293b', color: '#f1f5f9' }}>
-                  <td style={{ padding: '14px', fontWeight: '800', background: '#0f172a' }}>
+                <tr key={idx} style={{ borderTop: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                  <td style={{ padding: '14px', fontWeight: '800', background: T.cardBg2 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Shield size={14} color={isWeb ? '#818cf8' : '#34d399'} />
+                      <Shield size={14} color={isWeb ? T.accentGreen : T.success} />
                       <span>{row.role}</span>
                     </div>
                   </td>
@@ -467,9 +469,9 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                           onClick={() => isWeb ? toggleWebMatrixPerm(row.role, col.key) : toggleMobileMatrixPerm(row.role, col.key)}
                           style={{
                             padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: '800', fontSize: '0.74rem',
-                            background: isAllowed ? 'rgba(52,211,153,0.18)' : 'rgba(248,113,113,0.18)',
-                            color: isAllowed ? '#34d399' : '#f87171',
-                            border: `1px solid ${isAllowed ? '#34d399' : '#f87171'}`,
+                            background: isAllowed ? T.successBg : T.dangerBg,
+                            color: isAllowed ? T.success : T.danger,
+                            border: `1px solid ${isAllowed ? T.successBorder : T.dangerBorder}`,
                             display: 'inline-flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s'
                           }}
                         >
@@ -493,10 +495,10 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                         style={{
                           width: '80px',
                           padding: '6px 8px',
-                          background: '#0f172a',
-                          border: '1px solid #38bdf8',
+                          background: T.inputBg,
+                          border: `1px solid ${T.borderStrong}`,
                           borderRadius: '8px',
-                          color: '#38bdf8',
+                          color: T.txtPrimary,
                           fontSize: '0.80rem',
                           fontWeight: '800',
                           textAlign: 'center'
@@ -525,16 +527,16 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
       }}>
         <div style={{
-          width: '100%', maxWidth: '640px', background: '#1e293b',
-          border: `1px solid ${isMobile ? 'rgba(52,211,153,0.3)' : 'rgba(99,102,241,0.3)'}`,
+          width: '100%', maxWidth: '640px', background: T.cardBg,
+          border: `1px solid ${isMobile ? T.successBorder : T.accentGreenBorder || T.borderStrong}`,
           borderRadius: '20px', padding: '24px', maxHeight: '92vh', overflowY: 'auto'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #334155' }}>
-            <h3 style={{ margin: 0, color: '#fff', fontWeight: '900', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {isMobile ? <Smartphone size={18} color="#34d399" /> : <ShieldCheck size={18} color="#818cf8" />}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: `1px solid ${T.borderStrong}` }}>
+            <h3 style={{ margin: 0, color: T.txtPrimary, fontWeight: '900', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isMobile ? <Smartphone size={18} color={T.success} /> : <ShieldCheck size={18} color={T.accentGreen} />}
               {editingId ? '✏️ Edit Akun & Custom Permission' : '➕ Tambah Akun'} {isMobile ? 'POS Mobile' : 'Web Admin'}
             </h3>
-            <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+            <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
               <X size={20} />
             </button>
           </div>
@@ -558,7 +560,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
               <div>
                 <label style={lbl}>Username:</label>
                 <input required value={form.username || ''} onChange={e => f('username', e.target.value)}
-                  placeholder="budi_kasir" style={{ ...inp, color: '#38bdf8', fontFamily: 'monospace' }} />
+                  placeholder="budi_kasir" style={{ ...inp, color: T.info, fontFamily: 'monospace' }} />
               </div>
               <div>
                 <label style={lbl}>{isMobile ? 'Password Login Mobile:' : 'Password Web:'}</label>
@@ -568,10 +570,10 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
                     value={isMobile ? (form.mobileLoginPassword || '') : (form.password || '')}
                     onChange={e => f(isMobile ? 'mobileLoginPassword' : 'password', e.target.value)}
                     placeholder="123"
-                    style={{ ...inp, color: '#34d399', fontFamily: 'monospace', paddingRight: '36px' }}
+                    style={{ ...inp, color: T.success, fontFamily: 'monospace', paddingRight: '36px' }}
                   />
                   <button type="button" onClick={() => setShowPwd(!showPwd)}
-                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                     {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
@@ -595,36 +597,36 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
             </div>
 
             {/* SEKSI HAK AKSES INDIVIDUAL USER (CUSTOM PERMISSIONS) */}
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(250,204,21,0.25)', marginTop: '6px' }}>
+            <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '14px', border: `1px solid ${T.warningBorder}`, marginTop: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '900', color: '#facc15' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '900', color: T.warning }}>
                   <input
                     type="checkbox"
                     checked={!!form.useCustomPermissions}
                     onChange={e => f('useCustomPermissions', e.target.checked)}
-                    style={{ width: '16px', height: '16px', accentColor: '#facc15' }}
+                    style={{ width: '16px', height: '16px', accentColor: T.warning }}
                   />
                   🔑 Aktifkan Hak Akses Khusus User Ini (Individual Override)
                 </label>
               </div>
 
               {form.useCustomPermissions && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', paddingTop: '8px', borderTop: '1px solid #1e293b' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', paddingTop: '8px', borderTop: `1px solid ${T.border}` }}>
                   {permFields.map(field => {
                     const isChecked = form.permissions?.[field.key] !== false;
                     return (
                       <label key={field.key} style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '8px 12px', borderRadius: '8px', background: '#1e293b',
-                        border: isChecked ? '1px solid rgba(52,211,153,0.4)' : '1px solid rgba(248,113,113,0.3)',
-                        cursor: 'pointer', fontSize: '0.78rem', color: '#f1f5f9', fontWeight: '700'
+                        padding: '8px 12px', borderRadius: '8px', background: T.controlBg,
+                        border: isChecked ? `1px solid ${T.successBorder}` : `1px solid ${T.dangerBorder}`,
+                        cursor: 'pointer', fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '700'
                       }}>
                         <span>{field.label}</span>
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleUserCustomPerm(field.key)}
-                          style={{ width: '15px', height: '15px', accentColor: '#10b981' }}
+                          style={{ width: '15px', height: '15px', accentColor: T.success }}
                         />
                       </label>
                     );
@@ -635,13 +637,13 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '8px' }}>
               <button type="button" onClick={() => setShowModal(false)}
-                style={{ padding: '10px 18px', background: '#334155', border: 'none', color: '#cbd5e1', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
+                style={{ padding: '10px 18px', background: T.controlBg, border: `1px solid ${T.border}`, color: T.txtPrimary, borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>
                 Batal
               </button>
               <button type="submit" disabled={saving}
                 style={{
                   padding: '10px 22px', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: saving ? 'not-allowed' : 'pointer',
-                  background: isMobile ? 'linear-gradient(135deg,#059669,#047857)' : 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+                  background: T.primaryBtn,
                   color: '#fff', display: 'flex', alignItems: 'center', gap: '6px', opacity: saving ? 0.7 : 1
                 }}>
                 <Save size={15} />
@@ -654,18 +656,18 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
     );
   };
 
-  const lbl = { fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '5px' };
-  const inp = { width: '100%', padding: '9px 13px', borderRadius: '9px', border: '1px solid #334155', background: '#0f172a', color: '#f1f5f9', fontSize: '0.87rem', boxSizing: 'border-box' };
+  const lbl = { fontSize: '0.80rem', fontWeight: '800', color: T.txtSecondary, display: 'block', marginBottom: '5px' };
+  const inp = { width: '100%', padding: '9px 13px', borderRadius: '9px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.87rem', boxSizing: 'border-box' };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1150px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '1150px', margin: '0 auto', background: T.pageBg, minHeight: '100vh' }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#f1f5f9', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Users size={22} color="#818cf8" />
+        <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Users size={22} color={T.accentGold} />
           Pengaturan Hak User &amp; Permission Matrix
         </h2>
-        <p style={{ color: '#64748b', fontSize: '0.83rem', margin: 0 }}>
+        <p style={{ color: T.txtSecondary, fontSize: '0.83rem', margin: 0 }}>
           Kelola akun pengguna Web Based Admin, POS Mobile, dan Matriks Hak Akses Peran / Individual User.
         </p>
       </div>
@@ -674,24 +676,24 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
         <button onClick={() => setActiveTab('mobile')} style={{
           padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
-          background: activeTab === 'mobile' ? 'linear-gradient(135deg,#059669,#047857)' : '#1e293b',
-          color: activeTab === 'mobile' ? '#fff' : '#64748b',
+          background: activeTab === 'mobile' ? T.tabActiveBg : T.tabInactiveBg,
+          color: activeTab === 'mobile' ? T.tabActiveColor : T.tabInactiveColor,
           display: 'flex', alignItems: 'center', gap: '7px'
         }}>
           <Smartphone size={15} /> POS Mobile Accounts
         </button>
         <button onClick={() => setActiveTab('web')} style={{
           padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
-          background: activeTab === 'web' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : '#1e293b',
-          color: activeTab === 'web' ? '#fff' : '#64748b',
+          background: activeTab === 'web' ? T.tabActiveBg : T.tabInactiveBg,
+          color: activeTab === 'web' ? T.tabActiveColor : T.tabInactiveColor,
           display: 'flex', alignItems: 'center', gap: '7px'
         }}>
           <ShieldCheck size={15} /> Web Admin Accounts
         </button>
         <button onClick={() => setActiveTab('matrix')} style={{
           padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
-          background: activeTab === 'matrix' ? 'linear-gradient(135deg,#d4af37,#b8963e)' : '#1e293b',
-          color: activeTab === 'matrix' ? '#1a0a2e' : '#64748b',
+          background: activeTab === 'matrix' ? T.tabActiveBg : T.tabInactiveBg,
+          color: activeTab === 'matrix' ? T.tabActiveColor : T.tabInactiveColor,
           display: 'flex', alignItems: 'center', gap: '7px'
         }}>
           <Shield size={15} /> Permission Matrix (Matriks Role)
@@ -699,7 +701,7 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
 
         <button onClick={handleRefresh} disabled={loading} style={{
           padding: '9px 14px', borderRadius: '10px', fontWeight: '700', fontSize: '0.84rem', cursor: 'pointer',
-          background: '#1e293b', color: '#94a3b8', border: '1px solid #334155',
+          background: T.controlBg, color: T.txtSecondary, border: `1px solid ${T.border}`,
           display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', opacity: loading ? 0.6 : 1
         }}>
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -712,15 +714,15 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div>
-              <h3 style={{ margin: 0, color: '#34d399', fontWeight: '800', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <h3 style={{ margin: 0, color: T.success, fontWeight: '800', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <Smartphone size={17} /> Hak User POS Mobile APK
               </h3>
-              <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.78rem' }}>
+              <p style={{ margin: '3px 0 0', color: T.txtSecondary, fontSize: '0.78rem' }}>
                 {mobileUsers.length} akun terdaftar — Atur hak akses khusus per user atau per role
               </p>
             </div>
             <button onClick={() => openAdd('mobile')} style={{
-              padding: '9px 16px', background: 'linear-gradient(135deg,#059669,#047857)', color: '#fff',
+              padding: '9px 16px', background: T.primaryBtn, color: '#fff',
               border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '6px'
             }}>
@@ -736,15 +738,15 @@ export default function UserRightsSettings({ masterData, setMasterData }) {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div>
-              <h3 style={{ margin: 0, color: '#818cf8', fontWeight: '800', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '7px' }}>
+              <h3 style={{ margin: 0, color: T.accentGreen, fontWeight: '800', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <ShieldCheck size={17} /> Hak User Web Based Admin
               </h3>
-              <p style={{ margin: '3px 0 0', color: '#64748b', fontSize: '0.78rem' }}>
+              <p style={{ margin: '3px 0 0', color: T.txtSecondary, fontSize: '0.78rem' }}>
                 {webUsers.length} akun terdaftar — Atur hak akses khusus per user atau per role
               </p>
             </div>
             <button onClick={() => openAdd('web')} style={{
-              padding: '9px 16px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff',
+              padding: '9px 16px', background: T.primaryBtn, color: '#fff',
               border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '6px'
             }}>

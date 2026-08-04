@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Truck, Plus, Search, Edit3, Trash2, X, CheckCircle2, Store, PackageCheck } from 'lucide-react';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function SupplierManagement({ masterData, setMasterData }) {
+export default function SupplierManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
@@ -18,10 +20,10 @@ export default function SupplierManagement({ masterData, setMasterData }) {
   const [status, setStatus] = useState('Aktif');
 
   const availableSupplyOptions = [
-    { value: 'Bahan Kering', label: '🌾 Bahan Kering (Beras, Tepung, Minyak, Bumbu)', color: '#38bdf8' },
-    { value: 'Sayur Mayur', label: '🥬 Sayur Mayur (Cabai, Bawang, Sayuran)', color: '#34d399' },
-    { value: 'Ikan', label: '🐟 Ikan (Daging Ikan, Udang, Seafood)', color: '#818cf8' },
-    { value: 'Lain-lain', label: '📦 Lain-lain (Kemasan, Tissue, Peralatan)', color: '#fbbf24' }
+    { value: 'Bahan Kering', label: '🌾 Bahan Kering (Beras, Tepung, Minyak, Bumbu)', color: T.info },
+    { value: 'Sayur Mayur', label: '🥬 Sayur Mayur (Cabai, Bawang, Sayuran)', color: T.success },
+    { value: 'Ikan', label: '🐟 Ikan (Daging Ikan, Udang, Seafood)', color: T.info },
+    { value: 'Lain-lain', label: '📦 Lain-lain (Kemasan, Tissue, Peralatan)', color: T.accentGold }
   ];
 
   // Helper to generate next sequential Supplier Code (SUP-001, SUP-002)
@@ -145,10 +147,10 @@ export default function SupplierManagement({ masterData, setMasterData }) {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Data Supplier & Vendor Pasokan
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Kelola data mitra supplier bahan baku (Bahan Kering, Sayur Mayur, Ikan, Lain-lain) per lokasi outlet
           </p>
         </div>
@@ -161,7 +163,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
 
       {/* Search Bar */}
       <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <Search size={16} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama supplier, outlet, atau kode..."
@@ -173,11 +175,11 @@ export default function SupplierManagement({ masterData, setMasterData }) {
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
                 <th style={{ padding: '12px' }}>Kode Supplier (Auto)</th>
                 <th style={{ padding: '12px' }}>Nama Supplier</th>
                 <th style={{ padding: '12px' }}>Outlet Tujuan</th>
@@ -189,7 +191,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
                     Belum ada data supplier yang dikonfigurasi.
                   </td>
                 </tr>
@@ -199,13 +201,13 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                   const types = sup.supply_types || ['Bahan Kering'];
 
                   return (
-                    <tr key={sup.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={sup.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. KODE SUPPLIER (Auto) */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          background: T.accentGreenBg,
+                          color: T.info,
+                          border: `1px solid ${T.border}`,
                           padding: '4px 10px',
                           borderRadius: '8px',
                           fontWeight: '800',
@@ -217,16 +219,16 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                       </td>
 
                       {/* 2. NAMA SUPPLIER */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: '#f8fafc' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Truck size={16} color="#38bdf8" />
+                          <Truck size={16} color={T.info} />
                           <span>{sup.name}</span>
                         </div>
                       </td>
 
                       {/* 3. OUTLET TUJUAN */}
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
-                        <span style={{ background: '#0f172a', padding: '4px 8px', borderRadius: '6px', border: '1px solid #334155', fontSize: '0.78rem' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtSecondary }}>
+                        <span style={{ background: T.cardBg2, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${T.borderStrong}`, fontSize: '0.78rem' }}>
                           🏢 {getOutletName(sup.outlet_id)}
                         </span>
                       </td>
@@ -236,9 +238,9 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           {types.map((t, idx) => (
                             <span key={idx} style={{
-                              background: '#0f172a',
-                              color: '#34d399',
-                              border: '1px solid rgba(52, 211, 153, 0.3)',
+                              background: T.successBg,
+                              color: T.success,
+                              border: `1px solid ${T.successBorder}`,
                               padding: '2px 8px',
                               borderRadius: '6px',
                               fontSize: '0.72rem',
@@ -253,9 +255,9 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                       {/* 5. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                          color: isAktif ? '#34d399' : '#fb7185',
-                          border: `1px solid ${isAktif ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          background: isAktif ? T.successBg : T.dangerBg,
+                          color: isAktif ? T.success : T.danger,
+                          border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
                           padding: '4px 10px',
                           borderRadius: '20px',
                           fontSize: '0.75rem',
@@ -271,9 +273,9 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                           <button
                             onClick={() => handleOpenEditModal(sup)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -284,16 +286,16 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteSupplier(sup.id, sup.name)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -336,12 +338,12 @@ export default function SupplierManagement({ masterData, setMasterData }) {
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '26px', background: T.cardBg, border: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 {editingSupplier ? 'Edit Data Supplier' : 'Tambahkan Supplier Baru'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -349,15 +351,15 @@ export default function SupplierManagement({ masterData, setMasterData }) {
             <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Supplier (Auto) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   1. Kode Supplier (Auto Generated)
                 </label>
                 <div style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
+                  background: T.cardBg2,
+                  border: `1px solid ${T.borderStrong}`,
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  color: '#818cf8',
+                  color: T.info,
                   fontWeight: '800',
                   fontFamily: 'monospace',
                   fontSize: '0.9rem',
@@ -366,7 +368,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                   justifyContent: 'space-between'
                 }}>
                   <span>{editingSupplier ? editingSupplier.code : generateNextSupplierCode()}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.7rem', color: T.success, background: T.successBg, border: `1px solid ${T.successBorder}`, padding: '2px 8px', borderRadius: '6px' }}>
                     Auto Generated
                   </span>
                 </div>
@@ -374,7 +376,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
 
               {/* Field 2: Nama Supplier */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   2. Nama Supplier *
                 </label>
                 <input
@@ -390,7 +392,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
 
               {/* Field 3: Nama Outlet */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   3. Nama Outlet Tujuan Pasokan * (Dari Data Master Outlet)
                 </label>
                 <select
@@ -408,19 +410,19 @@ export default function SupplierManagement({ masterData, setMasterData }) {
 
               {/* Field 4: Jenis Pasokan (Multi-Select Checkbox) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   4. Jenis Pasokan Barang * (Bisa Pilih 1 atau Lebih)
                 </label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #334155' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: T.cardBg2, padding: '12px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
                   {availableSupplyOptions.map(opt => {
                     const isChecked = supplyTypes.includes(opt.value);
                     return (
-                      <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', color: isChecked ? '#f8fafc' : '#94a3b8', fontWeight: isChecked ? '700' : 'normal' }}>
+                      <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', color: isChecked ? T.txtPrimary : T.txtSecondary, fontWeight: isChecked ? '700' : 'normal' }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleToggleSupplyType(opt.value)}
-                          style={{ accentColor: '#6366f1', width: '16px', height: '16px' }}
+                          style={{ accentColor: T.accentGold, width: '16px', height: '16px' }}
                         />
                         <span>{opt.label}</span>
                       </label>
@@ -431,7 +433,7 @@ export default function SupplierManagement({ masterData, setMasterData }) {
 
               {/* Field 5: Status */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   5. Status Supplier
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -442,9 +444,9 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Aktif' ? '#10b981' : '#334155',
-                      background: status === 'Aktif' ? 'rgba(16, 185, 129, 0.2)' : '#0f172a',
-                      color: status === 'Aktif' ? '#34d399' : '#94a3b8',
+                      borderColor: status === 'Aktif' ? T.success : T.borderStrong,
+                      background: status === 'Aktif' ? T.successBg : T.cardBg2,
+                      color: status === 'Aktif' ? T.success : T.txtSecondary,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'
@@ -459,9 +461,9 @@ export default function SupplierManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Inaktif' ? '#f43f5e' : '#334155',
-                      background: status === 'Inaktif' ? 'rgba(244, 63, 94, 0.2)' : '#0f172a',
-                      color: status === 'Inaktif' ? '#fb7185' : '#94a3b8',
+                      borderColor: status === 'Inaktif' ? T.danger : T.borderStrong,
+                      background: status === 'Inaktif' ? T.dangerBg : T.cardBg2,
+                      color: status === 'Inaktif' ? T.danger : T.txtSecondary,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'

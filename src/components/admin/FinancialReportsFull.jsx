@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Scale, ArrowLeftRight, Sparkles, Calendar, ChevronDown, Check, FileSpreadsheet, X, Search, Filter, Download, Building2, ExternalLink } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function FinancialReportsFull({ masterData, selectedBranch }) {
+export default function FinancialReportsFull({ masterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
+
   const [activeSubTab, setActiveSubTab] = useState('pnl'); // 'pnl' | 'balance' | 'cashflow' | 'ai'
   const [pnlSubView, setPnlSubView] = useState('single'); // 'single' | 'multi_month'
   const [compareMonthsCount, setCompareMonthsCount] = useState(2); // 2 | 3 | 6 | 12
@@ -1422,14 +1425,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
       {/* HEADER SECTION */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Pusat Laporan Keuangan &amp; Analisis AI
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Laporan Laba Rugi (P&amp;L), Neraca Keuangan, Arus Kas, dan Audit Transaksi Multi-Outlet
           </p>
         </div>
@@ -1446,13 +1449,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
             padding: '12px 20px',
             borderRadius: '12px',
             border: '1px solid',
-            borderColor: activeSubTab === 'pnl' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'pnl' ? 'rgba(99, 102, 241, 0.25)' : '#1e293b',
-            color: activeSubTab === 'pnl' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'pnl' ? T.accentGold : T.border,
+            background: activeSubTab === 'pnl' ? T.navActiveBg : T.cardBg,
+            color: activeSubTab === 'pnl' ? T.navActiveTxt : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.875rem',
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap'
           }}
         >
           <FileText size={18} />
@@ -1468,13 +1472,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
             padding: '12px 20px',
             borderRadius: '12px',
             border: '1px solid',
-            borderColor: activeSubTab === 'balance' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'balance' ? 'rgba(99, 102, 241, 0.25)' : '#1e293b',
-            color: activeSubTab === 'balance' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'balance' ? T.accentGold : T.border,
+            background: activeSubTab === 'balance' ? T.navActiveBg : T.cardBg,
+            color: activeSubTab === 'balance' ? T.navActiveTxt : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.875rem',
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap'
           }}
         >
           <Scale size={18} />
@@ -1490,13 +1495,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
             padding: '12px 20px',
             borderRadius: '12px',
             border: '1px solid',
-            borderColor: activeSubTab === 'cashflow' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'cashflow' ? 'rgba(99, 102, 241, 0.25)' : '#1e293b',
-            color: activeSubTab === 'cashflow' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'cashflow' ? T.accentGold : T.border,
+            background: activeSubTab === 'cashflow' ? T.navActiveBg : T.cardBg,
+            color: activeSubTab === 'cashflow' ? T.navActiveTxt : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.875rem',
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap'
           }}
         >
           <ArrowLeftRight size={18} />
@@ -1511,13 +1517,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
             gap: '8px',
             padding: '12px 20px',
             borderRadius: '12px',
-            border: '1px solid #10b981',
-            background: activeSubTab === 'ai' ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%)' : '#1e293b',
-            color: '#34d399',
+            border: `1px solid ${T.success}`,
+            background: activeSubTab === 'ai' ? `linear-gradient(135deg, ${T.success}30 0%, ${T.info}20 100%)` : T.cardBg,
+            color: T.success,
             fontWeight: '700',
             fontSize: '0.875rem',
             cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap'
           }}
         >
           <Sparkles size={18} />
@@ -1528,10 +1535,10 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
       {/* TOP FILTER BAR: SHARED FOR P&L, BALANCE SHEET & CASH FLOW */}
       {(activeSubTab === 'pnl' || activeSubTab === 'balance' || activeSubTab === 'cashflow') && (
         <div style={{
-          background: '#0f172a',
+          background: T.cardBg2,
           padding: '18px 24px',
           borderRadius: '14px',
-          border: '1px solid #334155',
+          border: `1px solid ${T.border}`,
           display: 'flex',
           flexWrap: 'wrap',
           justify: 'space-between',
@@ -1543,16 +1550,16 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
             
             {/* 1. Tahun Dropdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📅 Tahun</span>
+              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📅 Tahun</span>
               <select
                 value={selectedYear}
                 onChange={e => handleYearChange(e.target.value)}
                 style={{
                   padding: '0 12px',
                   borderRadius: '6px',
-                  border: '1px solid #334155',
-                  background: '#1e293b',
-                  color: '#f8fafc',
+                  border: `1px solid ${T.border}`,
+                  background: T.inputBg,
+                  color: T.txtPrimary,
                   fontSize: '0.85rem',
                   fontWeight: '700',
                   height: '36px',
@@ -1568,16 +1575,16 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
 
             {/* 2. Bulan Dropdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🗓️ Bulan</span>
+              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>🗓️ Bulan</span>
               <select
                 value={selectedMonth}
                 onChange={e => handleMonthChange(e.target.value)}
                 style={{
                   padding: '0 12px',
                   borderRadius: '6px',
-                  border: '1px solid #334155',
-                  background: '#1e293b',
-                  color: '#f8fafc',
+                  border: `1px solid ${T.border}`,
+                  background: T.inputBg,
+                  color: T.txtPrimary,
                   fontSize: '0.85rem',
                   fontWeight: '700',
                   height: '36px',
@@ -1602,17 +1609,17 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
 
             {/* 3. Tanggal (Rentang Waktu) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   style={{
-                    background: '#1e293b',
-                    border: '1px solid #475569',
+                    background: T.inputBg,
+                    border: `1px solid ${T.border}`,
                     borderRadius: '8px',
-                    color: '#f8fafc',
+                    color: T.txtPrimary,
                     padding: '7px 12px',
                     fontSize: '0.82rem',
                     fontWeight: '600',
@@ -1620,16 +1627,16 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
                     height: '36px'
                   }}
                 />
-                <span style={{ color: '#64748b', fontSize: '0.85rem' }}>s/d</span>
+                <span style={{ color: T.txtMuted, fontSize: '0.85rem' }}>s/d</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   style={{
-                    background: '#1e293b',
-                    border: '1px solid #475569',
+                    background: T.inputBg,
+                    border: `1px solid ${T.border}`,
                     borderRadius: '8px',
-                    color: '#f8fafc',
+                    color: T.txtPrimary,
                     padding: '7px 12px',
                     fontSize: '0.82rem',
                     fontWeight: '600',

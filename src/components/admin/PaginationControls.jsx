@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
 export default function PaginationControls({
   currentPage = 1,
@@ -7,8 +8,11 @@ export default function PaginationControls({
   pageSize = 25,
   totalItems = 0,
   onPageChange = () => {},
-  onPageSizeChange = () => {}
+  onPageSizeChange = () => {},
+  themeMode = 'dark'
 }) {
+  const T = getThemePalette(themeMode);
+
   if (totalItems === 0) return null;
 
   const startItem = (currentPage - 1) * pageSize + 1;
@@ -20,13 +24,13 @@ export default function PaginationControls({
       alignItems: 'center',
       justify: 'space-between',
       padding: '14px 18px',
-      background: '#0f172a',
-      borderTop: '1px solid #1e293b',
+      background: T.cardBg2,
+      borderTop: `1px solid ${T.borderStrong}`,
       borderRadius: '0 0 16px 16px',
       flexWrap: 'wrap',
       gap: '12px',
       fontSize: '0.82rem',
-      color: '#94a3b8'
+      color: T.txtSecondary
     }}>
       {/* 1. Page Size Selector & Data Counter */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
@@ -39,9 +43,9 @@ export default function PaginationControls({
               onPageChange(1);
             }}
             style={{
-              background: '#1e293b',
-              color: '#f8fafc',
-              border: '1px solid #334155',
+              background: T.inputBg,
+              color: T.txtPrimary,
+              border: `1px solid ${T.borderStrong}`,
               borderRadius: '8px',
               padding: '4px 10px',
               fontWeight: '700',
@@ -50,14 +54,14 @@ export default function PaginationControls({
               outline: 'none'
             }}
           >
-            <option value={10}>10 Baris</option>
-            <option value={25}>25 Baris</option>
-            <option value={50}>50 Baris</option>
-            <option value={100}>100 Baris</option>
+            <option value={10} style={{ background: T.dropdownBg, color: T.txtPrimary }}>10 Baris</option>
+            <option value={25} style={{ background: T.dropdownBg, color: T.txtPrimary }}>25 Baris</option>
+            <option value={50} style={{ background: T.dropdownBg, color: T.txtPrimary }}>50 Baris</option>
+            <option value={100} style={{ background: T.dropdownBg, color: T.txtPrimary }}>100 Baris</option>
           </select>
         </div>
-        <span style={{ color: '#cbd5e1' }}>
-          Menampilkan <strong style={{ color: '#38bdf8' }}>{startItem} - {endItem}</strong> dari <strong style={{ color: '#34d399' }}>{totalItems}</strong> data
+        <span style={{ color: T.txtPrimary }}>
+          Menampilkan <strong style={{ color: T.info }}>{startItem} - {endItem}</strong> dari <strong style={{ color: T.success }}>{totalItems}</strong> data
         </span>
       </div>
 
@@ -68,9 +72,9 @@ export default function PaginationControls({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
           style={{
-            background: currentPage <= 1 ? 'rgba(255,255,255,0.04)' : '#1e293b',
-            color: currentPage <= 1 ? '#475569' : '#f8fafc',
-            border: '1px solid #334155',
+            background: currentPage <= 1 ? T.hoverBg : T.cardBg,
+            color: currentPage <= 1 ? T.txtMuted : T.txtPrimary,
+            border: `1px solid ${T.borderStrong}`,
             borderRadius: '8px',
             padding: '6px 12px',
             cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
@@ -86,8 +90,8 @@ export default function PaginationControls({
           <span>Sebelumnya</span>
         </button>
 
-        <span style={{ padding: '0 8px', fontWeight: '800', color: '#f8fafc', fontSize: '0.82rem' }}>
-          Halaman <span style={{ color: '#38bdf8' }}>{currentPage}</span> dari {totalPages || 1}
+        <span style={{ padding: '0 8px', fontWeight: '800', color: T.txtPrimary, fontSize: '0.82rem' }}>
+          Halaman <span style={{ color: T.info }}>{currentPage}</span> dari {totalPages || 1}
         </span>
 
         <button
@@ -95,9 +99,9 @@ export default function PaginationControls({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
           style={{
-            background: currentPage >= totalPages ? 'rgba(255,255,255,0.04)' : '#1e293b',
-            color: currentPage >= totalPages ? '#475569' : '#f8fafc',
-            border: '1px solid #334155',
+            background: currentPage >= totalPages ? T.hoverBg : T.cardBg,
+            color: currentPage >= totalPages ? T.txtMuted : T.txtPrimary,
+            border: `1px solid ${T.borderStrong}`,
             borderRadius: '8px',
             padding: '6px 12px',
             cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
@@ -116,3 +120,4 @@ export default function PaginationControls({
     </div>
   );
 }
+

@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { buildExportFilename } from './SalesTransactionsPage';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function ActivityLogPage({ masterData, setMasterData, selectedBranch }) {
+export default function ActivityLogPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [activeSubTab, setActiveSubTab] = useState('all'); // 'all' | 'mobile' | 'web'
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
@@ -173,9 +175,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
         <div style={{
           padding: '14px 18px',
           borderRadius: '12px',
-          background: 'rgba(16, 185, 129, 0.15)',
-          border: '1px solid rgba(16, 185, 129, 0.4)',
-          color: '#34d399',
+          background: T.successBg,
+          border: `1px solid ${T.successBorder}`,
+          color: T.success,
           fontSize: '0.86rem',
           fontWeight: '800',
           display: 'flex',
@@ -183,7 +185,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           gap: '10px',
           boxShadow: '0 8px 20px rgba(16, 185, 129, 0.2)'
         }}>
-          <CheckCircle2 size={20} color="#34d399" />
+          <CheckCircle2 size={20} color={T.success} />
           <span>Log aktivitas sistem berhasil di-reset bersih (0 data). Aktivitas baru akan tercatat secara otomatis.</span>
         </div>
       )}
@@ -191,11 +193,11 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
       {/* Header Title */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <History size={22} color="#f59e0b" />
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+            <History size={22} color={T.accentGold} />
             <span>Log Aktivitas Sistem (System Audit Trail)</span>
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.80rem', marginTop: '3px', margin: 0 }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.80rem', marginTop: '3px', margin: 0 }}>
             Rekap jejak audit aktivitas penggunaan Mobile APK Kasir dan pengguna Web Admin seluruh outlet cabang.
           </p>
         </div>
@@ -210,40 +212,40 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
               gap: '6px', 
               padding: '8px 14px', 
               borderRadius: '10px', 
-              background: 'rgba(239, 68, 68, 0.15)', 
-              border: '1px solid rgba(239, 68, 68, 0.4)', 
-              color: '#ef4444', 
+              background: T.dangerBg, 
+              border: `1px solid ${T.dangerBorder}`, 
+              color: T.danger, 
               fontSize: '0.78rem', 
               fontWeight: '800', 
               cursor: 'pointer' 
             }}
           >
-            <Trash2 size={15} color="#ef4444" />
+            <Trash2 size={15} color={T.danger} />
             <span>Reset Log Aktivitas</span>
           </button>
           
-          <button onClick={handleDownloadCSV} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}>
-            <Download size={15} color="#38bdf8" />
+          <button onClick={handleDownloadCSV} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', background: T.cardBg, border: `1px solid ${T.borderStrong}`, color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}>
+            <Download size={15} color={T.info} />
             <span>Export CSV</span>
           </button>
           
-          <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', background: '#1e293b', border: '1px solid rgba(244,63,94,0.4)', color: '#fb7185', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}>
-            <Printer size={15} color="#fb7185" />
+          <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '10px', background: T.cardBg, border: `1px solid ${T.dangerBorder}`, color: T.danger, fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}>
+            <Printer size={15} color={T.danger} />
             <span>Cetak PDF</span>
           </button>
         </div>
       </div>
 
       {/* Sub-Tab Navigation Bar: All vs Mobile APK vs Web Admin */}
-      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '10px' }}>
         <button
           onClick={() => setActiveSubTab('all')}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '10px',
-            border: '1px solid', borderColor: activeSubTab === 'all' ? '#f59e0b' : '#334155',
-            background: activeSubTab === 'all' ? 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' : '#1e293b',
-            color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
-            boxShadow: activeSubTab === 'all' ? '0 4px 14px rgba(217,119,6,0.35)' : 'none'
+            border: '1px solid', borderColor: activeSubTab === 'all' ? T.accentGold : T.borderStrong,
+            background: activeSubTab === 'all' ? T.tabActiveBg : T.tabInactiveBg,
+            color: activeSubTab === 'all' ? T.tabActiveColor : T.tabInactiveColor, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
+            boxShadow: activeSubTab === 'all' ? `0 4px 14px ${T.accentGoldBg}` : 'none'
           }}
         >
           <History size={16} />
@@ -254,9 +256,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           onClick={() => setActiveSubTab('mobile')}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '10px',
-            border: '1px solid', borderColor: activeSubTab === 'mobile' ? '#10b981' : '#334155',
-            background: activeSubTab === 'mobile' ? 'rgba(16, 185, 129, 0.2)' : '#1e293b',
-            color: activeSubTab === 'mobile' ? '#34d399' : '#94a3b8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer'
+            border: '1px solid', borderColor: activeSubTab === 'mobile' ? T.success : T.borderStrong,
+            background: activeSubTab === 'mobile' ? T.successBg : T.tabInactiveBg,
+            color: activeSubTab === 'mobile' ? T.success : T.tabInactiveColor, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer'
           }}
         >
           <Smartphone size={16} />
@@ -267,9 +269,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           onClick={() => setActiveSubTab('web')}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '10px',
-            border: '1px solid', borderColor: activeSubTab === 'web' ? '#38bdf8' : '#334155',
-            background: activeSubTab === 'web' ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
-            color: activeSubTab === 'web' ? '#38bdf8' : '#94a3b8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer'
+            border: '1px solid', borderColor: activeSubTab === 'web' ? T.info : T.borderStrong,
+            background: activeSubTab === 'web' ? T.infoBg : T.tabInactiveBg,
+            color: activeSubTab === 'web' ? T.info : T.tabInactiveColor, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer'
           }}
         >
           <Laptop size={16} />
@@ -278,7 +280,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
       </div>
 
       {/* FILTER & SEARCH CONTROL BAR */}
-      <div style={{ padding: '14px', background: '#1e293b', border: '1px solid #334155', borderRadius: '14px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+      <div style={{ padding: '14px', background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
           
           {/* Filter Outlet */}
@@ -291,9 +293,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                 height: '40px',
                 padding: '0 12px',
                 borderRadius: '10px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                color: '#ffffff',
+                background: T.inputBg,
+                border: `1px solid ${T.border}`,
+                color: T.txtPrimary,
                 fontSize: '0.82rem',
                 fontWeight: '700',
                 outline: 'none',
@@ -309,19 +311,19 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
 
           {/* Filter Start Date */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: '700' }}>Dari:</span>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ height: '40px', padding: '0 10px', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#ffffff', fontSize: '0.82rem' }} />
+            <span style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700' }}>Dari:</span>
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ height: '40px', padding: '0 10px', borderRadius: '10px', background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary, fontSize: '0.82rem' }} />
           </div>
 
           {/* Filter End Date */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: '700' }}>s/d:</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ height: '40px', padding: '0 10px', borderRadius: '10px', background: '#0f172a', border: '1px solid #334155', color: '#ffffff', fontSize: '0.82rem' }} />
+            <span style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700' }}>s/d:</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ height: '40px', padding: '0 10px', borderRadius: '10px', background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary, fontSize: '0.82rem' }} />
           </div>
 
           {/* Search Box */}
           <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
-            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
               placeholder="Cari berdasarkan jam, user/kasir, aktivitas, atau keterangan..." 
@@ -333,9 +335,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                 paddingLeft: '38px',
                 paddingRight: '12px',
                 borderRadius: '10px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                color: '#ffffff',
+                background: T.inputBg,
+                border: `1px solid ${T.border}`,
+                color: T.txtPrimary,
                 fontSize: '0.82rem',
                 outline: 'none',
                 boxSizing: 'border-box'
@@ -345,17 +347,17 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
 
         </div>
 
-        <div style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: '700' }}>
-          Ditemukan: <span style={{ color: '#f59e0b', fontWeight: '900' }}>{filteredLogs.length} Aktivitas Log</span>
+        <div style={{ fontSize: '0.82rem', color: T.txtSecondary, fontWeight: '700' }}>
+          Ditemukan: <span style={{ color: T.accentGold, fontWeight: '900' }}>{filteredLogs.length} Aktivitas Log</span>
         </div>
       </div>
 
       {/* TABLE AUDIT TRAIL LOGS */}
-      <div style={{ padding: '20px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px' }}>
-        <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+      <div style={{ padding: '20px', background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '16px' }}>
+        <div style={{ overflowX: 'auto', border: `1px solid ${T.borderStrong}`, borderRadius: '12px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ background: '#1e293b', borderBottom: '1.5px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `1.5px solid ${T.borderStrong}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 <th style={{ padding: '14px 12px', width: '175px' }}>Waktu & Jam</th>
                 <th style={{ padding: '14px 12px', width: '165px' }}>Platform</th>
                 <th style={{ padding: '14px 12px', width: '175px' }}>Pengguna (User)</th>
@@ -368,7 +370,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
             <tbody>
               {paginatedLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontSize: '0.88rem' }}>
+                  <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: T.txtMuted, fontSize: '0.88rem' }}>
                     📥 Log aktivitas telah di-reset bersih (0 data). Aktivitas transaksi & admin baru akan tercatat di sini secara otomatis.
                   </td>
                 </tr>
@@ -377,12 +379,12 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                   const isMobile = log.platform === 'mobile';
 
                   return (
-                    <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: '#f8fafc' }}>
+                    <tr key={log.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       
                       {/* Timestamp Presisi */}
-                      <td style={{ padding: '14px 12px', color: '#f59e0b', fontWeight: '800', fontFamily: 'monospace', fontSize: '0.82rem' }}>
+                      <td style={{ padding: '14px 12px', color: T.accentGold, fontWeight: '800', fontFamily: 'monospace', fontSize: '0.82rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Clock size={14} color="#f59e0b" />
+                          <Clock size={14} color={T.accentGold} />
                           <span>{log.timestamp}</span>
                         </div>
                       </td>
@@ -391,9 +393,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
                           padding: '5px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800',
-                          background: isMobile ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)',
-                          color: isMobile ? '#34d399' : '#38bdf8',
-                          border: `1px solid ${isMobile ? 'rgba(16, 185, 129, 0.35)' : 'rgba(56, 189, 248, 0.35)'}`,
+                          background: isMobile ? T.successBg : T.infoBg,
+                          color: isMobile ? T.success : T.info,
+                          border: `1px solid ${isMobile ? T.successBorder : T.infoBorder}`,
                           display: 'inline-flex', alignItems: 'center', gap: '6px'
                         }}>
                           {isMobile ? <Smartphone size={13} /> : <Laptop size={13} />}
@@ -402,27 +404,27 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                       </td>
 
                       {/* User */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', color: '#ffffff' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', color: T.txtPrimary }}>
                         👤 {log.user}
                       </td>
 
                       {/* Outlet */}
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1', fontWeight: '600' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtSecondary, fontWeight: '600' }}>
                         📍 {log.branch_name}
                       </td>
 
                       {/* Jenis Aktivitas */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', color: isMobile ? '#34d399' : '#38bdf8' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', color: isMobile ? T.success : T.info }}>
                         {log.action_type}
                       </td>
 
                       {/* Detail Keterangan */}
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1', fontSize: '0.82rem', lineHeight: '1.45' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtSecondary, fontSize: '0.82rem', lineHeight: '1.45' }}>
                         {log.details}
                       </td>
 
                       {/* Device Info */}
-                      <td style={{ padding: '14px 12px', color: '#64748b', fontSize: '0.74rem', fontStyle: 'italic' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtMuted, fontSize: '0.74rem', fontStyle: 'italic' }}>
                         {log.device_info}
                       </td>
 
@@ -461,11 +463,11 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           <div style={{
             width: '100%',
             maxWidth: '460px',
-            background: '#0f172a',
-            border: '1.5px solid rgba(239, 68, 68, 0.4)',
+            background: T.cardBg2,
+            border: `1.5px solid ${T.dangerBorder}`,
             borderRadius: '20px',
             padding: '28px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)',
+            boxShadow: T.shadowLg,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -475,21 +477,21 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
               width: '56px',
               height: '56px',
               borderRadius: '50%',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              background: T.dangerBg,
+              border: `1px solid ${T.dangerBorder}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: '16px'
             }}>
-              <AlertTriangle size={28} color="#ef4444" />
+              <AlertTriangle size={28} color={T.danger} />
             </div>
 
-            <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: '0 0 8px 0' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: '0 0 8px 0' }}>
               Konfirmasi Reset Log Aktivitas
             </h3>
 
-            <p style={{ fontSize: '0.84rem', color: '#94a3b8', lineHeight: '1.5', margin: '0 0 24px 0' }}>
+            <p style={{ fontSize: '0.84rem', color: T.txtSecondary, lineHeight: '1.5', margin: '0 0 24px 0' }}>
               Apakah Anda yakin ingin mengosongkan/mengapus seluruh riwayat log aktivitas sistem? Data yang di-reset akan menjadi bersih (0 baris log) dan aktivitas baru akan mulai dicatat kembali secara otomatis.
             </p>
 
@@ -501,9 +503,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                   flex: 1,
                   padding: '12px',
                   borderRadius: '12px',
-                  border: '1px solid #334155',
-                  background: '#1e293b',
-                  color: '#94a3b8',
+                  border: `1px solid ${T.borderStrong}`,
+                  background: T.cardBg,
+                  color: T.txtSecondary,
                   fontSize: '0.85rem',
                   fontWeight: '800',
                   cursor: 'pointer'
@@ -519,7 +521,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                   padding: '12px',
                   borderRadius: '12px',
                   border: 'none',
-                  background: '#ef4444',
+                  background: T.danger,
                   color: '#ffffff',
                   fontSize: '0.85rem',
                   fontWeight: '900',
