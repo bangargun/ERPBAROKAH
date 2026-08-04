@@ -2344,7 +2344,7 @@ export default function AndroidPosRegister({
             </div>
 
             <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-              POS Kasir Mobile Barokah
+              POS Kasir
             </h2>
             <p style={{ fontSize: '0.80rem', color: '#94a3b8', marginTop: '4px', fontWeight: '600' }}>
               Pilih Outlet &bull; Pilih User &bull; Masukkan Password
@@ -2878,7 +2878,7 @@ export default function AndroidPosRegister({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>POS KASIR BAROKAH</span>
+              <span>POS KASIR</span>
               <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', fontWeight: '900' }}>v3.0</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
