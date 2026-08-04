@@ -374,20 +374,20 @@ export function DoubleCalendarPicker({
   };
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: '#1e293b', padding: '12px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+    <div ref={containerRef} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: T.cardBg, padding: '12px 16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
       
       {/* 1. Tahun Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📅 Tahun</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📅 Tahun</span>
         <select
           value={selectedYear}
           onChange={e => handleYearChange(e.target.value)}
           style={{
             padding: '0 12px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             fontWeight: '700',
             height: '40px',
@@ -403,16 +403,16 @@ export function DoubleCalendarPicker({
 
       {/* 2. Bulan Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🗓️ Bulan</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>🗓️ Bulan</span>
         <select
           value={selectedMonth}
           onChange={e => handleMonthChange(e.target.value)}
           style={{
             padding: '0 12px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             fontWeight: '700',
             height: '40px',
@@ -437,16 +437,16 @@ export function DoubleCalendarPicker({
 
       {/* 3. Tanggal Input Field */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showPopover ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
         <button
           onClick={() => { setShowPopover(!showPopover); setShowOutletDropdown(false); }}
           style={{
             minWidth: '210px',
             padding: '10px 14px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             textAlign: 'left',
             fontWeight: '700',
@@ -458,26 +458,26 @@ export function DoubleCalendarPicker({
             height: '40px',
             transition: 'all 0.15s ease'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#6366f1'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#334155'}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
         >
           <span>{displayDateRange()}</span>
-          <ChevronDown size={16} color="#94a3b8" />
+          <ChevronDown size={16} color={T.txtSecondary} />
         </button>
       </div>
 
       {/* Outlet Selection Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showOutletDropdown ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Outlet</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Outlet</span>
         <button
           onClick={() => { setShowOutletDropdown(!showOutletDropdown); setShowPopover(false); }}
           style={{
             minWidth: '220px',
             padding: '10px 14px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             textAlign: 'left',
             fontWeight: '700',
@@ -489,13 +489,13 @@ export function DoubleCalendarPicker({
             height: '40px',
             transition: 'all 0.15s ease'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#38bdf8'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#334155'}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
         >
           <span style={{ textTransform: 'uppercase', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '180px' }}>
             {selectedOutletLabel()}
           </span>
-          <ChevronDown size={16} color="#94a3b8" />
+          <ChevronDown size={16} color={T.txtSecondary} />
         </button>
 
         {/* Outlet Multi-select Dropdown Popover */}
@@ -505,10 +505,10 @@ export function DoubleCalendarPicker({
             top: '48px',
             left: 0,
             width: '280px',
-            background: '#1e293b',
-            border: '1.5px solid #38bdf8',
+            background: T.dropdownBg,
+            border: `1.5px solid ${T.dropdownBorder}`,
             borderRadius: '8px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(56, 189, 248, 0.3)',
+            boxShadow: T.shadowLg,
             zIndex: 999999,
             padding: '8px 0',
             display: 'flex',
@@ -581,14 +581,14 @@ export function DoubleCalendarPicker({
           position: 'absolute',
           top: '48px',
           left: 0,
-          background: '#1e293b',
+          background: T.cardBg,
           border: '1.5px solid #6366f1',
           borderRadius: '8px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(99, 102, 241, 0.3)',
           zIndex: 999999,
           display: 'flex',
           padding: '16px',
-          color: '#f8fafc'
+          color: T.txtPrimary
         }}>
           {/* Popover Arrow */}
           <div style={{
@@ -597,7 +597,7 @@ export function DoubleCalendarPicker({
             left: '20px',
             width: '10px',
             height: '10px',
-            background: '#1e293b',
+            background: T.cardBg,
             borderTop: '1px solid #334155',
             borderLeft: '1px solid #334155',
             transform: 'rotate(45deg)'
@@ -671,8 +671,8 @@ export function DoubleCalendarPicker({
                 borderRadius: '4px',
                 padding: '6px 10px',
                 fontSize: '0.82rem',
-                background: '#0f172a',
-                color: '#f8fafc',
+                background: T.cardBg2,
+                color: T.txtPrimary,
                 width: '140px',
                 gap: '8px'
               }}>
@@ -683,12 +683,12 @@ export function DoubleCalendarPicker({
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                border: '1px solid #334155',
+                border: `1px solid ${T.border}`,
                 borderRadius: '4px',
                 padding: '6px 10px',
                 fontSize: '0.82rem',
-                background: '#0f172a',
-                color: '#f8fafc',
+                background: T.cardBg2,
+                color: T.txtPrimary,
                 width: '140px',
                 gap: '8px'
               }}>
@@ -723,21 +723,21 @@ export function DoubleCalendarPicker({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth - 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❮
                   </button>
-                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#f8fafc' }}>{leftMonthLabel}</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary }}>{leftMonthLabel}</span>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth + 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❯
                   </button>
                 </div>
                 
                 {/* Day name headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: '#94a3b8', marginBottom: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: T.txtSecondary, marginBottom: '6px' }}>
                   <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
                 </div>
 
@@ -782,21 +782,21 @@ export function DoubleCalendarPicker({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth - 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❮
                   </button>
-                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#f8fafc' }}>{rightMonthLabel}</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary }}>{rightMonthLabel}</span>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth + 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❯
                   </button>
                 </div>
                 
                 {/* Day name headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: '#94a3b8', marginBottom: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: T.txtSecondary, marginBottom: '6px' }}>
                   <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
                 </div>
 
@@ -890,7 +890,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
             top: '38px',
             right: 0,
             width: '240px',
-            background: '#1e293b',
+            background: T.cardBg,
             border: '1.5px solid #38bdf8',
             borderRadius: '10px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(56, 189, 248, 0.3)',
@@ -901,7 +901,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
             gap: '6px'
           }}
         >
-          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', paddingBottom: '6px', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtSecondary, paddingBottom: '6px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>👁️ TAMPILKAN KOLOM:</span>
           </div>
 
@@ -3593,7 +3593,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 display: 'inline-block'
               }}></span>
               <span>⚡ Auto Sync Mobile APK: AKTIF</span>
-              <span style={{ color: '#94a3b8', fontWeight: '500', marginLeft: '2px' }}>({lastSyncTime})</span>
+              <span style={{ color: T.txtSecondary, fontWeight: '500', marginLeft: '2px' }}>({lastSyncTime})</span>
             </div>
           </div>
           <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
@@ -3672,10 +3672,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Zap size={18} color="#34d399" />
-          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
             Sinkronisasi Otomatis Mobile APK Kasir
           </span>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+          <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
             | Terakhir disinkronkan: <b style={{ color: '#38bdf8' }}>{lastSyncTime}</b> | Terhubung: <b style={{ color: '#34d399' }}>{outlets.length} Outlet POS</b>
           </span>
         </div>
@@ -3708,7 +3708,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* TOP BAR WITH MONTH FILTER & EXPORT BUTTONS */}
-          <div className="glass-card" style={{ padding: '16px 20px', background: '#1e293b', border: '1px solid #334155', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
             <DoubleCalendarPicker
               startDate={omzetStartDate}
               endDate={omzetEndDate}
@@ -3749,14 +3749,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* 1. GRAFIK GARIS TREN PERGERAKAN HARIAN ANTAR OUTLET */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <TrendingUp size={22} color="#38bdf8" />
                   <span>Grafik Tren Pergerakan Omzet Harian Antar Outlet ({selectedOmzetMonth})</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Grafik garis membandingkan tren kenaikan & penurunan omzet harian seluruh cabang restoran per hari
                 </p>
               </div>
@@ -3772,14 +3772,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const colors = ['#38bdf8', '#34d399', '#fbbf24', '#818cf8', '#f43f5e', '#a78bfa'];
 
               return (
-                <div style={{ background: '#1e293b', padding: '24px 16px 16px 8px', borderRadius: '14px', border: '1px solid #334155' }}>
+                <div style={{ background: T.cardBg, padding: '24px 16px 16px 8px', borderRadius: '14px', border: `1px solid ${T.border}` }}>
                   <ReResponsiveContainer width="100%" height={340}>
                     <ReLineChart data={chartData} margin={{ top: 15, right: 30, left: 10, bottom: 5 }}>
-                      <ReCartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <ReCartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
                       <ReXAxis dataKey="dayLabel" stroke="#94a3b8" fontSize={11} />
                       <ReYAxis stroke="#94a3b8" fontSize={11} tickFormatter={v => `Rp ${(v / 1000000).toFixed(1)}M`} />
                       <ReTooltip
-                        contentStyle={{ background: '#0f172a', borderColor: '#38bdf8', borderRadius: '10px', color: '#f8fafc', fontSize: '0.82rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
+                        contentStyle={{ background: T.cardBg2, borderColor: '#38bdf8', borderRadius: '10px', color: T.txtPrimary, fontSize: '0.82rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
                         formatter={(val, name) => [formatRupiah(val), name]}
                       />
                       <ReLegend wrapperStyle={{ paddingTop: '12px', fontSize: '0.8rem', fontWeight: '700' }} />
@@ -3802,14 +3802,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* 2. TABEL PERBANDINGAN PENDAPATAN SEBELUM DISKON & SETELAH DISKON ANTAR OUTLET */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <DollarSign size={22} color="#34d399" />
                   <span>Tabel Perbandingan Omzet Antar Outlet (Sebelum & Setelah Diskon)</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Rincian komparasi omzet kotor (Sebelum Diskon) dan omzet bersih (Setelah Diskon) tiap outlet per hari
                 </p>
               </div>
@@ -3852,11 +3852,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const showTotalNet = visibleColumns.totalNet !== false;
 
               return (
-                <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+                <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
                       {/* HEADER ROW 1 */}
-                      <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.8rem' }}>
+                      <tr style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
                         {showDate && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: '1px solid #334155', textAlign: 'center', width: '110px' }}>Tanggal</th>}
                         {activeOutlets.map(otl => {
                           const colSpanVal = (showGross ? 1 : 0) + (showNet ? 1 : 0);
@@ -3874,22 +3874,22 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         )}
                       </tr>
                       {/* HEADER ROW 2 */}
-                      <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                         {activeOutlets.map(otl => (
                           <React.Fragment key={otl.id}>
-                            {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#cbd5e1' }}>Sebelum Diskon</th>}
+                            {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
                             {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>Setelah Diskon</th>}
                           </React.Fragment>
                         ))}
-                        {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#cbd5e1' }}>Sebelum Diskon</th>}
+                        {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
                         {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#34d399' }}>Setelah Diskon</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((row, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
                           {showDate && (
-                            <td style={{ padding: '10px 14px', fontWeight: '700', color: '#cbd5e1', borderRight: '1px solid #334155', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 14px', fontWeight: '700', color: T.txtPrimary, borderRight: '1px solid #334155', textAlign: 'center' }}>
                               {row.formattedDate}
                             </td>
                           )}
@@ -3898,7 +3898,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             return (
                               <React.Fragment key={otl.id}>
                                 {showGross && (
-                                  <td style={{ padding: '10px', textAlign: 'right', color: '#94a3b8' }}>
+                                  <td style={{ padding: '10px', textAlign: 'right', color: T.txtSecondary }}>
                                     {formatRupiah(d.gross)}
                                   </td>
                                 )}
@@ -3911,7 +3911,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             );
                           })}
                           {showTotalGross && (
-                            <td style={{ padding: '10px', textAlign: 'right', color: '#cbd5e1', fontWeight: '700' }}>
+                            <td style={{ padding: '10px', textAlign: 'right', color: T.txtPrimary, fontWeight: '700' }}>
                               {formatRupiah(row.totalGross)}
                             </td>
                           )}
@@ -3925,19 +3925,19 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </tbody>
                     {/* FOOTER TOTAL ROW */}
                     <tfoot>
-                      <tr style={{ background: '#1e293b', borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
+                      <tr style={{ background: T.cardBg, borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
                         {showDate && <td style={{ padding: '14px', borderRight: '1px solid #334155', textAlign: 'center' }}>TOTAL AKUMULASI</td>}
                         {activeOutlets.map(otl => {
                           const sumGross = rows.reduce((s, r) => s + (r.outlets[otl.id]?.gross || 0), 0);
                           const sumNet = rows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
                           return (
                             <React.Fragment key={otl.id}>
-                              {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(sumGross)}</td>}
+                              {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(sumGross)}</td>}
                               {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>{formatRupiah(sumNet)}</td>}
                             </React.Fragment>
                           );
                         })}
-                        {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(grandTotalGrossAll)}</td>}
+                        {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(grandTotalGrossAll)}</td>}
                         {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
                       </tr>
                     </tfoot>
@@ -4285,10 +4285,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const showTotalQty = menuQtyVisibleCols.totalQty !== false;
 
               return (
-                <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+                <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
-                      <tr style={{ background: '#1e293b', borderBottom: '2px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.8rem' }}>
+                      <tr style={{ background: T.cardBg, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
                         {showMenuName && <th style={{ padding: '12px 14px', borderRight: '1px solid #334155', textAlign: 'left', minWidth: '200px' }}>Nama Menu</th>}
                         {showQty && activeOutlets.map(otl => (
                           <th key={otl.id} style={{ padding: '12px 10px', textAlign: 'right', borderRight: '1px solid #334155', color: '#fbbf24' }}>
@@ -4304,7 +4304,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </thead>
                     <tbody>
                       {menuRows.map((row) => (
-                        <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
                           {showMenuName && (
                             <td style={{ padding: '12px 14px', fontWeight: '800', color: '#fbbf24', borderRight: '1px solid #334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span>🍱</span>
@@ -4314,7 +4314,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           {showQty && activeOutlets.map(otl => {
                             const d = row.outlets[otl.id] || { qty: 0 };
                             return (
-                              <td key={otl.id} style={{ padding: '10px', textAlign: 'right', fontWeight: '700', color: '#f8fafc', borderRight: '1px solid #334155' }}>
+                              <td key={otl.id} style={{ padding: '10px', textAlign: 'right', fontWeight: '700', color: T.txtPrimary, borderRight: '1px solid #334155' }}>
                                 {d.qty.toLocaleString('id-ID')} Item
                               </td>
                             );
@@ -4329,7 +4329,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </tbody>
                     {/* FOOTER TOTAL ROW */}
                     <tfoot>
-                      <tr style={{ background: '#1e293b', borderTop: '2px solid #fbbf24', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
+                      <tr style={{ background: T.cardBg, borderTop: '2px solid #fbbf24', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
                         {showMenuName && <td style={{ padding: '14px', borderRight: '1px solid #334155', textAlign: 'left' }}>TOTAL AKUMULASI QTY BULANAN</td>}
                         {showQty && activeOutlets.map(otl => {
                           const sumQty = menuRows.reduce((s, r) => s + (r.outlets[otl.id]?.qty || 0), 0);
@@ -4395,48 +4395,48 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             const data = getExecutiveSummaryReportData();
 
             return (
-              <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: '#0f172a', border: '1px solid #334155', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
                 
                 {/* CENTERED REPORT TITLE HEADER */}
-                <div style={{ textAlign: 'center', borderBottom: '1px solid #334155', paddingBottom: '20px' }}>
+                <div style={{ textAlign: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '20px' }}>
                   <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#38bdf8', letterSpacing: '-0.02em', margin: 0 }}>
                     Ringkasan Penjualan
                   </h1>
-                  <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#94a3b8', marginTop: '6px' }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: '700', color: T.txtSecondary, marginTop: '6px' }}>
                     {data.start} - {data.end}
                   </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', marginTop: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, marginTop: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     🏢 {data.outletNameStr}
                   </div>
                 </div>
 
                 {/* 1. FINANCIAL SUMMARY TABLE */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Financial Summary (Omzet & Diskon)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                       <tbody>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Sales (Omzet Kotor)</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#f8fafc' }}>{formatRupiahDecimals(data.totalSales)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Sales (Omzet Kotor)</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>{formatRupiahDecimals(data.totalSales)}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Discount</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Discount</td>
                           <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>({formatRupiahDecimals(data.totalDiscount)})</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Service Charge</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>{formatRupiahDecimals(data.totalServiceCharge)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Service Charge</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>{formatRupiahDecimals(data.totalServiceCharge)}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Tax</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>{formatRupiahDecimals(data.totalTax)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Tax</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>{formatRupiahDecimals(data.totalTax)}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Adjustment</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>{formatRupiahDecimals(data.totalAdjustment)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Adjustment</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>{formatRupiahDecimals(data.totalAdjustment)}</td>
                         </tr>
                         <tr style={{ background: 'rgba(52, 211, 153, 0.1)', borderTop: '2px solid #34d399' }}>
                           <td style={{ padding: '14px 18px', color: '#ffffff', fontWeight: '900', fontSize: '1rem' }}>TOTAL (NET SALES)</td>
@@ -4449,18 +4449,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
                 {/* 2. INVOICES SUMMARY TABLE */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Invoices (Statistik Struk)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                       <tbody>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Number of Invoices (Jumlah Struk)</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Number of Invoices (Jumlah Struk)</td>
                           <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{data.numberOfInvoices.toLocaleString('id-ID')}</td>
                         </tr>
                         <tr>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Average Bill per Invoice (Rata-rata Struk / APC)</td>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Average Bill per Invoice (Rata-rata Struk / APC)</td>
                           <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{formatRupiahDecimals(data.avgBillPerInvoice)}</td>
                         </tr>
                       </tbody>
@@ -4473,15 +4473,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fb7185', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Void Summary (Ringkasan Pembatalan)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                       <tbody>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Number of Invoices (Struk Batal)</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Number of Invoices (Struk Batal)</td>
                           <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>{data.voidInvoices}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Number of Items (Item Batal)</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Number of Items (Item Batal)</td>
                           <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>{data.voidItems}</td>
                         </tr>
                         <tr style={{ background: 'rgba(251, 113, 133, 0.1)', borderTop: '2px solid #fb7185' }}>
@@ -4498,10 +4498,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Summary By Product (Rincian Produk & Tipe Pesanan)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#cbd5e1', fontWeight: '800' }}>
+                        <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800' }}>
                           <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '220px' }}>Nama Produk</th>
                           <th style={{ padding: '12px 16px', textAlign: 'left', width: '150px' }}>Tipe Pesanan</th>
                           <th style={{ padding: '12px 16px', textAlign: 'center', width: '100px' }}>Qty</th>
@@ -4511,7 +4511,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       <tbody>
                         {data.productSummary.length === 0 ? (
                           <tr>
-                            <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                            <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: T.txtSecondary }}>
                               📭 Belum ada rincian produk transaksi untuk periode ini.
                             </td>
                           </tr>
@@ -4519,14 +4519,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           data.productSummary.map((prod, pIdx) => (
                             <React.Fragment key={pIdx}>
                               {prod.variants.map((v, vIdx) => (
-                                <tr key={vIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                                <tr key={vIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
                                   <td style={{ padding: '10px 16px', fontWeight: vIdx === 0 ? '800' : '400', color: vIdx === 0 ? '#f8fafc' : 'transparent' }}>
                                     {vIdx === 0 ? prod.name : ''}
                                   </td>
                                   <td style={{ padding: '10px 16px', color: v.type === 'Take Away' ? '#fbbf24' : '#38bdf8', fontWeight: '700' }}>
                                     {v.type}
                                   </td>
-                                  <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '800', color: '#cbd5e1' }}>
+                                  <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '800', color: T.txtPrimary }}>
                                     x{v.qty.toLocaleString('id-ID')}
                                   </td>
                                   <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>
@@ -4548,13 +4548,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     <FileText size={20} color="#818cf8" />
                     <span>💡 Ulasan Eksekutif & AI Insight Resto</span>
                   </h4>
-                  <div style={{ fontSize: '0.88rem', color: '#cbd5e1', lineHeight: '1.7', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.88rem', color: T.txtPrimary, lineHeight: '1.7', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <p style={{ margin: 0 }}>
                       • <strong>Performa Finansial:</strong> Total omzet bersih yang diraih pada periode ini adalah <strong style={{ color: '#34d399' }}>{formatRupiah(data.netTotal)}</strong> dari <strong style={{ color: '#38bdf8' }}>{data.numberOfInvoices.toLocaleString('id-ID')} struk transaksi</strong> dengan rata-rata belanja <strong style={{ color: '#fbbf24' }}>{formatRupiah(data.avgBillPerInvoice)} per struk</strong>.
                     </p>
                     {data.productSummary.length > 0 && (
                       <p style={{ margin: 0 }}>
-                        • <strong>Menu Terlaris:</strong> Menu utama terdaftar pada periode ini mencakup <strong style={{ color: '#f8fafc' }}>{data.productSummary[0]?.name}</strong>.
+                        • <strong>Menu Terlaris:</strong> Menu utama terdaftar pada periode ini mencakup <strong style={{ color: T.txtPrimary }}>{data.productSummary[0]?.name}</strong>.
                       </p>
                     )}
                     <p style={{ margin: 0 }}>
@@ -4616,23 +4616,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* MAIN REPORT BOARD - MATCHING LUNA POS REPORT SCREENSHOT */}
-          <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
             {/* CENTERED REPORT TITLE HEADER */}
             <div style={{ textAlign: 'center', marginBottom: '8px' }}>
               <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#38bdf8', letterSpacing: '-0.02em', margin: 0 }}>
                 Ringkasan Penjualan Harian
               </h1>
-              <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#cbd5e1', marginTop: '6px' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: '700', color: T.txtPrimary, marginTop: '6px' }}>
                 {dailyStartDate ? formatToDMY(dailyStartDate) : 'Semua Tanggal'} {dailyEndDate ? `- ${formatToDMY(dailyEndDate)}` : ''}
               </div>
             </div>
 
             {/* REPORT TABLE */}
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '2px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.82rem' }}>
+                  <tr style={{ background: T.cardBg, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem' }}>
                     <th style={{ padding: '14px 16px' }}>Tanggal</th>
                     <th style={{ padding: '14px 16px', textAlign: 'right' }}>Total Sales</th>
                     <th style={{ padding: '14px 16px', textAlign: 'right' }}>Discount</th>
@@ -4648,7 +4648,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     if (data.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.88rem' }}>
+                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.88rem' }}>
                             📭 Belum ada data transaksi penjualan harian. Data penjualan akan muncul otomatis ketika transaksi kasir diinput.
                           </td>
                         </tr>
@@ -4665,8 +4665,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     return (
                       <>
                         {data.map((r, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: '#f8fafc' }}>
-                            <td style={{ padding: '12px 16px', fontWeight: '700', color: '#cbd5e1' }}>{r.formattedDate}</td>
+                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: T.txtPrimary }}>
+                            <td style={{ padding: '12px 16px', fontWeight: '700', color: T.txtPrimary }}>{r.formattedDate}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>{formatRupiahDecimals(r.totalSales)}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right', color: r.discount > 0 ? '#fb7185' : '#f8fafc' }}>{formatRupiahDecimals(r.discount)}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>{formatRupiahDecimals(r.serviceCharge)}</td>
@@ -4677,7 +4677,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         ))}
                         
                         {/* GRAND TOTAL FOOTER ROW */}
-                        <tr style={{ background: '#1e293b', borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.92rem' }}>
+                        <tr style={{ background: T.cardBg, borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.92rem' }}>
                           <td style={{ padding: '16px' }}>Total Akumulasi</td>
                           <td style={{ padding: '16px', textAlign: 'right', color: '#34d399' }}>{formatRupiahDecimals(totalSalesSum)}</td>
                           <td style={{ padding: '16px', textAlign: 'right', color: '#fb7185' }}>{formatRupiahDecimals(discountSum)}</td>
@@ -4771,18 +4771,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
           {/* 3. PAPAN FILTER KOLOM DITAMPILKAN (DISUSUN LANGSUNG DI ATAS TABEL) */}
           {hourShowColumnDropdown && (
-            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: '1px solid #fbbf24', background: '#1e293b', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-                <div style={{ fontWeight: '800', color: '#f8fafc', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: '1px solid #fbbf24', background: T.cardBg, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '10px' }}>
+                <div style={{ fontWeight: '800', color: T.txtPrimary, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <SlidersHorizontal size={18} color="#fbbf24" />
                   <span>Papan Filter Visibilitas Kolom Tabel (Penjualan per Jam)</span>
                 </div>
-                <button onClick={() => setHourShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
+                <button onClick={() => setHourShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
                   ✕ Sembunyikan Papan Kolom
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
                 {[
                   { key: 'hourRange', label: '🕒 Rentang Waktu (1 Jam)' },
                   { key: 'txCount', label: '📊 Jumlah Transaksi' },
@@ -4820,11 +4820,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <TrendingUp size={20} color="#818cf8" />
                   <span>Grafik Jam Sibuk Penjualan (Peak Hours Chart)</span>
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px' }}>
+                <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px' }}>
                   Distribusi omzet per jam operasional restoran dengan label nominal Rupiah (Rp) melayang di atas puncak bagan
                 </p>
               </div>
@@ -4835,7 +4835,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             </div>
 
             {/* Visual Bar Chart */}
-            <div style={{ background: '#0f172a', padding: '32px 14px 14px 14px', borderRadius: '16px', border: '1px solid #334155', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', minHeight: '260px', overflowX: 'auto', gap: '10px' }}>
+            <div style={{ background: T.cardBg2, padding: '32px 14px 14px 14px', borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', minHeight: '260px', overflowX: 'auto', gap: '10px' }}>
               {hourlyBuckets.map((b, idx) => {
                 const maxNet = Math.max(...hourlyBuckets.map(h => h.net), 1);
                 const barHeightPct = Math.max((b.net / maxNet) * 150, 6);
@@ -4873,7 +4873,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     }} />
 
                     {/* Label Jam */}
-                    <div style={{ marginTop: '8px', fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800' }}>
+                    <div style={{ marginTop: '8px', fontSize: '0.65rem', color: T.txtSecondary, fontWeight: '800' }}>
                       {b.hourRange.split(' - ')[0]}
                     </div>
                   </div>
@@ -4885,10 +4885,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           {/* TABEL DATA PENJUALAN PER JAM */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary }}>
                 Tabel Analisis Penjualan per Jam
               </h3>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+              <div style={{ fontSize: '0.8rem', color: T.txtSecondary }}>
                 Interval Terbagi 24 Jam Operasional
               </div>
             </div>
@@ -4896,7 +4896,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {hourVisibleColumns.hourRange && <th style={{ padding: '12px' }}>Rentang Waktu (1 Jam)</th>}
                     {hourVisibleColumns.txCount && <th style={{ padding: '12px', textAlign: 'right', color: '#818cf8' }}>Jumlah Transaksi</th>}
                     {hourVisibleColumns.net && <th style={{ padding: '12px', textAlign: 'right', color: '#34d399' }}>Total Omzet Net (Rupiah)</th>}
@@ -4907,9 +4907,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   {hourlyBuckets.map((b, idx) => {
                     const pct = totalHourNet > 0 ? ((b.net / totalHourNet) * 100).toFixed(1) : '0.0';
                     return (
-                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
                         {hourVisibleColumns.hourRange && (
-                          <td style={{ padding: '12px', fontWeight: '800', color: '#f8fafc' }}>
+                          <td style={{ padding: '12px', fontWeight: '800', color: T.txtPrimary }}>
                             🕒 {b.hourRange}
                           </td>
                         )}
@@ -4933,7 +4933,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   })}
                 </tbody>
 <tfoot>
-                  <tr style={{ background: '#0f172a', borderTop: '2px solid #334155', fontWeight: '900', color: '#f8fafc' }}>
+                  <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, fontWeight: '900', color: T.txtPrimary }}>
                     {hourVisibleColumns.hourRange && <td style={{ padding: '14px 12px' }}>TOTAL KESELURUHAN</td>}
                     {hourVisibleColumns.txCount && <td style={{ padding: '14px 12px', textAlign: 'right', color: '#818cf8' }}>{totalHourTxCount} kali</td>}
                     {hourVisibleColumns.net && <td style={{ padding: '14px 12px', textAlign: 'right', color: '#34d399', fontSize: '1rem' }}>{formatRupiah(totalHourNet)}</td>}
@@ -5009,9 +5009,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       <Store size={24} color="#38bdf8" />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>🍽️ Dine In (Makan di Tempat)</div>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🍽️ Dine In (Makan di Tempat)</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#38bdf8', marginTop: '4px' }}>{formatRupiah(data.serviceTypeBuckets[0].netSales)}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                         {data.serviceTypeBuckets[0].receiptCount.toLocaleString('id-ID')} Struk | x{data.serviceTypeBuckets[0].totalQty.toLocaleString('id-ID')} Porsi
                       </div>
                     </div>
@@ -5023,9 +5023,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       <ShoppingBag size={24} color="#fbbf24" />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>🥡 Take Away (Bawa Pulang / GrabFood / GoFood)</div>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🥡 Take Away (Bawa Pulang / GrabFood / GoFood)</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#fbbf24', marginTop: '4px' }}>{formatRupiah(data.serviceTypeBuckets[1].netSales)}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                         {data.serviceTypeBuckets[1].receiptCount.toLocaleString('id-ID')} Struk | x{data.serviceTypeBuckets[1].totalQty.toLocaleString('id-ID')} Porsi
                       </div>
                     </div>
@@ -5037,9 +5037,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       <DollarSign size={24} color="#34d399" />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>📊 Total Omzet Bersih Layanan</div>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>📊 Total Omzet Bersih Layanan</div>
                       <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#34d399', marginTop: '4px' }}>{formatRupiah(data.totalNet)}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                         {data.totalReceipts.toLocaleString('id-ID')} Struk | x{data.totalQty.toLocaleString('id-ID')} Porsi Total
                       </div>
                     </div>
@@ -5047,14 +5047,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </div>
 
                 {/* GRAFIK PIE PERBANDINGAN PENJUALAN DINE IN VS TAKE AWAY */}
-                <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <BarChart3 size={20} color="#38bdf8" />
                         <span>Grafik Pie Perbandingan Penjualan (Dine In vs Take Away)</span>
                       </h3>
-                      <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px', margin: 0 }}>
+                      <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px', margin: 0 }}>
                         Proporsi kontribusi omzet bersih dari layanan Makan di Tempat (Dine In) dan Bawa Pulang / Online Delivery (Take Away).
                       </p>
                     </div>
@@ -5084,7 +5084,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           </RePie>
                           <ReTooltip 
                             formatter={(val) => [formatRupiah(val), 'Total Omzet']}
-                            contentStyle={{ background: '#1e293b', borderColor: '#334155', borderRadius: '10px', color: '#ffffff' }}
+                            contentStyle={{ background: T.cardBg, borderColor: '#334155', borderRadius: '10px', color: '#ffffff' }}
                           />
                         </RePieChart>
                       </ReResponsiveContainer>
@@ -5092,22 +5092,22 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
                     {/* PIE CHART LEGEND DETAILS */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: '260px' }}>
-                      <div style={{ background: '#1e293b', padding: '14px 18px', borderRadius: '12px', borderLeft: '4px solid #38bdf8', border: '1px solid #334155' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '700' }}>🍽️ Dine In (Makan di Tempat)</div>
+                      <div style={{ background: T.cardBg, padding: '14px 18px', borderRadius: '12px', borderLeft: '4px solid #38bdf8', border: `1px solid ${T.border}` }}>
+                        <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '700' }}>🍽️ Dine In (Makan di Tempat)</div>
                         <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>
                           {formatRupiah(data.serviceTypeBuckets[0].netSales)}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                           Kontribusi: <strong style={{ color: '#38bdf8' }}>{((data.serviceTypeBuckets[0].netSales / data.totalNet) * 100).toFixed(1)}%</strong> ({data.serviceTypeBuckets[0].receiptCount.toLocaleString('id-ID')} Struk / x{data.serviceTypeBuckets[0].totalQty.toLocaleString('id-ID')} Porsi)
                         </div>
                       </div>
 
-                      <div style={{ background: '#1e293b', padding: '14px 18px', borderRadius: '12px', borderLeft: '4px solid #fbbf24', border: '1px solid #334155' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '700' }}>🥡 Take Away (Bawa Pulang & Delivery)</div>
+                      <div style={{ background: T.cardBg, padding: '14px 18px', borderRadius: '12px', borderLeft: '4px solid #fbbf24', border: `1px solid ${T.border}` }}>
+                        <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '700' }}>🥡 Take Away (Bawa Pulang & Delivery)</div>
                         <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#fbbf24', marginTop: '2px' }}>
                           {formatRupiah(data.serviceTypeBuckets[1].netSales)}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                           Kontribusi: <strong style={{ color: '#fbbf24' }}>{((data.serviceTypeBuckets[1].netSales / data.totalNet) * 100).toFixed(1)}%</strong> ({data.serviceTypeBuckets[1].receiptCount.toLocaleString('id-ID')} Struk / x{data.serviceTypeBuckets[1].totalQty.toLocaleString('id-ID')} Porsi)
                         </div>
                       </div>
@@ -5119,10 +5119,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <div className="glass-card animate-fade-in" style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary }}>
                         Tabel Analisis Penjualan By Layanan (Dine In & Take Away)
                       </h3>
-                      <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px' }}>
+                      <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px' }}>
                         Rincian perbandingan jumlah struk, kuantitas item terjual, total penjualan (nominal), rata-rata penjualan per struk, dan kontribusi (%).
                       </p>
                     </div>
@@ -5131,10 +5131,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </div>
                   </div>
 
-                  <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+                  <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                       <thead>
-                        <tr style={{ borderBottom: '2px solid #334155', background: '#0f172a', color: '#cbd5e1', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <tr style={{ borderBottom: `2px solid ${T.border}`, background: T.cardBg2, color: T.txtPrimary, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {rcptVisibleColumns.serviceType !== false && <th style={{ padding: '12px 14px' }}>Tipe Layanan</th>}
                           {rcptVisibleColumns.receiptCount !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: '#38bdf8' }}>Jumlah Struk</th>}
                           {rcptVisibleColumns.totalQty !== false && <th style={{ padding: '12px 14px', textAlign: 'center', color: '#fbbf24' }}>Kuantitas Terjual</th>}
@@ -5151,7 +5151,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           return (
                             <React.Fragment key={b.id}>
                               {/* BARIS UTAMA TIPE LAYANAN */}
-                              <tr style={{ background: 'rgba(30, 41, 59, 0.8)', borderBottom: '1px solid #334155', color: '#f8fafc' }}>
+                              <tr style={{ background: 'rgba(30, 41, 59, 0.8)', borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                                 {rcptVisibleColumns.serviceType !== false && (
                                   <td style={{ padding: '14px 12px', fontWeight: '900', color: b.color, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
                                     <span style={{ fontSize: '1.2rem' }}>{b.icon}</span>
@@ -5191,19 +5191,19 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                                 const otlPct = b.netSales > 0 ? ((otl.net / b.netSales) * 100).toFixed(1) : '0.0';
 
                                 return (
-                                  <tr key={otlIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: '#0f172a', fontSize: '0.8rem' }}>
+                                  <tr key={otlIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: T.cardBg2, fontSize: '0.8rem' }}>
                                     {rcptVisibleColumns.serviceType !== false && (
-                                      <td style={{ padding: '10px 12px 10px 36px', color: '#94a3b8', fontWeight: '600' }}>
+                                      <td style={{ padding: '10px 12px 10px 36px', color: T.txtSecondary, fontWeight: '600' }}>
                                         🏢 {otl.name}
                                       </td>
                                     )}
                                     {rcptVisibleColumns.receiptCount !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#cbd5e1' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: T.txtPrimary }}>
                                         {otl.receiptCount.toLocaleString('id-ID')} struk
                                       </td>
                                     )}
                                     {rcptVisibleColumns.totalQty !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'center', color: '#cbd5e1' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'center', color: T.txtPrimary }}>
                                         x{otl.totalQty.toLocaleString('id-ID')} porsi
                                       </td>
                                     )}
@@ -5213,12 +5213,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                                       </td>
                                     )}
                                     {rcptVisibleColumns.avgSpend !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#94a3b8' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: T.txtSecondary }}>
                                         {formatRupiah(otlAvgSpend)}
                                       </td>
                                     )}
                                     {rcptVisibleColumns.pct !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#94a3b8' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: T.txtSecondary }}>
                                         {otlPct}%
                                       </td>
                                     )}
@@ -5230,7 +5230,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         })}
                       </tbody>
                       <tfoot>
-                        <tr style={{ background: '#0f172a', borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.88rem' }}>
+                        <tr style={{ background: T.cardBg2, borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.88rem' }}>
                           {rcptVisibleColumns.serviceType !== false && <td style={{ padding: '16px 12px' }}>TOTAL AKUMULASI LAYANAN</td>}
                           {rcptVisibleColumns.receiptCount !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: '#38bdf8' }}>{data.totalReceipts.toLocaleString('id-ID')} struk</td>}
                           {rcptVisibleColumns.totalQty !== false && <td style={{ padding: '16px 12px', textAlign: 'center', color: '#fbbf24' }}>x{data.totalQty.toLocaleString('id-ID')} porsi</td>}
@@ -5320,18 +5320,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* MAIN TABLE BOARD */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary }}>
                   Laporan Akumulasi Penjualan per Pelanggan
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px' }}>
+                <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px' }}>
                   Menampilkan total histori frekuensi transaksi & akumulasi nilai belanja tiap customer terdaftar.
                 </p>
               </div>
 
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+              <div style={{ fontSize: '0.8rem', color: T.txtSecondary }}>
                 Total {totalCustCount} Pelanggan Terdaftar
               </div>
             </div>
@@ -5339,7 +5339,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {custVisibleColumns.code && <th style={{ padding: '12px' }}>Kode Membership</th>}
                     {custVisibleColumns.name && <th style={{ padding: '12px' }}>Nama Pelanggan</th>}
                     {custVisibleColumns.phone && <th style={{ padding: '12px' }}>No. WhatsApp</th>}
@@ -5352,13 +5352,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <tbody>
                   {customerRows.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                      <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
                         Belum ada pelanggan terdaftar di Master Data.
                       </td>
                     </tr>
                   ) : (
                     customerRows.map(r => (
-                      <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                      <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
                         {custVisibleColumns.code && (
                           <td style={{ padding: '14px 12px', color: '#818cf8', fontWeight: '800', fontFamily: 'monospace' }}>
                             {r.code}
@@ -5370,7 +5370,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           </td>
                         )}
                         {custVisibleColumns.phone && (
-                          <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
+                          <td style={{ padding: '14px 12px', color: T.txtPrimary }}>
                             📞 {r.phone}
                           </td>
                         )}
@@ -5410,7 +5410,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </tbody>
                 {customerRows.length > 0 && (
                   <tfoot>
-                    <tr style={{ background: '#0f172a', borderTop: '2px solid #334155', fontWeight: '900', color: '#f8fafc' }}>
+                    <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, fontWeight: '900', color: T.txtPrimary }}>
                       {custVisibleColumns.code && <td style={{ padding: '14px 12px' }}>TOTAL AKUMULASI</td>}
                       {custVisibleColumns.name && <td></td>}
                       {custVisibleColumns.phone && <td></td>}
@@ -5432,11 +5432,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'monthly_comparison' && (
         <div className="glass-card animate-fade-in" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <TrendingUp size={22} color="#34d399" />
               <span>Perbandingan Penjualan per Bulan (MoM Sales Growth Analysis)</span>
             </h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '4px' }}>
+            <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '4px' }}>
               Analisis pertumbuhan omzet kotor, potongan diskon, dan penjualan bersih dari bulan ke bulan antar cabang outlet.
             </p>
           </div>
@@ -5499,18 +5499,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
           {/* COLUMN VISIBILITY PANEL */}
           {momShowColumnDropdown && (
-            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: '1px solid #fbbf24', background: '#1e293b', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-                <div style={{ fontWeight: '800', color: '#f8fafc', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: '1px solid #fbbf24', background: T.cardBg, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '10px' }}>
+                <div style={{ fontWeight: '800', color: T.txtPrimary, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <SlidersHorizontal size={18} color="#fbbf24" />
                   <span>Papan Filter Visibilitas Kolom Tabel (Perbandingan Bulanan)</span>
                 </div>
-                <button onClick={() => setMomShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
+                <button onClick={() => setMomShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
                   ✕ Sembunyikan Papan Kolom
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
                 {[
                   { key: 'month', label: '🗓️ Periode Bulan' },
                   { key: 'outletName', label: '🏢 Nama Outlet' },
@@ -5550,8 +5550,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           )}
 
           {/* VISUAL CHART SECTION */}
-          <div style={{ background: '#0f172a', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#f8fafc', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.cardBg2, padding: '20px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>📊 Grafik Perbandingan Omzet Bersih Bulanan per Outlet</span>
               <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
                 Dalam Rupiah (Rp)
@@ -5560,12 +5560,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             <div style={{ width: '100%', height: '320px' }}>
               <ReResponsiveContainer width="100%" height="100%">
                 <ReBarChart data={chartDataset}>
-                  <ReCartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <ReCartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
                   <ReXAxis dataKey="name" stroke="#cbd5e1" style={{ fontSize: '0.8rem' }} />
                   <ReYAxis stroke="#cbd5e1" style={{ fontSize: '0.8rem' }} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}jt`} />
                   <ReTooltip 
                     formatter={(value) => [formatRupiah(value), "Omzet Bersih"]} 
-                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+                    contentStyle={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.82rem' }}
                   />
                   <ReLegend wrapperStyle={{ fontSize: '0.8rem', paddingTop: '10px' }} />
                   {outlets.map((o, idx) => {
@@ -5581,11 +5581,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* MONTHLY COMPARISON TABLE */}
-          <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#0f172a' }}>
+          <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg2 }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: '800' }}>
+                  <tr style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: '800' }}>
                     {momVisibleColumns.month && <th style={{ padding: '14px 12px' }}>🗓️ Periode Bulan</th>}
                     {momVisibleColumns.outletName && <th style={{ padding: '14px 12px' }}>🏢 Nama Outlet</th>}
                     {momVisibleColumns.txCount && <th style={{ padding: '14px 12px', textAlign: 'right' }}>🎫 Jumlah Transaksi</th>}
@@ -5599,7 +5599,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <tbody>
                   {momComparisonData.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                      <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
                         📭 Belum ada data perbandingan penjualan bulanan. Data akan terbentuk otomatis seiring berjalannya transaksi kasir.
                       </td>
                     </tr>
@@ -5609,14 +5609,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       const isUp = r.growth >= 0;
                       const growthColor = isFirstMonth ? '#cbd5e1' : isUp ? '#34d399' : '#fb7185';
                       return (
-                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
                           {momVisibleColumns.month && (
                             <td style={{ padding: '12px', fontWeight: '800', color: '#818cf8' }}>
                               {r.monthLabel}
                             </td>
                           )}
                           {momVisibleColumns.outletName && (
-                            <td style={{ padding: '12px', color: '#cbd5e1', fontWeight: '700' }}>
+                            <td style={{ padding: '12px', color: T.txtPrimary, fontWeight: '700' }}>
                               🏢 {r.outletName}
                             </td>
                           )}
@@ -5626,7 +5626,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             </td>
                           )}
                           {momVisibleColumns.grossSales && (
-                            <td style={{ padding: '12px', textAlign: 'right', color: '#cbd5e1' }}>
+                            <td style={{ padding: '12px', textAlign: 'right', color: T.txtPrimary }}>
                               {formatRupiah(r.grossSales)}
                             </td>
                           )}
@@ -5648,7 +5648,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           {momVisibleColumns.growth && (
                             <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: growthColor }}>
                               {isMei ? (
-                                <span style={{ color: '#64748b' }}>- (Baseline)</span>
+                                <span style={{ color: T.txtMuted }}>- (Baseline)</span>
                               ) : (
                                 <span>
                                   {isUp ? '▲' : '▼'} {isUp ? '+' : ''}{r.growth.toFixed(1)}%
@@ -5668,11 +5668,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       const isUp = m.growth >= 0;
                       const growthColor = isMei ? '#cbd5e1' : isUp ? '#34d399' : '#fb7185';
                       return (
-                        <tr key={idx} style={{ background: 'rgba(255, 255, 255, 0.03)', borderTop: idx === 0 ? '2px solid #334155' : '1px solid #334155', fontWeight: '900', color: '#f8fafc' }}>
+                        <tr key={idx} style={{ background: 'rgba(255, 255, 255, 0.03)', borderTop: idx === 0 ? '2px solid #334155' : '1px solid #334155', fontWeight: '900', color: T.txtPrimary }}>
                           {momVisibleColumns.month && <td style={{ padding: '12px' }}>AKUMULASI {m.monthLabel.toUpperCase()}</td>}
-                          {momVisibleColumns.outletName && <td style={{ padding: '12px', color: '#94a3b8' }}>SEMUA CABANG</td>}
+                          {momVisibleColumns.outletName && <td style={{ padding: '12px', color: T.txtSecondary }}>SEMUA CABANG</td>}
                           {momVisibleColumns.txCount && <td style={{ padding: '12px', textAlign: 'right' }}>{m.txCount.toLocaleString('id-ID')}</td>}
-                          {momVisibleColumns.grossSales && <td style={{ padding: '12px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(m.grossSales)}</td>}
+                          {momVisibleColumns.grossSales && <td style={{ padding: '12px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(m.grossSales)}</td>}
                           {momVisibleColumns.discount && <td style={{ padding: '12px', textAlign: 'right', color: '#fb7185' }}>{formatRupiah(m.discount)}</td>}
                           {momVisibleColumns.netSales && <td style={{ padding: '12px', textAlign: 'right', color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(m.netSales)}</td>}
                           {momVisibleColumns.avgSpend && <td style={{ padding: '12px', textAlign: 'right', color: '#38bdf8' }}>{formatRupiah(m.avgSpend)}</td>}
