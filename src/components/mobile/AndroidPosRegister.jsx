@@ -2109,7 +2109,7 @@ export default function AndroidPosRegister({
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       outlet_id: currentOutlet.id,
       outlet_name: currentOutlet.name,
-      cashier_name: 'master (Superadmin)',
+      cashier_name: userSession?.name || currentUserSession?.name || masterData?.currentUser?.name || 'Kasir Outlet',
       initial_cash: initialCash,
       gross_sales: totalSalesGross,
       cash_sales: cashSales,
@@ -5073,7 +5073,7 @@ export default function AndroidPosRegister({
                       setTransferSubmittedBy(userSession?.name || '');
                       setTransferItemName(firstIng.name);
                       setTransferCustomItemName('');
-                      setTransferQty(10);
+                      setTransferQty(1);
                       setTransferUnit(firstIng.unit || 'kg');
                       setTransferNotes('Transfer pengiriman bahan baku antarcabang');
                       setTransferStatus('ditunda');
@@ -5082,7 +5082,7 @@ export default function AndroidPosRegister({
                           id: Date.now(),
                           item_name: firstIng.name,
                           custom_item_name: '',
-                          qty: 10,
+                          qty: 1,
                           unit: firstIng.unit || 'kg'
                         }
                       ]);
