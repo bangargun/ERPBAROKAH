@@ -245,6 +245,22 @@ export default function App() {
                 ? serverData.mobilePermissionMatrix
                 : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
 
+              const mergeReportsById = (prevList = [], serverList = []) => {
+                const map = new Map();
+                (prevList || []).forEach(item => {
+                  if (item && (item.id || item.report_no)) map.set(String(item.id || item.report_no), item);
+                });
+                (serverList || []).forEach(item => {
+                  if (item && (item.id || item.report_no)) map.set(String(item.id || item.report_no), item);
+                });
+                return Array.from(map.values());
+              };
+
+              const mergedApprovedFinance = mergeReportsById(prev.approvedFinanceDaily, serverData.approvedFinanceDaily);
+              const mergedManualEntry = mergeReportsById(prev.manualEntryRecords, serverData.manualEntryRecords);
+              const mergedShiftClosings = mergeReportsById(prev.shiftClosings || prev.closedShifts, serverData.shiftClosings || serverData.closedShifts);
+              const mergedSalesTx = mergeReportsById(prev.salesTransactions || prev.transactions, serverData.salesTransactions || serverData.transactions);
+
               if (localTs > remoteTs && (prev.mobileAccounts?.length > 0 && prev.webAdminAccounts?.length > 0)) {
                 return prev;
               }
@@ -258,11 +274,15 @@ export default function App() {
                 ...initialMasterData,
                 ...prev,
                 ...serverData,
+                approvedFinanceDaily: mergedApprovedFinance,
+                manualEntryRecords: mergedManualEntry,
+                shiftClosings: mergedShiftClosings,
+                salesTransactions: mergedSalesTx,
                 webAdminAccounts: mergedWeb,
                 mobileAccounts: mergedMobile,
                 permissionMatrix: mergedPerm,
                 mobilePermissionMatrix: mergedMobPerm,
-                _lastUpdated: remoteTs
+                _lastUpdated: Math.max(localTs, remoteTs)
               };
             });
           }

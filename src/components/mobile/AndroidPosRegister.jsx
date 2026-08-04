@@ -4499,9 +4499,20 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {(() => {
-                          const combinedRecords = (masterData.approvedFinanceDaily && masterData.approvedFinanceDaily.length > 0)
-                            ? masterData.approvedFinanceDaily
-                            : (masterData.manualEntryRecords || []);
+                          const recordsMap = new Map();
+                          const rawApproved = masterData.approvedFinanceDaily || [];
+                          const rawManual = masterData.manualEntryRecords || [];
+                          [...rawApproved, ...rawManual].forEach(item => {
+                            if (item && (item.id || item.report_no)) {
+                              const key = String(item.id || item.report_no);
+                              if (!recordsMap.has(key)) {
+                                recordsMap.set(key, item);
+                              } else {
+                                recordsMap.set(key, { ...recordsMap.get(key), ...item });
+                              }
+                            }
+                          });
+                          const combinedRecords = Array.from(recordsMap.values()).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
                           if (combinedRecords.length === 0) {
                             return (
