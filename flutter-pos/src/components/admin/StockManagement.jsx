@@ -271,98 +271,100 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
   const calculateStockOpnameBySystem = () => {
     const movements = getMovementsList();
-    const dateSet = new Set();
-    const todayStr = new Date().toISOString().split('T')[0];
-    dateSet.add(todayStr);
+    const transfersList = getTransfersList();
+    const ingredients = ingredientsList || [];
 
-    movements.forEach(m => { if (m.date) dateSet.add(m.date); });
-    (masterData.stockOutflow || []).forEach(s => { if (s.date) dateSet.add(s.date); });
-    (masterData.stockTransfer || []).forEach(t => { if (t.date) dateSet.add(t.date); });
-    (masterData.damagedGoods || []).forEach(d => { if (d.date) dateSet.add(d.date); });
-    (masterData.stockOpname || []).forEach(o => { if (o.date) dateSet.add(o.date); });
+    // Tentukan apakah filter outlet adalah "Semua Outlet (Central)" / "ALL"
+    const isAllOutlets = !selectedBranch || String(selectedBranch) === 'ALL' || logSelectedOutletIds.includes('ALL');
+    const targetBranchId = selectedBranch && String(selectedBranch) !== 'ALL' ? selectedBranch : (logSelectedOutletIds.includes('ALL') ? null : logSelectedOutletIds[0]);
 
-    const sortedDates = Array.from(dateSet).sort();
-    const targetOutlets = outlets || [];
-    const targetIngredients = ingredientsList || [];
+    return ingredients.map((ing, idx) => {
+      const ingNameLower = (ing.name || '').toLowerCase().trim();
 
-    const prevEndingStockMap = {};
-    const allCalculatedRows = [];
+      // 1. Stok Masuk
+      const stokMasuk = movements
+        .filter(m => {
+          if (m.type !== 'IN') return false;
+          if ((m.item_name || m.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && m.date < logStartDate) return false;
+          if (logEndDate && m.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(m.outlet_id) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, m) => sum + Number(m.qty || 0), 0);
 
-    sortedDates.forEach(dateStr => {
-      targetOutlets.forEach(out => {
-        targetIngredients.forEach(ing => {
-          const itemKey = `${out.id}_${ing.name}`;
-          const manualKey = `${dateStr}_${out.id}_${ing.name}`;
+      // 2. Stok Keluar (Penjualan POS / Outflow)
+      const stokKeluar = (masterData.stockOutflow || [])
+        .filter(s => {
+          if ((s.itemName || s.item_name || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && s.date < logStartDate) return false;
+          if (logEndDate && s.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(s.outletId || s.branch_id || 1) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, s) => sum + Math.abs(Number(s.qty || 0)), 0);
 
-          // 1. Stok Masuk
-          const inQty = movements
-            .filter(m => m.type === 'IN' && String(m.outlet_id) === String(out.id) && (m.item_name || m.itemName) === ing.name && m.date === dateStr)
-            .reduce((sum, m) => sum + Number(m.qty || 0), 0);
+      // 3. Transfer Stok In (Penerimaan)
+      const transferIn = transfersList
+        .filter(t => {
+          if ((t.item_name || t.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && t.date < logStartDate) return false;
+          if (logEndDate && t.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(t.to_outlet_id || t.toOutletId) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, t) => sum + Number(t.qty || 0), 0);
 
-          // 2. Stok Keluar (Penjualan POS)
-          const outSalesQty = (masterData.stockOutflow || [])
-            .filter(s => String(s.outletId || s.branch_id || 1) === String(out.id) && s.itemName === ing.name && s.date === dateStr)
-            .reduce((sum, s) => sum + Math.abs(Number(s.qty || 0)), 0);
+      // 4. Transfer Stok Out (Pengiriman)
+      const transferOut = transfersList
+        .filter(t => {
+          if ((t.item_name || t.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && t.date < logStartDate) return false;
+          if (logEndDate && t.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(t.from_outlet_id || t.fromOutletId) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, t) => sum + Number(t.qty || 0), 0);
 
-          const transfersList = getTransfersList();
+      // 5. Stok Rusak
+      const stokRusak = (masterData.damagedGoods || [])
+        .concat(masterData.approvedWaste || [])
+        .filter(d => {
+          if ((d.item_name || d.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && d.date < logStartDate) return false;
+          if (logEndDate && d.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(d.outlet_id || d.branch_id) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || 0), 0);
 
-          // 3. Transfer Stok In (Penerimaan)
-          const transferInQty = transfersList
-            .filter(t => (Number(t.to_outlet_id || t.toOutletId) === Number(out.id) || t.to_outlet_name === out.name || t.toOutletName === out.name) && (t.item_name || t.itemName) === ing.name && t.date === dateStr)
-            .reduce((sum, t) => sum + Number(t.qty || 0), 0);
+      // 6. Stok Awal: Manual Override > Ingredient Initial Stock
+      const manualKey = `ing_${targetBranchId || 'ALL'}_${ing.name}`;
+      let stokAwal = 0;
+      if (manualStokAwalMap[manualKey] !== undefined && manualStokAwalMap[manualKey] !== '') {
+        stokAwal = Number(manualStokAwalMap[manualKey]);
+      } else {
+        stokAwal = Number(ing.initialStock !== undefined ? ing.initialStock : (ing.stock || ing.stok || 0));
+      }
 
-          // 4. Transfer Stok Out (Pengiriman)
-          const transferOutQty = transfersList
-            .filter(t => (Number(t.from_outlet_id || t.fromOutletId) === Number(out.id) || t.from_outlet_name === out.name || t.fromOutletName === out.name) && (t.item_name || t.itemName) === ing.name && t.date === dateStr)
-            .reduce((sum, t) => sum + Number(t.qty || 0), 0);
+      // 7. Sisa Stok by Sistem Formula
+      const sisaStokSystem = (stokAwal + stokMasuk + transferIn) - (stokKeluar + transferOut + stokRusak);
 
-          // 5. Stok Rusak
-          const rusakQty = getAutoWasteForIngredient(ing.name, out.id, dateStr);
-
-          // 6. Stok Awal: Manual Override > Previous Ending Stock > Default
-          let stokAwal = 0;
-          if (manualStokAwalMap[manualKey] !== undefined && manualStokAwalMap[manualKey] !== '') {
-            stokAwal = Number(manualStokAwalMap[manualKey]);
-          } else if (prevEndingStockMap[itemKey] !== undefined) {
-            stokAwal = prevEndingStockMap[itemKey];
-          } else {
-            stokAwal = Number(ing.initialStock || 0);
-          }
-
-          // 7. Sisa Stok by Sistem Formula: (Stok Awal + Stok Masuk + Transfer In) - (Stok Keluar + Transfer Out + Stok Rusak)
-          const sisaStokSystem = (stokAwal + inQty + transferInQty) - (outSalesQty + transferOutQty + rusakQty);
-
-          // Save for next date iteration
-          prevEndingStockMap[itemKey] = sisaStokSystem;
-
-          // Filter checks
-          const matchesOutlet = logSelectedOutletIds.includes('ALL') || logSelectedOutletIds.includes(out.id) || logSelectedOutletIds.includes(String(out.id));
-          const matchesDate = (!logStartDate || dateStr >= logStartDate) && (!logEndDate || dateStr <= logEndDate);
-
-          if (matchesOutlet && matchesDate) {
-            allCalculatedRows.push({
-              id: `op-sys-${dateStr}-${out.id}-${ing.id || ing.name}`,
-              date: dateStr,
-              outletId: out.id,
-              outletName: out.name,
-              itemName: ing.name,
-              unit: ing.unit || 'kg',
-              stokAwal,
-              stokMasuk: inQty,
-              stokKeluar: outSalesQty,
-              transferIn: transferInQty,
-              transferOut: transferOutQty,
-              stokRusak: rusakQty,
-              sisaStokSystem,
-              manualKey,
-              hasManualOverride: manualStokAwalMap[manualKey] !== undefined && manualStokAwalMap[manualKey] !== ''
-            });
-          }
-        });
-      });
-    });
-
-    return allCalculatedRows.sort((a, b) => b.date.localeCompare(a.date));
+      return {
+        id: `op-sys-ing-${ing.id || idx}`,
+        itemName: ing.name,
+        unit: ing.unit || 'kg',
+        stokAwal,
+        stokMasuk,
+        stokKeluar,
+        transferIn,
+        transferOut,
+        stokRusak,
+        sisaStokSystem,
+        manualKey,
+        hasManualOverride: manualStokAwalMap[manualKey] !== undefined && manualStokAwalMap[manualKey] !== ''
+      };
+    }).sort((a, b) => a.itemName.localeCompare(b.itemName));
   };
 
   // PERBANDINGAN HARGA BAHAN BAKU ANTAR OUTLET (TANGGAL KE TANGGAL)
@@ -3058,8 +3060,6 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    {visibleColsOpnameSystem.date && <th style={{ padding: '12px 10px' }}>📅 Tanggal</th>}
-                    {visibleColsOpnameSystem.outletName && <th style={{ padding: '12px 10px' }}>🏢 Nama Outlet</th>}
                     {visibleColsOpnameSystem.itemName && <th style={{ padding: '12px 10px' }}>🥦 Nama Bahan Baku</th>}
                     {visibleColsOpnameSystem.unit && <th style={{ padding: '12px 10px' }}>Satuan</th>}
                     {visibleColsOpnameSystem.stokAwal && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Awal</th>}
@@ -3074,15 +3074,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <tbody>
                   {calculateStockOpnameBySystem().length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
+                      <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                         Tidak ada data stok opname by sistem untuk outlet / rentang tanggal terpilih.
                       </td>
                     </tr>
                   ) : (
                     calculateStockOpnameBySystem().map(row => (
                       <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
-                        {visibleColsOpnameSystem.date && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{row.date}</td>}
-                        {visibleColsOpnameSystem.outletName && <td style={{ padding: '12px 10px', fontWeight: '700' }}>🏢 {row.outletName}</td>}
                         {visibleColsOpnameSystem.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: T.info }}>{row.itemName}</td>}
                         {visibleColsOpnameSystem.unit && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{row.unit}</td>}
 
