@@ -1511,6 +1511,35 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     }
   });
 
+  // Bersihkan item logistik yang sudah terhapus di deletedLogisticsIds / deletedOutflowIds
+  const deletedLogSet = new Set([
+    ...(result.deletedLogisticsIds || []),
+    ...(incoming.deletedLogisticsIds || []),
+    ...(result.deletedOutflowIds || []),
+    ...(incoming.deletedOutflowIds || [])
+  ].map(x => String(x)));
+
+  if (deletedLogSet.size > 0) {
+    result.deletedLogisticsIds = Array.from(deletedLogSet);
+
+    const ALL_LOGISTICS_KEYS = [
+      'stockOpname', 'approvedLogistics', 'approvedOpname',
+      'stockTransfer', 'approvedTransfers', 'damagedGoods',
+      'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+    ];
+
+    ALL_LOGISTICS_KEYS.forEach(lk => {
+      if (Array.isArray(result[lk])) {
+        result[lk] = result[lk].filter(item => {
+          if (!item) return false;
+          const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
+          const iRNo = String(item.report_no || item.receiptNo || '');
+          return !deletedLogSet.has(iId) && !deletedLogSet.has(iRNo);
+        });
+      }
+    });
+  }
+
   return result;
 };
 
@@ -1595,8 +1624,14 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     const idStr = String(id);
     const nowTs = Date.now();
 
-    // Hapus spesifik report dari SEMUA 6 key laporan harian jika key merupakan salah satu key laporan
     const reportKeys = ['approvedFinanceDaily', 'shiftClosings', 'shift_closings', 'closedShifts', 'dailyReports', 'manualEntryRecords'];
+    const logisticsKeys = [
+      'stockOpname', 'approvedLogistics', 'approvedOpname',
+      'stockTransfer', 'approvedTransfers', 'damagedGoods',
+      'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+      'stok_masuk', 'stok_keluar', 'transfer_stok', 'stok_rusak', 'stok_opname'
+    ];
+
     if (reportKeys.includes(key)) {
       const matchReport = r => {
         if (!r) return false;
@@ -1610,6 +1645,39 @@ app.post('/api/master-data/delete-item', async (req, res) => {
           existing[rk] = existing[rk].filter(r => !matchReport(r));
         }
       });
+    } else if (logisticsKeys.includes(key)) {
+      const matchLogistics = item => {
+        if (!item) return false;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemRNo = String(item.report_no || item.receiptNo || '');
+        return itemId === idStr || itemRNo === idStr;
+      };
+
+      // Catat ke deletedLogisticsIds
+      existing.deletedLogisticsIds = Array.from(new Set([
+        ...(existing.deletedLogisticsIds || []),
+        idStr
+      ]));
+
+      // Hapus dari SEMUA key logistik terkait
+      const ALL_LOGISTICS_KEYS = [
+        'stockOpname', 'approvedLogistics', 'approvedOpname',
+        'stockTransfer', 'approvedTransfers', 'damagedGoods',
+        'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+      ];
+
+      ALL_LOGISTICS_KEYS.forEach(lk => {
+        if (Array.isArray(existing[lk])) {
+          existing[lk] = existing[lk].filter(item => !matchLogistics(item));
+        }
+      });
+
+      // Hapus dari tabel relasi MySQL stock_movement
+      if (mysqlPool && idStr) {
+        try {
+          await mysqlPool.execute(`DELETE FROM \`stock_movement\` WHERE id = ? OR reason LIKE ? OR ingredient_name = ?`, [idStr, `%${idStr}%`, idStr]);
+        } catch (delErr) {}
+      }
     } else if (key === 'salesTransactions' || key === 'transactions' || key === 'outletTransactions') {
       const targetId = idStr;
       const isMatch = item => {

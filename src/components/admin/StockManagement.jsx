@@ -1254,68 +1254,49 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     setShowAddModal(null);
   };
 
-  // DELETE LOGISTIC RECORD
+  // DELETE LOGISTIC RECORD (MENYAPU BERSIH SELURUH LOGISTIK DARI WEB ADMIN & POS KASIR)
   const handleDeleteRecord = (id, tabType, reportNo = null) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus data logistik ini secara permanen?')) return;
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data logistik ini secara permanen dari Web Admin dan POS Kasir?')) return;
 
-    const targetReportNo = reportNo || id;
+    const targetReportNo = String(reportNo || id);
+    const targetIdStr = String(id);
 
-    if (tabType === 'stok_masuk') {
-      setMasterData(prev => ({
+    setMasterData(prev => {
+      const prevDeleted = (prev.deletedLogisticsIds || []).map(x => String(x));
+      const updatedDeleted = Array.from(new Set([...prevDeleted, targetIdStr, targetReportNo]));
+
+      const filterItem = item => {
+        if (!item) return false;
+        const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const iRNo = String(item.report_no || item.receiptNo || '');
+        return iId !== targetIdStr && iId !== targetReportNo && iRNo !== targetIdStr && iRNo !== targetReportNo;
+      };
+
+      return {
         ...prev,
-        stockMovement: (prev.stockMovement || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
-        stockIn: (prev.stockIn || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
-        purchases: (prev.purchases || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
-      }));
-    } else if (tabType === 'stok_rusak') {
-      setMasterData(prev => ({
-        ...prev,
-        damagedGoods: (prev.damagedGoods || []).filter(item => 
-          String(item.id) !== String(id) && 
-          String(item.report_no || '') !== String(targetReportNo)
-        ),
-        approvedWaste: (prev.approvedWaste || []).filter(item => 
-          String(item.id) !== String(id) && 
-          String(item.report_no || '') !== String(targetReportNo)
-        ),
-        stockMovement: (prev.stockMovement || []).filter(item => 
-          String(item.id) !== String(id) && 
-          String(item.report_no || '') !== String(targetReportNo)
-        )
-      }));
-    } else if (tabType === 'stok_keluar') {
-      const updated = [...deletedOutflowIds, id, targetReportNo].filter(Boolean);
-      setDeletedOutflowIds(updated);
-      setMasterData(prev => ({
-        ...prev,
-        deletedOutflowIds: updated,
-        stockMovement: (prev.stockMovement || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
-      }));
-    } else if (tabType === 'transfer_stok') {
-      setMasterData(prev => ({
-        ...prev,
-        stockTransfer: (prev.stockTransfer || []).filter(item => 
-          String(item.id) !== String(id) && 
-          String(item.report_no || '') !== String(targetReportNo)
-        ),
-        approvedTransfers: (prev.approvedTransfers || []).filter(item => 
-          String(item.id) !== String(id) && 
-          String(item.report_no || '') !== String(targetReportNo)
-        ),
-        stockMovement: (prev.stockMovement || []).filter(item => 
-          String(item.id) !== String(id) && 
-          String(item.report_no || '') !== String(targetReportNo)
-        )
-      }));
-    } else if (tabType === 'stok_opname') {
-      setMasterData(prev => ({
-        ...prev,
-        stockOpname: (prev.stockOpname || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
-        approvedOpname: (prev.approvedOpname || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
-        approvedLogistics: (prev.approvedLogistics || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
-        stockMovement: (prev.stockMovement || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
-      }));
-    }
+        _lastUpdated: Date.now(),
+        deletedLogisticsIds: updatedDeleted,
+        stockOpname: (prev.stockOpname || []).filter(filterItem),
+        approvedOpname: (prev.approvedOpname || []).filter(filterItem),
+        approvedLogistics: (prev.approvedLogistics || []).filter(filterItem),
+        stockTransfer: (prev.stockTransfer || []).filter(filterItem),
+        approvedTransfers: (prev.approvedTransfers || []).filter(filterItem),
+        damagedGoods: (prev.damagedGoods || []).filter(filterItem),
+        approvedWaste: (prev.approvedWaste || []).filter(filterItem),
+        stockMovement: (prev.stockMovement || []).filter(filterItem),
+        stockIn: (prev.stockIn || []).filter(filterItem),
+        purchases: (prev.purchases || []).filter(filterItem)
+      };
+    });
+
+    // Panggil delete-item endpoint di server backend untuk menjamin MySQL bersih
+    try {
+      fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: tabType || 'stockOpname', id: targetReportNo, report_no: targetReportNo })
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   // GET AUTO SALES OUTFLOW FROM WEB ADMIN LOGISTIK (STOK KELUAR PENJUALAN)

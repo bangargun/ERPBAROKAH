@@ -873,29 +873,57 @@ export default function AndroidPosRegister({
               return null;
             };
 
-            const smartMergeArray = (localArr, serverArr) => {
-              if (!Array.isArray(serverArr) || serverArr.length === 0) return localArr || [];
-              if (!Array.isArray(localArr) || localArr.length === 0) return serverArr;
+            const LOGISTICS_ARRAY_KEYS = new Set([
+              'stockOpname', 'approvedLogistics', 'approvedOpname',
+              'stockTransfer', 'approvedTransfers', 'damagedGoods',
+              'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+            ]);
+
+            const smartMergeArray = (localArr, serverArr, keyName = '') => {
+              const sArr = Array.isArray(serverArr) ? serverArr : [];
+              const lArr = Array.isArray(localArr) ? localArr : [];
+
+              if (sArr.length === 0 && LOGISTICS_ARRAY_KEYS.has(keyName)) {
+                return [];
+              }
+              if (sArr.length === 0) return lArr;
+              if (lArr.length === 0) return sArr;
 
               const map = new Map();
               // 1. Masukkan data server
-              serverArr.forEach(item => {
+              sArr.forEach(item => {
                 const k = getItemKey(item);
                 if (k) map.set(k, item);
               });
               // 2. Gabungkan data lokal: pertahankan item lokal baru & merge status dari server
-              localArr.forEach(item => {
+              lArr.forEach(item => {
                 const k = getItemKey(item);
                 if (k) {
                   const existing = map.get(k);
                   if (!existing) {
-                    map.set(k, item);
+                    // Untuk array logistik, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
+                    if (!LOGISTICS_ARRAY_KEYS.has(keyName)) {
+                      map.set(k, item);
+                    }
                   } else {
                     map.set(k, { ...item, ...existing });
                   }
                 }
               });
-              return Array.from(map.values());
+
+              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedOutflowIds
+              const deletedSet = new Set([
+                ...(serverMaster.deletedLogisticsIds || []),
+                ...(serverMaster.deletedOutflowIds || []),
+                ...(prev.deletedLogisticsIds || [])
+              ].map(x => String(x)));
+
+              return Array.from(map.values()).filter(item => {
+                if (!item) return false;
+                const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
+                const iRNo = String(item.report_no || item.receiptNo || '');
+                return !deletedSet.has(iId) && !deletedSet.has(iRNo);
+              });
             };
 
             const MERGE_ARRAY_KEYS = [
@@ -910,7 +938,7 @@ export default function AndroidPosRegister({
 
             const mergedCollections = {};
             MERGE_ARRAY_KEYS.forEach(k => {
-              mergedCollections[k] = smartMergeArray(prev[k], serverMaster[k]);
+              mergedCollections[k] = smartMergeArray(prev[k], serverMaster[k], k);
             });
 
             return {
