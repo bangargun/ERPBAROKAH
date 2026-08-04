@@ -317,16 +317,131 @@ export function DoubleCalendarPicker({
     return `${formatToDMY(startDate)} - ${formatToDMY(endDate || startDate)}`;
   };
 
+  const [selectedYear, setSelectedYear] = useState(() => startDate ? startDate.slice(0, 4) : '');
+  const [selectedMonth, setSelectedMonth] = useState(() => startDate ? startDate.slice(5, 7) : '');
+
+  // Keep year and month dropdowns synced with startDate
+  useEffect(() => {
+    if (startDate) {
+      setSelectedYear(startDate.slice(0, 4));
+      setSelectedMonth(startDate.slice(5, 7));
+    } else {
+      setSelectedYear('');
+      setSelectedMonth('');
+    }
+  }, [startDate]);
+
+  const handleYearChange = (yr) => {
+    setSelectedYear(yr);
+    if (!yr) {
+      setStartDate('');
+      setEndDate('');
+      setSelectedMonth('');
+      return;
+    }
+    const m = selectedMonth || '01';
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    if (selectedMonth) {
+      setStartDate(`${yr}-${m}-01`);
+      setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+    } else {
+      setStartDate(`${yr}-01-01`);
+      setEndDate(`${yr}-12-31`);
+    }
+    setDatePreset('custom');
+  };
+
+  const handleMonthChange = (m) => {
+    setSelectedMonth(m);
+    const yr = selectedYear || new Date().getFullYear().toString();
+    if (!selectedYear) setSelectedYear(yr);
+    if (!m) {
+      if (selectedYear) {
+        setStartDate(`${yr}-01-01`);
+        setEndDate(`${yr}-12-31`);
+      } else {
+        setStartDate('');
+        setEndDate('');
+      }
+      return;
+    }
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    setStartDate(`${yr}-${m}-01`);
+    setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+    setDatePreset('custom');
+  };
+
   return (
-    <div ref={containerRef} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: '#1e293b', padding: '12px', borderRadius: '8px', border: '1px solid #334155' }}>
+    <div ref={containerRef} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: '#1e293b', padding: '12px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
       
-      {/* Date Input Field */}
+      {/* 1. Tahun Dropdown */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📅 Tahun</span>
+        <select
+          value={selectedYear}
+          onChange={e => handleYearChange(e.target.value)}
+          style={{
+            padding: '0 12px',
+            borderRadius: '6px',
+            border: '1px solid #334155',
+            background: '#0f172a',
+            color: '#f8fafc',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            height: '40px',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="">Semua Tahun</option>
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+          <option value="2027">2027</option>
+          <option value="2028">2028</option>
+        </select>
+      </div>
+
+      {/* 2. Bulan Dropdown */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🗓️ Bulan</span>
+        <select
+          value={selectedMonth}
+          onChange={e => handleMonthChange(e.target.value)}
+          style={{
+            padding: '0 12px',
+            borderRadius: '6px',
+            border: '1px solid #334155',
+            background: '#0f172a',
+            color: '#f8fafc',
+            fontSize: '0.85rem',
+            fontWeight: '700',
+            height: '40px',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="">Semua Bulan</option>
+          <option value="01">Januari</option>
+          <option value="02">Februari</option>
+          <option value="03">Maret</option>
+          <option value="04">April</option>
+          <option value="05">Mei</option>
+          <option value="06">Juni</option>
+          <option value="07">Juli</option>
+          <option value="08">Agustus</option>
+          <option value="09">September</option>
+          <option value="10">Oktober</option>
+          <option value="11">November</option>
+          <option value="12">Desember</option>
+        </select>
+      </div>
+
+      {/* 3. Tanggal Input Field */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showPopover ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal</span>
+        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
         <button
           onClick={() => { setShowPopover(!showPopover); setShowOutletDropdown(false); }}
           style={{
-            minWidth: '220px',
+            minWidth: '210px',
             padding: '10px 14px',
             borderRadius: '6px',
             border: '1px solid #334155',

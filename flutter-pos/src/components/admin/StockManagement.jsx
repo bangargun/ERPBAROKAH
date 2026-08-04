@@ -1306,7 +1306,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       setMasterData(prev => ({
         ...prev,
         stockOpname: (prev.stockOpname || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
-        approvedOpname: (prev.approvedOpname || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
+        approvedOpname: (prev.approvedOpname || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
+        approvedLogistics: (prev.approvedLogistics || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo)),
+        stockMovement: (prev.stockMovement || []).filter(item => String(item.id) !== String(id) && String(item.report_no || '') !== String(targetReportNo))
       }));
     }
   };

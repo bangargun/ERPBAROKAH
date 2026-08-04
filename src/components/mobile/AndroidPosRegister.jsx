@@ -4660,7 +4660,7 @@ export default function AndroidPosRegister({
                           transfer_masuk: trfIn,
                           transfer_keluar: trfOut,
                           stok_rusak: wasteQty,
-                          stok_fisik: ''
+                          stok_fisik: 0
                         };
                       });
 
@@ -4688,21 +4688,16 @@ export default function AndroidPosRegister({
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                       <thead>
-                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.70rem' }}>
-                          <th style={{ padding: '10px 12px' }}>Tanggal</th>
-                          <th style={{ padding: '10px 12px' }}>No Laporan</th>
-                          <th style={{ padding: '10px 12px' }}>Diisi Oleh</th>
-                          <th style={{ padding: '10px 12px' }}>Nama Item</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Awal</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Masuk</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399' }}>Transfer Stok In</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Transfer Stok Out</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Rusak</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#38bdf8' }}>Stok Fisik</th>
-                          <th style={{ padding: '10px 10px', textAlign: 'center' }}>Status</th>
-                          <th style={{ padding: '10px 10px', textAlign: 'center' }}>Aksi</th>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.74rem', fontWeight: '800' }}>
+                          <th style={{ padding: '12px 14px' }}>📅 Tanggal</th>
+                          <th style={{ padding: '12px 14px' }}>📋 No Laporan</th>
+                          <th style={{ padding: '12px 14px' }}>👤 Diisi Oleh</th>
+                          <th style={{ padding: '12px 14px' }}>📦 Nama Item</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8' }}>📊 Stok Fisik</th>
+                          <th style={{ padding: '12px 12px', textAlign: 'center' }}>⚡ Status</th>
+                          <th style={{ padding: '12px 12px', textAlign: 'center' }}>⚙️ Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4716,49 +4711,6 @@ export default function AndroidPosRegister({
                             }
                           });
 
-                          // 2. Auto-stream entries from Laporan Harian (approvedFinanceDaily & manualEntryRecords)
-                          const dailyList = [...(masterData.approvedFinanceDaily || []), ...(masterData.manualEntryRecords || [])];
-                          const seenDailyIds = new Set();
-                          dailyList.forEach(f => {
-                            const dId = String(f.id || f.report_no || '');
-                            if (!dId || seenDailyIds.has(dId)) return;
-                            seenDailyIds.add(dId);
-
-                            const hppRows = [
-                              ...(f.cogs_items || []),
-                              ...(f.expense_rows || []).filter(r => (r.category_type || '').includes('HPP'))
-                            ];
-
-                            hppRows.forEach((r, idx) => {
-                              const autoLogId = `LOG-AUTO-${f.report_no || f.id}-${idx}`;
-                              if (!combinedOpnameMap.has(autoLogId) && r.item_name) {
-                                const existingIng = (masterData.ingredients || []).find(ing => (ing.name || '').toLowerCase() === (r.item_name || '').toLowerCase());
-                                const currentStock = existingIng ? Number(existingIng.stock || 0) : 0;
-                                const addQty = Number(r.qty || 1);
-                                combinedOpnameMap.set(autoLogId, {
-                                  id: autoLogId,
-                                  report_no: f.report_no || f.id,
-                                  date: f.date || new Date().toISOString().split('T')[0],
-                                  outlet_id: f.outlet_id,
-                                  branch_name: f.branch_name || f.outlet_name || currentOutlet.name,
-                                  submitted_by: f.author_name || f.submitted_by || 'Kasir',
-                                  created_by: f.author_name || f.submitted_by || 'Kasir',
-                                  item_name: r.item_name || r.name,
-                                  stok_awal: currentStock,
-                                  stok_masuk: addQty,
-                                  transfer_masuk: 0,
-                                  transfer_keluar: 0,
-                                  stok_rusak: 0,
-                                  stok_fisik: currentStock + addQty,
-                                  unit: r.unit || 'kg',
-                                  status: f.status || 'Pending',
-                                  type_input: 'by laporan harian (otomatis)',
-                                  notes: `HPP Laporan Harian ${f.report_no || f.id}`
-                                });
-                              }
-                            });
-                          });
-
                           const combinedOpname = Array.from(combinedOpnameMap.values());
 
                           const filteredOpname = combinedOpname.filter(op => 
@@ -4768,110 +4720,116 @@ export default function AndroidPosRegister({
                           if (filteredOpname.length === 0) {
                             return (
                               <tr>
-                                <td colSpan="11" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                                  Belum ada log laporan stock opname harian terdaftar.
+                                <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                  📭 Belum ada log laporan stock opname harian terdaftar.
                                 </td>
                               </tr>
                             );
                           }
 
                           return filteredOpname.map((item, idx) => {
-                            const isApproved = item.status === 'ACC' || item.status === 'ok' || item.status === 'approved' || item.status === 'Approved';
-                            const stokKeluarPenjualan = Number(item.stok_keluar || 0);
-
-                            const rawTransfers = [...(masterData.stockTransfer || []), ...(masterData.approvedTransfers || [])];
-                            const realTransferMasuk = rawTransfers
-                              .filter(t => (t.status === 'ok' || t.status === 'Approved' || t.status === 'approved' || t.status === 'Terkirim' || t.sent_to_apk || t.is_approved) &&
-                                           (Number(t.to_outlet_id || t.toOutletId) === Number(currentOutlet.id) || t.to_outlet_name === currentOutlet.name) &&
-                                           (t.item_name || t.itemName || '').toLowerCase().trim() === (item.item_name || '').toLowerCase().trim())
-                              .reduce((sum, t) => sum + Number(t.qty || 0), 0) || Number(item.transfer_masuk || 0);
-
-                            const realTransferKeluar = rawTransfers
-                              .filter(t => (t.status === 'ok' || t.status === 'Approved' || t.status === 'approved' || t.status === 'Terkirim' || t.sent_to_apk || t.is_approved) &&
-                                           (Number(t.from_outlet_id || t.fromOutletId) === Number(currentOutlet.id) || t.from_outlet_name === currentOutlet.name) &&
-                                           (t.item_name || t.itemName || '').toLowerCase().trim() === (item.item_name || '').toLowerCase().trim())
-                              .reduce((sum, t) => sum + Number(t.qty || 0), 0) || Number(item.transfer_keluar || 0);
-
-                            const stokSistem = (Number(item.stok_awal || 0) + Number(item.stok_masuk || 0) + realTransferMasuk) - 
-                              (stokKeluarPenjualan + realTransferKeluar + Number(item.stok_rusak || 0));
+                            const isDone = item.status === 'Done' || item.status === 'done' || item.status === 'ACC' || item.status === 'ok' || item.status === 'Approved' || item.status === 'approved';
                             const stokFisik = Number(item.stok_fisik || 0);
-                            
-                            // Keterangan Audit Formula:
-                            // Stok by sistem = stok by fisik -> "Pas"
-                            // Stok by sistem > stok by fisik -> "SOP tidak jalan"
-                            // Stok by sistem < stok by fisik -> "Ada stok hilang"
-                            let auditKet = { text: 'Pas', color: '#34d399', bg: 'rgba(52, 211, 153, 0.15)', border: 'rgba(52, 211, 153, 0.3)' };
-                            if (stokSistem > stokFisik) {
-                              auditKet = { text: 'SOP tidak jalan', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.3)' };
-                            } else if (stokSistem < stokFisik) {
-                              auditKet = { text: 'Ada stok hilang', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)', border: 'rgba(244, 63, 94, 0.3)' };
-                            }
 
-                            // Harga Satuan from Stok Masuk
-                            const getItemPrice = (name) => {
-                              if (item.harga_satuan) return Number(item.harga_satuan);
-                              let priceFound = 0;
-                              (masterData.approvedFinanceDaily || []).forEach(f => {
-                                (f.cogs_items || []).forEach(c => {
-                                  if ((c.name || c.item_name || '').toLowerCase() === (name || '').toLowerCase() && Number(c.price || c.price_unit || 0) > 0) {
-                                    priceFound = Number(c.price || c.price_unit || 0);
-                                  }
-                                });
-                              });
-                              if (!priceFound) {
-                                const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (name || '').toLowerCase());
-                                if (ing) priceFound = Number(ing.price || ing.buy_price || ing.unit_price || 0);
-                              }
-                              return priceFound || 0;
-                            };
-
-                            const hargaSatuan = getItemPrice(item.item_name);
-                            // Denda Stok = |Stok Sistem - Stok Fisik| * Harga Satuan (bila sistem != fisik)
-                            const dendaStok = stokSistem !== stokFisik ? Math.abs(stokSistem - stokFisik) * hargaSatuan : 0;
-                            const jumlahTotalFisik = stokFisik * hargaSatuan;
+                            // 12-Hour Edit Window Calculation
+                            const reportTime = item.timestamp || (item.created_at ? new Date(item.created_at).getTime() : new Date(`${item.date}T12:00:00`).getTime());
+                            const hoursPassed = (Date.now() - reportTime) / (1000 * 60 * 60);
+                            const canEditInPos = hoursPassed <= 12;
 
                             return (
                               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
-                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{item.date}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: '900', color: '#38bdf8' }}>{item.report_no || item.id}</td>
-                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-primary)' }}>👤 {item.submitted_by || item.created_by}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: '900', color: '#34d399' }}>📦 {item.item_name}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--pos-txt-secondary)' }}>{item.stok_awal || 0} {item.unit}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>+{item.stok_masuk || 0} {item.unit}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>
-                                  +{realTransferMasuk} {item.unit}
-                                </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
-                                  -{realTransferKeluar} {item.unit}
-                                </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
-                                  -{item.stok_rusak || 0} {item.unit}
-                                </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.88rem' }}>
-                                  {stokFisik} {item.unit}
+                                {/* TANGGAL */}
+                                <td style={{ padding: '12px 14px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
+                                  {item.date}
                                 </td>
 
-                                {/* STATUS APPROVAL */}
-                                <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                                  <span style={{
-                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
-                                    background: isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
-                                    color: isApproved ? '#34d399' : '#fbbf24',
-                                    border: `1px solid ${isApproved ? '#34d399' : '#fbbf24'}`
-                                  }}>
-                                    {isApproved ? '🟢 ACC' : '⏳ PENDING'}
-                                  </span>
-                                </td>
-
-                                {/* AKSI */}
-                                <td style={{ padding: '10px 10px', textAlign: 'center' }}>
+                                {/* NO LAPORAN (CLICKABLE PREVIEW) */}
+                                <td style={{ padding: '12px 14px' }}>
                                   <button
                                     type="button"
                                     onClick={() => setPreviewLogisticsReport(item)}
-                                    style={{ padding: '4px 10px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#38bdf8',
+                                      fontWeight: '900',
+                                      fontSize: '0.85rem',
+                                      cursor: 'pointer',
+                                      textDecoration: 'underline',
+                                      padding: 0
+                                    }}
+                                    title="Klik untuk preview detail laporan"
                                   >
-                                    👁️ Preview
+                                    📋 {item.report_no || item.id}
                                   </button>
+                                </td>
+
+                                {/* DIISI OLEH */}
+                                <td style={{ padding: '12px 14px', color: 'var(--pos-txt-primary)', fontWeight: '600' }}>
+                                  👤 {item.submitted_by || item.created_by || 'Kasir'}
+                                </td>
+
+                                {/* NAMA ITEM */}
+                                <td style={{ padding: '12px 14px', fontWeight: '800', color: '#34d399' }}>
+                                  📦 {item.item_name || 'Bahan Baku Batch'}
+                                </td>
+
+                                {/* STOK FISIK */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.90rem' }}>
+                                  {stokFisik} {item.unit || 'kg'}
+                                </td>
+
+                                {/* STATUS (PENDING / DONE) */}
+                                <td style={{ padding: '12px 12px', textAlign: 'center' }}>
+                                  <span style={{
+                                    padding: '5px 12px', borderRadius: '12px', fontSize: '0.74rem', fontWeight: '900',
+                                    background: isDone ? 'rgba(52, 211, 153, 0.18)' : 'rgba(251, 191, 36, 0.18)',
+                                    color: isDone ? '#34d399' : '#fbbf24',
+                                    border: `1px solid ${isDone ? 'rgba(52, 211, 153, 0.4)' : 'rgba(251, 191, 36, 0.4)'}`
+                                  }}>
+                                    {isDone ? '🟢 Done' : '⏳ Pending'}
+                                  </span>
+                                </td>
+
+                                {/* AKSI (EDIT <=12 JAM / OK >12 JAM) */}
+                                <td style={{ padding: '12px 12px', textAlign: 'center' }}>
+                                  {canEditInPos ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setLogNo(item.report_no || item.id);
+                                        setLogDate(item.date || new Date().toISOString().split('T')[0]);
+                                        setLogSubmittedBy(item.submitted_by || item.created_by || userSession?.name || '');
+                                        setLogOutletId(item.outlet_id || currentOutlet.id || 1);
+                                        setShowAddLogisticsModal(true);
+                                      }}
+                                      style={{
+                                        padding: '6px 14px',
+                                        background: 'rgba(251, 191, 36, 0.2)',
+                                        border: '1px solid #fbbf24',
+                                        color: '#fbbf24',
+                                        borderRadius: '8px',
+                                        fontSize: '0.78rem',
+                                        fontWeight: '800',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                  ) : (
+                                    <span style={{
+                                      padding: '6px 14px',
+                                      background: 'rgba(52, 211, 153, 0.15)',
+                                      border: '1px solid #34d399',
+                                      color: '#34d399',
+                                      borderRadius: '8px',
+                                      fontSize: '0.78rem',
+                                      fontWeight: '900',
+                                      display: 'inline-block'
+                                    }}>
+                                      ✅ OK
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -10438,7 +10396,7 @@ export default function AndroidPosRegister({
                   transfer_masuk: 0,
                   transfer_keluar: 0,
                   stok_rusak: 0,
-                  stok_fisik: '',
+                  stok_fisik: 0,
                   isEditing: true
                 };
                 setOpnameBatchRows(prev => [...prev, newRow]);
@@ -10471,7 +10429,7 @@ export default function AndroidPosRegister({
                     transfer_masuk: Number(row.transfer_masuk || 0),
                     stok_rusak: Number(row.stok_rusak || 0),
                     stok_fisik: Number(row.stok_fisik || 0),
-                    status: 'ditunda'
+                    status: 'Pending'
                   }));
 
                   setShowAddLogisticsModal(false);
