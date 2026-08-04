@@ -4855,62 +4855,18 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
                       const rawIngredients = masterData.ingredients || [];
                       const activeIngs = rawIngredients.filter(ing =>
                         ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
                       );
-
-                      const matchedDailyMasuk = [...(masterData.approvedFinanceDaily || []), ...(masterData.manualEntryRecords || [])].filter(f =>
-                        (Number(f.outlet_id) === Number(currentOutlet.id) || f.branch_name === currentOutlet.name || f.outlet_name === currentOutlet.name)
-                      );
-                      const allTransfers = masterData.approvedTransfers || masterData.stockTransfer || [];
-                      const allWaste = masterData.approvedWaste || masterData.damagedGoods || [];
-
-                      const initialBatchRows = activeIngs.map((ing, idx) => {
-                        let inQty = 0;
-                        matchedDailyMasuk.forEach(f => {
-                          (f.cogs_items || []).forEach(c => {
-                            if ((c.name || c.item_name || '').toLowerCase().trim() === ing.name.toLowerCase().trim()) {
-                              inQty += Number(c.qty || 0);
-                            }
-                          });
-                          (f.expense_rows || []).filter(r => (r.category_type || '').includes('HPP')).forEach(c => {
-                            if ((c.item_name || '').toLowerCase().trim() === ing.name.toLowerCase().trim()) {
-                              inQty += Number(c.qty || 0);
-                            }
-                          });
-                        });
-
-                        const trfIn = allTransfers.filter(t => 
-                          (t.item_name || '').toLowerCase() === ing.name.toLowerCase() &&
-                          (t.to_outlet_name?.toLowerCase().includes(currentOutlet.name?.toLowerCase()) || Number(t.to_outlet_id) === Number(currentOutlet.id))
-                        ).reduce((sum, t) => sum + Number(t.qty || 0), 0);
-
-                        const trfOut = allTransfers.filter(t => 
-                          (t.item_name || '').toLowerCase() === ing.name.toLowerCase() &&
-                          (t.from_outlet_name?.toLowerCase().includes(currentOutlet.name?.toLowerCase()) || Number(t.from_outlet_id) === Number(currentOutlet.id))
-                        ).reduce((sum, t) => sum + Number(t.qty || 0), 0);
-
-                        const wasteQty = allWaste.filter(w => 
-                          (w.item_name || w.itemName || '').toLowerCase() === ing.name.toLowerCase() &&
-                          (Number(w.outlet_id || w.outletId) === Number(currentOutlet.id) || (w.outletName || w.branch_name) === currentOutlet.name)
-                        ).reduce((sum, w) => sum + Number(w.qty || 0), 0);
-
-                        return {
-                          id: `batch-${ing.id || idx}-${Date.now()}`,
-                          item_name: ing.name,
-                          unit: ing.unit || 'kg',
-                          stok_awal: ing.stock !== undefined ? ing.stock : '',
-                          stok_masuk: inQty,
-                          transfer_masuk: trfIn,
-                          transfer_keluar: trfOut,
-                          stok_rusak: wasteQty,
-                          stok_fisik: 0
-                        };
-                      });
-
-                      setOpnameBatchRows(initialBatchRows);
+                      const defaultIng = activeIngs[0] || { name: '', unit: 'kg', stock: 0 };
+                      setOpnameBatchRows([{
+                        id: 'single-opname',
+                        item_name: defaultIng.name || '',
+                        unit: defaultIng.unit || 'kg',
+                        stok_awal: defaultIng.stock !== undefined ? defaultIng.stock : (defaultIng.stok || 0),
+                        stok_fisik: ''
+                      }]);
                       setLogDate(todayStr);
                       setLogNo(`SO-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setLogSubmittedBy(userSession?.name || '');
@@ -5738,7 +5694,16 @@ export default function AndroidPosRegister({
                             return (
                               <tr key={op.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
                                 <td style={{ padding: '12px 10px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{op.date}</td>
-                                <td style={{ padding: '12px 10px', fontWeight: '900', color: '#38bdf8' }}>{op.report_no || op.id}</td>
+                                <td style={{ padding: '12px 10px', fontWeight: '900' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewOpnameSummaryRecord(op)}
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.80rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }}
+                                    title="Klik untuk membuka rincian laporan stok opname"
+                                  >
+                                    {op.report_no || op.id}
+                                  </button>
+                                </td>
                                 <td style={{ padding: '12px 10px', color: 'var(--pos-txt-primary)' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     <span>👤 {op.created_by || op.submitted_by || 'Admin'}</span>
@@ -9111,7 +9076,7 @@ export default function AndroidPosRegister({
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999
         }}>
           <div style={{
             width: '100%', maxWidth: '380px', background: '#ffffff', color: '#000000',
