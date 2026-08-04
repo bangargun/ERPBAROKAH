@@ -3957,33 +3957,6 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              {/* Filter Pilihan Menu untuk Grafik */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '8px 16px', borderRadius: '10px', border: '1px solid #334155' }}>
-                <Layers size={18} color="#818cf8" />
-                <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: '700' }}>Filter Grafik Menu:</span>
-                <select
-                  value={selectedMenuFilter}
-                  onChange={e => setSelectedMenuFilter(e.target.value)}
-                  style={{ background: 'transparent', border: 'none', color: '#818cf8', fontSize: '0.88rem', fontWeight: '900', cursor: 'pointer', outline: 'none' }}
-                >
-                  <option value="ALL" style={{ background: '#1e293b' }}>☕ Teh Manis (Default)</option>
-                  {[
-                    'Teh Manis Dingin / Hangat',
-                    'Es Jeruk Peras Segar',
-                    'Kopi Susu Gula Aren',
-                    'Americano Double Shot',
-                    'Ayam Goreng Barokah Combo',
-                    'Nasi Goreng Special MRIS',
-                    'Mie Goreng Jawa Spesial',
-                    'Croissant Butter Original',
-                    'Ice Cream Vanilla Scoop',
-                    'Air Mineral 600ml'
-                  ].map((mName, i) => (
-                    <option key={i} value={mName} style={{ background: '#1e293b' }}>🍱 {mName}</option>
-                  ))}
-                </select>
-              </div>
-
               <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)', fontWeight: '700' }}>
                 ⚡ Auto Sync Realtime POS
               </span>
@@ -4055,58 +4028,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             })()}
           </div>
 
-          {/* SECTION 2: GRAFIK GARIS PERGERAKAN HARIAN PENJUALAN BY MENU */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <TrendingUp size={22} color="#818cf8" />
-                  <span>Grafik Pergerakan Harian Menu: <span style={{ color: '#818cf8' }}>{selectedMenuFilter === 'ALL' ? 'Teh Manis Dingin / Hangat' : selectedMenuFilter}</span> ({catStartDate || '2026-07-01'} s/d {catEndDate || '2026-07-31'})</span>
-                </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
-                  Grafik garis perbandingan tren omzet penjualan harian untuk menu ini antar outlet cabang
-                </p>
-              </div>
 
-              <span style={{ fontSize: '0.75rem', color: '#818cf8', background: 'rgba(129, 140, 248, 0.15)', padding: '5px 12px', borderRadius: '8px', fontWeight: '800', border: '1px solid rgba(129, 140, 248, 0.3)' }}>
-                📈 Line Chart Pergerakan Harian
-              </span>
-            </div>
-
-            {/* RECHARTS LINE CHART CONTAINER */}
-            {(() => {
-              const { activeOutlets, chartData } = getMenuLineChartData();
-              const colors = ['#818cf8', '#38bdf8', '#34d399', '#fbbf24', '#f43f5e', '#a78bfa'];
-
-              return (
-                <div style={{ background: '#1e293b', padding: '24px 16px 16px 8px', borderRadius: '14px', border: '1px solid #334155' }}>
-                  <ReResponsiveContainer width="100%" height={320}>
-                    <ReLineChart data={chartData} margin={{ top: 15, right: 30, left: 10, bottom: 5 }}>
-                      <ReCartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <ReXAxis dataKey="dayLabel" stroke="#94a3b8" fontSize={11} />
-                      <ReYAxis stroke="#94a3b8" fontSize={11} tickFormatter={v => `Rp ${(v / 1000).toFixed(0)}K`} />
-                      <ReTooltip
-                        contentStyle={{ background: '#0f172a', borderColor: '#818cf8', borderRadius: '10px', color: '#f8fafc', fontSize: '0.82rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
-                        formatter={(val, name) => [formatRupiah(val), name]}
-                      />
-                      <ReLegend wrapperStyle={{ paddingTop: '12px', fontSize: '0.8rem', fontWeight: '700' }} />
-                      {activeOutlets.map((otl, idx) => (
-                        <ReLine
-                          key={otl.id}
-                          type="monotone"
-                          dataKey={otl.name}
-                          stroke={colors[idx % colors.length]}
-                          strokeWidth={3}
-                          dot={{ r: 3 }}
-                          activeDot={{ r: 7, strokeWidth: 2, stroke: '#ffffff' }}
-                        />
-                      ))}
-                    </ReLineChart>
-                  </ReResponsiveContainer>
-                </div>
-              );
-            })()}
-          </div>
 
           {/* SECTION 3: FILTER RENTANG WAKTU & OUTLET TEPAT DI ATAS TABEL */}
           <div className="glass-card animate-fade-in" style={{ padding: '16px 20px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
