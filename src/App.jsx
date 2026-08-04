@@ -289,10 +289,6 @@ export default function App() {
               const mergedTransfer = mergeReportsById(prev.approvedTransfers || prev.stockTransfer, serverData.approvedTransfers || serverData.stockTransfer);
               const mergedWaste = mergeReportsById(prev.approvedWaste || prev.damagedGoods, serverData.approvedWaste || serverData.damagedGoods);
 
-              if (localTs > remoteTs && (prev.mobileAccounts?.length > 0 && prev.webAdminAccounts?.length > 0)) {
-                return prev;
-              }
-
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
