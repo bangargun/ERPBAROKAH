@@ -3666,25 +3666,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           
           {/* TOP BAR WITH MONTH FILTER & EXPORT BUTTONS */}
           <div className="glass-card" style={{ padding: '16px 20px', background: '#1e293b', border: '1px solid #334155', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '8px 16px', borderRadius: '10px', border: '1px solid #334155' }}>
-                <Calendar size={18} color="#38bdf8" />
-                <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: '700' }}>Filter Bulan:</span>
-                <select
-                  value={selectedOmzetMonth}
-                  onChange={e => setSelectedOmzetMonth(e.target.value)}
-                  style={{ background: 'transparent', border: 'none', color: '#38bdf8', fontSize: '0.88rem', fontWeight: '900', cursor: 'pointer', outline: 'none' }}
-                >
-                  <option value="2026-07" style={{ background: '#1e293b' }}>📅 Juli 2026</option>
-                  <option value="2026-06" style={{ background: '#1e293b' }}>📅 Juni 2026</option>
-                  <option value="2026-05" style={{ background: '#1e293b' }}>📅 Mei 2026</option>
-                  <option value="2026-04" style={{ background: '#1e293b' }}>📅 April 2026</option>
-                  <option value="2026-03" style={{ background: '#1e293b' }}>📅 Maret 2026</option>
-                  <option value="2026-02" style={{ background: '#1e293b' }}>📅 Februari 2026</option>
-                  <option value="2026-01" style={{ background: '#1e293b' }}>📅 Januari 2026</option>
-                </select>
-              </div>
-            </div>
+            <DoubleCalendarPicker
+              startDate={omzetStartDate}
+              endDate={omzetEndDate}
+              datePreset={omzetDatePreset}
+              setStartDate={setOmzetStartDate}
+              setEndDate={setOmzetEndDate}
+              setDatePreset={setOmzetDatePreset}
+              showPopover={omzetShowCalendarPopover}
+              setShowPopover={setOmzetShowCalendarPopover}
+              outlets={outlets}
+              selectedOutletIds={omzetSelectedOutletIds}
+              onToggleOutlet={handleToggleOmzetOutlet}
+              onToggleAllOutlets={() => handleToggleOmzetOutlet('ALL')}
+              showOutletDropdown={omzetShowOutletDropdown}
+              setShowOutletDropdown={setOmzetShowOutletDropdown}
+              selectedBranch={selectedBranch}
+            />
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <button 
@@ -5484,118 +5482,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           {/* FILTER BAR SECTION */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
             
-            {/* Multi-Outlet Filter (Dark themed) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
-              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Filter Outlet</span>
-              <button
-                onClick={() => {
-                  setMomShowOutletDropdown(!momShowOutletDropdown);
-                  setMomShowColumnDropdown(false);
-                }}
-                style={{
-                  minWidth: '240px',
-                  padding: '10px 14px',
-                  borderRadius: '6px',
-                  border: '1px solid #334155',
-                  background: '#0f172a',
-                  color: '#f8fafc',
-                  fontSize: '0.85rem',
-                  textAlign: 'left',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  height: '40px',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#38bdf8'}
-                onMouseLeave={(e) => e.currentTarget.style.borderColor = '#334155'}
-              >
-                <span style={{ textTransform: 'uppercase', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }}>
-                  {momSelectedOutletIds.includes('ALL') 
-                    ? 'SEMUA OUTLET CABANG' 
-                    : `OUTLET (${momSelectedOutletIds.length} Terpilih)`}
-                </span>
-                <ChevronDown size={16} color="#94a3b8" />
-              </button>
-
-              {momShowOutletDropdown && (
-                <div style={{
-                  position: 'absolute',
-                  top: '48px',
-                  left: 0,
-                  width: '280px',
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '6px',
-                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3), 0 4px 6px -2px rgba(0,0,0,0.2)',
-                  zIndex: 105,
-                  padding: '8px 0',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  <button
-                    onClick={() => handleToggleMomOutlet('ALL')}
-                    style={{
-                      width: '100%',
-                      padding: '10px 16px',
-                      textAlign: 'left',
-                      border: 'none',
-                      background: 'none',
-                      fontSize: '0.82rem',
-                      color: momSelectedOutletIds.includes('ALL') ? '#38bdf8' : '#cbd5e1',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'background 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                  >
-                    <input type="checkbox" checked={momSelectedOutletIds.includes('ALL')} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: '#38bdf8' }} />
-                    <span>🏢 SEMUA OUTLET CABANG</span>
-                  </button>
-
-                  <div style={{ borderTop: '1px solid #334155', margin: '4px 0' }} />
-
-                  <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                    {outlets.map(o => {
-                      const isChecked = momSelectedOutletIds.includes(o.id);
-                      return (
-                        <button
-                          key={o.id}
-                          onClick={() => handleToggleMomOutlet(o.id)}
-                          style={{
-                            width: '100%',
-                            padding: '8px 16px',
-                            textAlign: 'left',
-                            border: 'none',
-                            background: 'none',
-                            fontSize: '0.82rem',
-                            color: isChecked ? '#38bdf8' : '#cbd5e1',
-                            fontWeight: isChecked ? '700' : '500',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'background 0.15s ease'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                        >
-                          <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: '#38bdf8' }} />
-                          <span>🏢 {o.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+            <DoubleCalendarPicker
+              startDate={momStartDate}
+              endDate={momEndDate}
+              datePreset={momDatePreset}
+              setStartDate={setMomStartDate}
+              setEndDate={setMomEndDate}
+              setDatePreset={setMomDatePreset}
+              showPopover={momShowCalendarPopover}
+              setShowPopover={setMomShowCalendarPopover}
+              outlets={outlets}
+              selectedOutletIds={momSelectedOutletIds}
+              onToggleOutlet={handleToggleMomOutlet}
+              onToggleAllOutlets={() => handleToggleMomOutlet('ALL')}
+              showOutletDropdown={momShowOutletDropdown}
+              setShowOutletDropdown={setMomShowOutletDropdown}
+              selectedBranch={selectedBranch}
+            />
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               {/* Column Visibility Filter Toggle Button */}
