@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
-import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint, _browserPrintFallback } from '../../utils/bluetoothPrinter';
+import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint, _browserPrintFallback, checkPrinterLiveStatus, listenBluetoothStatusChange } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
   History, 
@@ -2879,7 +2879,7 @@ export default function AndroidPosRegister({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
-              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.2 GOLD</span>
+              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.3 GOLD</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
@@ -6148,15 +6148,55 @@ export default function AndroidPosRegister({
 
                     {/* PRINTER TERKONFIGURASI */}
                     <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>🖨️ Printer Aktif</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>🖨️ Printer Aktif</span>
+                        {printerMac && printerMac !== 'BT_THERMAL_AUTO' && printerMac !== 'SYSTEM_PDF_PRINT' && (
+                          <button
+                            type="button"
+                            onClick={() => handleCheckLiveStatus(printerMac)}
+                            disabled={checkingMacMap[printerMac]}
+                            style={{
+                              background: 'rgba(99,102,241,0.2)',
+                              border: '1px solid #6366f1',
+                              color: '#a5b4fc',
+                              borderRadius: '8px',
+                              padding: '4px 10px',
+                              fontSize: '0.75rem',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <Zap size={14} />
+                            {checkingMacMap[printerMac] ? 'Memeriksa Saklar...' : '⚡ Tes Respon Saklar'}
+                          </button>
+                        )}
+                      </div>
                       {printerMac ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(52,211,153,0.1)', border: '1px solid #34d399' }}>
-                          <BluetoothConnected size={20} color="#34d399" />
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px',
+                          background: liveDeviceMap[printerMac] === false ? 'rgba(239,68,68,0.15)' : 'rgba(52,211,153,0.1)',
+                          border: `1px solid ${liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'}`
+                        }}>
+                          <BluetoothConnected size={24} color={liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'} />
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '800', color: '#34d399', fontSize: '0.9rem' }}>
-                              {pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}
+                            <div style={{ fontWeight: '900', color: liveDeviceMap[printerMac] === false ? '#fca5a5' : '#34d399', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>{pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}</span>
+                              <span style={{
+                                fontSize: '0.68rem',
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                fontWeight: '800',
+                                background: liveDeviceMap[printerMac] === false ? 'rgba(239,68,68,0.25)' : 'rgba(52,211,153,0.25)',
+                                color: liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399',
+                                border: `1px solid ${liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'}`
+                              }}>
+                                {liveDeviceMap[printerMac] === false ? '🔴 SAKLAR MATI / TERPUTUS' : '🟢 SAKLAR MENYALA'}
+                              </span>
                             </div>
-                            <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '3px', fontWeight: '700' }}>
                               {printerMac} • Kertas {printerPaperWidth}mm
                             </div>
                           </div>
@@ -6247,6 +6287,7 @@ export default function AndroidPosRegister({
                           {pairedDevices.map(device => {
                             const isSelected = printerMac === device.address;
                             const isSystemDevice = device.type === 'system';
+                            const isLive = liveDeviceMap[device.address];
 
                             return (
                               <div
@@ -6255,16 +6296,16 @@ export default function AndroidPosRegister({
                                   display: 'flex', alignItems: 'center', gap: '14px',
                                   padding: '14px 16px',
                                   borderRadius: '12px',
-                                  border: `2px solid ${isSelected ? '#6366f1' : '#334155'}`,
-                                  background: isSelected ? 'rgba(99,102,241,0.25)' : '#1e293b',
+                                  border: `2px solid ${isSelected ? '#6366f1' : isLive === false ? '#ef4444' : '#334155'}`,
+                                  background: isSelected ? 'rgba(99,102,241,0.25)' : isLive === false ? 'rgba(239,68,68,0.1)' : '#1e293b',
                                   color: '#ffffff',
                                   transition: 'all 0.15s',
                                   width: '100%'
                                 }}
                               >
                                 {isSelected
-                                  ? <BluetoothConnected size={24} color="#a5b4fc" />
-                                  : <Bluetooth size={24} color="#38bdf8" />}
+                                  ? <BluetoothConnected size={24} color={isLive === false ? '#ef4444' : '#a5b4fc'} />
+                                  : <Bluetooth size={24} color={isLive === false ? '#ef4444' : '#38bdf8'} />}
                                 
                                 <div style={{ flex: 1, color: '#ffffff', cursor: 'pointer' }} onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}>
                                   <div className="device-name" style={{ fontWeight: '900', color: '#ffffff', fontSize: '0.98rem', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -6275,20 +6316,43 @@ export default function AndroidPosRegister({
                                         padding: '2px 8px',
                                         borderRadius: '6px',
                                         fontWeight: '800',
-                                        background: 'rgba(52,211,153,0.2)',
-                                        color: '#34d399',
-                                        border: '1px solid #34d399'
+                                        background: isLive === false ? 'rgba(239,68,68,0.2)' : 'rgba(52,211,153,0.2)',
+                                        color: isLive === false ? '#ef4444' : '#34d399',
+                                        border: `1px solid ${isLive === false ? '#ef4444' : '#34d399'}`
                                       }}>
-                                        🟢 TERHUBUNG PAIRING
+                                        {isLive === false ? '🔴 SAKLAR MATI / TERPUTUS' : isLive === true ? '🟢 SAKLAR MENYALA' : '🟢 TERHUBUNG PAIRING'}
                                       </span>
                                     )}
                                   </div>
                                   <div className="device-mac" style={{ fontSize: '0.80rem', color: '#cbd5e1', marginTop: '3px', fontWeight: '700' }}>
-                                    {device.address} {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && '• Siap Dipilih & Dicetak'}
+                                    {device.address} {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (isLive === false ? '• Saklar printer mati / terputus' : '• Siap Dipilih & Dicetak')}
                                   </div>
                                 </div>
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCheckLiveStatus(device.address)}
+                                      disabled={checkingMacMap[device.address]}
+                                      style={{
+                                        padding: '8px 10px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #6366f1',
+                                        background: 'rgba(99,102,241,0.2)',
+                                        color: '#a5b4fc',
+                                        fontWeight: '800',
+                                        fontSize: '0.75rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      <Zap size={13} />
+                                      {checkingMacMap[device.address] ? 'Memeriksa...' : 'Tes Daya'}
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}

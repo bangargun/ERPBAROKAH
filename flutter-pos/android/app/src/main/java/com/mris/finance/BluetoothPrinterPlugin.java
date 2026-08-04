@@ -4,6 +4,10 @@ import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
@@ -28,7 +32,9 @@ import java.util.UUID;
  * via RFCOMM/SPP (Serial Port Profile) - standar ESC/POS.
  *
  * Exposed JS Methods:
- *   - scanPairedDevices()               -> { devices: [{name, address, type}] }
+ *   - scanPairedDevices()                  -> { devices: [{name, address, type}] }
+ *   - checkLiveStatus({ mac })             -> { address, isLive, reason }
+ *   - testConnection({ mac })              -> { success, message }
  *   - printText({ mac, text, paperWidth }) -> { success: true }
  */
 @CapacitorPlugin(
@@ -47,6 +53,113 @@ public class BluetoothPrinterPlugin extends Plugin {
     private static final byte ESC = 0x1B;
     private static final byte GS  = 0x1D;
     private static final byte LF  = 0x0A;
+
+    private BroadcastReceiver bluetoothStateReceiver;
+
+    @Override
+    public void load() {
+        super.load();
+        registerBluetoothReceiver();
+    }
+
+    private void registerBluetoothReceiver() {
+        try {
+            bluetoothStateReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String action = intent.getAction();
+                    if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
+                        BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                        if (device != null) {
+                            JSObject data = new JSObject();
+                            data.put("address", device.getAddress());
+                            data.put("name", device.getName());
+                            data.put("isConnected", true);
+                            data.put("status", "CONNECTED");
+                            notifyListeners("bluetoothStatusChange", data);
+                        }
+                    } else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
+                        BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                        if (device != null) {
+                            JSObject data = new JSObject();
+                            data.put("address", device.getAddress());
+                            data.put("name", device.getName());
+                            data.put("isConnected", false);
+                            data.put("status", "DISCONNECTED");
+                            notifyListeners("bluetoothStatusChange", data);
+                        }
+                    }
+                }
+            };
+
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+            filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+            getContext().registerReceiver(bluetoothStateReceiver, filter);
+            Log.d(TAG, "BluetoothStateReceiver registered successfully.");
+        } catch (Exception e) {
+            Log.e(TAG, "Error registering bluetoothStateReceiver", e);
+        }
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (bluetoothStateReceiver != null) {
+            try {
+                getContext().unregisterReceiver(bluetoothStateReceiver);
+            } catch (Exception ignored) {}
+        }
+        super.handleOnDestroy();
+    }
+
+    /**
+     * Memeriksa ketersediaan saklar daya & respon hardware printer secara realtime.
+     * Params: { mac: string }
+     */
+    @PluginMethod
+    public void checkLiveStatus(PluginCall call) {
+        String mac = call.getString("mac");
+        if (mac == null || mac.isEmpty()) {
+            call.reject("INVALID_MAC", "MAC address printer tidak boleh kosong.");
+            return;
+        }
+
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter == null || !adapter.isEnabled()) {
+            JSObject res = new JSObject();
+            res.put("address", mac);
+            res.put("isLive", false);
+            res.put("reason", "Bluetooth HP/Tablet Mati");
+            call.resolve(res);
+            return;
+        }
+
+        new Thread(() -> {
+            BluetoothSocket socket = null;
+            try {
+                BluetoothDevice device = adapter.getRemoteDevice(mac);
+                adapter.cancelDiscovery();
+                socket = connectToDeviceSocket(device);
+                
+                JSObject res = new JSObject();
+                res.put("address", mac);
+                res.put("name", device.getName());
+                res.put("isLive", true);
+                res.put("reason", "Printer Hidup & Merespon");
+                call.resolve(res);
+            } catch (Exception e) {
+                JSObject res = new JSObject();
+                res.put("address", mac);
+                res.put("isLive", false);
+                res.put("reason", "Saklar Printer Mati / Tidak Merespon: " + e.getMessage());
+                call.resolve(res);
+            } finally {
+                if (socket != null) {
+                    try { socket.close(); } catch (IOException ignored) {}
+                }
+            }
+        }).start();
+    }
 
     /**
      * Kembalikan daftar perangkat Bluetooth yang sudah dipair.

@@ -44,6 +44,37 @@ export const scanPairedPrinters = async () => {
 };
 
 /**
+ * Periksa status respon saklar printer secara realtime via Connection Probe.
+ * @param {string} mac - Alamat MAC printer
+ * @returns {Promise<{isLive: boolean, reason: string}>}
+ */
+export const checkPrinterLiveStatus = async (mac) => {
+  if (!isCapacitor() || !mac) {
+    return { isLive: true, reason: 'System default' };
+  }
+  try {
+    const result = await BluetoothPrinter.checkLiveStatus({ mac });
+    return result;
+  } catch (err) {
+    return { isLive: false, reason: err.message || 'Error checking status' };
+  }
+};
+
+/**
+ * Dengarkan perubahan status terhubung/terputus printer secara realtime dari BroadcastReceiver Android.
+ * @param {function} callback
+ */
+export const listenBluetoothStatusChange = (callback) => {
+  if (!isCapacitor()) return { remove: () => {} };
+  try {
+    return BluetoothPrinter.addListener('bluetoothStatusChange', callback);
+  } catch (err) {
+    console.error('[BTPrinter] addListener error:', err);
+    return { remove: () => {} };
+  }
+};
+
+/**
  * Konversi data transaksi ke format teks ESC/POS yang bisa dicetak.
  * Tag per baris:
  *   [C] = center   [B] = bold   [2] = double size
