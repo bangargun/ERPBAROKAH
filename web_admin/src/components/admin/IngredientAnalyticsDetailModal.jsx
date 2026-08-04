@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { X, ShoppingBasket, DollarSign, Calendar, Store, ShoppingBag, Utensils, TrendingUp, Filter, Receipt, Scale, Layers } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function IngredientAnalyticsDetailModal({ ingredient, masterData, onClose }) {
+export default function IngredientAnalyticsDetailModal({ ingredient, masterData, onClose, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [filterOutlet, setFilterOutlet] = useState('Semua Outlet');
   const [filterMonthYear, setFilterMonthYear] = useState('Semua Bulan & Tahun');
 
   if (!ingredient) return null;
 
   // Retrieve outlets list
-  const outletsList = masterData?.outlets || [];
+  const outletsList = masterData?.outlets || [
+    { name: 'Gourmet Bistro - Senopati' },
+    { name: 'Ramen Haus - Kemang' },
+    { name: 'Kopi & Kitchen - PIK' }
+  ];
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {
@@ -106,7 +112,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           total_cost: 0,
           cashier: t.submitted_by || t.created_by || 'Admin',
           type: 'Transfer Out (-)',
-          badgeColor: '#fb7185'
+          badgeColor: T.danger
         });
 
         // Transfer In record (Outlet Penerima)
@@ -122,7 +128,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           total_cost: 0,
           cashier: t.submitted_by || t.created_by || 'Admin',
           type: 'Transfer In (+)',
-          badgeColor: '#34d399'
+          badgeColor: T.success
         });
       }
     });
@@ -151,7 +157,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
             total_cost: totalPrice,
             cashier: rep.author_name || rep.cashier || 'Kasir / Admin',
             type: 'Stok Masuk (+)',
-            badgeColor: '#38bdf8'
+            badgeColor: T.info
           });
         }
       });
@@ -175,7 +181,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           total_cost: Number(m.total_amount || (m.price_unit ? m.price_unit * qtyNum : 0)),
           cashier: m.created_by || 'Admin Logistik',
           type: isOut ? 'Stok Keluar (-)' : 'Stok Masuk (+)',
-          badgeColor: isOut ? '#fb7185' : '#38bdf8'
+          badgeColor: isOut ? T.danger : T.info
         });
       }
     });
@@ -190,14 +196,14 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           receipt_no: w.report_no || `#WST-${w.id}`,
           date: w.date || '2026-07-24',
           month_year: 'Juli 2026',
-          outlet_name: w.outletName || (outletsList.find(o => Number(o.id) === Number(w.outletId))?.name || ''),
+          outlet_name: w.outletName || (outletsList.find(o => Number(o.id) === Number(w.outletId))?.name || 'Outlet Utama'),
           ordered_menu: `🗑️ Barang Rusak / Waste (${w.notes || 'Kerusakan Stok'})`,
           used_qty: -qtyNum,
           unit: w.unit || ingUnit,
           total_cost: 0,
           cashier: w.submittedBy || 'Kasir',
           type: 'Stok Rusak (-)',
-          badgeColor: '#f43f5e'
+          badgeColor: T.danger
         });
       }
     });
@@ -225,7 +231,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
             total_cost: priceUnit * qty,
             cashier: tx.cashier || tx.created_by || 'Kasir POS',
             type: 'Penjualan Menu (-)',
-            badgeColor: '#a78bfa'
+            badgeColor: T.accentGreen
           });
         }
       });
@@ -256,32 +262,30 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
     }} className="animate-fade-in">
       <div className="glass-card" style={{
         width: '100%', maxWidth: '980px', maxHeight: '92vh', overflowY: 'auto',
-        background: '#111827', border: '1.5px solid rgba(52, 211, 153, 0.4)',
-        borderRadius: '24px', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
+        background: T.cardBg, border: `1.5px solid ${T.successBorder}`,
+        borderRadius: '24px', padding: '28px', boxShadow: T.shadowLg,
         display: 'flex', flexDirection: 'column', gap: '22px'
       }}>
         
         {/* MODAL HEADER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #1f2937', paddingBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: '900', fontSize: '1.4rem', boxShadow: '0 6px 16px rgba(5,150,105,0.4)' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: T.primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: '900', fontSize: '1.4rem', boxShadow: T.shadowSm }}>
               <ShoppingBasket size={30} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>🥦 {ingredient.name}</span>
-                <span style={{ fontSize: '0.74rem', fontWeight: '800', background: 'rgba(52,211,153,0.15)', color: '#34d399', padding: '3px 10px', borderRadius: '8px', border: '1px solid rgba(52,211,153,0.3)' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: '800', background: T.successBg, color: T.success, padding: '3px 10px', borderRadius: '8px', border: `1px solid ${T.successBorder}` }}>
                   Kode: {ingredient.code || `BHN-00${ingredient.id}`}
                 </span>
               </h2>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <span>Satuan Unit: <strong style={{ color: '#38bdf8' }}>{ingredient.unit || 'Gram'}</strong></span>
+              <div style={{ fontSize: '0.82rem', color: T.txtSecondary, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>Satuan Unit: <strong style={{ color: T.info }}>{ingredient.unit || 'Gram'}</strong></span>
                 <span>•</span>
-                <span>Supplier: <strong style={{ color: '#38bdf8' }}>🚚 {ingredient.supplier || '-'}</strong></span>
+                <span>Stok Gudang: <strong style={{ color: T.success }}>{ingredient.stock || 1000} {ingredient.unit || 'Gram'}</strong></span>
                 <span>•</span>
-                <span>Stok Gudang: <strong style={{ color: '#34d399' }}>{ingredient.stock || 1000} {ingredient.unit || 'Gram'}</strong></span>
-                <span>•</span>
-                <span>Batas Min Stock: <strong style={{ color: '#fbbf24' }}>{ingredient.min_stock || 500} {ingredient.unit || 'Gram'}</strong></span>
+                <span>Batas Min Stock: <strong style={{ color: T.warning }}>{ingredient.min_stock || 500} {ingredient.unit || 'Gram'}</strong></span>
               </div>
             </div>
           </div>
@@ -289,15 +293,15 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           <button
             type="button"
             onClick={onClose}
-            style={{ background: '#1f2937', border: '1px solid #374151', color: '#94a3b8', borderRadius: '12px', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, color: T.txtSecondary, borderRadius: '12px', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <X size={20} />
           </button>
         </div>
 
         {/* FILTER BAR (NAMA OUTLET & BULAN TAHUN) */}
-        <div style={{ background: '#1f2937', padding: '16px', borderRadius: '16px', border: '1px solid #374151', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontWeight: '800', fontSize: '0.84rem' }}>
+        <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '16px', border: `1px solid ${T.borderStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: T.success, fontWeight: '800', fontSize: '0.84rem' }}>
             <Filter size={18} />
             <span>Filter Analisis Pemakaian Bahan Baku:</span>
           </div>
@@ -305,11 +309,11 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {/* 1. FILTER NAMA OUTLET */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Store size={16} color="#94a3b8" />
+              <Store size={16} color={T.txtSecondary} />
               <select
                 value={filterOutlet}
                 onChange={e => setFilterOutlet(e.target.value)}
-                style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #374151', background: '#090d16', color: '#ffffff', fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 <option value="Semua Outlet">🏬 Semua Outlet Cabang</option>
                 {outletsList.map((o, idx) => (
@@ -320,11 +324,11 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
 
             {/* 2. FILTER BULAN & TAHUN */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={16} color="#94a3b8" />
+              <Calendar size={16} color={T.txtSecondary} />
               <select
                 value={filterMonthYear}
                 onChange={e => setFilterMonthYear(e.target.value)}
-                style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #374151', background: '#090d16', color: '#ffffff', fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 <option value="Semua Bulan & Tahun">📅 Semua Waktu</option>
                 <option value="Juli 2026">Juli 2026</option>
@@ -339,71 +343,71 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
         {/* 4 SUMMARY KPI CARDS */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
           {/* CARD 1: KUANTITAS BAHAN TERPAKAI */}
-          <div style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#34d399', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.success, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Scale size={14} />
               <span>Total Bahan Terpakai</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-              {totalIngredientConsumed.toLocaleString('id-ID')} <span style={{ fontSize: '0.85rem', color: '#34d399' }}>{ingredient.unit || 'Gram'}</span>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
+              {totalIngredientConsumed.toLocaleString('id-ID')} <span style={{ fontSize: '0.85rem', color: T.success }}>{ingredient.unit || 'Gram'}</span>
             </div>
           </div>
 
           {/* CARD 2: TOTAL NILAI BIAYA HPP BAHAN */}
-          <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.infoBg, border: `1px solid ${T.infoBorder}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.info, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <DollarSign size={14} />
               <span>Nilai HPP Terkonsumsi</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
               {formatRupiah(totalIngredientCost)}
             </div>
           </div>
 
           {/* CARD 3: TOTAL KOMPOSISI MENU TERHUBUNG */}
-          <div style={{ background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#818cf8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.accentGreenBg, border: `1px solid ${T.accentGreen}50`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.accentGreen, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Utensils size={14} />
               <span>Menu Terhubung</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-              {connectedMenus.length} <span style={{ fontSize: '0.85rem', color: '#818cf8' }}>Menu Resto</span>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
+              {connectedMenus.length} <span style={{ fontSize: '0.85rem', color: T.accentGreen }}>Menu Resto</span>
             </div>
           </div>
 
           {/* CARD 4: TOTAL TRANSAKSI TERKAIT */}
-          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.warningBg, border: `1px solid ${T.warningBorder}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.warning, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Receipt size={14} />
               <span>Total Order Struk</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-              {totalTransactionsCount} <span style={{ fontSize: '0.85rem', color: '#fbbf24' }}>Struk POS</span>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
+              {totalTransactionsCount} <span style={{ fontSize: '0.85rem', color: T.warning }}>Struk POS</span>
             </div>
           </div>
         </div>
 
         {/* SECTION 1: KOMPOSISI MENU APA AJA (RESEP MENU TERHUBUNG) */}
-        <div style={{ background: '#1f2937', padding: '20px', borderRadius: '18px', border: '1px solid #374151', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Utensils size={18} color="#34d399" />
+        <div style={{ background: T.cardBg2, padding: '20px', borderRadius: '18px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Utensils size={18} color={T.success} />
             <span>Komposisi Resep Menu Restoran Menggunakan Bahan Ini ({connectedMenus.length} Menu):</span>
           </h3>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
             {connectedMenus.map((menu, idx) => (
-              <div key={idx} style={{ background: '#090d16', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.1rem' }}>
+              <div key={idx} style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.1rem' }}>
                   {menu.name ? menu.name.charAt(0).toUpperCase() : 'M'}
                 </div>
                 <div>
-                  <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                     {menu.name}
                   </h4>
-                  <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '700', marginTop: '2px' }}>
-                    Takaran: <span style={{ color: '#34d399' }}>{menu.dosageText}</span>
+                  <div style={{ fontSize: '0.75rem', color: T.info, fontWeight: '700', marginTop: '2px' }}>
+                    Takaran: <span style={{ color: T.success }}>{menu.dosageText}</span>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '1px' }}>
+                  <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '1px' }}>
                     Harga Jual: {formatRupiah(menu.price)}
                   </div>
                 </div>
@@ -415,16 +419,16 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
         {/* SECTION 2: TABEL HISTORY PENJUALAN & PEMAKAIAN BAHAN DETAIL */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShoppingBag size={18} color="#38bdf8" />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShoppingBag size={18} color={T.info} />
               <span>Riwayat Pemakaian & History Penjualan Bahan ({filteredHistory.length} Transaksi)</span>
             </h3>
           </div>
 
-          <div style={{ border: '1px solid #1f2937', borderRadius: '16px', overflow: 'hidden', background: '#090d16' }}>
+          <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '16px', overflow: 'hidden', background: T.cardBg2 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
               <thead>
-                <tr style={{ background: '#1f2937', borderBottom: '1px solid #374151', color: '#94a3b8', fontWeight: '800', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   <th style={{ padding: '12px 14px' }}>Tanggal & Waktu</th>
                   <th style={{ padding: '12px 14px' }}>No. Laporan / Struk</th>
                   <th style={{ padding: '12px 14px' }}>Tipe Transaksi</th>
@@ -438,7 +442,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
               <tbody>
                 {filteredHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                    <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: T.txtMuted }}>
                       Tidak ada riwayat pemakaian atau mutasi stok untuk kombinasi filter ini.
                     </td>
                   </tr>
@@ -446,36 +450,36 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
                   filteredHistory.map((row, idx) => {
                     const isPositive = row.used_qty > 0;
                     return (
-                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        <td style={{ padding: '12px 14px', color: '#cbd5e1', whiteSpace: 'nowrap' }}>
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                        <td style={{ padding: '12px 14px', color: T.txtSecondary, whiteSpace: 'nowrap' }}>
                           {row.date}
                         </td>
-                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: '800', color: '#38bdf8', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: '800', color: T.info, whiteSpace: 'nowrap' }}>
                           📋 {row.receipt_no}
                         </td>
                         <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                           <span style={{
                             padding: '3px 8px', borderRadius: '6px', fontSize: '0.70rem', fontWeight: '800',
-                            background: `${row.badgeColor || '#818cf8'}20`,
-                            color: row.badgeColor || '#818cf8',
-                            border: `1px solid ${row.badgeColor || '#818cf8'}50`
+                            background: `${row.badgeColor || T.info}20`,
+                            color: row.badgeColor || T.info,
+                            border: `1px solid ${row.badgeColor || T.info}50`
                           }}>
                             {row.type || 'Mutasi'}
                           </span>
                         </td>
-                        <td style={{ padding: '12px 14px', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: '700', color: T.txtPrimary, whiteSpace: 'nowrap' }}>
                           🏬 {row.outlet_name}
                         </td>
-                        <td style={{ padding: '12px 14px', color: '#e2e8f0', fontWeight: '700' }}>
+                        <td style={{ padding: '12px 14px', color: T.txtPrimary, fontWeight: '700' }}>
                           {row.ordered_menu}
                         </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: isPositive ? '#34d399' : '#fb7185', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: isPositive ? T.success : T.danger, whiteSpace: 'nowrap' }}>
                           {isPositive ? `+${row.used_qty}` : row.used_qty} {row.unit}
                         </td>
-                        <td style={{ padding: '12px 14px', fontWeight: '900', color: '#ffffff', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: '900', color: T.txtPrimary, whiteSpace: 'nowrap' }}>
                           {row.total_cost > 0 ? formatRupiah(row.total_cost) : '-'}
                         </td>
-                        <td style={{ padding: '12px 14px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '12px 14px', color: T.txtSecondary, whiteSpace: 'nowrap' }}>
                           👤 {row.cashier}
                         </td>
                       </tr>

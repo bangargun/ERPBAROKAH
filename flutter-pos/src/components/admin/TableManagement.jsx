@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Layout, Plus, Search, Edit3, Trash2, X, CheckCircle2, Store, Grid, Smartphone } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function TableManagement({ masterData, setMasterData, selectedBranch }) {
+export default function TableManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTableGroup, setEditingTableGroup] = useState(null);
@@ -100,10 +102,10 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Data Meja Restoran
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Kelola data meja per outlet sebagai sumber data master penomoran meja untuk Mobile APK POS Kasir
           </p>
         </div>
@@ -115,13 +117,13 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
       </div>
 
       {/* Info Banner for Mobile APK Integration */}
-      <div className="glass-card" style={{ padding: '16px 20px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
+      <div className="glass-card" style={{ padding: '16px 20px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: T.info, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
           <Smartphone size={22} />
         </div>
         <div>
-          <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: '#818cf8' }}>Sumber Data Master Mobile APK</h4>
-          <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+          <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: T.info }}>Sumber Data Master Mobile APK</h4>
+          <p style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '2px' }}>
             Seluruh penomoran meja (MEJA-01, MEJA-02, dst.) yang dikonfigurasi di sini akan secara otomatis menjadi pilihan nomor meja pada Mobile APK pengguna saat memilih meja pesanan.
           </p>
         </div>
@@ -129,7 +131,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
 
       {/* Search Bar */}
       <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama outlet..."
@@ -145,7 +147,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: '12px' }}>Nama Outlet</th>
                 <th style={{ padding: '12px' }}>Jumlah Meja</th>
                 <th style={{ padding: '12px' }}>Rincian Nomor Meja (Sumber Mobile APK)</th>
@@ -156,7 +158,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
                     Belum ada data meja yang dikonfigurasi.
                   </td>
                 </tr>
@@ -167,18 +169,18 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                   const isAktif = (group.status || 'Aktif') === 'Aktif';
 
                   return (
-                    <tr key={group.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={group.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. NAMA OUTLET */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: '#f8fafc' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Store size={16} color="#818cf8" />
+                          <Store size={16} color={T.info} />
                           <span>{outletName}</span>
                         </div>
                       </td>
 
                       {/* 2. JUMLAH MEJA */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', color: '#38bdf8' }}>
-                        <span style={{ background: '#0f172a', padding: '4px 10px', borderRadius: '6px', border: '1px solid #334155' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', color: T.info }}>
+                        <span style={{ background: T.cardBg2, padding: '4px 10px', borderRadius: '6px', border: `1px solid ${T.borderStrong}` }}>
                           🪑 {count} Meja
                         </span>
                       </td>
@@ -187,9 +189,9 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                       <td style={{ padding: '14px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{
-                            background: 'rgba(56, 189, 248, 0.15)',
-                            color: '#38bdf8',
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                            background: T.infoBg,
+                            color: T.info,
+                            border: `1px solid ${T.infoBorder}`,
                             padding: '3px 8px',
                             borderRadius: '6px',
                             fontSize: '0.75rem',
@@ -198,7 +200,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                           }}>
                             MEJA-01 s/d MEJA-{count.toString().padStart(2, '0')}
                           </span>
-                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          <span style={{ fontSize: '0.7rem', color: T.txtMuted, fontStyle: 'italic' }}>
                             ({count} Meja Aktif APK)
                           </span>
                         </div>
@@ -207,9 +209,9 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                       {/* 4. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                          color: isAktif ? '#34d399' : '#fb7185',
-                          border: `1px solid ${isAktif ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          background: isAktif ? T.successBg : T.dangerBg,
+                          color: isAktif ? T.success : T.danger,
+                          border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
                           padding: '4px 10px',
                           borderRadius: '20px',
                           fontSize: '0.75rem',
@@ -225,9 +227,9 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                           <button
                             onClick={() => handleOpenEditModal(group)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -238,16 +240,16 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteTableGroup(group.id, outletName)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -280,12 +282,12 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '450px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '450px', padding: '26px', background: T.cardBg, border: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 {editingTableGroup ? 'Edit Data Meja Outlet' : 'Tambahkan Meja Outlet'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -293,7 +295,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
             <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Nama Outlet */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   1. Nama Outlet * (Dari Data Master Outlet)
                 </label>
                 <select
@@ -311,7 +313,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
 
               {/* Field 2: Jumlah Meja */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   2. Jumlah Meja Restoran *
                 </label>
                 <input
@@ -325,14 +327,14 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                   className="form-input"
                   style={{ fontSize: '1.05rem', fontWeight: '800' }}
                 />
-                <span style={{ fontSize: '0.7rem', color: '#38bdf8', marginTop: '4px', display: 'block' }}>
+                <span style={{ fontSize: '0.7rem', color: T.info, marginTop: '4px', display: 'block' }}>
                   ✓ Otomatis meng-generate penomoran MEJA-01 s/d MEJA-{(parseInt(tableCount) || 1).toString().padStart(2, '0')}
                 </span>
               </div>
 
               {/* Field 3: Status */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   3. Status Penggunaan Meja
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -343,9 +345,9 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Aktif' ? '#10b981' : '#334155',
-                      background: status === 'Aktif' ? 'rgba(16, 185, 129, 0.2)' : '#0f172a',
-                      color: status === 'Aktif' ? '#34d399' : '#94a3b8',
+                      borderColor: status === 'Aktif' ? T.success : T.borderStrong,
+                      background: status === 'Aktif' ? T.successBg : T.cardBg2,
+                      color: status === 'Aktif' ? T.success : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'
@@ -360,9 +362,9 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Inaktif' ? '#f43f5e' : '#334155',
-                      background: status === 'Inaktif' ? 'rgba(244, 63, 94, 0.2)' : '#0f172a',
-                      color: status === 'Inaktif' ? '#fb7185' : '#94a3b8',
+                      borderColor: status === 'Inaktif' ? T.danger : T.borderStrong,
+                      background: status === 'Inaktif' ? T.dangerBg : T.cardBg2,
+                      color: status === 'Inaktif' ? T.danger : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'

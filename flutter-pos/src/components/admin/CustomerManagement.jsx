@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Users, Plus, Search, Edit3, Trash2, X, CheckCircle2, MessageSquare, Award, Store, Calendar, DollarSign } from 'lucide-react';
 import CustomerAnalyticsDetailModal from './CustomerAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function CustomerManagement({ masterData, setMasterData }) {
+export default function CustomerManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
@@ -40,11 +42,11 @@ export default function CustomerManagement({ masterData, setMasterData }) {
   const calculateTier = (totalSpend) => {
     const spend = parseFloat(totalSpend) || 0;
     if (spend > 5000000) {
-      return { label: 'Customer VIP', color: '#fbbf24', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', icon: '👑' };
+      return { label: 'Customer VIP', color: T.accentGold, bg: T.accentGoldBg, border: T.accentGoldBorder, icon: '👑' };
     } else if (spend >= 1000000) {
-      return { label: 'Customer Loyal', color: '#34d399', bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', icon: '🟢' };
+      return { label: 'Customer Loyal', color: T.success, bg: T.successBg, border: T.successBorder, icon: '🟢' };
     } else {
-      return { label: 'New Customer', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)', border: 'rgba(56,189,248,0.3)', icon: '🔹' };
+      return { label: 'New Customer', color: T.info, bg: T.infoBg, border: T.infoBorder, icon: '🔹' };
     }
   };
 
@@ -92,7 +94,10 @@ export default function CustomerManagement({ masterData, setMasterData }) {
       return;
     }
 
-    const updated = { ...masterData };
+    const updated = {
+      ...masterData,
+      _lastUpdated: Date.now()
+    };
     if (!updated.customers) updated.customers = [];
 
     if (editingCustomer) {
@@ -128,7 +133,10 @@ export default function CustomerManagement({ masterData, setMasterData }) {
   // Delete Customer
   const handleDeleteCustomer = (id, custName) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus pelanggan "${custName}"?`)) {
-      const updated = { ...masterData };
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now()
+      };
       updated.customers = updated.customers.filter(c => c.id !== id);
       setMasterData(updated);
     }
@@ -151,10 +159,10 @@ export default function CustomerManagement({ masterData, setMasterData }) {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Data Pelanggan & Membership
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Manajemen database pelanggan, nomor whatsapp, asal outlet, dan kualifikasi Tier Membership otomatis
           </p>
         </div>
@@ -167,23 +175,23 @@ export default function CustomerManagement({ masterData, setMasterData }) {
 
       {/* Summary KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(56,189,248,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.info }}>
             <Users size={22} />
           </div>
           <div>
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>TOTAL PELANGGAN</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#f8fafc', marginTop: '2px' }}>{customersList.length} Orang</h3>
+            <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>TOTAL PELANGGAN</span>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.txtPrimary, marginTop: '2px' }}>{customersList.length} Orang</h3>
           </div>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.accentGoldBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.accentGold }}>
             <Award size={22} />
           </div>
           <div>
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>CUSTOMER VIP (&gt; 5JT)</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fbbf24', marginTop: '2px' }}>
+            <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>CUSTOMER VIP (&gt; 5JT)</span>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.accentGold, marginTop: '2px' }}>
               {customersList.filter(c => (c.total_spend || 0) > 5000000).length} VIP
             </h3>
           </div>
@@ -192,23 +200,23 @@ export default function CustomerManagement({ masterData, setMasterData }) {
 
       {/* Search Filter Bar */}
       <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari nama, no. whatsapp, atau no. membership..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px' }}
+          style={{ paddingLeft: '36px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, background: T.tableHeaderBg, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: '12px' }}>No. Membership (Auto)</th>
                 <th style={{ padding: '12px' }}>Nama Pelanggan</th>
                 <th style={{ padding: '12px' }}>Nomor WhatsApp</th>
@@ -222,7 +230,7 @@ export default function CustomerManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
                     Belum ada data pelanggan yang cocok.
                   </td>
                 </tr>
@@ -232,13 +240,13 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                   const joinDate = cust.join_date || '2026-07-20';
 
                   return (
-                    <tr key={cust.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={cust.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. NOMOR MEMBERSHIP */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          background: T.infoBg,
+                          color: T.info,
+                          border: `1px solid ${T.infoBorder}`,
                           padding: '4px 10px',
                           borderRadius: '8px',
                           fontWeight: '800',
@@ -257,7 +265,7 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                           style={{
                             background: 'none',
                             border: 'none',
-                            color: '#38bdf8',
+                            color: T.info,
                             fontWeight: '900',
                             cursor: 'pointer',
                             padding: 0,
@@ -278,16 +286,16 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{
-                            color: '#34d399',
+                            color: T.success,
                             textDecoration: 'none',
                             fontWeight: '600',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            background: 'rgba(16, 185, 129, 0.1)',
+                            background: T.successBg,
                             padding: '3px 8px',
                             borderRadius: '6px',
-                            border: '1px solid rgba(16, 185, 129, 0.2)'
+                            border: `1px solid ${T.successBorder}`
                           }}
                         >
                           <MessageSquare size={13} />
@@ -296,19 +304,19 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                       </td>
 
                       {/* 4. ASAL OUTLET */}
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
-                        <span style={{ background: '#0f172a', padding: '4px 8px', borderRadius: '6px', border: '1px solid #334155', fontSize: '0.78rem' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtPrimary }}>
+                        <span style={{ background: T.cardBg2, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${T.borderStrong}`, fontSize: '0.78rem' }}>
                           🏢 {getOutletName(cust.outlet_id)}
                         </span>
                       </td>
 
                       {/* 5. TANGGAL BERGABUNG */}
-                      <td style={{ padding: '14px 12px', color: '#94a3b8' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtSecondary }}>
                         {joinDate}
                       </td>
 
                       {/* 6. TOTAL BELANJA */}
-                      <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>
+                      <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '800', color: T.success }}>
                         {formatRupiah(cust.total_spend || 0)}
                       </td>
 
@@ -337,9 +345,9 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                           <button
                             onClick={() => handleOpenEditModal(cust)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -350,16 +358,16 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteCustomer(cust.id, cust.name)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -402,12 +410,12 @@ export default function CustomerManagement({ masterData, setMasterData }) {
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: T.cardBg, border: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 {editingCustomer ? 'Edit Data Pelanggan' : 'Tambahkan Pelanggan Baru'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -415,15 +423,15 @@ export default function CustomerManagement({ masterData, setMasterData }) {
             <form onSubmit={handleSubmitCustomer} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Pelanggan / Nomor Membership (Auto) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   1. Nomor Membership (Auto Generated)
                 </label>
                 <div style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
+                  background: T.inputBg,
+                  border: `1px solid ${T.borderStrong}`,
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  color: '#818cf8',
+                  color: T.info,
                   fontWeight: '800',
                   fontFamily: 'monospace',
                   fontSize: '0.9rem',
@@ -432,7 +440,7 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                   justifyContent: 'space-between'
                 }}>
                   <span>{editingCustomer ? editingCustomer.code : generateNextMembershipCode()}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.7rem', color: T.success, background: T.successBg, border: `1px solid ${T.successBorder}`, padding: '2px 8px', borderRadius: '6px' }}>
                     Auto Generated
                   </span>
                 </div>
@@ -440,17 +448,17 @@ export default function CustomerManagement({ masterData, setMasterData }) {
 
               {/* Field 2: Tanggal Bergabung (Auto) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   2. Tanggal Bergabung (Auto Submit Date)
                 </label>
-                <div style={{ background: '#0f172a', border: '1px solid #334155', padding: '10px 14px', borderRadius: '10px', color: '#cbd5e1', fontSize: '0.85rem' }}>
+                <div style={{ background: T.inputBg, border: `1px solid ${T.borderStrong}`, padding: '10px 14px', borderRadius: '10px', color: T.txtPrimary, fontSize: '0.85rem' }}>
                   📅 {editingCustomer ? (editingCustomer.join_date || '2026-07-20') : new Date().toISOString().split('T')[0]}
                 </div>
               </div>
 
               {/* Field 3: Nama Pelanggan */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   3. Nama Pelanggan *
                 </label>
                 <input
@@ -460,13 +468,14 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="form-input"
+                  style={{ background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                   autoFocus
                 />
               </div>
 
               {/* Field 4: Nomor Kontak WhatsApp */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   4. Nomor Kontak WhatsApp *
                 </label>
                 <input
@@ -476,24 +485,26 @@ export default function CustomerManagement({ masterData, setMasterData }) {
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   className="form-input"
+                  style={{ background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                 />
-                <span style={{ fontSize: '0.7rem', color: '#34d399', marginTop: '4px', display: 'block' }}>
+                <span style={{ fontSize: '0.7rem', color: T.success, marginTop: '4px', display: 'block' }}>
                   ✓ Pastikan nomor terdaftar aktif di WhatsApp
                 </span>
               </div>
 
               {/* Field 5: Asal Outlet */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   5. Asal Outlet Restoran *
                 </label>
                 <select
                   value={outletId}
                   onChange={e => setOutletId(e.target.value)}
                   className="form-select"
+                  style={{ background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                 >
                   {masterData.outlets.map(o => (
-                    <option key={o.id} value={o.id}>
+                    <option key={o.id} value={o.id} style={{ background: T.cardBg, color: T.txtPrimary }}>
                       🏢 {o.name} ({o.code})
                     </option>
                   ))}

@@ -36,8 +36,11 @@ import {
 
 
 
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function MasterDataManagement({ masterData, setMasterData, selectedBranch }) {
+export default function MasterDataManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
+
   const [activeSubTab, setActiveSubTab] = useState('products');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -102,45 +105,19 @@ export default function MasterDataManagement({ masterData, setMasterData, select
     setNewItemPrice('');
   };
 
-  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-
-  const handleDeleteItem = async (listKey, id) => {
-    if (!masterData[listKey]) return;
-    if (!window.confirm(`Yakin ingin menghapus item ini?`)) return;
-
-    const updated = {
-      ...masterData,
-      _lastUpdated: Date.now(),
-      [listKey]: masterData[listKey].filter(item => String(item.id) !== String(id))
-    };
+  const handleDeleteItem = (listKey, id) => {
+    const updated = { ...masterData };
+    updated[listKey] = updated[listKey].filter(item => item.id !== id);
     setMasterData(updated);
-
-    try {
-      const res = await fetch(getApiUrl('/api/master-data/delete-item'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: listKey, id })
-      });
-      if (res.ok) {
-        const resData = await res.json();
-        if (resData && resData.masterData) {
-          setMasterData(resData.masterData);
-        }
-      } else {
-        console.error('Delete API gagal:', res.status);
-      }
-    } catch (err) {
-      console.error('Delete item API error:', err);
-    }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
       <div>
-        <h2 style={{ fontSize: '1.20rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+        <h2 style={{ fontSize: '1.20rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
           Sumber Data Master (Master Data Center)
         </h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '2px', margin: 0 }}>
+        <p style={{ color: T.txtSecondary, fontSize: '0.78rem', marginTop: '2px', margin: 0 }}>
           Kelola data utama restoran: Produk, Kategori, Bahan Baku, Pelanggan, Meja, Outlet, Pembayaran, Supplier, Satuan, Akuntansi
         </p>
       </div>
@@ -162,23 +139,23 @@ export default function MasterDataManagement({ masterData, setMasterData, select
                 padding: '6px 10px',
                 borderRadius: '8px',
                 border: '1px solid',
-                borderColor: isActive ? '#6366f1' : '#334155',
-                background: isActive ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(79, 70, 229, 0.25) 100%)' : '#1e293b',
-                color: isActive ? '#818cf8' : '#94a3b8',
+                borderColor: isActive ? T.accentGold : T.border,
+                background: isActive ? T.navActiveBg : T.cardBg,
+                color: isActive ? T.navActiveTxt : T.txtSecondary,
                 fontWeight: isActive ? '800' : '600',
                 fontSize: '0.76rem',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                boxShadow: isActive ? '0 4px 12px rgba(99, 102, 241, 0.2)' : 'none'
+                boxShadow: isActive ? T.navActiveShadow : 'none'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                <Icon size={14} color={isActive ? '#818cf8' : '#64748b'} />
+                <Icon size={14} color={isActive ? T.navActiveTxt : T.txtMuted} />
                 <span>{tab.name}</span>
               </div>
               <span style={{
-                background: isActive ? '#6366f1' : '#0f172a',
-                color: isActive ? '#ffffff' : '#64748b',
+                background: isActive ? 'rgba(255,255,255,0.25)' : T.cardBg2,
+                color: isActive ? '#ffffff' : T.txtMuted,
                 fontSize: '0.66rem',
                 fontWeight: '700',
                 padding: '1px 6px',
@@ -230,6 +207,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            themeMode={themeMode}
           />
         )}
 
@@ -240,6 +218,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            themeMode={themeMode}
           />
         )}
 
@@ -249,6 +228,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            themeMode={themeMode}
           />
         )}
 
@@ -260,6 +240,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            themeMode={themeMode}
           />
         )}
 
@@ -270,6 +251,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            themeMode={themeMode}
           />
         )}
 
@@ -278,6 +260,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <OutletManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            themeMode={themeMode}
           />
         )}
 
@@ -287,6 +270,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <PaymentMethodManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            themeMode={themeMode}
           />
         )}
 
@@ -295,6 +279,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <SupplierManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            themeMode={themeMode}
           />
         )}
 
@@ -303,6 +288,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <UnitManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            themeMode={themeMode}
           />
         )}
 
@@ -311,6 +297,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <ExpenseMasterManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            themeMode={themeMode}
           />
         )}
 
@@ -319,29 +306,30 @@ export default function MasterDataManagement({ masterData, setMasterData, select
 
       </div>
 
+
       {/* Modal Add Master Data Item */}
       {showAddModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '440px', padding: '24px', background: '#1e293b' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#f8fafc', marginBottom: '16px' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '440px', padding: '24px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '16px' }}>
               Tambah {subTabs.find(t => t.id === activeSubTab)?.name} Baru
             </h3>
 
             <form onSubmit={handleAddItem} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Nama Item / Judul</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>Nama Item / Judul</label>
                 <input type="text" required value={newItemName} onChange={e => setNewItemName(e.target.value)} className="form-input" placeholder="Masukkan nama..." />
               </div>
 
               {activeSubTab === 'products' && (
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Harga Jual (IDR)</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>Harga Jual (IDR)</label>
                   <input type="number" required value={newItemPrice} onChange={e => setNewItemPrice(e.target.value)} className="form-input" placeholder="50000" />
                 </div>
               )}
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Keterangan / Detail Tambahan</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>Keterangan / Detail Tambahan</label>
                 <input type="text" value={newItemExtra} onChange={e => setNewItemExtra(e.target.value)} className="form-input" placeholder="Detail..." />
               </div>
 

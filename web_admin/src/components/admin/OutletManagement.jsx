@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Store, Plus, Search, Edit3, Trash2, X, CheckCircle2, MapPin, Target, Users } from 'lucide-react';
 import OutletAnalyticsDetailModal from './OutletAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function OutletManagement({ masterData, setMasterData }) {
+export default function OutletManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingOutlet, setEditingOutlet] = useState(null);
@@ -75,7 +77,10 @@ export default function OutletManagement({ masterData, setMasterData }) {
       return;
     }
 
-    const updated = { ...masterData };
+    const updated = {
+      ...masterData,
+      _lastUpdated: Date.now()
+    };
     if (!updated.outlets) updated.outlets = [];
 
     const finalCode = code.trim().toUpperCase();
@@ -114,7 +119,10 @@ export default function OutletManagement({ masterData, setMasterData }) {
   // Delete Outlet
   const handleDeleteOutlet = (id, outletName) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus outlet "${outletName}"?`)) {
-      const updated = { ...masterData };
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now()
+      };
       updated.outlets = updated.outlets.filter(o => o.id !== id);
       setMasterData(updated);
     }
@@ -137,10 +145,10 @@ export default function OutletManagement({ masterData, setMasterData }) {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Data Outlet Restoran
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Kelola data cabang restoran, alamat lokasi operasional, dan status keaktifan outlet multi-cabang
           </p>
         </div>
@@ -153,23 +161,23 @@ export default function OutletManagement({ masterData, setMasterData }) {
 
       {/* Search Bar */}
       <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <Search size={16} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama, alamat, atau kode outlet..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px' }}
+          style={{ paddingLeft: '36px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderColor: T.border }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
                 <th style={{ padding: '12px' }}>Kode Outlet</th>
                 <th style={{ padding: '12px' }}>Nama Outlet</th>
                 <th style={{ padding: '12px' }}>Alamat Lokasi</th>
@@ -182,7 +190,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedOutlets.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
                     Belum ada data outlet yang dikonfigurasi.
                   </td>
                 </tr>
@@ -193,13 +201,13 @@ export default function OutletManagement({ masterData, setMasterData }) {
                   const empVal = outlet.employee_count !== undefined ? outlet.employee_count : (outlet.employees || 10);
 
                   return (
-                    <tr key={outlet.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={outlet.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. KODE OUTLET */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          background: T.infoBg,
+                          color: T.info,
+                          border: `1px solid ${T.infoBorder}`,
                           padding: '4px 10px',
                           borderRadius: '8px',
                           fontWeight: '800',
@@ -218,7 +226,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
                           style={{
                             background: 'none',
                             border: 'none',
-                            color: '#38bdf8',
+                            color: T.info,
                             fontWeight: '900',
                             cursor: 'pointer',
                             padding: 0,
@@ -231,30 +239,30 @@ export default function OutletManagement({ masterData, setMasterData }) {
                           }}
                           title="Klik untuk melihat papan informasi detail kuantitas terjual, total omzet & history penjualan outlet ini"
                         >
-                          <Store size={16} color="#38bdf8" />
+                          <Store size={16} color={T.info} />
                           <span>{outlet.name}</span>
                         </button>
                       </td>
 
                       {/* 3. ALAMAT LOKASI */}
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtSecondary }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <MapPin size={14} color="#94a3b8" />
+                          <MapPin size={14} color={T.txtMuted} />
                           <span>{outlet.address}</span>
                         </div>
                       </td>
 
                       {/* 4. TARGET OUTLET */}
-                      <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#34d399' }}>
+                      <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: T.success }}>
                         {formatRupiah(targetVal)}
                       </td>
 
                       {/* 5. JUMLAH KARYAWAN */}
                       <td style={{ padding: '14px 12px', textAlign: 'center' }}>
                         <span style={{
-                          background: 'rgba(168, 85, 247, 0.15)',
-                          color: '#a78bfa',
-                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          background: T.accentGoldBg,
+                          color: T.accentGold,
+                          border: `1px solid ${T.accentGoldBorder}`,
                           padding: '4px 10px',
                           borderRadius: '8px',
                           fontWeight: '800',
@@ -271,9 +279,9 @@ export default function OutletManagement({ masterData, setMasterData }) {
                       {/* 6. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                          color: isAktif ? '#34d399' : '#fb7185',
-                          border: `1px solid ${isAktif ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          background: isAktif ? T.successBg : T.dangerBg,
+                          color: isAktif ? T.success : T.danger,
+                          border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
                           padding: '4px 10px',
                           borderRadius: '20px',
                           fontSize: '0.75rem',
@@ -289,9 +297,9 @@ export default function OutletManagement({ masterData, setMasterData }) {
                           <button
                             onClick={() => handleOpenEditModal(outlet)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -302,16 +310,16 @@ export default function OutletManagement({ masterData, setMasterData }) {
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteOutlet(outlet.id, outlet.name)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -354,12 +362,12 @@ export default function OutletManagement({ masterData, setMasterData }) {
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: T.cardBg, borderColor: T.border }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 {editingOutlet ? 'Edit Data Outlet Restoran' : 'Tambahkan Outlet Restoran Baru'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -367,7 +375,7 @@ export default function OutletManagement({ masterData, setMasterData }) {
             <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Outlet (Manual Input) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   1. Kode Outlet *
                 </label>
                 <input
@@ -377,30 +385,31 @@ export default function OutletManagement({ masterData, setMasterData }) {
                   value={code}
                   onChange={e => setCode(e.target.value)}
                   className="form-input"
-                  style={{ fontFamily: 'monospace', fontWeight: '800', color: '#818cf8' }}
+                  style={{ fontFamily: 'monospace', fontWeight: '800', color: T.info, background: T.inputBg, borderColor: T.border }}
                   autoFocus
                 />
               </div>
 
               {/* Field 2: Nama Outlet */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   2. Nama Outlet *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: Barokah Resto Branch PIK"
+                  placeholder="Contoh: MRIS Resto Branch PIK"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="form-input"
+                  style={{ background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                   autoFocus
                 />
               </div>
 
               {/* Field 3: Alamat */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   3. Alamat Lokasi Outlet *
                 </label>
                 <textarea
@@ -410,13 +419,13 @@ export default function OutletManagement({ masterData, setMasterData }) {
                   value={address}
                   onChange={e => setAddress(e.target.value)}
                   className="form-input"
-                  style={{ resize: 'vertical' }}
+                  style={{ resize: 'vertical', background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                 />
               </div>
 
               {/* Field 4: Target Omzet Outlet (Rp) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   4. Target Omzet Outlet (Rp) *
                 </label>
                 <input
@@ -426,13 +435,13 @@ export default function OutletManagement({ masterData, setMasterData }) {
                   value={targetOmzet}
                   onChange={e => setTargetOmzet(e.target.value)}
                   className="form-input"
-                  style={{ fontWeight: '800', color: '#34d399' }}
+                  style={{ fontWeight: '800', color: T.success, background: T.inputBg, borderColor: T.border }}
                 />
               </div>
 
               {/* Field 5: Jumlah Karyawan */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   5. Jumlah Karyawan (Orang) *
                 </label>
                 <input
@@ -443,13 +452,13 @@ export default function OutletManagement({ masterData, setMasterData }) {
                   value={employeeCount}
                   onChange={e => setEmployeeCount(e.target.value)}
                   className="form-input"
-                  style={{ fontWeight: '800', color: '#a78bfa' }}
+                  style={{ fontWeight: '800', color: T.accentGold, background: T.inputBg, borderColor: T.border }}
                 />
               </div>
 
               {/* Field 6: Status */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   6. Status Operasional Outlet
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -460,9 +469,9 @@ export default function OutletManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Aktif' ? '#10b981' : '#334155',
-                      background: status === 'Aktif' ? 'rgba(16, 185, 129, 0.2)' : '#0f172a',
-                      color: status === 'Aktif' ? '#34d399' : '#94a3b8',
+                      borderColor: status === 'Aktif' ? T.success : T.border,
+                      background: status === 'Aktif' ? T.successBg : T.inputBg,
+                      color: status === 'Aktif' ? T.success : T.txtSecondary,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'
@@ -477,9 +486,9 @@ export default function OutletManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Inaktif' ? '#f43f5e' : '#334155',
-                      background: status === 'Inaktif' ? 'rgba(244, 63, 94, 0.2)' : '#0f172a',
-                      color: status === 'Inaktif' ? '#fb7185' : '#94a3b8',
+                      borderColor: status === 'Inaktif' ? T.danger : T.border,
+                      background: status === 'Inaktif' ? T.dangerBg : T.inputBg,
+                      color: status === 'Inaktif' ? T.danger : T.txtSecondary,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'
@@ -509,9 +518,11 @@ export default function OutletManagement({ masterData, setMasterData }) {
         <OutletAnalyticsDetailModal
           outlet={selectedOutletDetail}
           masterData={masterData}
+          themeMode={themeMode}
           onClose={() => setSelectedOutletDetail(null)}
         />
       )}
     </div>
   );
 }
+

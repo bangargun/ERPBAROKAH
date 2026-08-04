@@ -3,8 +3,10 @@ import { ShoppingBasket, Plus, Search, Trash2, Edit3, X, CheckCircle2, AlertTria
 import IngredientAnalyticsDetailModal from './IngredientAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function IngredientsManagement({ masterData, setMasterData }) {
+export default function IngredientsManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddFormModal, setShowAddFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -22,7 +24,6 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
   const [ingName, setIngName] = useState('');
   const [ingStatus, setIngStatus] = useState('Aktif');
   const [ingUnit, setIngUnit] = useState('Gram');
-  const [ingSupplier, setIngSupplier] = useState('');
   const [ingStock, setIngStock] = useState('1000');
   const [ingMinStock, setIngMinStock] = useState('500');
 
@@ -50,7 +51,6 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
     setIngName('');
     setIngStatus('Aktif');
     setIngUnit(masterData.units?.[0]?.symbol || 'Gram');
-    setIngSupplier(masterData.suppliers?.[0]?.name || '');
     setIngStock('1000');
     setIngMinStock('500');
     setShowAddFormModal(true);
@@ -63,7 +63,6 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
     setIngName(item.name || '');
     setIngStatus(item.status || 'Aktif');
     setIngUnit(item.unit || (masterData.units?.[0]?.symbol || 'Gram'));
-    setIngSupplier(item.supplier || item.supplier_name || (masterData.suppliers?.[0]?.name || ''));
     setIngStock(item.stock !== undefined && item.stock !== null ? String(item.stock) : '1000');
     setIngMinStock(item.min_stock !== undefined && item.min_stock !== null ? String(item.min_stock) : '500');
     setShowAddFormModal(true);
@@ -92,7 +91,6 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
       code,
       name: ingName.trim(),
       unit: ingUnit,
-      supplier: ingSupplier || '-',
       stock: parseFloat(ingStock) || 0,
       min_stock: parseFloat(ingMinStock) || 500,
       status: ingStatus,
@@ -121,7 +119,6 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
       code,
       name: ingName.trim(),
       unit: ingUnit,
-      supplier: ingSupplier || '-',
       stock: parseFloat(ingStock) || 0,
       min_stock: parseFloat(ingMinStock) || 500,
       status: ingStatus,
@@ -167,11 +164,8 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
   // Delete Ingredient
   const handleDeleteIngredient = (id, name) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus bahan baku "${name}"?`)) {
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        ingredients: (masterData.ingredients || []).filter(i => String(i.id) !== String(id))
-      };
+      const updated = { ...masterData };
+      updated.ingredients = updated.ingredients.filter(i => i.id !== id);
       setMasterData(updated);
     }
   };
@@ -179,8 +173,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
   const ingredientsList = masterData.ingredients || [];
   const filtered = ingredientsList.filter(i => 
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (i.code && i.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (i.supplier && i.supplier.toLowerCase().includes(searchTerm.toLowerCase()))
+    (i.code && i.code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Pagination calculation
@@ -193,11 +186,11 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Data Bahan Baku (Ingredients Master)
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
-            Kelola master bahan baku dapur, supplier pemasok, batas stok kritis, dan pengelompokan akun Harga Pokok Produksi (HPP)
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+            Kelola master bahan baku dapur, batas stok kritis, dan pengelompokan akun Harga Pokok Produksi (HPP)
           </p>
         </div>
 
@@ -205,8 +198,8 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
           <button
             onClick={() => setShowExcelImportModal(true)}
             style={{
-              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-              color: '#ffffff',
+              background: T.info,
+              color: T.txtInverse,
               border: 'none',
               padding: '8px 14px',
               borderRadius: '8px',
@@ -216,7 +209,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
               alignItems: 'center',
               gap: '6px',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(2,132,199,0.3)'
+              boxShadow: T.shadowSm
             }}
           >
             <FileSpreadsheet size={15} />
@@ -232,27 +225,26 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
 
       {/* Search Bar */}
       <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
-          placeholder="Cari berdasarkan nama, kode, atau supplier..."
+          placeholder="Cari berdasarkan nama atau kode bahan baku..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px' }}
+          style={{ paddingLeft: '36px', background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
         />
       </div>
 
       {/* Table Management */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
                 <th style={{ padding: '12px' }}>Kode Bahan (Auto)</th>
                 <th style={{ padding: '12px' }}>Nama Bahan Baku</th>
                 <th style={{ padding: '12px' }}>Satuan Unit</th>
-                <th style={{ padding: '12px' }}>Nama Supplier</th>
                 <th style={{ padding: '12px' }}>Status</th>
                 <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
               </tr>
@@ -260,7 +252,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedIngredients.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
                     Belum ada data bahan baku yang cocok.
                   </td>
                 </tr>
@@ -269,13 +261,13 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                   const isAktif = (ing.status || 'Aktif') === 'Aktif';
 
                   return (
-                    <tr key={ing.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={ing.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. KODE BAHAN (Auto) */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          background: T.infoBg,
+                          color: T.info,
+                          border: `1px solid ${T.infoBorder}`,
                           padding: '4px 10px',
                           borderRadius: '8px',
                           fontWeight: '800',
@@ -286,7 +278,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                         </span>
                       </td>
 
-                      {/* 2. NAMA BAHAN BAKU */}
+                      {/* 2. NAMA BAHAN BAKU (Klik untuk Papan Informasi Detail Analisis & Resep Menu) */}
                       <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.88rem' }}>
                         <button
                           type="button"
@@ -294,7 +286,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                           style={{
                             background: 'none',
                             border: 'none',
-                            color: '#34d399',
+                            color: T.success,
                             fontWeight: '900',
                             cursor: 'pointer',
                             padding: 0,
@@ -309,25 +301,18 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                       </td>
 
                       {/* 3. SATUAN UNIT */}
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
-                        <span style={{ background: '#0f172a', padding: '4px 8px', borderRadius: '6px', border: '1px solid #334155', fontSize: '0.78rem' }}>
+                      <td style={{ padding: '14px 12px', color: T.txtSecondary }}>
+                        <span style={{ background: T.cardBg2, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, fontSize: '0.78rem', color: T.txtPrimary }}>
                           {ing.unit}
                         </span>
                       </td>
 
-                      {/* 4. NAMA SUPPLIER */}
-                      <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
-                        <span style={{ background: '#0f172a', padding: '4px 8px', borderRadius: '6px', border: '1px solid #334155', fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700' }}>
-                          🚚 {ing.supplier || '-'}
-                        </span>
-                      </td>
-
-                      {/* 5. STATUS */}
+                      {/* 4. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                          color: isAktif ? '#34d399' : '#fb7185',
-                          border: `1px solid ${isAktif ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          background: isAktif ? T.successBg : T.dangerBg,
+                          color: isAktif ? T.success : T.danger,
+                          border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
                           padding: '4px 10px',
                           borderRadius: '20px',
                           fontSize: '0.75rem',
@@ -337,16 +322,16 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                         </span>
                       </td>
 
-                      {/* 6. AKSI (Edit, Preview, Delete) */}
+                      {/* 5. AKSI (Edit, Preview, Delete) */}
                       <td style={{ padding: '14px 12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                           <button
                             onClick={() => handleOpenPreviewOnly(ing)}
                             title="Pratinjau Bahan"
                             style={{
-                              background: 'rgba(56, 189, 248, 0.15)',
-                              color: '#38bdf8',
-                              border: '1px solid rgba(56, 189, 248, 0.3)',
+                              background: T.infoBg,
+                              color: T.info,
+                              border: `1px solid ${T.infoBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -364,9 +349,9 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                           <button
                             onClick={() => handleOpenEditForm(ing)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -377,16 +362,16 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteIngredient(ing.id, ing.name)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -417,6 +402,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
           totalItems={totalItems}
           onPageChange={setCurrentPage}
           onPageSizeChange={setPageSize}
+          themeMode={themeMode}
         />
       </div>
 
@@ -433,12 +419,12 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '24px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '500px', padding: '24px', background: T.cardBg, border: `1px solid ${T.borderStrong}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 {editingIngredientId ? 'Edit Data Bahan Baku' : 'Tambahkan Bahan Baku'}
               </h3>
-              <button onClick={() => setShowAddFormModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddFormModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -446,15 +432,15 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
             <form onSubmit={handleProceedToPreview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Bahan Baku (Auto Generated) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Kode Bahan Baku (Otomatis)
                 </label>
                 <div style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
+                  background: T.cardBg2,
+                  border: `1px solid ${T.border}`,
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  color: '#818cf8',
+                  color: T.info,
                   fontWeight: '800',
                   fontFamily: 'monospace',
                   fontSize: '0.9rem',
@@ -463,7 +449,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                   justifyContent: 'space-between'
                 }}>
                   <span>{editingIngredientId ? (masterData.ingredients.find(i => i.id === editingIngredientId)?.code || 'BHN-001') : generateNextIngredientCode()}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.7rem', color: T.success, background: T.successBg, padding: '2px 8px', borderRadius: '6px' }}>
                     Auto Generated
                   </span>
                 </div>
@@ -471,7 +457,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
 
               {/* Field 2: Nama Bahan Baku */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Nama Bahan Baku *
                 </label>
                 <input
@@ -481,6 +467,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                   value={ingName}
                   onChange={e => setIngName(e.target.value)}
                   className="form-input"
+                  style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
                   autoFocus
                 />
               </div>
@@ -488,10 +475,10 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
               {/* Field 3 & 4: Satuan Unit & Batas Minimal Stok */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                     Satuan Unit (Dari Satuan/Unit)
                   </label>
-                  <select value={ingUnit} onChange={e => setIngUnit(e.target.value)} className="form-select">
+                  <select value={ingUnit} onChange={e => setIngUnit(e.target.value)} className="form-select" style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}>
                     {masterData.units.map(u => (
                       <option key={u.id} value={u.symbol}>
                         {u.name} ({u.symbol})
@@ -501,7 +488,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                     Batas Minimal Stok (Alert)
                   </label>
                   <input
@@ -509,54 +496,36 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
                     value={ingMinStock}
                     onChange={e => setIngMinStock(e.target.value)}
                     className="form-input"
+                    style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
                     placeholder="500"
                   />
                 </div>
               </div>
 
-              {/* Field 5: Nama Supplier (Pemasok) */}
+              {/* Field 5: Tampilkan di APK */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
-                  Nama Supplier (Pemasok)
-                </label>
-                <select
-                  value={ingSupplier}
-                  onChange={e => setIngSupplier(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="">-- Pilih Supplier --</option>
-                  {(masterData.suppliers || []).map(s => (
-                    <option key={s.id} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Field 6: Tampilkan di APK */}
-              <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Tampilkan di APK
                 </label>
-                <select value={ingStatus} onChange={e => setIngStatus(e.target.value)} className="form-select">
+                <select value={ingStatus} onChange={e => setIngStatus(e.target.value)} className="form-select" style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}>
                   <option value="Aktif">Aktif</option>
                   <option value="Inaktif">Inaktif</option>
                 </select>
               </div>
 
-              {/* Field 7: Keterangan Akun HPP */}
-              <div style={{ background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #334155', fontSize: '0.78rem', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Field 6: Keterangan Akun HPP */}
+              <div style={{ background: T.cardBg2, padding: '12px', borderRadius: '10px', border: `1px solid ${T.border}`, fontSize: '0.78rem', color: T.info, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShieldCheck size={18} />
                 <span>Terhubung otomatis dengan Akun <strong>Harga Pokok Produksi (HPP/COGS)</strong> Laporan Laba Rugi</span>
               </div>
 
-              {/* Field 8: Tombol Preview & Simpan */}
+              {/* Field 7: Tombol Preview & Simpan */}
               <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                <button type="button" onClick={() => setShowAddFormModal(false)} className="btn-secondary" style={{ padding: '8px 12px' }}>
+                <button type="button" onClick={() => setShowAddFormModal(false)} className="btn-secondary" style={{ padding: '8px 12px', borderColor: T.border, color: T.txtSecondary }}>
                   Batal
                 </button>
 
-                <button type="button" onClick={handleProceedToPreview} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', borderColor: '#38bdf8', color: '#38bdf8' }}>
+                <button type="button" onClick={handleProceedToPreview} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', borderColor: T.info, color: T.info }}>
                   <Eye size={15} />
                   <span>Preview Dulu</span>
                 </button>
@@ -583,53 +552,48 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
           justifyContent: 'center',
           zIndex: 110
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '28px', background: '#1e293b', border: '1px solid #10b981' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '28px', background: T.cardBg, border: `1px solid ${T.success}` }}>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px auto', color: '#34d399' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: T.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px auto', color: T.success }}>
                 <Eye size={24} />
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: T.txtPrimary }}>
                 Pratinjau Bahan Baku (Preview)
               </h3>
-              <p style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Rincian informasi bahan baku dan pemetaan akun HPP</p>
+              <p style={{ fontSize: '0.78rem', color: T.txtSecondary }}>Rincian informasi bahan baku dan pemetaan akun HPP</p>
             </div>
 
-            <div style={{ background: '#0f172a', padding: '18px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Kode Bahan Baku:</span>
-                <strong style={{ color: '#818cf8', fontFamily: 'monospace' }}>{previewItemData.code}</strong>
+            <div style={{ background: T.cardBg2, padding: '18px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Kode Bahan Baku:</span>
+                <strong style={{ color: T.info, fontFamily: 'monospace' }}>{previewItemData.code}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Nama Bahan Baku:</span>
-                <strong style={{ color: '#f8fafc' }}>{previewItemData.name}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Nama Bahan Baku:</span>
+                <strong style={{ color: T.txtPrimary }}>{previewItemData.name}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Satuan Unit:</span>
-                <strong style={{ color: '#38bdf8' }}>{previewItemData.unit}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Satuan Unit:</span>
+                <strong style={{ color: T.info }}>{previewItemData.unit}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Nama Supplier:</span>
-                <strong style={{ color: '#38bdf8' }}>🚚 {previewItemData.supplier || '-'}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Stok Dapur & Minimal Alert:</span>
-                <strong style={{ color: previewItemData.stock <= previewItemData.min_stock ? '#f43f5e' : '#34d399' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Stok Dapur & Minimal Alert:</span>
+                <strong style={{ color: previewItemData.stock <= previewItemData.min_stock ? T.danger : T.success }}>
                   {previewItemData.stock} {previewItemData.unit} (Min: {previewItemData.min_stock} {previewItemData.unit})
                 </strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Status Bahan:</span>
-                <strong style={{ color: previewItemData.status === 'Aktif' ? '#34d399' : '#fb7185' }}>{previewItemData.status || 'Aktif'}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Status Bahan:</span>
+                <strong style={{ color: previewItemData.status === 'Aktif' ? T.success : T.danger }}>{previewItemData.status || 'Aktif'}</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Akun Laporan Keuangan:</span>
-                <strong style={{ color: '#818cf8' }}>{previewItemData.financial_account || 'Harga Pokok Produksi (HPP/COGS)'}</strong>
+                <span style={{ color: T.txtSecondary }}>Akun Laporan Keuangan:</span>
+                <strong style={{ color: T.info }}>{previewItemData.financial_account || 'Harga Pokok Produksi (HPP/COGS)'}</strong>
               </div>
             </div>
 
@@ -672,6 +636,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
           ingredient={selectedIngredientDetail}
           masterData={masterData}
           onClose={() => setSelectedIngredientDetail(null)}
+          themeMode={themeMode}
         />
       )}
 
@@ -682,6 +647,7 @@ export default function IngredientsManagement({ masterData, setMasterData }) {
         moduleType="ingredients"
         masterData={masterData}
         setMasterData={setMasterData}
+        themeMode={themeMode}
       />
     </div>
   );

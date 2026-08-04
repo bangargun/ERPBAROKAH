@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { X, Layers, DollarSign, Calendar, Store, ShoppingBag, Utensils, TrendingUp, Filter, Receipt, Package } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function CategoryAnalyticsDetailModal({ category, masterData, onClose }) {
+export default function CategoryAnalyticsDetailModal({ category, masterData, onClose, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [filterOutlet, setFilterOutlet] = useState('Semua Outlet');
   const [filterMonthYear, setFilterMonthYear] = useState('Semua Bulan & Tahun');
 
   if (!category) return null;
 
   // Retrieve outlets list
-  const outletsList = masterData?.outlets || [];
+  const outletsList = masterData?.outlets || [
+    { name: 'Gourmet Bistro - Senopati' },
+    { name: 'Ramen Haus - Kemang' },
+    { name: 'Kopi & Kitchen - PIK' }
+  ];
 
   // Helper to format Rupiah
   const formatRupiah = (val) => {
@@ -37,7 +43,7 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
             receipt_no: tx.receipt_no || tx.receiptNo || `#TRX-${tx.id}`,
             date: tx.date || tx.createdAt || tx.timestamp,
             month_year: tx.month_year || tx.monthYear || 'Tahun 2026',
-            outlet_name: tx.outlet_name || tx.outletName || '',
+            outlet_name: tx.outlet_name || tx.outletName || 'Outlet Utama',
             item_name: item.name || item.item_name,
             qty: item.qty || item.quantity || 1,
             unit_price: item.price || item.unit_price || 0,
@@ -75,28 +81,28 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
     }} className="animate-fade-in">
       <div className="glass-card" style={{
         width: '100%', maxWidth: '980px', maxHeight: '92vh', overflowY: 'auto',
-        background: '#111827', border: '1.5px solid rgba(168, 85, 247, 0.4)',
-        borderRadius: '24px', padding: '28px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
+        background: T.cardBg, border: `1.5px solid ${T.borderStrong}`,
+        borderRadius: '24px', padding: '28px', boxShadow: T.shadowLg,
         display: 'flex', flexDirection: 'column', gap: '22px'
       }}>
         
         {/* MODAL HEADER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #1f2937', paddingBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: '900', fontSize: '1.4rem', boxShadow: '0 6px 16px rgba(168,85,247,0.4)' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: T.primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.navActiveTxt, fontWeight: '900', fontSize: '1.4rem', boxShadow: T.primaryBtnShadow ? `0 6px 16px ${T.primaryBtnShadow}` : 'none' }}>
               <Layers size={30} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>🏷️ Kategori Menu: {category.name}</span>
-                <span style={{ fontSize: '0.74rem', fontWeight: '800', background: 'rgba(168,85,247,0.15)', color: '#c084fc', padding: '3px 10px', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.3)' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: '800', background: T.accentGoldBg, color: T.accentGold, padding: '3px 10px', borderRadius: '8px', border: `1px solid ${T.accentGoldBorder}` }}>
                   Kode: {category.code || `CAT-00${category.id}`}
                 </span>
               </h2>
-              <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span>Total Menu Terhubung: <strong style={{ color: '#38bdf8' }}>{connectedProducts.length} Menu</strong></span>
+              <div style={{ fontSize: '0.82rem', color: T.txtSecondary, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>Total Menu Terhubung: <strong style={{ color: T.info }}>{connectedProducts.length} Menu</strong></span>
                 <span>•</span>
-                <span>Status Kategori: <strong style={{ color: '#34d399' }}>🟢 {category.status || 'Aktif'}</strong></span>
+                <span>Status Kategori: <strong style={{ color: T.success }}>🟢 {category.status || 'Aktif'}</strong></span>
               </div>
             </div>
           </div>
@@ -104,15 +110,15 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
           <button
             type="button"
             onClick={onClose}
-            style={{ background: '#1f2937', border: '1px solid #374151', color: '#94a3b8', borderRadius: '12px', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ background: T.cardBg2, border: `1px solid ${T.border}`, color: T.txtSecondary, borderRadius: '12px', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <X size={20} />
           </button>
         </div>
 
         {/* FILTER BAR (NAMA OUTLET & BULAN TAHUN) */}
-        <div style={{ background: '#1f2937', padding: '16px', borderRadius: '16px', border: '1px solid #374151', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#c084fc', fontWeight: '800', fontSize: '0.84rem' }}>
+        <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: T.accentGold, fontWeight: '800', fontSize: '0.84rem' }}>
             <Filter size={18} />
             <span>Filter Analisis Penjualan Kategori Menu:</span>
           </div>
@@ -120,11 +126,11 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {/* 1. FILTER NAMA OUTLET */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Store size={16} color="#94a3b8" />
+              <Store size={16} color={T.txtSecondary} />
               <select
                 value={filterOutlet}
                 onChange={e => setFilterOutlet(e.target.value)}
-                style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #374151', background: '#090d16', color: '#ffffff', fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 <option value="Semua Outlet">🏬 Semua Outlet Cabang</option>
                 {outletsList.map((o, idx) => (
@@ -135,11 +141,11 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
 
             {/* 2. FILTER BULAN & TAHUN */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={16} color="#94a3b8" />
+              <Calendar size={16} color={T.txtSecondary} />
               <select
                 value={filterMonthYear}
                 onChange={e => setFilterMonthYear(e.target.value)}
-                style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #374151', background: '#090d16', color: '#ffffff', fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 <option value="Semua Bulan & Tahun">📅 Semua Waktu</option>
                 <option value="Juli 2026">Juli 2026</option>
@@ -154,71 +160,71 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
         {/* 4 SUMMARY KPI CARDS */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
           {/* CARD 1: KUANTITAS TERJUAL */}
-          <div style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#34d399', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.success, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Package size={14} />
               <span>Kuantitas Terjual</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-              {totalQtySold} <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Porsi / Unit</span>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
+              {totalQtySold} <span style={{ fontSize: '0.85rem', color: T.success }}>Porsi / Unit</span>
             </div>
           </div>
 
           {/* CARD 2: TOTAL PENJUALAN (OMZET KATEGORI) */}
-          <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.infoBg, border: `1px solid ${T.infoBorder}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.info, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <DollarSign size={14} />
               <span>Total Omzet Kategori</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
               {formatRupiah(totalRevenue)}
             </div>
           </div>
 
           {/* CARD 3: RATA-RATA / STRUK */}
-          <div style={{ background: 'rgba(192,132,252,0.1)', border: '1px solid rgba(192,132,252,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#c084fc', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.accentGoldBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.accentGold, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <TrendingUp size={14} />
               <span>Rata-Rata / Struk</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
               {formatRupiah(avgRevenuePerTx)}
             </div>
           </div>
 
           {/* CARD 4: TOTAL STRUK POS */}
-          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.warningBg, border: `1px solid ${T.warningBorder}`, borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: T.warning, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Receipt size={14} />
               <span>Total Struk POS</span>
             </span>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff' }}>
-              {totalTransactionsCount} <span style={{ fontSize: '0.85rem', color: '#fbbf24' }}>Struk</span>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.txtPrimary }}>
+              {totalTransactionsCount} <span style={{ fontSize: '0.85rem', color: T.warning }}>Struk</span>
             </div>
           </div>
         </div>
 
         {/* SECTION 1: NAMA MENU DALAM KATEGORI INI */}
-        <div style={{ background: '#1f2937', padding: '20px', borderRadius: '18px', border: '1px solid #374151', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Utensils size={18} color="#c084fc" />
+        <div style={{ background: T.cardBg2, padding: '20px', borderRadius: '18px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Utensils size={18} color={T.accentGold} />
             <span>Daftar Menu Restoran Dalam Kategori {category.name} ({connectedProducts.length} Menu):</span>
           </h3>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
             {connectedProducts.map((menu, idx) => (
-              <div key={idx} style={{ background: '#090d16', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '14px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.3)', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.1rem' }}>
+              <div key={idx} style={{ background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.accentGoldBg, border: `1px solid ${T.accentGoldBorder}`, color: T.accentGold, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.1rem' }}>
                   {menu.name ? menu.name.charAt(0).toUpperCase() : 'M'}
                 </div>
                 <div>
-                  <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                     {menu.name}
                   </h4>
-                  <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '700', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.75rem', color: T.success, fontWeight: '700', marginTop: '2px' }}>
                     Harga: {formatRupiah(menu.price)}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '1px' }}>
+                  <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '1px' }}>
                     SKU: {menu.sku || `MNU-${menu.id}`}
                   </div>
                 </div>
@@ -230,16 +236,16 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
         {/* SECTION 2: TABEL HISTORY PENJUALAN DETAIL KATEGORI */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShoppingBag size={18} color="#38bdf8" />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShoppingBag size={18} color={T.info} />
               <span>Riwayat History Penjualan Detail Kategori ({filteredHistory.length} Transaksi)</span>
             </h3>
           </div>
 
-          <div style={{ border: '1px solid #1f2937', borderRadius: '16px', overflow: 'hidden', background: '#090d16' }}>
+          <div style={{ border: `1px solid ${T.border}`, borderRadius: '16px', overflow: 'hidden', background: T.tableBg }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
               <thead>
-                <tr style={{ background: '#1f2937', borderBottom: '1px solid #374151', color: '#94a3b8', fontWeight: '800', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   <th style={{ padding: '12px 14px' }}>Tanggal & Waktu</th>
                   <th style={{ padding: '12px 14px' }}>No. Struk</th>
                   <th style={{ padding: '12px 14px' }}>Outlet Cabang</th>
@@ -254,40 +260,40 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
               <tbody>
                 {filteredHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                    <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: T.txtMuted }}>
                       Tidak ada riwayat penjualan kategori untuk kombinasi filter ini.
                     </td>
                   </tr>
                 ) : (
                   filteredHistory.map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                      <td style={{ padding: '12px 14px', color: '#cbd5e1' }}>
+                    <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                      <td style={{ padding: '12px 14px', color: T.txtSecondary }}>
                         {row.date}
                       </td>
-                      <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: '800', color: '#38bdf8' }}>
+                      <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: '800', color: T.info }}>
                         {row.receipt_no}
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: '700', color: '#f8fafc' }}>
+                      <td style={{ padding: '12px 14px', fontWeight: '700', color: T.txtPrimary }}>
                         🏬 {row.outlet_name}
                       </td>
-                      <td style={{ padding: '12px 14px', color: '#c084fc', fontWeight: '800' }}>
+                      <td style={{ padding: '12px 14px', color: T.accentGold, fontWeight: '800' }}>
                         🍽️ {row.item_name}
                       </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: '#34d399' }}>
+                      <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: T.success }}>
                         {row.qty} Porsi
                       </td>
-                      <td style={{ padding: '12px 14px', color: '#cbd5e1' }}>
+                      <td style={{ padding: '12px 14px', color: T.txtSecondary }}>
                         {formatRupiah(row.unit_price)}
                       </td>
-                      <td style={{ padding: '12px 14px', fontWeight: '900', color: '#ffffff' }}>
+                      <td style={{ padding: '12px 14px', fontWeight: '900', color: T.txtPrimary }}>
                         {formatRupiah(row.total_price)}
                       </td>
                       <td style={{ padding: '12px 14px' }}>
-                        <span style={{ background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', color: '#fbbf24', fontWeight: '700', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ background: T.warningBg, padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', color: T.warning, fontWeight: '700', border: `1px solid ${T.warningBorder}` }}>
                           💳 {row.payment_method}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 14px', color: '#94a3b8' }}>
+                      <td style={{ padding: '12px 14px', color: T.txtMuted }}>
                         👤 {row.cashier}
                       </td>
                     </tr>
@@ -302,3 +308,4 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
     </div>
   );
 }
+

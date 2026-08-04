@@ -4,8 +4,11 @@ import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import CategoryAnalyticsDetailModal from './CategoryAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function ProductCategoryManagement({ masterData, setMasterData }) {
+export default function ProductCategoryManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -93,10 +96,8 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
     setEditingCategory(null);
   };
 
-  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-
   // Handle Delete Category
-  const handleDeleteCategory = async (catId, catName) => {
+  const handleDeleteCategory = (catId, catName) => {
     const associatedCount = getAssociatedProducts(catId, catName).length;
     if (associatedCount > 0) {
       if (!window.confirm(`Kategori "${catName}" memiliki ${associatedCount} menu terhubung. Apakah Anda yakin ingin menghapusnya?`)) {
@@ -111,25 +112,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
-      categories: (masterData.categories || []).filter(c => String(c.id) !== String(catId))
+      categories: (masterData.categories || []).filter(c => c.id !== catId)
     };
     setMasterData(updated);
-
-    try {
-      const res = await fetch(getApiUrl('/api/master-data/delete-item'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'categories', id: catId })
-      });
-      if (res.ok) {
-        const resData = await res.json();
-        if (resData && resData.masterData) {
-          setMasterData(resData.masterData);
-        }
-      }
-    } catch (err) {
-      console.error('Delete category API error:', err);
-    }
   };
 
   const filteredCategories = masterData.categories.filter(c => 
@@ -149,10 +134,10 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Kategori Menu
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Pengelompokan menu makanan & minuman restoran dengan auto-code dan akumulasi menu terhubung
           </p>
         </div>
@@ -188,23 +173,23 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
 
       {/* Summary KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.info }}>
             <Layers size={22} />
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>TOTAL KATEGORI</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#f8fafc', marginTop: '2px' }}>{masterData.categories.length} Kategori</h3>
+            <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>TOTAL KATEGORI</span>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.txtPrimary, marginTop: '2px' }}>{masterData.categories.length} Kategori</h3>
           </div>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
+        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.success }}>
             <CheckCircle2 size={22} />
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>STATUS AKTIF</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#34d399', marginTop: '2px' }}>{activeCount} Aktif</h3>
+            <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>STATUS AKTIF</span>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.success, marginTop: '2px' }}>{activeCount} Aktif</h3>
           </div>
         </div>
       </div>
@@ -212,24 +197,24 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
       {/* Search Filter Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
-          <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
             placeholder="Cari berdasarkan nama atau kode kategori..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="form-input"
-            style={{ paddingLeft: '36px' }}
+            style={{ paddingLeft: '36px', background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
           />
         </div>
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, background: T.tableHeaderBg, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: '12px' }}>Kode Kategori (Auto)</th>
                 <th style={{ padding: '12px' }}>Nama Kategori</th>
                 <th style={{ padding: '12px' }}>Menu Terhubung (Klik untuk Detail Analisis)</th>
@@ -240,7 +225,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
             <tbody>
               {paginatedCategories.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
                     Belum ada data kategori menu yang cocok.
                   </td>
                 </tr>
@@ -250,13 +235,13 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                   const isAktif = cat.status === 'Aktif';
 
                   return (
-                    <tr key={cat.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={cat.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. KODE KATEGORI (Auto Generated) */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          background: T.infoBg,
+                          color: T.info,
+                          border: `1px solid ${T.infoBorder}`,
                           padding: '4px 10px',
                           borderRadius: '8px',
                           fontWeight: '800',
@@ -275,7 +260,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                           style={{
                             background: 'none',
                             border: 'none',
-                            color: '#c084fc',
+                            color: T.accentGold,
                             fontWeight: '900',
                             cursor: 'pointer',
                             padding: 0,
@@ -293,7 +278,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                       <td style={{ padding: '14px 12px' }}>
                         {associatedProducts.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <span style={{ color: '#38bdf8', fontWeight: '700', fontSize: '0.80rem' }}>
+                            <span style={{ color: T.info, fontWeight: '700', fontSize: '0.80rem' }}>
                               📦 {associatedProducts.length} Menu Terhubung
                             </span>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -303,9 +288,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                                   type="button"
                                   onClick={() => setSelectedMenuDetail(p)}
                                   style={{
-                                    background: 'rgba(56, 189, 248, 0.15)',
-                                    border: '1px solid rgba(56, 189, 248, 0.35)',
-                                    color: '#38bdf8',
+                                    background: T.infoBg,
+                                    border: `1px solid ${T.infoBorder}`,
+                                    color: T.info,
                                     borderRadius: '8px',
                                     padding: '3px 9px',
                                     fontSize: '0.74rem',
@@ -324,7 +309,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                             </div>
                           </div>
                         ) : (
-                          <span style={{ color: '#64748b', fontSize: '0.78rem', fontStyle: 'italic' }}>
+                          <span style={{ color: T.txtMuted, fontSize: '0.78rem', fontStyle: 'italic' }}>
                             Belum ada menu
                           </span>
                         )}
@@ -333,9 +318,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                       {/* 4. STATUS (Aktif / Inaktif) */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                          color: isAktif ? '#34d399' : '#fb7185',
-                          border: `1px solid ${isAktif ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          background: isAktif ? T.successBg : T.dangerBg,
+                          color: isAktif ? T.success : T.danger,
+                          border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
                           padding: '4px 10px',
                           borderRadius: '20px',
                           fontSize: '0.75rem',
@@ -344,7 +329,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                           alignItems: 'center',
                           gap: '6px'
                         }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAktif ? '#10b981' : '#f43f5e' }}></span>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAktif ? T.success : T.danger }}></span>
                           {cat.status || 'Aktif'}
                         </span>
                       </td>
@@ -355,9 +340,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                           <button
                             onClick={() => openEditModal(cat)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '6px 12px',
                               borderRadius: '8px',
                               fontSize: '0.75rem',
@@ -369,16 +354,16 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                               transition: 'all 0.2s ease'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteCategory(cat.id, cat.name)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '6px 12px',
                               borderRadius: '8px',
                               fontSize: '0.75rem',
@@ -426,12 +411,12 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '24px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '24px', background: T.cardBg, border: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 Tambahkan Kategori Produk
               </h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -439,15 +424,15 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
             <form onSubmit={handleCreateCategory} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Kategori (Auto Generated) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Kode Kategori Produk (Otomatis)
                 </label>
                 <div style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
+                  background: T.cardBg2,
+                  border: `1px solid ${T.border}`,
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  color: '#818cf8',
+                  color: T.info,
                   fontWeight: '800',
                   fontFamily: 'monospace',
                   fontSize: '0.9rem',
@@ -456,7 +441,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                   justifyContent: 'space-between'
                 }}>
                   <span>{generateNextCategoryCode()}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.7rem', color: T.success, background: T.successBg, border: `1px solid ${T.successBorder}`, padding: '2px 8px', borderRadius: '6px' }}>
                     Auto Generated
                   </span>
                 </div>
@@ -464,7 +449,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
 
               {/* Field 2: Nama Kategori (Input Manual) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Nama Kategori Produk *
                 </label>
                 <input
@@ -474,13 +459,14 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                   value={newCatName}
                   onChange={e => setNewCatName(e.target.value)}
                   className="form-input"
+                  style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                   autoFocus
                 />
               </div>
 
               {/* Field 3: Status (Aktif / Inaktif) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Status Kategori
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -491,9 +477,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                       padding: '10px',
                       borderRadius: '10px',
                       border: '1px solid',
-                      borderColor: newCatStatus === 'Aktif' ? '#10b981' : '#334155',
-                      background: newCatStatus === 'Aktif' ? 'rgba(16, 185, 129, 0.2)' : '#0f172a',
-                      color: newCatStatus === 'Aktif' ? '#34d399' : '#94a3b8',
+                      borderColor: newCatStatus === 'Aktif' ? T.success : T.border,
+                      background: newCatStatus === 'Aktif' ? T.successBg : T.cardBg2,
+                      color: newCatStatus === 'Aktif' ? T.success : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.85rem',
                       cursor: 'pointer'
@@ -509,9 +495,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                       padding: '10px',
                       borderRadius: '10px',
                       border: '1px solid',
-                      borderColor: newCatStatus === 'Inaktif' ? '#f43f5e' : '#334155',
-                      background: newCatStatus === 'Inaktif' ? 'rgba(244, 63, 94, 0.2)' : '#0f172a',
-                      color: newCatStatus === 'Inaktif' ? '#fb7185' : '#94a3b8',
+                      borderColor: newCatStatus === 'Inaktif' ? T.danger : T.border,
+                      background: newCatStatus === 'Inaktif' ? T.dangerBg : T.cardBg2,
+                      color: newCatStatus === 'Inaktif' ? T.danger : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.85rem',
                       cursor: 'pointer'
@@ -524,7 +510,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+                <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', background: T.cardBg2, color: T.txtPrimary, border: `1px solid ${T.border}` }}>
                   Batal
                 </button>
                 <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
@@ -548,12 +534,12 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '24px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '24px', background: T.cardBg, border: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 Edit Kategori Produk
               </h3>
-              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -561,7 +547,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
             <form onSubmit={handleUpdateCategory} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Kategori (Read Only) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Kode Kategori Produk
                 </label>
                 <input
@@ -569,13 +555,13 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                   readOnly
                   value={editingCategory.code || `CAT-00${editingCategory.id}`}
                   className="form-input"
-                  style={{ color: '#818cf8', fontWeight: '800', fontFamily: 'monospace' }}
+                  style={{ color: T.info, fontWeight: '800', fontFamily: 'monospace', background: T.cardBg2, border: `1px solid ${T.border}` }}
                 />
               </div>
 
               {/* Field 2: Nama Kategori */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Nama Kategori Produk *
                 </label>
                 <input
@@ -584,12 +570,13 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                   value={editingCategory.name}
                   onChange={e => setEditingCategory({ ...editingCategory, name: e.target.value })}
                   className="form-input"
+                  style={{ background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                 />
               </div>
 
               {/* Field 3: Status */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   Status Kategori
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -600,9 +587,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                       padding: '10px',
                       borderRadius: '10px',
                       border: '1px solid',
-                      borderColor: editingCategory.status === 'Aktif' ? '#10b981' : '#334155',
-                      background: editingCategory.status === 'Aktif' ? 'rgba(16, 185, 129, 0.2)' : '#0f172a',
-                      color: editingCategory.status === 'Aktif' ? '#34d399' : '#94a3b8',
+                      borderColor: editingCategory.status === 'Aktif' ? T.success : T.border,
+                      background: editingCategory.status === 'Aktif' ? T.successBg : T.cardBg2,
+                      color: editingCategory.status === 'Aktif' ? T.success : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.85rem',
                       cursor: 'pointer'
@@ -618,9 +605,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
                       padding: '10px',
                       borderRadius: '10px',
                       border: '1px solid',
-                      borderColor: editingCategory.status === 'Inaktif' ? '#f43f5e' : '#334155',
-                      background: editingCategory.status === 'Inaktif' ? 'rgba(244, 63, 94, 0.2)' : '#0f172a',
-                      color: editingCategory.status === 'Inaktif' ? '#fb7185' : '#94a3b8',
+                      borderColor: editingCategory.status === 'Inaktif' ? T.danger : T.border,
+                      background: editingCategory.status === 'Inaktif' ? T.dangerBg : T.cardBg2,
+                      color: editingCategory.status === 'Inaktif' ? T.danger : T.txtMuted,
                       fontWeight: '700',
                       fontSize: '0.85rem',
                       cursor: 'pointer'
@@ -633,7 +620,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', background: T.cardBg2, color: T.txtPrimary, border: `1px solid ${T.border}` }}>
                   Batal
                 </button>
                 <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
@@ -651,6 +638,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
           menuItem={selectedMenuDetail}
           masterData={masterData}
           onClose={() => setSelectedMenuDetail(null)}
+          themeMode={themeMode}
         />
       )}
 
@@ -660,6 +648,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
           category={selectedCategoryDetail}
           masterData={masterData}
           onClose={() => setSelectedCategoryDetail(null)}
+          themeMode={themeMode}
         />
       )}
 
@@ -670,6 +659,7 @@ export default function ProductCategoryManagement({ masterData, setMasterData })
         moduleType="categories"
         masterData={masterData}
         setMasterData={setMasterData}
+        themeMode={themeMode}
       />
     </div>
   );

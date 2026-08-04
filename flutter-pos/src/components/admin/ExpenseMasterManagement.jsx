@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { BookOpen, Plus, Search, Edit3, Trash2, X, CheckCircle2, Tag, Layers, FolderPlus, Info, HelpCircle, ArrowRight, ShieldCheck, FileText, Scale, ArrowLeftRight } from 'lucide-react';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function ExpenseMasterManagement({ masterData, setMasterData }) {
+export default function ExpenseMasterManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -31,17 +34,17 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
     if (codeStr.startsWith('1')) {
       return {
         classLabel: 'AKTIVA / ASSET',
-        badgeColor: '#38bdf8',
-        bg: 'rgba(56, 189, 248, 0.15)',
-        border: 'rgba(56, 189, 248, 0.3)',
+        badgeColor: T.info,
+        bg: T.infoBg,
+        border: T.infoBorder,
         targetDefault: 'Laporan Neraca'
       };
     } else if (codeStr.startsWith('2')) {
       return {
         classLabel: 'PASIVA / LIABILITY',
-        badgeColor: '#fb7185',
-        bg: 'rgba(251, 113, 133, 0.15)',
-        border: 'rgba(251, 113, 133, 0.3)',
+        badgeColor: T.danger,
+        bg: T.dangerBg,
+        border: T.dangerBorder,
         targetDefault: 'Laporan Neraca'
       };
     } else if (codeStr.startsWith('3')) {
@@ -55,17 +58,17 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
     } else if (codeStr.startsWith('4')) {
       return {
         classLabel: 'PENDAPATAN / REVENUE',
-        badgeColor: '#34d399',
-        bg: 'rgba(52, 211, 153, 0.15)',
-        border: 'rgba(52, 211, 153, 0.3)',
+        badgeColor: T.success,
+        bg: T.successBg,
+        border: T.successBorder,
         targetDefault: 'Laporan Laba Rugi'
       };
     } else if (codeStr.startsWith('5')) {
       return {
         classLabel: 'HPP / COGS',
-        badgeColor: '#f59e0b',
-        bg: 'rgba(245, 158, 11, 0.15)',
-        border: 'rgba(245, 158, 11, 0.3)',
+        badgeColor: T.accentGold,
+        bg: T.accentGoldBg,
+        border: T.accentGoldBorder,
         targetDefault: 'Laporan Laba Rugi'
       };
     } else if (codeStr.startsWith('6')) {
@@ -79,9 +82,9 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
     } else {
       return {
         classLabel: 'NON-OPERASIONAL',
-        badgeColor: '#a7f3d0',
-        bg: 'rgba(167, 243, 208, 0.15)',
-        border: 'rgba(167, 243, 208, 0.3)',
+        badgeColor: T.success,
+        bg: T.successBg,
+        border: T.successBorder,
         targetDefault: 'Laporan Laba Rugi'
       };
     }
@@ -208,11 +211,11 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
       {/* SECTION HEADER & TITLE */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <BookOpen size={24} color="#38bdf8" />
+          <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <BookOpen size={24} color={T.info} />
             <span>Master Data Akuntansi (Chart of Accounts)</span>
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '4px' }}>
             Daftar Kode Akun Akuntansi Restoran dan Pengelompokannya pada Laporan Laba Rugi, Neraca &amp; Arus Kas
           </p>
         </div>
@@ -224,14 +227,14 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
             alignItems: 'center',
             gap: '8px',
             padding: '10px 18px',
-            background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
+            background: T.primaryBtn,
             border: 'none',
             borderRadius: '10px',
-            color: '#0f172a',
+            color: T.navActiveTxt,
             fontWeight: '800',
             fontSize: '0.85rem',
             cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(56, 189, 248, 0.3)'
+            boxShadow: T.primaryBtnShadow
           }}
         >
           <Plus size={18} />
@@ -242,62 +245,62 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
       {/* SUMMARY STATS CARDS BY ACCOUNT CLASS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
         
-        <div style={{ background: '#1e293b', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '700' }}>[1000] AKTIVA / ASSETS</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f8fafc', marginTop: '4px' }}>
-            {count1000} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500' }}>Akun</span>
+        <div style={{ background: T.cardBg, border: `1px solid ${T.infoBorder}`, padding: '14px 18px', borderRadius: '12px' }}>
+          <div style={{ fontSize: '0.75rem', color: T.info, fontWeight: '700' }}>[1000] AKTIVA / ASSETS</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: T.txtPrimary, marginTop: '4px' }}>
+            {count1000} <span style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '500' }}>Akun</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>Kas, Bank, Piutang, Stok</div>
+          <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px' }}>Kas, Bank, Piutang, Stok</div>
         </div>
 
-        <div style={{ background: '#1e293b', border: '1px solid rgba(251, 113, 133, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#fb7185', fontWeight: '700' }}>[2000] PASIVA / KEWAJIBAN</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f8fafc', marginTop: '4px' }}>
-            {count2000} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500' }}>Akun</span>
+        <div style={{ background: T.cardBg, border: `1px solid ${T.dangerBorder}`, padding: '14px 18px', borderRadius: '12px' }}>
+          <div style={{ fontSize: '0.75rem', color: T.danger, fontWeight: '700' }}>[2000] PASIVA / KEWAJIBAN</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: T.txtPrimary, marginTop: '4px' }}>
+            {count2000} <span style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '500' }}>Akun</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>Hutang Kasir &amp; Supplier</div>
+          <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px' }}>Hutang Kasir &amp; Supplier</div>
         </div>
 
-        <div style={{ background: '#1e293b', border: '1px solid rgba(192, 132, 252, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
+        <div style={{ background: T.cardBg, border: '1px solid rgba(192, 132, 252, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
           <div style={{ fontSize: '0.75rem', color: '#c084fc', fontWeight: '700' }}>[3000] EKUITAS / MODAL</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f8fafc', marginTop: '4px' }}>
-            {count3000} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500' }}>Akun</span>
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: T.txtPrimary, marginTop: '4px' }}>
+            {count3000} <span style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '500' }}>Akun</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>Modal Owner &amp; Net Income</div>
+          <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px' }}>Modal Owner &amp; Net Income</div>
         </div>
 
-        <div style={{ background: '#1e293b', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '700' }}>[4000] PENDAPATAN / REVENUE</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f8fafc', marginTop: '4px' }}>
-            {count4000} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500' }}>Akun</span>
+        <div style={{ background: T.cardBg, border: `1px solid ${T.successBorder}`, padding: '14px 18px', borderRadius: '12px' }}>
+          <div style={{ fontSize: '0.75rem', color: T.success, fontWeight: '700' }}>[4000] PENDAPATAN / REVENUE</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: T.txtPrimary, marginTop: '4px' }}>
+            {count4000} <span style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '500' }}>Akun</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>Omzet Cash, QRIS, EDC, Disc</div>
+          <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px' }}>Omzet Cash, QRIS, EDC, Disc</div>
         </div>
 
-        <div style={{ background: '#1e293b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: '700' }}>[5000] HPP / PRODUKSI</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f8fafc', marginTop: '4px' }}>
-            {count5000} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500' }}>Akun</span>
+        <div style={{ background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, padding: '14px 18px', borderRadius: '12px' }}>
+          <div style={{ fontSize: '0.75rem', color: T.accentGold, fontWeight: '700' }}>[5000] HPP / PRODUKSI</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: T.txtPrimary, marginTop: '4px' }}>
+            {count5000} <span style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '500' }}>Akun</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>HPP Bahan Mentah Dapur</div>
+          <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px' }}>HPP Bahan Mentah Dapur</div>
         </div>
 
-        <div style={{ background: '#1e293b', border: '1px solid rgba(96, 165, 250, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
+        <div style={{ background: T.cardBg, border: '1px solid rgba(96, 165, 250, 0.3)', padding: '14px 18px', borderRadius: '12px' }}>
           <div style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: '700' }}>[6000] BEBAN OPERASIONAL</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f8fafc', marginTop: '4px' }}>
-            {count6000} <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '500' }}>Akun</span>
+          <div style={{ fontSize: '1.5rem', fontWeight: '900', color: T.txtPrimary, marginTop: '4px' }}>
+            {count6000} <span style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '500' }}>Akun</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>OPEX, Gaji, Utilitas, Sewa</div>
+          <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px' }}>OPEX, Gaji, Utilitas, Sewa</div>
         </div>
 
       </div>
 
       {/* FILTER GROUP TABS & SEARCH BAR */}
       <div style={{
-        background: '#0f172a',
+        background: T.cardBg2,
         padding: '16px 20px',
         borderRadius: '14px',
-        border: '1px solid #334155',
+        border: `1px solid ${T.border}`,
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
@@ -324,9 +327,9 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                 padding: '6px 14px',
                 borderRadius: '8px',
                 border: '1px solid',
-                borderColor: selectedGroupFilter === tab.id ? '#38bdf8' : '#334155',
-                background: selectedGroupFilter === tab.id ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
-                color: selectedGroupFilter === tab.id ? '#38bdf8' : '#cbd5e1',
+                borderColor: selectedGroupFilter === tab.id ? T.info : T.border,
+                background: selectedGroupFilter === tab.id ? T.infoBg : T.cardBg,
+                color: selectedGroupFilter === tab.id ? T.info : T.txtSecondary,
                 fontSize: '0.78rem',
                 fontWeight: '700',
                 cursor: 'pointer',
@@ -340,7 +343,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
 
         {/* SEARCH BAR */}
         <div style={{ position: 'relative', width: '280px' }}>
-          <Search size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
             placeholder="Cari kode akun / nama akun..."
@@ -348,11 +351,11 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             style={{
               width: '100%',
-              background: '#1e293b',
-              border: '1px solid #475569',
+              background: T.inputBg,
+              border: `1px solid ${T.border}`,
               borderRadius: '8px',
               padding: '8px 12px 8px 36px',
-              color: '#f8fafc',
+              color: T.txtPrimary,
               fontSize: '0.82rem',
               outline: 'none'
             }}
@@ -365,7 +368,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase' }}>
                 <th style={{ padding: '12px 16px', width: '120px' }}>Kode Akun</th>
                 <th style={{ padding: '12px 16px' }}>Nama Akun Akuntansi</th>
                 <th style={{ padding: '12px 16px', width: '220px' }}>Kelompok Akun</th>
@@ -382,8 +385,8 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                   <tr
                     key={acc.id || idx}
                     style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.05)',
-                      background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                      borderBottom: `1px solid ${T.border}`,
+                      background: idx % 2 === 0 ? 'transparent' : T.tableStripeBg,
                       transition: 'background 0.15s'
                     }}
                     className="hover:bg-slate-800/40"
@@ -395,11 +398,11 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
 
                     {/* NAMA AKUN & NOTES */}
                     <td style={{ padding: '12px 16px' }}>
-                      <div style={{ color: '#f8fafc', fontWeight: '700', fontSize: '0.88rem' }}>
+                      <div style={{ color: T.txtPrimary, fontWeight: '700', fontSize: '0.88rem' }}>
                         {acc.name}
                       </div>
                       {acc.notes && (
-                        <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px' }}>
+                        <div style={{ color: T.txtMuted, fontSize: '0.75rem', marginTop: '2px' }}>
                           {acc.notes}
                         </div>
                       )}
@@ -422,9 +425,9 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                     </td>
 
                     {/* TARGET LAPORAN */}
-                    <td style={{ padding: '12px 16px', color: '#cbd5e1', fontSize: '0.8rem', fontWeight: '600' }}>
+                    <td style={{ padding: '12px 16px', color: T.txtSecondary, fontSize: '0.8rem', fontWeight: '600' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {acc.targetReport?.includes('Neraca') ? <Scale size={14} color="#38bdf8" /> : <FileText size={14} color="#34d399" />}
+                        {acc.targetReport?.includes('Neraca') ? <Scale size={14} color={T.info} /> : <FileText size={14} color={T.success} />}
                         <span>{acc.targetReport || classInfo.targetDefault}</span>
                       </div>
                     </td>
@@ -436,8 +439,8 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                         borderRadius: '4px',
                         fontSize: '0.72rem',
                         fontWeight: '800',
-                        color: acc.normalBalance === 'Kredit' ? '#c084fc' : '#38bdf8',
-                        background: acc.normalBalance === 'Kredit' ? 'rgba(192, 132, 252, 0.15)' : 'rgba(56, 189, 248, 0.15)'
+                        color: acc.normalBalance === 'Kredit' ? '#c084fc' : T.info,
+                        background: acc.normalBalance === 'Kredit' ? 'rgba(192, 132, 252, 0.15)' : T.infoBg
                       }}>
                         {acc.normalBalance || 'Debet'}
                       </span>
@@ -450,8 +453,8 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                         borderRadius: '4px',
                         fontSize: '0.72rem',
                         fontWeight: '700',
-                        color: (acc.status || 'Aktif') === 'Aktif' ? '#34d399' : '#94a3b8',
-                        background: (acc.status || 'Aktif') === 'Aktif' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(148, 163, 184, 0.15)'
+                        color: (acc.status || 'Aktif') === 'Aktif' ? T.success : T.txtMuted,
+                        background: (acc.status || 'Aktif') === 'Aktif' ? T.successBg : T.hoverBg
                       }}>
                         {acc.status || 'Aktif'}
                       </span>
@@ -463,14 +466,14 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                         <button
                           onClick={() => handleOpenEditModal(acc)}
                           title="Edit Akun"
-                          style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', padding: '4px' }}
+                          style={{ background: 'transparent', border: 'none', color: T.info, cursor: 'pointer', padding: '4px' }}
                         >
                           <Edit3 size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteAccount(acc.id)}
                           title="Hapus Akun"
-                          style={{ background: 'transparent', border: 'none', color: '#fb7185', cursor: 'pointer', padding: '4px' }}
+                          style={{ background: 'transparent', border: 'none', color: T.danger, cursor: 'pointer', padding: '4px' }}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -482,7 +485,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
 
               {paginatedAccounts.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: T.txtMuted }}>
                     Tidak ada kode akun akuntansi yang sesuai dengan kata kunci pencarian.
                   </td>
                 </tr>
@@ -510,7 +513,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(15, 23, 42, 0.85)',
+          background: 'rgba(0, 0, 0, 0.75)',
           backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
@@ -519,31 +522,31 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
           padding: '20px'
         }}>
           <div style={{
-            background: '#1e293b',
-            border: '1px solid #475569',
+            background: T.cardBg,
+            border: `1px solid ${T.borderStrong}`,
             borderRadius: '16px',
             width: '100%',
             maxWidth: '540px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+            boxShadow: T.shadowLg,
             overflow: 'hidden'
           }} className="animate-scale-up">
 
             {/* MODAL HEADER */}
             <div style={{
               padding: '18px 24px',
-              background: '#0f172a',
-              borderBottom: '1px solid #334155',
+              background: T.cardBg2,
+              borderBottom: `1px solid ${T.border}`,
               display: 'flex',
               justify: 'space-between',
               alignItems: 'center'
             }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BookOpen size={20} color="#38bdf8" />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BookOpen size={20} color={T.info} />
                 <span>{editingAccount ? 'Edit Kode Akun Akuntansi' : 'Tambah Kode Akun Akuntansi Baru'}</span>
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                style={{ background: '#334155', border: 'none', borderRadius: '50%', width: '30px', height: '30px', color: '#cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ background: T.borderStrong, border: 'none', borderRadius: '50%', width: '30px', height: '30px', color: T.txtSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <X size={16} />
               </button>
@@ -555,7 +558,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
               {/* KODE AKUN & SALDO NORMAL */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px' }}>
                     Kode Akun Akuntansi *
                   </label>
                   <input
@@ -565,19 +568,19 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                     onChange={(e) => setCode(e.target.value)}
                     placeholder="misal: 6901, 1101"
                     className="form-input"
-                    style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', borderRadius: '8px', padding: '9px 12px', color: '#38bdf8', fontWeight: '800', fontSize: '0.9rem' }}
+                    style={{ width: '100%', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '9px 12px', color: T.info, fontWeight: '800', fontSize: '0.9rem' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px' }}>
                     Saldo Normal *
                   </label>
                   <select
                     value={normalBalance}
                     onChange={(e) => setNormalBalance(e.target.value)}
                     className="form-input"
-                    style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', borderRadius: '8px', padding: '9px 12px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '600' }}
+                    style={{ width: '100%', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '9px 12px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '600' }}
                   >
                     <option value="Debet">Debet (+ Kas Keluar / Aset)</option>
                     <option value="Kredit">Kredit (+ Kas Masuk / Modal)</option>
@@ -587,7 +590,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
 
               {/* NAMA AKUN */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px' }}>
                   Nama Akun Akuntansi *
                 </label>
                 <input
@@ -597,21 +600,21 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="misal: Beban Operasional Kasir Harian"
                   className="form-input"
-                  style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', borderRadius: '8px', padding: '9px 12px', color: '#f8fafc', fontSize: '0.85rem' }}
+                  style={{ width: '100%', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '9px 12px', color: T.txtPrimary, fontSize: '0.85rem' }}
                 />
               </div>
 
               {/* KELOMPOK AKUN & TARGET LAPORAN */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px' }}>
                     Kelompok Akun *
                   </label>
                   <select
                     value={categoryGroup}
                     onChange={(e) => setCategoryGroup(e.target.value)}
                     className="form-input"
-                    style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', borderRadius: '8px', padding: '9px 12px', color: '#f8fafc', fontSize: '0.85rem' }}
+                    style={{ width: '100%', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '9px 12px', color: T.txtPrimary, fontSize: '0.85rem' }}
                   >
                     <option value="Aktiva Lancar (Kas & Bank)">Aktiva Lancar (Kas &amp; Bank)</option>
                     <option value="Aktiva Lancar (Piutang Usaha)">Aktiva Lancar (Piutang Usaha)</option>
@@ -637,14 +640,14 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px' }}>
                     Target Laporan Keuangan *
                   </label>
                   <select
                     value={targetReport}
                     onChange={(e) => setTargetReport(e.target.value)}
                     className="form-input"
-                    style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', borderRadius: '8px', padding: '9px 12px', color: '#f8fafc', fontSize: '0.85rem' }}
+                    style={{ width: '100%', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '9px 12px', color: T.txtPrimary, fontSize: '0.85rem' }}
                   >
                     <option value="Laporan Laba Rugi">Laporan Laba Rugi (P&amp;L)</option>
                     <option value="Laporan Neraca">Laporan Neraca (Balance Sheet)</option>
@@ -657,14 +660,14 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
               {/* STATUS & NOTES */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px' }}>
                     Status Akun
                   </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
                     className="form-input"
-                    style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', borderRadius: '8px', padding: '9px 12px', color: '#f8fafc', fontSize: '0.85rem' }}
+                    style={{ width: '100%', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '9px 12px', color: T.txtPrimary, fontSize: '0.85rem' }}
                   >
                     <option value="Aktif">Aktif</option>
                     <option value="Non-Aktif">Non-Aktif</option>
@@ -672,7 +675,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px' }}>
                     Keterangan Rincian / Catatan Akun
                   </label>
                   <input
@@ -681,7 +684,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Catatan tambahan fungsi akun..."
                     className="form-input"
-                    style={{ width: '100%', background: '#0f172a', border: '1px solid #475569', borderRadius: '8px', padding: '9px 12px', color: '#f8fafc', fontSize: '0.85rem' }}
+                    style={{ width: '100%', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '9px 12px', color: T.txtPrimary, fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
@@ -691,13 +694,13 @@ export default function ExpenseMasterManagement({ masterData, setMasterData }) {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  style={{ padding: '9px 18px', background: '#334155', border: 'none', borderRadius: '8px', color: '#cbd5e1', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
+                  style={{ padding: '9px 18px', background: T.borderStrong, border: 'none', borderRadius: '8px', color: T.txtSecondary, fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  style={{ padding: '9px 22px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '8px', color: '#0f172a', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer' }}
+                  style={{ padding: '9px 22px', background: T.primaryBtn, border: 'none', borderRadius: '8px', color: T.navActiveTxt, fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer' }}
                 >
                   Simpan Akun Akuntansi
                 </button>

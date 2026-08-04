@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Scale, Plus, Search, Edit3, Trash2, X, CheckCircle2, Box, Droplets, Hash, Package } from 'lucide-react';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function UnitManagement({ masterData, setMasterData }) {
+export default function UnitManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
@@ -18,10 +20,10 @@ export default function UnitManagement({ masterData, setMasterData }) {
   const [status, setStatus] = useState('Aktif');
 
   const culinaryCategoryOptions = [
-    { value: 'Berat / Bobot', label: '⚖️ Berat / Bobot (Kg, Gram, Ounces)', color: '#38bdf8' },
-    { value: 'Volume / Cairan', label: '🧪 Volume / Cairan (Liter, Milliliter, Gallon)', color: '#34d399' },
-    { value: 'Kuantitas / Hitungan', label: '🔢 Kuantitas / Hitungan (Pieces, Porsi, Butir)', color: '#818cf8' },
-    { value: 'Kemasan / Wadah', label: '📦 Kemasan / Wadah (Botol, Kaleng, Box, Pack)', color: '#fbbf24' }
+    { value: 'Berat / Bobot', label: '⚖️ Berat / Bobot (Kg, Gram, Ounces)', color: T.info },
+    { value: 'Volume / Cairan', label: '🧪 Volume / Cairan (Liter, Milliliter, Gallon)', color: T.success },
+    { value: 'Kuantitas / Hitungan', label: '🔢 Kuantitas / Hitungan (Pieces, Porsi, Butir)', color: T.accentGreen },
+    { value: 'Kemasan / Wadah', label: '📦 Kemasan / Wadah (Botol, Kaleng, Box, Pack)', color: T.warning }
   ];
 
   // Helper to generate next sequential Unit Code (UNT-001, UNT-002)
@@ -45,13 +47,13 @@ export default function UnitManagement({ masterData, setMasterData }) {
   const getCategoryBadgeStyle = (cat) => {
     switch (cat) {
       case 'Berat / Bobot':
-        return { bg: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: 'rgba(56, 189, 248, 0.3)' };
+        return { bg: T.infoBg, color: T.info, border: T.infoBorder };
       case 'Volume / Cairan':
-        return { bg: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: 'rgba(52, 211, 153, 0.3)' };
+        return { bg: T.successBg, color: T.success, border: T.successBorder };
       case 'Kuantitas / Hitungan':
-        return { bg: 'rgba(129, 140, 248, 0.15)', color: '#818cf8', border: 'rgba(129, 140, 248, 0.3)' };
+        return { bg: T.accentGreenBg, color: T.accentGreen, border: `1px solid ${T.accentGreenBg}` };
       default:
-        return { bg: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: 'rgba(251, 191, 36, 0.3)' };
+        return { bg: T.warningBg, color: T.warning, border: T.warningBorder };
     }
   };
 
@@ -141,10 +143,10 @@ export default function UnitManagement({ masterData, setMasterData }) {
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
             Data Satuan / Unit Pengukuran
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Kelola master satuan unit standar industri kuliner F&B untuk resep bahan dapur, stok inventoris, dan porsi menu
           </p>
         </div>
@@ -157,7 +159,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
 
       {/* Search Bar */}
       <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama, simbol, atau kode unit..."
@@ -169,11 +171,11 @@ export default function UnitManagement({ masterData, setMasterData }) {
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
                 <th style={{ padding: '12px' }}>Kode Unit (Auto)</th>
                 <th style={{ padding: '12px' }}>Nama Satuan</th>
                 <th style={{ padding: '12px' }}>Simbol Unit</th>
@@ -185,7 +187,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
             <tbody>
               {paginatedUnits.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
                     Belum ada data satuan unit yang dikonfigurasi.
                   </td>
                 </tr>
@@ -195,13 +197,13 @@ export default function UnitManagement({ masterData, setMasterData }) {
                   const badgeStyle = getCategoryBadgeStyle(unit.category);
 
                   return (
-                    <tr key={unit.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={unit.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. KODE UNIT (Auto) */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          color: '#818cf8',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
+                          background: T.accentGreenBg,
+                          color: T.accentGreen,
+                          border: `1px solid ${T.accentGreenBg}`,
                           padding: '4px 10px',
                           borderRadius: '8px',
                           fontWeight: '800',
@@ -213,16 +215,16 @@ export default function UnitManagement({ masterData, setMasterData }) {
                       </td>
 
                       {/* 2. NAMA SATUAN */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: '#f8fafc' }}>
+                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Scale size={16} color="#38bdf8" />
+                          <Scale size={16} color={T.info} />
                           <span>{unit.name}</span>
                         </div>
                       </td>
 
                       {/* 3. SIMBOL UNIT */}
                       <td style={{ padding: '14px 12px' }}>
-                        <span style={{ background: '#0f172a', color: '#34d399', fontWeight: '800', padding: '4px 10px', borderRadius: '6px', border: '1px solid #334155', fontFamily: 'monospace' }}>
+                        <span style={{ background: T.cardBg2, color: T.success, fontWeight: '800', padding: '4px 10px', borderRadius: '6px', border: `1px solid ${T.border}`, fontFamily: 'monospace' }}>
                           {unit.symbol}
                         </span>
                       </td>
@@ -245,9 +247,9 @@ export default function UnitManagement({ masterData, setMasterData }) {
                       {/* 5. STATUS */}
                       <td style={{ padding: '14px 12px' }}>
                         <span style={{
-                          background: isAktif ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                          color: isAktif ? '#34d399' : '#fb7185',
-                          border: `1px solid ${isAktif ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+                          background: isAktif ? T.successBg : T.dangerBg,
+                          color: isAktif ? T.success : T.danger,
+                          border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
                           padding: '4px 10px',
                           borderRadius: '20px',
                           fontSize: '0.75rem',
@@ -263,9 +265,9 @@ export default function UnitManagement({ masterData, setMasterData }) {
                           <button
                             onClick={() => handleOpenEditModal(unit)}
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -276,16 +278,16 @@ export default function UnitManagement({ masterData, setMasterData }) {
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.accentGreen} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteUnit(unit.id, unit.name)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -313,6 +315,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
           totalItems={totalItems}
           onPageChange={setCurrentPage}
           onPageSizeChange={setPageSize}
+          themeMode={themeMode}
         />
       </div>
 
@@ -328,12 +331,12 @@ export default function UnitManagement({ masterData, setMasterData }) {
           justifyContent: 'center',
           zIndex: 100
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: '#1e293b' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '26px', background: T.cardBg, border: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary }}>
                 {editingUnit ? 'Edit Data Satuan/Unit' : 'Tambahkan Satuan/Unit Baru'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -341,15 +344,15 @@ export default function UnitManagement({ masterData, setMasterData }) {
             <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Unit (Auto) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   1. Kode Satuan (Auto Generated)
                 </label>
                 <div style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
+                  background: T.cardBg2,
+                  border: `1px solid ${T.border}`,
                   padding: '10px 14px',
                   borderRadius: '10px',
-                  color: '#818cf8',
+                  color: T.accentGreen,
                   fontWeight: '800',
                   fontFamily: 'monospace',
                   fontSize: '0.9rem',
@@ -358,7 +361,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
                   justifyContent: 'space-between'
                 }}>
                   <span>{editingUnit ? editingUnit.code : generateNextUnitCode()}</span>
-                  <span style={{ fontSize: '0.7rem', color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.7rem', color: T.success, background: T.successBg, border: `1px solid ${T.successBorder}`, padding: '2px 8px', borderRadius: '6px' }}>
                     Auto Generated
                   </span>
                 </div>
@@ -367,7 +370,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
               {/* Field 2 & 3: Nama Satuan & Simbol */}
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                     2. Nama Satuan *
                   </label>
                   <input
@@ -382,7 +385,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                     3. Simbol *
                   </label>
                   <input
@@ -399,7 +402,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
 
               {/* Field 4: Kategori Satuan (Dropdown Kuliner F&B) */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   4. Kategori Pengukuran Kuliner F&B *
                 </label>
                 <select
@@ -417,7 +420,7 @@ export default function UnitManagement({ masterData, setMasterData }) {
 
               {/* Field 5: Status */}
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                   5. Status Satuan
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -428,9 +431,9 @@ export default function UnitManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Aktif' ? '#10b981' : '#334155',
-                      background: status === 'Aktif' ? 'rgba(16, 185, 129, 0.2)' : '#0f172a',
-                      color: status === 'Aktif' ? '#34d399' : '#94a3b8',
+                      borderColor: status === 'Aktif' ? T.success : T.border,
+                      background: status === 'Aktif' ? T.successBg : T.cardBg2,
+                      color: status === 'Aktif' ? T.success : T.txtSecondary,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'
@@ -445,9 +448,9 @@ export default function UnitManagement({ masterData, setMasterData }) {
                       padding: '10px',
                       borderRadius: '8px',
                       border: '1px solid',
-                      borderColor: status === 'Inaktif' ? '#f43f5e' : '#334155',
-                      background: status === 'Inaktif' ? 'rgba(244, 63, 94, 0.2)' : '#0f172a',
-                      color: status === 'Inaktif' ? '#fb7185' : '#94a3b8',
+                      borderColor: status === 'Inaktif' ? T.danger : T.border,
+                      background: status === 'Inaktif' ? T.dangerBg : T.cardBg2,
+                      color: status === 'Inaktif' ? T.danger : T.txtSecondary,
                       fontWeight: '700',
                       fontSize: '0.8rem',
                       cursor: 'pointer'

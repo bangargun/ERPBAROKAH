@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Download, UploadCloud, FileSpreadsheet, X, CheckCircle2, AlertCircle, HelpCircle, FileText } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, masterData, setMasterData }) {
+export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [file, setFile] = useState(null);
   const [parsedData, setParsedData] = useState([]);
   const [validationErrors, setValidationErrors] = useState([]);
@@ -105,44 +107,6 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
         ['OTL-001', 'Outlet Utama Sudirman', 'Jl. Jend. Sudirman No. 100, Jakarta Pusat', 'Jakarta Pusat', '021-5551234', 'Hendrik Wijaya', 'Aktif'],
         ['OTL-002', 'Outlet Branch Senopati', 'Jl. Senopati No. 22, Kebayoran Baru', 'Jakarta Selatan', '021-5555678', 'Sisca Amanda', 'Aktif']
       ]
-    },
-    sales_transactions: {
-      title: 'Riwayat Transaksi Penjualan',
-      filename: 'Template_Import_Penjualan_MRIS.csv',
-      headers: ['No Struk', 'Tanggal (YYYY-MM-DD)', 'Jam (HH:MM)', 'Nama Outlet', 'Pelanggan', 'Metode Bayar', 'Total Nilai Transaksi (IDR)', 'Metode Layanan', 'Status Pembayaran', 'Nama Item Menu', 'Jumlah Qty', 'Harga Satuan (IDR)'],
-      columnGuide: [
-        { col: 'A', name: 'No Struk', required: true, format: 'TRX-20260728-001', desc: 'Nomor invoice unik. Baris dengan No Struk yang sama akan otomatis digabung menjadi 1 invoice.' },
-        { col: 'B', name: 'Tanggal (YYYY-MM-DD)', required: false, format: '2026-07-28', desc: 'Tanggal transaksi format YYYY-MM-DD. Jika kosong diisi tanggal hari ini.' },
-        { col: 'C', name: 'Jam (HH:MM)', required: false, format: '14:30', desc: 'Jam waktu transaksi.' },
-        { col: 'D', name: 'Nama Outlet', required: false, format: 'Outlet Sudirman', desc: 'Nama cabang resto tempat transaksi terjadi.' },
-        { col: 'E', name: 'Pelanggan', required: false, format: 'Pelanggan Umum', desc: 'Nama pembeli / member.' },
-        { col: 'F', name: 'Metode Bayar', required: false, format: 'Cash / QRIS / Transfer', desc: 'Metode bayar (Cash, QRIS BCA, Transfer, Debit EDC, E-Wallet).' },
-        { col: 'G', name: 'Total Nilai Transaksi (IDR)', required: true, format: '75000', desc: 'Total nominal omset penjualan angka murni tanpa Rp / titik / koma.' },
-        { col: 'H', name: 'Metode Layanan', required: false, format: 'Dine In / Take Away', desc: 'Dine In, Take Away, GoFood, GrabFood, ShopeeFood.' },
-        { col: 'I', name: 'Status Pembayaran', required: false, format: 'Terbayar / Draft', desc: 'Terbayar, Draft, atau Dibatalkan.' },
-        { col: 'J', name: 'Nama Item Menu', required: false, format: 'Ikan Gurame Bakar', desc: 'Nama porsi/produk menu yang dibeli.' },
-        { col: 'K', name: 'Jumlah Qty', required: false, format: '1', desc: 'Jumlah porsi / unit item yang dibeli (contoh: 1, 2, 5).' },
-        { col: 'L', name: 'Harga Satuan (IDR)', required: false, format: '65000', desc: 'Harga per porsi angka murni tanpa titik/koma (opsional).' }
-      ],
-      instructions: [
-        '1. [Wajib] No Struk: Nomor invoice unik (contoh: TRX-20260728-001). Baris dengan No Struk sama akan digabung ke 1 nota.',
-        '2. Tanggal & Jam: Format YYYY-MM-DD & HH:MM (contoh: 2026-07-28 & 14:30). Jika kosong diisi waktu saat ini.',
-        '3. Nama Outlet: Nama outlet cabang tempat transaksi terjadi (contoh: Outlet Central Sudirman).',
-        '4. Pelanggan: Nama pembeli/pelanggan (contoh: Pelanggan Umum, Budi Santoso).',
-        '5. Metode Bayar: Cash, QRIS BCA, Transfer, Debit EDC, E-Wallet (default: Cash).',
-        '6. [Wajib] Total Nilai Transaksi (IDR): Nilai gross omset angka murni tanpa titik/koma (contoh: 75000).',
-        '7. Metode Layanan: Dine In, Take Away, GoFood, GrabFood, ShopeeFood (default: Dine In).',
-        '8. Status Pembayaran: Terbayar, Draft, Dibatalkan (default: Terbayar).',
-        '9. Nama Item Menu: Nama item terpisah (contoh: Ikan Gurame Bakar).',
-        '10. Jumlah Qty: Jumlah porsi item (contoh: 1 atau 2).',
-        '11. Harga Satuan (IDR): Harga per porsi (contoh: 65000).'
-      ],
-      sampleRows: [
-        ['TRX-20260728-001', '2026-07-28', '12:15', 'Outlet Central Sudirman', 'Pelanggan Umum', 'Cash', '45000', 'Dine In', 'Terbayar', 'Nasi Goreng Spesial', '1', '35000'],
-        ['TRX-20260728-001', '2026-07-28', '12:15', 'Outlet Central Sudirman', 'Pelanggan Umum', 'Cash', '45000', 'Dine In', 'Terbayar', 'Es Teh Manis', '1', '10000'],
-        ['TRX-20260728-002', '2026-07-28', '13:40', 'Outlet Branch Senopati', 'Siti Rahmawati', 'QRIS BCA', '85000', 'Take Away', 'Terbayar', 'Ikan Gurame Bakar', '1', '65000'],
-        ['TRX-20260728-002', '2026-07-28', '13:40', 'Outlet Branch Senopati', 'Siti Rahmawati', 'QRIS BCA', '85000', 'Take Away', 'Terbayar', 'Es Jeruk Peras', '1', '20000']
-      ]
     }
   };
 
@@ -243,66 +207,19 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
     return validRows;
   };
 
-  // Helper PDF Parser
-  const parsePDFText = (text) => {
-    const extractedCleanText = (text || '').replace(/[^\x20-\x7E\n\r\t]/g, ' ');
-    
-    const dateMatch = extractedCleanText.match(/\b(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})\b/);
-    const dateVal = dateMatch ? dateMatch[1] : new Date().toISOString().slice(0, 10);
-
-    const invMatch = extractedCleanText.match(/\b(TRX-[\w-]+|INV-[\w-]+|STRUK-[\w-]+|\d{8,})\b/i);
-    const invNo = invMatch ? invMatch[1] : `TRX-${Date.now().toString().slice(5)}`;
-
-    const amountMatches = extractedCleanText.match(/(?:Rp\.?|Total|Jumlah|Nominal)\s*:?\s*([\d.,]+)/gi) || [];
-    let parsedAmount = 0;
-    amountMatches.forEach(m => {
-      const numOnly = parseFloat(m.replace(/[^\d]/g, ''));
-      if (numOnly > parsedAmount) parsedAmount = numOnly;
-    });
-
-    if (!parsedAmount) parsedAmount = 75000;
-
-    return [{
-      id: invNo,
-      receipt_no: invNo,
-      date: dateVal,
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      branch_name: masterData?.outlets?.[0]?.name || 'Outlet Utama',
-      outlet_name: masterData?.outlets?.[0]?.name || 'Outlet Utama',
-      customer_name: 'Pelanggan PDF',
-      payment_method: 'Transfer',
-      amount: parsedAmount,
-      gross_amount: parsedAmount,
-      order_type: 'Dine In',
-      status: 'Terbayar',
-      items: [{ id: 1, name: 'Transaksi Impor dari Berkas PDF', qty: 1, price_unit: parsedAmount, amount: parsedAmount }],
-      created_at: `${dateVal} 12:00`
-    }];
-  };
-
-  // File Upload Handler (Excel / CSV / PDF)
+  // File Upload Handler
   const handleFileSelect = (selectedFile) => {
     if (!selectedFile) return;
     setFile(selectedFile);
     setImportSuccessMsg('');
 
     const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const rawRows = parseCSVText(text);
 
-    if (selectedFile.name.toLowerCase().endsWith('.pdf')) {
-      reader.onload = (e) => {
-        const text = e.target.result;
-        const pdfItems = parsePDFText(text);
-        setParsedData(pdfItems);
-        setValidationErrors([]);
-      };
-      reader.readAsBinaryString(selectedFile);
-    } else {
-      reader.onload = (e) => {
-        const text = e.target.result;
-        const rawRows = parseCSVText(text);
-
-        const itemsToImport = [];
-        const errors = [];
+      const itemsToImport = [];
+      const errors = [];
 
       rawRows.forEach((row, idx) => {
         if (moduleType === 'products') {
@@ -387,67 +304,6 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
           } else {
             itemsToImport.push({ id: Date.now() + idx, code, name, address, city, phone, manager, status });
           }
-        } else if (moduleType === 'sales_transactions' || moduleType === 'sales') {
-          const transactionMap = {};
-
-          rawRows.forEach((row, idx) => {
-            const invoiceNo = row[0] || `TRX-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
-            const date = row[1] || new Date().toISOString().slice(0,10);
-            const time = row[2] || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-            const branchName = row[3] || (masterData?.outlets?.[0]?.name || 'Outlet Utama');
-            const customerName = row[4] || 'Pelanggan Umum';
-            const paymentMethod = row[5] || 'Cash';
-            const amount = parseFloat(row[6]) || 0;
-            const orderType = row[7] || 'Dine In';
-            const status = row[8] || 'Terbayar';
-            const itemName = row[9] || '';
-            const itemQty = parseInt(row[10]) || 1;
-            const itemPrice = parseFloat(row[11]) || (itemName ? (amount / itemQty) : amount);
-
-            if (!transactionMap[invoiceNo]) {
-              transactionMap[invoiceNo] = {
-                id: invoiceNo,
-                receipt_no: invoiceNo,
-                date,
-                time,
-                branch_name: branchName,
-                outlet_name: branchName,
-                customer_name: customerName,
-                payment_method: paymentMethod,
-                amount,
-                gross_amount: amount,
-                order_type: orderType,
-                status,
-                items: [],
-                created_at: `${date} ${time}`
-              };
-            }
-
-            if (itemName) {
-              transactionMap[invoiceNo].items.push({
-                id: transactionMap[invoiceNo].items.length + 1,
-                name: itemName.trim(),
-                qty: itemQty,
-                price_unit: itemPrice,
-                amount: itemQty * itemPrice
-              });
-            }
-          });
-
-          const itemsToImport = Object.values(transactionMap);
-          itemsToImport.forEach(t => {
-            if (t.items.length === 0) {
-              t.items.push({ id: 1, name: 'Penjualan Impor Excel', qty: 1, price_unit: t.amount, amount: t.amount });
-            }
-          });
-
-          itemsToImport.forEach(item => {
-            itemsToImportArr.push(item);
-          });
-
-          setParsedData(itemsToImport);
-          setValidationErrors(errors);
-          return;
         }
       });
 
@@ -455,7 +311,6 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
       setValidationErrors(errors);
     };
     reader.readAsText(selectedFile);
-    }
   };
 
   // Confirm Save / Batch Import to Master Data
@@ -485,9 +340,6 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
       updated.customers = [...updated.customers, ...parsedData];
     } else if (moduleType === 'outlets') {
       updated.outlets = [...updated.outlets, ...parsedData];
-    } else if (moduleType === 'sales_transactions' || moduleType === 'sales') {
-      updated.transactions = [...parsedData, ...(updated.transactions || [])];
-      updated.salesTransactions = [...parsedData, ...(updated.salesTransactions || [])];
     }
 
     setMasterData(updated);
@@ -523,43 +375,43 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
         maxWidth: '840px',
         maxHeight: '90vh',
         overflowY: 'auto',
-        background: '#1e293b',
-        border: '1px solid #334155',
+        background: T.cardBg,
+        border: `1px solid ${T.borderStrong}`,
         borderRadius: '16px',
         padding: '24px',
-        color: '#f8fafc',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+        color: T.txtPrimary,
+        boxShadow: T.shadowLg
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FileSpreadsheet color="#38bdf8" size={24} />
+            <FileSpreadsheet color={T.info} size={24} />
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0, color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0, color: T.txtPrimary }}>
                 Import Data Excel / CSV: {config.title}
               </h3>
-              <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: 0 }}>
+              <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: 0 }}>
                 Unduh template resmi, isi data sesuai panduan, lalu upload untuk impor otomatis.
               </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
             <X size={20} />
           </button>
         </div>
 
         {/* Success Alert */}
         {importSuccessMsg && (
-          <div style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', color: '#34d399', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.85rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <CheckCircle2 size={18} />
             <span>{importSuccessMsg}</span>
           </div>
         )}
 
         {/* Step 1: Download Template & Instructions Card */}
-        <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+        <div style={{ background: T.cardBg2, border: `1px solid ${T.infoBorder}`, borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: '800', color: T.info, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <HelpCircle size={15} /> Step 1: Unduh Template Excel & Cara Pengisian
             </span>
             <button
@@ -568,7 +420,7 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                background: T.primaryBtn,
                 color: '#ffffff',
                 border: 'none',
                 padding: '7px 14px',
@@ -576,7 +428,7 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
                 fontWeight: '700',
                 fontSize: '0.78rem',
                 cursor: 'pointer',
-                boxShadow: '0 4px 10px rgba(2, 132, 199, 0.3)'
+                boxShadow: T.primaryBtnShadow
               }}
             >
               <Download size={15} />
@@ -584,62 +436,23 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
             </button>
           </div>
 
-          <div style={{ background: '#0f172a', padding: '14px', borderRadius: '10px', border: '1px solid #1e293b', overflowX: 'auto' }}>
-            <div style={{ fontSize: '0.80rem', color: '#38bdf8', fontWeight: '800', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>📊 Struktur & Panduan Kolom Excel (Kolom A s/d J):</span>
+          <div style={{ background: T.inputBg, padding: '12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+            <div style={{ fontSize: '0.74rem', color: T.txtPrimary, fontWeight: '700', marginBottom: '6px' }}>
+              📋 Panduan & Cara Pengisian Kolom:
             </div>
-            
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#1e293b', color: '#cbd5e1', borderBottom: '2px solid #334155' }}>
-                  <th style={{ padding: '8px 10px', width: '50px', textAlign: 'center' }}>Kolom</th>
-                  <th style={{ padding: '8px 10px', minWidth: '160px' }}>Nama Header Kolom</th>
-                  <th style={{ padding: '8px 10px', width: '90px', textAlign: 'center' }}>Status</th>
-                  <th style={{ padding: '8px 10px', minWidth: '140px' }}>Format / Contoh</th>
-                  <th style={{ padding: '8px 10px' }}>Keterangan & Panduan Pengisian</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(config.columnGuide || config.headers.map((h, i) => ({
-                  col: String.fromCharCode(65 + i),
-                  name: h,
-                  required: i === 0 || h.toLowerCase().includes('total') || h.toLowerCase().includes('harga') || h.toLowerCase().includes('nama'),
-                  format: config.sampleRows?.[0]?.[i] || '-',
-                  desc: config.instructions[i] || '-'
-                }))).map((cg, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-                    <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '900', color: '#fbbf24' }}>
-                      {cg.col || String.fromCharCode(65 + idx)}
-                    </td>
-                    <td style={{ padding: '8px 10px', fontWeight: '800', color: '#f8fafc' }}>
-                      {cg.name}
-                    </td>
-                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                      <span style={{
-                        padding: '2px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800',
-                        background: cg.required ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.15)',
-                        color: cg.required ? '#fca5a5' : '#cbd5e1',
-                        border: cg.required ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(148,163,184,0.3)'
-                      }}>
-                        {cg.required ? 'Wajib' : 'Opsional'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: '#38bdf8', fontWeight: '700' }}>
-                      {cg.format}
-                    </td>
-                    <td style={{ padding: '8px 10px', color: '#94a3b8', lineHeight: '1.3' }}>
-                      {cg.desc}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+              {config.instructions.map((inst, idx) => (
+                <div key={idx} style={{ fontSize: '0.70rem', color: T.txtSecondary, lineHeight: '1.3' }}>
+                  • {inst}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Step 2: Upload Dropzone */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', display: 'block', marginBottom: '8px' }}>
+          <label style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary, display: 'block', marginBottom: '8px' }}>
             Step 2: Unggah / Drop File Excel (.csv) yang Telah Diisi
           </label>
           <div
@@ -653,21 +466,21 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
               }
             }}
             style={{
-              border: `2px dashed ${isDragging ? '#38bdf8' : '#334155'}`,
+              border: `2px dashed ${isDragging ? T.info : T.borderStrong}`,
               borderRadius: '12px',
               padding: '24px',
               textAlign: 'center',
-              background: isDragging ? 'rgba(56, 189, 248, 0.1)' : '#0f172a',
+              background: isDragging ? T.infoBg : T.cardBg2,
               cursor: 'pointer',
               transition: 'all 0.2s ease'
             }}
             onClick={() => document.getElementById('excelFileInput').click()}
           >
-            <UploadCloud size={36} color={file ? '#34d399' : '#64748b'} style={{ marginBottom: '8px' }} />
-            <p style={{ fontSize: '0.82rem', fontWeight: '700', color: '#f8fafc', margin: '0 0 4px 0' }}>
+            <UploadCloud size={36} color={file ? T.success : T.txtMuted} style={{ marginBottom: '8px' }} />
+            <p style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary, margin: '0 0 4px 0' }}>
               {file ? `📄 File terpilih: ${file.name}` : 'Klik untuk cari file atau Drag & Drop file CSV / Excel ke sini'}
             </p>
-            <p style={{ fontSize: '0.72rem', color: '#64748b', margin: 0 }}>
+            <p style={{ fontSize: '0.72rem', color: T.txtMuted, margin: 0 }}>
               Mendukung format file CSV (Comma Separated Values) dari Microsoft Excel, Google Sheets, atau Numbers
             </p>
             <input
@@ -684,104 +497,104 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
         {parsedData.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#34d399' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: '800', color: T.success }}>
                 Preview Hasil Parse: {parsedData.length} Baris Data Valid Siap Diimpor
               </span>
             </div>
 
-            <div style={{ overflowX: 'auto', maxHeight: '220px', border: '1px solid #334155', borderRadius: '8px' }}>
+            <div style={{ overflowX: 'auto', maxHeight: '220px', border: `1px solid ${T.borderStrong}`, borderRadius: '8px' }}>
               <table style={{ width: '100%', fontSize: '0.74rem', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#0f172a', position: 'sticky', top: 0 }}>
+                <thead style={{ background: T.tableHeaderBg, position: 'sticky', top: 0 }}>
                   <tr>
-                    <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>#</th>
+                    <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>#</th>
                     {moduleType === 'products' && (
                       <>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>SKU</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Nama Produk</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Kategori</th>
-                        <th style={{ padding: '8px', textAlign: 'right', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Harga Jual</th>
-                        <th style={{ padding: '8px', textAlign: 'right', color: '#94a3b8', borderBottom: '1px solid #334155' }}>HPP Modal</th>
-                        <th style={{ padding: '8px', textAlign: 'center', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Stok</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>SKU</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Nama Produk</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Kategori</th>
+                        <th style={{ padding: '8px', textAlign: 'right', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Harga Jual</th>
+                        <th style={{ padding: '8px', textAlign: 'right', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>HPP Modal</th>
+                        <th style={{ padding: '8px', textAlign: 'center', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Stok</th>
                       </>
                     )}
                     {moduleType === 'categories' && (
                       <>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Kode</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Nama Kategori</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Deskripsi</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Kode</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Nama Kategori</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Deskripsi</th>
                       </>
                     )}
                     {moduleType === 'ingredients' && (
                       <>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Kode</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Nama Bahan Baku</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Kategori</th>
-                        <th style={{ padding: '8px', textAlign: 'right', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Harga Beli</th>
-                        <th style={{ padding: '8px', textAlign: 'center', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Stok</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Kode</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Nama Bahan Baku</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Kategori</th>
+                        <th style={{ padding: '8px', textAlign: 'right', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Harga Beli</th>
+                        <th style={{ padding: '8px', textAlign: 'center', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Stok</th>
                       </>
                     )}
                     {moduleType === 'customers' && (
                       <>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Kode</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Nama Pelanggan</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>No. WA/Telp</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Tier Member</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Kode</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Nama Pelanggan</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>No. WA/Telp</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Tier Member</th>
                       </>
                     )}
                     {moduleType === 'outlets' && (
                       <>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Kode</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Nama Outlet Cabang</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Kota</th>
-                        <th style={{ padding: '8px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #334155' }}>Manager</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Kode</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Nama Outlet Cabang</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Kota</th>
+                        <th style={{ padding: '8px', textAlign: 'left', color: T.txtSecondary, borderBottom: `1px solid ${T.borderStrong}` }}>Manager</th>
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody>
                   {parsedData.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
-                      <td style={{ padding: '8px', color: '#64748b' }}>{idx + 1}</td>
+                    <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <td style={{ padding: '8px', color: T.txtMuted }}>{idx + 1}</td>
                       {moduleType === 'products' && (
                         <>
-                          <td style={{ padding: '8px', color: '#38bdf8', fontWeight: '700' }}>{item.sku}</td>
-                          <td style={{ padding: '8px', color: '#f8fafc', fontWeight: '600' }}>{item.name}</td>
-                          <td style={{ padding: '8px', color: '#cbd5e1' }}>{item.category_name}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', color: '#34d399', fontWeight: '700' }}>{formatRupiah(item.price)}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', color: '#fbbf24' }}>{formatRupiah(item.cost)}</td>
-                          <td style={{ padding: '8px', textAlign: 'center', color: '#f8fafc' }}>{item.stock} {item.unit}</td>
+                          <td style={{ padding: '8px', color: T.info, fontWeight: '700' }}>{item.sku}</td>
+                          <td style={{ padding: '8px', color: T.txtPrimary, fontWeight: '600' }}>{item.name}</td>
+                          <td style={{ padding: '8px', color: T.txtSecondary }}>{item.category_name}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', color: T.success, fontWeight: '700' }}>{formatRupiah(item.price)}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', color: T.warning }}>{formatRupiah(item.cost)}</td>
+                          <td style={{ padding: '8px', textAlign: 'center', color: T.txtPrimary }}>{item.stock} {item.unit}</td>
                         </>
                       )}
                       {moduleType === 'categories' && (
                         <>
-                          <td style={{ padding: '8px', color: '#38bdf8', fontWeight: '700' }}>{item.code}</td>
-                          <td style={{ padding: '8px', color: '#f8fafc', fontWeight: '600' }}>{item.name}</td>
-                          <td style={{ padding: '8px', color: '#cbd5e1' }}>{item.description}</td>
+                          <td style={{ padding: '8px', color: T.info, fontWeight: '700' }}>{item.code}</td>
+                          <td style={{ padding: '8px', color: T.txtPrimary, fontWeight: '600' }}>{item.name}</td>
+                          <td style={{ padding: '8px', color: T.txtSecondary }}>{item.description}</td>
                         </>
                       )}
                       {moduleType === 'ingredients' && (
                         <>
-                          <td style={{ padding: '8px', color: '#38bdf8', fontWeight: '700' }}>{item.code}</td>
-                          <td style={{ padding: '8px', color: '#f8fafc', fontWeight: '600' }}>{item.name}</td>
-                          <td style={{ padding: '8px', color: '#cbd5e1' }}>{item.category}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', color: '#34d399' }}>{formatRupiah(item.buy_price)}</td>
-                          <td style={{ padding: '8px', textAlign: 'center', color: '#f8fafc' }}>{item.stock} {item.unit}</td>
+                          <td style={{ padding: '8px', color: T.info, fontWeight: '700' }}>{item.code}</td>
+                          <td style={{ padding: '8px', color: T.txtPrimary, fontWeight: '600' }}>{item.name}</td>
+                          <td style={{ padding: '8px', color: T.txtSecondary }}>{item.category}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', color: T.success }}>{formatRupiah(item.buy_price)}</td>
+                          <td style={{ padding: '8px', textAlign: 'center', color: T.txtPrimary }}>{item.stock} {item.unit}</td>
                         </>
                       )}
                       {moduleType === 'customers' && (
                         <>
-                          <td style={{ padding: '8px', color: '#38bdf8', fontWeight: '700' }}>{item.code}</td>
-                          <td style={{ padding: '8px', color: '#f8fafc', fontWeight: '600' }}>{item.name}</td>
-                          <td style={{ padding: '8px', color: '#cbd5e1' }}>{item.phone}</td>
-                          <td style={{ padding: '8px', color: '#fbbf24' }}>{item.tier}</td>
+                          <td style={{ padding: '8px', color: T.info, fontWeight: '700' }}>{item.code}</td>
+                          <td style={{ padding: '8px', color: T.txtPrimary, fontWeight: '600' }}>{item.name}</td>
+                          <td style={{ padding: '8px', color: T.txtSecondary }}>{item.phone}</td>
+                          <td style={{ padding: '8px', color: T.warning }}>{item.tier}</td>
                         </>
                       )}
                       {moduleType === 'outlets' && (
                         <>
-                          <td style={{ padding: '8px', color: '#38bdf8', fontWeight: '700' }}>{item.code}</td>
-                          <td style={{ padding: '8px', color: '#f8fafc', fontWeight: '600' }}>{item.name}</td>
-                          <td style={{ padding: '8px', color: '#cbd5e1' }}>{item.city}</td>
-                          <td style={{ padding: '8px', color: '#f8fafc' }}>{item.manager}</td>
+                          <td style={{ padding: '8px', color: T.info, fontWeight: '700' }}>{item.code}</td>
+                          <td style={{ padding: '8px', color: T.txtPrimary, fontWeight: '600' }}>{item.name}</td>
+                          <td style={{ padding: '8px', color: T.txtSecondary }}>{item.city}</td>
+                          <td style={{ padding: '8px', color: T.txtPrimary }}>{item.manager}</td>
                         </>
                       )}
                     </tr>
@@ -793,7 +606,7 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
         )}
 
         {/* Footer Actions */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid #334155' }}>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: `1px solid ${T.borderStrong}` }}>
           <button onClick={onClose} className="btn-secondary">
             Batal
           </button>
@@ -804,8 +617,8 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: parsedData.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#334155',
-              color: parsedData.length > 0 ? '#ffffff' : '#94a3b8',
+              background: parsedData.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : T.borderStrong,
+              color: parsedData.length > 0 ? '#ffffff' : T.txtMuted,
               border: 'none',
               padding: '8px 18px',
               borderRadius: '8px',

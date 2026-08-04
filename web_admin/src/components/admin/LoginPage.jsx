@@ -9,6 +9,7 @@ import {
   Utensils, 
   Crown 
 } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
 const DEFAULT_WEB_ADMIN_ACCOUNTS = [
   { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
@@ -23,7 +24,8 @@ const ROLE_ICONS = {
   'Manajer Cabang': '🏢',
 };
 
-export default function LoginPage({ onLoginSuccess, masterData }) {
+export default function LoginPage({ onLoginSuccess, masterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [selectedUsername, setSelectedUsername] = useState('superadmin');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -92,7 +94,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
     <div style={{
       minHeight: '100vh',
       width: '100vw',
-      background: 'radial-gradient(ellipse at center, #0f172a 0%, #080c16 60%, #04060b 100%)',
+      background: T.pageBg,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -105,11 +107,11 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
       <div style={{
         width: '100%',
         maxWidth: '440px',
-        background: 'rgba(15, 23, 42, 0.94)',
-        border: '1px solid rgba(212, 175, 55, 0.3)',
+        background: T.cardBg,
+        border: `1px solid ${T.accentGoldBorder}`,
         borderRadius: '24px',
         padding: '32px 28px',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.65), 0 0 35px rgba(212, 175, 55, 0.12)',
+        boxShadow: T.shadowLg,
         backdropFilter: 'blur(20px)',
         opacity: mounted ? 1 : 0,
         transform: mounted ? 'translateY(0)' : 'translateY(16px)',
@@ -125,14 +127,14 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
             width: '68px',
             height: '68px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(212,175,55,0.18) 0%, rgba(15,23,42,0.9) 100%)',
-            border: '2px solid #d4af37',
+            background: `radial-gradient(circle, ${T.accentGoldBg} 0%, ${T.cardBg} 100%)`,
+            border: `2px solid ${T.accentGold}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(212,175,55,0.3)'
+            boxShadow: `0 0 20px ${T.accentGoldBg}`
           }}>
-            <Utensils size={28} color="#ffffff" />
+            <Utensils size={28} color={T.accentGold} />
           </div>
           <div style={{
             position: 'absolute',
@@ -141,8 +143,8 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
             width: '20px',
             height: '20px',
             borderRadius: '50%',
-            background: '#d97706',
-            border: '1.5px solid #fbbf24',
+            background: T.accentGold,
+            border: `1.5px solid ${T.accentGoldHover}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -156,7 +158,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
         <div style={{
           fontSize: '1.65rem',
           fontWeight: '900',
-          background: 'linear-gradient(135deg, #d4af37 0%, #f8f0d0 50%, #d4af37 100%)',
+          background: `linear-gradient(135deg, ${T.accentGold} 0%, ${T.warning} 50%, ${T.accentGold} 100%)`,
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
@@ -168,7 +170,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
 
         <div style={{
           fontSize: '0.66rem',
-          color: '#94a3b8',
+          color: T.txtSecondary,
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
           fontWeight: '700',
@@ -182,7 +184,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
           width: '5px',
           height: '5px',
           borderRadius: '50%',
-          background: '#d4af37',
+          background: T.accentGold,
           marginBottom: '20px'
         }} />
 
@@ -194,8 +196,8 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
           gap: '10px',
           padding: '12px 14px',
           borderRadius: '12px',
-          background: 'rgba(212,175,55,0.08)',
-          border: '1px solid rgba(212,175,55,0.2)',
+          background: T.accentGoldBg,
+          border: `1px solid ${T.accentGoldBorder}`,
           marginBottom: '20px',
           boxSizing: 'border-box'
         }}>
@@ -203,20 +205,20 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
             width: '34px',
             height: '34px',
             borderRadius: '10px',
-            background: 'rgba(212,175,55,0.15)',
-            border: '1px solid rgba(212,175,55,0.3)',
+            background: T.accentGoldBg,
+            border: `1px solid ${T.accentGoldBorder}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0
           }}>
-            <Monitor size={17} color="#d4af37" />
+            <Monitor size={17} color={T.accentGold} />
           </div>
           <div>
-            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8f0d0' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary }}>
               Portal Web Based Admin
             </div>
-            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+            <div style={{ fontSize: '0.68rem', color: T.txtSecondary }}>
               Dashboard &amp; Manajemen Restoran
             </div>
           </div>
@@ -227,7 +229,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
           
           {/* USERNAME SELECT DROPDOWN */}
           <div>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               USERNAME
             </label>
             <div style={{ position: 'relative' }}>
@@ -238,9 +240,9 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                   width: '100%',
                   padding: '12px 44px 12px 16px',
                   borderRadius: '12px',
-                  border: selectedUsername ? '1.5px solid rgba(212,175,55,0.5)' : '1.5px solid rgba(255,255,255,0.08)',
-                  background: 'rgba(255,255,255,0.04)',
-                  color: selectedUsername ? '#f8f0d0' : '#475569',
+                  border: selectedUsername ? `1.5px solid ${T.accentGold}` : `1.5px solid ${T.border}`,
+                  background: T.inputBg,
+                  color: selectedUsername ? T.txtPrimary : T.txtMuted,
                   fontSize: '0.88rem',
                   outline: 'none',
                   cursor: 'pointer',
@@ -250,12 +252,12 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                 }}
               >
                 {adminUsers.map(u => (
-                  <option key={u.id} value={u.username} style={{ background: '#1e293b', color: '#f8fafc' }}>
+                  <option key={u.id} value={u.username} style={{ background: T.cardBg, color: T.txtPrimary }}>
                     {u.username} · {u.name} ({u.role})
                   </option>
                 ))}
               </select>
-              <ChevronRight size={14} color="#64748b" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%) rotate(90deg)', pointerEvents: 'none' }} />
+              <ChevronRight size={14} color={T.txtMuted} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%) rotate(90deg)', pointerEvents: 'none' }} />
             </div>
 
             {/* SELECTED USER CARD */}
@@ -266,14 +268,14 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                 gap: '8px',
                 marginTop: '8px',
                 padding: '8px 12px',
-                background: 'rgba(212,175,55,0.08)',
+                background: T.accentGoldBg,
                 borderRadius: '8px',
-                border: '1px solid rgba(212,175,55,0.15)'
+                border: `1px solid ${T.accentGoldBorder}`
               }}>
                 <span style={{ fontSize: '1rem' }}>{ROLE_ICONS[selectedUser.role] || '👤'}</span>
                 <div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: '700', color: '#f8f0d0' }}>{selectedUser.name}</div>
-                  <div style={{ fontSize: '0.65rem', color: '#d4af37' }}>{selectedUser.role} · {selectedUser.outlet}</div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: '700', color: T.txtPrimary }}>{selectedUser.name}</div>
+                  <div style={{ fontSize: '0.65rem', color: T.accentGold }}>{selectedUser.role} · {selectedUser.outlet}</div>
                 </div>
               </div>
             )}
@@ -281,12 +283,12 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
 
           {/* PASSWORD WEB ADMIN */}
           <div>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '6px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               PASSWORD WEB ADMIN
             </label>
             <div style={{ position: 'relative' }}>
               <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }}>
-                <Lock size={15} color="#64748b" />
+                <Lock size={15} color={T.txtMuted} />
               </div>
               <input
                 type={showPass ? 'text' : 'password'}
@@ -298,9 +300,9 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                   width: '100%',
                   padding: '12px 44px 12px 42px',
                   borderRadius: '12px',
-                  border: password ? '1.5px solid rgba(212,175,55,0.45)' : '1.5px solid rgba(255,255,255,0.08)',
-                  background: 'rgba(255,255,255,0.04)',
-                  color: '#f8fafc',
+                  border: password ? `1.5px solid ${T.accentGold}` : `1.5px solid ${T.border}`,
+                  background: T.inputBg,
+                  color: T.txtPrimary,
                   fontSize: '0.9rem',
                   outline: 'none',
                   boxSizing: 'border-box',
@@ -318,7 +320,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#64748b',
+                  color: T.txtMuted,
                   padding: 0
                 }}
               >
@@ -333,11 +335,11 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'rgba(239,68,68,0.1)',
-              border: '1px solid rgba(239,68,68,0.25)',
+              background: T.dangerBg,
+              border: `1px solid ${T.dangerBorder}`,
               borderRadius: '10px',
               padding: '10px 14px',
-              color: '#fca5a5',
+              color: T.danger,
               fontSize: '0.8rem'
             }}>
               <AlertCircle size={14} /> {error}
@@ -356,13 +358,13 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
               borderRadius: '14px',
               border: 'none',
               background: isLoading
-                ? 'rgba(212,175,55,0.3)'
-                : 'linear-gradient(135deg, #d4af37 0%, #b8963e 50%, #d4af37 100%)',
-              color: '#0f172a',
+                ? T.accentGoldBg
+                : T.primaryBtn,
+              color: T.navActiveTxt,
               fontSize: '0.92rem',
               fontWeight: '900',
               cursor: isLoading ? 'wait' : 'pointer',
-              boxShadow: isLoading ? 'none' : '0 8px 24px rgba(212,175,55,0.25)',
+              boxShadow: isLoading ? 'none' : `0 8px 24px ${T.primaryBtnShadow}`,
               transition: 'all 0.3s ease',
               display: 'flex',
               alignItems: 'center',
@@ -371,7 +373,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
             }}
           >
             {isLoading ? (
-              <><div style={{ width: '16px', height: '16px', border: '2px solid #0f172a', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Memverifikasi...</>
+              <><div style={{ width: '16px', height: '16px', border: `2px solid ${T.navActiveTxt}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Memverifikasi...</>
             ) : (
               <>💻 Masuk ke Dashboard Admin</>
             )}
@@ -379,8 +381,8 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
         </div>
 
         {/* FOOTER */}
-        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', width: '100%' }}>
-          <div style={{ fontSize: '0.68rem', color: '#64748b', letterSpacing: '0.08em' }}>
+        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: `1px solid ${T.border}`, textAlign: 'center', width: '100%' }}>
+          <div style={{ fontSize: '0.68rem', color: T.txtMuted, letterSpacing: '0.08em' }}>
             &copy; 2025 MRIS &bull; Barokah Group &bull; v2.0
           </div>
         </div>
@@ -393,7 +395,7 @@ export default function LoginPage({ onLoginSuccess, masterData }) {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-        select option { background: #1e293b !important; }
+        select option { background: ${T.cardBg} !important; color: ${T.txtPrimary} !important; }
       `}</style>
     </div>
   );

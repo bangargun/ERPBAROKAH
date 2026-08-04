@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Settings, Shield, Printer, Lock, CheckCircle2, RefreshCw, Users, Plus, Trash2, ShieldAlert, Eye, EyeOff, Edit3, X, Key, Building2 } from 'lucide-react';
+import { Settings, Shield, Printer, Lock, CheckCircle2, RefreshCw, Users, Plus, Trash2, ShieldAlert, Eye, EyeOff, Edit3, X, Key, Building2, Monitor, Smartphone } from 'lucide-react';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function SystemSettings({ masterData, setMasterData }) {
-  const [activeSubTab, setActiveSubTab] = useState('user_rights'); // Default to 'user_rights'
+export default function SystemSettings({ masterData, setMasterData, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
+  const [activeSubTab, setActiveSubTab] = useState('user_rights_web'); // Default to 'user_rights_web'
   const [selectedOutletIdForPrint, setSelectedOutletIdForPrint] = useState(1);
 
   // Pagination States (Default 25 rows per page)
@@ -251,6 +253,19 @@ export default function SystemSettings({ masterData, setMasterData }) {
     }));
   };
 
+  const handleUpdateMobileReportPassword = (idx, newPassword) => {
+    const updated = mobilePermissionMatrix.map((pm, i) => {
+      if (i === idx) {
+        return { ...pm, reportPassword: newPassword, mobileReportPassword: newPassword };
+      }
+      return pm;
+    });
+    setMasterData(prev => ({
+      ...prev,
+      mobilePermissionMatrix: updated
+    }));
+  };
+
   const handleTogglePermissionField = (idx, field) => {
     const updated = permissionMatrix.map((pm, i) => {
       if (i === idx) {
@@ -310,32 +325,30 @@ export default function SystemSettings({ masterData, setMasterData }) {
     return Array.from(new Set([...webRoles, ...mobRoles, ...defaults]));
   }, [permissionMatrix, mobilePermissionMatrix]);
 
-  // === WEB ADMIN ACCOUNTS ===
+  // === 1. WEB ADMIN ACCOUNTS (Hak User Web Based Admin — Independent Table) ===
+  const DEFAULT_WEB_ADMIN_LIST = [
+    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', password: '888', role: 'Super Admin', status: 'Aktif' },
+    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', password: '999', role: 'Owner', status: 'Aktif' }
+  ];
+
   const getWebAdminList = () => {
-    if (Array.isArray(masterData?.webAdminAccounts)) {
+    if (Array.isArray(masterData?.webAdminAccounts) && masterData.webAdminAccounts.length > 0) {
       return masterData.webAdminAccounts;
     }
-    if (Array.isArray(masterData?.userRights) && masterData.userRights.length > 0) {
-      return masterData.userRights;
-    }
-    if (Array.isArray(masterData?.users) && masterData.users.length > 0) {
-      return masterData.users;
-    }
-    return [];
+    return DEFAULT_WEB_ADMIN_LIST;
   };
 
-  // === MOBILE ACCOUNTS ===
+  // === 2. MOBILE POS ACCOUNTS (Hak User POS Mobile — Independent Table) ===
+  const DEFAULT_MOBILE_LIST = [
+    { id: 1, name: 'Super Admin Restoran', outlet: 'Semua Outlet (Central)', username: 'superadmin', mobileLoginPassword: '888', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '8888' },
+    { id: 2, name: 'Owner Restoran', outlet: 'Semua Outlet (Central)', username: 'owner', mobileLoginPassword: '999', role: 'Super Admin / Owner', status: 'Aktif', canAccessMobileReports: true, mobileReportPassword: '9999' }
+  ];
+
   const getMobileList = () => {
-    if (Array.isArray(masterData?.mobileAccounts)) {
+    if (Array.isArray(masterData?.mobileAccounts) && masterData.mobileAccounts.length > 0) {
       return masterData.mobileAccounts;
     }
-    if (Array.isArray(masterData?.userRights) && masterData.userRights.length > 0) {
-      return masterData.userRights.filter(u => u.canLoginMobile !== false);
-    }
-    if (Array.isArray(masterData?.users) && masterData.users.length > 0) {
-      return masterData.users.filter(u => u.canLoginMobile !== false);
-    }
-    return [];
+    return DEFAULT_MOBILE_LIST;
   };
 
   // Backward compat alias
@@ -362,7 +375,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
     setNewUserOutlet(u.outlet || 'Semua Outlet (Central)');
     setNewUserUsername(u.username || '');
     setNewUserPassword(u.password || '');
-    setNewUserRole(u.role || 'Kasir');
+    setNewUserRole(u.role || 'Super Admin');
     setNewUserStatus(u.status || 'Aktif');
     setNewCanLoginMobile(u.canLoginMobile !== false);
     setNewMobileLoginPassword(u.mobileLoginPassword || u.password || '123');
@@ -371,101 +384,89 @@ export default function SystemSettings({ masterData, setMasterData }) {
     setShowAddUserModal(true);
   };
 
-  // ===== CRUD WEB ADMIN ACCOUNTS =====
+  // ===== CRUD WEB ADMIN ACCOUNTS (100% INDEPENDEN) =====
   const handleSaveUser = (e) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserUsername.trim()) {
       alert('Nama pengguna dan Username wajib diisi!');
       return;
     }
-    const currentList = getWebAdminList();
-    let updatedWebList;
-    if (editingUserId) {
-      updatedWebList = currentList.map(u => {
-        if (u.id === editingUserId) {
-          return { ...u, name: newUserName.trim(), outlet: newUserOutlet, username: newUserUsername.trim(), password: newUserPassword, role: newUserRole, status: newUserStatus };
-        }
-        return u;
-      });
-    } else {
-      const newAccount = { id: Date.now(), name: newUserName.trim(), outlet: newUserOutlet, username: newUserUsername.trim(), password: newUserPassword || '123', role: newUserRole, status: newUserStatus };
-      updatedWebList = [...currentList, newAccount];
-    }
+    const _editingUserId = editingUserId;
+    const _name = newUserName.trim();
+    const _outlet = newUserOutlet;
+    const _username = newUserUsername.trim();
+    const _password = newUserPassword;
+    const _role = newUserRole;
+    const _status = newUserStatus;
 
     setMasterData(prev => {
-      const mobList = prev?.mobileAccounts || [];
-      const usersMap = new Map();
-      [...updatedWebList, ...mobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
-      });
-      const combinedUsers = Array.from(usersMap.values());
-      return {
+      const currentList = getWebAdminList();
+      let updatedList;
+      if (_editingUserId) {
+        updatedList = currentList.map(u =>
+          u.id === _editingUserId
+            ? { ...u, name: _name, outlet: _outlet, username: _username, password: _password, role: _role, status: _status }
+            : u
+        );
+      } else {
+        const newAccount = { id: Date.now(), name: _name, outlet: _outlet, username: _username, password: _password || '123', role: _role, status: _status };
+        updatedList = [...currentList, newAccount];
+      }
+
+      const updatedMaster = {
         ...prev,
-        webAdminAccounts: updatedWebList,
-        mobileAccounts: mobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        webAdminAccounts: updatedList,
+        userAccounts: [...updatedList, ...(prev.mobileAccounts || [])]
       };
+      try {
+        localStorage.setItem('MRIS_WEBADMINACCOUNTS', JSON.stringify(updatedList));
+        localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
+      } catch (e) {}
+      return updatedMaster;
     });
     setShowAddUserModal(false);
   };
 
   const handleToggleUserStatus = (id) => {
-    const updatedWebList = getWebAdminList().map(u => {
-      if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
-      return u;
-    });
     setMasterData(prev => {
-      const mobList = prev?.mobileAccounts || [];
-      const usersMap = new Map();
-      [...updatedWebList, ...mobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
-      });
-      const combinedUsers = Array.from(usersMap.values());
+      const currentList = getWebAdminList();
+      const updatedList = currentList.map(u =>
+        u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
+      );
       return {
         ...prev,
-        webAdminAccounts: updatedWebList,
-        mobileAccounts: mobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        webAdminAccounts: updatedList
       };
     });
   };
 
-  const handleDeleteUser = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus akun Web Admin ini?')) {
-      const updatedWebList = getWebAdminList().filter(u => u.id !== id);
-      setMasterData(prev => {
-        const mobList = prev?.mobileAccounts || [];
-        const usersMap = new Map();
-        [...updatedWebList, ...mobList].forEach(u => {
-          if (u && u.name) {
-            const k = String(u.id || u.username || u.name).toLowerCase();
-            if (!usersMap.has(k)) usersMap.set(k, u);
-          }
-        });
-        const combinedUsers = Array.from(usersMap.values());
-        return {
-          ...prev,
-          webAdminAccounts: updatedWebList,
-          mobileAccounts: mobList,
-          userRights: combinedUsers,
-          users: combinedUsers,
-          userAccounts: combinedUsers
-        };
-      });
-    }
+  const handleDeleteUser = (user) => {
+    if (!window.confirm(`Hapus akun Web Admin "${user.name || user.username}"?`)) return;
+    const targetIdStr = user.id != null ? String(user.id) : null;
+    if (!targetIdStr) return;
+
+    setMasterData(prev => {
+      const currentList = getWebAdminList();
+      const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
+
+      return {
+        ...prev,
+        webAdminAccounts: updatedList,
+        _isExplicitClear: updatedList.length === 0
+      };
+    });
+
+    fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: 'webAdminAccounts',
+        id: user.id
+      })
+    }).catch(() => {});
   };
 
-  // ===== CRUD MOBILE ACCOUNTS (INDEPENDEN dari Web Admin) =====
+  // ===== CRUD MOBILE POS ACCOUNTS (100% INDEPENDEN) =====
   const [showAddMobileModal, setShowAddMobileModal] = useState(false);
   const [editingMobileId, setEditingMobileId] = useState(null);
   const [newMobileName, setNewMobileName] = useState('');
@@ -497,91 +498,83 @@ export default function SystemSettings({ masterData, setMasterData }) {
   const handleSaveMobile = (e) => {
     e.preventDefault();
     if (!newMobileName.trim() || !newMobileUsername.trim()) { alert('Nama dan Username wajib diisi!'); return; }
-    const currentList = getMobileList();
-    let updatedMobList;
-    if (editingMobileId) {
-      updatedMobList = currentList.map(u => {
-        if (u.id === editingMobileId) {
-          return { ...u, name: newMobileName.trim(), outlet: newMobileOutlet, username: newMobileUsername.trim(), mobileLoginPassword: newMobilePwd, password: newMobilePwd, role: newMobileRole2, status: newMobileStatus2, canLoginMobile: true, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 };
-        }
-        return u;
-      });
-    } else {
-      const newAcc = { id: Date.now(), name: newMobileName.trim(), outlet: newMobileOutlet, username: newMobileUsername.trim(), mobileLoginPassword: newMobilePwd || '123', password: newMobilePwd || '123', role: newMobileRole2, status: newMobileStatus2, canLoginMobile: true, canAccessMobileReports: newMobileCanReport, mobileReportPassword: newMobileReportPwd2 || '8888' };
-      updatedMobList = [...currentList, newAcc];
-    }
+    const _editingMobileId = editingMobileId;
+    const _name = newMobileName.trim();
+    const _outlet = newMobileOutlet;
+    const _username = newMobileUsername.trim();
+    const _pwd = newMobilePwd;
+    const _role = newMobileRole2;
+    const _status = newMobileStatus2;
+    const _canReport = newMobileCanReport;
+    const _reportPwd = newMobileReportPwd2;
 
     setMasterData(prev => {
-      const webList = prev?.webAdminAccounts || [];
-      const usersMap = new Map();
-      [...webList, ...updatedMobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
-      });
-      const combinedUsers = Array.from(usersMap.values());
-      return {
+      const currentList = getMobileList();
+      let updatedList;
+      if (_editingMobileId) {
+        updatedList = currentList.map(u =>
+          u.id === _editingMobileId
+            ? { ...u, name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd, role: _role, status: _status, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd }
+            : u
+        );
+      } else {
+        const newAcc = { id: Date.now(), name: _name, outlet: _outlet, username: _username, mobileLoginPassword: _pwd || '123', role: _role, status: _status, canAccessMobileReports: _canReport, mobileReportPassword: _reportPwd || '8888' };
+        updatedList = [...currentList, newAcc];
+      }
+
+      const updatedMaster = {
         ...prev,
-        webAdminAccounts: webList,
-        mobileAccounts: updatedMobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        mobileAccounts: updatedList,
+        userAccounts: [...(prev.webAdminAccounts || []), ...updatedList]
       };
+      try {
+        localStorage.setItem('MRIS_MOBILEACCOUNTS', JSON.stringify(updatedList));
+        localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
+      } catch (e) {}
+      return updatedMaster;
     });
     setShowAddMobileModal(false);
   };
 
   const handleToggleMobileStatus = (id) => {
-    const updatedMobList = getMobileList().map(u => {
-      if (u.id === id) return { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' };
-      return u;
-    });
     setMasterData(prev => {
-      const webList = prev?.webAdminAccounts || [];
-      const usersMap = new Map();
-      [...webList, ...updatedMobList].forEach(u => {
-        if (u && u.name) {
-          const k = String(u.id || u.username || u.name).toLowerCase();
-          if (!usersMap.has(k)) usersMap.set(k, u);
-        }
-      });
-      const combinedUsers = Array.from(usersMap.values());
+      const currentList = getMobileList();
+      const updatedList = currentList.map(u =>
+        u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
+      );
       return {
         ...prev,
-        webAdminAccounts: webList,
-        mobileAccounts: updatedMobList,
-        userRights: combinedUsers,
-        users: combinedUsers,
-        userAccounts: combinedUsers
+        mobileAccounts: updatedList
       };
     });
   };
 
-  const handleDeleteMobile = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus akun Mobile APK ini?')) {
-      const updatedMobList = getMobileList().filter(u => u.id !== id);
-      setMasterData(prev => {
-        const webList = prev?.webAdminAccounts || [];
-        const usersMap = new Map();
-        [...webList, ...updatedMobList].forEach(u => {
-          if (u && u.name) {
-            const k = String(u.id || u.username || u.name).toLowerCase();
-            if (!usersMap.has(k)) usersMap.set(k, u);
-          }
-        });
-        const combinedUsers = Array.from(usersMap.values());
-        return {
-          ...prev,
-          webAdminAccounts: webList,
-          mobileAccounts: updatedMobList,
-          userRights: combinedUsers,
-          users: combinedUsers,
-          userAccounts: combinedUsers
-        };
-      });
-    }
+  const handleDeleteMobile = (user) => {
+    const targetObj = typeof user === 'object' ? user : { id: user };
+    const targetName = targetObj?.name || targetObj?.username || 'ini';
+    if (!window.confirm(`Hapus akun Mobile APK "${targetName}"?`)) return;
+    const targetIdStr = targetObj?.id != null ? String(targetObj.id) : null;
+    if (!targetIdStr) return;
+
+    setMasterData(prev => {
+      const currentList = getMobileList();
+      const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
+
+      return {
+        ...prev,
+        mobileAccounts: updatedList,
+        _isExplicitClear: updatedList.length === 0
+      };
+    });
+
+    fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: 'mobileAccounts',
+        id: targetObj.id
+      })
+    }).catch(() => {});
   };
 
   const togglePasswordVisibility = (id) => {
@@ -591,10 +584,10 @@ export default function SystemSettings({ masterData, setMasterData }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       <div>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
           Pengaturan Sistem &amp; Konfigurasi (System Settings)
         </h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: '2px', margin: 0 }}>
+        <p style={{ color: T.txtSecondary, fontSize: '0.78rem', marginTop: '2px', margin: 0 }}>
           Pengaturan Matriks Hak Akses (Permission Matrix), Template Cetak Struk (Print), dan Keamanan Aplikasi Mobile APK
         </p>
       </div>
@@ -610,9 +603,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
             padding: '7px 14px',
             borderRadius: '10px',
             border: '1px solid',
-            borderColor: activeSubTab === 'permission' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'permission' ? 'rgba(99, 102, 241, 0.2)' : '#1e293b',
-            color: activeSubTab === 'permission' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'permission' ? T.info : T.borderStrong,
+            background: activeSubTab === 'permission' ? T.infoBg : T.cardBg,
+            color: activeSubTab === 'permission' ? T.info : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.78rem',
             cursor: 'pointer'
@@ -631,9 +624,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
             padding: '7px 14px',
             borderRadius: '10px',
             border: '1px solid',
-            borderColor: activeSubTab === 'print' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'print' ? 'rgba(99, 102, 241, 0.2)' : '#1e293b',
-            color: activeSubTab === 'print' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'print' ? T.info : T.borderStrong,
+            background: activeSubTab === 'print' ? T.infoBg : T.cardBg,
+            color: activeSubTab === 'print' ? T.info : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.78rem',
             cursor: 'pointer'
@@ -652,9 +645,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
             padding: '7px 14px',
             borderRadius: '10px',
             border: '1px solid',
-            borderColor: activeSubTab === 'security' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'security' ? 'rgba(99, 102, 241, 0.2)' : '#1e293b',
-            color: activeSubTab === 'security' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'security' ? T.info : T.borderStrong,
+            background: activeSubTab === 'security' ? T.infoBg : T.cardBg,
+            color: activeSubTab === 'security' ? T.info : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.78rem',
             cursor: 'pointer'
@@ -665,7 +658,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
         </button>
 
         <button
-          onClick={() => setActiveSubTab('user_rights')}
+          onClick={() => setActiveSubTab('user_rights_web')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -673,31 +666,31 @@ export default function SystemSettings({ masterData, setMasterData }) {
             padding: '7px 14px',
             borderRadius: '10px',
             border: '1px solid',
-            borderColor: activeSubTab === 'user_rights' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'user_rights' ? 'rgba(99, 102, 241, 0.2)' : '#1e293b',
-            color: activeSubTab === 'user_rights' ? '#818cf8' : '#94a3b8',
+            borderColor: (activeSubTab === 'user_rights_web' || activeSubTab === 'user_rights_mobile') ? T.info : T.borderStrong,
+            background: (activeSubTab === 'user_rights_web' || activeSubTab === 'user_rights_mobile') ? T.infoBg : T.cardBg,
+            color: (activeSubTab === 'user_rights_web' || activeSubTab === 'user_rights_mobile') ? T.info : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.78rem',
             cursor: 'pointer'
           }}
         >
-          <ShieldAlert size={16} />
-          <span>Hak User (Akses Akun)</span>
+          <Users size={16} color={T.info} />
+          <span>👤 Hak User</span>
         </button>
       </div>
 
       {/* SETTINGS VIEWS */}
-      <div className="glass-card" style={{ padding: '16px' }}>
+      <div className="glass-card" style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '16px', padding: '16px' }}>
         {/* 1. PERMISSION MATRIX */}
         {activeSubTab === 'permission' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                  <Shield size={18} color="#818cf8" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                  <Shield size={18} color={T.info} />
                   <span>Permission Matrix - Matriks Hak Akses &amp; Wewenang Peran</span>
                 </h3>
-                <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px', margin: 0 }}>
+                <p style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px', margin: 0 }}>
                   Kelola daftar peran pengguna (User Role) dan atur hak akses modul aplikasi secara fleksibel.
                 </p>
               </div>
@@ -722,10 +715,10 @@ export default function SystemSettings({ masterData, setMasterData }) {
               </button>
             </div>
 
-            <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#0f172a', width: '100%' }}>
+            <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg2, width: '100%' }}>
               <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.74rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                  <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtLabel, fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                     <th style={{ padding: '8px 6px', width: '19%' }}>Peran (User Role)</th>
                     <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Dashboard</th>
                     <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Master Data</th>
@@ -740,9 +733,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 </thead>
                 <tbody>
                   {permissionMatrix.map((pm, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                      <td style={{ padding: '6px 10px', fontWeight: '800', color: '#818cf8', fontSize: '0.78rem' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(99,102,241,0.15)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(99,102,241,0.3)', fontSize: '0.72rem' }}>
+                    <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                      <td style={{ padding: '6px 10px', fontWeight: '800', color: T.info, fontSize: '0.78rem' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: T.infoBg, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontSize: '0.72rem' }}>
                           👑 {pm.role}
                         </span>
                       </td>
@@ -831,7 +824,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                           <button
                             type="button"
                             onClick={() => handleOpenEditPermissionModal(idx, pm)}
-                            style={{ padding: '4px 6px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', borderRadius: '6px', cursor: 'pointer' }}
+                            style={{ padding: '4px 6px', background: T.infoBg, border: `1px solid ${T.info}`, color: T.info, borderRadius: '6px', cursor: 'pointer' }}
                             title="Edit Peran Matriks Ini"
                           >
                             <Edit3 size={13} />
@@ -839,7 +832,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                           <button
                             type="button"
                             onClick={() => handleDeletePermission(idx)}
-                            style={{ padding: '4px 6px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#fca5a5', borderRadius: '6px', cursor: 'pointer' }}
+                            style={{ padding: '4px 6px', background: T.dangerBg, border: `1px solid ${T.danger}`, color: T.danger, borderRadius: '6px', cursor: 'pointer' }}
                             title="Hapus Peran Matriks Ini"
                           >
                             <Trash2 size={13} />
@@ -855,16 +848,16 @@ export default function SystemSettings({ masterData, setMasterData }) {
             {/* MODAL TAMBAH / EDIT PERMISSION MATRIX */}
             {showAddPermissionModal && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
-                <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '14px', width: '100%', maxWidth: '520px', padding: '18px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '14px' }} className="animate-scale-up">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                      <Shield size={18} color="#818cf8" />
+                <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', width: '100%', maxWidth: '520px', padding: '18px', boxShadow: T.shadowLg, display: 'flex', flexDirection: 'column', gap: '14px' }} className="animate-scale-up">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '10px' }}>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                      <Shield size={18} color={T.info} />
                       <span>{editingPermissionIndex !== null ? 'Edit Permission Matrix Peran' : 'Tambah Permission Matrix Baru'}</span>
                     </h3>
                     <button
                       type="button"
                       onClick={() => setShowAddPermissionModal(false)}
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                      style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', padding: '4px' }}
                     >
                       <X size={18} />
                     </button>
@@ -872,7 +865,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
                   <form onSubmit={handleSavePermission} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '4px' }}>
                         Nama Peran / Role Akses *
                       </label>
                       <input
@@ -881,52 +874,52 @@ export default function SystemSettings({ masterData, setMasterData }) {
                         placeholder="Contoh: Manager Bar / Kasir Senior / Auditor"
                         value={newPermissionRole}
                         onChange={e => setNewPermissionRole(e.target.value)}
-                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.82rem', fontWeight: '700' }}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '700' }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#38bdf8', display: 'block', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: '800', color: T.info, display: 'block', marginBottom: '8px' }}>
                         Pilih Modul Akses Yang Diizinkan:
                       </label>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionDashboard} onChange={e => setNewPermissionDashboard(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionDashboard} onChange={e => setNewPermissionDashboard(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>📊 Dashboard Utama</span>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionMasterData} onChange={e => setNewPermissionMasterData(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionMasterData} onChange={e => setNewPermissionMasterData(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>🗂️ Data Master</span>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionCosts} onChange={e => setNewPermissionCosts(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionCosts} onChange={e => setNewPermissionCosts(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>📖 Biaya / Akuntansi</span>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionStock} onChange={e => setNewPermissionStock(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionStock} onChange={e => setNewPermissionStock(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>📦 Stok Opname &amp; Bahan</span>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionApproved} onChange={e => setNewPermissionApproved(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionApproved} onChange={e => setNewPermissionApproved(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>✅ Approval Transaksi</span>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionReports} onChange={e => setNewPermissionReports(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionReports} onChange={e => setNewPermissionReports(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>📈 Laporan Keuangan</span>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionPolicies} onChange={e => setNewPermissionPolicies(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionPolicies} onChange={e => setNewPermissionPolicies(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>📜 Kebijakan (Policies)</span>
                         </label>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.78rem', color: '#cbd5e1' }}>
-                          <input type="checkbox" checked={newPermissionSettings} onChange={e => setNewPermissionSettings(e.target.checked)} style={{ accentColor: '#818cf8', width: '15px', height: '15px' }} />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
+                          <input type="checkbox" checked={newPermissionSettings} onChange={e => setNewPermissionSettings(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
                           <span>⚙️ Pengaturan Sistem</span>
                         </label>
                       </div>
@@ -936,7 +929,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       <button
                         type="button"
                         onClick={() => setShowAddPermissionModal(false)}
-                        style={{ padding: '8px 14px', background: '#334155', border: 'none', color: '#cbd5e1', borderRadius: '8px', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer' }}
+                        style={{ padding: '8px 14px', background: T.cardBg2, border: `1px solid ${T.borderStrong}`, color: T.txtSecondary, borderRadius: '8px', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer' }}
                       >
                         Batal
                       </button>
@@ -953,16 +946,14 @@ export default function SystemSettings({ masterData, setMasterData }) {
               </div>
             )}
 
-            {/* ------------------------------------------------------------- */}
             {/* SECTION DEDIKASI: PERMISSION MATRIX MOBILE APK (TABLET POS)  */}
-            {/* ------------------------------------------------------------- */}
-            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '2px dashed #334155', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `2px dashed ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '12px' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.info, display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
                     📱 Permission Matrix Mobile APK - Hak Akses &amp; Wewenang Tablet POS
                   </h3>
-                  <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px', margin: 0 }}>
+                  <p style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px', margin: 0 }}>
                     Atur izin akses wewenang operasional kasir, void order, diskon manual, stok opname, dan laporan pada Aplikasi Mobile APK.
                   </p>
                 </div>
@@ -978,9 +969,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     fontSize: '0.78rem',
                     fontWeight: '800',
                     borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                    background: T.primaryBtn,
                     color: '#ffffff',
-                    border: '1px solid #38bdf8',
+                    border: 'none',
                     cursor: 'pointer',
                     boxShadow: '0 4px 12px rgba(56,189,248,0.25)'
                   }}
@@ -990,11 +981,10 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 </button>
               </div>
 
-              {/* TABEL PERMISSION MATRIX MOBILE APK (FIT TO PAGE TANPA HORIZONTAL SLIDE) */}
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#0f172a', width: '100%' }}>
+              <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg2, width: '100%' }}>
                 <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
                   <thead>
-                    <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                    <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtLabel, fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                       <th style={{ padding: '8px 6px', width: '16%' }}>Peran Mobile (Role)</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Buka POS</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Void</th>
@@ -1003,17 +993,18 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Terima</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Trf Out</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Laporan</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Shift</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '8%' }}>Reservasi</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Printer</th>
-                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '7%' }}>Aksi</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Shift</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Reservasi</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '6%' }}>Printer</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%', color: T.info }}>🔑 Pass Laporan</th>
+                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '6%' }}>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mobilePermissionMatrix.map((pm, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        <td style={{ padding: '6px 6px', fontWeight: '800', color: '#38bdf8', fontSize: '0.74rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(56,189,248,0.15)', padding: '2px 6px', borderRadius: '5px', border: '1px solid rgba(56,189,248,0.3)', fontSize: '0.70rem' }}>
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                        <td style={{ padding: '6px 6px', fontWeight: '800', color: T.info, fontSize: '0.74rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: T.infoBg, padding: '2px 6px', borderRadius: '5px', border: `1px solid ${T.infoBorder}`, fontSize: '0.70rem' }}>
                             📱 {pm.role}
                           </span>
                         </td>
@@ -1117,12 +1108,31 @@ export default function SystemSettings({ masterData, setMasterData }) {
                             {pm.printerSetting ? '✅' : '❌'}
                           </button>
                         </td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>
+                          <input
+                            type="text"
+                            value={pm.reportPassword || pm.mobileReportPassword || '1234'}
+                            onChange={(e) => handleUpdateMobileReportPassword(idx, e.target.value)}
+                            style={{
+                              width: '64px',
+                              padding: '3px 4px',
+                              background: T.inputBg,
+                              border: `1px solid ${T.info}`,
+                              borderRadius: '5px',
+                              color: T.info,
+                              fontSize: '0.74rem',
+                              fontWeight: '800',
+                              textAlign: 'center'
+                            }}
+                            title="Password / PIN Otorisasi Akses Laporan Kasir Mobile"
+                          />
+                        </td>
                         <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
                             <button
                               type="button"
                               onClick={() => handleOpenEditMobilePermissionModal(idx, pm)}
-                              style={{ padding: '3px 5px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', borderRadius: '5px', cursor: 'pointer' }}
+                              style={{ padding: '3px 5px', background: T.infoBg, border: `1px solid ${T.info}`, color: T.info, borderRadius: '5px', cursor: 'pointer' }}
                               title="Edit Peran Mobile APK Ini"
                             >
                               <Edit3 size={12} />
@@ -1130,7 +1140,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                             <button
                               type="button"
                               onClick={() => handleDeleteMobilePermission(idx)}
-                              style={{ padding: '3px 5px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#fca5a5', borderRadius: '5px', cursor: 'pointer' }}
+                              style={{ padding: '3px 5px', background: T.dangerBg, border: `1px solid ${T.danger}`, color: T.danger, borderRadius: '5px', cursor: 'pointer' }}
                               title="Hapus Peran Mobile APK Ini"
                             >
                               <Trash2 size={12} />
@@ -1146,15 +1156,15 @@ export default function SystemSettings({ masterData, setMasterData }) {
               {/* MODAL TAMBAH / EDIT PERMISSION MATRIX MOBILE APK */}
               {showAddMobilePermissionModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
-                  <div style={{ background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '16px', width: '100%', maxWidth: '620px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '18px' }} className="animate-scale-up">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <div style={{ background: T.cardBg, border: `1px solid ${T.info}`, borderRadius: '16px', width: '100%', maxWidth: '620px', padding: '24px', boxShadow: T.shadowLg, display: 'flex', flexDirection: 'column', gap: '18px' }} className="animate-scale-up">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '14px' }}>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.info, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                         📱 <span>{editingMobilePermissionIndex !== null ? 'Edit Permission Mobile APK Peran' : 'Tambah Permission Mobile APK Baru'}</span>
                       </h3>
                       <button
                         type="button"
                         onClick={() => setShowAddMobilePermissionModal(false)}
-                        style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                        style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', padding: '4px' }}
                       >
                         <X size={20} />
                       </button>
@@ -1162,7 +1172,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
                     <form onSubmit={handleSaveMobilePermission} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div>
-                        <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>
                           Nama Peran Mobile APK (Role) *
                         </label>
                         <input
@@ -1171,62 +1181,62 @@ export default function SystemSettings({ masterData, setMasterData }) {
                           placeholder="Contoh: SPV Kasir / Barista / Staf Logistik"
                           value={newMobilePermissionRole}
                           onChange={e => setNewMobilePermissionRole(e.target.value)}
-                          style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.90rem', fontWeight: '700' }}
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.90rem', fontWeight: '700' }}
                         />
                       </div>
 
                       <div>
-                        <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', display: 'block', marginBottom: '10px' }}>
+                        <label style={{ fontSize: '0.82rem', fontWeight: '800', color: T.info, display: 'block', marginBottom: '10px' }}>
                           Pilih Wewenang Fitur Mobile APK (Tablet POS):
                         </label>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobilePosCashier} onChange={e => setNewMobilePosCashier(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobilePosCashier} onChange={e => setNewMobilePosCashier(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>🏪 Buka POS / Kasir</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileVoidOrder} onChange={e => setNewMobileVoidOrder(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileVoidOrder} onChange={e => setNewMobileVoidOrder(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>🚫 Void / Batal Order</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileManualDiscount} onChange={e => setNewMobileManualDiscount(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileManualDiscount} onChange={e => setNewMobileManualDiscount(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>🏷️ Diskon Manual &amp; Promo</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileStockOpname} onChange={e => setNewMobileStockOpname(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileStockOpname} onChange={e => setNewMobileStockOpname(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>📦 Stok Opname Mobile</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileReceiveGoods} onChange={e => setNewMobileReceiveGoods(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileReceiveGoods} onChange={e => setNewMobileReceiveGoods(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>🚚 Terima Barang (GR / Trf In)</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileStockTransferOut} onChange={e => setNewMobileStockTransferOut(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileStockTransferOut} onChange={e => setNewMobileStockTransferOut(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>📤 Transfer Stok Out &amp; Retur</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileReports} onChange={e => setNewMobileReports(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileReports} onChange={e => setNewMobileReports(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>🔒 Laporan Omset &amp; Mobile</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileShiftClosing} onChange={e => setNewMobileShiftClosing(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileShiftClosing} onChange={e => setNewMobileShiftClosing(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>🧾 Penutupan Shift Kasir</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobileReservations} onChange={e => setNewMobileReservations(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobileReservations} onChange={e => setNewMobileReservations(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>📅 Reservasi &amp; Booking Meja</span>
                           </label>
 
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#0f172a', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                            <input type="checkbox" checked={newMobilePrinterSetting} onChange={e => setNewMobilePrinterSetting(e.target.checked)} style={{ accentColor: '#38bdf8', width: '16px', height: '16px' }} />
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
+                            <input type="checkbox" checked={newMobilePrinterSetting} onChange={e => setNewMobilePrinterSetting(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
                             <span>🖨️ Setting Printer Thermal</span>
                           </label>
                         </div>
@@ -1236,13 +1246,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
                         <button
                           type="button"
                           onClick={() => setShowAddMobilePermissionModal(false)}
-                          style={{ padding: '10px 18px', background: '#334155', border: 'none', color: '#cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
+                          style={{ padding: '10px 18px', background: T.cardBg2, border: `1px solid ${T.borderStrong}`, color: T.txtSecondary, borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
                         >
                           Batal
                         </button>
                         <button
                           type="submit"
-                          style={{ padding: '10px 22px', background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
+                          style={{ padding: '10px 22px', background: T.primaryBtn, color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
                         >
                           💾 Simpan Permission Mobile APK
                         </button>
@@ -1257,8 +1267,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
         {/* 2. PRINT & STRUK THERMAL */}
         {activeSubTab === 'print' && (() => {
-          const outletsList = masterData?.outlets || [];
-          const currentOutlet = outletsList.find(o => Number(o.id) === Number(selectedOutletIdForPrint)) || outletsList[0] || null;
+          const outletsList = (masterData?.outlets && masterData.outlets.length > 0)
+            ? masterData.outlets
+            : [
+                { id: 1, name: 'Restoran Utama (Pusat)', address: 'Jl. Sudirman No. 45, Jakarta' }
+              ];
+
+          const currentOutlet = outletsList.find(o => Number(o.id) === Number(selectedOutletIdForPrint)) || outletsList[0] || { id: 1, name: 'Restoran Utama (Pusat)', address: 'Jl. Sudirman No. 45, Jakarta' };
 
           const toTitleCase = (str) => {
             if (!str) return '';
@@ -1274,12 +1289,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Printer size={22} color="#38bdf8" />
+              <div style={{ borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '14px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Printer size={22} color={T.info} />
                   <span>Konfigurasi Printer Thermal &amp; Template Header Struk</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Format Teks Header Struk Pembayaran dibuat otomatis dari Halaman Data Master (Baris 1: Nama Outlet, Baris 2: Alamat Lokasi).
                 </p>
               </div>
@@ -1290,8 +1305,8 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   
                   {/* PILIH OUTLET DARI DATA MASTER */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
-                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', display: 'block', marginBottom: '6px' }}>
+                  <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.borderStrong}` }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: T.info, display: 'block', marginBottom: '6px' }}>
                       🏢 Pilih Outlet Cabang (Data Master):
                     </label>
                     <select
@@ -1301,9 +1316,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
                         width: '100%',
                         padding: '10px 14px',
                         borderRadius: '8px',
-                        background: '#1e293b',
-                        border: '1px solid #475569',
-                        color: '#ffffff',
+                        background: T.inputBg,
+                        border: `1px solid ${T.borderStrong}`,
+                        color: T.txtPrimary,
                         fontSize: '0.88rem',
                         fontWeight: '700',
                         cursor: 'pointer'
@@ -1320,24 +1335,24 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   {/* FORM PRINTER & PAPER */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: T.txtLabel, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                         Nama Printer Terhubung
                       </label>
                       <input
                         type="text"
                         value={printSettings.printerName || 'EPSON TM-T82 Thermal Bluetooth POS'}
                         readOnly
-                        style={{ width: '100%', padding: '9px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#38bdf8', fontSize: '0.84rem', fontWeight: '700' }}
+                        style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.info, fontSize: '0.84rem', fontWeight: '700' }}
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '0.78rem', color: T.txtLabel, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                         Ukuran Kertas Thermal
                       </label>
                       <select
                         value={printSettings.paperWidth || '58mm'}
                         readOnly
-                        style={{ width: '100%', padding: '9px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.84rem', fontWeight: '700' }}
+                        style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700' }}
                       >
                         <option value="58mm">58mm (Portable Bluetooth POS)</option>
                         <option value="80mm">80mm (Standar Restoran Kasir)</option>
@@ -1346,12 +1361,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   </div>
 
                   {/* EDITABLE TEKS HEADER STRUK PEMBAYARAN */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <label style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '800', display: 'block' }}>
+                  <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <label style={{ fontSize: '0.82rem', color: T.info, fontWeight: '800', display: 'block' }}>
                       ✏️ Edit Teks Header Struk Pembayaran (Live Preview):
                     </label>
                     <div>
-                      <span style={{ fontSize: '0.76rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '0.76rem', color: T.txtLabel, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                         Baris 1: Nama Restoran / Outlet (Huruf Besar Semua):
                       </span>
                       <input
@@ -1359,11 +1374,11 @@ export default function SystemSettings({ masterData, setMasterData }) {
                         value={customHeaderLine1}
                         onChange={e => setCustomHeaderLine1(e.target.value)}
                         placeholder={headerLine1}
-                        style={{ width: '100%', padding: '9px 12px', background: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem', fontWeight: '800' }}
+                        style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '800' }}
                       />
                     </div>
                     <div>
-                      <span style={{ fontSize: '0.76rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '0.76rem', color: T.txtLabel, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                         Baris 2: Alamat Lokasi / Subtitle Struk (Title Case):
                       </span>
                       <input
@@ -1371,14 +1386,14 @@ export default function SystemSettings({ masterData, setMasterData }) {
                         value={customHeaderLine2}
                         onChange={e => setCustomHeaderLine2(e.target.value)}
                         placeholder={headerLine2}
-                        style={{ width: '100%', padding: '9px 12px', background: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#ffffff', fontSize: '0.85rem', fontWeight: '600' }}
+                        style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '600' }}
                       />
                     </div>
                   </div>
 
                   {/* EDITABLE TEKS FOOTER STRUK */}
-                  <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '800', display: 'block' }}>
+                  <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ fontSize: '0.82rem', color: T.info, fontWeight: '800', display: 'block' }}>
                       ✏️ Edit Teks Footer Struk Pembayaran (Live Preview):
                     </label>
                     <textarea
@@ -1386,7 +1401,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       value={customFooterText}
                       onChange={e => setCustomFooterText(e.target.value)}
                       placeholder="Terima Kasih Atas Kunjungan Anda!&#10;Selamat Menikmati Hidangan Kami."
-                      style={{ width: '100%', padding: '9px 12px', background: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#f8fafc', fontSize: '0.84rem', lineHeight: '1.5' }}
+                      style={{ width: '100%', padding: '9px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.84rem', lineHeight: '1.5' }}
                     />
                   </div>
 
@@ -1408,7 +1423,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     }}
                     style={{
                       padding: '12px 20px',
-                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      background: T.primaryBtn,
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '10px',
@@ -1418,7 +1433,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       boxShadow: '0 4px 14px rgba(37,99,235,0.3)',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'center',
+                      justifyContent: 'center',
                       gap: '8px'
                     }}
                   >
@@ -1519,525 +1534,327 @@ export default function SystemSettings({ masterData, setMasterData }) {
         {/* 3. KEAMANAN APK */}
         {activeSubTab === 'security' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Lock size={18} color="#818cf8" />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Lock size={18} color={T.info} />
               <span>Keamanan APK Mobile &amp; Kunci Enkripsi (APK Security)</span>
             </h3>
-            <div style={{ background: '#0f172a', padding: '14px', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '500px' }}>
+            <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '500px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                <span style={{ color: '#94a3b8' }}>API Secret Key APK:</span>
-                <strong style={{ color: '#34d399', fontFamily: 'monospace' }}>{apkSecurity.apiKey}</strong>
+                <span style={{ color: T.txtSecondary }}>API Secret Key APK:</span>
+                <strong style={{ color: T.success, fontFamily: 'monospace' }}>{apkSecurity.apiKey}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                <span style={{ color: '#94a3b8' }}>Masa Berlaku Session Token:</span>
-                <strong style={{ color: '#f8fafc' }}>{apkSecurity.tokenExpiryHours} Jam</strong>
+                <span style={{ color: T.txtSecondary }}>Masa Berlaku Session Token:</span>
+                <strong style={{ color: T.txtPrimary }}>{apkSecurity.tokenExpiryHours} Jam</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                <span style={{ color: '#94a3b8' }}>Enkripsi Database Lokal APK:</span>
-                <strong style={{ color: '#34d399' }}>✓ AES-256 Enabled</strong>
+                <span style={{ color: T.txtSecondary }}>Enkripsi Database Lokal APK:</span>
+                <strong style={{ color: T.success }}>✓ AES-256 Enabled</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                <span style={{ color: '#94a3b8' }}>Pemindaian Keamanan Terakhir:</span>
-                <strong style={{ color: '#818cf8' }}>{apkSecurity.lastSecurityScan}</strong>
+                <span style={{ color: T.txtSecondary }}>Pemindaian Keamanan Terakhir:</span>
+                <strong style={{ color: T.info }}>{apkSecurity.lastSecurityScan}</strong>
               </div>
             </div>
           </div>
         )}
 
-        {/* 4. HAK USER (USER ACCESS RIGHTS) */}
-        {activeSubTab === 'user_rights' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                  <Users size={18} color="#818cf8" />
-                  <span>Manajemen Hak User &amp; Otentikasi Akses Akun</span>
-                </h3>
-                <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px', margin: 0 }}>
-                  Kelola akun pengguna, username, password, outlet cabang, peran, dan status aktif.
-                </p>
-              </div>
+        {/* 4. HAK USER (USER ACCESS RIGHTS - TERPISAH WEB ADMIN & POS MOBILE) */}
+        {(activeSubTab === 'user_rights' || activeSubTab === 'user_rights_web' || activeSubTab === 'user_rights_mobile') && (() => {
+          const currentTab = activeSubTab === 'user_rights_mobile' ? 'mobile' : 'web';
+          const rawWebList = getWebAdminList();
+          const rawMobileList = getMobileList();
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={toggleAllPasswords}
-                  style={{
-                    padding: '6px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.76rem',
-                    fontWeight: '800',
-                    borderRadius: '10px',
-                    background: showAllPasswords ? 'rgba(239, 68, 68, 0.2)' : 'rgba(52, 211, 153, 0.15)',
-                    border: showAllPasswords ? '1px solid #ef4444' : '1px solid #34d399',
-                    color: showAllPasswords ? '#fca5a5' : '#34d399',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  title="Super Admin: Tampilkan atau sembunyikan seluruh password akun user sekaligus"
-                >
-                  {showAllPasswords ? <EyeOff size={15} /> : <Eye size={15} />}
-                  <span>{showAllPasswords ? '🙈 Sembunyikan Password' : '👁️ Tampilkan Semua Password'}</span>
-                </button>
+          const filteredWebList = rawWebList.filter(u => {
+            const q = userSearchQuery.trim().toLowerCase();
+            const matchQuery = !q || (u.name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q) || (u.role || '').toLowerCase().includes(q);
+            const matchOutlet = userFilterOutlet === 'Semua Outlet' || !userFilterOutlet || (u.outlet || 'Semua Outlet (Central)') === userFilterOutlet;
+            const matchRole = userFilterRole === 'Semua Peran' || !userFilterRole || (u.role || '').toLowerCase().includes(userFilterRole.toLowerCase());
+            const matchStatus = userFilterStatus === 'Semua Status' || !userFilterStatus || (u.status || 'Aktif') === userFilterStatus;
+            return matchQuery && matchOutlet && matchRole && matchStatus;
+          });
 
-                <button
-                  type="button"
-                  onClick={handleOpenAddUserModal}
-                  style={{
-                    padding: '6px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.78rem',
-                    fontWeight: '800',
-                    borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)'
-                  }}
-                  title="Tambah akun pengguna baru khusus untuk akses Web Based Admin"
-                >
-                  <Plus size={15} />
-                  <span>💻 + Tambah User Web Admin</span>
-                </button>
+          const filteredMobileList = rawMobileList.filter(u => {
+            const q = userSearchQuery.trim().toLowerCase();
+            const matchQuery = !q || (u.name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q) || (u.role || '').toLowerCase().includes(q);
+            const matchOutlet = userFilterOutlet === 'Semua Outlet' || !userFilterOutlet || (u.outlet || 'Semua Outlet (Central)') === userFilterOutlet;
+            const matchRole = userFilterRole === 'Semua Peran' || !userFilterRole || (u.role || '').toLowerCase().includes(userFilterRole.toLowerCase());
+            const matchStatus = userFilterStatus === 'Semua Status' || !userFilterStatus || (u.status || 'Aktif') === userFilterStatus;
+            return matchQuery && matchOutlet && matchRole && matchStatus;
+          });
 
-                <button
-                  type="button"
-                  onClick={handleOpenAddMobileModal}
-                  style={{
-                    padding: '6px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.78rem',
-                    fontWeight: '800',
-                    borderRadius: '10px',
-                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
-                  }}
-                  title="Tambah otentikasi akun pengguna baru khusus untuk akses Aplikasi Kasir (Mobile APK)"
-                >
-                  <Plus size={15} />
-                  <span>📱 + Tambah User Mobile Kasir</span>
-                </button>
-              </div>
-            </div>
+          const activeFilteredList = currentTab === 'web' ? filteredWebList : filteredMobileList;
+          const totalActiveItems = activeFilteredList.length;
 
-            {/* REAL-TIME FILTER BAR (CARI USER, FILTER OUTLET, FILTER ROLE, FILTER STATUS) */}
-            <div style={{
-              background: '#0f172a',
-              padding: '14px 16px',
-              borderRadius: '12px',
-              border: '1px solid #334155',
-              display: 'grid',
-              gridTemplateColumns: '1.4fr 1.1fr 1.1fr 1fr',
-              gap: '12px',
-              alignItems: 'center'
-            }}>
-              <div>
-                <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                  🔍 Cari Nama / Username / Peran:
-                </label>
-                <input
-                  type="text"
-                  value={userSearchQuery}
-                  onChange={e => { setUserSearchQuery(e.target.value); setCurrentPage(1); }}
-                  placeholder="Ketik pencarian user..."
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid #475569', color: '#ffffff', fontSize: '0.80rem', fontWeight: '700' }}
-                />
-              </div>
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* HEADER ACTIONS HAK USER POS MOBILE */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.success, display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                    <Smartphone size={18} />
+                    <span>📱 Hak User POS Mobile</span>
+                  </h3>
+                  <p style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px', margin: 0 }}>
+                    Kelola otentikasi akun pengguna Aplikasi Kasir Mobile (Akses Transaksi, Shift, Void &amp; Laporan POS Mobile)
+                  </p>
+                </div>
 
-              <div>
-                <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                  🏢 Filter Outlet Cabang:
-                </label>
-                <select
-                  value={userFilterOutlet}
-                  onChange={e => { setUserFilterOutlet(e.target.value); setCurrentPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid #475569', color: '#ffffff', fontSize: '0.80rem', fontWeight: '700' }}
-                >
-                  <option value="Semua Outlet">Semua Outlet Cabang</option>
-                  <option value="Semua Outlet (Central)">Semua Outlet (Central)</option>
-                  {(masterData?.outlets || []).map(o => (
-                    <option key={o.id} value={o.name}>{o.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                  👑 Filter Peran (Role):
-                </label>
-                <select
-                  value={userFilterRole}
-                  onChange={e => { setUserFilterRole(e.target.value); setCurrentPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid #475569', color: '#ffffff', fontSize: '0.80rem', fontWeight: '700' }}
-                >
-                  <option value="Semua Peran">Semua Peran / Role</option>
-                  {allFilterRoles.map((rName, idx) => (
-                    <option key={idx} value={rName}>{rName}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                  🟢 Filter Status Akun:
-                </label>
-<select
-                  value={userFilterStatus}
-                  onChange={e => { setUserFilterStatus(e.target.value); setCurrentPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: '#1e293b', border: '1px solid #475569', color: '#ffffff', fontSize: '0.80rem', fontWeight: '700' }}
-                >
-                  <option value="Semua Status">Semua Status</option>
-                  <option value="Aktif">🟢 Aktif</option>
-                  <option value="Inaktif">🔴 Inaktif</option>
-                </select>
-              </div>
-            </div>
-
-            {/* ========================================================================= */}
-            {/* TABEL 1: 💻 MANAJEMEN AKUN PENGGUNA WEB BASED ADMIN */}
-            {/* ========================================================================= */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8' }}>
-                    💻 1. Manajemen Akun Pengguna Web Based Admin
-                  </span>
-                  <span style={{ fontSize: '0.70rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                    Akses Dashboard, Data Master, Akuntansi & Laporan Web
-                  </span>
+                  <button
+                    type="button"
+                    onClick={toggleAllPasswords}
+                    style={{
+                      padding: '6px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.76rem',
+                      fontWeight: '800',
+                      borderRadius: '10px',
+                      background: showAllPasswords ? T.dangerBg : T.successBg,
+                      border: showAllPasswords ? `1px solid ${T.danger}` : `1px solid ${T.success}`,
+                      color: showAllPasswords ? T.danger : T.success,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    title="Super Admin: Tampilkan atau sembunyikan seluruh password akun user sekaligus"
+                  >
+                    {showAllPasswords ? <EyeOff size={15} /> : <Eye size={15} />}
+                    <span>{showAllPasswords ? '🙈 Sembunyikan Password' : '👁️ Tampilkan Semua Password'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenAddMobileModal}
+                    style={{
+                      padding: '6px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      borderRadius: '10px',
+                      background: T.primaryBtn,
+                      color: '#ffffff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
+                    }}
+                    title="Tambah otentikasi akun pengguna baru khusus untuk akses Aplikasi Kasir (Mobile APK)"
+                  >
+                    <Plus size={15} />
+                    <span>📱 + Tambah User Mobile Kasir</span>
+                  </button>
                 </div>
               </div>
 
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
-                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
-                  <thead>
-                    <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                      <th style={{ padding: '8px 8px', width: '40%' }}>Nama Pengguna (Klik Detail)</th>
-                      <th style={{ padding: '8px 8px', width: '35%' }}>Outlet Cabang</th>
-                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Status</th>
-                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '13%' }}>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const rawList = getWebAdminList();
-                      const filteredWebList = rawList.filter(u => {
-                        const q = userSearchQuery.trim().toLowerCase();
-                        const matchQuery = !q || (u.name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q) || (u.role || '').toLowerCase().includes(q);
-                        
-                        const matchOutlet = userFilterOutlet === 'Semua Outlet' || !userFilterOutlet || (u.outlet || 'Semua Outlet (Central)') === userFilterOutlet;
-                        const matchRole = userFilterRole === 'Semua Peran' || !userFilterRole || (u.role || '').toLowerCase().includes(userFilterRole.toLowerCase());
-                        const matchStatus = userFilterStatus === 'Semua Status' || !userFilterStatus || (u.status || 'Aktif') === userFilterStatus;
+              {/* REAL-TIME FILTER BAR (CARI USER, FILTER OUTLET, FILTER ROLE, FILTER STATUS) */}
+              <div style={{
+                background: T.cardBg2,
+                padding: '14px 16px',
+                borderRadius: '12px',
+                border: `1px solid ${T.borderStrong}`,
+                display: 'grid',
+                gridTemplateColumns: '1.4fr 1.1fr 1.1fr 1fr',
+                gap: '12px',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                    🔍 Cari Nama / Username / Peran:
+                  </label>
+                  <input
+                    type="text"
+                    value={userSearchQuery}
+                    onChange={e => { setUserSearchQuery(e.target.value); setCurrentPage(1); }}
+                    placeholder="Ketik pencarian user..."
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+                  />
+                </div>
 
-                        return matchQuery && matchOutlet && matchRole && matchStatus;
-                      });
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                    🏢 Filter Outlet Cabang:
+                  </label>
+                  <select
+                    value={userFilterOutlet}
+                    onChange={e => { setUserFilterOutlet(e.target.value); setCurrentPage(1); }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+                  >
+                    <option value="Semua Outlet">Semua Outlet Cabang</option>
+                    <option value="Semua Outlet (Central)">Semua Outlet (Central)</option>
+                    {(masterData?.outlets || []).map(o => (
+                      <option key={o.id} value={o.name}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-                      if (filteredWebList.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                              🔍 Tidak ada akun Web Admin yang sesuai dengan filter pencarian.
-                            </td>
-                          </tr>
-                        );
-                      }
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                    👑 Filter Peran (Role):
+                  </label>
+                  <select
+                    value={userFilterRole}
+                    onChange={e => { setUserFilterRole(e.target.value); setCurrentPage(1); }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+                  >
+                    <option value="Semua Peran">Semua Peran / Role</option>
+                    {allFilterRoles.map((rName, idx) => (
+                      <option key={idx} value={rName}>{rName}</option>
+                    ))}
+                  </select>
+                </div>
 
-                      return filteredWebList.map(u => {
-                        let roleBadgeColor = '#818cf8';
-                        let roleBgColor = 'rgba(99,102,241,0.15)';
-                        if (u.role === 'Super Admin') { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
-                        else if (u.role === 'Owner') { roleBadgeColor = '#fbbf24'; roleBgColor = 'rgba(251,191,36,0.2)'; }
-                        else if (u.role === 'Admin') { roleBadgeColor = '#38bdf8'; roleBgColor = 'rgba(56,189,248,0.2)'; }
-                        else if (u.role === 'Kasir') { roleBadgeColor = '#34d399'; roleBgColor = 'rgba(52,211,153,0.2)'; }
-
-                        return (
-                          <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                            <td style={{ padding: '8px 8px', fontWeight: '800', color: '#f8fafc' }}>
-                              <div
-                                onClick={() => setPreviewUserAccount(u)}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(56,189,248,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.2)', transition: 'all 0.15s ease' }}
-                                className="hover:border-sky-400 hover:bg-sky-950/40"
-                                title="Klik untuk Pratinjau Detail Akses User Ini"
-                              >
-                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
-                                  {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '900' }}>{u.name}</span>
-                                  <span style={{ fontSize: '0.66rem', color: '#38bdf8', fontWeight: '700' }}>🔍 Klik Preview Detail</span>
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '8px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <Building2 size={12} color="#94a3b8" />
-                                <span>{u.outlet || 'Semua Outlet (Central)'}</span>
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleUserStatus(u.id)}
-                                style={{
-                                  padding: '3px 8px',
-                                  borderRadius: '16px',
-                                  fontSize: '0.70rem',
-                                  fontWeight: '900',
-                                  background: u.status === 'Aktif' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-                                  color: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                  border: '1px solid',
-                                  borderColor: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
-                              </button>
-                            </td>
-                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditUserModal(u)}
-                                  style={{
-                                    padding: '4px 7px',
-                                    background: 'rgba(56, 189, 248, 0.15)',
-                                    color: '#38bdf8',
-                                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                                    borderRadius: '6px',
-                                    fontSize: '0.70rem',
-                                    fontWeight: '800',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px'
-                                  }}
-                                  title="Edit Akses User Ini"
-                                >
-                                  <Edit3 size={12} />
-                                  <span>Edit</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteUser(u.id)}
-                                  style={{
-                                    padding: '4px 7px',
-                                    background: 'rgba(244, 63, 94, 0.15)',
-                                    color: '#fb7185',
-                                    border: '1px solid rgba(244, 63, 94, 0.3)',
-                                    borderRadius: '6px',
-                                    fontSize: '0.70rem',
-                                    fontWeight: '800',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px'
-                                  }}
-                                  title="Hapus Akses User Ini"
-                                >
-                                  <Trash2 size={12} />
-                                  <span>Hapus</span>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* ========================================================================= */}
-            {/* TABEL 2: 📱 OTENTIKASI AKSES AKUN POS MOBILE APK */}
-            {/* ========================================================================= */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.92rem', fontWeight: '900', color: '#34d399' }}>
-                    📱 2. Otentikasi Akses Akun POS Mobile APK (Tablet POS)
-                  </span>
-                  <span style={{ fontSize: '0.70rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '6px', fontWeight: '800', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                    Akses Transaksi Kasir, Void, Diskon, Shift & Laporan Mobile
-                  </span>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                    🟢 Filter Status Akun:
+                  </label>
+                  <select
+                    value={userFilterStatus}
+                    onChange={e => { setUserFilterStatus(e.target.value); setCurrentPage(1); }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+                  >
+                    <option value="Semua Status">Semua Status</option>
+                    <option value="Aktif">🟢 Aktif</option>
+                    <option value="Inaktif">🔴 Inaktif</option>
+                  </select>
                 </div>
               </div>
 
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', overflowX: 'auto', background: '#0f172a', width: '100%' }}>
-                <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
-                  <thead>
-                    <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                      <th style={{ padding: '8px 8px', width: '38%' }}>Nama Pengguna (Klik Detail)</th>
-                      <th style={{ padding: '8px 8px', width: '30%' }}>Outlet Cabang</th>
-                      <th style={{ padding: '8px 8px', width: '17%' }}>Peran Mobile (Role)</th>
-                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '8%' }}>Status</th>
-                      <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const filteredMobileList = getMobileList().filter(u => {
-                        const q = userSearchQuery.trim().toLowerCase();
-                        const matchQuery = !q || (u.name || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q) || (u.role || '').toLowerCase().includes(q);
-                        
-                        const matchOutlet = userFilterOutlet === 'Semua Outlet' || !userFilterOutlet || (u.outlet || 'Semua Outlet (Central)') === userFilterOutlet;
-                        const matchRole = userFilterRole === 'Semua Peran' || !userFilterRole || (u.role || '').toLowerCase().includes(userFilterRole.toLowerCase());
-                        const matchStatus = userFilterStatus === 'Semua Status' || !userFilterStatus || (u.status || 'Aktif') === userFilterStatus;
+              {/* TABEL 📱 HAK USER POS MOBILE */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '12px', overflowX: 'auto', background: T.cardBg2, width: '100%' }}>
+                  <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
+                    <thead>
+                      <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtLabel, fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                        <th style={{ padding: '8px 8px', width: '38%' }}>Nama Pengguna (Klik Detail)</th>
+                        <th style={{ padding: '8px 8px', width: '30%' }}>Outlet Cabang</th>
+                        <th style={{ padding: '8px 8px', width: '17%' }}>Peran Mobile (Role)</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center', width: '8%' }}>Status</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center', width: '12%' }}>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredMobileList.length === 0 ? (
+                        <tr>
+                          <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: T.txtSecondary }}>
+                            Belum ada akun pengguna Mobile POS.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredMobileList.map(u => {
+                          let roleBadgeColor = T.success;
+                          let roleBgColor = 'rgba(52,211,153,0.2)';
+                          if (u.role?.includes('Super Admin') || u.role?.includes('Owner')) { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
+                          else if (u.role?.includes('Kepala Cabang') || u.role?.includes('SPV')) { roleBadgeColor = T.accentGold; roleBgColor = T.accentGoldBg; }
+                          else if (u.role?.includes('Logistik')) { roleBadgeColor = T.info; roleBgColor = T.infoBg; }
 
-                        return matchQuery && matchOutlet && matchRole && matchStatus;
-                      });
-
-                      if (filteredMobileList.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>
-                              🔍 Tidak ada otentikasi akun Mobile APK yang sesuai dengan filter pencarian.
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return filteredMobileList.map(u => {
-                        let roleBadgeColor = '#34d399';
-                        let roleBgColor = 'rgba(52,211,153,0.15)';
-                        if (u.role === 'Super Admin') { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
-                        else if (u.role === 'Owner') { roleBadgeColor = '#fbbf24'; roleBgColor = 'rgba(251,191,36,0.2)'; }
-                        else if (u.role === 'Kepala Cabang' || u.role === 'SPV') { roleBadgeColor = '#fb923c'; roleBgColor = 'rgba(251,146,60,0.2)'; }
-                        else if (u.role === 'Logistik') { roleBadgeColor = '#a78bfa'; roleBgColor = 'rgba(167,139,250,0.2)'; }
-
-                        return (
-                          <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                            <td style={{ padding: '8px 8px', fontWeight: '800', color: '#f8fafc' }}>
-                              <div
-                                onClick={() => setPreviewUserAccount(u)}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'rgba(52,211,153,0.08)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(52,211,153,0.2)', transition: 'all 0.15s ease' }}
-                                className="hover:border-emerald-400 hover:bg-emerald-950/40"
-                                title="Klik untuk Pratinjau Detail Otentikasi User Ini"
-                              >
-                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
-                                  {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                          return (
+                            <tr key={u.id || u.username} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                              <td style={{ padding: '8px 8px', fontWeight: '800', color: T.txtPrimary }}>
+                                <div
+                                  onClick={() => setPreviewUserAccount(u)}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: T.infoBg, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.infoBorder}`, transition: 'all 0.15s ease' }}
+                                  className="hover:border-sky-400 hover:bg-sky-950/40"
+                                  title="Klik untuk Pratinjau Detail Akses User Ini"
+                                >
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>
+                                    {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '900' }}>{u.name}</span>
+                                    <span style={{ fontSize: '0.66rem', color: T.info, fontWeight: '700' }}>🔍 Klik Preview Detail</span>
+                                  </div>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontSize: '0.78rem', color: '#ffffff', fontWeight: '900' }}>{u.name}</span>
-                                  <span style={{ fontSize: '0.66rem', color: '#34d399', fontWeight: '700' }}>🔍 Klik Preview Detail</span>
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '8px 8px', color: '#cbd5e1', fontSize: '0.72rem' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <Building2 size={12} color="#94a3b8" />
-                                <span>{u.outlet || 'Semua Outlet (Central)'}</span>
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 8px' }}>
-                              <span style={{
-                                padding: '2px 7px',
-                                borderRadius: '6px',
-                                fontSize: '0.70rem',
-                                fontWeight: '900',
-                                background: roleBgColor,
-                                color: roleBadgeColor,
-                                border: `1px solid ${roleBadgeColor}`
-                              }}>
-                                {u.role}
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleMobileStatus(u.id)}
-                                style={{
-                                  padding: '3px 8px',
-                                  borderRadius: '16px',
-                                  fontSize: '0.70rem',
-                                  fontWeight: '900',
-                                  background: u.status === 'Aktif' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-                                  color: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                  border: '1px solid',
-                                  borderColor: u.status === 'Aktif' ? '#34d399' : '#fb7185',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
-                              </button>
-                            </td>
-                            <td style={{ padding: '8px 4px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                              </td>
+                              <td style={{ padding: '8px 8px', color: T.txtSecondary, fontSize: '0.72rem' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: T.hoverBg, padding: '3px 8px', borderRadius: '5px', border: `1px solid ${T.border}` }}>
+                                  <Building2 size={12} color={T.txtMuted} />
+                                  <span>{u.outlet || 'Semua Outlet (Central)'}</span>
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 8px' }}>
+                                <span style={{ fontSize: '0.70rem', fontWeight: '800', color: roleBadgeColor, background: roleBgColor, border: `1px solid ${roleBadgeColor}44`, padding: '2px 8px', borderRadius: '6px' }}>
+                                  {u.role || 'Kasir'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 4px', textAlign: 'center' }}>
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenEditMobileModal(u)}
+                                  onClick={() => handleToggleMobileStatus(u.id)}
                                   style={{
-                                    padding: '4px 7px',
-                                    background: 'rgba(56, 189, 248, 0.15)',
-                                    color: '#38bdf8',
-                                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                                    borderRadius: '6px',
+                                    padding: '3px 8px',
+                                    borderRadius: '16px',
                                     fontSize: '0.70rem',
-                                    fontWeight: '800',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px'
+                                    fontWeight: '900',
+                                    background: u.status === 'Aktif' ? T.successBg : T.dangerBg,
+                                    color: u.status === 'Aktif' ? T.success : T.danger,
+                                    border: '1px solid',
+                                    borderColor: u.status === 'Aktif' ? T.success : T.danger,
+                                    cursor: 'pointer'
                                   }}
-                                  title="Edit Otentikasi User Ini"
                                 >
-                                  <Edit3 size={12} />
-                                  <span>Edit</span>
+                                  {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteMobile(u.id)}
-                                  style={{
-                                    padding: '4px 7px',
-                                    background: 'rgba(244, 63, 94, 0.15)',
-                                    color: '#fb7185',
-                                    border: '1px solid rgba(244, 63, 94, 0.3)',
-                                    borderRadius: '6px',
-                                    fontSize: '0.70rem',
-                                    fontWeight: '800',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '3px'
-                                  }}
-                                  title="Hapus Otentikasi User Ini"
-                                >
-                                  <Trash2 size={12} />
-                                  <span>Hapus</span>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
+                              </td>
+                              <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditMobileModal(u)}
+                                    style={{
+                                      padding: '4px 7px',
+                                      background: T.infoBg,
+                                      color: T.info,
+                                      border: `1px solid ${T.infoBorder}`,
+                                      borderRadius: '6px',
+                                      fontSize: '0.70rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px'
+                                    }}
+                                    title="Edit Akses Mobile User Ini"
+                                  >
+                                    <Edit3 size={12} />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMobile(u)}
+                                    style={{
+                                      padding: '4px 7px',
+                                      background: T.dangerBg,
+                                      color: T.danger,
+                                      border: `1px solid ${T.dangerBorder}`,
+                                      borderRadius: '6px',
+                                      fontSize: '0.70rem',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px'
+                                    }}
+                                    title="Hapus Akses Mobile User Ini"
+                                  >
+                                    <Trash2 size={12} />
+                                    <span>Hapus</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-
-          {/* PAGINATION CONTROLS */}
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={Math.ceil((getWebAdminList().length + getMobileList().length) / pageSize) || 1}
-            pageSize={pageSize}
-            totalItems={getWebAdminList().length + getMobileList().length}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-          />
-        </div>
-      )}
-      </div>
+          );
+        })()}
 
       {/* MODAL TAMBAH / EDIT USER BARU DENGAN FIELD PENGATURAN PASSWORD MOBILE APK */}
       {showAddUserModal && (
@@ -2047,17 +1864,17 @@ export default function SystemSettings({ masterData, setMasterData }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '580px', padding: '24px', background: '#1e293b', border: '1px solid #334155', borderRadius: '20px', maxHeight: '90vh', overflowY: 'auto'
+            width: '100%', maxWidth: '580px', padding: '24px', background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '20px', maxHeight: '90vh', overflowY: 'auto'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={22} color="#818cf8" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '14px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={22} color={T.info} />
                 <span>{editingUserId ? '✏️ Edit Hak User Pengguna' : '➕ Tambah User Pengguna Baru'}</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setShowAddUserModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}
               >
                 <X size={20} />
               </button>
@@ -2067,7 +1884,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
               
               {/* NAMA PENGGUNA */}
               <div>
-                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>
                   Nama Lengkap Pengguna:
                 </label>
                 <input
@@ -2076,19 +1893,19 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   placeholder="Contoh: Budi Santoso"
                   value={newUserName}
                   onChange={e => setNewUserName(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem' }}
                 />
               </div>
 
               {/* OUTLET CABANG */}
               <div>
-                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>
                   Outlet Cabang:
                 </label>
                 <select
                   value={newUserOutlet}
                   onChange={e => setNewUserOutlet(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}
                 >
                   <option value="Semua Outlet (Central)">Semua Outlet (Central / Pusat)</option>
                   {(masterData.outlets || []).map((o, idx) => (
@@ -2100,7 +1917,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
               {/* USERNAME & PASSWORD WEB ADMIN */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>
                     Username Akses Web:
                   </label>
                   <input
@@ -2109,12 +1926,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
                     placeholder="budi_kasir"
                     value={newUserUsername}
                     onChange={e => setNewUserUsername(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.88rem' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.info, fontFamily: 'monospace', fontSize: '0.88rem' }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>
                     Password Web Admin:
                   </label>
                   <div style={{ position: 'relative' }}>
@@ -2124,12 +1941,12 @@ export default function SystemSettings({ masterData, setMasterData }) {
                       placeholder="123456"
                       value={newUserPassword}
                       onChange={e => setNewUserPassword(e.target.value)}
-                      style={{ width: '100%', padding: '10px 38px 10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#34d399', fontFamily: 'monospace', fontSize: '0.88rem' }}
+                      style={{ width: '100%', padding: '10px 38px 10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.success, fontFamily: 'monospace', fontSize: '0.88rem' }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowModalWebPasswordEye(!showModalWebPasswordEye)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}
                       title={showModalWebPasswordEye ? 'Sembunyikan Password' : 'Tampilkan Password'}
                     >
                       {showModalWebPasswordEye ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -2141,13 +1958,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
               {/* PERAN & STATUS */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>
                     Peran Hak Akses (Role):
                   </label>
                   <select
                     value={newUserRole}
                     onChange={e => setNewUserRole(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}
                   >
                     {webAdminRoles.map((rName, idx) => (
                       <option key={idx} value={rName}>{rName}</option>
@@ -2156,13 +1973,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>
                     Status Akun:
                   </label>
                   <select
                     value={newUserStatus}
                     onChange={e => setNewUserStatus(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}
                   >
                     <option value="Aktif">🟢 Aktif</option>
                     <option value="Inaktif">🔴 Inaktif</option>
@@ -2170,97 +1987,13 @@ export default function SystemSettings({ masterData, setMasterData }) {
                 </div>
               </div>
 
-              {/* SECTION KHUSUS HAK USER & PASSWORD APLIKASI MOBILE APK */}
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '14px', border: '1px solid #334155', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', borderBottom: '1px solid #1e293b', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📱 Pengaturan Hak Akses &amp; Password Mobile APK (Tablet POS):
-                </div>
 
-                {/* HAK LOGIN & PASSWORD LOGIN MOBILE APK */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center' }}>
-                  <div>
-                    <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={newCanLoginMobile}
-                        onChange={e => setNewCanLoginMobile(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: '#38bdf8' }}
-                      />
-                      <span>Izinkan Login Mobile APK</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.76rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
-                      Password Login Mobile APK:
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showModalMobileLoginPasswordEye ? 'text' : 'password'}
-                        placeholder="123"
-                        value={newMobileLoginPassword}
-                        onChange={e => setNewMobileLoginPassword(e.target.value)}
-                        disabled={!newCanLoginMobile}
-                        style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '8px', border: '1px solid #334155', background: '#1e293b', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.85rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowModalMobileLoginPasswordEye(!showModalMobileLoginPasswordEye)}
-                        disabled={!newCanLoginMobile}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: newCanLoginMobile ? 'pointer' : 'default', opacity: newCanLoginMobile ? 1 : 0.4 }}
-                        title={showModalMobileLoginPasswordEye ? 'Sembunyikan Password' : 'Tampilkan Password'}
-                      >
-                        {showModalMobileLoginPasswordEye ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* HAK AKSES & PASSWORD LAPORAN MOBILE APK */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center', borderTop: '1px dashed #1e293b', paddingTop: '10px' }}>
-                  <div>
-                    <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#facc15', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={newCanAccessMobileReports}
-                        onChange={e => setNewCanAccessMobileReports(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: '#facc15' }}
-                      />
-                      <span>Hak Akses Menu Laporan Mobile APK</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.76rem', color: '#facc15', fontWeight: '800', display: 'block', marginBottom: '4px' }}>
-                      🔒 Password Laporan Mobile APK:
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type={showModalMobileReportPasswordEye ? 'text' : 'password'}
-                        placeholder="8888"
-                        value={newMobileReportPassword}
-                        onChange={e => setNewMobileReportPassword(e.target.value)}
-                        disabled={!newCanAccessMobileReports}
-                        style={{ width: '100%', padding: '8px 36px 8px 12px', borderRadius: '8px', border: '1px solid #facc15', background: '#1e293b', color: '#facc15', fontFamily: 'monospace', fontWeight: '800', fontSize: '0.88rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowModalMobileReportPasswordEye(!showModalMobileReportPasswordEye)}
-                        disabled={!newCanAccessMobileReports}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: newCanAccessMobileReports ? 'pointer' : 'default', opacity: newCanAccessMobileReports ? 1 : 0.4 }}
-                        title={showModalMobileReportPasswordEye ? 'Sembunyikan Password' : 'Tampilkan Password'}
-                      >
-                        {showModalMobileReportPasswordEye ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
                 <button
                   type="button"
                   onClick={() => setShowAddUserModal(false)}
-                  style={{ padding: '10px 18px', background: '#334155', border: 'none', color: '#cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
+                  style={{ padding: '10px 18px', background: T.cardBg2, border: `1px solid ${T.borderStrong}`, color: T.txtSecondary, borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
                 >
                   Batal
                 </button>
@@ -2285,16 +2018,16 @@ export default function SystemSettings({ masterData, setMasterData }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '520px', padding: '24px', background: '#1e293b',
-            border: '1px solid rgba(52,211,153,0.3)', borderRadius: '20px', maxHeight: '90vh', overflowY: 'auto'
+            width: '100%', maxWidth: '520px', padding: '24px', background: T.cardBg,
+            border: `1px solid ${T.successBorder}`, borderRadius: '20px', maxHeight: '90vh', overflowY: 'auto'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '14px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.3rem' }}>📱</span>
                 <span>{editingMobileId ? '✏️ Edit Akun POS Mobile APK' : '➕ Tambah Akun POS Mobile APK'}</span>
               </h3>
               <button type="button" onClick={() => setShowAddMobileModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <X size={20} />
               </button>
             </div>
@@ -2303,17 +2036,17 @@ export default function SystemSettings({ masterData, setMasterData }) {
 
               {/* NAMA */}
               <div>
-                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>Nama Lengkap Pengguna:</label>
+                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>Nama Lengkap Pengguna:</label>
                 <input type="text" required placeholder="Contoh: Budi Kasir"
                   value={newMobileName} onChange={e => setNewMobileName(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', boxSizing: 'border-box' }} />
               </div>
 
               {/* OUTLET */}
               <div>
-                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>Outlet Cabang:</label>
+                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>Outlet Cabang:</label>
                 <select value={newMobileOutlet} onChange={e => setNewMobileOutlet(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}>
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}>
                   <option value="Semua Outlet (Central)">Semua Outlet (Central / Pusat)</option>
                   {(masterData.outlets || []).map((o, idx) => (
                     <option key={idx} value={o.name}>{o.name}</option>
@@ -2324,34 +2057,34 @@ export default function SystemSettings({ masterData, setMasterData }) {
               {/* USERNAME & PASSWORD LOGIN MOBILE */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>Username Mobile:</label>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>Username Mobile:</label>
                   <input type="text" required placeholder="budi_kasir"
                     value={newMobileUsername} onChange={e => setNewMobileUsername(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.info, fontFamily: 'monospace', fontSize: '0.88rem', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>Password Login Mobile:</label>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>Password Login Mobile:</label>
                   <input type="text" required placeholder="123"
                     value={newMobilePwd} onChange={e => setNewMobilePwd(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(52,211,153,0.4)', background: '#0f172a', color: '#34d399', fontFamily: 'monospace', fontWeight: '800', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.success}`, background: T.inputBg, color: T.success, fontFamily: 'monospace', fontWeight: '800', fontSize: '0.88rem', boxSizing: 'border-box' }} />
                 </div>
               </div>
 
               {/* PERAN & STATUS */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>Peran Mobile (Role):</label>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>Peran Mobile (Role):</label>
                   <select value={newMobileRole2} onChange={e => setNewMobileRole2(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}>
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}>
                     {mobileRoles.map((rName, idx) => (
                       <option key={idx} value={rName}>{rName}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'block', marginBottom: '6px' }}>Status Akun:</label>
+                  <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>Status Akun:</label>
                   <select value={newMobileStatus2} onChange={e => setNewMobileStatus2(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155', background: '#0f172a', color: '#ffffff', fontSize: '0.88rem', cursor: 'pointer' }}>
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}>
                     <option value="Aktif">🟢 Aktif</option>
                     <option value="Inaktif">🔴 Inaktif</option>
                   </select>
@@ -2359,29 +2092,29 @@ export default function SystemSettings({ masterData, setMasterData }) {
               </div>
 
               {/* PASSWORD LAPORAN */}
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid rgba(250,204,21,0.2)' }}>
-                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', cursor: 'pointer' }}>
+              <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '12px', border: `1px solid ${T.warningBorder}` }}>
+                <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={newMobileCanReport} onChange={e => setNewMobileCanReport(e.target.checked)}
-                    style={{ width: '16px', height: '16px', accentColor: '#facc15' }} />
+                    style={{ width: '16px', height: '16px', accentColor: T.accentGold }} />
                   <span>🔒 Boleh Akses Laporan Mobile APK</span>
                 </label>
                 {newMobileCanReport && (
                   <div>
-                    <label style={{ fontSize: '0.76rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Password Laporan Mobile:</label>
+                    <label style={{ fontSize: '0.76rem', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>Password Laporan Mobile:</label>
                     <input type="text" placeholder="8888"
                       value={newMobileReportPwd2} onChange={e => setNewMobileReportPwd2(e.target.value)}
-                      style={{ width: '100%', padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(250,204,21,0.4)', background: '#1e293b', color: '#facc15', fontFamily: 'monospace', fontWeight: '800', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '8px 14px', borderRadius: '8px', border: `1px solid ${T.warning}`, background: T.inputBg, color: T.warning, fontFamily: 'monospace', fontWeight: '800', fontSize: '0.88rem', boxSizing: 'border-box' }} />
                   </div>
                 )}
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '4px' }}>
                 <button type="button" onClick={() => setShowAddMobileModal(false)}
-                  style={{ padding: '10px 18px', background: '#334155', border: 'none', color: '#cbd5e1', borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}>
+                  style={{ padding: '10px 18px', background: T.cardBg2, border: `1px solid ${T.borderStrong}`, color: T.txtSecondary, borderRadius: '10px', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}>
                   Batal
                 </button>
                 <button type="submit"
-                  style={{ padding: '10px 22px', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', background: 'linear-gradient(135deg,#059669,#047857)', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                  style={{ padding: '10px 22px', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', background: T.primaryBtn, border: 'none', color: '#fff', cursor: 'pointer' }}>
                   {editingMobileId ? 'Simpan Perubahan' : '➕ Tambahkan Akun Mobile'}
                 </button>
               </div>
@@ -2394,24 +2127,24 @@ export default function SystemSettings({ masterData, setMasterData }) {
       {/* ========================================================================= */}
       {previewUserAccount && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px', background: '#1e293b', borderRadius: '20px', border: '1px solid #334155', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px', background: T.cardBg, borderRadius: '20px', border: `1px solid ${T.borderStrong}`, boxShadow: T.shadowLg }}>
             
             {/* HEADER */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'rgba(56,189,248,0.2)', border: '2px solid #38bdf8', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.2rem' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: T.infoBg, border: `2px solid ${T.info}`, color: T.info, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '1.2rem' }}>
                   {previewUserAccount.name ? previewUserAccount.name.charAt(0).toUpperCase() : 'U'}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                     {previewUserAccount.name}
                   </h3>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  <span style={{ fontSize: '0.74rem', color: T.txtSecondary }}>
                     📍 {previewUserAccount.outlet || 'Semua Outlet (Central)'}
                   </span>
                 </div>
               </div>
-              <button onClick={() => setPreviewUserAccount(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#ffffff', padding: '6px', borderRadius: '8px', cursor: 'pointer' }}>
+              <button onClick={() => setPreviewUserAccount(null)} style={{ background: T.hoverBg, border: 'none', color: T.txtPrimary, padding: '6px', borderRadius: '8px', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
@@ -2420,64 +2153,64 @@ export default function SystemSettings({ masterData, setMasterData }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.82rem' }}>
               
               {/* STATUS AKUN */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '10px 14px', borderRadius: '10px', border: '1px solid #334155' }}>
-                <span style={{ color: '#cbd5e1', fontWeight: '700' }}>Status Operasional:</span>
-                <span style={{ fontWeight: '900', color: previewUserAccount.status === 'Aktif' ? '#34d399' : '#fb7185' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.cardBg2, padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
+                <span style={{ color: T.txtLabel, fontWeight: '700' }}>Status Operasional:</span>
+                <span style={{ fontWeight: '900', color: previewUserAccount.status === 'Aktif' ? T.success : T.danger }}>
                   {previewUserAccount.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
                 </span>
               </div>
 
               {/* SECTION 1: WEB ADMIN ACCESS */}
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ fontWeight: '900', color: '#38bdf8', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '14px', border: `1px solid ${T.infoBorder}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontWeight: '900', color: T.info, fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   💻 Detail Akun Web Based Admin
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Username Web:</span>
-                  <span style={{ fontWeight: '800', color: '#ffffff', fontFamily: 'monospace' }}>@{previewUserAccount.username || '-'}</span>
+                  <span style={{ color: T.txtSecondary }}>Username Web:</span>
+                  <span style={{ fontWeight: '800', color: T.txtPrimary, fontFamily: 'monospace' }}>@{previewUserAccount.username || '-'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Password Web:</span>
-                  <span style={{ fontWeight: '800', color: '#34d399', fontFamily: 'monospace' }}>{previewUserAccount.password || '••••'}</span>
+                  <span style={{ color: T.txtSecondary }}>Password Web:</span>
+                  <span style={{ fontWeight: '800', color: T.success, fontFamily: 'monospace' }}>{previewUserAccount.password || '••••'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Peran Web (Role):</span>
-                  <span style={{ fontWeight: '900', color: '#38bdf8' }}>{previewUserAccount.role || 'Kasir'}</span>
+                  <span style={{ color: T.txtSecondary }}>Peran Web (Role):</span>
+                  <span style={{ fontWeight: '900', color: T.info }}>{previewUserAccount.role || 'Kasir'}</span>
                 </div>
               </div>
 
               {/* SECTION 2: MOBILE APK ACCESS */}
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(52,211,153,0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '14px', border: `1px solid ${T.successBorder}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontWeight: '900', color: T.success, fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   📱 Detail Otentikasi POS Mobile APK (Tablet)
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Akses Login Mobile:</span>
-                  <span style={{ fontWeight: '800', color: previewUserAccount.canLoginMobile !== false ? '#34d399' : '#fb7185' }}>
+                  <span style={{ color: T.txtSecondary }}>Akses Login Mobile:</span>
+                  <span style={{ fontWeight: '800', color: previewUserAccount.canLoginMobile !== false ? T.success : T.danger }}>
                     {previewUserAccount.canLoginMobile !== false ? '📱 ✅ Diberikan' : '📱 ❌ Dibatasi'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Password PIN Mobile:</span>
-                  <span style={{ fontWeight: '800', color: '#38bdf8', fontFamily: 'monospace' }}>
+                  <span style={{ color: T.txtSecondary }}>Password PIN Mobile:</span>
+                  <span style={{ fontWeight: '800', color: T.info, fontFamily: 'monospace' }}>
                     {previewUserAccount.mobileLoginPassword || previewUserAccount.password || '123'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Akses Laporan Mobile:</span>
-                  <span style={{ fontWeight: '800', color: previewUserAccount.canAccessMobileReports !== false ? '#34d399' : '#fb7185' }}>
+                  <span style={{ color: T.txtSecondary }}>Akses Laporan Mobile:</span>
+                  <span style={{ fontWeight: '800', color: previewUserAccount.canAccessMobileReports !== false ? T.success : T.danger }}>
                     {previewUserAccount.canAccessMobileReports !== false ? '🔒 ✅ Diberikan' : '🔒 ❌ Dibatasi'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Password Laporan Mobile:</span>
-                  <span style={{ fontWeight: '800', color: '#facc15', fontFamily: 'monospace' }}>
+                  <span style={{ color: T.txtSecondary }}>Password Laporan Mobile:</span>
+                  <span style={{ fontWeight: '800', color: T.warning, fontFamily: 'monospace' }}>
                     {previewUserAccount.mobileReportPassword || '8888'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Peran Mobile:</span>
-                  <span style={{ fontWeight: '900', color: '#a78bfa' }}>{previewUserAccount.role || 'Kasir'}</span>
+                  <span style={{ color: T.txtSecondary }}>Peran Mobile:</span>
+                  <span style={{ fontWeight: '900', color: T.info }}>{previewUserAccount.role || 'Kasir'}</span>
                 </div>
               </div>
 
@@ -2498,7 +2231,7 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   height: '42px',
                   fontSize: '0.84rem',
                   fontWeight: '900',
-                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  background: T.primaryBtn,
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '10px',
@@ -2520,9 +2253,9 @@ export default function SystemSettings({ masterData, setMasterData }) {
                   height: '42px',
                   fontSize: '0.84rem',
                   fontWeight: '800',
-                  background: '#334155',
-                  color: '#cbd5e1',
-                  border: 'none',
+                  background: T.cardBg2,
+                  color: T.txtSecondary,
+                  border: `1px solid ${T.borderStrong}`,
                   borderRadius: '10px',
                   cursor: 'pointer'
                 }}
@@ -2535,5 +2268,6 @@ export default function SystemSettings({ masterData, setMasterData }) {
         </div>
       )}
     </div>
+  </div>
   );
 }

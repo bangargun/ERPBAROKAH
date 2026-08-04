@@ -48,6 +48,8 @@ import {
   Legend as ReLegend, 
   ResponsiveContainer as ReResponsiveContainer 
 } from 'recharts';
+import { getThemePalette } from '../../utils/themeUtils';
+
 // Format YYYY-MM-DD -> DD/MM/YYYY
 const formatToDMY = (dateStr) => {
   if (!dateStr) return '';
@@ -129,7 +131,8 @@ export function DoubleCalendarPicker({
   showOutletDropdown,
   setShowOutletDropdown,
   selectedBranch = null
-}) {
+, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [baseMonth, setBaseMonth] = useState(new Date(2026, 6, 1)); // Default to July 2026 as in screenshot
   const [tempStart, setTempStart] = useState(startDate);
   const [tempEnd, setTempEnd] = useState(endDate);
@@ -372,20 +375,20 @@ export function DoubleCalendarPicker({
   };
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: '#1e293b', padding: '12px 16px', borderRadius: '12px', border: '1px solid #334155' }}>
+    <div ref={containerRef} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: T.cardBg, padding: '12px 16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
       
       {/* 1. Tahun Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📅 Tahun</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📅 Tahun</span>
         <select
           value={selectedYear}
           onChange={e => handleYearChange(e.target.value)}
           style={{
             padding: '0 12px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             fontWeight: '700',
             height: '40px',
@@ -401,16 +404,16 @@ export function DoubleCalendarPicker({
 
       {/* 2. Bulan Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🗓️ Bulan</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>🗓️ Bulan</span>
         <select
           value={selectedMonth}
           onChange={e => handleMonthChange(e.target.value)}
           style={{
             padding: '0 12px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             fontWeight: '700',
             height: '40px',
@@ -435,16 +438,16 @@ export function DoubleCalendarPicker({
 
       {/* 3. Tanggal Input Field */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showPopover ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
         <button
           onClick={() => { setShowPopover(!showPopover); setShowOutletDropdown(false); }}
           style={{
             minWidth: '210px',
             padding: '10px 14px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             textAlign: 'left',
             fontWeight: '700',
@@ -456,26 +459,26 @@ export function DoubleCalendarPicker({
             height: '40px',
             transition: 'all 0.15s ease'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#6366f1'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#334155'}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
         >
           <span>{displayDateRange()}</span>
-          <ChevronDown size={16} color="#94a3b8" />
+          <ChevronDown size={16} color={T.txtSecondary} />
         </button>
       </div>
 
       {/* Outlet Selection Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showOutletDropdown ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Outlet</span>
+        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Outlet</span>
         <button
           onClick={() => { setShowOutletDropdown(!showOutletDropdown); setShowPopover(false); }}
           style={{
             minWidth: '220px',
             padding: '10px 14px',
             borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#f8fafc',
+            border: `1px solid ${T.border}`,
+            background: T.inputBg,
+            color: T.txtPrimary,
             fontSize: '0.85rem',
             textAlign: 'left',
             fontWeight: '700',
@@ -487,13 +490,13 @@ export function DoubleCalendarPicker({
             height: '40px',
             transition: 'all 0.15s ease'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#38bdf8'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#334155'}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
         >
           <span style={{ textTransform: 'uppercase', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '180px' }}>
             {selectedOutletLabel()}
           </span>
-          <ChevronDown size={16} color="#94a3b8" />
+          <ChevronDown size={16} color={T.txtSecondary} />
         </button>
 
         {/* Outlet Multi-select Dropdown Popover */}
@@ -503,10 +506,10 @@ export function DoubleCalendarPicker({
             top: '48px',
             left: 0,
             width: '280px',
-            background: '#1e293b',
-            border: '1.5px solid #38bdf8',
+            background: T.dropdownBg,
+            border: `1.5px solid ${T.dropdownBorder}`,
             borderRadius: '8px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(56, 189, 248, 0.3)',
+            boxShadow: T.shadowLg,
             zIndex: 999999,
             padding: '8px 0',
             display: 'flex',
@@ -521,7 +524,7 @@ export function DoubleCalendarPicker({
                 border: 'none',
                 background: 'none',
                 fontSize: '0.82rem',
-                color: selectedOutletIds.includes('ALL') ? '#38bdf8' : '#cbd5e1',
+                color: selectedOutletIds.includes('ALL') ? `${T.info}` : T.txtPrimary,
                 fontWeight: '700',
                 cursor: 'pointer',
                 display: 'flex',
@@ -529,14 +532,14 @@ export function DoubleCalendarPicker({
                 gap: '8px',
                 transition: 'background 0.15s ease'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+              onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
             >
-              <input type="checkbox" checked={selectedOutletIds.includes('ALL')} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: '#38bdf8' }} />
+              <input type="checkbox" checked={selectedOutletIds.includes('ALL')} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
               <span>🏢 SEMUA OUTLET CABANG</span>
             </button>
 
-            <div style={{ borderTop: '1px solid #334155', margin: '4px 0' }} />
+            <div style={{ borderTop: `1px solid ${T.border}`, margin: '4px 0' }} />
 
             <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
               {outlets.map(o => {
@@ -552,7 +555,7 @@ export function DoubleCalendarPicker({
                       border: 'none',
                       background: 'none',
                       fontSize: '0.82rem',
-                      color: isChecked ? '#38bdf8' : '#cbd5e1',
+                      color: isChecked ? `${T.info}` : T.txtPrimary,
                       fontWeight: isChecked ? '700' : '500',
                       cursor: 'pointer',
                       display: 'flex',
@@ -560,10 +563,10 @@ export function DoubleCalendarPicker({
                       gap: '8px',
                       transition: 'background 0.15s ease'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
                   >
-                    <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: '#38bdf8' }} />
+                    <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
                     <span>🏢 {o.name}</span>
                   </button>
                 );
@@ -579,14 +582,14 @@ export function DoubleCalendarPicker({
           position: 'absolute',
           top: '48px',
           left: 0,
-          background: '#1e293b',
-          border: '1.5px solid #6366f1',
+          background: T.cardBg,
+          border: `1.5px solid ${T.accentGreen}`,
           borderRadius: '8px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(99, 102, 241, 0.3)',
           zIndex: 999999,
           display: 'flex',
           padding: '16px',
-          color: '#f8fafc'
+          color: T.txtPrimary
         }}>
           {/* Popover Arrow */}
           <div style={{
@@ -595,9 +598,9 @@ export function DoubleCalendarPicker({
             left: '20px',
             width: '10px',
             height: '10px',
-            background: '#1e293b',
-            borderTop: '1px solid #334155',
-            borderLeft: '1px solid #334155',
+            background: T.cardBg,
+            borderTop: `1px solid ${T.border}`,
+            borderLeft: `1px solid ${T.border}`,
             transform: 'rotate(45deg)'
           }} />
 
@@ -606,7 +609,7 @@ export function DoubleCalendarPicker({
             display: 'flex',
             flexDirection: 'column',
             width: '140px',
-            borderRight: '1px solid #334155',
+            borderRight: `1px solid ${T.border}`,
             paddingRight: '12px',
             gap: '6px',
             marginRight: '12px'
@@ -640,15 +643,15 @@ export function DoubleCalendarPicker({
                     fontSize: '0.8rem',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    background: isActive ? '#6366f1' : '#0f172a',
-                    color: isActive ? '#ffffff' : '#cbd5e1',
+                    background: isActive ? `${T.accentGreen}` : T.cardBg2,
+                    color: isActive ? `${T.txtPrimary}` : T.txtPrimary,
                     transition: 'all 0.15s ease'
                   }}
                   onMouseEnter={(e) => {
-                    if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    if (!isActive) e.currentTarget.style.background = T.hoverBg;
                   }}
                   onMouseLeave={(e) => {
-                    if (!isActive) e.currentTarget.style.background = '#0f172a';
+                    if (!isActive) e.currentTarget.style.background = T.cardBg2;
                   }}
                 >
                   {preset.label}
@@ -665,32 +668,32 @@ export function DoubleCalendarPicker({
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                border: '1px solid #6366f1',
+                border: `1px solid ${T.accentGreen}`,
                 borderRadius: '4px',
                 padding: '6px 10px',
                 fontSize: '0.82rem',
-                background: '#0f172a',
-                color: '#f8fafc',
+                background: T.cardBg2,
+                color: T.txtPrimary,
                 width: '140px',
                 gap: '8px'
               }}>
-                <Calendar size={14} color="#818cf8" />
+                <Calendar size={14} color={ T.info } />
                 <span style={{ fontWeight: '700' }}>{formatToDMY(tempStart) || 'Pilih...'}</span>
               </div>
 
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                border: '1px solid #334155',
+                border: `1px solid ${T.border}`,
                 borderRadius: '4px',
                 padding: '6px 10px',
                 fontSize: '0.82rem',
-                background: '#0f172a',
-                color: '#f8fafc',
+                background: T.cardBg2,
+                color: T.txtPrimary,
                 width: '140px',
                 gap: '8px'
               }}>
-                <Calendar size={14} color="#94a3b8" />
+                <Calendar size={14} color={ T.txtSecondary } />
                 <span style={{ fontWeight: '700' }}>{formatToDMY(tempEnd) || 'Pilih...'}</span>
               </div>
 
@@ -699,8 +702,8 @@ export function DoubleCalendarPicker({
                 onClick={handleApplyCustom}
                 disabled={!tempStart}
                 style={{
-                  background: '#6366f1',
-                  color: '#ffffff',
+                  background: T.accentGreen,
+                  color: T.txtPrimary,
                   border: 'none',
                   borderRadius: '4px',
                   padding: '6px 14px',
@@ -721,21 +724,21 @@ export function DoubleCalendarPicker({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth - 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❮
                   </button>
-                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#f8fafc' }}>{leftMonthLabel}</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary }}>{leftMonthLabel}</span>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth + 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❯
                   </button>
                 </div>
                 
                 {/* Day name headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: '#94a3b8', marginBottom: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: T.txtSecondary, marginBottom: '6px' }}>
                   <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
                 </div>
 
@@ -755,14 +758,14 @@ export function DoubleCalendarPicker({
                           padding: '6px 0',
                           fontSize: '0.75rem',
                           fontWeight: (isStart || isEnd) ? '800' : '500',
-                          color: !day.isCurrentMonth ? '#475569' : (isStart || isEnd) ? '#ffffff' : '#cbd5e1',
-                          background: (isStart || isEnd) ? '#6366f1' : isInRange ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                          color: !day.isCurrentMonth ? `${T.txtMuted}` : (isStart || isEnd) ? `${T.txtPrimary}` : T.txtPrimary,
+                          background: (isStart || isEnd) ? `${T.accentGreen}` : isInRange ? `${T.accentGreenBg}` : 'transparent',
                           borderRadius: (isStart || isEnd) ? '50%' : isInRange ? '0px' : '4px',
                           cursor: 'pointer',
                           transition: 'background 0.15s ease'
                         }}
                         onMouseEnter={(e) => {
-                          if (!isStart && !isEnd && !isInRange) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                          if (!isStart && !isEnd && !isInRange) e.currentTarget.style.background = T.border;
                         }}
                         onMouseLeave={(e) => {
                           if (!isStart && !isEnd && !isInRange) e.currentTarget.style.background = 'transparent';
@@ -780,21 +783,21 @@ export function DoubleCalendarPicker({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth - 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❮
                   </button>
-                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#f8fafc' }}>{rightMonthLabel}</span>
+                  <span style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary }}>{rightMonthLabel}</span>
                   <button
                     onClick={() => setBaseMonth(new Date(leftYear, leftMonth + 1, 1))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: '#cbd5e1' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: '800', fontSize: '0.95rem', color: T.txtPrimary }}
                   >
                     ❯
                   </button>
                 </div>
                 
                 {/* Day name headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: '#94a3b8', marginBottom: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.72rem', fontWeight: '700', color: T.txtSecondary, marginBottom: '6px' }}>
                   <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
                 </div>
 
@@ -814,14 +817,14 @@ export function DoubleCalendarPicker({
                           padding: '6px 0',
                           fontSize: '0.75rem',
                           fontWeight: (isStart || isEnd) ? '800' : '500',
-                          color: !day.isCurrentMonth ? '#475569' : (isStart || isEnd) ? '#ffffff' : '#cbd5e1',
-                          background: (isStart || isEnd) ? '#6366f1' : isInRange ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                          color: !day.isCurrentMonth ? `${T.txtMuted}` : (isStart || isEnd) ? `${T.txtPrimary}` : T.txtPrimary,
+                          background: (isStart || isEnd) ? `${T.accentGreen}` : isInRange ? `${T.accentGreenBg}` : 'transparent',
                           borderRadius: (isStart || isEnd) ? '50%' : isInRange ? '0px' : '4px',
                           cursor: 'pointer',
                           transition: 'background 0.15s ease'
                         }}
                         onMouseEnter={(e) => {
-                          if (!isStart && !isEnd && !isInRange) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                          if (!isStart && !isEnd && !isInRange) e.currentTarget.style.background = T.border;
                         }}
                         onMouseLeave={(e) => {
                           if (!isStart && !isEnd && !isInRange) e.currentTarget.style.background = 'transparent';
@@ -844,7 +847,8 @@ export function DoubleCalendarPicker({
   );
 }
 
-export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColumn }) {
+export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColumn, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -866,7 +870,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
         style={{
           padding: '6px 12px',
           fontSize: '0.78rem',
-          color: '#38bdf8',
+          color: T.info,
           borderColor: 'rgba(56, 189, 248, 0.4)',
           background: 'rgba(56, 189, 248, 0.1)',
           fontWeight: '700',
@@ -888,8 +892,8 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
             top: '38px',
             right: 0,
             width: '240px',
-            background: '#1e293b',
-            border: '1.5px solid #38bdf8',
+            background: T.cardBg,
+            border: `1.5px solid ${T.info}`,
             borderRadius: '10px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(56, 189, 248, 0.3)',
             zIndex: 999999,
@@ -899,7 +903,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
             gap: '6px'
           }}
         >
-          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#94a3b8', paddingBottom: '6px', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtSecondary, paddingBottom: '6px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>👁️ TAMPILKAN KOLOM:</span>
           </div>
 
@@ -916,7 +920,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
                     padding: '6px 8px',
                     borderRadius: '6px',
                     fontSize: '0.8rem',
-                    color: isVisible ? '#f8fafc' : '#64748b',
+                    color: isVisible ? `${T.txtPrimary}` : T.txtMuted,
                     cursor: 'pointer',
                     background: isVisible ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
                     transition: 'all 0.15s ease'
@@ -926,7 +930,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
                     type="checkbox"
                     checked={isVisible}
                     onChange={() => onToggleColumn(col.key)}
-                    style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                    style={{ accentColor: T.info, cursor: 'pointer' }}
                   />
                   <span style={{ fontWeight: isVisible ? '700' : '400' }}>{col.label}</span>
                 </label>
@@ -939,7 +943,9 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
   );
 }
 
-export default function SalesTransactionsPage({ masterData, setMasterData, selectedBranch }) {
+export default function SalesTransactionsPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
+
   const [activeTab, setActiveTab] = useState('omzet');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1026,9 +1032,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
 
   // PENJUALAN BY MENU FILTER STATES
+  // Initialize catStartDate/catEndDate to current month so the default preset 'month' has actual dates
   const [selectedMenuFilter, setSelectedMenuFilter] = useState('ALL');
-  const [catStartDate, setCatStartDate] = useState('');
-  const [catEndDate, setCatEndDate] = useState('');
+  const [catStartDate, setCatStartDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [catEndDate, setCatEndDate] = useState(() => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  });
   const [catDatePreset, setCatDatePreset] = useState('month');
   const [catShowCalendarPopover, setCatShowCalendarPopover] = useState(false);
   const [catSelectedOutletIds, setCatSelectedOutletIds] = useState(['ALL']);
@@ -1470,11 +1483,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: #1e293b; }
+            body { font-family: Arial, sans-serif; padding: 30px; color: ${T.cardBg}; }
             h1 { text-align: center; color: #0284c7; font-size: 22px; margin-bottom: 4px; font-weight: bold; }
-            .subtitle { text-align: center; color: #475569; font-size: 14px; font-weight: bold; margin-bottom: 20px; }
+            .subtitle { text-align: center; color: ${T.txtMuted}; font-size: 14px; font-weight: bold; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-            th { border: 1px solid #cbd5e1; padding: 8px 6px; text-align: right; background: #f8fafc; font-weight: bold; }
+            th { border: 1px solid ${T.txtPrimary}; padding: 8px 6px; text-align: right; background: ${T.txtPrimary}; font-weight: bold; }
             th.center { text-align: center; }
             td { border: 1px solid #e2e8f0; padding: 6px; text-align: right; }
             td.center { text-align: center; }
@@ -1534,12 +1547,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const activeOutlets = outlets || [];
     const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
 
-    let filteredOutlets = activeOutlets;
-    if (selectedBranch) {
-      filteredOutlets = activeOutlets.filter(o => Number(o.id) === Number(selectedBranch));
-    } else if (!catSelectedOutletIds.includes('ALL')) {
-      filteredOutlets = activeOutlets.filter(o => catSelectedOutletIds.some(id => Number(id) === Number(o.id)));
-    }
+    // Use catSelectedOutletIds as the single source of truth.
+    // The useEffect at line 1164 already syncs catSelectedOutletIds with selectedBranch.
+    let filteredOutlets = catSelectedOutletIds.includes('ALL')
+      ? activeOutlets
+      : activeOutlets.filter(o => catSelectedOutletIds.some(id => Number(id) === Number(o.id)));
 
     const menuItems = products || [];
 
@@ -1739,11 +1751,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: #1e293b; }
+            body { font-family: Arial, sans-serif; padding: 30px; color: ${T.cardBg}; }
             h1 { text-align: center; color: #0284c7; font-size: 20px; margin-bottom: 4px; font-weight: bold; }
-            .subtitle { text-align: center; color: #475569; font-size: 13px; font-weight: bold; margin-bottom: 20px; }
+            .subtitle { text-align: center; color: ${T.txtMuted}; font-size: 13px; font-weight: bold; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-            th { border: 1px solid #cbd5e1; padding: 8px 6px; text-align: right; background: #f8fafc; font-weight: bold; }
+            th { border: 1px solid ${T.txtPrimary}; padding: 8px 6px; text-align: right; background: ${T.txtPrimary}; font-weight: bold; }
             th.center { text-align: center; }
             th.left { text-align: left; }
             td { border: 1px solid #e2e8f0; padding: 6px; text-align: right; }
@@ -1810,11 +1822,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>Laporan Rincian Qty Penjualan By Menu (${start} s/d ${end})</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: #1e293b; }
+            body { font-family: Arial, sans-serif; padding: 30px; color: ${T.cardBg}; }
             h1 { text-align: center; color: #0284c7; font-size: 20px; margin-bottom: 4px; font-weight: bold; }
-            .subtitle { text-align: center; color: #475569; font-size: 13px; font-weight: bold; margin-bottom: 20px; }
+            .subtitle { text-align: center; color: ${T.txtMuted}; font-size: 13px; font-weight: bold; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-            th { border: 1px solid #cbd5e1; padding: 8px 6px; text-align: right; background: #f8fafc; font-weight: bold; }
+            th { border: 1px solid ${T.txtPrimary}; padding: 8px 6px; text-align: right; background: ${T.txtPrimary}; font-weight: bold; }
             th.center { text-align: center; }
             th.left { text-align: left; }
             td { border: 1px solid #e2e8f0; padding: 6px; text-align: right; }
@@ -2024,21 +2036,21 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: ${T.cardBg}; max-width: 800px; margin: 0 auto; }
             .header { text-align: center; margin-bottom: 28px; }
             .title { font-size: 22px; font-weight: bold; color: #0284c7; margin-bottom: 4px; }
-            .period { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 8px; }
-            .resto { font-size: 16px; font-weight: bold; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+            .period { font-size: 13px; font-weight: 600; color: ${T.txtMuted}; margin-bottom: 8px; }
+            .resto { font-size: 16px; font-weight: bold; color: ${T.cardBg}; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
             
-            .section-title { font-size: 13px; font-weight: bold; color: #475569; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+            .section-title { font-size: 13px; font-weight: bold; color: ${T.txtMuted}; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid ${T.txtPrimary}; padding-bottom: 4px; }
             
             table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
             td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
-            td.left { text-align: left; color: #334155; }
-            td.right { text-align: right; font-weight: 600; color: #0f172a; }
-            tr.total-row td { font-weight: bold; font-size: 13px; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
+            td.left { text-align: left; color: ${T.border}; }
+            td.right { text-align: right; font-weight: 600; color: ${T.cardBg2}; }
+            tr.total-row td { font-weight: bold; font-size: 13px; border-top: 2px solid ${T.cardBg2}; border-bottom: 2px solid ${T.cardBg2}; }
             
-            .product-table th { background: #f8fafc; border-bottom: 2px solid #cbd5e1; padding: 8px 12px; text-align: left; font-size: 11px; color: #64748b; }
+            .product-table th { background: ${T.txtPrimary}; border-bottom: 2px solid ${T.txtPrimary}; padding: 8px 12px; text-align: left; font-size: 11px; color: ${T.txtMuted}; }
             .product-table td { padding: 6px 12px; }
           </style>
         </head>
@@ -2092,7 +2104,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 ${prod.variants.map((v, i) => `
                   <tr>
                     <td>${i === 0 ? `<b>${prod.name}</b>` : ''}</td>
-                    <td style="color: #64748b;">${v.type}</td>
+                    <td style="color: ${T.txtMuted};">${v.type}</td>
                     <td style="text-align: center;">x${v.qty}</td>
                     <td style="text-align: right; font-weight: 600;">${formatRupiahDecimals(v.sales)}</td>
                   </tr>
@@ -2151,8 +2163,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const filteredCategoryTxs = transactions.filter(t => {
     if (catStartDate && t.date < catStartDate) return false;
     if (catEndDate && t.date > catEndDate) return false;
+    // Use catSelectedOutletIds (already synced with selectedBranch via useEffect)
     if (!catSelectedOutletIds.includes('ALL') && !catSelectedOutletIds.includes(t.outlet_id)) return false;
-    if (selectedBranch && t.outlet_id !== selectedBranch) return false;
     if (t.status === 'Void') return false;
     return true;
   });
@@ -2226,11 +2238,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; }
-            h2 { color: #0f172a; margin-bottom: 4px; }
-            p { font-size: 14px; color: #64748b; margin-top: 0; }
+            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
+            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 12px; }
+            th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
             th { background-color: #f1f5f9; text-transform: uppercase; font-size: 11px; }
             .text-right { text-align: right; }
             .font-bold { font-weight: bold; }
@@ -2264,7 +2276,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   </tr>
                 `;
               }).join('')}
-              <tr style="background-color: #f8fafc; font-weight: bold;">
+              <tr style="background-color: ${T.txtPrimary}; font-weight: bold;">
                 <td>TOTAL KESELURUHAN</td>
                 <td class="text-right">${totalCatQty} porsi</td>
                 <td class="text-right">${formatRupiah(totalCatGross)}</td>
@@ -2572,11 +2584,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 40px; color: #1e293b; }
+            body { font-family: Arial, sans-serif; padding: 40px; color: ${T.cardBg}; }
             h1 { text-align: center; color: #0284c7; font-size: 26px; margin-bottom: 6px; font-weight: bold; }
-            .subtitle { text-align: center; color: #334155; font-size: 15px; font-weight: bold; margin-bottom: 28px; }
+            .subtitle { text-align: center; color: ${T.border}; font-size: 15px; font-weight: bold; margin-bottom: 28px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-            th { border-bottom: 2px solid #0284c7; padding: 10px 8px; text-align: right; background: #f8fafc; font-weight: bold; }
+            th { border-bottom: 2px solid #0284c7; padding: 10px 8px; text-align: right; background: ${T.txtPrimary}; font-weight: bold; }
             th:first-child { text-align: left; }
             td { border-bottom: 1px solid #e2e8f0; padding: 10px 8px; text-align: right; }
             td:first-child { text-align: left; }
@@ -2706,15 +2718,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     
     // Tier logic matching CustomerManagement.jsx
     let tierLabel = 'New Customer';
-    let badgeColor = '#38bdf8';
+    let badgeColor = T.info;
     let tierIcon = '🔹';
     if (finalSpend > 5000000) {
       tierLabel = 'Customer VIP';
-      badgeColor = '#fbbf24';
+      badgeColor = T.accentGold;
       tierIcon = '👑';
     } else if (finalSpend >= 1000000) {
       tierLabel = 'Customer Loyal';
-      badgeColor = '#34d399';
+      badgeColor = T.success;
       tierIcon = '🟢';
     }
 
@@ -2778,11 +2790,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; }
-            h2 { color: #0f172a; margin-bottom: 4px; }
-            p { font-size: 14px; color: #64748b; margin-top: 0; }
+            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
+            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 12px; }
+            th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
             th { background-color: #f1f5f9; text-transform: uppercase; font-size: 11px; }
             .text-right { text-align: right; }
             .font-bold { font-weight: bold; }
@@ -2815,7 +2827,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   <td class="text-right font-bold" style="color: #059669;">${formatRupiah(r.totalSpend)}</td>
                 </tr>
               `).join('')}
-              <tr style="background-color: #f8fafc; font-weight: bold;">
+              <tr style="background-color: ${T.txtPrimary}; font-weight: bold;">
                 <td colspan="4">TOTAL KESELURUHAN</td>
                 <td class="text-right">${totalCustTxCount} kali</td>
                 <td class="text-right">-</td>
@@ -2952,11 +2964,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; }
-            h2 { color: #0f172a; margin-bottom: 4px; }
-            p { font-size: 14px; color: #64748b; margin-top: 0; }
+            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
+            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 12px; }
+            th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
             th { background-color: #f1f5f9; text-transform: uppercase; font-size: 11px; }
             .text-right { text-align: right; }
             .font-bold { font-weight: bold; }
@@ -2986,7 +2998,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   </tr>
                 `;
               }).join('')}
-              <tr style="background-color: #f8fafc; font-weight: bold;">
+              <tr style="background-color: ${T.txtPrimary}; font-weight: bold;">
                 <td>TOTAL KESELURUHAN</td>
                 <td class="text-right">${totalHourTxCount} kali</td>
                 <td class="text-right" style="color: #059669;">${formatRupiah(totalHourNet)}</td>
@@ -3141,7 +3153,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         grossSales: dineInGross,
         discount: dineInDisc,
         netSales: dineInNet,
-        color: '#38bdf8',
+        color: T.info,
         outletBreakdown: filteredOutlets.map(otl => {
           const m = dineInOutletMap[otl.id] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
           return { name: otl.name, ...m };
@@ -3156,7 +3168,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         grossSales: takeAwayGross,
         discount: takeAwayDisc,
         netSales: takeAwayNet,
-        color: '#fbbf24',
+        color: T.accentGold,
         outletBreakdown: filteredOutlets.map(otl => {
           const m = takeAwayOutletMap[otl.id] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
           return { name: otl.name, ...m };
@@ -3222,11 +3234,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 24px; color: #1e293b; }
-            h2 { color: #0f172a; margin-bottom: 4px; border-bottom: 2px solid #0284c7; padding-bottom: 8px; }
-            p { font-size: 13px; color: #64748b; margin-top: 0; }
+            body { font-family: sans-serif; padding: 24px; color: ${T.cardBg}; }
+            h2 { color: ${T.cardBg2}; margin-bottom: 4px; border-bottom: 2px solid #0284c7; padding-bottom: 8px; }
+            p { font-size: 13px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 12px; }
+            th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
             th { background-color: #f1f5f9; text-transform: uppercase; font-size: 11px; }
             .text-right { text-align: right; }
             .text-center { text-align: center; }
@@ -3267,7 +3279,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   </tr>
                 `;
               }).join('')}
-              <tr style="background-color: #f8fafc; font-weight: bold;">
+              <tr style="background-color: ${T.txtPrimary}; font-weight: bold;">
                 <td>TOTAL KESELURUHAN</td>
                 <td class="text-right">${data.totalReceipts.toLocaleString('id-ID')} struk</td>
                 <td class="text-center">x${data.totalQty.toLocaleString('id-ID')} porsi</td>
@@ -3499,11 +3511,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; }
-            h2 { color: #0f172a; margin-bottom: 4px; }
-            p { font-size: 14px; color: #64748b; margin-top: 0; }
+            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
+            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 12px; }
+            th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
             th { background-color: #f1f5f9; text-transform: uppercase; font-size: 11px; }
             .text-right { text-align: right; }
             .font-bold { font-weight: bold; }
@@ -3553,12 +3565,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease, color 0.25s ease' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
               Transaksi Penjualan (Sales POS Center)
             </h2>
             <div style={{
@@ -3569,7 +3581,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               borderRadius: '20px',
               background: syncPulse ? 'rgba(52, 211, 153, 0.25)' : 'rgba(52, 211, 153, 0.12)',
               border: '1px solid rgba(52, 211, 153, 0.3)',
-              color: '#34d399',
+              color: T.success,
               fontSize: '0.75rem',
               fontWeight: '800',
               transition: 'all 0.3s ease'
@@ -3578,15 +3590,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                background: '#34d399',
-                boxShadow: syncPulse ? '0 0 12px #34d399' : '0 0 6px #34d399',
+                background: T.success,
+                boxShadow: syncPulse ? `0 0 12px ${T.success}` : `0 0 6px ${T.success}`,
                 display: 'inline-block'
               }}></span>
               <span>⚡ Auto Sync Mobile APK: AKTIF</span>
-              <span style={{ color: '#94a3b8', fontWeight: '500', marginLeft: '2px' }}>({lastSyncTime})</span>
+              <span style={{ color: T.txtSecondary, fontWeight: '500', marginLeft: '2px' }}>({lastSyncTime})</span>
             </div>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
             Pusat analisis & rekapan omzet transaksi kasir restoran (Terhubung Realtime dengan Mobile APK Kasir)
           </p>
         </div>
@@ -3599,7 +3611,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             style={{
               padding: '8px 14px',
               fontSize: '0.8rem',
-              color: '#38bdf8',
+              color: T.info,
               borderColor: 'rgba(56, 189, 248, 0.3)',
               display: 'flex',
               alignItems: 'center',
@@ -3629,9 +3641,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 padding: '10px 12px',
                 borderRadius: '12px',
                 border: '1px solid',
-                borderColor: isActive ? '#6366f1' : '#334155',
-                background: isActive ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(79, 70, 229, 0.25) 100%)' : '#1e293b',
-                color: isActive ? '#818cf8' : '#94a3b8',
+                borderColor: isActive ? T.accentGold : T.border,
+                background: isActive ? T.navActiveBg : T.cardBg,
+                color: isActive ? T.navActiveTxt : T.txtSecondary,
                 fontWeight: isActive ? '800' : '600',
                 fontSize: '0.8rem',
                 cursor: 'pointer',
@@ -3641,7 +3653,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 textOverflow: 'ellipsis'
               }}
             >
-              <Icon size={16} color={isActive ? '#818cf8' : '#64748b'} />
+              <Icon size={16} color={isActive ? `${T.info}` : T.txtMuted} />
               <span>{tab.name}</span>
             </button>
           );
@@ -3661,17 +3673,17 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         gap: '12px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Zap size={18} color="#34d399" />
-          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>
+          <Zap size={18} color={ T.success } />
+          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
             Sinkronisasi Otomatis Mobile APK Kasir
           </span>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-            | Terakhir disinkronkan: <b style={{ color: '#38bdf8' }}>{lastSyncTime}</b> | Terhubung: <b style={{ color: '#34d399' }}>{outlets.length} Outlet POS</b>
+          <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
+            | Terakhir disinkronkan: <b style={{ color: T.info }}>{lastSyncTime}</b> | Terhubung: <b style={{ color: T.success }}>{outlets.length} Outlet POS</b>
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '0.75rem', color: '#34d399', background: 'rgba(52, 211, 153, 0.12)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.2)', fontWeight: '700' }}>
+          <span style={{ fontSize: '0.75rem', color: T.success, background: 'rgba(52, 211, 153, 0.12)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.2)', fontWeight: '700' }}>
             ✓ Realtime Streaming Active
           </span>
           <button
@@ -3679,8 +3691,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             style={{
               background: isAutoSyncEnabled ? 'rgba(52, 211, 153, 0.15)' : 'rgba(148, 163, 184, 0.15)',
               border: '1px solid',
-              borderColor: isAutoSyncEnabled ? 'rgba(52, 211, 153, 0.4)' : '#334155',
-              color: isAutoSyncEnabled ? '#34d399' : '#94a3b8',
+              borderColor: isAutoSyncEnabled ? 'rgba(52, 211, 153, 0.4)' : T.border,
+              color: isAutoSyncEnabled ? `${T.success}` : T.txtSecondary,
               padding: '4px 10px',
               borderRadius: '6px',
               fontSize: '0.75rem',
@@ -3698,8 +3710,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* TOP BAR WITH MONTH FILTER & EXPORT BUTTONS */}
-          <div className="glass-card" style={{ padding: '16px 20px', background: '#1e293b', border: '1px solid #334155', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
-            <DoubleCalendarPicker
+          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+            <DoubleCalendarPicker themeMode={themeMode}
               startDate={omzetStartDate}
               endDate={omzetEndDate}
               datePreset={omzetDatePreset}
@@ -3721,7 +3733,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <button 
                 onClick={handleDownloadOmzetComparisonPDF} 
                 className="btn-secondary" 
-                style={{ padding: '8px 14px', fontSize: '0.8rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', height: '38px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', height: '38px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <Printer size={15} />
                 <span>Download PDF</span>
@@ -3730,7 +3742,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <button 
                 onClick={handleDownloadOmzetComparisonExcel} 
                 className="btn-secondary" 
-                style={{ padding: '8px 14px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', height: '38px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', height: '38px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <FileSpreadsheet size={15} />
                 <span>Download Excel</span>
@@ -3739,19 +3751,19 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* 1. GRAFIK GARIS TREN PERGERAKAN HARIAN ANTAR OUTLET */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <TrendingUp size={22} color="#38bdf8" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <TrendingUp size={22} color={T.info} />
                   <span>Grafik Tren Pergerakan Omzet Harian Antar Outlet ({selectedOmzetMonth})</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Grafik garis membandingkan tren kenaikan & penurunan omzet harian seluruh cabang restoran per hari
                 </p>
               </div>
 
-              <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)', padding: '5px 12px', borderRadius: '8px', fontWeight: '800', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+              <span style={{ fontSize: '0.75rem', color: T.info, background: 'rgba(56, 189, 248, 0.15)', padding: '5px 12px', borderRadius: '8px', fontWeight: '800', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
                 📈 Realtime Line Chart Active
               </span>
             </div>
@@ -3759,20 +3771,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             {/* RECHARTS LINE CHART CONTAINER */}
             {(() => {
               const { activeOutlets, chartData } = getOmzetOutletComparisonData();
-              const colors = ['#38bdf8', '#34d399', '#fbbf24', '#818cf8', '#f43f5e', '#a78bfa'];
+              const colors = [`${T.info}`, `${T.success}`, `${T.accentGold}`, `${T.info}`, '#f43f5e', '#a78bfa'];
 
               return (
-                <div style={{ background: '#1e293b', padding: '24px 16px 16px 8px', borderRadius: '14px', border: '1px solid #334155' }}>
+                <div style={{ background: T.cardBg, padding: '24px 16px 16px 8px', borderRadius: '14px', border: `1px solid ${T.border}` }}>
                   <ReResponsiveContainer width="100%" height={340}>
                     <ReLineChart data={chartData} margin={{ top: 15, right: 30, left: 10, bottom: 5 }}>
-                      <ReCartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <ReXAxis dataKey="dayLabel" stroke="#94a3b8" fontSize={11} />
-                      <ReYAxis stroke="#94a3b8" fontSize={11} tickFormatter={v => `Rp ${(v / 1000000).toFixed(1)}M`} />
+                      <ReCartesianGrid strokeDasharray="3 3" stroke={T.border} />
+                      <ReXAxis dataKey="dayLabel" stroke={T.txtSecondary} fontSize={11} />
+                      <ReYAxis stroke={T.txtSecondary} fontSize={11} tickFormatter={v => `Rp ${(v / 1000000).toFixed(1)}M`} />
                       <ReTooltip
-                        contentStyle={{ background: '#0f172a', borderColor: '#38bdf8', borderRadius: '10px', color: '#f8fafc', fontSize: '0.82rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
+                        contentStyle={{ background: T.cardBg2, borderColor: T.info, borderRadius: '10px', color: T.txtPrimary, fontSize: '0.82rem', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}
                         formatter={(val, name) => [formatRupiah(val), name]}
                       />
-                      <ReLegend wrapperStyle={{ paddingTop: '12px', fontSize: '0.8rem', fontWeight: '700' }} />
+                      <ReLegend wrapperStyle={{ paddingTop: '12px', fontSize: '0.8rem', fontWeight: '700', color: T.txtPrimary }} />
                       {activeOutlets.map((otl, idx) => (
                         <ReLine
                           key={otl.id}
@@ -3781,7 +3793,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           stroke={colors[idx % colors.length]}
                           strokeWidth={3}
                           dot={{ r: 3 }}
-                          activeDot={{ r: 7, strokeWidth: 2, stroke: '#ffffff' }}
+                          activeDot={{ r: 7, strokeWidth: 2, stroke: T.txtPrimary }}
                         />
                       ))}
                     </ReLineChart>
@@ -3792,20 +3804,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* 2. TABEL PERBANDINGAN PENDAPATAN SEBELUM DISKON & SETELAH DISKON ANTAR OUTLET */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <DollarSign size={22} color="#34d399" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <DollarSign size={22} color={T.success} />
                   <span>Tabel Perbandingan Omzet Antar Outlet (Sebelum & Setelah Diskon)</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Rincian komparasi omzet kotor (Sebelum Diskon) dan omzet bersih (Setelah Diskon) tiap outlet per hari
                 </p>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <ColumnVisibilityDropdown
+                <ColumnVisibilityDropdown themeMode={themeMode}
                   columns={[
                     { key: 'date', label: 'Tanggal' },
                     { key: 'gross', label: 'Sebelum Diskon (Gross)' },
@@ -3817,12 +3829,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   onToggleColumn={handleToggleColumn}
                 />
 
-                <button onClick={handleDownloadOmzetComparisonExcel} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={handleDownloadOmzetComparisonExcel} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <FileSpreadsheet size={14} />
                   <span>Download Excel</span>
                 </button>
 
-                <button onClick={handleDownloadOmzetComparisonPDF} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={handleDownloadOmzetComparisonPDF} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Printer size={14} />
                   <span>Download PDF</span>
                 </button>
@@ -3842,44 +3854,44 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const showTotalNet = visibleColumns.totalNet !== false;
 
               return (
-                <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+                <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
                       {/* HEADER ROW 1 */}
-                      <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.8rem' }}>
-                        {showDate && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: '1px solid #334155', textAlign: 'center', width: '110px' }}>Tanggal</th>}
+                      <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
+                        {showDate && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: `1px solid ${T.border}`, textAlign: 'center', width: '110px' }}>Tanggal</th>}
                         {activeOutlets.map(otl => {
                           const colSpanVal = (showGross ? 1 : 0) + (showNet ? 1 : 0);
                           if (colSpanVal === 0) return null;
                           return (
-                            <th key={otl.id} colSpan={colSpanVal} style={{ padding: '10px', textAlign: 'center', borderRight: '1px solid #334155', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
+                            <th key={otl.id} colSpan={colSpanVal} style={{ padding: '10px', textAlign: 'center', borderRight: `1px solid ${T.border}`, background: 'rgba(56, 189, 248, 0.1)', color: T.info }}>
                               🏢 {otl.name}
                             </th>
                           );
                         })}
                         {(showTotalGross || showTotalNet) && (
-                          <th colSpan={(showTotalGross ? 1 : 0) + (showTotalNet ? 1 : 0)} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: '#34d399' }}>
+                          <th colSpan={(showTotalGross ? 1 : 0) + (showTotalNet ? 1 : 0)} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: T.success }}>
                             📊 Total Akumulasi Seluruh Outlet
                           </th>
                         )}
                       </tr>
                       {/* HEADER ROW 2 */}
-                      <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                         {activeOutlets.map(otl => (
                           <React.Fragment key={otl.id}>
-                            {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#cbd5e1' }}>Sebelum Diskon</th>}
-                            {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>Setelah Diskon</th>}
+                            {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
+                            {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>Setelah Diskon</th>}
                           </React.Fragment>
                         ))}
-                        {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#cbd5e1' }}>Sebelum Diskon</th>}
-                        {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#34d399' }}>Setelah Diskon</th>}
+                        {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
+                        {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.success }}>Setelah Diskon</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((row, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, background: T.cardBg }}>
                           {showDate && (
-                            <td style={{ padding: '10px 14px', fontWeight: '700', color: '#cbd5e1', borderRight: '1px solid #334155', textAlign: 'center' }}>
+                            <td style={{ padding: '10px 14px', fontWeight: '700', color: T.txtPrimary, borderRight: `1px solid ${T.border}`, textAlign: 'center' }}>
                               {row.formattedDate}
                             </td>
                           )}
@@ -3888,12 +3900,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             return (
                               <React.Fragment key={otl.id}>
                                 {showGross && (
-                                  <td style={{ padding: '10px', textAlign: 'right', color: '#94a3b8' }}>
+                                  <td style={{ padding: '10px', textAlign: 'right', color: T.txtSecondary }}>
                                     {formatRupiah(d.gross)}
                                   </td>
                                 )}
                                 {showNet && (
-                                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: '#38bdf8', borderRight: '1px solid #334155' }}>
+                                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}` }}>
                                     {formatRupiah(d.net)}
                                   </td>
                                 )}
@@ -3901,12 +3913,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             );
                           })}
                           {showTotalGross && (
-                            <td style={{ padding: '10px', textAlign: 'right', color: '#cbd5e1', fontWeight: '700' }}>
+                            <td style={{ padding: '10px', textAlign: 'right', color: T.txtPrimary, fontWeight: '700' }}>
                               {formatRupiah(row.totalGross)}
                             </td>
                           )}
                           {showTotalNet && (
-                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: '#34d399', fontSize: '0.9rem' }}>
+                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.9rem' }}>
                               {formatRupiah(row.totalNet)}
                             </td>
                           )}
@@ -3915,20 +3927,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </tbody>
                     {/* FOOTER TOTAL ROW */}
                     <tfoot>
-                      <tr style={{ background: '#1e293b', borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
-                        {showDate && <td style={{ padding: '14px', borderRight: '1px solid #334155', textAlign: 'center' }}>TOTAL AKUMULASI</td>}
+                      <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.info}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.85rem' }}>
+                        {showDate && <td style={{ padding: '14px', borderRight: `1px solid ${T.border}`, textAlign: 'center' }}>TOTAL AKUMULASI</td>}
                         {activeOutlets.map(otl => {
                           const sumGross = rows.reduce((s, r) => s + (r.outlets[otl.id]?.gross || 0), 0);
                           const sumNet = rows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
                           return (
                             <React.Fragment key={otl.id}>
-                              {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(sumGross)}</td>}
-                              {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>{formatRupiah(sumNet)}</td>}
+                              {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(sumGross)}</td>}
+                              {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>{formatRupiah(sumNet)}</td>}
                             </React.Fragment>
                           );
                         })}
-                        {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(grandTotalGrossAll)}</td>}
-                        {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
+                        {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(grandTotalGrossAll)}</td>}
+                        {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.success, fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
                       </tr>
                     </tfoot>
                   </table>
@@ -3945,8 +3957,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* TOP BAR WITH DATE RANGE FILTER (DOUBLE CALENDAR PICKER) & MENU FILTER */}
-          <div className="glass-card" style={{ padding: '16px 20px', background: '#1e293b', border: '1px solid #334155', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
-            <DoubleCalendarPicker
+          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
+            <DoubleCalendarPicker themeMode={themeMode}
               startDate={catStartDate}
               endDate={catEndDate}
               datePreset={catDatePreset}
@@ -3964,26 +3976,37 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               selectedBranch={selectedBranch}
             />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)', fontWeight: '700' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Active Period Indicator */}
+              {(catStartDate || catEndDate) && (
+                <span style={{ fontSize: '0.75rem', color: T.accentGold, background: `${T.accentGold}18`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.accentGold}40`, fontWeight: '700' }}>
+                  📅 {catStartDate || '∞'} → {catEndDate || '∞'}
+                </span>
+              )}
+              {/* Active Outlet Indicator */}
+              <span style={{ fontSize: '0.75rem', color: T.info, background: `${T.info}15`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.info}35`, fontWeight: '700' }}>
+                🏢 {catSelectedOutletIds.includes('ALL') ? 'Semua Outlet' : `${catSelectedOutletIds.length} Outlet Dipilih`}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: T.success, background: `${T.success}12`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.success}30`, fontWeight: '700' }}>
                 ⚡ Auto Sync Realtime POS
               </span>
+
             </div>
           </div>
 
           {/* SECTION 1: CARD 5 PENJUALAN TERTINGGI TIAP OUTLET */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Award size={22} color="#fbbf24" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Award size={22} color={T.accentGold} />
                   <span>🏆 5 Penjualan Menu Tertinggi Tiap Outlet</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Daftar 5 produk menu paling laris berdasarkan volume terjual (Qty) dan omzet di setiap cabang
                 </p>
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '5px 12px', borderRadius: '8px', fontWeight: '800', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
+              <span style={{ fontSize: '0.75rem', color: T.accentGold, background: `${T.accentGold}20`, padding: '5px 12px', borderRadius: '8px', fontWeight: '800', border: `1px solid ${T.accentGold}40` }}>
                 ⭐ Best Seller Per Outlet
               </span>
             </div>
@@ -3992,38 +4015,50 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             {(() => {
               const { activeOutlets, top5PerOutlet } = getDetailedMenuSalesData();
 
+              if (activeOutlets.length === 0) {
+                return (
+                  <div style={{ textAlign: 'center', padding: '32px', color: T.txtSecondary, fontSize: '0.9rem' }}>
+                    📭 Tidak ada data penjualan untuk outlet / periode yang dipilih.
+                  </div>
+                );
+              }
+
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
                   {activeOutlets.map((otl) => {
                     const topItems = top5PerOutlet[otl.id] || [];
-                    const badgeColors = ['#fbbf24', '#cbd5e1', '#b45309', '#38bdf8', '#818cf8'];
+                    const badgeColors = [T.accentGold, `${T.txtPrimary}`, '#b45309', T.info, `${T.info}`];
 
                     return (
-                      <div key={otl.id} style={{ background: '#1e293b', borderRadius: '14px', border: '1px solid #334155', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-                          <span style={{ fontWeight: '800', fontSize: '0.92rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div key={otl.id} style={{ background: T.cardBg, borderRadius: '14px', border: `1px solid ${T.border}`, padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '10px' }}>
+                          <span style={{ fontWeight: '800', fontSize: '0.92rem', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
                             🏢 {otl.name}
                           </span>
-                          <span style={{ fontSize: '0.72rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>
+                          <span style={{ fontSize: '0.72rem', color: T.info, background: `${T.info}15`, padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>
                             Top 5 Menu
                           </span>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {topItems.map((item, rIdx) => (
-                            <div key={rIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a', padding: '8px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                          {topItems.length === 0 ? (
+                            <div style={{ color: T.txtMuted, fontSize: '0.82rem', textAlign: 'center', padding: '16px 0' }}>
+                              Tidak ada data terjual di periode ini
+                            </div>
+                          ) : topItems.map((item, rIdx) => (
+                            <div key={rIdx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: T.cardBg2, padding: '8px 12px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: badgeColors[rIdx] || '#475569', color: '#0f172a', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: badgeColors[rIdx] || `${T.txtMuted}`, color: T.cardBg2, fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                   {rIdx + 1}
                                 </span>
                                 <div>
-                                  <div style={{ fontSize: '0.83rem', fontWeight: '800', color: '#f8fafc' }}>{item.name}</div>
-                                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Terjual: <b style={{ color: '#fbbf24' }}>{item.qty} Porsi</b></div>
+                                  <div style={{ fontSize: '0.83rem', fontWeight: '800', color: T.txtPrimary }}>{item.name}</div>
+                                  <div style={{ fontSize: '0.72rem', color: T.txtSecondary }}>Terjual: <b style={{ color: T.accentGold }}>{item.qty} Porsi</b></div>
                                 </div>
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#34d399' }}>{formatRupiah(item.net)}</div>
-                                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Net Sales</div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.success }}>{formatRupiah(item.net)}</div>
+                                <div style={{ fontSize: '0.7rem', color: T.txtMuted }}>Net Sales</div>
                               </div>
                             </div>
                           ))}
@@ -4040,21 +4075,22 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
 
 
+
           {/* SECTION 4: TABEL 1 RINCIAN NOMINAL PENJUALAN BY MENU (PER NAMA MENU) */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <DollarSign size={22} color="#38bdf8" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <DollarSign size={22} color={T.info} />
                   <span>1. Tabel Rincian Nominal Penjualan By Menu (Sebelum & Setelah Diskon)</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Detail per per nama menu: omzet sebelum diskon dan setelah diskon di setiap outlet cabang
                 </p>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <ColumnVisibilityDropdown
+                <ColumnVisibilityDropdown themeMode={themeMode}
                   columns={[
                     { key: 'menuName', label: 'Nama Menu' },
                     { key: 'gross', label: 'Sebelum Diskon (Gross)' },
@@ -4069,7 +4105,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <button 
                   onClick={handleDownloadMenuNominalPDF} 
                   className="btn-secondary" 
-                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Printer size={14} />
                   <span>Download PDF</span>
@@ -4078,7 +4114,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <button 
                   onClick={handleDownloadMenuNominalExcel} 
                   className="btn-secondary" 
-                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <FileSpreadsheet size={14} />
                   <span>Download Excel</span>
@@ -4099,46 +4135,48 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const showTotalNet = menuNominalVisibleCols.totalNet !== false;
 
               return (
-                <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+                <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
                       {/* HEADER ROW 1 */}
-                      <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.8rem' }}>
-                        {showMenuName && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: '1px solid #334155', textAlign: 'left', minWidth: '200px' }}>Nama Menu</th>}
+                      <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
+                        {showMenuName && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: `1px solid ${T.border}`, textAlign: 'left', minWidth: '200px' }}>Nama Menu</th>}
                         {activeOutlets.map(otl => {
                           const colSpanVal = (showGross ? 1 : 0) + (showNet ? 1 : 0);
                           if (colSpanVal === 0) return null;
                           return (
-                            <th key={otl.id} colSpan={colSpanVal} style={{ padding: '10px', textAlign: 'center', borderRight: '1px solid #334155', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}>
+                            <th key={otl.id} colSpan={colSpanVal} style={{ padding: '10px', textAlign: 'center', borderRight: `1px solid ${T.border}`, background: `${T.info}15`, color: T.info }}>
                               🏢 {otl.name}
                             </th>
                           );
                         })}
                         {(showTotalGross || showTotalNet) && (
-                          <th colSpan={(showTotalGross ? 1 : 0) + (showTotalNet ? 1 : 0)} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: '#34d399' }}>
+                          <th colSpan={(showTotalGross ? 1 : 0) + (showTotalNet ? 1 : 0)} style={{ padding: '10px', textAlign: 'center', background: `${T.success}12`, color: T.success }}>
                             📊 Total Akumulasi Seluruh Outlet
                           </th>
                         )}
                       </tr>
                       {/* HEADER ROW 2 */}
-                      <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                         {activeOutlets.map(otl => (
                           <React.Fragment key={otl.id}>
-                            {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#cbd5e1' }}>Sebelum Diskon</th>}
-                            {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>Setelah Diskon</th>}
+                            {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
+                            {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>Setelah Diskon</th>}
                           </React.Fragment>
                         ))}
-                        {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#cbd5e1' }}>Sebelum Diskon</th>}
-                        {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: '#34d399' }}>Setelah Diskon</th>}
+                        {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
+                        {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.success }}>Setelah Diskon</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {menuRows.map((row) => (
-                        <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                           {showMenuName && (
-                            <td style={{ padding: '12px 14px', fontWeight: '800', color: '#f8fafc', borderRight: '1px solid #334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span>🍱</span>
-                              <span>{row.name}</span>
+                            <td style={{ padding: '12px 14px', fontWeight: '800', color: T.txtPrimary, borderRight: `1px solid ${T.border}` }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🍱</span>
+                                <span>{row.name}</span>
+                              </div>
                             </td>
                           )}
                           {activeOutlets.map(otl => {
@@ -4146,12 +4184,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             return (
                               <React.Fragment key={otl.id}>
                                 {showGross && (
-                                  <td style={{ padding: '10px', textAlign: 'right', color: '#94a3b8' }}>
+                                  <td style={{ padding: '10px', textAlign: 'right', color: T.txtSecondary }}>
                                     {formatRupiah(d.gross)}
                                   </td>
                                 )}
                                 {showNet && (
-                                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: '#38bdf8', borderRight: '1px solid #334155' }}>
+                                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}` }}>
                                     {formatRupiah(d.net)}
                                   </td>
                                 )}
@@ -4159,12 +4197,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             );
                           })}
                           {showTotalGross && (
-                            <td style={{ padding: '10px', textAlign: 'right', color: '#cbd5e1', fontWeight: '700' }}>
+                            <td style={{ padding: '10px', textAlign: 'right', color: T.txtPrimary, fontWeight: '700' }}>
                               {formatRupiah(row.totalGross)}
                             </td>
                           )}
                           {showTotalNet && (
-                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: '#34d399', fontSize: '0.9rem' }}>
+                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.9rem' }}>
                               {formatRupiah(row.totalNet)}
                             </td>
                           )}
@@ -4173,20 +4211,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </tbody>
                     {/* FOOTER TOTAL ROW */}
                     <tfoot>
-                      <tr style={{ background: '#1e293b', borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
-                        {showMenuName && <td style={{ padding: '14px', borderRight: '1px solid #334155', textAlign: 'left' }}>TOTAL AKUMULASI NOMINAL BULANAN</td>}
+                      <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.info}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.85rem' }}>
+                        {showMenuName && <td style={{ padding: '14px', borderRight: `1px solid ${T.border}`, textAlign: 'left' }}>TOTAL AKUMULASI NOMINAL BULANAN</td>}
                         {activeOutlets.map(otl => {
                           const sumGross = menuRows.reduce((s, r) => s + (r.outlets[otl.id]?.gross || 0), 0);
                           const sumNet = menuRows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
                           return (
                             <React.Fragment key={otl.id}>
-                              {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(sumGross)}</td>}
-                              {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#38bdf8', borderRight: '1px solid #334155' }}>{formatRupiah(sumNet)}</td>}
+                              {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(sumGross)}</td>}
+                              {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>{formatRupiah(sumNet)}</td>}
                             </React.Fragment>
                           );
                         })}
-                        {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(grandTotalGrossAll)}</td>}
-                        {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
+                        {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(grandTotalGrossAll)}</td>}
+                        {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.success, fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
                       </tr>
                     </tfoot>
                   </table>
@@ -4196,20 +4234,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* SECTION 4: TABEL 2 RINCIAN JUMLAH PENJUALAN (QTY PORSI/ITEM) BY MENU */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <ShoppingBag size={22} color="#fbbf24" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <ShoppingBag size={22} color={T.accentGold} />
                   <span>2. Tabel Rincian Jumlah Penjualan (Qty Porsi/Item) By Menu</span>
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px', margin: 0 }}>
+                <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
                   Detail per nama menu: jumlah porsi/unit item terjual di setiap outlet cabang
                 </p>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <ColumnVisibilityDropdown
+                <ColumnVisibilityDropdown themeMode={themeMode}
                   columns={[
                     { key: 'menuName', label: 'Nama Menu' },
                     { key: 'qty', label: 'Jumlah Porsi / Qty' },
@@ -4222,7 +4260,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <button 
                   onClick={handleDownloadMenuQtyPDF} 
                   className="btn-secondary" 
-                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Printer size={14} />
                   <span>Download PDF</span>
@@ -4231,7 +4269,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <button 
                   onClick={handleDownloadMenuQtyExcel} 
                   className="btn-secondary" 
-                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ padding: '6px 12px', fontSize: '0.78rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <FileSpreadsheet size={14} />
                   <span>Download Excel</span>
@@ -4249,18 +4287,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const showTotalQty = menuQtyVisibleCols.totalQty !== false;
 
               return (
-                <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+                <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                     <thead>
-                      <tr style={{ background: '#1e293b', borderBottom: '2px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.8rem' }}>
-                        {showMenuName && <th style={{ padding: '12px 14px', borderRight: '1px solid #334155', textAlign: 'left', minWidth: '200px' }}>Nama Menu</th>}
+                      <tr style={{ background: T.cardBg, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
+                        {showMenuName && <th style={{ padding: '12px 14px', borderRight: `1px solid ${T.border}`, textAlign: 'left', minWidth: '200px' }}>Nama Menu</th>}
                         {showQty && activeOutlets.map(otl => (
-                          <th key={otl.id} style={{ padding: '12px 10px', textAlign: 'right', borderRight: '1px solid #334155', color: '#fbbf24' }}>
+                          <th key={otl.id} style={{ padding: '12px 10px', textAlign: 'right', borderRight: `1px solid ${T.border}`, color: T.accentGold }}>
                             🏢 {otl.name} (Qty)
                           </th>
                         ))}
                         {showTotalQty && (
-                          <th style={{ padding: '12px 10px', textAlign: 'right', background: 'rgba(251, 191, 36, 0.1)', color: '#fbbf24' }}>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', background: 'rgba(251, 191, 36, 0.1)', color: T.accentGold }}>
                             📊 Total Akumulasi Qty Seluruh Outlet
                           </th>
                         )}
@@ -4268,9 +4306,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </thead>
                     <tbody>
                       {menuRows.map((row) => (
-                        <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <tr key={row.id} style={{ borderBottom: `1px solid ${T.hoverBg}`, color: T.txtPrimary }}>
                           {showMenuName && (
-                            <td style={{ padding: '12px 14px', fontWeight: '800', color: '#fbbf24', borderRight: '1px solid #334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <td style={{ padding: '12px 14px', fontWeight: '800', color: T.accentGold, borderRight: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span>🍱</span>
                               <span>{row.name}</span>
                             </td>
@@ -4278,13 +4316,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           {showQty && activeOutlets.map(otl => {
                             const d = row.outlets[otl.id] || { qty: 0 };
                             return (
-                              <td key={otl.id} style={{ padding: '10px', textAlign: 'right', fontWeight: '700', color: '#f8fafc', borderRight: '1px solid #334155' }}>
+                              <td key={otl.id} style={{ padding: '10px', textAlign: 'right', fontWeight: '700', color: T.txtPrimary, borderRight: `1px solid ${T.border}` }}>
                                 {d.qty.toLocaleString('id-ID')} Item
                               </td>
                             );
                           })}
                           {showTotalQty && (
-                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: '#fbbf24', fontSize: '0.9rem' }}>
+                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: T.accentGold, fontSize: '0.9rem' }}>
                               {row.totalQty.toLocaleString('id-ID')} Item
                             </td>
                           )}
@@ -4293,18 +4331,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     </tbody>
                     {/* FOOTER TOTAL ROW */}
                     <tfoot>
-                      <tr style={{ background: '#1e293b', borderTop: '2px solid #fbbf24', fontWeight: '900', color: '#ffffff', fontSize: '0.85rem' }}>
-                        {showMenuName && <td style={{ padding: '14px', borderRight: '1px solid #334155', textAlign: 'left' }}>TOTAL AKUMULASI QTY BULANAN</td>}
+                      <tr style={{ background: T.cardBg, borderTop: `2px solid ${T.accentGold}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.85rem' }}>
+                        {showMenuName && <td style={{ padding: '14px', borderRight: `1px solid ${T.border}`, textAlign: 'left' }}>TOTAL AKUMULASI QTY BULANAN</td>}
                         {showQty && activeOutlets.map(otl => {
                           const sumQty = menuRows.reduce((s, r) => s + (r.outlets[otl.id]?.qty || 0), 0);
                           return (
-                            <td key={otl.id} style={{ padding: '14px 10px', textAlign: 'right', color: '#fbbf24', borderRight: '1px solid #334155' }}>
+                            <td key={otl.id} style={{ padding: '14px 10px', textAlign: 'right', color: T.accentGold, borderRight: `1px solid ${T.border}` }}>
                               {sumQty.toLocaleString('id-ID')} Item
                             </td>
                           );
                         })}
                         {showTotalQty && (
-                          <td style={{ padding: '14px 10px', textAlign: 'right', color: '#fbbf24', fontSize: '0.95rem' }}>
+                          <td style={{ padding: '14px 10px', textAlign: 'right', color: T.accentGold, fontSize: '0.95rem' }}>
                             {grandTotalQtyAll.toLocaleString('id-ID')} Item
                           </td>
                         )}
@@ -4323,7 +4361,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* FILTER & ACTION BAR SECTION */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1000 }}>
-            <DoubleCalendarPicker
+            <DoubleCalendarPicker themeMode={themeMode}
               startDate={sumStartDate}
               endDate={sumEndDate}
               datePreset={sumDatePreset}
@@ -4342,12 +4380,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             />
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <button onClick={handleDownloadSummaryExcel} className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.82rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={handleDownloadSummaryExcel} className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.82rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FileSpreadsheet size={16} />
                 <span>Download Excel</span>
               </button>
 
-              <button onClick={handleDownloadSummaryPDF} className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.82rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={handleDownloadSummaryPDF} className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.82rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Printer size={16} />
                 <span>Download PDF</span>
               </button>
@@ -4359,52 +4397,52 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             const data = getExecutiveSummaryReportData();
 
             return (
-              <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: '#0f172a', border: '1px solid #334155', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
                 
                 {/* CENTERED REPORT TITLE HEADER */}
-                <div style={{ textAlign: 'center', borderBottom: '1px solid #334155', paddingBottom: '20px' }}>
-                  <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#38bdf8', letterSpacing: '-0.02em', margin: 0 }}>
+                <div style={{ textAlign: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '20px' }}>
+                  <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: T.info, letterSpacing: '-0.02em', margin: 0 }}>
                     Ringkasan Penjualan
                   </h1>
-                  <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#94a3b8', marginTop: '6px' }}>
+                  <div style={{ fontSize: '1.05rem', fontWeight: '700', color: T.txtSecondary, marginTop: '6px' }}>
                     {data.start} - {data.end}
                   </div>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', marginTop: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, marginTop: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     🏢 {data.outletNameStr}
                   </div>
                 </div>
 
                 {/* 1. FINANCIAL SUMMARY TABLE */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Financial Summary (Omzet & Diskon)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                       <tbody>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Sales (Omzet Kotor)</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#f8fafc' }}>{formatRupiahDecimals(data.totalSales)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Sales (Omzet Kotor)</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>{formatRupiahDecimals(data.totalSales)}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Discount</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>({formatRupiahDecimals(data.totalDiscount)})</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Discount</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: T.danger }}>({formatRupiahDecimals(data.totalDiscount)})</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Service Charge</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>{formatRupiahDecimals(data.totalServiceCharge)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Service Charge</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>{formatRupiahDecimals(data.totalServiceCharge)}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Tax</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>{formatRupiahDecimals(data.totalTax)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Tax</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>{formatRupiahDecimals(data.totalTax)}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Total Adjustment</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: '#94a3b8' }}>{formatRupiahDecimals(data.totalAdjustment)}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Total Adjustment</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>{formatRupiahDecimals(data.totalAdjustment)}</td>
                         </tr>
-                        <tr style={{ background: 'rgba(52, 211, 153, 0.1)', borderTop: '2px solid #34d399' }}>
-                          <td style={{ padding: '14px 18px', color: '#ffffff', fontWeight: '900', fontSize: '1rem' }}>TOTAL (NET SALES)</td>
-                          <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: '900', color: '#34d399', fontSize: '1.15rem' }}>{formatRupiahDecimals(data.netTotal)}</td>
+                        <tr style={{ background: 'rgba(52, 211, 153, 0.1)', borderTop: `2px solid ${T.success}` }}>
+                          <td style={{ padding: '14px 18px', color: T.txtPrimary, fontWeight: '900', fontSize: '1rem' }}>TOTAL (NET SALES)</td>
+                          <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '1.15rem' }}>{formatRupiahDecimals(data.netTotal)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -4413,19 +4451,19 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
                 {/* 2. INVOICES SUMMARY TABLE */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Invoices (Statistik Struk)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                       <tbody>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Number of Invoices (Jumlah Struk)</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{data.numberOfInvoices.toLocaleString('id-ID')}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Number of Invoices (Jumlah Struk)</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: T.info }}>{data.numberOfInvoices.toLocaleString('id-ID')}</td>
                         </tr>
                         <tr>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Average Bill per Invoice (Rata-rata Struk / APC)</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{formatRupiahDecimals(data.avgBillPerInvoice)}</td>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Average Bill per Invoice (Rata-rata Struk / APC)</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: T.info }}>{formatRupiahDecimals(data.avgBillPerInvoice)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -4434,23 +4472,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
                 {/* 3. VOID SUMMARY TABLE */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fb7185', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.danger, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Void Summary (Ringkasan Pembatalan)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                       <tbody>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Number of Invoices (Struk Batal)</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>{data.voidInvoices}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Number of Invoices (Struk Batal)</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: T.danger }}>{data.voidInvoices}</td>
                         </tr>
-                        <tr style={{ borderBottom: '1px solid #334155' }}>
-                          <td style={{ padding: '12px 18px', color: '#cbd5e1', fontWeight: '600' }}>Number of Items (Item Batal)</td>
-                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>{data.voidItems}</td>
+                        <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '12px 18px', color: T.txtPrimary, fontWeight: '600' }}>Number of Items (Item Batal)</td>
+                          <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: '800', color: T.danger }}>{data.voidItems}</td>
                         </tr>
-                        <tr style={{ background: 'rgba(251, 113, 133, 0.1)', borderTop: '2px solid #fb7185' }}>
-                          <td style={{ padding: '14px 18px', color: '#ffffff', fontWeight: '900' }}>TOTAL NOMINAL VOID</td>
-                          <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: '900', color: '#fb7185', fontSize: '1.05rem' }}>{formatRupiahDecimals(data.voidTotal)}</td>
+                        <tr style={{ background: 'rgba(251, 113, 133, 0.1)', borderTop: `2px solid ${T.danger}` }}>
+                          <td style={{ padding: '14px 18px', color: T.txtPrimary, fontWeight: '900' }}>TOTAL NOMINAL VOID</td>
+                          <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: '900', color: T.danger, fontSize: '1.05rem' }}>{formatRupiahDecimals(data.voidTotal)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -4459,13 +4497,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
                 {/* 4. SUMMARY BY PRODUCT TABLE */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                  <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.accentGold, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                     Summary By Product (Rincian Produk & Tipe Pesanan)
                   </h4>
-                  <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                  <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                       <thead>
-                        <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#cbd5e1', fontWeight: '800' }}>
+                        <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800' }}>
                           <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '220px' }}>Nama Produk</th>
                           <th style={{ padding: '12px 16px', textAlign: 'left', width: '150px' }}>Tipe Pesanan</th>
                           <th style={{ padding: '12px 16px', textAlign: 'center', width: '100px' }}>Qty</th>
@@ -4475,7 +4513,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       <tbody>
                         {data.productSummary.length === 0 ? (
                           <tr>
-                            <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                            <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: T.txtSecondary }}>
                               📭 Belum ada rincian produk transaksi untuk periode ini.
                             </td>
                           </tr>
@@ -4483,17 +4521,17 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           data.productSummary.map((prod, pIdx) => (
                             <React.Fragment key={pIdx}>
                               {prod.variants.map((v, vIdx) => (
-                                <tr key={vIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                                  <td style={{ padding: '10px 16px', fontWeight: vIdx === 0 ? '800' : '400', color: vIdx === 0 ? '#f8fafc' : 'transparent' }}>
+                                <tr key={vIdx} style={{ borderBottom: `1px solid ${T.hoverBg}`, color: T.txtPrimary }}>
+                                  <td style={{ padding: '10px 16px', fontWeight: vIdx === 0 ? '800' : '400', color: vIdx === 0 ? `${T.txtPrimary}` : 'transparent' }}>
                                     {vIdx === 0 ? prod.name : ''}
                                   </td>
-                                  <td style={{ padding: '10px 16px', color: v.type === 'Take Away' ? '#fbbf24' : '#38bdf8', fontWeight: '700' }}>
+                                  <td style={{ padding: '10px 16px', color: v.type === 'Take Away' ? `${T.accentGold}` : T.info, fontWeight: '700' }}>
                                     {v.type}
                                   </td>
-                                  <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '800', color: '#cbd5e1' }}>
+                                  <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '800', color: T.txtPrimary }}>
                                     x{v.qty.toLocaleString('id-ID')}
                                   </td>
-                                  <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>
+                                  <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: '800', color: T.success }}>
                                     {formatRupiahDecimals(v.sales)}
                                   </td>
                                 </tr>
@@ -4507,22 +4545,22 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </div>
 
                 {/* 5. ULASAN EKSEKUTIF & AI INSIGHT BOARD */}
-                <div style={{ background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)', padding: '24px', borderRadius: '14px', border: '1px solid #6366f1', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <h4 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#818cf8', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <FileText size={20} color="#818cf8" />
+                <div style={{ background: `linear-gradient(135deg, ${T.accentGreenBg} 0%, rgba(15, 23, 42, 0.95) 100%)`, padding: '24px', borderRadius: '14px', border: `1px solid ${T.accentGreen}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.info, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <FileText size={20} color={ T.info } />
                     <span>💡 Ulasan Eksekutif & AI Insight Resto</span>
                   </h4>
-                  <div style={{ fontSize: '0.88rem', color: '#cbd5e1', lineHeight: '1.7', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.88rem', color: T.txtPrimary, lineHeight: '1.7', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <p style={{ margin: 0 }}>
-                      • <strong>Performa Finansial:</strong> Total omzet bersih yang diraih pada periode ini adalah <strong style={{ color: '#34d399' }}>{formatRupiah(data.netTotal)}</strong> dari <strong style={{ color: '#38bdf8' }}>{data.numberOfInvoices.toLocaleString('id-ID')} struk transaksi</strong> dengan rata-rata belanja <strong style={{ color: '#fbbf24' }}>{formatRupiah(data.avgBillPerInvoice)} per struk</strong>.
+                      • <strong>Performa Finansial:</strong> Total omzet bersih yang diraih pada periode ini adalah <strong style={{ color: T.success }}>{formatRupiah(data.netTotal)}</strong> dari <strong style={{ color: T.info }}>{data.numberOfInvoices.toLocaleString('id-ID')} struk transaksi</strong> dengan rata-rata belanja <strong style={{ color: T.accentGold }}>{formatRupiah(data.avgBillPerInvoice)} per struk</strong>.
                     </p>
                     {data.productSummary.length > 0 && (
                       <p style={{ margin: 0 }}>
-                        • <strong>Menu Terlaris:</strong> Menu utama terdaftar pada periode ini mencakup <strong style={{ color: '#f8fafc' }}>{data.productSummary[0]?.name}</strong>.
+                        • <strong>Menu Terlaris:</strong> Menu utama terdaftar pada periode ini mencakup <strong style={{ color: T.txtPrimary }}>{data.productSummary[0]?.name}</strong>.
                       </p>
                     )}
                     <p style={{ margin: 0 }}>
-                      • <strong>Tingkat Pembatalan (Void):</strong> Terjadi pembatalan sebanyak <strong style={{ color: '#fb7185' }}>{data.voidInvoices} struk ({data.voidItems} item)</strong> dengan nominal <strong style={{ color: '#fb7185' }}>{formatRupiah(data.voidTotal)}</strong>.
+                      • <strong>Tingkat Pembatalan (Void):</strong> Terjadi pembatalan sebanyak <strong style={{ color: T.danger }}>{data.voidInvoices} struk ({data.voidItems} item)</strong> dengan nominal <strong style={{ color: T.danger }}>{formatRupiah(data.voidTotal)}</strong>.
                     </p>
                   </div>
                 </div>
@@ -4540,7 +4578,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER & ACTION BAR SECTION */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-            <DoubleCalendarPicker
+            <DoubleCalendarPicker themeMode={themeMode}
               startDate={dailyStartDate}
               endDate={dailyEndDate}
               datePreset={dailyDatePreset}
@@ -4562,7 +4600,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <button 
                 onClick={handleDownloadDailyPDF} 
                 className="btn-secondary" 
-                style={{ padding: '9px 16px', fontSize: '0.82rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}
+                style={{ padding: '9px 16px', fontSize: '0.82rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <Printer size={16} />
                 <span>Download PDF</span>
@@ -4571,7 +4609,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <button 
                 onClick={handleDownloadDailyExcel} 
                 className="btn-secondary" 
-                style={{ padding: '9px 16px', fontSize: '0.82rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}
+                style={{ padding: '9px 16px', fontSize: '0.82rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', height: '40px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <FileSpreadsheet size={16} />
                 <span>Download Excel</span>
@@ -4580,23 +4618,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* MAIN REPORT BOARD - MATCHING LUNA POS REPORT SCREENSHOT */}
-          <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '36px 32px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
             {/* CENTERED REPORT TITLE HEADER */}
             <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-              <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#38bdf8', letterSpacing: '-0.02em', margin: 0 }}>
+              <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: T.info, letterSpacing: '-0.02em', margin: 0 }}>
                 Ringkasan Penjualan Harian
               </h1>
-              <div style={{ fontSize: '1.05rem', fontWeight: '700', color: '#cbd5e1', marginTop: '6px' }}>
+              <div style={{ fontSize: '1.05rem', fontWeight: '700', color: T.txtPrimary, marginTop: '6px' }}>
                 {dailyStartDate ? formatToDMY(dailyStartDate) : 'Semua Tanggal'} {dailyEndDate ? `- ${formatToDMY(dailyEndDate)}` : ''}
               </div>
             </div>
 
             {/* REPORT TABLE */}
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '2px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.82rem' }}>
+                  <tr style={{ background: T.cardBg, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem' }}>
                     <th style={{ padding: '14px 16px' }}>Tanggal</th>
                     <th style={{ padding: '14px 16px', textAlign: 'right' }}>Total Sales</th>
                     <th style={{ padding: '14px 16px', textAlign: 'right' }}>Discount</th>
@@ -4612,7 +4650,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     if (data.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.88rem' }}>
+                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.88rem' }}>
                             📭 Belum ada data transaksi penjualan harian. Data penjualan akan muncul otomatis ketika transaksi kasir diinput.
                           </td>
                         </tr>
@@ -4629,26 +4667,26 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     return (
                       <>
                         {data.map((r, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: '#f8fafc' }}>
-                            <td style={{ padding: '12px 16px', fontWeight: '700', color: '#cbd5e1' }}>{r.formattedDate}</td>
+                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: T.txtPrimary }}>
+                            <td style={{ padding: '12px 16px', fontWeight: '700', color: T.txtPrimary }}>{r.formattedDate}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>{formatRupiahDecimals(r.totalSales)}</td>
-                            <td style={{ padding: '12px 16px', textAlign: 'right', color: r.discount > 0 ? '#fb7185' : '#f8fafc' }}>{formatRupiahDecimals(r.discount)}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'right', color: r.discount > 0 ? `${T.danger}` : T.txtPrimary }}>{formatRupiahDecimals(r.discount)}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>{formatRupiahDecimals(r.serviceCharge)}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>{formatRupiahDecimals(r.tax)}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>{formatRupiahDecimals(r.adjustment)}</td>
-                            <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{formatRupiahDecimals(r.total)}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '800', color: T.info }}>{formatRupiahDecimals(r.total)}</td>
                           </tr>
                         ))}
                         
                         {/* GRAND TOTAL FOOTER ROW */}
-                        <tr style={{ background: '#1e293b', borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.92rem' }}>
+                        <tr style={{ background: T.cardBg, borderTop: `2px solid ${T.info}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.92rem' }}>
                           <td style={{ padding: '16px' }}>Total Akumulasi</td>
-                          <td style={{ padding: '16px', textAlign: 'right', color: '#34d399' }}>{formatRupiahDecimals(totalSalesSum)}</td>
-                          <td style={{ padding: '16px', textAlign: 'right', color: '#fb7185' }}>{formatRupiahDecimals(discountSum)}</td>
+                          <td style={{ padding: '16px', textAlign: 'right', color: T.success }}>{formatRupiahDecimals(totalSalesSum)}</td>
+                          <td style={{ padding: '16px', textAlign: 'right', color: T.danger }}>{formatRupiahDecimals(discountSum)}</td>
                           <td style={{ padding: '16px', textAlign: 'right' }}>{formatRupiahDecimals(serviceChargeSum)}</td>
                           <td style={{ padding: '16px', textAlign: 'right' }}>{formatRupiahDecimals(taxSum)}</td>
                           <td style={{ padding: '16px', textAlign: 'right' }}>{formatRupiahDecimals(adjustmentSum)}</td>
-                          <td style={{ padding: '16px', textAlign: 'right', color: '#38bdf8', fontSize: '1.05rem' }}>{formatRupiahDecimals(grandTotal)}</td>
+                          <td style={{ padding: '16px', textAlign: 'right', color: T.info, fontSize: '1.05rem' }}>{formatRupiahDecimals(grandTotal)}</td>
                         </tr>
                       </>
                     );
@@ -4668,8 +4706,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           masterData={masterData}
           setMasterData={setMasterData}
           selectedBranch={selectedBranch}
+          themeMode={themeMode}
         />
       )}
+
 
 
       {/* 6. PENJUALAN PER JAM */}
@@ -4677,7 +4717,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER BAR SECTION */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
-            <DoubleCalendarPicker
+            <DoubleCalendarPicker themeMode={themeMode}
               startDate={hourStartDate}
               endDate={hourEndDate}
               datePreset={hourDatePreset}
@@ -4707,24 +4747,24 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{
                   fontSize: '0.8rem',
                   padding: '8px 12px',
-                  borderColor: hourShowColumnDropdown ? '#fbbf24' : 'rgba(255,255,255,0.1)',
-                  background: hourShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : '#1e293b',
-                  color: hourShowColumnDropdown ? '#fbbf24' : '#cbd5e1',
+                  borderColor: hourShowColumnDropdown ? `${T.accentGold}` : 'rgba(255,255,255,0.1)',
+                  background: hourShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : T.cardBg,
+                  color: hourShowColumnDropdown ? `${T.accentGold}` : T.txtPrimary,
                   height: '40px'
                 }}
               >
-                <SlidersHorizontal size={15} color="#fbbf24" />
+                <SlidersHorizontal size={15} color={ T.accentGold } />
                 <span>👁️ Filter Kolom Ditampilkan</span>
                 <ChevronDown size={14} style={{ transform: hourShowColumnDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
 
               {/* Export Action Buttons */}
-              <button onClick={handleDownloadHourExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
+              <button onClick={handleDownloadHourExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
                 <FileSpreadsheet size={15} />
                 <span>Download Excel</span>
               </button>
 
-              <button onClick={handleDownloadHourPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
+              <button onClick={handleDownloadHourPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
                 <Printer size={15} />
                 <span>Download PDF</span>
               </button>
@@ -4733,18 +4773,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
           {/* 3. PAPAN FILTER KOLOM DITAMPILKAN (DISUSUN LANGSUNG DI ATAS TABEL) */}
           {hourShowColumnDropdown && (
-            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: '1px solid #fbbf24', background: '#1e293b', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-                <div style={{ fontWeight: '800', color: '#f8fafc', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <SlidersHorizontal size={18} color="#fbbf24" />
+            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: `1px solid ${T.accentGold}`, background: T.cardBg, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '10px' }}>
+                <div style={{ fontWeight: '800', color: T.txtPrimary, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <SlidersHorizontal size={18} color={ T.accentGold } />
                   <span>Papan Filter Visibilitas Kolom Tabel (Penjualan per Jam)</span>
                 </div>
-                <button onClick={() => setHourShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
+                <button onClick={() => setHourShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
                   ✕ Sembunyikan Papan Kolom
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
                 {[
                   { key: 'hourRange', label: '🕒 Rentang Waktu (1 Jam)' },
                   { key: 'txCount', label: '📊 Jumlah Transaksi' },
@@ -4757,19 +4797,19 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     gap: '8px',
                     cursor: 'pointer',
                     fontSize: '0.85rem',
-                    color: hourVisibleColumns[col.key] ? '#fbbf24' : '#cbd5e1',
+                    color: hourVisibleColumns[col.key] ? `${T.accentGold}` : T.txtPrimary,
                     fontWeight: hourVisibleColumns[col.key] ? '800' : '600',
-                    background: hourVisibleColumns[col.key] ? 'rgba(251, 191, 36, 0.15)' : '#1e293b',
+                    background: hourVisibleColumns[col.key] ? 'rgba(251, 191, 36, 0.15)' : T.cardBg,
                     padding: '8px 14px',
                     borderRadius: '8px',
                     border: '1px solid',
-                    borderColor: hourVisibleColumns[col.key] ? '#fbbf24' : '#334155'
+                    borderColor: hourVisibleColumns[col.key] ? `${T.accentGold}` : T.border
                   }}>
                     <input
                       type="checkbox"
                       checked={hourVisibleColumns[col.key]}
                       onChange={() => handleToggleHourColumn(col.key)}
-                      style={{ accentColor: '#fbbf24', width: '16px', height: '16px' }}
+                      style={{ accentColor: T.accentGold, width: '16px', height: '16px' }}
                     />
                     <span>{col.label}</span>
                   </label>
@@ -4782,22 +4822,22 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <TrendingUp size={20} color="#818cf8" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={20} color={ T.info } />
                   <span>Grafik Jam Sibuk Penjualan (Peak Hours Chart)</span>
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px' }}>
+                <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px' }}>
                   Distribusi omzet per jam operasional restoran dengan label nominal Rupiah (Rp) melayang di atas puncak bagan
                 </p>
               </div>
 
-              <div style={{ fontSize: '0.8rem', color: '#818cf8', fontWeight: '800', background: 'rgba(99, 102, 241, 0.15)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
+              <div style={{ fontSize: '0.8rem', color: T.info, fontWeight: '800', background: T.accentGreenBg, padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
                 📊 Peak Hours Active
               </div>
             </div>
 
             {/* Visual Bar Chart */}
-            <div style={{ background: '#0f172a', padding: '32px 14px 14px 14px', borderRadius: '16px', border: '1px solid #334155', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', minHeight: '260px', overflowX: 'auto', gap: '10px' }}>
+            <div style={{ background: T.cardBg2, padding: '32px 14px 14px 14px', borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', minHeight: '260px', overflowX: 'auto', gap: '10px' }}>
               {hourlyBuckets.map((b, idx) => {
                 const maxNet = Math.max(...hourlyBuckets.map(h => h.net), 1);
                 const barHeightPct = Math.max((b.net / maxNet) * 150, 6);
@@ -4811,14 +4851,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         position: 'absolute',
                         top: `-${barHeightPct + 36}px`,
                         background: 'rgba(129, 140, 248, 0.95)',
-                        color: '#ffffff',
+                        color: T.txtPrimary,
                         fontSize: '0.65rem',
                         fontWeight: '900',
                         padding: '3px 6px',
                         borderRadius: '6px',
                         whiteSpace: 'nowrap',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                        border: '1px solid #818cf8',
+                        border: `1px solid ${T.info}`,
                         zIndex: 10
                       }}>
                         {formatRupiah(b.net)}
@@ -4829,13 +4869,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     <div style={{
                       width: '60%',
                       height: `${barHeightPct}px`,
-                      background: isSibuk ? 'linear-gradient(180deg, #818cf8 0%, #4f46e5 100%)' : '#1e293b',
+                      background: isSibuk ? `linear-gradient(180deg, ${T.info} 0%, #4f46e5 100%)` : T.cardBg,
                       borderRadius: '4px 4px 0 0',
                       transition: 'height 0.4s ease'
                     }} />
 
                     {/* Label Jam */}
-                    <div style={{ marginTop: '8px', fontSize: '0.65rem', color: '#94a3b8', fontWeight: '800' }}>
+                    <div style={{ marginTop: '8px', fontSize: '0.65rem', color: T.txtSecondary, fontWeight: '800' }}>
                       {b.hourRange.split(' - ')[0]}
                     </div>
                   </div>
@@ -4847,10 +4887,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           {/* TABEL DATA PENJUALAN PER JAM */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary }}>
                 Tabel Analisis Penjualan per Jam
               </h3>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+              <div style={{ fontSize: '0.8rem', color: T.txtSecondary }}>
                 Interval Terbagi 24 Jam Operasional
               </div>
             </div>
@@ -4858,35 +4898,35 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {hourVisibleColumns.hourRange && <th style={{ padding: '12px' }}>Rentang Waktu (1 Jam)</th>}
-                    {hourVisibleColumns.txCount && <th style={{ padding: '12px', textAlign: 'right', color: '#818cf8' }}>Jumlah Transaksi</th>}
-                    {hourVisibleColumns.net && <th style={{ padding: '12px', textAlign: 'right', color: '#34d399' }}>Total Omzet Net (Rupiah)</th>}
-                    {hourVisibleColumns.pct && <th style={{ padding: '12px', textAlign: 'right', color: '#fbbf24' }}>Kontribusi Omzet (%)</th>}
+                    {hourVisibleColumns.txCount && <th style={{ padding: '12px', textAlign: 'right', color: T.info }}>Jumlah Transaksi</th>}
+                    {hourVisibleColumns.net && <th style={{ padding: '12px', textAlign: 'right', color: T.success }}>Total Omzet Net (Rupiah)</th>}
+                    {hourVisibleColumns.pct && <th style={{ padding: '12px', textAlign: 'right', color: T.accentGold }}>Kontribusi Omzet (%)</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {hourlyBuckets.map((b, idx) => {
                     const pct = totalHourNet > 0 ? ((b.net / totalHourNet) * 100).toFixed(1) : '0.0';
                     return (
-                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.hoverBg}`, color: T.txtPrimary }}>
                         {hourVisibleColumns.hourRange && (
-                          <td style={{ padding: '12px', fontWeight: '800', color: '#f8fafc' }}>
+                          <td style={{ padding: '12px', fontWeight: '800', color: T.txtPrimary }}>
                             🕒 {b.hourRange}
                           </td>
                         )}
                         {hourVisibleColumns.txCount && (
-                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '700', color: '#818cf8' }}>
+                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '700', color: T.info }}>
                             {b.txCount} kali
                           </td>
                         )}
                         {hourVisibleColumns.net && (
-                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '900', color: '#34d399', fontSize: '0.92rem' }}>
+                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.92rem' }}>
                             {formatRupiah(b.net)}
                           </td>
                         )}
                         {hourVisibleColumns.pct && (
-                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: '#fbbf24' }}>
+                          <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: T.accentGold }}>
                             {pct}%
                           </td>
                         )}
@@ -4895,11 +4935,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   })}
                 </tbody>
 <tfoot>
-                  <tr style={{ background: '#0f172a', borderTop: '2px solid #334155', fontWeight: '900', color: '#f8fafc' }}>
+                  <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, fontWeight: '900', color: T.txtPrimary }}>
                     {hourVisibleColumns.hourRange && <td style={{ padding: '14px 12px' }}>TOTAL KESELURUHAN</td>}
-                    {hourVisibleColumns.txCount && <td style={{ padding: '14px 12px', textAlign: 'right', color: '#818cf8' }}>{totalHourTxCount} kali</td>}
-                    {hourVisibleColumns.net && <td style={{ padding: '14px 12px', textAlign: 'right', color: '#34d399', fontSize: '1rem' }}>{formatRupiah(totalHourNet)}</td>}
-                    {hourVisibleColumns.pct && <td style={{ padding: '14px 12px', textAlign: 'right', color: '#fbbf24' }}>100%</td>}
+                    {hourVisibleColumns.txCount && <td style={{ padding: '14px 12px', textAlign: 'right', color: T.info }}>{totalHourTxCount} kali</td>}
+                    {hourVisibleColumns.net && <td style={{ padding: '14px 12px', textAlign: 'right', color: T.success, fontSize: '1rem' }}>{formatRupiah(totalHourNet)}</td>}
+                    {hourVisibleColumns.pct && <td style={{ padding: '14px 12px', textAlign: 'right', color: T.accentGold }}>100%</td>}
                   </tr>
                 </tfoot>
               </table>
@@ -4919,7 +4959,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <>
                 {/* FILTER BAR SECTION (RENTANG WAKTU & SELEKSI OUTLET) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 30 }}>
-                  <DoubleCalendarPicker
+                  <DoubleCalendarPicker themeMode={themeMode}
                     startDate={rcptStartDate}
                     endDate={rcptEndDate}
                     datePreset={rcptDatePreset}
@@ -4938,7 +4978,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   />
 
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <ColumnVisibilityDropdown
+                    <ColumnVisibilityDropdown themeMode={themeMode}
                       columns={[
                         { key: 'serviceType', label: '🍽️ Tipe Layanan' },
                         { key: 'receiptCount', label: '🎫 Jumlah Struk' },
@@ -4951,12 +4991,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       onToggleColumn={handleToggleRcptColumn}
                     />
 
-                    <button onClick={handleDownloadRcptExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
+                    <button onClick={handleDownloadRcptExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
                       <FileSpreadsheet size={15} />
                       <span>Download Excel</span>
                     </button>
 
-                    <button onClick={handleDownloadRcptPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
+                    <button onClick={handleDownloadRcptPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
                       <Printer size={15} />
                       <span>Download PDF</span>
                     </button>
@@ -4966,42 +5006,42 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 {/* CARD SUMMARY LAYANAN */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                   {/* Card 1: Dine In */}
-                  <div className="glass-card animate-fade-in" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderLeft: '4px solid #38bdf8' }}>
+                  <div className="glass-card animate-fade-in" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderLeft: `4px solid ${T.info}` }}>
                     <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Store size={24} color="#38bdf8" />
+                      <Store size={24} color={ T.info } />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>🍽️ Dine In (Makan di Tempat)</div>
-                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#38bdf8', marginTop: '4px' }}>{formatRupiah(data.serviceTypeBuckets[0].netSales)}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🍽️ Dine In (Makan di Tempat)</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.info, marginTop: '4px' }}>{formatRupiah(data.serviceTypeBuckets[0].netSales)}</div>
+                      <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                         {data.serviceTypeBuckets[0].receiptCount.toLocaleString('id-ID')} Struk | x{data.serviceTypeBuckets[0].totalQty.toLocaleString('id-ID')} Porsi
                       </div>
                     </div>
                   </div>
 
                   {/* Card 2: Take Away */}
-                  <div className="glass-card animate-fade-in" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderLeft: '4px solid #fbbf24' }}>
+                  <div className="glass-card animate-fade-in" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderLeft: `4px solid ${T.accentGold}` }}>
                     <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(251, 191, 36, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <ShoppingBag size={24} color="#fbbf24" />
+                      <ShoppingBag size={24} color={ T.accentGold } />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>🥡 Take Away (Bawa Pulang / GrabFood / GoFood)</div>
-                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#fbbf24', marginTop: '4px' }}>{formatRupiah(data.serviceTypeBuckets[1].netSales)}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🥡 Take Away (Bawa Pulang / GrabFood / GoFood)</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.accentGold, marginTop: '4px' }}>{formatRupiah(data.serviceTypeBuckets[1].netSales)}</div>
+                      <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                         {data.serviceTypeBuckets[1].receiptCount.toLocaleString('id-ID')} Struk | x{data.serviceTypeBuckets[1].totalQty.toLocaleString('id-ID')} Porsi
                       </div>
                     </div>
                   </div>
 
                   {/* Card 3: Total Akumulasi */}
-                  <div className="glass-card animate-fade-in" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderLeft: '4px solid #34d399' }}>
+                  <div className="glass-card animate-fade-in" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', borderLeft: `4px solid ${T.success}` }}>
                     <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(52, 211, 153, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <DollarSign size={24} color="#34d399" />
+                      <DollarSign size={24} color={ T.success } />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>📊 Total Omzet Bersih Layanan</div>
-                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#34d399', marginTop: '4px' }}>{formatRupiah(data.totalNet)}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>📊 Total Omzet Bersih Layanan</div>
+                      <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.success, marginTop: '4px' }}>{formatRupiah(data.totalNet)}</div>
+                      <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
                         {data.totalReceipts.toLocaleString('id-ID')} Struk | x{data.totalQty.toLocaleString('id-ID')} Porsi Total
                       </div>
                     </div>
@@ -5009,18 +5049,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </div>
 
                 {/* GRAFIK PIE PERBANDINGAN PENJUALAN DINE IN VS TAKE AWAY */}
-                <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <BarChart3 size={20} color="#38bdf8" />
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <BarChart3 size={20} color={ T.info } />
                         <span>Grafik Pie Perbandingan Penjualan (Dine In vs Take Away)</span>
                       </h3>
-                      <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px', margin: 0 }}>
+                      <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px', margin: 0 }}>
                         Proporsi kontribusi omzet bersih dari layanan Makan di Tempat (Dine In) dan Bawa Pulang / Online Delivery (Take Away).
                       </p>
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', background: 'rgba(56, 189, 248, 0.15)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                    <div style={{ fontSize: '0.78rem', color: T.info, fontWeight: '800', background: 'rgba(56, 189, 248, 0.15)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
                       🥧 Visual Proportion Chart
                     </div>
                   </div>
@@ -5031,8 +5071,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         <RePieChart>
                           <RePie
                             data={[
-                              { name: 'Dine In (Makan di Tempat)', value: data.serviceTypeBuckets[0].netSales, color: '#38bdf8' },
-                              { name: 'Take Away (Bawa Pulang & Online)', value: data.serviceTypeBuckets[1].netSales, color: '#fbbf24' }
+                              { name: 'Dine In (Makan di Tempat)', value: data.serviceTypeBuckets[0].netSales, color: T.info },
+                              { name: 'Take Away (Bawa Pulang & Online)', value: data.serviceTypeBuckets[1].netSales, color: T.accentGold }
                             ]}
                             cx="50%"
                             cy="50%"
@@ -5041,12 +5081,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             paddingAngle={5}
                             dataKey="value"
                           >
-                            <ReCell key="cell-0" fill="#38bdf8" />
-                            <ReCell key="cell-1" fill="#fbbf24" />
+                            <ReCell key="cell-0" fill={ T.info } />
+                            <ReCell key="cell-1" fill={ T.accentGold } />
                           </RePie>
                           <ReTooltip 
                             formatter={(val) => [formatRupiah(val), 'Total Omzet']}
-                            contentStyle={{ background: '#1e293b', borderColor: '#334155', borderRadius: '10px', color: '#ffffff' }}
+                            contentStyle={{ background: T.cardBg, borderColor: T.border, borderRadius: '10px', color: T.txtPrimary }}
                           />
                         </RePieChart>
                       </ReResponsiveContainer>
@@ -5054,23 +5094,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
                     {/* PIE CHART LEGEND DETAILS */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: '260px' }}>
-                      <div style={{ background: '#1e293b', padding: '14px 18px', borderRadius: '12px', borderLeft: '4px solid #38bdf8', border: '1px solid #334155' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '700' }}>🍽️ Dine In (Makan di Tempat)</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>
+                      <div style={{ background: T.cardBg, padding: '14px 18px', borderRadius: '12px', borderLeft: `4px solid ${T.info}`, border: `1px solid ${T.border}` }}>
+                        <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '700' }}>🍽️ Dine In (Makan di Tempat)</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>
                           {formatRupiah(data.serviceTypeBuckets[0].netSales)}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
-                          Kontribusi: <strong style={{ color: '#38bdf8' }}>{((data.serviceTypeBuckets[0].netSales / data.totalNet) * 100).toFixed(1)}%</strong> ({data.serviceTypeBuckets[0].receiptCount.toLocaleString('id-ID')} Struk / x{data.serviceTypeBuckets[0].totalQty.toLocaleString('id-ID')} Porsi)
+                        <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
+                          Kontribusi: <strong style={{ color: T.info }}>{((data.serviceTypeBuckets[0].netSales / data.totalNet) * 100).toFixed(1)}%</strong> ({data.serviceTypeBuckets[0].receiptCount.toLocaleString('id-ID')} Struk / x{data.serviceTypeBuckets[0].totalQty.toLocaleString('id-ID')} Porsi)
                         </div>
                       </div>
 
-                      <div style={{ background: '#1e293b', padding: '14px 18px', borderRadius: '12px', borderLeft: '4px solid #fbbf24', border: '1px solid #334155' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '700' }}>🥡 Take Away (Bawa Pulang & Delivery)</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#fbbf24', marginTop: '2px' }}>
+                      <div style={{ background: T.cardBg, padding: '14px 18px', borderRadius: '12px', borderLeft: `4px solid ${T.accentGold}`, border: `1px solid ${T.border}` }}>
+                        <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '700' }}>🥡 Take Away (Bawa Pulang & Delivery)</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: '900', color: T.accentGold, marginTop: '2px' }}>
                           {formatRupiah(data.serviceTypeBuckets[1].netSales)}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
-                          Kontribusi: <strong style={{ color: '#fbbf24' }}>{((data.serviceTypeBuckets[1].netSales / data.totalNet) * 100).toFixed(1)}%</strong> ({data.serviceTypeBuckets[1].receiptCount.toLocaleString('id-ID')} Struk / x{data.serviceTypeBuckets[1].totalQty.toLocaleString('id-ID')} Porsi)
+                        <div style={{ fontSize: '0.78rem', color: T.txtPrimary, marginTop: '2px' }}>
+                          Kontribusi: <strong style={{ color: T.accentGold }}>{((data.serviceTypeBuckets[1].netSales / data.totalNet) * 100).toFixed(1)}%</strong> ({data.serviceTypeBuckets[1].receiptCount.toLocaleString('id-ID')} Struk / x{data.serviceTypeBuckets[1].totalQty.toLocaleString('id-ID')} Porsi)
                         </div>
                       </div>
                     </div>
@@ -5081,28 +5121,28 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <div className="glass-card animate-fade-in" style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary }}>
                         Tabel Analisis Penjualan By Layanan (Dine In & Take Away)
                       </h3>
-                      <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px' }}>
+                      <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px' }}>
                         Rincian perbandingan jumlah struk, kuantitas item terjual, total penjualan (nominal), rata-rata penjualan per struk, dan kontribusi (%).
                       </p>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: '800', background: 'rgba(56,189,248,0.15)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.3)' }}>
+                    <div style={{ fontSize: '0.8rem', color: T.info, fontWeight: '800', background: 'rgba(56,189,248,0.15)', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.3)' }}>
                       📊 Multi-Layanan Terintegrasi
                     </div>
                   </div>
 
-                  <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+                  <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                       <thead>
-                        <tr style={{ borderBottom: '2px solid #334155', background: '#0f172a', color: '#cbd5e1', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <tr style={{ borderBottom: `2px solid ${T.border}`, background: T.cardBg2, color: T.txtPrimary, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {rcptVisibleColumns.serviceType !== false && <th style={{ padding: '12px 14px' }}>Tipe Layanan</th>}
-                          {rcptVisibleColumns.receiptCount !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: '#38bdf8' }}>Jumlah Struk</th>}
-                          {rcptVisibleColumns.totalQty !== false && <th style={{ padding: '12px 14px', textAlign: 'center', color: '#fbbf24' }}>Kuantitas Terjual</th>}
-                          {rcptVisibleColumns.netSales !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: '#34d399' }}>Total Penjualan (Nominal)</th>}
-                          {rcptVisibleColumns.avgSpend !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: '#818cf8' }}>Rata-rata Penjualan per Struk</th>}
-                          {rcptVisibleColumns.pct !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: '#fbbf24' }}>Kontribusi (%)</th>}
+                          {rcptVisibleColumns.receiptCount !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: T.info }}>Jumlah Struk</th>}
+                          {rcptVisibleColumns.totalQty !== false && <th style={{ padding: '12px 14px', textAlign: 'center', color: T.accentGold }}>Kuantitas Terjual</th>}
+                          {rcptVisibleColumns.netSales !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: T.success }}>Total Penjualan (Nominal)</th>}
+                          {rcptVisibleColumns.avgSpend !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: T.info }}>Rata-rata Penjualan per Struk</th>}
+                          {rcptVisibleColumns.pct !== false && <th style={{ padding: '12px 14px', textAlign: 'right', color: T.accentGold }}>Kontribusi (%)</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -5113,7 +5153,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           return (
                             <React.Fragment key={b.id}>
                               {/* BARIS UTAMA TIPE LAYANAN */}
-                              <tr style={{ background: 'rgba(30, 41, 59, 0.8)', borderBottom: '1px solid #334155', color: '#f8fafc' }}>
+                              <tr style={{ background: 'rgba(30, 41, 59, 0.8)', borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                                 {rcptVisibleColumns.serviceType !== false && (
                                   <td style={{ padding: '14px 12px', fontWeight: '900', color: b.color, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
                                     <span style={{ fontSize: '1.2rem' }}>{b.icon}</span>
@@ -5121,27 +5161,27 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                                   </td>
                                 )}
                                 {rcptVisibleColumns.receiptCount !== false && (
-                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.9rem' }}>
+                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: T.info, fontSize: '0.9rem' }}>
                                     {b.receiptCount.toLocaleString('id-ID')} struk
                                   </td>
                                 )}
                                 {rcptVisibleColumns.totalQty !== false && (
-                                  <td style={{ padding: '14px 12px', textAlign: 'center', fontWeight: '900', color: '#fbbf24', fontSize: '0.9rem' }}>
+                                  <td style={{ padding: '14px 12px', textAlign: 'center', fontWeight: '900', color: T.accentGold, fontSize: '0.9rem' }}>
                                     x{b.totalQty.toLocaleString('id-ID')} porsi
                                   </td>
                                 )}
                                 {rcptVisibleColumns.netSales !== false && (
-                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#34d399', fontSize: '1rem', background: 'rgba(52, 211, 153, 0.1)' }}>
+                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '1rem', background: 'rgba(52, 211, 153, 0.1)' }}>
                                     {formatRupiah(b.netSales)}
                                   </td>
                                 )}
                                 {rcptVisibleColumns.avgSpend !== false && (
-                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '700', color: '#818cf8' }}>
+                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '700', color: T.info }}>
                                     {formatRupiah(avgSpend)}
                                   </td>
                                 )}
                                 {rcptVisibleColumns.pct !== false && (
-                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#fbbf24' }}>
+                                  <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: T.accentGold }}>
                                     {pct}%
                                   </td>
                                 )}
@@ -5153,34 +5193,34 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                                 const otlPct = b.netSales > 0 ? ((otl.net / b.netSales) * 100).toFixed(1) : '0.0';
 
                                 return (
-                                  <tr key={otlIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: '#0f172a', fontSize: '0.8rem' }}>
+                                  <tr key={otlIdx} style={{ borderBottom: `1px solid ${T.tableRowHover}`, background: T.cardBg2, fontSize: '0.8rem' }}>
                                     {rcptVisibleColumns.serviceType !== false && (
-                                      <td style={{ padding: '10px 12px 10px 36px', color: '#94a3b8', fontWeight: '600' }}>
+                                      <td style={{ padding: '10px 12px 10px 36px', color: T.txtSecondary, fontWeight: '600' }}>
                                         🏢 {otl.name}
                                       </td>
                                     )}
                                     {rcptVisibleColumns.receiptCount !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#cbd5e1' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: T.txtPrimary }}>
                                         {otl.receiptCount.toLocaleString('id-ID')} struk
                                       </td>
                                     )}
                                     {rcptVisibleColumns.totalQty !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'center', color: '#cbd5e1' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'center', color: T.txtPrimary }}>
                                         x{otl.totalQty.toLocaleString('id-ID')} porsi
                                       </td>
                                     )}
                                     {rcptVisibleColumns.netSales !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '800', color: T.success }}>
                                         {formatRupiah(otl.net)}
                                       </td>
                                     )}
                                     {rcptVisibleColumns.avgSpend !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#94a3b8' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: T.txtSecondary }}>
                                         {formatRupiah(otlAvgSpend)}
                                       </td>
                                     )}
                                     {rcptVisibleColumns.pct !== false && (
-                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#94a3b8' }}>
+                                      <td style={{ padding: '10px 12px', textAlign: 'right', color: T.txtSecondary }}>
                                         {otlPct}%
                                       </td>
                                     )}
@@ -5192,13 +5232,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                         })}
                       </tbody>
                       <tfoot>
-                        <tr style={{ background: '#0f172a', borderTop: '2px solid #38bdf8', fontWeight: '900', color: '#ffffff', fontSize: '0.88rem' }}>
+                        <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.info}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.88rem' }}>
                           {rcptVisibleColumns.serviceType !== false && <td style={{ padding: '16px 12px' }}>TOTAL AKUMULASI LAYANAN</td>}
-                          {rcptVisibleColumns.receiptCount !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: '#38bdf8' }}>{data.totalReceipts.toLocaleString('id-ID')} struk</td>}
-                          {rcptVisibleColumns.totalQty !== false && <td style={{ padding: '16px 12px', textAlign: 'center', color: '#fbbf24' }}>x{data.totalQty.toLocaleString('id-ID')} porsi</td>}
-                          {rcptVisibleColumns.netSales !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: '#34d399', fontSize: '1.05rem' }}>{formatRupiah(data.totalNet)}</td>}
-                          {rcptVisibleColumns.avgSpend !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: '#818cf8' }}>{formatRupiah(data.totalNet / data.totalReceipts)}</td>}
-                          {rcptVisibleColumns.pct !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: '#fbbf24' }}>100%</td>}
+                          {rcptVisibleColumns.receiptCount !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: T.info }}>{data.totalReceipts.toLocaleString('id-ID')} struk</td>}
+                          {rcptVisibleColumns.totalQty !== false && <td style={{ padding: '16px 12px', textAlign: 'center', color: T.accentGold }}>x{data.totalQty.toLocaleString('id-ID')} porsi</td>}
+                          {rcptVisibleColumns.netSales !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: T.success, fontSize: '1.05rem' }}>{formatRupiah(data.totalNet)}</td>}
+                          {rcptVisibleColumns.avgSpend !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: T.info }}>{formatRupiah(data.totalNet / data.totalReceipts)}</td>}
+                          {rcptVisibleColumns.pct !== false && <td style={{ padding: '16px 12px', textAlign: 'right', color: T.accentGold }}>100%</td>}
                         </tr>
                       </tfoot>
                     </table>
@@ -5219,7 +5259,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER BAR SECTION */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
-            <DoubleCalendarPicker
+            <DoubleCalendarPicker themeMode={themeMode}
               startDate={custStartDate}
               endDate={custEndDate}
               datePreset={custDatePreset}
@@ -5248,9 +5288,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{
                   fontSize: '0.8rem',
                   padding: '8px 12px',
-                  borderColor: custShowColumnDropdown ? '#fbbf24' : 'rgba(255,255,255,0.1)',
-                  background: custShowColumnDropdown ? 'rgba(251, 191, 36, 0.15)' : '#1e293b',
-                  color: custShowColumnDropdown ? '#fbbf24' : '#cbd5e1',
+                  borderColor: custShowColumnDropdown ? `${T.accentGold}` : 'rgba(255,255,255,0.1)',
+                  background: custShowColumnDropdown ? 'rgba(251, 191, 36, 0.15)' : T.cardBg,
+                  color: custShowColumnDropdown ? `${T.accentGold}` : T.txtPrimary,
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
@@ -5264,7 +5304,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <button 
                 onClick={handleDownloadCustPDF} 
                 className="btn-secondary" 
-                style={{ padding: '8px 14px', fontSize: '0.8rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.3)', height: '38px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.3)', height: '38px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <Printer size={15} />
                 <span>Download PDF</span>
@@ -5273,7 +5313,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <button 
                 onClick={handleDownloadCustExcel} 
                 className="btn-secondary" 
-                style={{ padding: '8px 14px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', height: '38px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.3)', height: '38px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <FileSpreadsheet size={15} />
                 <span>Download Excel</span>
@@ -5282,18 +5322,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* MAIN TABLE BOARD */}
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#f8fafc' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary }}>
                   Laporan Akumulasi Penjualan per Pelanggan
                 </h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: '4px' }}>
+                <p style={{ color: T.txtSecondary, fontSize: '0.8rem', marginTop: '4px' }}>
                   Menampilkan total histori frekuensi transaksi & akumulasi nilai belanja tiap customer terdaftar.
                 </p>
               </div>
 
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+              <div style={{ fontSize: '0.8rem', color: T.txtSecondary }}>
                 Total {totalCustCount} Pelanggan Terdaftar
               </div>
             </div>
@@ -5301,28 +5341,28 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {custVisibleColumns.code && <th style={{ padding: '12px' }}>Kode Membership</th>}
                     {custVisibleColumns.name && <th style={{ padding: '12px' }}>Nama Pelanggan</th>}
                     {custVisibleColumns.phone && <th style={{ padding: '12px' }}>No. WhatsApp</th>}
                     {custVisibleColumns.tier && <th style={{ padding: '12px' }}>Tier Membership</th>}
-                    {custVisibleColumns.txCount && <th style={{ padding: '12px', textAlign: 'right', color: '#818cf8' }}>Jumlah Transaksi</th>}
-                    {custVisibleColumns.avgSpend && <th style={{ padding: '12px', textAlign: 'right', color: '#fbbf24' }}>Rata-rata Belanja</th>}
-                    {custVisibleColumns.totalSpend && <th style={{ padding: '12px', textAlign: 'right', color: '#34d399' }}>Total Belanja</th>}
+                    {custVisibleColumns.txCount && <th style={{ padding: '12px', textAlign: 'right', color: T.info }}>Jumlah Transaksi</th>}
+                    {custVisibleColumns.avgSpend && <th style={{ padding: '12px', textAlign: 'right', color: T.accentGold }}>Rata-rata Belanja</th>}
+                    {custVisibleColumns.totalSpend && <th style={{ padding: '12px', textAlign: 'right', color: T.success }}>Total Belanja</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {customerRows.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                      <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
                         Belum ada pelanggan terdaftar di Master Data.
                       </td>
                     </tr>
                   ) : (
                     customerRows.map(r => (
-                      <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                      <tr key={r.id} style={{ borderBottom: `1px solid ${T.hoverBg}`, color: T.txtPrimary }}>
                         {custVisibleColumns.code && (
-                          <td style={{ padding: '14px 12px', color: '#818cf8', fontWeight: '800', fontFamily: 'monospace' }}>
+                          <td style={{ padding: '14px 12px', color: T.info, fontWeight: '800', fontFamily: 'monospace' }}>
                             {r.code}
                           </td>
                         )}
@@ -5332,7 +5372,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           </td>
                         )}
                         {custVisibleColumns.phone && (
-                          <td style={{ padding: '14px 12px', color: '#cbd5e1' }}>
+                          <td style={{ padding: '14px 12px', color: T.txtPrimary }}>
                             📞 {r.phone}
                           </td>
                         )}
@@ -5352,17 +5392,17 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           </td>
                         )}
                         {custVisibleColumns.txCount && (
-                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '800', color: '#818cf8' }}>
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '800', color: T.info }}>
                             {r.txCount} kali
                           </td>
                         )}
                         {custVisibleColumns.avgSpend && (
-                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '700', color: '#fbbf24' }}>
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '700', color: T.accentGold }}>
                             {formatRupiah(r.avgSpend)}
                           </td>
                         )}
                         {custVisibleColumns.totalSpend && (
-                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#34d399', fontSize: '0.95rem' }}>
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.95rem' }}>
                             {formatRupiah(r.totalSpend)}
                           </td>
                         )}
@@ -5372,14 +5412,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </tbody>
                 {customerRows.length > 0 && (
                   <tfoot>
-                    <tr style={{ background: '#0f172a', borderTop: '2px solid #334155', fontWeight: '900', color: '#f8fafc' }}>
+                    <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, fontWeight: '900', color: T.txtPrimary }}>
                       {custVisibleColumns.code && <td style={{ padding: '14px 12px' }}>TOTAL AKUMULASI</td>}
                       {custVisibleColumns.name && <td></td>}
                       {custVisibleColumns.phone && <td></td>}
                       {custVisibleColumns.tier && <td></td>}
-                      {custVisibleColumns.txCount && <td style={{ padding: '14px 12px', textAlign: 'right', color: '#818cf8' }}>{totalCustTxCount} kali</td>}
+                      {custVisibleColumns.txCount && <td style={{ padding: '14px 12px', textAlign: 'right', color: T.info }}>{totalCustTxCount} kali</td>}
                       {custVisibleColumns.avgSpend && <td></td>}
-                      {custVisibleColumns.totalSpend && <td style={{ padding: '14px 12px', textAlign: 'right', color: '#34d399', fontSize: '1rem' }}>{formatRupiah(totalCustSpend)}</td>}
+                      {custVisibleColumns.totalSpend && <td style={{ padding: '14px 12px', textAlign: 'right', color: T.success, fontSize: '1rem' }}>{formatRupiah(totalCustSpend)}</td>}
                     </tr>
                   </tfoot>
                 )}
@@ -5394,11 +5434,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'monthly_comparison' && (
         <div className="glass-card animate-fade-in" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <TrendingUp size={22} color="#34d399" />
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={22} color={ T.success } />
               <span>Perbandingan Penjualan per Bulan (MoM Sales Growth Analysis)</span>
             </h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '4px' }}>
+            <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '4px' }}>
               Analisis pertumbuhan omzet kotor, potongan diskon, dan penjualan bersih dari bulan ke bulan antar cabang outlet.
             </p>
           </div>
@@ -5406,7 +5446,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           {/* FILTER BAR SECTION */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
             
-            <DoubleCalendarPicker
+            <DoubleCalendarPicker themeMode={themeMode}
               startDate={momStartDate}
               endDate={momEndDate}
               datePreset={momDatePreset}
@@ -5435,24 +5475,24 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{
                   fontSize: '0.8rem',
                   padding: '8px 12px',
-                  borderColor: momShowColumnDropdown ? '#fbbf24' : 'rgba(255,255,255,0.1)',
-                  background: momShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : '#1e293b',
-                  color: momShowColumnDropdown ? '#fbbf24' : '#cbd5e1',
+                  borderColor: momShowColumnDropdown ? `${T.accentGold}` : 'rgba(255,255,255,0.1)',
+                  background: momShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : T.cardBg,
+                  color: momShowColumnDropdown ? `${T.accentGold}` : T.txtPrimary,
                   height: '40px'
                 }}
               >
-                <SlidersHorizontal size={15} color="#fbbf24" />
+                <SlidersHorizontal size={15} color={ T.accentGold } />
                 <span>👁️ Filter Kolom Ditampilkan</span>
                 <ChevronDown size={14} style={{ transform: momShowColumnDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
 
               {/* Export Action Buttons */}
-              <button onClick={handleDownloadMomExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
+              <button onClick={handleDownloadMomExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
                 <FileSpreadsheet size={15} />
                 <span>Download Excel</span>
               </button>
 
-              <button onClick={handleDownloadMomPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
+              <button onClick={handleDownloadMomPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
                 <Printer size={15} />
                 <span>Download PDF</span>
               </button>
@@ -5461,18 +5501,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
           {/* COLUMN VISIBILITY PANEL */}
           {momShowColumnDropdown && (
-            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: '1px solid #fbbf24', background: '#1e293b', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-                <div style={{ fontWeight: '800', color: '#f8fafc', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <SlidersHorizontal size={18} color="#fbbf24" />
+            <div className="glass-card animate-fade-in" style={{ padding: '20px', border: `1px solid ${T.accentGold}`, background: T.cardBg, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '10px' }}>
+                <div style={{ fontWeight: '800', color: T.txtPrimary, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <SlidersHorizontal size={18} color={ T.accentGold } />
                   <span>Papan Filter Visibilitas Kolom Tabel (Perbandingan Bulanan)</span>
                 </div>
-                <button onClick={() => setMomShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
+                <button onClick={() => setMomShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>
                   ✕ Sembunyikan Papan Kolom
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
                 {[
                   { key: 'month', label: '🗓️ Periode Bulan' },
                   { key: 'outletName', label: '🏢 Nama Outlet' },
@@ -5489,20 +5529,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     gap: '8px',
                     cursor: 'pointer',
                     fontSize: '0.85rem',
-                    color: momVisibleColumns[col.key] ? '#fbbf24' : '#cbd5e1',
+                    color: momVisibleColumns[col.key] ? `${T.accentGold}` : T.txtPrimary,
                     fontWeight: momVisibleColumns[col.key] ? '800' : '600',
-                    background: momVisibleColumns[col.key] ? 'rgba(251, 191, 36, 0.15)' : '#1e293b',
+                    background: momVisibleColumns[col.key] ? 'rgba(251, 191, 36, 0.15)' : T.cardBg,
                     padding: '8px 14px',
                     borderRadius: '8px',
                     border: '1px solid',
-                    borderColor: momVisibleColumns[col.key] ? '#fbbf24' : '#334155',
+                    borderColor: momVisibleColumns[col.key] ? `${T.accentGold}` : T.border,
                     transition: 'all 0.15s ease'
                   }}>
                     <input
                       type="checkbox"
                       checked={momVisibleColumns[col.key]}
                       onChange={() => handleToggleMomColumn(col.key)}
-                      style={{ accentColor: '#fbbf24', width: '16px', height: '16px' }}
+                      style={{ accentColor: T.accentGold, width: '16px', height: '16px' }}
                     />
                     <span>{col.label}</span>
                   </label>
@@ -5512,26 +5552,26 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           )}
 
           {/* VISUAL CHART SECTION */}
-          <div style={{ background: '#0f172a', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#f8fafc', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ background: T.cardBg2, padding: '20px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>📊 Grafik Perbandingan Omzet Bersih Bulanan per Outlet</span>
-              <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
+              <span style={{ fontSize: '0.75rem', color: T.info, background: 'rgba(56, 189, 248, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
                 Dalam Rupiah (Rp)
               </span>
             </div>
             <div style={{ width: '100%', height: '320px' }}>
               <ReResponsiveContainer width="100%" height="100%">
                 <ReBarChart data={chartDataset}>
-                  <ReCartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <ReXAxis dataKey="name" stroke="#cbd5e1" style={{ fontSize: '0.8rem' }} />
-                  <ReYAxis stroke="#cbd5e1" style={{ fontSize: '0.8rem' }} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}jt`} />
+                  <ReCartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
+                  <ReXAxis dataKey="name" stroke={ T.txtPrimary } style={{ fontSize: '0.8rem' }} />
+                  <ReYAxis stroke={ T.txtPrimary } style={{ fontSize: '0.8rem' }} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}jt`} />
                   <ReTooltip 
                     formatter={(value) => [formatRupiah(value), "Omzet Bersih"]} 
-                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontSize: '0.82rem' }}
+                    contentStyle={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.82rem' }}
                   />
                   <ReLegend wrapperStyle={{ fontSize: '0.8rem', paddingTop: '10px' }} />
                   {outlets.map((o, idx) => {
-                    const colorsList = ['#818cf8', '#34d399', '#38bdf8', '#fbbf24', '#f43f5e', '#a855f7'];
+                    const colorsList = [`${T.info}`, `${T.success}`, `${T.info}`, `${T.accentGold}`, '#f43f5e', '#a855f7'];
                     const barColor = o.color || colorsList[idx % colorsList.length];
                     return (
                       <ReBar key={o.id} dataKey={o.name} fill={barColor} radius={[4, 4, 0, 0]} />
@@ -5543,11 +5583,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* MONTHLY COMPARISON TABLE */}
-          <div style={{ border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden', background: '#0f172a' }}>
+          <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg2 }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: '800' }}>
+                  <tr style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: '800' }}>
                     {momVisibleColumns.month && <th style={{ padding: '14px 12px' }}>🗓️ Periode Bulan</th>}
                     {momVisibleColumns.outletName && <th style={{ padding: '14px 12px' }}>🏢 Nama Outlet</th>}
                     {momVisibleColumns.txCount && <th style={{ padding: '14px 12px', textAlign: 'right' }}>🎫 Jumlah Transaksi</th>}
@@ -5561,7 +5601,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <tbody>
                   {momComparisonData.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                      <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
                         📭 Belum ada data perbandingan penjualan bulanan. Data akan terbentuk otomatis seiring berjalannya transaksi kasir.
                       </td>
                     </tr>
@@ -5569,16 +5609,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     momComparisonData.map((r, idx) => {
                       const isFirstMonth = idx === 0;
                       const isUp = r.growth >= 0;
-                      const growthColor = isFirstMonth ? '#cbd5e1' : isUp ? '#34d399' : '#fb7185';
+                      const growthColor = isFirstMonth ? `${T.txtPrimary}` : isUp ? `${T.success}` : T.danger;
                       return (
-                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                        <tr key={idx} style={{ borderBottom: `1px solid ${T.hoverBg}`, color: T.txtPrimary }}>
                           {momVisibleColumns.month && (
-                            <td style={{ padding: '12px', fontWeight: '800', color: '#818cf8' }}>
+                            <td style={{ padding: '12px', fontWeight: '800', color: T.info }}>
                               {r.monthLabel}
                             </td>
                           )}
                           {momVisibleColumns.outletName && (
-                            <td style={{ padding: '12px', color: '#cbd5e1', fontWeight: '700' }}>
+                            <td style={{ padding: '12px', color: T.txtPrimary, fontWeight: '700' }}>
                               🏢 {r.outletName}
                             </td>
                           )}
@@ -5588,29 +5628,29 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             </td>
                           )}
                           {momVisibleColumns.grossSales && (
-                            <td style={{ padding: '12px', textAlign: 'right', color: '#cbd5e1' }}>
+                            <td style={{ padding: '12px', textAlign: 'right', color: T.txtPrimary }}>
                               {formatRupiah(r.grossSales)}
                             </td>
                           )}
                           {momVisibleColumns.discount && (
-                            <td style={{ padding: '12px', textAlign: 'right', color: '#fb7185' }}>
+                            <td style={{ padding: '12px', textAlign: 'right', color: T.danger }}>
                               {formatRupiah(r.discount)}
                             </td>
                           )}
                           {momVisibleColumns.netSales && (
-                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>
+                            <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: T.success }}>
                               {formatRupiah(r.netSales)}
                             </td>
                           )}
                           {momVisibleColumns.avgSpend && (
-                            <td style={{ padding: '12px', textAlign: 'right', color: '#38bdf8' }}>
+                            <td style={{ padding: '12px', textAlign: 'right', color: T.info }}>
                               {formatRupiah(r.avgSpend)}
                             </td>
                           )}
                           {momVisibleColumns.growth && (
                             <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: growthColor }}>
                               {isMei ? (
-                                <span style={{ color: '#64748b' }}>- (Baseline)</span>
+                                <span style={{ color: T.txtMuted }}>- (Baseline)</span>
                               ) : (
                                 <span>
                                   {isUp ? '▲' : '▼'} {isUp ? '+' : ''}{r.growth.toFixed(1)}%
@@ -5628,16 +5668,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     {aggregatedMomData.map((m, idx) => {
                       const isMei = m.monthLabel === 'Mei 2026';
                       const isUp = m.growth >= 0;
-                      const growthColor = isMei ? '#cbd5e1' : isUp ? '#34d399' : '#fb7185';
+                      const growthColor = isMei ? `${T.txtPrimary}` : isUp ? `${T.success}` : T.danger;
                       return (
-                        <tr key={idx} style={{ background: 'rgba(255, 255, 255, 0.03)', borderTop: idx === 0 ? '2px solid #334155' : '1px solid #334155', fontWeight: '900', color: '#f8fafc' }}>
+                        <tr key={idx} style={{ background: 'rgba(255, 255, 255, 0.03)', borderTop: idx === 0 ? `2px solid ${T.border}` : `1px solid ${T.border}`, fontWeight: '900', color: T.txtPrimary }}>
                           {momVisibleColumns.month && <td style={{ padding: '12px' }}>AKUMULASI {m.monthLabel.toUpperCase()}</td>}
-                          {momVisibleColumns.outletName && <td style={{ padding: '12px', color: '#94a3b8' }}>SEMUA CABANG</td>}
+                          {momVisibleColumns.outletName && <td style={{ padding: '12px', color: T.txtSecondary }}>SEMUA CABANG</td>}
                           {momVisibleColumns.txCount && <td style={{ padding: '12px', textAlign: 'right' }}>{m.txCount.toLocaleString('id-ID')}</td>}
-                          {momVisibleColumns.grossSales && <td style={{ padding: '12px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(m.grossSales)}</td>}
-                          {momVisibleColumns.discount && <td style={{ padding: '12px', textAlign: 'right', color: '#fb7185' }}>{formatRupiah(m.discount)}</td>}
-                          {momVisibleColumns.netSales && <td style={{ padding: '12px', textAlign: 'right', color: '#34d399', fontSize: '0.95rem' }}>{formatRupiah(m.netSales)}</td>}
-                          {momVisibleColumns.avgSpend && <td style={{ padding: '12px', textAlign: 'right', color: '#38bdf8' }}>{formatRupiah(m.avgSpend)}</td>}
+                          {momVisibleColumns.grossSales && <td style={{ padding: '12px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(m.grossSales)}</td>}
+                          {momVisibleColumns.discount && <td style={{ padding: '12px', textAlign: 'right', color: T.danger }}>{formatRupiah(m.discount)}</td>}
+                          {momVisibleColumns.netSales && <td style={{ padding: '12px', textAlign: 'right', color: T.success, fontSize: '0.95rem' }}>{formatRupiah(m.netSales)}</td>}
+                          {momVisibleColumns.avgSpend && <td style={{ padding: '12px', textAlign: 'right', color: T.info }}>{formatRupiah(m.avgSpend)}</td>}
                           {momVisibleColumns.growth && (
                             <td style={{ padding: '12px', textAlign: 'right', color: growthColor }}>
                               {isMei ? '-' : `${isUp ? '▲' : '▼'} ${isUp ? '+' : ''}${m.growth.toFixed(1)}%`}

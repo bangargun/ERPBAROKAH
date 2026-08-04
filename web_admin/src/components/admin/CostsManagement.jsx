@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { DollarSign, ShoppingBasket, Zap, Home, Plus, Trash2, Calendar, FileText } from 'lucide-react';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function CostsManagement({ masterData, setMasterData, selectedBranch }) {
+export default function CostsManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [activeSubTab, setActiveSubTab] = useState('cogs'); // 'cogs' | 'production' | 'other'
 
   const formatRupiah = (val) => {
@@ -16,10 +18,10 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
       <div>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#f8fafc' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary }}>
           Manajemen Pengeluaran & Biaya Restoran (Cost Center)
         </h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.875rem', marginTop: '4px' }}>
+        <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
           Pencatatan dan analisis 3 struktur biaya utama: HPP (COGS), Biaya Produksi, dan Biaya Lain-Lain / Overhead
         </p>
       </div>
@@ -35,9 +37,9 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
             padding: '12px 20px',
             borderRadius: '12px',
             border: '1px solid',
-            borderColor: activeSubTab === 'cogs' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'cogs' ? 'rgba(99, 102, 241, 0.2)' : '#1e293b',
-            color: activeSubTab === 'cogs' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'cogs' ? T.info : T.borderStrong,
+            background: activeSubTab === 'cogs' ? T.infoBg : T.cardBg,
+            color: activeSubTab === 'cogs' ? T.info : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.85rem',
             cursor: 'pointer'
@@ -56,9 +58,9 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
             padding: '12px 20px',
             borderRadius: '12px',
             border: '1px solid',
-            borderColor: activeSubTab === 'production' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'production' ? 'rgba(99, 102, 241, 0.2)' : '#1e293b',
-            color: activeSubTab === 'production' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'production' ? T.info : T.borderStrong,
+            background: activeSubTab === 'production' ? T.infoBg : T.cardBg,
+            color: activeSubTab === 'production' ? T.info : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.85rem',
             cursor: 'pointer'
@@ -77,9 +79,9 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
             padding: '12px 20px',
             borderRadius: '12px',
             border: '1px solid',
-            borderColor: activeSubTab === 'other' ? '#6366f1' : '#334155',
-            background: activeSubTab === 'other' ? 'rgba(99, 102, 241, 0.2)' : '#1e293b',
-            color: activeSubTab === 'other' ? '#818cf8' : '#94a3b8',
+            borderColor: activeSubTab === 'other' ? T.info : T.borderStrong,
+            background: activeSubTab === 'other' ? T.infoBg : T.cardBg,
+            color: activeSubTab === 'other' ? T.info : T.txtSecondary,
             fontWeight: '700',
             fontSize: '0.85rem',
             cursor: 'pointer'
@@ -91,17 +93,17 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
       </div>
 
       {/* COST CONTENT TABLES */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         {activeSubTab === 'cogs' && (
           <div>
             <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: T.txtPrimary }}>
                 Biaya Harga Pokok Produksi (Bahan Baku & Dapur)
               </h3>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase' }}>
                   <th style={{ padding: '10px' }}>Tanggal</th>
                   <th style={{ padding: '10px' }}>Restoran Outlet</th>
                   <th style={{ padding: '10px' }}>Deskripsi Bahan Baku</th>
@@ -111,12 +113,12 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
               </thead>
               <tbody>
                 {(masterData.cogsExpenses || []).filter(item => selectedBranch ? Number(item.outlet_id) === Number(selectedBranch) : true).map(item => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                    <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{item.date}</td>
+                  <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{item.date}</td>
                     <td style={{ padding: '12px 10px', fontWeight: '600' }}>{getOutletName(item.outlet_id)}</td>
                     <td style={{ padding: '12px 10px', fontWeight: '700' }}>{item.item}</td>
-                    <td style={{ padding: '12px 10px', color: '#818cf8' }}>{item.supplier}</td>
-                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>{formatRupiah(item.amount)}</td>
+                    <td style={{ padding: '12px 10px', color: T.info }}>{item.supplier}</td>
+                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: T.danger }}>{formatRupiah(item.amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -127,13 +129,13 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
         {activeSubTab === 'production' && (
           <div>
             <div style={{ marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: T.txtPrimary }}>
                 Biaya Operasional Produksi & Kemasan
               </h3>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase' }}>
                   <th style={{ padding: '10px' }}>Tanggal</th>
                   <th style={{ padding: '10px' }}>Restoran Outlet</th>
                   <th style={{ padding: '10px' }}>Kategori Biaya</th>
@@ -143,12 +145,12 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
               </thead>
               <tbody>
                 {(masterData.productionExpenses || []).filter(item => selectedBranch ? Number(item.outlet_id) === Number(selectedBranch) : true).map(item => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                    <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{item.date}</td>
+                  <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{item.date}</td>
                     <td style={{ padding: '12px 10px', fontWeight: '600' }}>{getOutletName(item.outlet_id)}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: '700', color: '#fbbf24' }}>{item.category}</td>
-                    <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{item.description}</td>
-                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>{formatRupiah(item.amount)}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: '700', color: T.accentGold }}>{item.category}</td>
+                    <td style={{ padding: '12px 10px', color: T.txtPrimary }}>{item.description}</td>
+                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: T.danger }}>{formatRupiah(item.amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -159,13 +161,13 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
         {activeSubTab === 'other' && (
           <div>
             <div style={{ marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: T.txtPrimary }}>
                 Biaya Lain-Lain & Overhead Operasional
               </h3>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase' }}>
                   <th style={{ padding: '10px' }}>Tanggal</th>
                   <th style={{ padding: '10px' }}>Restoran Outlet</th>
                   <th style={{ padding: '10px' }}>Kategori Biaya</th>
@@ -175,12 +177,12 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
               </thead>
               <tbody>
                 {(masterData.otherExpenses || []).filter(item => selectedBranch ? Number(item.outlet_id) === Number(selectedBranch) : true).map(item => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                    <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{item.date}</td>
+                  <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{item.date}</td>
                     <td style={{ padding: '12px 10px', fontWeight: '600' }}>{getOutletName(item.outlet_id)}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: '700', color: '#818cf8' }}>{item.category}</td>
-                    <td style={{ padding: '12px 10px', color: '#cbd5e1' }}>{item.description}</td>
-                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#fb7185' }}>{formatRupiah(item.amount)}</td>
+                    <td style={{ padding: '12px 10px', fontWeight: '700', color: T.info }}>{item.category}</td>
+                    <td style={{ padding: '12px 10px', color: T.txtPrimary }}>{item.description}</td>
+                    <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: T.danger }}>{formatRupiah(item.amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -191,3 +193,4 @@ export default function CostsManagement({ masterData, setMasterData, selectedBra
     </div>
   );
 }
+

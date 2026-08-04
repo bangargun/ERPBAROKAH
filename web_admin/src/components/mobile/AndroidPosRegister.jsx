@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
-import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint } from '../../utils/bluetoothPrinter';
+import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint, _browserPrintFallback } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
   History, 
@@ -217,26 +217,26 @@ export default function AndroidPosRegister({
   // ===== THEME TOKEN OBJECT =====
   // Gunakan T.xxx untuk warna di semua komponen agar mudah toggle dark/light
   const T = React.useMemo(() => ({
-    bgApp:          isLight ? '#f0f4ff'                          : '#0f172a',
-    bgSidebar:      isLight ? '#1e3a8a'                          : '#0b1329',
+    bgApp:          isLight ? '#f0f4ff'                          : '#0b0f19',
+    bgSidebar:      isLight ? '#1e3a8a'                          : '#080d1a',
     bgSidebarActive: isLight ? 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
     bgSidebarHover: isLight ? 'rgba(255,255,255,0.12)'           : 'rgba(255,255,255,0.07)',
-    bgSurface:      isLight ? '#ffffff'                          : '#1e293b',
-    bgCard:         isLight ? '#f8fafc'                          : '#1f2937',
-    bgCardHover:    isLight ? '#f1f5f9'                          : '#374151',
-    bgInput:        isLight ? '#ffffff'                          : '#1f2937',
-    bgHeader:       isLight ? '#ffffff'                          : '#0f294a',
-    bgModal:        isLight ? '#ffffff'                          : '#1e293b',
-    bgOverlay:      isLight ? 'rgba(15,23,42,0.55)'              : 'rgba(0,0,0,0.7)',
-    bgBadgeUser:    isLight ? 'rgba(37,99,235,0.08)'             : 'rgba(255,255,255,0.08)',
-    txtPrimary:     isLight ? '#0f172a'                          : '#f8fafc',
-    txtSecondary:   isLight ? '#475569'                          : '#94a3b8',
-    txtMuted:       isLight ? '#64748b'                          : '#64748b',
-    txtSidebarIcon: isLight ? '#bfdbfe'                          : '#93c5fd',
+    bgSurface:      isLight ? '#ffffff'                          : '#111625',
+    bgCard:         isLight ? '#ffffff'                          : '#131b2e',
+    bgCardHover:    isLight ? '#f8fafc'                          : '#1a243b',
+    bgInput:        isLight ? '#ffffff'                          : '#1a243b',
+    bgHeader:       isLight ? '#ffffff'                          : '#0c1b33',
+    bgModal:        isLight ? '#ffffff'                          : '#131b2e',
+    bgOverlay:      isLight ? 'rgba(15,23,42,0.55)'              : 'rgba(0,0,0,0.75)',
+    bgBadgeUser:    isLight ? 'rgba(37,99,235,0.08)'             : 'rgba(255,255,255,0.1)',
+    txtPrimary:     isLight ? '#0f172a'                          : '#ffffff',
+    txtSecondary:   isLight ? '#1e293b'                          : '#e2e8f0',
+    txtMuted:       isLight ? '#334155'                          : '#cbd5e1',
+    txtSidebarIcon: isLight ? '#f59e0b'                          : '#fbbf24',
     txtHeaderAccent: isLight ? '#1d4ed8'                         : '#60a5fa',
-    border:         isLight ? '#e2e8f0'                          : 'rgba(255,255,255,0.08)',
-    borderCard:     isLight ? '#d1d5db'                          : 'var(--pos-border-card)',
-    borderSubtle:   isLight ? '#cbd5e1'                          : '#374151',
+    border:         isLight ? '#cbd5e1'                          : 'rgba(255,255,255,0.15)',
+    borderCard:     isLight ? '#cbd5e1'                          : 'rgba(255,255,255,0.15)',
+    borderSubtle:   isLight ? '#94a3b8'                          : '#475569',
     borderSidebar:  isLight ? 'rgba(255,255,255,0.12)'           : 'rgba(255,255,255,0.08)',
     shadow:         isLight ? '0 1px 8px rgba(0,0,0,0.08)'       : 'none',
     shadowCard:     isLight ? '0 4px 16px rgba(0,0,0,0.06)'      : '0 4px 24px rgba(0,0,0,0.4)',
@@ -248,6 +248,7 @@ export default function AndroidPosRegister({
   const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
   const [selectedCustomer, setSelectedCustomer] = useState('Pelanggan Umum');
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
+  const [activeSuggestRowId, setActiveSuggestRowId] = useState(null);
 
   // ── BLUETOOTH PRINTER STATE ──
   // MAC address & paper width disimpan di localStorage agar tetap tersimpan setelah reload
@@ -257,6 +258,7 @@ export default function AndroidPosRegister({
   const [isScanningPaired, setIsScanningPaired] = useState(false);
   const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
   const [printStatusMsg, setPrintStatusMsg] = useState('');
+  const [printerOfflineModal, setPrinterOfflineModal] = useState({ open: false, errorMsg: '', onFallback: null }); // Papan info printer tidak terhubung
 
   // Scan bonded Bluetooth devices dari pengaturan Android & System Printer Fallback
   const handleScanPairedPrinters = useCallback(async () => {
@@ -455,7 +457,8 @@ export default function AndroidPosRegister({
   const [manualRepNetSales, setManualRepNetSales] = useState(0);
   const [manualRepNonCash, setManualRepNonCash] = useState(0);
   const [manualRepSalesDiscount, setManualRepSalesDiscount] = useState(0);
-  const [manualModalIdeal, setManualModalIdeal] = useState(500000);
+  const [manualModalSaatIni, setManualModalSaatIni] = useState(0);
+  const [manualModalSeharusnya, setManualModalSeharusnya] = useState(0);
   const [manualRepDebtPayment, setManualRepDebtPayment] = useState(0);
   const [manualRepStatus, setManualRepStatus] = useState('pending');
   const [manualRepNotes, setManualRepNotes] = useState('');
@@ -614,11 +617,7 @@ export default function AndroidPosRegister({
         stockMovement: [...createdRecords, ...filterOld(prev.stockMovement)]
       };
 
-      fetch(getApiUrl('/api/master-data'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newMaster)
-      }).catch(() => {});
+      saveToServerWithGuard(newMaster);
 
       return newMaster;
     });
@@ -694,6 +693,66 @@ export default function AndroidPosRegister({
     } catch (e) {}
     checkOfflineQueueCount();
   }, [checkOfflineQueueCount]);
+
+  // ─── ⏰ AUTOMATIC 08:00 AM DAILY PURGE OF UNBILLED CART ORDERS ─────────────────
+  React.useEffect(() => {
+    const check8AmCartReset = () => {
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      const lastPurgeDate = localStorage.getItem('MRIS_POS_LAST_8AM_PURGE');
+
+      // Condition: Time is 08:00 AM or later today, and 8 AM purge has not been executed today
+      if (now.getHours() >= 8 && lastPurgeDate !== todayStr) {
+        setCart([]);
+        setOpenedOriginalCart(null);
+        setTableStatusMap({});
+        try {
+          localStorage.removeItem('MRIS_POS_DRAFT_CART_ORDERS');
+          localStorage.setItem('MRIS_POS_LAST_8AM_PURGE', todayStr);
+        } catch (e) {}
+        console.log('[CartAutoReset] 8:00 AM Daily Cart Purge completed for:', todayStr);
+      }
+    };
+
+    check8AmCartReset();
+    const interval = setInterval(check8AmCartReset, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ─── SAVE GUARD ──────────────────────────────────────────────────────────────
+  // Mencegah auto-sync 3 detik menimpa data yang baru disimpan sebelum
+  // server sempat menerima POST. isSavingRef = true selama POST berlangsung.
+  const isSavingRef = React.useRef(false);
+
+  // Array key laporan lokal POS Kasir (Di-isolasi dari Web Admin per permintaan user)
+  const LAPORAN_ARRAY_KEYS = [
+    'manualEntryRecords', 'approvedFinanceDaily',
+    'stockOpname', 'approvedLogistics',
+    'stockTransfer', 'approvedTransfers',
+    'stockMovement', 'damagedGoods', 'approvedWaste',
+  ];
+
+  // Helper terpusat: POST newMaster ke server dengan guard aktif
+  const saveToServerWithGuard = React.useCallback((newMaster) => {
+    isSavingRef.current = true;
+    // Backup laporan ke localStorage sebagai fallback lokal
+    try {
+      const backup = {};
+      LAPORAN_ARRAY_KEYS.forEach(k => { if (newMaster[k]) backup[k] = newMaster[k]; });
+      localStorage.setItem('MRIS_POS_LAPORAN_BACKUP', JSON.stringify(backup));
+    } catch (e) {}
+
+    return fetch(getApiUrl('/api/master-data'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newMaster)
+    })
+      .catch(() => {})
+      .finally(() => {
+        // Beri jeda 8 detik setelah POST selesai sebelum sync otomatis dibolehkan lagi
+        setTimeout(() => { isSavingRef.current = false; }, 8000);
+      });
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Realtime Network & Offline Queue Auto-Flusher Effect
   React.useEffect(() => {
@@ -778,10 +837,16 @@ export default function AndroidPosRegister({
   // LIVE AUTO-FETCH MASTER DATA / USER ACCOUNTS ON LOGIN SCREEN
   useEffect(() => {
     const syncUsersFromServer = () => {
+      // ─── GUARD: Jangan sync saat sedang ada POST yang belum selesai ───────────
+      if (isSavingRef.current) return;
+
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
         .then(serverMaster => {
           if (!serverMaster || typeof serverMaster !== 'object') return;
+          // Double-check guard setelah fetch selesai (async delay)
+          if (isSavingRef.current) return;
+
           setMasterData(prev => {
             const mergedWeb = (Array.isArray(serverMaster.webAdminAccounts) && serverMaster.webAdminAccounts.length > 0)
               ? serverMaster.webAdminAccounts
@@ -796,14 +861,95 @@ export default function AndroidPosRegister({
               ? serverMaster.mobilePermissionMatrix
               : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
 
+            // ─── UNIVERSAL SMART MERGE DENGAN SERVER WEB ADMIN ────────────────────
+            const getItemKey = (item) => {
+              if (!item || typeof item !== 'object') return null;
+              if (item.report_no && String(item.report_no).trim() !== '') return String(item.report_no);
+              if (item.receiptNo && String(item.receiptNo).trim() !== '') return String(item.receiptNo);
+              if (item.tx_id && String(item.tx_id).trim() !== '') return String(item.tx_id);
+              if (item.id !== undefined && item.id !== null && String(item.id).trim() !== '') return String(item.id);
+              if (item.code && String(item.code).trim() !== '') return String(item.code);
+              if (item.name && String(item.name).trim() !== '') return String(item.name);
+              return null;
+            };
+
+            const LOGISTICS_ARRAY_KEYS = new Set([
+              'stockOpname', 'approvedLogistics', 'approvedOpname',
+              'stockTransfer', 'approvedTransfers', 'damagedGoods',
+              'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+            ]);
+
+            const smartMergeArray = (localArr, serverArr, keyName = '') => {
+              const sArr = Array.isArray(serverArr) ? serverArr : [];
+              const lArr = Array.isArray(localArr) ? localArr : [];
+
+              if (sArr.length === 0 && LOGISTICS_ARRAY_KEYS.has(keyName)) {
+                return [];
+              }
+              if (sArr.length === 0) return lArr;
+              if (lArr.length === 0) return sArr;
+
+              const map = new Map();
+              // 1. Masukkan data server
+              sArr.forEach(item => {
+                const k = getItemKey(item);
+                if (k) map.set(k, item);
+              });
+              // 2. Gabungkan data lokal: pertahankan item lokal baru & merge status dari server
+              lArr.forEach(item => {
+                const k = getItemKey(item);
+                if (k) {
+                  const existing = map.get(k);
+                  if (!existing) {
+                    // Untuk array logistik, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
+                    if (!LOGISTICS_ARRAY_KEYS.has(keyName)) {
+                      map.set(k, item);
+                    }
+                  } else {
+                    map.set(k, { ...item, ...existing });
+                  }
+                }
+              });
+
+              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedOutflowIds
+              const deletedSet = new Set([
+                ...(serverMaster.deletedLogisticsIds || []),
+                ...(serverMaster.deletedOutflowIds || []),
+                ...(prev.deletedLogisticsIds || [])
+              ].map(x => String(x)));
+
+              return Array.from(map.values()).filter(item => {
+                if (!item) return false;
+                const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
+                const iRNo = String(item.report_no || item.receiptNo || '');
+                return !deletedSet.has(iId) && !deletedSet.has(iRNo);
+              });
+            };
+
+            const MERGE_ARRAY_KEYS = [
+              'salesTransactions', 'transactions',
+              'menuItems', 'products', 'categories', 'ingredients',
+              'outlets', 'paymentMethods', 'expenseMaster',
+              'manualEntryRecords', 'approvedFinanceDaily',
+              'stockOpname', 'approvedLogistics',
+              'stockTransfer', 'approvedTransfers',
+              'stockMovement', 'damagedGoods', 'approvedWaste'
+            ];
+
+            const mergedCollections = {};
+            MERGE_ARRAY_KEYS.forEach(k => {
+              mergedCollections[k] = smartMergeArray(prev[k], serverMaster[k], k);
+            });
+
             return {
               ...prev,
               ...serverMaster,
+              ...mergedCollections,
               webAdminAccounts: mergedWeb,
               mobileAccounts: mergedMobile,
               permissionMatrix: mergedPerm,
               mobilePermissionMatrix: mergedMobPerm,
-              _lastUpdated: serverMaster._lastUpdated || Date.now()
+              _lastUpdated: Math.max(prev._lastUpdated || 0, serverMaster._lastUpdated || 0, Date.now())
             };
           });
         })
@@ -813,7 +959,7 @@ export default function AndroidPosRegister({
     syncUsersFromServer();
     const loginUsersTimer = setInterval(syncUsersFromServer, 3000);
     return () => clearInterval(loginUsersTimer);
-  }, [isAppLoggedIn]);
+  }, [isAppLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AUTOMATIC 15-MINUTE INACTIVITY AUTO-LOCK TO PAPAN LOGIN
   React.useEffect(() => {
@@ -1628,15 +1774,14 @@ export default function AndroidPosRegister({
         () => showPrintStatus('success', '✅ Cetak berhasil!'),
         (err) => {
           const msg = err?.message || String(err);
-          if (msg.includes('BLUETOOTH_DISABLED')) {
-            showPrintStatus('error', '❌ Bluetooth tidak aktif. Aktifkan Bluetooth.');
-          } else if (msg.includes('CONNECTION_REFUSED')) {
-            showPrintStatus('error', '❌ Printer menolak koneksi. Pastikan printer menyala.');
-          } else if (msg.includes('DEVICE_BUSY')) {
-            showPrintStatus('error', '❌ Printer sedang sibuk. Coba lagi.');
-          } else {
-            showPrintStatus('error', '❌ Gagal cetak: ' + msg);
-          }
+          let displayMsg = '❌ Gagal cetak: ' + msg;
+          if (msg.includes('BLUETOOTH_DISABLED')) displayMsg = '❌ Bluetooth tidak aktif. Aktifkan Bluetooth di perangkat Anda.';
+          else if (msg.includes('CONNECTION_REFUSED')) displayMsg = '❌ Printer menolak koneksi. Pastikan printer menyala dan dalam jangkauan.';
+          else if (msg.includes('DEVICE_BUSY')) displayMsg = '❌ Printer sedang sibuk. Tunggu sebentar lalu coba lagi.';
+          showPrintStatus('error', displayMsg);
+          // Tampilkan papan info printer offline
+          const lastTxt = textContent;
+          setPrinterOfflineModal({ open: true, errorMsg: displayMsg, onFallback: () => { _browserPrintFallback(lastTxt, printerPaperWidth); } });
         }
       );
     } catch (err) {
@@ -1901,13 +2046,9 @@ export default function AndroidPosRegister({
       // 1. Simpan Instan ke Cache Device (0ms Latency)
       try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
 
-      // 2. Kirim INSTANT 0ms ke Server VPS & Web Admin jika online
+      // 2. Kirim INSTANT ke Server VPS & Web Admin dengan Guard Proteksi
       if (isOnlineNow) {
-        fetch(getApiUrl('/api/master-data'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated)
-        }).catch(() => {});
+        saveToServerWithGuard(updated);
       } else {
         // Jika offline, masukkan ke antrean pending
         try {
@@ -1957,20 +2098,32 @@ export default function AndroidPosRegister({
 
     const newReq = {
       id: `LOG-REQ-${Date.now().toString().substring(7)}`,
+      report_no: `LOG-REQ-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
       date: new Date().toISOString().split('T')[0],
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
+      outlet_name: currentOutlet.name,
       item_name: logisticsItemName,
       qty: `${logisticsQty} ${logisticsUnit}`,
-      requested_by: 'master (Kasir)',
+      requested_by: userSession?.name || currentUserSession?.name || 'Kasir Outlet',
+      submitted_by: userSession?.name || currentUserSession?.name || 'Kasir Outlet',
       status: 'Pending',
+      submitter_type: 'POS Kasir',
+      type_input: 'POS Kasir',
       notes: logisticsNotes || 'Permintaan Bahan Baku Kasir Outlet'
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedLogistics: [newReq, ...(prev.approvedLogistics || [])]
-    }));
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        clientUpdated: now,
+        approvedLogistics: [newReq, ...(prev.approvedLogistics || [])]
+      };
+      saveToServerWithGuard(newMaster);
+      return newMaster;
+    });
 
     setLogisticsItemName('');
     setLogisticsQty('');
@@ -1985,12 +2138,15 @@ export default function AndroidPosRegister({
 
     const newShiftReport = {
       id: `SHIFT-CLOSE-${Date.now().toString().substring(7)}`,
+      report_no: `LAP-SHIFT-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       outlet_id: currentOutlet.id,
       outlet_name: currentOutlet.name,
-      cashier_name: 'master (Superadmin)',
+      branch_name: currentOutlet.name,       // alias untuk ApprovalCenter Web Admin
+      cashier_name: userSession?.name || currentUserSession?.name || masterData?.currentUser?.name || 'Kasir Outlet',
       initial_cash: initialCash,
+      // Field utama POS Kasir
       gross_sales: totalSalesGross,
       cash_sales: cashSales,
       non_cash_sales: qrisSales + edcSales,
@@ -1998,13 +2154,31 @@ export default function AndroidPosRegister({
       expected_cash: expectedCashInDrawer,
       physical_cash: physicalVal,
       variance: variance,
-      status: 'Pending'
+      // Alias field yang dibutuhkan ApprovalCenter Web Admin
+      net_sales: totalSalesGross,            // ApprovalCenter membaca: net_sales || total_sales || total_income
+      total_sales: totalSalesGross,
+      total_income: totalSalesGross,
+      total_expense: totalPettyExpense,      // ApprovalCenter membaca: total_expense
+      cash_in_drawer: physicalVal,           // ApprovalCenter membaca: cash_in_drawer
+      // Status & metadata
+      status: 'Pending',
+      submitter_type: 'POS Kasir',
+      type_input: 'POS Kasir'
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedFinanceDaily: [newShiftReport, ...(prev.approvedFinanceDaily || [])]
-    }));
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        clientUpdated: now,
+        approvedFinanceDaily: [newShiftReport, ...(prev.approvedFinanceDaily || [])],
+        shiftClosings: [newShiftReport, ...(prev.shiftClosings || [])],
+        closedShifts: [newShiftReport, ...(prev.closedShifts || [])]
+      };
+      saveToServerWithGuard(newMaster);
+      return newMaster;
+    });
 
     alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
   };
@@ -2437,6 +2611,109 @@ export default function AndroidPosRegister({
     return matchesCat && matchesSearch;
   });
 
+  // ── PRINTER STATUS BANNER HELPER ──
+  // Tampilkan status koneksi printer di setiap modal yang punya tombol cetak struk
+  const renderPrinterStatusBanner = () => {
+    const isCapacitorNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
+    const lastPrintError = printStatus === 'error' ? printStatusMsg : null;
+
+    let bgColor, borderColor, iconColor, icon, label, sublabel;
+
+    if (lastPrintError) {
+      bgColor = 'rgba(244,63,94,0.12)'; borderColor = '#f43f5e'; iconColor = '#f87171';
+      icon = '❌'; label = 'Printer Bermasalah'; sublabel = lastPrintError;
+    } else if (printStatus === 'printing') {
+      bgColor = 'rgba(99,102,241,0.12)'; borderColor = '#6366f1'; iconColor = '#a5b4fc';
+      icon = '⏳'; label = 'Sedang Mencetak...'; sublabel = printStatusMsg;
+    } else if (printStatus === 'success') {
+      bgColor = 'rgba(52,211,153,0.12)'; borderColor = '#34d399'; iconColor = '#34d399';
+      icon = '✅'; label = 'Cetak Berhasil'; sublabel = printStatusMsg;
+    } else if (!printerMac) {
+      bgColor = 'rgba(251,191,36,0.12)'; borderColor = '#fbbf24'; iconColor = '#fbbf24';
+      icon = '⚠️'; label = 'Printer Belum Dikonfigurasi'; sublabel = 'Cetak akan dialihkan ke PDF. Silakan atur printer di tab Setting Printer.';
+    } else if (!isCapacitorNative) {
+      bgColor = 'rgba(56,189,248,0.10)'; borderColor = '#38bdf8'; iconColor = '#38bdf8';
+      icon = '🖥️'; label = 'Mode Browser — Cetak PDF'; sublabel = `Di APK Android, struk langsung ke printer Bluetooth: ${printerMac}`;
+    } else {
+      bgColor = 'rgba(52,211,153,0.10)'; borderColor = '#34d399'; iconColor = '#34d399';
+      icon = '🖨️'; label = 'Printer Siap'; sublabel = `${pairedDevices.find(d => d.address === printerMac)?.name || 'Bluetooth ' + printerMac} • ${printerPaperWidth}mm`;
+    }
+
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px',
+        borderRadius: '10px', background: bgColor, border: `1px solid ${borderColor}`,
+        fontSize: '0.78rem', marginBottom: '10px'
+      }}>
+        <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: '1px' }}>{icon}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: '800', color: iconColor }}>{label}</div>
+          <div style={{ color: '#94a3b8', marginTop: '2px', lineHeight: 1.4 }}>{sublabel}</div>
+        </div>
+        {!printerMac && (
+          <button
+            type="button"
+            onClick={() => setActiveNavTab('printer_setting')}
+            style={{ flexShrink: 0, background: '#fbbf24', color: '#0f172a', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+          >
+            Atur
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // ── PRINTER OFFLINE MODAL ──
+  // Popup informatif muncul otomatis ketika cetak gagal / printer tidak terhubung
+  const renderPrinterOfflineModal = () => {
+    if (!printerOfflineModal.open) return null;
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+        <div style={{ width: '100%', maxWidth: '380px', background: 'var(--pos-bg-card)', border: '1px solid #f43f5e', borderRadius: '18px', padding: '26px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 20px 60px rgba(244,63,94,0.25)' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '2.8rem', marginBottom: '8px' }}>🖨️</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f87171' }}>Printer Tidak Terhubung</div>
+            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '8px', lineHeight: 1.5 }}>
+              {printerOfflineModal.errorMsg || 'Gagal mengirim data ke printer Bluetooth.'}
+            </div>
+          </div>
+          <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '10px', padding: '12px 14px', fontSize: '0.76rem', color: '#94a3b8', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: '800', color: '#f87171', marginBottom: '6px' }}>💡 Cara Memperbaiki:</div>
+            <div>1. Pastikan printer Bluetooth <strong style={{ color: '#f8fafc' }}>menyala</strong> & tidak sleep.</div>
+            <div>2. Pastikan Bluetooth Android perangkat <strong style={{ color: '#f8fafc' }}>aktif</strong>.</div>
+            <div>3. Pastikan printer sudah <strong style={{ color: '#f8fafc' }}>dipair</strong> di Pengaturan Bluetooth.</div>
+            <div>4. Coba <strong style={{ color: '#f8fafc' }}>lepas & sambung ulang</strong> printer dari Setting.</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {printerOfflineModal.onFallback && (
+              <button
+                type="button"
+                onClick={() => { printerOfflineModal.onFallback(); setPrinterOfflineModal({ open: false, errorMsg: '', onFallback: null }); }}
+                style={{ padding: '12px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
+              >
+                📄 Cetak Sebagai PDF (Alternatif)
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setPrinterOfflineModal({ open: false, errorMsg: '', onFallback: null }); setActiveNavTab('printer_setting'); }}
+              style={{ padding: '12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              ⚙️ Buka Setting Printer
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrinterOfflineModal({ open: false, errorMsg: '', onFallback: null })}
+              style={{ padding: '10px', background: 'var(--pos-border-card)', border: 'none', color: 'var(--pos-txt-secondary)', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '0.82rem' }}
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       data-theme={appTheme}
@@ -2479,7 +2756,7 @@ export default function AndroidPosRegister({
           }}>
             POS
           </div>
-          <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#bfdbfe', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#f59e0b', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             {currentOutlet.name}
           </div>
         </div>
@@ -2523,9 +2800,9 @@ export default function AndroidPosRegister({
                   width: '64px',
                   height: '54px',
                   borderRadius: '12px',
-                  background: isActive ? T.bgSidebarActive : 'transparent',
-                  border: 'none',
-                  color: isActive ? '#ffffff' : T.txtSidebarIcon,
+                  background: isActive ? '#ffffff' : 'transparent',
+                  border: isActive ? '1px solid #f59e0b' : 'none',
+                  color: isActive ? '#000000' : '#f59e0b',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -2533,7 +2810,7 @@ export default function AndroidPosRegister({
                   gap: '3px',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  boxShadow: isActive ? '0 4px 12px rgba(37,99,235,0.35)' : 'none'
+                  boxShadow: isActive ? '0 4px 14px rgba(245,158,11,0.45)' : 'none'
                 }}
               >
                 {showSyncDot && (
@@ -2550,8 +2827,8 @@ export default function AndroidPosRegister({
                     }}
                   />
                 )}
-                <IconComp size={19} strokeWidth={isActive ? 2.5 : 1.8} />
-                <span style={{ fontSize: '0.64rem', fontWeight: isActive ? '900' : '700' }}>{nav.label}</span>
+                <IconComp size={19} color={isActive ? '#000000' : '#f59e0b'} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span style={{ fontSize: '0.64rem', fontWeight: isActive ? '900' : '700', color: isActive ? '#000000' : '#f59e0b' }}>{nav.label}</span>
               </button>
             );
           })}
@@ -2564,19 +2841,20 @@ export default function AndroidPosRegister({
             width: '64px',
             height: '50px',
             borderRadius: '12px',
-            background: activeNavTab === 'pos_settings' ? T.bgSidebarActive : 'transparent',
-            border: 'none',
-            color: activeNavTab === 'pos_settings' ? '#ffffff' : T.txtSidebarIcon,
+            background: activeNavTab === 'pos_settings' ? '#ffffff' : 'transparent',
+            border: activeNavTab === 'pos_settings' ? '1px solid #f59e0b' : 'none',
+            color: activeNavTab === 'pos_settings' ? '#000000' : '#f59e0b',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '3px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            boxShadow: activeNavTab === 'pos_settings' ? '0 4px 14px rgba(245,158,11,0.45)' : 'none'
           }}
         >
-          <Settings size={19} />
-          <span style={{ fontSize: '0.64rem', fontWeight: '700' }}>Setting</span>
+          <Settings size={19} color={activeNavTab === 'pos_settings' ? '#000000' : '#f59e0b'} />
+          <span style={{ fontSize: '0.64rem', fontWeight: '700', color: activeNavTab === 'pos_settings' ? '#000000' : '#f59e0b' }}>Setting</span>
         </button>
       </aside>
 
@@ -3289,47 +3567,49 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
-            {/* KETERANGAN SYNC MOBILE APK DENGAN SERVER & DATABASE */}
-            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            {/* KETERANGAN CART MULTI-ORDER NON-FIFO & RESET OTOMATIS PUKUL 08:00 AM */}
+            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(245,158,11,0.3)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399' }} />
+                <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 10px #f59e0b' }} />
                 <div>
                   <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Sinkronisasi Data Cart Mobile APK:</span>
-                    <span style={{ color: '#34d399', fontWeight: '900' }}>🟢 Live Server & Database Connected</span>
+                    <span>Kelola Cart Multi-Order (Non-FIFO / Bebas Akses):</span>
+                    <span style={{ color: '#fbbf24', fontWeight: '900' }}>⚡ Bebas Pilih Orderan & Bayar / Edit Kapan Saja</span>
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
-                    Pesanan Cart tersimpan dan tersinkronisasi otomatis dengan Database Server & Web Admin.
+                    ⏰ <strong>Aturan Reset Otomatis:</strong> Sisa isi pesanan yang belum dibayar di Cart akan terhapus otomatis setiap pukul 08:00 WIB Pagi.
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--pos-border)' }}>
-                  ⏱️ {lastSyncTime}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#fbbf24', background: 'rgba(245,158,11,0.12)', padding: '5px 12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  ⏰ Reset Pukul 08:00 Pagi
                 </span>
-                <button
-                  type="button"
-                  onClick={handleTriggerSyncData}
-                  disabled={isSyncingNow}
-                  style={{
-                    padding: '6px 14px',
-                    background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    border: 'none',
-                    color: 'var(--pos-txt-primary)',
-                    borderRadius: '10px',
-                    fontSize: '0.78rem',
-                    fontWeight: '900',
-                    cursor: isSyncingNow ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: isSyncingNow ? 'none' : '0 3px 10px rgba(37,99,235,0.3)'
-                  }}
-                >
-                  <RefreshCw size={14} className={isSyncingNow ? 'animate-spin' : ''} />
-                  <span>{isSyncingNow ? 'Syncing...' : '🔄 Sync Cart ke Server'}</span>
-                </button>
+                {pendingOrdersList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Yakin ingin mengosongkan seluruh pesanan yang tersisa di Cart?')) {
+                        setCart([]);
+                        setOpenedOriginalCart(null);
+                        setTableStatusMap({});
+                      }
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      background: 'rgba(239,68,68,0.2)',
+                      border: '1px solid #ef4444',
+                      color: '#fca5a5',
+                      borderRadius: '8px',
+                      fontSize: '0.76rem',
+                      fontWeight: '800',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🗑️ Reset Isi Cart
+                  </button>
+                )}
               </div>
             </div>
 
@@ -4129,7 +4409,7 @@ export default function AndroidPosRegister({
                     <span style={{ color: '#34d399', fontWeight: '900' }}>🟢 Database Server & Web Admin Connected</span>
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
-                    Seluruh rekapitulasi omzet, kas harian, stok opname, dan pengeluaran terhubung live dengan server pusat.
+                    Seluruh rekapitulasi harian, stok opname, transfer, dan barang rusak terhubung live dengan Web Admin untuk persetujuan (Approval).
                   </div>
                 </div>
               </div>
@@ -4499,9 +4779,20 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {(() => {
-                          const combinedRecords = (masterData.approvedFinanceDaily && masterData.approvedFinanceDaily.length > 0)
-                            ? masterData.approvedFinanceDaily
-                            : (masterData.manualEntryRecords || []);
+                          const recordsMap = new Map();
+                          const rawApproved = masterData.approvedFinanceDaily || [];
+                          const rawManual = masterData.manualEntryRecords || [];
+                          [...rawApproved, ...rawManual].forEach(item => {
+                            if (item && (item.id || item.report_no)) {
+                              const key = String(item.id || item.report_no);
+                              if (!recordsMap.has(key)) {
+                                recordsMap.set(key, item);
+                              } else {
+                                recordsMap.set(key, { ...recordsMap.get(key), ...item });
+                              }
+                            }
+                          });
+                          const combinedRecords = Array.from(recordsMap.values()).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
                           if (combinedRecords.length === 0) {
                             return (
@@ -4609,62 +4900,18 @@ export default function AndroidPosRegister({
                     type="button"
                     onClick={() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
                       const rawIngredients = masterData.ingredients || [];
                       const activeIngs = rawIngredients.filter(ing =>
                         ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
                       );
-
-                      const matchedDailyMasuk = [...(masterData.approvedFinanceDaily || []), ...(masterData.manualEntryRecords || [])].filter(f =>
-                        (Number(f.outlet_id) === Number(currentOutlet.id) || f.branch_name === currentOutlet.name || f.outlet_name === currentOutlet.name)
-                      );
-                      const allTransfers = masterData.approvedTransfers || masterData.stockTransfer || [];
-                      const allWaste = masterData.approvedWaste || masterData.damagedGoods || [];
-
-                      const initialBatchRows = activeIngs.map((ing, idx) => {
-                        let inQty = 0;
-                        matchedDailyMasuk.forEach(f => {
-                          (f.cogs_items || []).forEach(c => {
-                            if ((c.name || c.item_name || '').toLowerCase().trim() === ing.name.toLowerCase().trim()) {
-                              inQty += Number(c.qty || 0);
-                            }
-                          });
-                          (f.expense_rows || []).filter(r => (r.category_type || '').includes('HPP')).forEach(c => {
-                            if ((c.item_name || '').toLowerCase().trim() === ing.name.toLowerCase().trim()) {
-                              inQty += Number(c.qty || 0);
-                            }
-                          });
-                        });
-
-                        const trfIn = allTransfers.filter(t => 
-                          (t.item_name || '').toLowerCase() === ing.name.toLowerCase() &&
-                          (t.to_outlet_name?.toLowerCase().includes(currentOutlet.name?.toLowerCase()) || Number(t.to_outlet_id) === Number(currentOutlet.id))
-                        ).reduce((sum, t) => sum + Number(t.qty || 0), 0);
-
-                        const trfOut = allTransfers.filter(t => 
-                          (t.item_name || '').toLowerCase() === ing.name.toLowerCase() &&
-                          (t.from_outlet_name?.toLowerCase().includes(currentOutlet.name?.toLowerCase()) || Number(t.from_outlet_id) === Number(currentOutlet.id))
-                        ).reduce((sum, t) => sum + Number(t.qty || 0), 0);
-
-                        const wasteQty = allWaste.filter(w => 
-                          (w.item_name || w.itemName || '').toLowerCase() === ing.name.toLowerCase() &&
-                          (Number(w.outlet_id || w.outletId) === Number(currentOutlet.id) || (w.outletName || w.branch_name) === currentOutlet.name)
-                        ).reduce((sum, w) => sum + Number(w.qty || 0), 0);
-
-                        return {
-                          id: `batch-${ing.id || idx}-${Date.now()}`,
-                          item_name: ing.name,
-                          unit: ing.unit || 'kg',
-                          stok_awal: ing.stock !== undefined ? ing.stock : '',
-                          stok_masuk: inQty,
-                          transfer_masuk: trfIn,
-                          transfer_keluar: trfOut,
-                          stok_rusak: wasteQty,
-                          stok_fisik: ''
-                        };
-                      });
-
-                      setOpnameBatchRows(initialBatchRows);
+                      const defaultIng = activeIngs[0] || { name: '', unit: 'kg', stock: 0 };
+                      setOpnameBatchRows([{
+                        id: 'single-opname',
+                        item_name: defaultIng.name || '',
+                        unit: defaultIng.unit || 'kg',
+                        stok_awal: defaultIng.stock !== undefined ? defaultIng.stock : (defaultIng.stok || 0),
+                        stok_fisik: ''
+                      }]);
                       setLogDate(todayStr);
                       setLogNo(`SO-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setLogSubmittedBy(userSession?.name || '');
@@ -4688,21 +4935,16 @@ export default function AndroidPosRegister({
                   </div>
 
                   <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                       <thead>
-                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.70rem' }}>
-                          <th style={{ padding: '10px 12px' }}>Tanggal</th>
-                          <th style={{ padding: '10px 12px' }}>No Laporan</th>
-                          <th style={{ padding: '10px 12px' }}>Diisi Oleh</th>
-                          <th style={{ padding: '10px 12px' }}>Nama Item</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Awal</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Masuk</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399' }}>Transfer Stok In</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Transfer Stok Out</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185' }}>Rusak</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'right', color: '#38bdf8' }}>Stok Fisik</th>
-                          <th style={{ padding: '10px 10px', textAlign: 'center' }}>Status</th>
-                          <th style={{ padding: '10px 10px', textAlign: 'center' }}>Aksi</th>
+                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.74rem', fontWeight: '800' }}>
+                          <th style={{ padding: '12px 14px' }}>📅 Tanggal</th>
+                          <th style={{ padding: '12px 14px' }}>📋 No Laporan</th>
+                          <th style={{ padding: '12px 14px' }}>👤 Diisi Oleh</th>
+                          <th style={{ padding: '12px 14px' }}>📦 Nama Item</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8' }}>📊 Stok Fisik</th>
+                          <th style={{ padding: '12px 12px', textAlign: 'center' }}>⚡ Status</th>
+                          <th style={{ padding: '12px 12px', textAlign: 'center' }}>⚙️ Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4716,49 +4958,6 @@ export default function AndroidPosRegister({
                             }
                           });
 
-                          // 2. Auto-stream entries from Laporan Harian (approvedFinanceDaily & manualEntryRecords)
-                          const dailyList = [...(masterData.approvedFinanceDaily || []), ...(masterData.manualEntryRecords || [])];
-                          const seenDailyIds = new Set();
-                          dailyList.forEach(f => {
-                            const dId = String(f.id || f.report_no || '');
-                            if (!dId || seenDailyIds.has(dId)) return;
-                            seenDailyIds.add(dId);
-
-                            const hppRows = [
-                              ...(f.cogs_items || []),
-                              ...(f.expense_rows || []).filter(r => (r.category_type || '').includes('HPP'))
-                            ];
-
-                            hppRows.forEach((r, idx) => {
-                              const autoLogId = `LOG-AUTO-${f.report_no || f.id}-${idx}`;
-                              if (!combinedOpnameMap.has(autoLogId) && r.item_name) {
-                                const existingIng = (masterData.ingredients || []).find(ing => (ing.name || '').toLowerCase() === (r.item_name || '').toLowerCase());
-                                const currentStock = existingIng ? Number(existingIng.stock || 0) : 0;
-                                const addQty = Number(r.qty || 1);
-                                combinedOpnameMap.set(autoLogId, {
-                                  id: autoLogId,
-                                  report_no: f.report_no || f.id,
-                                  date: f.date || new Date().toISOString().split('T')[0],
-                                  outlet_id: f.outlet_id,
-                                  branch_name: f.branch_name || f.outlet_name || currentOutlet.name,
-                                  submitted_by: f.author_name || f.submitted_by || 'Kasir',
-                                  created_by: f.author_name || f.submitted_by || 'Kasir',
-                                  item_name: r.item_name || r.name,
-                                  stok_awal: currentStock,
-                                  stok_masuk: addQty,
-                                  transfer_masuk: 0,
-                                  transfer_keluar: 0,
-                                  stok_rusak: 0,
-                                  stok_fisik: currentStock + addQty,
-                                  unit: r.unit || 'kg',
-                                  status: f.status || 'Pending',
-                                  type_input: 'by laporan harian (otomatis)',
-                                  notes: `HPP Laporan Harian ${f.report_no || f.id}`
-                                });
-                              }
-                            });
-                          });
-
                           const combinedOpname = Array.from(combinedOpnameMap.values());
 
                           const filteredOpname = combinedOpname.filter(op => 
@@ -4768,110 +4967,116 @@ export default function AndroidPosRegister({
                           if (filteredOpname.length === 0) {
                             return (
                               <tr>
-                                <td colSpan="11" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                                  Belum ada log laporan stock opname harian terdaftar.
+                                <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                  📭 Belum ada log laporan stock opname harian terdaftar.
                                 </td>
                               </tr>
                             );
                           }
 
                           return filteredOpname.map((item, idx) => {
-                            const isApproved = item.status === 'ACC' || item.status === 'ok' || item.status === 'approved' || item.status === 'Approved';
-                            const stokKeluarPenjualan = Number(item.stok_keluar || 0);
-
-                            const rawTransfers = [...(masterData.stockTransfer || []), ...(masterData.approvedTransfers || [])];
-                            const realTransferMasuk = rawTransfers
-                              .filter(t => (t.status === 'ok' || t.status === 'Approved' || t.status === 'approved' || t.status === 'Terkirim' || t.sent_to_apk || t.is_approved) &&
-                                           (Number(t.to_outlet_id || t.toOutletId) === Number(currentOutlet.id) || t.to_outlet_name === currentOutlet.name) &&
-                                           (t.item_name || t.itemName || '').toLowerCase().trim() === (item.item_name || '').toLowerCase().trim())
-                              .reduce((sum, t) => sum + Number(t.qty || 0), 0) || Number(item.transfer_masuk || 0);
-
-                            const realTransferKeluar = rawTransfers
-                              .filter(t => (t.status === 'ok' || t.status === 'Approved' || t.status === 'approved' || t.status === 'Terkirim' || t.sent_to_apk || t.is_approved) &&
-                                           (Number(t.from_outlet_id || t.fromOutletId) === Number(currentOutlet.id) || t.from_outlet_name === currentOutlet.name) &&
-                                           (t.item_name || t.itemName || '').toLowerCase().trim() === (item.item_name || '').toLowerCase().trim())
-                              .reduce((sum, t) => sum + Number(t.qty || 0), 0) || Number(item.transfer_keluar || 0);
-
-                            const stokSistem = (Number(item.stok_awal || 0) + Number(item.stok_masuk || 0) + realTransferMasuk) - 
-                              (stokKeluarPenjualan + realTransferKeluar + Number(item.stok_rusak || 0));
+                            const isDone = item.status === 'Done' || item.status === 'done' || item.status === 'ACC' || item.status === 'ok' || item.status === 'Approved' || item.status === 'approved';
                             const stokFisik = Number(item.stok_fisik || 0);
-                            
-                            // Keterangan Audit Formula:
-                            // Stok by sistem = stok by fisik -> "Pas"
-                            // Stok by sistem > stok by fisik -> "SOP tidak jalan"
-                            // Stok by sistem < stok by fisik -> "Ada stok hilang"
-                            let auditKet = { text: 'Pas', color: '#34d399', bg: 'rgba(52, 211, 153, 0.15)', border: 'rgba(52, 211, 153, 0.3)' };
-                            if (stokSistem > stokFisik) {
-                              auditKet = { text: 'SOP tidak jalan', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.3)' };
-                            } else if (stokSistem < stokFisik) {
-                              auditKet = { text: 'Ada stok hilang', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)', border: 'rgba(244, 63, 94, 0.3)' };
-                            }
 
-                            // Harga Satuan from Stok Masuk
-                            const getItemPrice = (name) => {
-                              if (item.harga_satuan) return Number(item.harga_satuan);
-                              let priceFound = 0;
-                              (masterData.approvedFinanceDaily || []).forEach(f => {
-                                (f.cogs_items || []).forEach(c => {
-                                  if ((c.name || c.item_name || '').toLowerCase() === (name || '').toLowerCase() && Number(c.price || c.price_unit || 0) > 0) {
-                                    priceFound = Number(c.price || c.price_unit || 0);
-                                  }
-                                });
-                              });
-                              if (!priceFound) {
-                                const ing = (masterData.ingredients || []).find(i => (i.name || '').toLowerCase() === (name || '').toLowerCase());
-                                if (ing) priceFound = Number(ing.price || ing.buy_price || ing.unit_price || 0);
-                              }
-                              return priceFound || 0;
-                            };
-
-                            const hargaSatuan = getItemPrice(item.item_name);
-                            // Denda Stok = |Stok Sistem - Stok Fisik| * Harga Satuan (bila sistem != fisik)
-                            const dendaStok = stokSistem !== stokFisik ? Math.abs(stokSistem - stokFisik) * hargaSatuan : 0;
-                            const jumlahTotalFisik = stokFisik * hargaSatuan;
+                            // 12-Hour Edit Window Calculation
+                            const reportTime = item.timestamp || (item.created_at ? new Date(item.created_at).getTime() : new Date(`${item.date}T12:00:00`).getTime());
+                            const hoursPassed = (Date.now() - reportTime) / (1000 * 60 * 60);
+                            const canEditInPos = hoursPassed <= 12;
 
                             return (
                               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
-                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{item.date}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: '900', color: '#38bdf8' }}>{item.report_no || item.id}</td>
-                                <td style={{ padding: '10px 12px', color: 'var(--pos-txt-primary)' }}>👤 {item.submitted_by || item.created_by}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: '900', color: '#34d399' }}>📦 {item.item_name}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--pos-txt-secondary)' }}>{item.stok_awal || 0} {item.unit}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>+{item.stok_masuk || 0} {item.unit}</td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>
-                                  +{realTransferMasuk} {item.unit}
-                                </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
-                                  -{realTransferKeluar} {item.unit}
-                                </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
-                                  -{item.stok_rusak || 0} {item.unit}
-                                </td>
-                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.88rem' }}>
-                                  {stokFisik} {item.unit}
+                                {/* TANGGAL */}
+                                <td style={{ padding: '12px 14px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
+                                  {item.date}
                                 </td>
 
-                                {/* STATUS APPROVAL */}
-                                <td style={{ padding: '10px 10px', textAlign: 'center' }}>
-                                  <span style={{
-                                    padding: '4px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '900',
-                                    background: isApproved ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.2)',
-                                    color: isApproved ? '#34d399' : '#fbbf24',
-                                    border: `1px solid ${isApproved ? '#34d399' : '#fbbf24'}`
-                                  }}>
-                                    {isApproved ? '🟢 ACC' : '⏳ PENDING'}
-                                  </span>
-                                </td>
-
-                                {/* AKSI */}
-                                <td style={{ padding: '10px 10px', textAlign: 'center' }}>
+                                {/* NO LAPORAN (CLICKABLE PREVIEW) */}
+                                <td style={{ padding: '12px 14px' }}>
                                   <button
                                     type="button"
                                     onClick={() => setPreviewLogisticsReport(item)}
-                                    style={{ padding: '4px 10px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#38bdf8',
+                                      fontWeight: '900',
+                                      fontSize: '0.85rem',
+                                      cursor: 'pointer',
+                                      textDecoration: 'underline',
+                                      padding: 0
+                                    }}
+                                    title="Klik untuk preview detail laporan"
                                   >
-                                    👁️ Preview
+                                    📋 {item.report_no || item.id}
                                   </button>
+                                </td>
+
+                                {/* DIISI OLEH */}
+                                <td style={{ padding: '12px 14px', color: 'var(--pos-txt-primary)', fontWeight: '600' }}>
+                                  👤 {item.submitted_by || item.created_by || 'Kasir'}
+                                </td>
+
+                                {/* NAMA ITEM */}
+                                <td style={{ padding: '12px 14px', fontWeight: '800', color: '#34d399' }}>
+                                  📦 {item.item_name || 'Bahan Baku Batch'}
+                                </td>
+
+                                {/* STOK FISIK */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.90rem' }}>
+                                  {stokFisik} {item.unit || 'kg'}
+                                </td>
+
+                                {/* STATUS (PENDING / DONE) */}
+                                <td style={{ padding: '12px 12px', textAlign: 'center' }}>
+                                  <span style={{
+                                    padding: '5px 12px', borderRadius: '12px', fontSize: '0.74rem', fontWeight: '900',
+                                    background: isDone ? 'rgba(52, 211, 153, 0.18)' : 'rgba(251, 191, 36, 0.18)',
+                                    color: isDone ? '#34d399' : '#fbbf24',
+                                    border: `1px solid ${isDone ? 'rgba(52, 211, 153, 0.4)' : 'rgba(251, 191, 36, 0.4)'}`
+                                  }}>
+                                    {isDone ? '🟢 Done' : '⏳ Pending'}
+                                  </span>
+                                </td>
+
+                                {/* AKSI (EDIT <=12 JAM / OK >12 JAM) */}
+                                <td style={{ padding: '12px 12px', textAlign: 'center' }}>
+                                  {canEditInPos ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setLogNo(item.report_no || item.id);
+                                        setLogDate(item.date || new Date().toISOString().split('T')[0]);
+                                        setLogSubmittedBy(item.submitted_by || item.created_by || userSession?.name || '');
+                                        setLogOutletId(item.outlet_id || currentOutlet.id || 1);
+                                        setShowAddLogisticsModal(true);
+                                      }}
+                                      style={{
+                                        padding: '6px 14px',
+                                        background: 'rgba(251, 191, 36, 0.2)',
+                                        border: '1px solid #fbbf24',
+                                        color: '#fbbf24',
+                                        borderRadius: '8px',
+                                        fontSize: '0.78rem',
+                                        fontWeight: '800',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                  ) : (
+                                    <span style={{
+                                      padding: '6px 14px',
+                                      background: 'rgba(52, 211, 153, 0.15)',
+                                      border: '1px solid #34d399',
+                                      color: '#34d399',
+                                      borderRadius: '8px',
+                                      fontSize: '0.78rem',
+                                      fontWeight: '900',
+                                      display: 'inline-block'
+                                    }}>
+                                      ✅ OK
+                                    </span>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -4913,7 +5118,7 @@ export default function AndroidPosRegister({
                       setTransferSubmittedBy(userSession?.name || '');
                       setTransferItemName(firstIng.name);
                       setTransferCustomItemName('');
-                      setTransferQty(10);
+                      setTransferQty(1);
                       setTransferUnit(firstIng.unit || 'kg');
                       setTransferNotes('Transfer pengiriman bahan baku antarcabang');
                       setTransferStatus('ditunda');
@@ -4922,7 +5127,7 @@ export default function AndroidPosRegister({
                           id: Date.now(),
                           item_name: firstIng.name,
                           custom_item_name: '',
-                          qty: 10,
+                          qty: 1,
                           unit: firstIng.unit || 'kg'
                         }
                       ]);
@@ -5534,7 +5739,16 @@ export default function AndroidPosRegister({
                             return (
                               <tr key={op.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
                                 <td style={{ padding: '12px 10px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{op.date}</td>
-                                <td style={{ padding: '12px 10px', fontWeight: '900', color: '#38bdf8' }}>{op.report_no || op.id}</td>
+                                <td style={{ padding: '12px 10px', fontWeight: '900' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewOpnameSummaryRecord(op)}
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.80rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }}
+                                    title="Klik untuk membuka rincian laporan stok opname"
+                                  >
+                                    {op.report_no || op.id}
+                                  </button>
+                                </td>
                                 <td style={{ padding: '12px 10px', color: 'var(--pos-txt-primary)' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     <span>👤 {op.created_by || op.submitted_by || 'Admin'}</span>
@@ -6987,6 +7201,8 @@ export default function AndroidPosRegister({
             </div>
 
             {/* ACTION BUTTONS */}
+            {/* PRINTER STATUS BANNER — tampilkan di modal struk sebelum tombol cetak */}
+            {renderPrinterStatusBanner()}
             {(lastCompletedTx.isContohTagihan || lastCompletedTx.id?.startsWith('BILL') || lastCompletedTx.id?.startsWith('HOLD')) ? (
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
@@ -7046,6 +7262,8 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
+            {/* PRINTER STATUS BANNER — modal cetak ulang riwayat transaksi */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setSelectedTxDetail(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Tutup</button>
               <button onClick={() => handlePrintSingleReceipt(selectedTxDetail)} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
@@ -7817,6 +8035,8 @@ export default function AndroidPosRegister({
             </div>
 
             {/* ACTION BUTTONS */}
+            {/* PRINTER STATUS BANNER — modal pilih struk order */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 onClick={() => {
@@ -8428,6 +8648,8 @@ export default function AndroidPosRegister({
             )}
 
             {/* Modal Actions */}
+            {/* PRINTER STATUS BANNER — modal split bill */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => setShowSplitBillModal(false)}
@@ -8436,7 +8658,7 @@ export default function AndroidPosRegister({
                 Batal
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   let unassignedTotalRp = 0;
                   let unassignedItemsCount = 0;
 
@@ -8581,13 +8803,49 @@ export default function AndroidPosRegister({
 
                   splitPrintHTML += `</body></html>`;
 
-                  const win = window.open('', '_blank', 'width=400,height=600');
-                  if (win) {
-                    win.document.write(splitPrintHTML);
-                    win.document.close();
-                    win.focus();
-                    setTimeout(() => win.print(), 250);
+                  // Kirim ke driver BT jika terhubung, fallback ke PDF jika di browser
+                  // Bangun teks ESC/POS untuk split bill menggunakan buildReceiptText
+                  const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
+                  const charsPerLine = printerPaperWidth === '80' ? 48 : 32;
+                  const div = '-'.repeat(charsPerLine);
+                  const splitTextLines = [
+                    '[C][B]' + outletName.toUpperCase(),
+                    '[C]STRUK SPLIT BILL',
+                    div,
+                  ];
+
+                  if (splitType === 'by_item') {
+                    let grandSplitEsc = 0;
+                    splitCustomerList.forEach((cName, cIdx) => {
+                      const custItems = cart.map((item, idx) => {
+                        const q = itemQtySplitMap[idx]?.[cIdx] || 0;
+                        return q > 0 ? { ...item, splitQty: q } : null;
+                      }).filter(Boolean);
+                      if (custItems.length > 0) {
+                        const custTotal = custItems.reduce((s, it) => s + (it.splitQty * it.price), 0);
+                        grandSplitEsc += custTotal;
+                        splitTextLines.push('[B][ ' + cName.toUpperCase() + ' ]');
+                        custItems.forEach(it => splitTextLines.push(`${it.splitQty}x ${it.name.toUpperCase()}  ${formatRupiah(it.splitQty * it.price)}`));
+                        splitTextLines.push('Subtotal ' + cName + ': ' + formatRupiah(custTotal));
+                        splitTextLines.push(div);
+                      }
+                    });
+                    splitTextLines.push('[B]GRAND TOTAL MEJA: ' + formatRupiah(grandSplitEsc));
+                  } else {
+                    for (let i = 1; i <= splitPeopleCount; i++) {
+                      splitTextLines.push('[B]ORANG ' + i + ' dari ' + splitPeopleCount);
+                      splitTextLines.push('TAGIHAN PER ORANG: ' + formatRupiah(Math.round(cartTotal / splitPeopleCount)));
+                      splitTextLines.push(div);
+                    }
                   }
+                  splitTextLines.push('[C]*** BUKTI REKAP PEMBAYARAN ***');
+                  splitTextLines.push('');
+                  splitTextLines.push('');
+
+                  const splitTextContent = splitTextLines.join('\n');
+
+                  // Kirim ke printer Bluetooth atau fallback ke PDF
+                  await printTextToBluetooth(splitTextContent, 'bill');
 
                   setShowSplitBillModal(false);
                 }}
@@ -8863,7 +9121,7 @@ export default function AndroidPosRegister({
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999
         }}>
           <div style={{
             width: '100%', maxWidth: '380px', background: '#ffffff', color: '#000000',
@@ -9707,6 +9965,8 @@ export default function AndroidPosRegister({
             </div>
 
             {/* Modal Actions */}
+            {/* PRINTER STATUS BANNER — modal cetak laporan shift closing */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
@@ -9801,9 +10061,10 @@ export default function AndroidPosRegister({
               const uangDiLaci = labaKotor - autoNonCashVal - autoDiscountVal;
 
               // 5. PENGAMBILAN MODAL
-              const modalSaatIniVal = Number(manualModalIdeal || 500000);
+              const modalSaatIniVal = Number(manualModalSaatIni || 0);
+              const modalSeharusnyaVal = Number(manualModalSeharusnya || 0);
               const totalModalReturned = (manualCashReturnRows || []).reduce((sum, r) => sum + Number(r.amount_returned || r.returnAmount || 0), 0);
-              const sisaHutangModal = Math.max(0, modalSaatIniVal - totalModalReturned);
+              const sisaHutangModal = modalSeharusnyaVal - (modalSaatIniVal + totalModalReturned);
 
               return (
                 <form onSubmit={e => {
@@ -9830,7 +10091,9 @@ export default function AndroidPosRegister({
                     cash_in_drawer: uangDiLaci,
                     cash_physical: uangDiLaci,
                     actual_cash: uangDiLaci,
-                    modal_ideal: modalSaatIniVal,
+                    modal_ideal: modalSeharusnyaVal,
+                    modal_saat_ini: modalSaatIniVal,
+                    modal_seharusnya: modalSeharusnyaVal,
                     modal_refund_rows: manualCashReturnRows,
                     total_modal_returned: totalModalReturned,
                     modal_debt_remaining: sisaHutangModal,
@@ -9895,11 +10158,7 @@ export default function AndroidPosRegister({
                       approvedLogistics: [...autoLogisticsEntries, ...(prev.approvedLogistics || []).filter(s => !autoLogisticsEntries.some(a => a.id === s.id))]
                     };
 
-                    fetch(getApiUrl('/api/master-data'), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(newMaster)
-                    }).catch(() => {});
+                    saveToServerWithGuard(newMaster);
 
                     return newMaster;
                   });
@@ -10027,32 +10286,70 @@ export default function AndroidPosRegister({
                           {(manualExpenseRows || []).map((row) => (
                             <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                               <td style={{ padding: '6px 8px' }}>
-                                <input
-                                  type="text"
-                                  list={`pos-exp-suggest-${row.id}`}
-                                  value={row.item_name || row.name || ''}
-                                  onChange={e => {
-                                    const val = e.target.value;
-                                    const foundSug = expenseSuggestions.find(s => s.name.toLowerCase() === val.toLowerCase());
-                                    setManualExpenseRows(prev => (prev || []).map(r => {
-                                      if (r.id === row.id) {
-                                        const cat = foundSug ? foundSug.category_type : (r.category_type || 'HPP Bahan Baku');
-                                        const unt = foundSug ? foundSug.unit : (r.unit || 'kg');
-                                        const prc = foundSug ? foundSug.price : (r.price_per_unit || 0);
-                                        const q = Number(r.qty || 1);
-                                        return { ...r, item_name: val, name: val, category_type: cat, unit: unt, price_per_unit: prc, subtotal: q * prc, amount: q * prc };
-                                      }
-                                      return r;
-                                    }));
-                                  }}
-                                  placeholder="Ketik/Pilih item..."
-                                  style={{ width: '100%', padding: '6px 10px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.80rem' }}
-                                />
-                                <datalist id={`pos-exp-suggest-${row.id}`}>
-                                  {expenseSuggestions.map((sug, i) => (
-                                    <option key={i} value={sug.name}>{sug.name} ({sug.category_type})</option>
-                                  ))}
-                                </datalist>
+                                <div style={{ position: 'relative', width: '100%' }}>
+                                  <input
+                                    type="text"
+                                    value={row.item_name || row.name || ''}
+                                    onFocus={() => setActiveSuggestRowId(`exp-${row.id}`)}
+                                    onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      const foundSug = expenseSuggestions.find(s => s.name.toLowerCase() === val.toLowerCase());
+                                      setManualExpenseRows(prev => (prev || []).map(r => {
+                                        if (r.id === row.id) {
+                                          const cat = foundSug ? foundSug.category_type : (r.category_type || 'HPP Bahan Baku');
+                                          const unt = foundSug ? foundSug.unit : (r.unit || 'kg');
+                                          const prc = foundSug ? foundSug.price : (r.price_per_unit || 0);
+                                          const q = Number(r.qty || 1);
+                                          return { ...r, item_name: val, name: val, category_type: cat, unit: unt, price_per_unit: prc, subtotal: q * prc, amount: q * prc };
+                                        }
+                                        return r;
+                                      }));
+                                      setActiveSuggestRowId(`exp-${row.id}`);
+                                    }}
+                                    placeholder="Ketik / pilih bahan baku..."
+                                    style={{ width: '100%', padding: '6px 10px', background: 'var(--pos-bg-card)', border: activeSuggestRowId === `exp-${row.id}` ? '1.5px solid #38bdf8' : '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.80rem', fontWeight: '800', outline: 'none' }}
+                                  />
+
+                                  {/* FLOATING DROPDOWN SUGESTI OTOMATIS */}
+                                  {activeSuggestRowId === `exp-${row.id}` && (
+                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, background: '#0f172a', border: '1.5px solid #38bdf8', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                                      {expenseSuggestions
+                                        .filter(s => !(row.item_name || '') || (s.name || '').toLowerCase().includes((row.item_name || '').toLowerCase()))
+                                        .slice(0, 10)
+                                        .map((sug, i) => (
+                                          <div
+                                            key={i}
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              const q = Number(row.qty || 1);
+                                              const prc = Number(sug.price || 0);
+                                              setManualExpenseRows(prev => (prev || []).map(r => r.id === row.id ? {
+                                                ...r,
+                                                item_name: sug.name,
+                                                name: sug.name,
+                                                category_type: sug.category_type || 'HPP Bahan Baku',
+                                                unit: sug.unit || 'kg',
+                                                price_per_unit: prc,
+                                                subtotal: q * prc,
+                                                amount: q * prc
+                                              } : r));
+                                              setActiveSuggestRowId(null);
+                                            }}
+                                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                          >
+                                            <div>
+                                              <strong style={{ color: '#f8fafc', display: 'block' }}>📦 {sug.name}</strong>
+                                              <span style={{ fontSize: '0.70rem', color: '#38bdf8' }}>{sug.category_type} • Satuan: {sug.unit || 'kg'} • Rp {Number(sug.price || 0).toLocaleString('id-ID')}</span>
+                                            </div>
+                                            <span style={{ background: '#38bdf8', color: '#000000', padding: '2px 8px', borderRadius: '4px', fontWeight: '900', fontSize: '0.68rem' }}>Salin ↵</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  )}
+                                </div>
                               </td>
 
                               <td style={{ padding: '6px 8px' }}>
@@ -10189,15 +10486,26 @@ export default function AndroidPosRegister({
                       </button>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                       <div>
-                        <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>Modal saat ini:</label>
+                        <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Modal saat ini (IDR):</label>
                         <input
                           type="number"
-                          value={manualModalIdeal || 500000}
-                          onChange={e => setManualModalIdeal(Number(e.target.value))}
-                          placeholder="Contoh: 500000"
+                          value={manualModalSaatIni}
+                          onChange={e => setManualModalSaatIni(Number(e.target.value))}
+                          placeholder="0"
                           style={{ width: '100%', padding: '9px 12px', background: 'var(--pos-bg-card)', border: '1px solid #c084fc', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontWeight: '800', fontSize: '0.85rem' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Modal seharusnya (IDR):</label>
+                        <input
+                          type="number"
+                          value={manualModalSeharusnya}
+                          onChange={e => setManualModalSeharusnya(Number(e.target.value))}
+                          placeholder="0"
+                          style={{ width: '100%', padding: '9px 12px', background: 'var(--pos-bg-card)', border: '1px solid #38bdf8', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontWeight: '800', fontSize: '0.85rem' }}
                         />
                       </div>
                     </div>
@@ -10273,9 +10581,27 @@ export default function AndroidPosRegister({
                         <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#c084fc' }}>{formatRupiah(totalModalReturned)}</span>
                       </div>
 
-                      <div style={{ background: 'var(--pos-bg-card)', padding: '12px 14px', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8' }}>Sisa Hutang Modal (Modal saat ini - Total Dikembalikan):</span>
-                        <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(sisaHutangModal)}</span>
+                      <div style={{
+                        background: 'var(--pos-bg-card)',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: `1px solid ${sisaHutangModal < 0 ? '#f43f5e' : '#34d399'}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: sisaHutangModal < 0 ? '#f87171' : '#34d399' }}>
+                            {sisaHutangModal < 0 ? 'Sisa Hutang Modal (Masih Ada Hutang):' : 'Sisa Uang Modal (Sisa Uang / Lunas):'}
+                          </span>
+                          <span style={{ fontSize: '1.05rem', fontWeight: '900', color: sisaHutangModal < 0 ? '#f87171' : '#34d399' }}>
+                            {sisaHutangModal < 0 ? `- ${formatRupiah(Math.abs(sisaHutangModal))}` : formatRupiah(sisaHutangModal)}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: sisaHutangModal < 0 ? '#fb7185' : '#a7f3d0', fontWeight: '700' }}>
+                          {sisaHutangModal < 0 ? '⚠️ Bernilai negatif (masih ada hutang)' : '✅ Bernilai positif (sisa uang)'}
+                          <span style={{ opacity: 0.75, marginLeft: '6px' }}>[Modal seharusnya - (Modal saat ini + Total dikembalikan)]</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -10379,17 +10705,17 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* 15. MODAL FORM "+ TAMBAHKAN STOK OPNAME / LAPORAN LOGISTIK" (MATCHING STOCK OPNAME 100%) */}
+      {/* 15. MODAL FORM "+ TAMBAHKAN STOK OPNAME / LAPORAN LOGISTIK" (FULL SCREEN MODAL) */}
       {showAddLogisticsModal && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh',
+          background: 'rgba(9, 13, 22, 0.95)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 0
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '780px', maxHeight: '92vh', overflowY: 'auto',
-            padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #38bdf8', borderRadius: '18px',
-            display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
+            padding: '28px 36px', background: '#0b0f19', border: 'none', borderRadius: '0px',
+            display: 'flex', flexDirection: 'column', gap: '20px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -10438,7 +10764,7 @@ export default function AndroidPosRegister({
                   transfer_masuk: 0,
                   transfer_keluar: 0,
                   stok_rusak: 0,
-                  stok_fisik: '',
+                  stok_fisik: 0,
                   isEditing: true
                 };
                 setOpnameBatchRows(prev => [...prev, newRow]);
@@ -10448,31 +10774,45 @@ export default function AndroidPosRegister({
                 <form onSubmit={e => {
                   e.preventDefault();
 
-                  if (opnameBatchRows.length === 0) {
-                    alert('Harap tambahkan minimal 1 bahan baku untuk diproses!');
+                  if (!opnameBatchRows || opnameBatchRows.length === 0 || !opnameBatchRows[0]?.item_name) {
+                    alert('Harap cari dan pilih bahan baku yang akan diaudit!');
                     return;
                   }
 
-                  const newRecords = opnameBatchRows.map((row, idx) => ({
-                    id: `${logNo}-${idx + 1}`,
+                  const selectedItemName = (opnameBatchRows[0]?.item_name || '').trim();
+
+                  // ── VALIDASI MASTER DATA BAHAN BAKU PUSAT ───────────────────
+                  const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
+                  if (!isValidMasterIng) {
+                    alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${selectedItemName}" tidak terdaftar di Master Data Bahan Baku Pusat!\n\nHarap pilih dari sugesti otomatis yang tersedia.`);
+                    return;
+                  }
+
+                  const foundIng = ingredientsList.find(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
+                  const unitVal = opnameBatchRows[0]?.unit || foundIng?.unit || 'kg';
+                  const stokFisikVal = Number(opnameBatchRows[0]?.stok_fisik || 0);
+                  const stokAwalVal = Number(opnameBatchRows[0]?.stok_awal || foundIng?.stock || foundIng?.stok || 0);
+
+                  const newRecord = {
+                    id: logNo,
                     report_no: logNo,
                     date: logDate,
                     outlet_id: logOutletId,
-                    branch_name: (masterData.outlets || []).find(o => o.id === logOutletId)?.name || currentOutlet.name || 'Restoran Utama',
+                    branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || 'Restoran Utama',
                     submitted_by: logSubmittedBy,
                     created_by: logSubmittedBy,
                     author_name: logSubmittedBy,
-                    item_name: row.item_name,
-                    unit: row.unit || 'kg',
-                    stok_awal: Number(row.stok_awal || 0),
-                    stok_masuk: Number(row.stok_masuk || 0),
-                    stok_keluar: Number(row.transfer_keluar || 0),
-                    transfer_keluar: Number(row.transfer_keluar || 0),
-                    transfer_masuk: Number(row.transfer_masuk || 0),
-                    stok_rusak: Number(row.stok_rusak || 0),
-                    stok_fisik: Number(row.stok_fisik || 0),
-                    status: 'ditunda'
-                  }));
+                    item_name: selectedItemName,
+                    unit: unitVal,
+                    stok_awal: stokAwalVal,
+                    stok_masuk: 0,
+                    stok_keluar: 0,
+                    transfer_keluar: 0,
+                    transfer_masuk: 0,
+                    stok_rusak: 0,
+                    stok_fisik: stokFisikVal,
+                    status: 'Pending'
+                  };
 
                   setShowAddLogisticsModal(false);
 
@@ -10482,214 +10822,164 @@ export default function AndroidPosRegister({
                       ...prev,
                       _lastUpdated: now,
                       clientUpdated: now,
-                      approvedLogistics: [...newRecords, ...(prev.approvedLogistics || [])],
-                      stockOpname: [...newRecords, ...(prev.stockOpname || [])],
-                      stockMovement: [...newRecords, ...(prev.stockMovement || [])]
+                      approvedLogistics: [newRecord, ...(prev.approvedLogistics || []).filter(r => r.report_no !== logNo)],
+                      stockOpname: [newRecord, ...(prev.stockOpname || []).filter(r => r.report_no !== logNo)],
+                      stockMovement: [newRecord, ...(prev.stockMovement || [])]
                     };
 
-                    fetch(getApiUrl('/api/master-data'), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(newMaster)
-                    }).catch(() => {});
+                    saveToServerWithGuard(newMaster);
 
                     return newMaster;
                   });
-                }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                  alert(`✅ Laporan Stok Opname ${logNo} untuk "${selectedItemName}" berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
+                }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
                   {/* Header Form: Tanggal, No Laporan, Diisi Oleh, Cabang Outlet */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px', background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Audit *</label>
-                      <input type="date" required value={logDate} onChange={e => setLogDate(e.target.value)} className="form-input" style={{ width: '100%', height: '38px' }} />
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📅 Tanggal Audit *</label>
+                      <input type="date" required value={logDate} onChange={e => setLogDate(e.target.value)} className="form-input" style={{ width: '100%', height: '42px', borderRadius: '8px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan *</label>
-                      <input type="text" required value={logNo} onChange={e => setLogNo(e.target.value)} className="form-input" style={{ width: '100%', height: '38px', fontWeight: '800', color: '#38bdf8' }} />
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📋 Nomor Laporan *</label>
+                      <input type="text" required value={logNo} onChange={e => setLogNo(e.target.value)} className="form-input" style={{ width: '100%', height: '42px', fontWeight: '800', color: '#38bdf8', borderRadius: '8px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Diisi Oleh *</label>
-                      <select value={logSubmittedBy} onChange={e => setLogSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '38px' }}>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>👤 Diisi Oleh *</label>
+                      <select value={logSubmittedBy} onChange={e => setLogSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '42px', borderRadius: '8px' }}>
                         {adminList.map(a => (
                           <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>🏢 Cabang Outlet</label>
-                      <div style={{ width: '100%', height: '38px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '8px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>🏢 Cabang Outlet</label>
+                      <div style={{ width: '100%', height: '42px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '8px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>🏢 {currentOutlet.name || 'Restoran Utama'}</span>
-                        <span style={{ fontSize: '0.70rem', color: 'var(--pos-txt-secondary)', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>Akun Aktif</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>Akun Aktif</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Header Subtitle & Button Tambahkan Bahan Baku */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontSize: '0.92rem', fontWeight: '800', color: '#34d399', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      📦 Daftar Bahan Baku Audit ({opnameBatchRows.length} Item)
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={handleAddEmptyRow}
-                      style={{ padding: '6px 14px', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid #34d399', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <PlusCircle size={14} />
-                      <span>+ Tambah Baris Bahan Baku</span>
-                    </button>
-                  </div>
+                  {/* FORM INPUT AUDIT 1 BAHAN BAKU (BEBAS RUMIT BATCH TABLE) */}
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '24px', borderRadius: '16px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    <div style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Package size={20} />
+                      <span>Input Audit Stok Opname per Item Laporan:</span>
+                    </div>
 
-                  {/* TABEL BATCH STOCK OPNAME BAHAN BAKU */}
-                  <div style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid var(--pos-border-card)', borderRadius: '12px', background: 'var(--pos-bg-app)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                      <thead>
-                        <tr style={{ background: 'var(--pos-bg-card)', color: 'var(--pos-txt-secondary)', textAlign: 'left', borderBottom: '1px solid var(--pos-border-card)', position: 'sticky', top: 0, zIndex: 10 }}>
-                          <th style={{ padding: '10px 12px' }}>Bahan Baku & Satuan</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', width: '110px' }}>Stok Awal (Manual)</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#34d399' }}>Stok Masuk</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#34d399' }}>Transfer Stok In</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#fb7185' }}>Transfer Stok Out</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#fb7185' }}>Stok Rusak</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#38bdf8', width: '120px' }}>Sisa Stok Fisik *</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', width: '90px' }}>Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {opnameBatchRows.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
-                              Belum ada bahan baku. Klik <strong>+ Tambah Baris Bahan Baku</strong> di atas.
-                            </td>
-                          </tr>
-                        ) : (
-                          opnameBatchRows.map((row) => (
-                            <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: row.isEditing ? 'rgba(56,189,248,0.05)' : 'transparent' }}>
-                              
-                              {/* Bahan Baku & Satuan */}
-                              <td style={{ padding: '8px 12px' }}>
-                                {row.isEditing ? (
-                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                    <select
-                                      value={row.item_name}
-                                      onChange={e => {
-                                        const name = e.target.value;
-                                        const found = ingredientsList.find(i => i.name === name);
-                                        handleUpdateRow(row.id, 'item_name', name);
-                                        if (found) handleUpdateRow(row.id, 'unit', found.unit || 'kg');
-                                      }}
-                                      className="form-input"
-                                      style={{ height: '32px', fontSize: '0.78rem', color: '#34d399', fontWeight: '800' }}
-                                    >
-                                      {ingredientsList.map(ing => (
-                                        <option key={ing.id} value={ing.name}>{ing.name}</option>
-                                      ))}
-                                    </select>
-                                    <input
-                                      type="text"
-                                      value={row.unit}
-                                      onChange={e => handleUpdateRow(row.id, 'unit', e.target.value)}
-                                      className="form-input"
-                                      style={{ width: '50px', height: '32px', fontSize: '0.75rem', textAlign: 'center' }}
-                                      placeholder="Unit"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <strong style={{ color: 'var(--pos-txt-primary)', display: 'block' }}>{row.item_name}</strong>
-                                    <span style={{ fontSize: '0.70rem', color: '#38bdf8' }}>Satuan: {row.unit}</span>
-                                  </div>
-                                )}
-                              </td>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '16px', alignItems: 'end' }}>
+                      {/* SUGESTI BAHAN BAKU TERVALIDASI */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: '#f8fafc', fontWeight: '800', display: 'block', marginBottom: '6px' }}>
+                          📦 Cari & Pilih Nama Bahan Baku (Wajib dari Master Data) *
+                        </label>
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <input
+                            type="text"
+                            required
+                            value={opnameBatchRows[0]?.item_name || ''}
+                            onFocus={() => setActiveSuggestRowId('opname-single')}
+                            onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                            onChange={e => {
+                              const val = e.target.value;
+                              const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
+                              setOpnameBatchRows([{
+                                id: 'single-opname',
+                                item_name: val,
+                                unit: found?.unit || 'kg',
+                                stok_awal: found?.stock || found?.stok || 0,
+                                stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
+                              }]);
+                              setActiveSuggestRowId('opname-single');
+                            }}
+                            placeholder="Ketik nama bahan baku..."
+                            style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#ffffff', fontSize: '0.90rem', fontWeight: '800', outline: 'none' }}
+                          />
 
-                              {/* Stok Awal (Input Manual) */}
-                              <td style={{ padding: '8px', textAlign: 'center' }}>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  placeholder="0"
-                                  value={row.stok_awal}
-                                  onChange={e => handleUpdateRow(row.id, 'stok_awal', e.target.value)}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '32px', textAlign: 'center', fontSize: '0.80rem', fontWeight: '700' }}
-                                />
-                              </td>
-
-                              {/* Stok Masuk (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#34d399', fontWeight: '800' }}>
-                                +{row.stok_masuk || 0}
-                              </td>
-
-                              {/* Transfer Stok In (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#34d399', fontWeight: '800' }}>
-                                +{row.transfer_masuk || 0}
-                              </td>
-
-                              {/* Transfer Stok Out (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#fb7185', fontWeight: '800' }}>
-                                -{row.transfer_keluar || 0}
-                              </td>
-
-                              {/* Stok Rusak (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#fb7185', fontWeight: '800' }}>
-                                -{row.stok_rusak || 0}
-                              </td>
-
-                              {/* Sisa Stok Fisik (Input Manual) */}
-                              <td style={{ padding: '8px', textAlign: 'center' }}>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  required
-                                  placeholder="Stok Fisik"
-                                  value={row.stok_fisik}
-                                  onChange={e => handleUpdateRow(row.id, 'stok_fisik', e.target.value)}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', textAlign: 'center', fontSize: '0.88rem', fontWeight: '900', color: '#38bdf8', border: '1px solid #38bdf8', background: 'rgba(56, 189, 248, 0.1)' }}
-                                />
-                              </td>
-
-                              {/* Aksi: Edit & Hapus */}
-                              <td style={{ padding: '8px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateRow(row.id, 'isEditing', !row.isEditing)}
-                                    title={row.isEditing ? "Selesai Edit" : "Edit Nama / Satuan"}
-                                    style={{ padding: '4px 8px', background: row.isEditing ? '#34d399' : 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                          {/* FLOATING SUGESTI DROPDOWN HIGH-CONTRAST */}
+                          {activeSuggestRowId === 'opname-single' && (
+                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99999, background: '#090d16', border: '2px solid #38bdf8', borderRadius: '10px', marginTop: '6px', maxHeight: '240px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
+                              {ingredientsList
+                                .filter(s => !(opnameBatchRows[0]?.item_name || '') || (s.name || '').toLowerCase().includes((opnameBatchRows[0]?.item_name || '').toLowerCase()))
+                                .slice(0, 10)
+                                .map((sug, i) => (
+                                  <div
+                                    key={i}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setOpnameBatchRows([{
+                                        id: 'single-opname',
+                                        item_name: sug.name,
+                                        unit: sug.unit || 'kg',
+                                        stok_awal: sug.stock || sug.stok || 0,
+                                        stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
+                                      }]);
+                                      setActiveSuggestRowId(null);
+                                    }}
+                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                   >
-                                    <Edit2 size={12} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteRow(row.id)}
-                                    title="Hapus Baris Ini"
-                                    style={{ padding: '4px 8px', background: 'rgba(244,63,94,0.2)', color: '#f43f5e', border: '1px solid #f43f5e', borderRadius: '6px', cursor: 'pointer' }}
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                              </td>
+                                    <div>
+                                      <strong style={{ color: '#ffffff', display: 'block', fontSize: '0.88rem' }}>📦 {sug.name}</strong>
+                                      <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: '700' }}>Stok Sistem: {sug.stock || sug.stok || 0} {sug.unit || 'kg'} • {sug.category || 'HPP'}</span>
+                                    </div>
+                                    <span style={{ background: '#38bdf8', color: '#000000', padding: '3px 10px', borderRadius: '6px', fontWeight: '900', fontSize: '0.72rem' }}>Pilih &amp; Salin ↵</span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                      {/* STOK AWAL SISTEM */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>Stok Sistem / Satuan</label>
+                        <div style={{ height: '44px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', padding: '0 12px', color: '#34d399', fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span>{opnameBatchRows[0]?.stok_awal || 0}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{opnameBatchRows[0]?.unit || 'kg'}</span>
+                        </div>
+                      </div>
+
+                      {/* SISA STOK FISIK AUDIT */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🔢 Sisa Stok Fisik *</label>
+                        <input
+                          type="number"
+                          required
+                          step="any"
+                          min="0"
+                          placeholder="Jumlah fisik..."
+                          value={opnameBatchRows[0]?.stok_fisik || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setOpnameBatchRows(prev => [{
+                              ...(prev[0] || { id: 'single-opname', item_name: '', unit: 'kg', stok_awal: 0 }),
+                              stok_fisik: val
+                            }]);
+                          }}
+                          className="form-input"
+                          style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#38bdf8', fontSize: '0.95rem', fontWeight: '900', outline: 'none' }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Footer Status & Tombol Simpan */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                      <span style={{ fontSize: '0.74rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '3px 10px', borderRadius: '6px', fontWeight: '800' }}>⏳ Pending (Butuh Persetujuan)</span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
+                      <span style={{ fontSize: '0.78rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '4px 12px', borderRadius: '6px', fontWeight: '800' }}>⏳ Pending (Butuh Persetujuan Web Admin)</span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '10px 18px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '0.82rem' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.08)', color: 'var(--pos-txt-primary)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}>
                         Batal
                       </button>
-                      <button type="submit" style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '8px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>💾 SIMPAN SELURUH AUDIT STOK OPNAME</span>
+                      <button type="submit" style={{ padding: '12px 28px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#000000', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>💾 KIRIM LAPORAN STOK OPNAME</span>
                       </button>
                     </div>
                   </div>
@@ -10766,17 +11056,17 @@ export default function AndroidPosRegister({
           </div>
         </div>
       )}
-      {/* 16. MODAL FORM "+ BUAT LAPORAN TRANSFER PRODUK" */}
+      {/* 16. MODAL FORM "+ BUAT LAPORAN TRANSFER PRODUK" (FULL SCREEN MODAL) */}
       {showAddTransferModal && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh',
+          background: 'rgba(9, 13, 22, 0.95)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 0
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '880px', maxHeight: '92vh', overflowY: 'auto',
-            background: 'var(--pos-bg-card)', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '20px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)', padding: '24px',
+            width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
+            background: '#0b0f19', border: 'none', borderRadius: '0px',
+            boxShadow: 'none', padding: '28px 36px',
             display: 'flex', flexDirection: 'column', gap: '20px',
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
           }}>
@@ -10850,8 +11140,19 @@ export default function AndroidPosRegister({
                   const toOutletObj = outletsList.find(o => Number(o.id) === Number(transferToOutletId)) || outletsList.find(o => Number(o.id) !== Number(currentOutlet.id)) || { name: 'Outlet Tujuan' };
 
                   const newRecords = [];
+                  let hasInvalidIngredient = false;
+
                   transferBatchRows.forEach((row, idx) => {
                     const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Baru') : row.item_name;
+                    
+                    // ── VALIDASI MASTER DATA BAHAN BAKU ────────────────────────
+                    const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === (finalItemName || '').trim().toLowerCase());
+                    if (!isValidMasterIng) {
+                      hasInvalidIngredient = true;
+                      alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${finalItemName}" tidak terdaftar di Master Data Bahan Baku Pusat!\nHarap pilih dari sugesti otomatis yang tersedia.`);
+                      return;
+                    }
+
                     const recId = transferBatchRows.length > 1 ? `${transferNo}-${idx + 1}` : transferNo;
 
                     newRecords.push({
@@ -10975,24 +11276,52 @@ export default function AndroidPosRegister({
 
                                   {/* 2. Nama Bahan Baku */}
                                   <td style={{ padding: '10px 14px' }}>
-                                    <select
-                                      value={row.item_name}
-                                      onChange={e => {
-                                        const val = e.target.value;
-                                        handleUpdateTransferRow(row.id, 'item_name', val);
-                                        if (val !== '__OTHER__') {
-                                          const found = ingredientsList.find(i => i.name === val);
+                                    <div style={{ position: 'relative', width: '100%' }}>
+                                      <input
+                                        type="text"
+                                        value={row.item_name === '__OTHER__' ? '' : (row.item_name || '')}
+                                        onFocus={() => setActiveSuggestRowId(`trf-${row.id}`)}
+                                        onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                                        onChange={e => {
+                                          const val = e.target.value;
+                                          handleUpdateTransferRow(row.id, 'item_name', val);
+                                          const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
                                           if (found) handleUpdateTransferRow(row.id, 'unit', found.unit || 'kg');
-                                        }
-                                      }}
-                                      className="form-input"
-                                      style={{ width: '100%', height: '38px', fontWeight: '800', color: '#34d399', fontSize: '0.82rem', borderRadius: '8px' }}
-                                    >
-                                      {ingredientsList.map(ing => (
-                                        <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
-                                      ))}
-                                      <option value="__OTHER__">➕ + Buat / Tentukan Nama Bahan Baku Baru...</option>
-                                    </select>
+                                          setActiveSuggestRowId(`trf-${row.id}`);
+                                        }}
+                                        placeholder="Ketik / pilih bahan baku..."
+                                        style={{ width: '100%', padding: '6px 10px', background: 'var(--pos-bg-card)', border: activeSuggestRowId === `trf-${row.id}` ? '1.5px solid #34d399' : '1px solid var(--pos-border-card)', borderRadius: '8px', color: '#34d399', fontSize: '0.82rem', fontWeight: '800', outline: 'none' }}
+                                      />
+
+                                      {/* FLOATING DROPDOWN SUGESTI OTOMATIS */}
+                                      {activeSuggestRowId === `trf-${row.id}` && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, background: '#0f172a', border: '1.5px solid #34d399', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                                          {ingredientsList
+                                            .filter(s => !(row.item_name || '') || (s.name || '').toLowerCase().includes((row.item_name || '').toLowerCase()))
+                                            .slice(0, 10)
+                                            .map((sug, i) => (
+                                              <div
+                                                key={i}
+                                                onMouseDown={(e) => {
+                                                  e.preventDefault();
+                                                  handleUpdateTransferRow(row.id, 'item_name', sug.name);
+                                                  handleUpdateTransferRow(row.id, 'unit', sug.unit || 'kg');
+                                                  setActiveSuggestRowId(null);
+                                                }}
+                                                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(52, 211, 153, 0.25)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                              >
+                                                <div>
+                                                  <strong style={{ color: '#f8fafc', display: 'block' }}>📦 {sug.name}</strong>
+                                                  <span style={{ fontSize: '0.70rem', color: '#34d399' }}>Satuan: {sug.unit || 'kg'} • Stok: {sug.stock || sug.stok || 0}</span>
+                                                </div>
+                                                <span style={{ background: '#34d399', color: '#000000', padding: '2px 8px', borderRadius: '4px', fontWeight: '900', fontSize: '0.68rem' }}>Salin ↵</span>
+                                              </div>
+                                            ))}
+                                        </div>
+                                      )}
+                                    </div>
                                   </td>
 
                                   {/* 3. Transfer Out Input */}
@@ -11274,11 +11603,9 @@ export default function AndroidPosRegister({
                       stockMovement: [...pendingTransferDraft.items, ...filterOld(prev.stockMovement)]
                     };
 
-                    fetch(getApiUrl('/api/master-data'), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(newMaster)
-                    }).catch(() => {});
+                    saveToServerWithGuard(newMaster);
+
+                    alert(`✅ Laporan Transfer ${pendingTransferDraft?.report_no || ''} berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
 
                     return newMaster;
                   });
@@ -11363,17 +11690,17 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* 17. MODAL FORM "LAPORKAN STOK RUSAK / WASTE" (MATCHING WEB ADMIN EXACTLY) */}
+      {/* 17. MODAL FORM "LAPORKAN STOK RUSAK / WASTE" (FULL SCREEN MODAL) */}
       {showAddWasteModal && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh',
+          background: 'rgba(9, 13, 22, 0.95)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 0
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto',
-            padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #f43f5e', borderRadius: '18px',
-            display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
+            padding: '28px 36px', background: '#0b0f19', border: 'none', borderRadius: '0px',
+            display: 'flex', flexDirection: 'column', gap: '20px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -11402,6 +11729,19 @@ export default function AndroidPosRegister({
                     alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
                     return;
                   }
+
+                  // ── VALIDASI MASTER DATA BAHAN BAKU ──────────────────────────
+                  let invalidWasteName = null;
+                  wasteBatchRows.forEach(r => {
+                    const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === (r.item_name || '').trim().toLowerCase());
+                    if (!isValidMasterIng) invalidWasteName = r.item_name;
+                  });
+
+                  if (invalidWasteName) {
+                    alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${invalidWasteName}" tidak terdaftar di Master Data Bahan Baku Pusat!\nHarap pilih dari sugesti otomatis yang tersedia.`);
+                    return;
+                  }
+
                   setShowWastePreviewFormModal(true);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -11476,30 +11816,58 @@ export default function AndroidPosRegister({
                         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 36px', gap: '8px', alignItems: 'end' }}>
                           <div>
                             <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
-                              Item Bahan Baku *
+                              Sugesti Nama Bahan Baku *
                             </span>
-                            <select
-                              value={row.item_name}
-                              onChange={e => {
-                                const val = e.target.value;
-                                const updated = [...wasteBatchRows];
-                                updated[idx].item_name = val;
-                                if (val !== '__OTHER__' && val !== '') {
-                                  const found = ingredientsList.find(i => i.name === val);
+                            <div style={{ position: 'relative', width: '100%' }}>
+                              <input
+                                type="text"
+                                value={row.item_name === '__OTHER__' ? '' : (row.item_name || '')}
+                                onFocus={() => setActiveSuggestRowId(`wst-${idx}`)}
+                                onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  const updated = [...wasteBatchRows];
+                                  updated[idx].item_name = val;
+                                  const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
                                   if (found) updated[idx].unit = found.unit || 'kg';
-                                }
-                                setWasteBatchRows(updated);
-                              }}
-                              required
-                              className="form-input"
-                              style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '800', color: row.item_name ? '#38bdf8' : '#64748b', padding: '6px' }}
-                            >
-                              <option value="" disabled>-- Pilih Bahan Baku --</option>
-                              {ingredientsList.map(ing => (
-                                <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
-                              ))}
-                              <option value="__OTHER__">➕ + Nama Bahan Baku Lainnya...</option>
-                            </select>
+                                  setWasteBatchRows(updated);
+                                  setActiveSuggestRowId(`wst-${idx}`);
+                                }}
+                                placeholder="Ketik / pilih bahan baku..."
+                                style={{ width: '100%', height: '36px', padding: '6px 10px', background: 'var(--pos-bg-card)', border: activeSuggestRowId === `wst-${idx}` ? '1.5px solid #fb7185' : '1px solid var(--pos-border-card)', borderRadius: '8px', color: '#fb7185', fontSize: '0.80rem', fontWeight: '800', outline: 'none' }}
+                              />
+
+                              {/* FLOATING DROPDOWN SUGESTI OTOMATIS */}
+                              {activeSuggestRowId === `wst-${idx}` && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, background: '#0f172a', border: '1.5px solid #fb7185', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                                  {ingredientsList
+                                    .filter(s => !(row.item_name || '') || (s.name || '').toLowerCase().includes((row.item_name || '').toLowerCase()))
+                                    .slice(0, 10)
+                                    .map((sug, i) => (
+                                      <div
+                                        key={i}
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          const updated = [...wasteBatchRows];
+                                          updated[idx].item_name = sug.name;
+                                          updated[idx].unit = sug.unit || 'kg';
+                                          setWasteBatchRows(updated);
+                                          setActiveSuggestRowId(null);
+                                        }}
+                                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(251, 113, 133, 0.25)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                      >
+                                        <div>
+                                          <strong style={{ color: '#f8fafc', display: 'block' }}>📦 {sug.name}</strong>
+                                          <span style={{ fontSize: '0.70rem', color: '#fb7185' }}>Satuan: {sug.unit || 'kg'} • Stok: {sug.stock || sug.stok || 0}</span>
+                                        </div>
+                                        <span style={{ background: '#fb7185', color: '#000000', padding: '2px 8px', borderRadius: '4px', fontWeight: '900', fontSize: '0.68rem' }}>Salin ↵</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           <div>
@@ -12532,6 +12900,9 @@ export default function AndroidPosRegister({
           </div>
         </div>
       )}
+
+      {/* ── PRINTER OFFLINE MODAL (GLOBAL) — tampil otomatis saat cetak gagal/printer tidak terhubung ── */}
+      {renderPrinterOfflineModal()}
 
       </div>
     </div>

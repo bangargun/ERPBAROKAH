@@ -24,8 +24,10 @@ import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import { FileSpreadsheet } from 'lucide-react';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function ProductManagement({ masterData, setMasterData, selectedBranch }) {
+export default function ProductManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   const [searchTerm, setSearchTerm] = useState('');
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid' | 'table'
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
@@ -446,15 +448,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} className="animate-fade-in">
       {/* MAIN CONTAINER CARD */}
-      <div className="glass-card" style={{ padding: '0', overflow: 'hidden', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }}>
+      <div className="glass-card" style={{ padding: '0', overflow: 'hidden', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px' }}>
         
         {/* CARD TOP HEADER BAR */}
-        <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
               Produk
             </h2>
-            <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: '4px', margin: 0 }}>
+            <p style={{ color: T.txtSecondary, fontSize: '0.82rem', marginTop: '4px', margin: 0 }}>
               Master produk/menu, kategori, harga, dan komposisi harga pokok produksi.
             </p>
           </div>
@@ -462,7 +464,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* Search Input */}
             <div style={{ position: 'relative', width: '220px' }}>
-              <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
                 placeholder="Cari data..."
@@ -472,10 +474,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   width: '100%',
                   padding: '7px 12px 7px 32px',
                   borderRadius: '8px',
-                  border: '1px solid #334155',
+                  border: `1px solid ${T.border}`,
                   fontSize: '0.8rem',
-                  background: '#0f172a',
-                  color: '#f8fafc'
+                  background: T.inputBg,
+                  color: T.txtPrimary
                 }}
               />
             </div>
@@ -487,10 +489,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               style={{
                 padding: '7px 12px',
                 borderRadius: '8px',
-                border: '1px solid #334155',
+                border: `1px solid ${T.border}`,
                 fontSize: '0.8rem',
-                background: '#0f172a',
-                color: selectedStatusFilter === 'Aktif' ? '#34d399' : selectedStatusFilter === 'Hide' ? '#94a3b8' : selectedStatusFilter === 'Inaktif' ? '#fb7185' : '#cbd5e1',
+                background: T.inputBg,
+                color: selectedStatusFilter === 'Aktif' ? T.success : selectedStatusFilter === 'Hide' ? T.txtSecondary : selectedStatusFilter === 'Inaktif' ? T.danger : T.txtPrimary,
                 fontWeight: '700'
               }}
             >
@@ -504,7 +506,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
             <button
               onClick={() => setShowExcelImportModal(true)}
               style={{
-                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                background: T.info,
                 color: '#ffffff',
                 border: 'none',
                 padding: '8px 14px',
@@ -515,7 +517,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 alignItems: 'center',
                 gap: '6px',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(2,132,199,0.3)'
+                boxShadow: T.shadowSm
               }}
             >
               <FileSpreadsheet size={15} />
@@ -526,7 +528,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
             <button
               onClick={handleOpenAddForm}
               style={{
-                background: '#0f766e',
+                background: T.success,
                 color: '#ffffff',
                 border: 'none',
                 padding: '8px 16px',
@@ -537,7 +539,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 alignItems: 'center',
                 gap: '6px',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(15,118,110,0.3)'
+                boxShadow: T.shadowSm
               }}
             >
               <Plus size={16} />
@@ -550,7 +552,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', background: 'rgba(15,23,42,0.4)' }}>
+              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', background: T.tableHeaderBg }}>
                 <th style={{ padding: '14px 16px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
                 <th style={{ padding: '14px 16px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
                 <th style={{ padding: '14px 16px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
@@ -564,7 +566,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
             <tbody>
               {paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '50px', textAlign: 'center', color: '#94a3b8' }}>
+                  <td colSpan={8} style={{ padding: '50px', textAlign: 'center', color: T.txtMuted }}>
                     Belum ada produk yang ditambahkan.
                   </td>
                 </tr>
@@ -628,9 +630,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
 
                   return (
-                    <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
+                    <tr key={p.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                       {/* 1. SKU */}
-                      <td style={{ padding: '14px 16px', color: '#94a3b8', fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: '600' }}>
+                      <td style={{ padding: '14px 16px', color: T.txtSecondary, fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: '600' }}>
                         {p.sku || p.code || `MNM-00${p.id}`}
                       </td>
 
@@ -642,7 +644,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                           style={{
                             background: 'none',
                             border: 'none',
-                            color: '#38bdf8',
+                            color: T.info,
                             fontWeight: '900',
                             cursor: 'pointer',
                             padding: 0,
@@ -657,7 +659,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       </td>
 
                       {/* 3. KATEGORI */}
-                      <td style={{ padding: '14px 16px', color: '#cbd5e1', fontWeight: '700', fontSize: '0.78rem' }}>
+                      <td style={{ padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '0.78rem' }}>
                         {categoryName}
                       </td>
 
@@ -666,32 +668,32 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         {primaryPrice > 0 ? (
                           <>
                             {outletNameHeader && (
-                              <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <div style={{ fontSize: '0.68rem', color: T.info, fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {outletNameHeader}
                               </div>
                             )}
-                            <div style={{ fontWeight: '900', color: '#34d399', fontSize: '0.85rem' }}>
+                            <div style={{ fontWeight: '900', color: T.success, fontSize: '0.85rem' }}>
                               {formatRupiah(primaryPrice)}
                             </div>
                             {validPriceOutlets.length > 1 && (
-                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px', fontWeight: '600' }}>
+                              <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px', fontWeight: '600' }}>
                                 +{validPriceOutlets.length - 1} outlet lainnya
                               </div>
                             )}
                           </>
                         ) : (
-                          <span style={{ color: '#f43f5e', fontSize: '0.75rem', fontWeight: '800', background: 'rgba(244,63,94,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(244,63,94,0.3)' }}>⚠️ Belum Di-set</span>
+                          <span style={{ color: T.danger, fontSize: '0.75rem', fontWeight: '800', background: T.dangerBg, padding: '2px 8px', borderRadius: '4px', border: `1px solid ${T.dangerBorder}` }}>⚠️ Belum Di-set</span>
                         )}
                       </td>
 
                       {/* 5. KOMPOSISI */}
                       <td style={{ padding: '14px 16px' }}>
                         {p.compositions && p.compositions.length > 0 ? (
-                          <span style={{ background: '#0f172a', color: '#38bdf8', border: '1px solid #334155', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                          <span style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
                             {p.name}
                           </span>
                         ) : (
-                          <span style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
+                          <span style={{ background: T.cardBg2, color: T.txtMuted, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
                             Belum ada
                           </span>
                         )}
@@ -702,13 +704,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         {(p.variants && p.variants.length > 0) ? (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                             {p.variants.map((vName, vIdx) => (
-                              <span key={vIdx} style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                              <span key={vIdx} style={{ background: T.infoBg, color: T.info, border: `1px solid ${T.infoBorder}`, padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
                                 {vName}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span style={{ color: '#64748b', fontSize: '0.75rem', fontStyle: 'italic' }}>Tanpa Varian</span>
+                          <span style={{ color: T.txtMuted, fontSize: '0.75rem', fontStyle: 'italic' }}>Tanpa Varian</span>
                         )}
                       </td>
 
@@ -718,19 +720,19 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                           const st = p.status || 'Aktif';
                           if (st === 'Aktif') {
                             return (
-                              <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                              <span style={{ background: T.successBg, color: T.success, border: `1px solid ${T.successBorder}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
                                 🟢 Aktif
                               </span>
                             );
                           } else if (st === 'Inaktif') {
                             return (
-                              <span style={{ background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                              <span style={{ background: T.dangerBg, color: T.danger, border: `1px solid ${T.dangerBorder}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
                                 🔴 Inaktif
                               </span>
                             );
                           } else {
                             return (
-                              <span style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
+                              <span style={{ background: T.hoverBg, color: T.txtSecondary, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
                                 👁️ Hide
                               </span>
                             );
@@ -746,9 +748,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             onClick={() => setSelectedMenuDetail(p)}
                             title="Lihat Riwayat History Penjualan Detail"
                             style={{
-                              background: 'rgba(56, 189, 248, 0.15)',
-                              color: '#38bdf8',
-                              border: '1px solid rgba(56, 189, 248, 0.3)',
+                              background: T.infoBg,
+                              color: T.info,
+                              border: `1px solid ${T.infoBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -759,7 +761,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               gap: '4px'
                             }}
                           >
-                            <Eye size={14} color="#38bdf8" />
+                            <Eye size={14} color={T.info} />
                             <span>History</span>
                           </button>
 
@@ -767,9 +769,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             onClick={() => handleOpenEditForm(p)}
                             title="Edit Produk"
                             style={{
-                              background: '#334155',
-                              color: '#cbd5e1',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: T.cardBg2,
+                              color: T.txtPrimary,
+                              border: `1px solid ${T.border}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -780,7 +782,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color="#818cf8" />
+                            <Edit3 size={14} color={T.info} />
                             <span>Edit</span>
                           </button>
 
@@ -788,9 +790,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             onClick={() => handleDeleteProduct(p.id, p.name)}
                             title="Hapus Produk"
                             style={{
-                              background: 'rgba(244,63,94,0.15)',
-                              color: '#fb7185',
-                              border: '1px solid rgba(244,63,94,0.3)',
+                              background: T.dangerBg,
+                              color: T.danger,
+                              border: `1px solid ${T.dangerBorder}`,
                               padding: '5px 10px',
                               borderRadius: '6px',
                               fontSize: '0.75rem',
@@ -838,18 +840,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           zIndex: 100,
           padding: '20px'
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '780px', maxHeight: '90vh', overflowY: 'auto', padding: '28px', background: '#1e293b', border: '1px solid #334155', borderRadius: '16px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '780px', maxHeight: '90vh', overflowY: 'auto', padding: '28px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px' }}>
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#f8fafc', margin: 0 }}>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
                   {editingProductId ? 'Edit Menu' : 'Tambah Menu'}
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '0.82rem', color: T.txtSecondary, margin: '4px 0 0 0' }}>
                   Kelola produk, harga outlet manual, dan komposisi harga pokok produksi.
                 </p>
               </div>
-              <button onClick={() => setShowFormModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
+              <button onClick={() => setShowFormModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', padding: '4px' }}>
                 <X size={20} />
               </button>
             </div>
@@ -859,7 +861,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               {/* ROW 1: NAMA PRODUK & SKU AUTO BOX */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '0.8rem', color: '#f8fafc', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
+                  <label style={{ fontSize: '0.8rem', color: T.txtPrimary, display: 'block', marginBottom: '6px', fontWeight: '700' }}>
                     Nama Produk
                   </label>
                   <input
@@ -872,22 +874,22 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #334155',
-                      background: '#0f172a',
-                      color: '#f8fafc',
+                      border: `1px solid ${T.border}`,
+                      background: T.inputBg,
+                      color: T.txtPrimary,
                       fontSize: '0.85rem'
                     }}
                   />
                 </div>
 
-                <div style={{ background: '#0f172a', border: '1px dashed #334155', borderRadius: '10px', padding: '10px 14px' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#f8fafc', fontWeight: '800', marginBottom: '2px' }}>
+                <div style={{ background: T.cardBg2, border: `1px dashed ${T.border}`, borderRadius: '10px', padding: '10px 14px' }}>
+                  <div style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '800', marginBottom: '2px' }}>
                     SKU
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '0.78rem', color: T.info, fontWeight: '700', fontFamily: 'monospace' }}>
                     Dibuat otomatis setelah produk disimpan.
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px' }}>
                     Contoh: MKN-010, MNM-008, SNK-004.
                   </div>
                 </div>
@@ -896,7 +898,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               {/* ROW 2: KATEGORI, TARGET PRINTER & STATUS */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.8rem', color: '#f8fafc', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
+                  <label style={{ fontSize: '0.8rem', color: T.txtPrimary, display: 'block', marginBottom: '6px', fontWeight: '700' }}>
                     Kategori
                   </label>
                   <select
@@ -906,9 +908,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #334155',
-                      background: '#0f172a',
-                      color: '#f8fafc',
+                      border: `1px solid ${T.border}`,
+                      background: T.inputBg,
+                      color: T.txtPrimary,
                       fontSize: '0.85rem'
                     }}
                   >
@@ -921,7 +923,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.8rem', color: '#f8fafc', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
+                  <label style={{ fontSize: '0.8rem', color: T.txtPrimary, display: 'block', marginBottom: '6px', fontWeight: '700' }}>
                     Target Struk (Printer)
                   </label>
                   <select
@@ -931,9 +933,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #334155',
-                      background: '#0f172a',
-                      color: '#fbbf24',
+                      border: `1px solid ${T.border}`,
+                      background: T.inputBg,
+                      color: T.accentGold,
                       fontWeight: '700',
                       fontSize: '0.85rem'
                     }}
@@ -945,7 +947,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.8rem', color: '#f8fafc', display: 'block', marginBottom: '6px', fontWeight: '700' }}>
+                  <label style={{ fontSize: '0.8rem', color: T.txtPrimary, display: 'block', marginBottom: '6px', fontWeight: '700' }}>
                     Status
                   </label>
                   <select
@@ -955,9 +957,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       width: '100%',
                       padding: '9px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #334155',
-                      background: '#0f172a',
-                      color: prodStatus === 'Aktif' ? '#34d399' : prodStatus === 'Hide' ? '#94a3b8' : '#fb7185',
+                      border: `1px solid ${T.border}`,
+                      background: T.inputBg,
+                      color: prodStatus === 'Aktif' ? T.success : prodStatus === 'Hide' ? T.txtSecondary : T.danger,
                       fontWeight: '700',
                       fontSize: '0.85rem'
                     }}
@@ -970,20 +972,20 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               {/* SECTION 3: GAMBAR PRODUK */}
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', padding: '16px', background: '#0f172a' }}>
+              <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', padding: '16px', background: T.cardBg2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{
                     width: '64px',
                     height: '64px',
                     borderRadius: '10px',
-                    background: '#1e293b',
-                    border: '1px solid #334155',
+                    background: T.cardBg,
+                    border: `1px solid ${T.border}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '1.2rem',
                     fontWeight: '900',
-                    color: '#38bdf8',
+                    color: T.info,
                     overflow: 'hidden'
                   }}>
                     {prodImageUrl ? (
@@ -994,10 +996,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', marginBottom: '2px' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '2px' }}>
                       Gambar Produk
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.75rem', color: T.txtSecondary, marginBottom: '8px' }}>
                       Opsional. Gambar tampil di grid produk APK kasir. Format JPG, PNG, atau WEBP maksimal 2MB.
                     </div>
                     
@@ -1012,9 +1014,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       type="button"
                       onClick={() => document.getElementById('product-image-file-input').click()}
                       style={{
-                        background: '#1e293b',
-                        border: '1px solid #334155',
-                        color: '#f8fafc',
+                        background: T.cardBg,
+                        border: `1px solid ${T.border}`,
+                        color: T.txtPrimary,
                         padding: '6px 14px',
                         borderRadius: '6px',
                         fontSize: '0.78rem',
@@ -1025,7 +1027,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         gap: '6px'
                       }}
                     >
-                      <UploadCloud size={14} color="#38bdf8" />
+                      <UploadCloud size={14} color={T.info} />
                       <span>Pilih Gambar</span>
                     </button>
                   </div>
@@ -1033,13 +1035,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               {/* SECTION 4: CATATAN VARIANT */}
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', padding: '16px', background: '#0f172a' }}>
+              <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', padding: '16px', background: T.cardBg2 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
                       Catatan Variant
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
                       Badge pilihan kecil untuk APK kasir. Bisa dipilih lebih dari satu dan tidak mengubah harga.
                     </div>
                   </div>
@@ -1048,9 +1050,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     type="button"
                     onClick={handleAddVariant}
                     style={{
-                      background: '#1e293b',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      background: T.cardBg,
+                      border: `1px solid ${T.border}`,
+                      color: T.txtPrimary,
                       padding: '6px 12px',
                       borderRadius: '6px',
                       fontSize: '0.78rem',
@@ -1078,24 +1080,24 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         flex: 1,
                         padding: '6px 10px',
                         borderRadius: '6px',
-                        border: '1px solid #334155',
-                        background: '#1e293b',
-                        color: '#f8fafc',
+                        border: `1px solid ${T.border}`,
+                        background: T.inputBg,
+                        color: T.txtPrimary,
                         fontSize: '0.8rem'
                       }}
                     />
                   </div>
 
                   {variants.length === 0 ? (
-                    <div style={{ padding: '12px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
+                    <div style={{ padding: '12px', background: T.cardBg, borderRadius: '8px', border: `1px dashed ${T.border}`, color: T.info, fontSize: '0.78rem', textAlign: 'center' }}>
                       Belum ada catatan variant. Produk tetap bisa dijual tanpa pilihan tambahan.
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {variants.map((v, i) => (
-                        <span key={i} style={{ background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <span key={i} style={{ background: T.cardBg, border: `1px solid ${T.border}`, color: T.txtPrimary, padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                           {v}
-                          <X size={14} color="#f43f5e" style={{ cursor: 'pointer' }} onClick={() => handleRemoveVariant(v)} />
+                          <X size={14} color={T.danger} style={{ cursor: 'pointer' }} onClick={() => handleRemoveVariant(v)} />
                         </span>
                       ))}
                     </div>
@@ -1104,13 +1106,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               {/* SECTION 5: HARGA OUTLET MANUAL */}
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', padding: '16px', background: '#0f172a' }}>
+              <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', padding: '16px', background: T.cardBg2 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
                       Harga Outlet Manual
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
                       Pilih dan tambahkan outlet yang menjual menu ini secara manual.
                     </div>
                   </div>
@@ -1121,9 +1123,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       value={tempOutletSelectId}
                       onChange={e => setTempOutletSelectId(e.target.value)}
                       style={{
-                        background: '#1e293b',
-                        border: '1px solid #334155',
-                        color: '#cbd5e1',
+                        background: T.inputBg,
+                        border: `1px solid ${T.border}`,
+                        color: T.txtPrimary,
                         padding: '6px 10px',
                         borderRadius: '6px',
                         fontSize: '0.78rem',
@@ -1150,7 +1152,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         setTempOutletSelectId('');
                       }}
                       style={{
-                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                        background: T.info,
                         border: 'none',
                         color: '#ffffff',
                         padding: '6px 14px',
@@ -1171,7 +1173,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 </div>
 
                 {selectedOutletIds.length === 0 ? (
-                  <div style={{ padding: '16px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
+                  <div style={{ padding: '16px', background: T.cardBg, borderRadius: '8px', border: `1px dashed ${T.border}`, color: T.info, fontSize: '0.78rem', textAlign: 'center' }}>
                     Belum ada outlet ditambahkan. Pilih outlet di atas lalu klik "+ Tambah Outlet Ini" untuk menjual menu ini di outlet tersebut.
                   </div>
                 ) : (
@@ -1181,9 +1183,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       const currentVal = standardPrices[outId] !== undefined ? standardPrices[outId] : 0;
                       const currentApkStat = outletApkStatus[outId] || 'Aktif';
                       return (
-                        <div key={outId} style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
+                        <div key={outId} style={{ background: T.cardBg, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '800' }}>
+                            <div style={{ fontSize: '0.75rem', color: T.info, fontWeight: '800' }}>
                               🏢 {outObj.name}
                             </div>
                             <button
@@ -1198,13 +1200,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                                 setOutletApkStatus(updatedApk);
                               }}
                               title="Hapus outlet ini dari menu"
-                              style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', padding: '2px' }}
+                              style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', padding: '2px' }}
                             >
                               <X size={14} />
                             </button>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: '800' }}>Rp</span>
+                            <span style={{ fontSize: '0.8rem', color: T.success, fontWeight: '800' }}>Rp</span>
                             <input
                               type="number"
                               placeholder="Nominal harga..."
@@ -1214,16 +1216,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                                 width: '100%',
                                 padding: '4px 8px',
                                 borderRadius: '6px',
-                                border: '1px solid #334155',
-                                background: '#0f172a',
-                                color: '#34d399',
+                                border: `1px solid ${T.border}`,
+                                background: T.inputBg,
+                                color: T.success,
                                 fontWeight: '800',
                                 fontSize: '0.85rem'
                               }}
                             />
                           </div>
-                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #334155' }}>
-                            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dashed ${T.border}` }}>
+                            <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                               📱 Tampilkan di POS APK:
                             </label>
                             <select
@@ -1234,9 +1236,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               }}
                               style={{
                                 width: '100%',
-                                background: (currentApkStat === 'Inaktif') ? 'rgba(244,63,94,0.15)' : 'rgba(52,211,153,0.15)',
-                                border: `1px solid ${(currentApkStat === 'Inaktif') ? '#f43f5e' : '#10b981'}`,
-                                color: (currentApkStat === 'Inaktif') ? '#f43f5e' : '#34d399',
+                                background: (currentApkStat === 'Inaktif') ? T.dangerBg : T.successBg,
+                                border: `1px solid ${(currentApkStat === 'Inaktif') ? T.dangerBorder : T.successBorder}`,
+                                color: (currentApkStat === 'Inaktif') ? T.danger : T.success,
                                 padding: '6px 8px',
                                 borderRadius: '6px',
                                 fontSize: '0.78rem',
@@ -1244,8 +1246,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                                 cursor: 'pointer'
                               }}
                             >
-                              <option value="Aktif" style={{ background: '#1e293b', color: '#34d399' }}>🟢 Aktif (Tampil di POS)</option>
-                              <option value="Inaktif" style={{ background: '#1e293b', color: '#f43f5e' }}>🔴 Inaktif (Sembunyikan dari POS)</option>
+                              <option value="Aktif" style={{ background: T.dropdownBg, color: T.success }}>🟢 Aktif (Tampil di POS)</option>
+                              <option value="Inaktif" style={{ background: T.dropdownBg, color: T.danger }}>🔴 Inaktif (Sembunyikan dari POS)</option>
                             </select>
                           </div>
                         </div>
@@ -1256,13 +1258,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               {/* SECTION 6: KOMPOSISI HARGA POKOK PRODUKSI (HPP & STOK) */}
-              <div style={{ border: '1px solid #334155', borderRadius: '12px', padding: '16px', background: '#0f172a' }}>
+              <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', padding: '16px', background: T.cardBg2 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
                       Komposisi Harga Pokok Produksi
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
                       Tambahkan harga pokok produksi untuk estimasi HPP dan stok.
                     </div>
                   </div>
@@ -1271,9 +1273,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     type="button"
                     onClick={handleAddCompositionRow}
                     style={{
-                      background: '#1e293b',
-                      border: '1px solid #334155',
-                      color: '#f8fafc',
+                      background: T.cardBg,
+                      border: `1px solid ${T.border}`,
+                      color: T.txtPrimary,
                       padding: '6px 12px',
                       borderRadius: '6px',
                       fontSize: '0.78rem',
@@ -1291,12 +1293,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 </div>
 
                 {compositions.length === 0 ? (
-                  <div style={{ padding: '12px', background: '#1e293b', borderRadius: '8px', border: '1px dashed #334155', color: '#38bdf8', fontSize: '0.78rem', textAlign: 'center' }}>
+                  <div style={{ padding: '12px', background: T.cardBg, borderRadius: '8px', border: `1px dashed ${T.border}`, color: T.info, fontSize: '0.78rem', textAlign: 'center' }}>
                     Belum ada komposisi HPP. Klik "+ Tambah Harga Pokok Produksi" di atas.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', gap: '8px', fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', paddingLeft: '4px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', gap: '8px', fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', paddingLeft: '4px' }}>
                       <span>Harga Pokok Produksi</span>
                       <span>Qty</span>
                       <span>Unit</span>
@@ -1312,9 +1314,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             width: '100%',
                             padding: '7px 10px',
                             borderRadius: '6px',
-                            border: '1px solid #334155',
-                            background: '#1e293b',
-                            color: '#f8fafc',
+                            border: `1px solid ${T.border}`,
+                            background: T.inputBg,
+                            color: T.txtPrimary,
                             fontSize: '0.8rem'
                           }}
                         >
@@ -1337,9 +1339,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             width: '100%',
                             padding: '7px 10px',
                             borderRadius: '6px',
-                            border: '1px solid #334155',
-                            background: '#1e293b',
-                            color: '#f8fafc',
+                            border: `1px solid ${T.border}`,
+                            background: T.inputBg,
+                            color: T.txtPrimary,
                             fontSize: '0.8rem'
                           }}
                         />
@@ -1351,9 +1353,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             width: '100%',
                             padding: '7px 10px',
                             borderRadius: '6px',
-                            border: '1px solid #334155',
-                            background: '#1e293b',
-                            color: '#f8fafc',
+                            border: `1px solid ${T.border}`,
+                            background: T.inputBg,
+                            color: T.txtPrimary,
                             fontSize: '0.8rem'
                           }}
                         >
@@ -1375,7 +1377,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                           })}
                         </select>
 
-                        <button type="button" onClick={() => handleRemoveComposition(comp.id)} style={{ background: 'none', border: 'none', color: '#fb7185', cursor: 'pointer', textAlign: 'center' }}>
+                        <button type="button" onClick={() => handleRemoveComposition(comp.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', textAlign: 'center' }}>
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -1385,13 +1387,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               {/* FOOTER ACTIONS */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
                 <button
                   type="button"
                   onClick={() => setShowFormModal(false)}
                   style={{
-                    background: '#334155',
-                    color: '#cbd5e1',
+                    background: T.cardBg2,
+                    color: T.txtSecondary,
                     border: 'none',
                     padding: '8px 18px',
                     borderRadius: '8px',
@@ -1406,7 +1408,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 <button
                   type="submit"
                   style={{
-                    background: '#0f766e',
+                    background: T.success,
                     color: '#ffffff',
                     border: 'none',
                     padding: '8px 20px',
@@ -1414,7 +1416,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     fontSize: '0.82rem',
                     fontWeight: '700',
                     cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(15,118,110,0.3)'
+                    boxShadow: T.shadowSm
                   }}
                 >
                   Simpan Produk
@@ -1437,55 +1439,55 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           justifyContent: 'center',
           zIndex: 110
         }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto', padding: '28px', background: '#1e293b', border: '1px solid #10b981' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto', padding: '28px', background: T.cardBg, border: `1px solid ${T.success}` }}>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px auto', color: '#34d399' }}>
+              <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: T.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px auto', color: T.success }}>
                 <Eye size={24} />
               </div>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.txtPrimary }}>
                 Pratinjau Produk (Preview)
               </h3>
-              <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Periksa kembali kelengkapan data sebelum menyimpan secara permanen</p>
+              <p style={{ fontSize: '0.8rem', color: T.txtSecondary }}>Periksa kembali kelengkapan data sebelum menyimpan secara permanen</p>
             </div>
 
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Kode Produk:</span>
-                <strong style={{ color: '#818cf8', fontFamily: 'monospace' }}>{editingProductId ? (masterData.products.find(p => p.id === editingProductId)?.sku || 'PRD-001') : generateNextProductCode()}</strong>
+            <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Kode Produk:</span>
+                <strong style={{ color: T.info, fontFamily: 'monospace' }}>{editingProductId ? (masterData.products.find(p => p.id === editingProductId)?.sku || 'PRD-001') : generateNextProductCode()}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Nama Produk:</span>
-                <strong style={{ color: '#f8fafc' }}>{prodName}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Nama Produk:</span>
+                <strong style={{ color: T.txtPrimary }}>{prodName}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Kategori Produk:</span>
-                <strong style={{ color: '#38bdf8' }}>{masterData.categories.find(c => c.id === parseInt(prodCategoryId))?.name || 'Umum'}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Kategori Produk:</span>
+                <strong style={{ color: T.info }}>{masterData.categories.find(c => c.id === parseInt(prodCategoryId))?.name || 'Umum'}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Status Produk:</span>
-                <strong style={{ color: prodStatus === 'Aktif' ? '#34d399' : '#fb7185' }}>{prodStatus}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Status Produk:</span>
+                <strong style={{ color: prodStatus === 'Aktif' ? T.success : T.danger }}>{prodStatus}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>Varian Produk:</span>
-                <strong style={{ color: '#cbd5e1' }}>{variants.length > 0 ? variants.join(', ') : 'Tanpa Varian'}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>Varian Produk:</span>
+                <strong style={{ color: T.txtPrimary }}>{variants.length > 0 ? variants.join(', ') : 'Tanpa Varian'}</strong>
               </div>
 
               <div>
-                <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Harga & Status POS APK per Outlet:</span>
+                <span style={{ color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>Harga & Status POS APK per Outlet:</span>
                 {variants.length > 0 ? (
                   variants.map((vName, i) => (
-                    <div key={i} style={{ background: '#1e293b', padding: '6px 10px', borderRadius: '6px', marginBottom: '4px', fontSize: '0.78rem' }}>
-                      <div style={{ color: '#38bdf8', fontWeight: '700' }}>Varian: {vName}</div>
-                      <div style={{ color: '#34d399' }}>
+                    <div key={i} style={{ background: T.cardBg, padding: '6px 10px', borderRadius: '6px', marginBottom: '4px', fontSize: '0.78rem' }}>
+                      <div style={{ color: T.info, fontWeight: '700' }}>Varian: {vName}</div>
+                      <div style={{ color: T.success }}>
                         {selectedOutletIds.length > 0
                           ? selectedOutletIds.map(oid => {
                               const oObj = masterData.outlets.find(o => String(o.id) === String(oid));
                               const apkSt = outletApkStatus[oid] || 'Aktif';
-                              const tagColor = apkSt === 'Inaktif' ? '#f43f5e' : '#34d399';
+                              const tagColor = apkSt === 'Inaktif' ? T.danger : T.success;
                               return (
                                 <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
                                   {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(variantPrices[vName]?.[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
@@ -1497,12 +1499,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     </div>
                   ))
                 ) : (
-                  <div style={{ background: '#1e293b', padding: '6px 10px', borderRadius: '6px', fontSize: '0.78rem', color: '#34d399' }}>
+                  <div style={{ background: T.cardBg, padding: '6px 10px', borderRadius: '6px', fontSize: '0.78rem', color: T.success }}>
                     {selectedOutletIds.length > 0
                       ? selectedOutletIds.map(oid => {
                           const oObj = masterData.outlets.find(o => String(o.id) === String(oid));
                           const apkSt = outletApkStatus[oid] || 'Aktif';
-                          const tagColor = apkSt === 'Inaktif' ? '#f43f5e' : '#34d399';
+                          const tagColor = apkSt === 'Inaktif' ? T.danger : T.success;
                           return (
                             <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
                               {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(standardPrices[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
@@ -1515,15 +1517,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               </div>
 
               <div>
-                <span style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Komposisi Bahan Baku (Resep):</span>
+                <span style={{ color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>Komposisi Bahan Baku (Resep):</span>
                 {compositions.length > 0 ? (
-                  <ul style={{ paddingLeft: '18px', color: '#cbd5e1', fontSize: '0.78rem' }}>
+                  <ul style={{ paddingLeft: '18px', color: T.txtPrimary, fontSize: '0.78rem' }}>
                     {compositions.map((comp, i) => (
                       <li key={i}>{comp.ingredient_name}: {comp.qty} {comp.unit}</li>
                     ))}
                   </ul>
                 ) : (
-                  <span style={{ color: '#64748b', fontSize: '0.75rem', fontStyle: 'italic' }}>Tanpa Komposisi Khusus</span>
+                  <span style={{ color: T.txtMuted, fontSize: '0.75rem', fontStyle: 'italic' }}>Tanpa Komposisi Khusus</span>
                 )}
               </div>
             </div>
