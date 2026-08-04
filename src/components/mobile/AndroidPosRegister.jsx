@@ -860,45 +860,67 @@ export default function AndroidPosRegister({
               ? serverMaster.mobilePermissionMatrix
               : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
 
-            // ─── MERGE CERDAS UNTUK APPROVAL & SINKRONISASI LAPORAN WEB ADMIN ─────
-            // Menggabungkan data laporan lokal dan server berdasarkan ID unik,
-            // sehingga laporan yang baru dikirim POS Kasir tidak hilang, dan status Approval dari Web Admin ter-update otomatis.
-            const localIsNewer = (prev.clientUpdated || 0) > (serverMaster._lastUpdated || 0);
+            // ─── UNIVERSAL SMART MERGE DENGAN SERVER WEB ADMIN ────────────────────
+            const getItemKey = (item) => {
+              if (!item || typeof item !== 'object') return null;
+              if (item.id !== undefined && item.id !== null) return String(item.id);
+              if (item.report_no) return String(item.report_no);
+              if (item.receiptNo) return String(item.receiptNo);
+              if (item.tx_id) return String(item.tx_id);
+              if (item.code) return String(item.code);
+              if (item.name) return String(item.name);
+              return null;
+            };
 
-            const smartMergeLaporanArray = (localArr, serverArr) => {
+            const smartMergeArray = (localArr, serverArr) => {
               if (!Array.isArray(serverArr) || serverArr.length === 0) return localArr || [];
               if (!Array.isArray(localArr) || localArr.length === 0) return serverArr;
 
               const map = new Map();
+              // 1. Masukkan data server
               serverArr.forEach(item => {
-                if (item && item.id) map.set(String(item.id), item);
+                const k = getItemKey(item);
+                if (k) map.set(k, item);
               });
+              // 2. Gabungkan data lokal: pertahankan item lokal baru & merge status dari server
               localArr.forEach(item => {
-                if (item && item.id) {
-                  const existing = map.get(String(item.id));
-                  if (!existing || localIsNewer) {
-                    map.set(String(item.id), { ...existing, ...item });
+                const k = getItemKey(item);
+                if (k) {
+                  const existing = map.get(k);
+                  if (!existing) {
+                    map.set(k, item);
+                  } else {
+                    map.set(k, { ...item, ...existing });
                   }
                 }
               });
               return Array.from(map.values());
             };
 
-            const mergedLaporan = {};
-            LAPORAN_ARRAY_KEYS.forEach(k => {
-              mergedLaporan[k] = smartMergeLaporanArray(prev[k], serverMaster[k]);
+            const MERGE_ARRAY_KEYS = [
+              'salesTransactions', 'transactions',
+              'menuItems', 'products', 'categories', 'ingredients',
+              'outlets', 'paymentMethods', 'expenseMaster',
+              'manualEntryRecords', 'approvedFinanceDaily',
+              'stockOpname', 'approvedLogistics',
+              'stockTransfer', 'approvedTransfers',
+              'stockMovement', 'damagedGoods', 'approvedWaste'
+            ];
+
+            const mergedCollections = {};
+            MERGE_ARRAY_KEYS.forEach(k => {
+              mergedCollections[k] = smartMergeArray(prev[k], serverMaster[k]);
             });
 
             return {
               ...prev,
               ...serverMaster,
-              // Kembalikan merge cerdas laporan (jangan biarkan ...serverMaster menimpa)
-              ...mergedLaporan,
+              ...mergedCollections,
               webAdminAccounts: mergedWeb,
               mobileAccounts: mergedMobile,
               permissionMatrix: mergedPerm,
               mobilePermissionMatrix: mergedMobPerm,
-              _lastUpdated: serverMaster._lastUpdated || Date.now()
+              _lastUpdated: Math.max(prev._lastUpdated || 0, serverMaster._lastUpdated || 0, Date.now())
             };
           });
         })
@@ -1995,13 +2017,9 @@ export default function AndroidPosRegister({
       // 1. Simpan Instan ke Cache Device (0ms Latency)
       try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
 
-      // 2. Kirim INSTANT 0ms ke Server VPS & Web Admin jika online
+      // 2. Kirim INSTANT ke Server VPS & Web Admin dengan Guard Proteksi
       if (isOnlineNow) {
-        fetch(getApiUrl('/api/master-data'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated)
-        }).catch(() => {});
+        saveToServerWithGuard(updated);
       } else {
         // Jika offline, masukkan ke antrean pending
         try {
