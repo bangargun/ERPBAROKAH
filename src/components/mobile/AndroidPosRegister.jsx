@@ -2080,10 +2080,17 @@ export default function AndroidPosRegister({
       notes: logisticsNotes || 'Permintaan Bahan Baku Kasir Outlet'
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedLogistics: [newReq, ...(prev.approvedLogistics || [])]
-    }));
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        clientUpdated: now,
+        approvedLogistics: [newReq, ...(prev.approvedLogistics || [])]
+      };
+      saveToServerWithGuard(newMaster);
+      return newMaster;
+    });
 
     setLogisticsItemName('');
     setLogisticsQty('');
@@ -2114,10 +2121,19 @@ export default function AndroidPosRegister({
       status: 'Pending'
     };
 
-    setMasterData(prev => ({
-      ...prev,
-      approvedFinanceDaily: [newShiftReport, ...(prev.approvedFinanceDaily || [])]
-    }));
+    setMasterData(prev => {
+      const now = Date.now();
+      const newMaster = {
+        ...prev,
+        _lastUpdated: now,
+        clientUpdated: now,
+        approvedFinanceDaily: [newShiftReport, ...(prev.approvedFinanceDaily || [])],
+        shiftClosings: [newShiftReport, ...(prev.shiftClosings || [])],
+        closedShifts: [newShiftReport, ...(prev.closedShifts || [])]
+      };
+      saveToServerWithGuard(newMaster);
+      return newMaster;
+    });
 
     alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
   };

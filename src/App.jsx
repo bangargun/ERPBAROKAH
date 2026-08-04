@@ -245,13 +245,38 @@ export default function App() {
                 ? serverData.mobilePermissionMatrix
                 : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
 
+              const getItemKey = (item) => {
+                if (!item || typeof item !== 'object') return null;
+                if (item.report_no && String(item.report_no).trim() !== '') return String(item.report_no);
+                if (item.receiptNo && String(item.receiptNo).trim() !== '') return String(item.receiptNo);
+                if (item.tx_id && String(item.tx_id).trim() !== '') return String(item.tx_id);
+                if (item.id !== undefined && item.id !== null && String(item.id).trim() !== '') return String(item.id);
+                if (item.code && String(item.code).trim() !== '') return String(item.code);
+                if (item.name && String(item.name).trim() !== '') return String(item.name);
+                return null;
+              };
+
               const mergeReportsById = (prevList = [], serverList = []) => {
+                if (!Array.isArray(serverList) || serverList.length === 0) return prevList || [];
+                if (!Array.isArray(prevList) || prevList.length === 0) return serverList;
+
                 const map = new Map();
-                (prevList || []).forEach(item => {
-                  if (item && (item.id || item.report_no)) map.set(String(item.id || item.report_no), item);
+                // 1. Masukkan data server
+                serverList.forEach(item => {
+                  const k = getItemKey(item);
+                  if (k) map.set(k, item);
                 });
-                (serverList || []).forEach(item => {
-                  if (item && (item.id || item.report_no)) map.set(String(item.id || item.report_no), item);
+                // 2. Gabungkan data lokal
+                prevList.forEach(item => {
+                  const k = getItemKey(item);
+                  if (k) {
+                    const serverItem = map.get(k);
+                    if (!serverItem) {
+                      map.set(k, item);
+                    } else {
+                      map.set(k, { ...item, ...serverItem });
+                    }
+                  }
                 });
                 return Array.from(map.values());
               };
@@ -260,6 +285,9 @@ export default function App() {
               const mergedManualEntry = mergeReportsById(prev.manualEntryRecords, serverData.manualEntryRecords);
               const mergedShiftClosings = mergeReportsById(prev.shiftClosings || prev.closedShifts, serverData.shiftClosings || serverData.closedShifts);
               const mergedSalesTx = mergeReportsById(prev.salesTransactions || prev.transactions, serverData.salesTransactions || serverData.transactions);
+              const mergedOpname = mergeReportsById(prev.stockOpname || prev.approvedLogistics, serverData.stockOpname || serverData.approvedLogistics);
+              const mergedTransfer = mergeReportsById(prev.approvedTransfers || prev.stockTransfer, serverData.approvedTransfers || serverData.stockTransfer);
+              const mergedWaste = mergeReportsById(prev.approvedWaste || prev.damagedGoods, serverData.approvedWaste || serverData.damagedGoods);
 
               if (localTs > remoteTs && (prev.mobileAccounts?.length > 0 && prev.webAdminAccounts?.length > 0)) {
                 return prev;
@@ -278,6 +306,12 @@ export default function App() {
                 manualEntryRecords: mergedManualEntry,
                 shiftClosings: mergedShiftClosings,
                 salesTransactions: mergedSalesTx,
+                stockOpname: mergedOpname,
+                approvedLogistics: mergedOpname,
+                approvedTransfers: mergedTransfer,
+                stockTransfer: mergedTransfer,
+                approvedWaste: mergedWaste,
+                damagedGoods: mergedWaste,
                 webAdminAccounts: mergedWeb,
                 mobileAccounts: mergedMobile,
                 permissionMatrix: mergedPerm,
