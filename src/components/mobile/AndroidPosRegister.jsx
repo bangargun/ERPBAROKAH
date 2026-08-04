@@ -10679,17 +10679,17 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* 15. MODAL FORM "+ TAMBAHKAN STOK OPNAME / LAPORAN LOGISTIK" (MATCHING STOCK OPNAME 100%) */}
+      {/* 15. MODAL FORM "+ TAMBAHKAN STOK OPNAME / LAPORAN LOGISTIK" (FULL SCREEN MODAL) */}
       {showAddLogisticsModal && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh',
+          background: 'rgba(9, 13, 22, 0.95)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 0
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '780px', maxHeight: '92vh', overflowY: 'auto',
-            padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #38bdf8', borderRadius: '18px',
-            display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
+            padding: '28px 36px', background: '#0b0f19', border: 'none', borderRadius: '0px',
+            display: 'flex', flexDirection: 'column', gap: '20px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -10748,31 +10748,45 @@ export default function AndroidPosRegister({
                 <form onSubmit={e => {
                   e.preventDefault();
 
-                  if (opnameBatchRows.length === 0) {
-                    alert('Harap tambahkan minimal 1 bahan baku untuk diproses!');
+                  if (!opnameBatchRows || opnameBatchRows.length === 0 || !opnameBatchRows[0]?.item_name) {
+                    alert('Harap cari dan pilih bahan baku yang akan diaudit!');
                     return;
                   }
 
-                  const newRecords = opnameBatchRows.map((row, idx) => ({
-                    id: `${logNo}-${idx + 1}`,
+                  const selectedItemName = (opnameBatchRows[0]?.item_name || '').trim();
+
+                  // ── VALIDASI MASTER DATA BAHAN BAKU PUSAT ───────────────────
+                  const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
+                  if (!isValidMasterIng) {
+                    alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${selectedItemName}" tidak terdaftar di Master Data Bahan Baku Pusat!\n\nHarap pilih dari sugesti otomatis yang tersedia.`);
+                    return;
+                  }
+
+                  const foundIng = ingredientsList.find(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
+                  const unitVal = opnameBatchRows[0]?.unit || foundIng?.unit || 'kg';
+                  const stokFisikVal = Number(opnameBatchRows[0]?.stok_fisik || 0);
+                  const stokAwalVal = Number(opnameBatchRows[0]?.stok_awal || foundIng?.stock || foundIng?.stok || 0);
+
+                  const newRecord = {
+                    id: logNo,
                     report_no: logNo,
                     date: logDate,
                     outlet_id: logOutletId,
-                    branch_name: (masterData.outlets || []).find(o => o.id === logOutletId)?.name || currentOutlet.name || 'Restoran Utama',
+                    branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || 'Restoran Utama',
                     submitted_by: logSubmittedBy,
                     created_by: logSubmittedBy,
                     author_name: logSubmittedBy,
-                    item_name: row.item_name,
-                    unit: row.unit || 'kg',
-                    stok_awal: Number(row.stok_awal || 0),
-                    stok_masuk: Number(row.stok_masuk || 0),
-                    stok_keluar: Number(row.transfer_keluar || 0),
-                    transfer_keluar: Number(row.transfer_keluar || 0),
-                    transfer_masuk: Number(row.transfer_masuk || 0),
-                    stok_rusak: Number(row.stok_rusak || 0),
-                    stok_fisik: Number(row.stok_fisik || 0),
+                    item_name: selectedItemName,
+                    unit: unitVal,
+                    stok_awal: stokAwalVal,
+                    stok_masuk: 0,
+                    stok_keluar: 0,
+                    transfer_keluar: 0,
+                    transfer_masuk: 0,
+                    stok_rusak: 0,
+                    stok_fisik: stokFisikVal,
                     status: 'Pending'
-                  }));
+                  };
 
                   setShowAddLogisticsModal(false);
 
@@ -10782,9 +10796,9 @@ export default function AndroidPosRegister({
                       ...prev,
                       _lastUpdated: now,
                       clientUpdated: now,
-                      approvedLogistics: [...newRecords, ...(prev.approvedLogistics || [])],
-                      stockOpname: [...newRecords, ...(prev.stockOpname || [])],
-                      stockMovement: [...newRecords, ...(prev.stockMovement || [])]
+                      approvedLogistics: [newRecord, ...(prev.approvedLogistics || []).filter(r => r.report_no !== logNo)],
+                      stockOpname: [newRecord, ...(prev.stockOpname || []).filter(r => r.report_no !== logNo)],
+                      stockMovement: [newRecord, ...(prev.stockMovement || [])]
                     };
 
                     saveToServerWithGuard(newMaster);
@@ -10792,202 +10806,154 @@ export default function AndroidPosRegister({
                     return newMaster;
                   });
 
-                  alert(`✅ Laporan Stok Opname ${logNo} berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
-                }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  alert(`✅ Laporan Stok Opname ${logNo} untuk "${selectedItemName}" berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
+                }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
                   {/* Header Form: Tanggal, No Laporan, Diisi Oleh, Cabang Outlet */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: 'var(--pos-bg-app)', padding: '14px', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px', background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)' }}>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Audit *</label>
-                      <input type="date" required value={logDate} onChange={e => setLogDate(e.target.value)} className="form-input" style={{ width: '100%', height: '38px' }} />
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📅 Tanggal Audit *</label>
+                      <input type="date" required value={logDate} onChange={e => setLogDate(e.target.value)} className="form-input" style={{ width: '100%', height: '42px', borderRadius: '8px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan *</label>
-                      <input type="text" required value={logNo} onChange={e => setLogNo(e.target.value)} className="form-input" style={{ width: '100%', height: '38px', fontWeight: '800', color: '#38bdf8' }} />
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📋 Nomor Laporan *</label>
+                      <input type="text" required value={logNo} onChange={e => setLogNo(e.target.value)} className="form-input" style={{ width: '100%', height: '42px', fontWeight: '800', color: '#38bdf8', borderRadius: '8px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Diisi Oleh *</label>
-                      <select value={logSubmittedBy} onChange={e => setLogSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '38px' }}>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>👤 Diisi Oleh *</label>
+                      <select value={logSubmittedBy} onChange={e => setLogSubmittedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '42px', borderRadius: '8px' }}>
                         {adminList.map(a => (
                           <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>🏢 Cabang Outlet</label>
-                      <div style={{ width: '100%', height: '38px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '8px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>🏢 Cabang Outlet</label>
+                      <div style={{ width: '100%', height: '42px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '8px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span>🏢 {currentOutlet.name || 'Restoran Utama'}</span>
-                        <span style={{ fontSize: '0.70rem', color: 'var(--pos-txt-secondary)', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>Akun Aktif</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>Akun Aktif</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Header Subtitle & Button Tambahkan Bahan Baku */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontSize: '0.92rem', fontWeight: '800', color: '#34d399', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      📦 Daftar Bahan Baku Audit ({opnameBatchRows.length} Item)
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={handleAddEmptyRow}
-                      style={{ padding: '6px 14px', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid #34d399', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <PlusCircle size={14} />
-                      <span>+ Tambah Baris Bahan Baku</span>
-                    </button>
-                  </div>
+                  {/* FORM INPUT AUDIT 1 BAHAN BAKU (BEBAS RUMIT BATCH TABLE) */}
+                  <div style={{ background: 'var(--pos-bg-app)', padding: '24px', borderRadius: '16px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    <div style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Package size={20} />
+                      <span>Input Audit Stok Opname per Item Laporan:</span>
+                    </div>
 
-                  {/* TABEL BATCH STOCK OPNAME BAHAN BAKU */}
-                  <div style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid var(--pos-border-card)', borderRadius: '12px', background: 'var(--pos-bg-app)' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                      <thead>
-                        <tr style={{ background: 'var(--pos-bg-card)', color: 'var(--pos-txt-secondary)', textAlign: 'left', borderBottom: '1px solid var(--pos-border-card)', position: 'sticky', top: 0, zIndex: 10 }}>
-                          <th style={{ padding: '10px 12px' }}>Bahan Baku & Satuan</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', width: '110px' }}>Stok Awal (Manual)</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#34d399' }}>Stok Masuk</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#34d399' }}>Transfer Stok In</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#fb7185' }}>Transfer Stok Out</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#fb7185' }}>Stok Rusak</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', color: '#38bdf8', width: '120px' }}>Sisa Stok Fisik *</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center', width: '90px' }}>Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {opnameBatchRows.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
-                              Belum ada bahan baku. Klik <strong>+ Tambah Baris Bahan Baku</strong> di atas.
-                            </td>
-                          </tr>
-                        ) : (
-                          opnameBatchRows.map((row) => (
-                            <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: row.isEditing ? 'rgba(56,189,248,0.05)' : 'transparent' }}>
-                              
-                              {/* Bahan Baku & Satuan */}
-                              <td style={{ padding: '8px 12px' }}>
-                                {row.isEditing ? (
-                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                    <select
-                                      value={row.item_name}
-                                      onChange={e => {
-                                        const name = e.target.value;
-                                        const found = ingredientsList.find(i => i.name === name);
-                                        handleUpdateRow(row.id, 'item_name', name);
-                                        if (found) handleUpdateRow(row.id, 'unit', found.unit || 'kg');
-                                      }}
-                                      className="form-input"
-                                      style={{ height: '32px', fontSize: '0.78rem', color: '#34d399', fontWeight: '800' }}
-                                    >
-                                      {ingredientsList.map(ing => (
-                                        <option key={ing.id} value={ing.name}>{ing.name}</option>
-                                      ))}
-                                    </select>
-                                    <input
-                                      type="text"
-                                      value={row.unit}
-                                      onChange={e => handleUpdateRow(row.id, 'unit', e.target.value)}
-                                      className="form-input"
-                                      style={{ width: '50px', height: '32px', fontSize: '0.75rem', textAlign: 'center' }}
-                                      placeholder="Unit"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <strong style={{ color: 'var(--pos-txt-primary)', display: 'block' }}>{row.item_name}</strong>
-                                    <span style={{ fontSize: '0.70rem', color: '#38bdf8' }}>Satuan: {row.unit}</span>
-                                  </div>
-                                )}
-                              </td>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '16px', alignItems: 'end' }}>
+                      {/* SUGESTI BAHAN BAKU TERVALIDASI */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: '#f8fafc', fontWeight: '800', display: 'block', marginBottom: '6px' }}>
+                          📦 Cari & Pilih Nama Bahan Baku (Wajib dari Master Data) *
+                        </label>
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <input
+                            type="text"
+                            required
+                            value={opnameBatchRows[0]?.item_name || ''}
+                            onFocus={() => setActiveSuggestRowId('opname-single')}
+                            onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                            onChange={e => {
+                              const val = e.target.value;
+                              const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
+                              setOpnameBatchRows([{
+                                id: 'single-opname',
+                                item_name: val,
+                                unit: found?.unit || 'kg',
+                                stok_awal: found?.stock || found?.stok || 0,
+                                stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
+                              }]);
+                              setActiveSuggestRowId('opname-single');
+                            }}
+                            placeholder="Ketik nama bahan baku..."
+                            style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#ffffff', fontSize: '0.90rem', fontWeight: '800', outline: 'none' }}
+                          />
 
-                              {/* Stok Awal (Input Manual) */}
-                              <td style={{ padding: '8px', textAlign: 'center' }}>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  placeholder="0"
-                                  value={row.stok_awal}
-                                  onChange={e => handleUpdateRow(row.id, 'stok_awal', e.target.value)}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '32px', textAlign: 'center', fontSize: '0.80rem', fontWeight: '700' }}
-                                />
-                              </td>
-
-                              {/* Stok Masuk (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#34d399', fontWeight: '800' }}>
-                                +{row.stok_masuk || 0}
-                              </td>
-
-                              {/* Transfer Stok In (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#34d399', fontWeight: '800' }}>
-                                +{row.transfer_masuk || 0}
-                              </td>
-
-                              {/* Transfer Stok Out (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#fb7185', fontWeight: '800' }}>
-                                -{row.transfer_keluar || 0}
-                              </td>
-
-                              {/* Stok Rusak (Otomatis) */}
-                              <td style={{ padding: '8px', textAlign: 'center', color: '#fb7185', fontWeight: '800' }}>
-                                -{row.stok_rusak || 0}
-                              </td>
-
-                              {/* Sisa Stok Fisik (Input Manual) */}
-                              <td style={{ padding: '8px', textAlign: 'center' }}>
-                                <input
-                                  type="number"
-                                  step="any"
-                                  required
-                                  placeholder="Stok Fisik"
-                                  value={row.stok_fisik}
-                                  onChange={e => handleUpdateRow(row.id, 'stok_fisik', e.target.value)}
-                                  className="form-input"
-                                  style={{ width: '100%', height: '34px', textAlign: 'center', fontSize: '0.88rem', fontWeight: '900', color: '#38bdf8', border: '1px solid #38bdf8', background: 'rgba(56, 189, 248, 0.1)' }}
-                                />
-                              </td>
-
-                              {/* Aksi: Edit & Hapus */}
-                              <td style={{ padding: '8px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateRow(row.id, 'isEditing', !row.isEditing)}
-                                    title={row.isEditing ? "Selesai Edit" : "Edit Nama / Satuan"}
-                                    style={{ padding: '4px 8px', background: row.isEditing ? '#34d399' : 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                          {/* FLOATING SUGESTI DROPDOWN HIGH-CONTRAST */}
+                          {activeSuggestRowId === 'opname-single' && (
+                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99999, background: '#090d16', border: '2px solid #38bdf8', borderRadius: '10px', marginTop: '6px', maxHeight: '240px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
+                              {ingredientsList
+                                .filter(s => !(opnameBatchRows[0]?.item_name || '') || (s.name || '').toLowerCase().includes((opnameBatchRows[0]?.item_name || '').toLowerCase()))
+                                .slice(0, 10)
+                                .map((sug, i) => (
+                                  <div
+                                    key={i}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      setOpnameBatchRows([{
+                                        id: 'single-opname',
+                                        item_name: sug.name,
+                                        unit: sug.unit || 'kg',
+                                        stok_awal: sug.stock || sug.stok || 0,
+                                        stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
+                                      }]);
+                                      setActiveSuggestRowId(null);
+                                    }}
+                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                   >
-                                    <Edit2 size={12} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteRow(row.id)}
-                                    title="Hapus Baris Ini"
-                                    style={{ padding: '4px 8px', background: 'rgba(244,63,94,0.2)', color: '#f43f5e', border: '1px solid #f43f5e', borderRadius: '6px', cursor: 'pointer' }}
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                              </td>
+                                    <div>
+                                      <strong style={{ color: '#ffffff', display: 'block', fontSize: '0.88rem' }}>📦 {sug.name}</strong>
+                                      <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: '700' }}>Stok Sistem: {sug.stock || sug.stok || 0} {sug.unit || 'kg'} • {sug.category || 'HPP'}</span>
+                                    </div>
+                                    <span style={{ background: '#38bdf8', color: '#000000', padding: '3px 10px', borderRadius: '6px', fontWeight: '900', fontSize: '0.72rem' }}>Pilih &amp; Salin ↵</span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                      {/* STOK AWAL SISTEM */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>Stok Sistem / Satuan</label>
+                        <div style={{ height: '44px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', padding: '0 12px', color: '#34d399', fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span>{opnameBatchRows[0]?.stok_awal || 0}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{opnameBatchRows[0]?.unit || 'kg'}</span>
+                        </div>
+                      </div>
+
+                      {/* SISA STOK FISIK AUDIT */}
+                      <div>
+                        <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🔢 Sisa Stok Fisik *</label>
+                        <input
+                          type="number"
+                          required
+                          step="any"
+                          min="0"
+                          placeholder="Jumlah fisik..."
+                          value={opnameBatchRows[0]?.stok_fisik || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setOpnameBatchRows(prev => [{
+                              ...(prev[0] || { id: 'single-opname', item_name: '', unit: 'kg', stok_awal: 0 }),
+                              stok_fisik: val
+                            }]);
+                          }}
+                          className="form-input"
+                          style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#38bdf8', fontSize: '0.95rem', fontWeight: '900', outline: 'none' }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Footer Status & Tombol Simpan */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                      <span style={{ fontSize: '0.74rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '3px 10px', borderRadius: '6px', fontWeight: '800' }}>⏳ Pending (Butuh Persetujuan)</span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
+                      <span style={{ fontSize: '0.78rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '4px 12px', borderRadius: '6px', fontWeight: '800' }}>⏳ Pending (Butuh Persetujuan Web Admin)</span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '10px 18px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '0.82rem' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.08)', color: 'var(--pos-txt-primary)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}>
                         Batal
                       </button>
-                      <button type="submit" style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '8px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>💾 SIMPAN SELURUH AUDIT STOK OPNAME</span>
+                      <button type="submit" style={{ padding: '12px 28px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#000000', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>💾 KIRIM LAPORAN STOK OPNAME</span>
                       </button>
                     </div>
                   </div>
@@ -11064,17 +11030,17 @@ export default function AndroidPosRegister({
           </div>
         </div>
       )}
-      {/* 16. MODAL FORM "+ BUAT LAPORAN TRANSFER PRODUK" */}
+      {/* 16. MODAL FORM "+ BUAT LAPORAN TRANSFER PRODUK" (FULL SCREEN MODAL) */}
       {showAddTransferModal && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh',
+          background: 'rgba(9, 13, 22, 0.95)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 0
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '880px', maxHeight: '92vh', overflowY: 'auto',
-            background: 'var(--pos-bg-card)', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '20px',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)', padding: '24px',
+            width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
+            background: '#0b0f19', border: 'none', borderRadius: '0px',
+            boxShadow: 'none', padding: '28px 36px',
             display: 'flex', flexDirection: 'column', gap: '20px',
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
           }}>
@@ -11148,8 +11114,19 @@ export default function AndroidPosRegister({
                   const toOutletObj = outletsList.find(o => Number(o.id) === Number(transferToOutletId)) || outletsList.find(o => Number(o.id) !== Number(currentOutlet.id)) || { name: 'Outlet Tujuan' };
 
                   const newRecords = [];
+                  let hasInvalidIngredient = false;
+
                   transferBatchRows.forEach((row, idx) => {
                     const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Baru') : row.item_name;
+                    
+                    // ── VALIDASI MASTER DATA BAHAN BAKU ────────────────────────
+                    const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === (finalItemName || '').trim().toLowerCase());
+                    if (!isValidMasterIng) {
+                      hasInvalidIngredient = true;
+                      alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${finalItemName}" tidak terdaftar di Master Data Bahan Baku Pusat!\nHarap pilih dari sugesti otomatis yang tersedia.`);
+                      return;
+                    }
+
                     const recId = transferBatchRows.length > 1 ? `${transferNo}-${idx + 1}` : transferNo;
 
                     newRecords.push({
@@ -11687,17 +11664,17 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* 17. MODAL FORM "LAPORKAN STOK RUSAK / WASTE" (MATCHING WEB ADMIN EXACTLY) */}
+      {/* 17. MODAL FORM "LAPORKAN STOK RUSAK / WASTE" (FULL SCREEN MODAL) */}
       {showAddWasteModal && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh',
+          background: 'rgba(9, 13, 22, 0.95)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 0
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto',
-            padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #f43f5e', borderRadius: '18px',
-            display: 'flex', flexDirection: 'column', gap: '16px'
+            width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
+            padding: '28px 36px', background: '#0b0f19', border: 'none', borderRadius: '0px',
+            display: 'flex', flexDirection: 'column', gap: '20px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -11726,6 +11703,19 @@ export default function AndroidPosRegister({
                     alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
                     return;
                   }
+
+                  // ── VALIDASI MASTER DATA BAHAN BAKU ──────────────────────────
+                  let invalidWasteName = null;
+                  wasteBatchRows.forEach(r => {
+                    const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === (r.item_name || '').trim().toLowerCase());
+                    if (!isValidMasterIng) invalidWasteName = r.item_name;
+                  });
+
+                  if (invalidWasteName) {
+                    alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${invalidWasteName}" tidak terdaftar di Master Data Bahan Baku Pusat!\nHarap pilih dari sugesti otomatis yang tersedia.`);
+                    return;
+                  }
+
                   setShowWastePreviewFormModal(true);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
