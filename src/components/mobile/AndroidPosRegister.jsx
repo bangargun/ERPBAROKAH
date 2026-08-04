@@ -248,6 +248,7 @@ export default function AndroidPosRegister({
   const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
   const [selectedCustomer, setSelectedCustomer] = useState('Pelanggan Umum');
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
+  const [activeSuggestRowId, setActiveSuggestRowId] = useState(null);
 
   // ── BLUETOOTH PRINTER STATE ──
   // MAC address & paper width disimpan di localStorage agar tetap tersimpan setelah reload
@@ -10259,32 +10260,70 @@ export default function AndroidPosRegister({
                           {(manualExpenseRows || []).map((row) => (
                             <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                               <td style={{ padding: '6px 8px' }}>
-                                <input
-                                  type="text"
-                                  list={`pos-exp-suggest-${row.id}`}
-                                  value={row.item_name || row.name || ''}
-                                  onChange={e => {
-                                    const val = e.target.value;
-                                    const foundSug = expenseSuggestions.find(s => s.name.toLowerCase() === val.toLowerCase());
-                                    setManualExpenseRows(prev => (prev || []).map(r => {
-                                      if (r.id === row.id) {
-                                        const cat = foundSug ? foundSug.category_type : (r.category_type || 'HPP Bahan Baku');
-                                        const unt = foundSug ? foundSug.unit : (r.unit || 'kg');
-                                        const prc = foundSug ? foundSug.price : (r.price_per_unit || 0);
-                                        const q = Number(r.qty || 1);
-                                        return { ...r, item_name: val, name: val, category_type: cat, unit: unt, price_per_unit: prc, subtotal: q * prc, amount: q * prc };
-                                      }
-                                      return r;
-                                    }));
-                                  }}
-                                  placeholder="Ketik/Pilih item..."
-                                  style={{ width: '100%', padding: '6px 10px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.80rem' }}
-                                />
-                                <datalist id={`pos-exp-suggest-${row.id}`}>
-                                  {expenseSuggestions.map((sug, i) => (
-                                    <option key={i} value={sug.name}>{sug.name} ({sug.category_type})</option>
-                                  ))}
-                                </datalist>
+                                <div style={{ position: 'relative', width: '100%' }}>
+                                  <input
+                                    type="text"
+                                    value={row.item_name || row.name || ''}
+                                    onFocus={() => setActiveSuggestRowId(`exp-${row.id}`)}
+                                    onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      const foundSug = expenseSuggestions.find(s => s.name.toLowerCase() === val.toLowerCase());
+                                      setManualExpenseRows(prev => (prev || []).map(r => {
+                                        if (r.id === row.id) {
+                                          const cat = foundSug ? foundSug.category_type : (r.category_type || 'HPP Bahan Baku');
+                                          const unt = foundSug ? foundSug.unit : (r.unit || 'kg');
+                                          const prc = foundSug ? foundSug.price : (r.price_per_unit || 0);
+                                          const q = Number(r.qty || 1);
+                                          return { ...r, item_name: val, name: val, category_type: cat, unit: unt, price_per_unit: prc, subtotal: q * prc, amount: q * prc };
+                                        }
+                                        return r;
+                                      }));
+                                      setActiveSuggestRowId(`exp-${row.id}`);
+                                    }}
+                                    placeholder="Ketik / pilih bahan baku..."
+                                    style={{ width: '100%', padding: '6px 10px', background: 'var(--pos-bg-card)', border: activeSuggestRowId === `exp-${row.id}` ? '1.5px solid #38bdf8' : '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.80rem', fontWeight: '800', outline: 'none' }}
+                                  />
+
+                                  {/* FLOATING DROPDOWN SUGESTI OTOMATIS */}
+                                  {activeSuggestRowId === `exp-${row.id}` && (
+                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, background: '#0f172a', border: '1.5px solid #38bdf8', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                                      {expenseSuggestions
+                                        .filter(s => !(row.item_name || '') || (s.name || '').toLowerCase().includes((row.item_name || '').toLowerCase()))
+                                        .slice(0, 10)
+                                        .map((sug, i) => (
+                                          <div
+                                            key={i}
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              const q = Number(row.qty || 1);
+                                              const prc = Number(sug.price || 0);
+                                              setManualExpenseRows(prev => (prev || []).map(r => r.id === row.id ? {
+                                                ...r,
+                                                item_name: sug.name,
+                                                name: sug.name,
+                                                category_type: sug.category_type || 'HPP Bahan Baku',
+                                                unit: sug.unit || 'kg',
+                                                price_per_unit: prc,
+                                                subtotal: q * prc,
+                                                amount: q * prc
+                                              } : r));
+                                              setActiveSuggestRowId(null);
+                                            }}
+                                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                          >
+                                            <div>
+                                              <strong style={{ color: '#f8fafc', display: 'block' }}>📦 {sug.name}</strong>
+                                              <span style={{ fontSize: '0.70rem', color: '#38bdf8' }}>{sug.category_type} • Satuan: {sug.unit || 'kg'} • Rp {Number(sug.price || 0).toLocaleString('id-ID')}</span>
+                                            </div>
+                                            <span style={{ background: '#38bdf8', color: '#000000', padding: '2px 8px', borderRadius: '4px', fontWeight: '900', fontSize: '0.68rem' }}>Salin ↵</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  )}
+                                </div>
                               </td>
 
                               <td style={{ padding: '6px 8px' }}>
@@ -11234,24 +11273,52 @@ export default function AndroidPosRegister({
 
                                   {/* 2. Nama Bahan Baku */}
                                   <td style={{ padding: '10px 14px' }}>
-                                    <select
-                                      value={row.item_name}
-                                      onChange={e => {
-                                        const val = e.target.value;
-                                        handleUpdateTransferRow(row.id, 'item_name', val);
-                                        if (val !== '__OTHER__') {
-                                          const found = ingredientsList.find(i => i.name === val);
+                                    <div style={{ position: 'relative', width: '100%' }}>
+                                      <input
+                                        type="text"
+                                        value={row.item_name === '__OTHER__' ? '' : (row.item_name || '')}
+                                        onFocus={() => setActiveSuggestRowId(`trf-${row.id}`)}
+                                        onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                                        onChange={e => {
+                                          const val = e.target.value;
+                                          handleUpdateTransferRow(row.id, 'item_name', val);
+                                          const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
                                           if (found) handleUpdateTransferRow(row.id, 'unit', found.unit || 'kg');
-                                        }
-                                      }}
-                                      className="form-input"
-                                      style={{ width: '100%', height: '38px', fontWeight: '800', color: '#34d399', fontSize: '0.82rem', borderRadius: '8px' }}
-                                    >
-                                      {ingredientsList.map(ing => (
-                                        <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
-                                      ))}
-                                      <option value="__OTHER__">➕ + Buat / Tentukan Nama Bahan Baku Baru...</option>
-                                    </select>
+                                          setActiveSuggestRowId(`trf-${row.id}`);
+                                        }}
+                                        placeholder="Ketik / pilih bahan baku..."
+                                        style={{ width: '100%', padding: '6px 10px', background: 'var(--pos-bg-card)', border: activeSuggestRowId === `trf-${row.id}` ? '1.5px solid #34d399' : '1px solid var(--pos-border-card)', borderRadius: '8px', color: '#34d399', fontSize: '0.82rem', fontWeight: '800', outline: 'none' }}
+                                      />
+
+                                      {/* FLOATING DROPDOWN SUGESTI OTOMATIS */}
+                                      {activeSuggestRowId === `trf-${row.id}` && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, background: '#0f172a', border: '1.5px solid #34d399', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                                          {ingredientsList
+                                            .filter(s => !(row.item_name || '') || (s.name || '').toLowerCase().includes((row.item_name || '').toLowerCase()))
+                                            .slice(0, 10)
+                                            .map((sug, i) => (
+                                              <div
+                                                key={i}
+                                                onMouseDown={(e) => {
+                                                  e.preventDefault();
+                                                  handleUpdateTransferRow(row.id, 'item_name', sug.name);
+                                                  handleUpdateTransferRow(row.id, 'unit', sug.unit || 'kg');
+                                                  setActiveSuggestRowId(null);
+                                                }}
+                                                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(52, 211, 153, 0.25)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                              >
+                                                <div>
+                                                  <strong style={{ color: '#f8fafc', display: 'block' }}>📦 {sug.name}</strong>
+                                                  <span style={{ fontSize: '0.70rem', color: '#34d399' }}>Satuan: {sug.unit || 'kg'} • Stok: {sug.stock || sug.stok || 0}</span>
+                                                </div>
+                                                <span style={{ background: '#34d399', color: '#000000', padding: '2px 8px', borderRadius: '4px', fontWeight: '900', fontSize: '0.68rem' }}>Salin ↵</span>
+                                              </div>
+                                            ))}
+                                        </div>
+                                      )}
+                                    </div>
                                   </td>
 
                                   {/* 3. Transfer Out Input */}
@@ -11733,30 +11800,58 @@ export default function AndroidPosRegister({
                         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 36px', gap: '8px', alignItems: 'end' }}>
                           <div>
                             <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
-                              Item Bahan Baku *
+                              Sugesti Nama Bahan Baku *
                             </span>
-                            <select
-                              value={row.item_name}
-                              onChange={e => {
-                                const val = e.target.value;
-                                const updated = [...wasteBatchRows];
-                                updated[idx].item_name = val;
-                                if (val !== '__OTHER__' && val !== '') {
-                                  const found = ingredientsList.find(i => i.name === val);
+                            <div style={{ position: 'relative', width: '100%' }}>
+                              <input
+                                type="text"
+                                value={row.item_name === '__OTHER__' ? '' : (row.item_name || '')}
+                                onFocus={() => setActiveSuggestRowId(`wst-${idx}`)}
+                                onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  const updated = [...wasteBatchRows];
+                                  updated[idx].item_name = val;
+                                  const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
                                   if (found) updated[idx].unit = found.unit || 'kg';
-                                }
-                                setWasteBatchRows(updated);
-                              }}
-                              required
-                              className="form-input"
-                              style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '800', color: row.item_name ? '#38bdf8' : '#64748b', padding: '6px' }}
-                            >
-                              <option value="" disabled>-- Pilih Bahan Baku --</option>
-                              {ingredientsList.map(ing => (
-                                <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
-                              ))}
-                              <option value="__OTHER__">➕ + Nama Bahan Baku Lainnya...</option>
-                            </select>
+                                  setWasteBatchRows(updated);
+                                  setActiveSuggestRowId(`wst-${idx}`);
+                                }}
+                                placeholder="Ketik / pilih bahan baku..."
+                                style={{ width: '100%', height: '36px', padding: '6px 10px', background: 'var(--pos-bg-card)', border: activeSuggestRowId === `wst-${idx}` ? '1.5px solid #fb7185' : '1px solid var(--pos-border-card)', borderRadius: '8px', color: '#fb7185', fontSize: '0.80rem', fontWeight: '800', outline: 'none' }}
+                              />
+
+                              {/* FLOATING DROPDOWN SUGESTI OTOMATIS */}
+                              {activeSuggestRowId === `wst-${idx}` && (
+                                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999, background: '#0f172a', border: '1.5px solid #fb7185', borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                                  {ingredientsList
+                                    .filter(s => !(row.item_name || '') || (s.name || '').toLowerCase().includes((row.item_name || '').toLowerCase()))
+                                    .slice(0, 10)
+                                    .map((sug, i) => (
+                                      <div
+                                        key={i}
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          const updated = [...wasteBatchRows];
+                                          updated[idx].item_name = sug.name;
+                                          updated[idx].unit = sug.unit || 'kg';
+                                          setWasteBatchRows(updated);
+                                          setActiveSuggestRowId(null);
+                                        }}
+                                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(251, 113, 133, 0.25)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                      >
+                                        <div>
+                                          <strong style={{ color: '#f8fafc', display: 'block' }}>📦 {sug.name}</strong>
+                                          <span style={{ fontSize: '0.70rem', color: '#fb7185' }}>Satuan: {sug.unit || 'kg'} • Stok: {sug.stock || sug.stok || 0}</span>
+                                        </div>
+                                        <span style={{ background: '#fb7185', color: '#000000', padding: '2px 8px', borderRadius: '4px', fontWeight: '900', fontSize: '0.68rem' }}>Salin ↵</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           <div>
