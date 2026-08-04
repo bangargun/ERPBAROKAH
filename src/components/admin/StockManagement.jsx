@@ -2375,78 +2375,47 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         )}
       </div>
 
-      {/* Sub-Tab Navigation Bar (2 Proportional Rows) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#1e293b', padding: '10px', borderRadius: '14px', border: '1px solid #334155' }}>
-        {/* Row 1: 4 Tabs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+      {/* Sub-Tab Navigation Bar (Sleek Glassmorphism Single Grid) */}
+      <div style={{ background: '#0f172a', padding: '8px', borderRadius: '16px', border: '1px solid #334155', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
           {[
             { id: 'stok_masuk', label: '📥 Stok Masuk', color: '#38bdf8' },
             { id: 'stok_keluar', label: '📤 Stok Keluar', color: '#fb7185' },
             { id: 'transfer_stok', label: '🚚 Transfer Stok', color: '#fbbf24' },
-            { id: 'stok_rusak', label: '⚠️ Stok Rusak (Waste)', color: '#f43f5e' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveSubTab(tab.id);
-                setLogShowColumnDropdown(false);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justify: 'center',
-                gap: '8px',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: activeSubTab === tab.id ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid rgba(255,255,255,0.05)',
-                background: activeSubTab === tab.id ? 'rgba(99, 102, 241, 0.2)' : '#0f172a',
-                color: activeSubTab === tab.id ? '#ffffff' : '#94a3b8',
-                fontWeight: activeSubTab === tab.id ? '800' : '600',
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                boxShadow: activeSubTab === tab.id ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none'
-              }}
-            >
-              <span style={{ color: activeSubTab === tab.id ? '#818cf8' : tab.color }}>●</span>
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Row 2: 2 Tabs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-          {[
-            { id: 'stok_opname_system', label: '🤖 Stock Opname by Sistem', color: '#34d399' },
-            { id: 'stok_opname_report', label: '📱 Stok Opname by Report Outlet', color: '#a78bfa' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveSubTab(tab.id);
-                setLogShowColumnDropdown(false);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justify: 'center',
-                gap: '8px',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: activeSubTab === tab.id ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid rgba(255,255,255,0.05)',
-                background: activeSubTab === tab.id ? 'rgba(99, 102, 241, 0.2)' : '#0f172a',
-                color: activeSubTab === tab.id ? '#ffffff' : '#94a3b8',
-                fontWeight: activeSubTab === tab.id ? '800' : '600',
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                boxShadow: activeSubTab === tab.id ? '0 4px 12px rgba(99, 102, 241, 0.25)' : 'none'
-              }}
-            >
-              <span style={{ color: activeSubTab === tab.id ? '#818cf8' : tab.color }}>●</span>
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
-            </button>
-          ))}
+            { id: 'stok_rusak', label: '⚠️ Stok Rusak (Waste)', color: '#f43f5e' },
+            { id: 'stok_opname_system', label: '🤖 Opname by Sistem', color: '#34d399' },
+            { id: 'stok_opname_report', label: '📱 Opname Report Outlet', color: '#a78bfa' }
+          ].map(tab => {
+            const isActive = activeSubTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveSubTab(tab.id);
+                  setLogShowColumnDropdown(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '12px 10px',
+                  borderRadius: '10px',
+                  border: isActive ? `1px solid ${tab.color}` : '1px solid #1e293b',
+                  background: isActive ? `linear-gradient(135deg, ${tab.color}25 0%, #0f172a 100%)` : '#1e293b',
+                  color: isActive ? '#ffffff' : '#94a3b8',
+                  fontWeight: isActive ? '900' : '600',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: isActive ? `0 4px 14px ${tab.color}35` : 'none'
+                }}
+              >
+                <span style={{ color: tab.color, fontSize: '0.90rem' }}>●</span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -18,10 +18,50 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
   // P&L, NERACA & ARUS KAS FILTERS & MODAL STATES
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedOutlets, setSelectedOutlets] = useState([]); // Empty array = All Outlets
   const [showOutletDropdown, setShowOutletDropdown] = useState(false);
   const [accountDetailModal, setAccountDetailModal] = useState(null);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
+
+  const handleYearChange = (yr) => {
+    setSelectedYear(yr);
+    if (!yr) {
+      setStartDate('');
+      setEndDate('');
+      setSelectedMonth('');
+      return;
+    }
+    const m = selectedMonth || '01';
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    if (selectedMonth) {
+      setStartDate(`${yr}-${m}-01`);
+      setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+    } else {
+      setStartDate(`${yr}-01-01`);
+      setEndDate(`${yr}-12-31`);
+    }
+  };
+
+  const handleMonthChange = (m) => {
+    setSelectedMonth(m);
+    const yr = selectedYear || new Date().getFullYear().toString();
+    if (!selectedYear) setSelectedYear(yr);
+    if (!m) {
+      if (selectedYear) {
+        setStartDate(`${yr}-01-01`);
+        setEndDate(`${yr}-12-31`);
+      } else {
+        setStartDate('');
+        setEndDate('');
+      }
+      return;
+    }
+    const lastDay = new Date(Number(yr), Number(m), 0).getDate();
+    setStartDate(`${yr}-${m}-01`);
+    setEndDate(`${yr}-${m}-${String(lastDay).padStart(2, '0')}`);
+  };
 
   const outletsList = masterData?.outlets || [];
 
@@ -1498,45 +1538,106 @@ export default function FinancialReportsFull({ masterData, selectedBranch }) {
           alignItems: 'center',
           gap: '16px'
         }}>
-          {/* FILTER LEFT: DATE RANGE & QUICK PRESETS */}
+          {/* FILTER LEFT: TAHUN, BULAN, TANGGAL & QUICK PRESETS */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: '700', fontSize: '0.85rem' }}>
-              <Calendar size={18} />
-              <span>Periode / Rentang Waktu:</span>
+            
+            {/* 1. Tahun Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📅 Tahun</span>
+              <select
+                value={selectedYear}
+                onChange={e => handleYearChange(e.target.value)}
+                style={{
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #334155',
+                  background: '#1e293b',
+                  color: '#f8fafc',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  height: '36px',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Semua Tahun</option>
+                {Array.from({ length: 17 }, (_, i) => 2024 + i).map(yr => (
+                  <option key={yr} value={String(yr)}>{yr}</option>
+                ))}
+              </select>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+            {/* 2. Bulan Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>🗓️ Bulan</span>
+              <select
+                value={selectedMonth}
+                onChange={e => handleMonthChange(e.target.value)}
                 style={{
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #334155',
                   background: '#1e293b',
-                  border: '1px solid #475569',
-                  borderRadius: '8px',
                   color: '#f8fafc',
-                  padding: '7px 12px',
-                  fontSize: '0.82rem',
-                  fontWeight: '600',
-                  outline: 'none'
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  height: '36px',
+                  cursor: 'pointer'
                 }}
-              />
-              <span style={{ color: '#64748b', fontSize: '0.85rem' }}>s/d</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{
-                  background: '#1e293b',
-                  border: '1px solid #475569',
-                  borderRadius: '8px',
-                  color: '#f8fafc',
-                  padding: '7px 12px',
-                  fontSize: '0.82rem',
-                  fontWeight: '600',
-                  outline: 'none'
-                }}
-              />
+              >
+                <option value="">Semua Bulan</option>
+                <option value="01">Januari</option>
+                <option value="02">Februari</option>
+                <option value="03">Maret</option>
+                <option value="04">April</option>
+                <option value="05">Mei</option>
+                <option value="06">Juni</option>
+                <option value="07">Juli</option>
+                <option value="08">Agustus</option>
+                <option value="09">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Desember</option>
+              </select>
+            </div>
+
+            {/* 3. Tanggal (Rentang Waktu) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{
+                    background: '#1e293b',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    color: '#f8fafc',
+                    padding: '7px 12px',
+                    fontSize: '0.82rem',
+                    fontWeight: '600',
+                    outline: 'none',
+                    height: '36px'
+                  }}
+                />
+                <span style={{ color: '#64748b', fontSize: '0.85rem' }}>s/d</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{
+                    background: '#1e293b',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    color: '#f8fafc',
+                    padding: '7px 12px',
+                    fontSize: '0.82rem',
+                    fontWeight: '600',
+                    outline: 'none',
+                    height: '36px'
+                  }}
+                />
+              </div>
             </div>
 
             {/* QUICK PRESET BUTTONS */}
