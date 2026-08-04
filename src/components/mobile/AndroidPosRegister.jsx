@@ -12928,6 +12928,32 @@ export default function AndroidPosRegister({
         </div>
       )}
 
+      {/* ── GLOBAL FLOATING PRINT STATUS TOAST (AKURAT & JELAS SAAT BERHASIL/GAGAL) ── */}
+      {printStatus && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 999999,
+          padding: '14px 20px',
+          borderRadius: '14px',
+          background: printStatus === 'success' ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : printStatus === 'printing' ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' : 'linear-gradient(135deg, #dc2626 0%, #f43f5e 100%)',
+          color: '#ffffff',
+          fontWeight: '900',
+          fontSize: '0.90rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: printStatus === 'success' ? '0 10px 30px rgba(16,185,129,0.4)' : printStatus === 'printing' ? '0 10px 30px rgba(99,102,241,0.4)' : '0 10px 30px rgba(244,63,94,0.4)',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}>
+          {printStatus === 'printing' && <span style={{ fontSize: '1.2rem' }}>⏳</span>}
+          {printStatus === 'success' && <span style={{ fontSize: '1.2rem' }}>✅</span>}
+          {printStatus === 'error' && <span style={{ fontSize: '1.2rem' }}>❌</span>}
+          <span>{printStatusMsg}</span>
+        </div>
+      )}
+
       {/* ── PRINTER OFFLINE MODAL (GLOBAL) — tampil otomatis saat cetak gagal/printer tidak terhubung ── */}
       {renderPrinterOfflineModal()}
 
