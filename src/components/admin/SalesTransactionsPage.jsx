@@ -984,6 +984,27 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // OMZET FILTER STATES
   const [selectedOmzetMonth, setSelectedOmzetMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM for Line Chart & Comparison Table
+  const [omzetStartDate, setOmzetStartDate] = useState('');
+  const [omzetEndDate, setOmzetEndDate] = useState('');
+  const [omzetDatePreset, setOmzetDatePreset] = useState('all');
+  const [omzetShowCalendarPopover, setOmzetShowCalendarPopover] = useState(false);
+  const [omzetSelectedOutletIds, setOmzetSelectedOutletIds] = useState(['ALL']);
+  const [omzetShowOutletDropdown, setOmzetShowOutletDropdown] = useState(false);
+
+  const handleToggleOmzetOutlet = (idVal) => {
+    if (idVal === 'ALL') {
+      setOmzetSelectedOutletIds(['ALL']);
+    } else {
+      let updated = omzetSelectedOutletIds.filter(id => id !== 'ALL');
+      if (updated.includes(idVal)) {
+        updated = updated.filter(id => id !== idVal);
+      } else {
+        updated.push(idVal);
+      }
+      if (updated.length === 0) updated = ['ALL'];
+      setOmzetSelectedOutletIds(updated);
+    }
+  };
   // 1. Date Range Filter & Calendar Widget Popover
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -1117,6 +1138,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const [rcptShowColumnDropdown, setRcptShowColumnDropdown] = useState(false);
 
   // MONTHLY COMPARISON FILTER STATES
+  const [momStartDate, setMomStartDate] = useState('');
+  const [momEndDate, setMomEndDate] = useState('');
+  const [momDatePreset, setMomDatePreset] = useState('all');
+  const [momShowCalendarPopover, setMomShowCalendarPopover] = useState(false);
   const [momSelectedOutletIds, setMomSelectedOutletIds] = useState(['ALL']);
   const [momShowOutletDropdown, setMomShowOutletDropdown] = useState(false);
   const [momVisibleColumns, setMomVisibleColumns] = useState({
