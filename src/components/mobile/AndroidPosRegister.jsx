@@ -864,12 +864,12 @@ export default function AndroidPosRegister({
             // ─── UNIVERSAL SMART MERGE DENGAN SERVER WEB ADMIN ────────────────────
             const getItemKey = (item) => {
               if (!item || typeof item !== 'object') return null;
-              if (item.id !== undefined && item.id !== null) return String(item.id);
-              if (item.report_no) return String(item.report_no);
-              if (item.receiptNo) return String(item.receiptNo);
-              if (item.tx_id) return String(item.tx_id);
-              if (item.code) return String(item.code);
-              if (item.name) return String(item.name);
+              if (item.report_no && String(item.report_no).trim() !== '') return String(item.report_no);
+              if (item.receiptNo && String(item.receiptNo).trim() !== '') return String(item.receiptNo);
+              if (item.tx_id && String(item.tx_id).trim() !== '') return String(item.tx_id);
+              if (item.id !== undefined && item.id !== null && String(item.id).trim() !== '') return String(item.id);
+              if (item.code && String(item.code).trim() !== '') return String(item.code);
+              if (item.name && String(item.name).trim() !== '') return String(item.name);
               return null;
             };
 
