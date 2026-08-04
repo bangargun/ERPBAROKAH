@@ -318,7 +318,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             onClick={handleRunAiAnalysis}
             style={{
               padding: '9px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer',
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: '#ffffff', border: 'none',
+              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', color: T.txtPrimary, border: 'none',
               display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
               transition: 'transform 0.2s ease'
             }}
@@ -339,18 +339,18 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         <div
           onClick={() => setActiveMetricCard('revenue')}
           style={{
-            background: activeMetricCard === 'revenue' ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#111625',
-            border: `1px solid ${activeMetricCard === 'revenue' ? '#22c55e' : '#1e293b'}`,
+            background: activeMetricCard === 'revenue' ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : T.cardBg,
+            border: `1px solid ${activeMetricCard === 'revenue' ? T.success : T.border}`,
             borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s ease',
             boxShadow: activeMetricCard === 'revenue' ? '0 0 15px rgba(34, 197, 94, 0.2)' : 'none'
           }}
         >
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>REVENUE HARI INI</span>
-            <DollarSign size={13} color="#22c55e" />
+            <DollarSign size={13} color={T.success} />
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#22c55e', marginTop: '4px' }}>{formatRupiah(todayIncome)}</div>
-          <div style={{ fontSize: '0.64rem', color: '#22c55e', fontWeight: '700', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.success, marginTop: '4px' }}>{formatRupiah(todayIncome)}</div>
+          <div style={{ fontSize: '0.64rem', color: T.success, fontWeight: '700', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '2px' }}>
             <ArrowUpRight size={12} /> <span>Real-time POS</span>
           </div>
         </div>
@@ -359,87 +359,87 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         <div
           onClick={() => setActiveMetricCard('expense')}
           style={{
-            background: activeMetricCard === 'expense' ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#111625',
-            border: `1px solid ${activeMetricCard === 'expense' ? '#ef4444' : '#1e293b'}`,
+            background: activeMetricCard === 'expense' ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : T.cardBg,
+            border: `1px solid ${activeMetricCard === 'expense' ? T.danger : T.border}`,
             borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s ease',
             boxShadow: activeMetricCard === 'expense' ? '0 0 15px rgba(239, 68, 68, 0.2)' : 'none'
           }}
         >
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>PENGELUARAN HARI INI</span>
-            <Wallet size={13} color="#ef4444" />
+            <Wallet size={13} color={T.danger} />
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ef4444', marginTop: '4px' }}>{formatRupiah(todayExpense)}</div>
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '600', marginTop: '4px' }}>Kasir & OPEX</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.danger, marginTop: '4px' }}>{formatRupiah(todayExpense)}</div>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '600', marginTop: '4px' }}>Kasir & OPEX</div>
         </div>
 
         {/* Stat 3: LABA BERSIH HARI INI */}
         <div
           onClick={() => setActiveMetricCard('profit')}
           style={{
-            background: activeMetricCard === 'profit' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#111625',
-            border: `1px solid ${activeMetricCard === 'profit' ? '#38bdf8' : '#1e293b'}`,
+            background: activeMetricCard === 'profit' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : T.cardBg,
+            border: `1px solid ${activeMetricCard === 'profit' ? T.info : T.border}`,
             borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s ease',
             boxShadow: activeMetricCard === 'profit' ? '0 0 15px rgba(56, 189, 248, 0.2)' : 'none'
           }}
         >
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>LABA BERSIH HARI INI</span>
-            <TrendingUp size={13} color="#38bdf8" />
+            <TrendingUp size={13} color={T.info} />
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: todayNetProfit >= 0 ? '#38bdf8' : '#ef4444', marginTop: '4px' }}>{formatRupiah(todayNetProfit)}</div>
-          <div style={{ fontSize: '0.64rem', color: '#eab308', fontWeight: '700', marginTop: '4px' }}>Margin: {todayMargin}%</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: todayNetProfit >= 0 ? T.info : T.danger, marginTop: '4px' }}>{formatRupiah(todayNetProfit)}</div>
+          <div style={{ fontSize: '0.64rem', color: T.warning, fontWeight: '700', marginTop: '4px' }}>Margin: {todayMargin}%</div>
         </div>
 
         {/* Stat 4: TOTAL TRANSAKSI HARI INI */}
         <div
           onClick={() => setActiveMetricCard('tx')}
           style={{
-            background: activeMetricCard === 'tx' ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#111625',
-            border: `1px solid ${activeMetricCard === 'tx' ? '#a855f7' : '#1e293b'}`,
+            background: activeMetricCard === 'tx' ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : T.cardBg,
+            border: `1px solid ${activeMetricCard === 'tx' ? T.accentGreen : T.border}`,
             borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s ease'
           }}
         >
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>TRANSAKSI HARI INI</span>
-            <ShoppingBag size={13} color="#a855f7" />
+            <ShoppingBag size={13} color={T.accentGreen} />
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', marginTop: '4px' }}>{todayTxCount} Nota</div>
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '600', marginTop: '4px' }}>Terverifikasi POS</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, marginTop: '4px' }}>{todayTxCount} Nota</div>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '600', marginTop: '4px' }}>Terverifikasi POS</div>
         </div>
 
         {/* Stat 5: AVERAGE BILL HARI INI */}
         <div
           onClick={() => setActiveMetricCard('avg')}
           style={{
-            background: activeMetricCard === 'avg' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#111625',
-            border: `1px solid ${activeMetricCard === 'avg' ? '#f59e0b' : '#1e293b'}`,
+            background: activeMetricCard === 'avg' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : T.cardBg,
+            border: `1px solid ${activeMetricCard === 'avg' ? T.accentGold : T.border}`,
             borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s ease'
           }}
         >
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>AVERAGE BILL</span>
-            <CreditCard size={13} color="#f59e0b" />
+            <CreditCard size={13} color={T.accentGold} />
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>{formatRupiah(todayAvgBill)}</div>
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '600', marginTop: '4px' }}>Rata-rata / Meja</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.accentGold, marginTop: '4px' }}>{formatRupiah(todayAvgBill)}</div>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '600', marginTop: '4px' }}>Rata-rata / Meja</div>
         </div>
 
         {/* Stat 6: TOTAL OUTLET AKTIF */}
         <div
           onClick={() => setActiveMetricCard('outlet')}
           style={{
-            background: activeMetricCard === 'outlet' ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : '#111625',
-            border: `1px solid ${activeMetricCard === 'outlet' ? '#6366f1' : '#1e293b'}`,
+            background: activeMetricCard === 'outlet' ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)' : T.cardBg,
+            border: `1px solid ${activeMetricCard === 'outlet' ? T.accentGreen : T.border}`,
             borderRadius: '12px', padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s ease'
           }}
         >
-          <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>OUTLET RESTORAN</span>
-            <Building2 size={13} color="#6366f1" />
+            <Building2 size={13} color={T.accentGreen} />
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#a78bfa', marginTop: '4px' }}>{allOutlets.length} Cabang</div>
-          <div style={{ fontSize: '0.64rem', color: '#34d399', fontWeight: '700', marginTop: '4px' }}>● 100% Beroperasi</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.accentGreen, marginTop: '4px' }}>{allOutlets.length} Cabang</div>
+          <div style={{ fontSize: '0.64rem', color: T.success, fontWeight: '700', marginTop: '4px' }}>● 100% Beroperasi</div>
         </div>
 
       </div>
@@ -447,17 +447,17 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
       {/* ------------------------------------------------------------- */}
       {/* NEW SECTION: GRAFIK PENJUALAN WITH OUTLET & TANGGAL FILTERS   */}
       {/* ------------------------------------------------------------- */}
-      <div style={{ background: '#111625', border: '1px solid #1e293b', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h3 style={{ fontSize: '1.0rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <TrendingUp size={20} color="#22c55e" />
+            <h3 style={{ fontSize: '1.0rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={20} color={T.success} />
               <span>Grafik Penjualan Restoran</span>
-              <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '6px', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: '800' }}>
+              <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '6px', background: 'rgba(34, 197, 94, 0.15)', color: T.success, border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: '800' }}>
                 REAL-TIME ANALYTICS
               </span>
             </h3>
-            <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+            <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: '4px 0 0 0' }}>
               Grafik pertumbuhan omzet harian berdasarkan filter cabang outlet dan periode tanggal
             </p>
           </div>
@@ -467,11 +467,11 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             
             {/* 1. FILTER NAMA OUTLET */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Building2 size={15} color="#94a3b8" />
+              <Building2 size={15} color={T.txtSecondary} />
               <select
                 value={salesChartOutlet}
                 onChange={e => setSalesChartOutlet(e.target.value)}
-                style={{ padding: '6px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 <option value="ALL">🏢 Semua Outlet Restoran</option>
                 {allOutlets.map(o => (
@@ -482,11 +482,11 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
 
             {/* 2. FILTER TANGGAL / PERIODE */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={15} color="#94a3b8" />
+              <Calendar size={15} color={T.txtSecondary} />
               <select
                 value={salesChartPeriod}
                 onChange={e => setSalesChartPeriod(e.target.value)}
-                style={{ padding: '6px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 <option value="7days">🗓 7 Hari Terakhir</option>
                 <option value="today">📅 Hari Ini ({todayStr})</option>
@@ -497,36 +497,36 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
 
             {/* CUSTOM TANGGAL RANGE INPUTS */}
             {salesChartPeriod === 'custom' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0f172a', padding: '4px 8px', borderRadius: '8px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '4px 8px', borderRadius: '8px', border: `1px solid ${T.borderStrong}` }}>
                 <input
                   type="date"
                   value={salesChartStartDate}
                   onChange={e => setSalesChartStartDate(e.target.value)}
-                  style={{ padding: '4px 8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.74rem' }}
+                  style={{ padding: '4px 8px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem' }}
                 />
-                <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700' }}>s/d</span>
+                <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>s/d</span>
                 <input
                   type="date"
                   value={salesChartEndDate}
                   onChange={e => setSalesChartEndDate(e.target.value)}
-                  style={{ padding: '4px 8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: '#ffffff', fontSize: '0.74rem' }}
+                  style={{ padding: '4px 8px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem' }}
                 />
               </div>
             )}
 
             {/* CHART TYPE TOGGLE */}
-            <div style={{ background: '#1e293b', padding: '3px', borderRadius: '8px', border: '1px solid #334155', display: 'flex', gap: '2px' }}>
+            <div style={{ background: T.inputBg, padding: '3px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', gap: '2px' }}>
               <button
                 type="button"
                 onClick={() => setSalesChartType('area')}
-                style={{ padding: '4px 10px', background: salesChartType === 'area' ? '#22c55e' : 'transparent', color: salesChartType === 'area' ? '#0f172a' : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '4px 10px', background: salesChartType === 'area' ? T.success : 'transparent', color: salesChartType === 'area' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 📈 Trend Area
               </button>
               <button
                 type="button"
                 onClick={() => setSalesChartType('bar')}
-                style={{ padding: '4px 10px', background: salesChartType === 'bar' ? '#22c55e' : 'transparent', color: salesChartType === 'bar' ? '#0f172a' : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '4px 10px', background: salesChartType === 'bar' ? T.success : 'transparent', color: salesChartType === 'bar' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 📊 Bar Chart
               </button>
@@ -537,17 +537,17 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
 
         {/* SUMMARY KPI METRICS FOR SELECTED FILTER */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '10px', padding: '10px 14px' }}>
-            <span style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase' }}>TOTAL PENJUALAN (PERIODE TERPILIH)</span>
-            <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#22c55e', marginTop: '2px' }}>{formatRupiah(totalSalesPeriod)}</div>
+          <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '10px', padding: '10px 14px' }}>
+            <span style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>TOTAL PENJUALAN (PERIODE TERPILIH)</span>
+            <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(totalSalesPeriod)}</div>
           </div>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '10px', padding: '10px 14px' }}>
-            <span style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase' }}>RATA-RATA OMZET / HARI</span>
-            <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#38bdf8', marginTop: '2px' }}>{formatRupiah(avgSalesPerDay)}</div>
+          <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '10px', padding: '10px 14px' }}>
+            <span style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>RATA-RATA OMZET / HARI</span>
+            <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>{formatRupiah(avgSalesPerDay)}</div>
           </div>
-          <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '10px', padding: '10px 14px' }}>
-            <span style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase' }}>TOTAL TRANSAKSI (NOTA)</span>
-            <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#a855f7', marginTop: '2px' }}>{totalTxPeriod} Transaksi</div>
+          <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '10px', padding: '10px 14px' }}>
+            <span style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>TOTAL TRANSAKSI (NOTA)</span>
+            <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.accentGreen, marginTop: '2px' }}>{totalTxPeriod} Transaksi</div>
           </div>
         </div>
 
@@ -562,11 +562,11 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                     <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
+                <XAxis dataKey="date" stroke={T.txtMuted} fontSize={11} tickLine={false} />
+                <YAxis stroke={T.txtMuted} fontSize={11} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
                 <Tooltip 
-                  contentStyle={{ background: '#1e293b', border: '1px solid #22c55e', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem' }} 
+                  contentStyle={{ background: T.tooltipBg, border: `1px solid ${T.tooltipBorder}`, borderRadius: '8px', color: T.tooltipColor, fontSize: '0.76rem' }} 
                   formatter={(val) => formatRupiah(val)}
                   labelFormatter={(lbl, items) => {
                     const item = items && items[0] ? items[0].payload : null;
@@ -577,11 +577,11 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
               </AreaChart>
             ) : (
               <BarChart data={salesTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
+                <XAxis dataKey="date" stroke={T.txtMuted} fontSize={11} tickLine={false} />
+                <YAxis stroke={T.txtMuted} fontSize={11} tickLine={false} tickFormatter={(val) => `${val / 1000}k`} />
                 <Tooltip 
-                  contentStyle={{ background: '#1e293b', border: '1px solid #22c55e', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem' }} 
+                  contentStyle={{ background: T.tooltipBg, border: `1px solid ${T.tooltipBorder}`, borderRadius: '8px', color: T.tooltipColor, fontSize: '0.76rem' }} 
                   formatter={(val) => formatRupiah(val)}
                   labelFormatter={(lbl, items) => {
                     const item = items && items[0] ? items[0].payload : null;
@@ -598,43 +598,43 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
       {/* ------------------------------------------------------------- */}
       {/* 2. CARD 1: OMZET BULAN LALU VS OMZET BERJALAN BULAN INI         */}
       {/* ------------------------------------------------------------- */}
-      <div style={{ background: '#111625', border: '1px solid #1e293b', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <h3 style={{ fontSize: '0.92rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <BarChart3 size={18} color="#38bdf8" />
+            <h3 style={{ fontSize: '0.92rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BarChart3 size={18} color={T.info} />
               <span>Perbandingan Omzet Bulan Lalu vs Omzet Berjalan Bulan Ini per Outlet</span>
             </h3>
-            <p style={{ fontSize: '0.74rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+            <p style={{ fontSize: '0.74rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
               Bandingkan akumulasi pertumbuhan omzet bulan sebelumnya dengan bulan berjalan.
             </p>
           </div>
 
           {/* Controls (Chart Type + Branch Selector) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ background: '#1e293b', padding: '3px', borderRadius: '8px', border: '1px solid #334155', display: 'flex', gap: '2px' }}>
+            <div style={{ background: T.inputBg, padding: '3px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', gap: '2px' }}>
               <button
                 type="button"
                 onClick={() => setOmzetChartType('bar')}
-                style={{ padding: '4px 10px', background: omzetChartType === 'bar' ? '#38bdf8' : 'transparent', color: omzetChartType === 'bar' ? '#0f172a' : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '4px 10px', background: omzetChartType === 'bar' ? T.info : 'transparent', color: omzetChartType === 'bar' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 📊 Bar
               </button>
               <button
                 type="button"
                 onClick={() => setOmzetChartType('area')}
-                style={{ padding: '4px 10px', background: omzetChartType === 'area' ? '#38bdf8' : 'transparent', color: omzetChartType === 'area' ? '#0f172a' : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '4px 10px', background: omzetChartType === 'area' ? T.info : 'transparent', color: omzetChartType === 'area' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 📈 Trend
               </button>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Filter size={14} color="#94a3b8" />
+              <Filter size={14} color={T.txtSecondary} />
               <select
                 value={omzetFilterBranch}
                 onChange={e => setOmzetFilterBranch(e.target.value)}
-                style={{ padding: '6px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 <option value="ALL">🏢 Semua Outlet Restoran</option>
                 {allOutlets.map(o => (
@@ -650,11 +650,11 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
           <ResponsiveContainer width="100%" height="100%">
             {omzetChartType === 'bar' ? (
               <BarChart data={omzetCompData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem' }} formatter={(val) => formatRupiah(val)} />
-                <Legend wrapperStyle={{ fontSize: '0.72rem', color: '#cbd5e1' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
+                <XAxis dataKey="name" stroke={T.txtMuted} fontSize={11} tickLine={false} />
+                <YAxis stroke={T.txtMuted} fontSize={11} tickLine={false} />
+                <Tooltip contentStyle={{ background: T.tooltipBg, border: `1px solid ${T.tooltipBorder}`, borderRadius: '8px', color: T.tooltipColor, fontSize: '0.76rem' }} formatter={(val) => formatRupiah(val)} />
+                <Legend wrapperStyle={{ fontSize: '0.72rem', color: T.txtPrimary }} />
                 <Bar dataKey="omzetBulanLalu" name="Omzet Bulan Lalu" fill="#64748b" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="omzetBulanIni" name="Omzet Berjalan Bulan Ini" fill="#38bdf8" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -666,10 +666,10 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                     <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem' }} formatter={(val) => formatRupiah(val)} />
+                <CartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
+                <XAxis dataKey="name" stroke={T.txtMuted} fontSize={11} tickLine={false} />
+                <YAxis stroke={T.txtMuted} fontSize={11} tickLine={false} />
+                <Tooltip contentStyle={{ background: T.tooltipBg, border: `1px solid ${T.tooltipBorder}`, borderRadius: '8px', color: T.tooltipColor, fontSize: '0.76rem' }} formatter={(val) => formatRupiah(val)} />
                 <Area type="monotone" dataKey="omzetBulanIni" name="Omzet Berjalan Bulan Ini" stroke="#38bdf8" fillOpacity={1} fill="url(#colorIni)" />
               </AreaChart>
             )}
@@ -677,10 +677,10 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         </div>
 
         {/* Data Table Omzet Comparison */}
-        <div style={{ border: '1px solid #334155', borderRadius: '10px', overflow: 'hidden', background: '#0f172a' }}>
+        <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '10px', overflow: 'hidden', background: T.cardBg2 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+              <tr style={{ background: T.tableHeaderBg, color: T.txtPrimary, textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
                 <th style={{ padding: '9px 12px' }}>Nama Outlet</th>
                 <th style={{ padding: '9px 12px', textAlign: 'right' }}>Omzet Bulan Lalu</th>
                 <th style={{ padding: '9px 12px', textAlign: 'right' }}>Omzet Berjalan Bulan Ini</th>
@@ -691,17 +691,17 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             <tbody>
               {omzetCompData.map(d => (
                 <tr key={d.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ padding: '8px 12px', fontWeight: '800', color: '#ffffff' }}>📍 {d.name}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(d.omzetBulanLalu)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(d.omzetBulanIni)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: d.diff >= 0 ? '#22c55e' : '#ef4444' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: '800', color: T.txtPrimary }}>📍 {d.name}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: T.txtSecondary }}>{formatRupiah(d.omzetBulanLalu)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: T.info }}>{formatRupiah(d.omzetBulanIni)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: d.diff >= 0 ? T.success : T.danger }}>
                     {d.diff >= 0 ? '+' : ''}{formatRupiah(d.diff)}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                     <span style={{
                       padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
                       background: d.growth >= 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                      color: d.growth >= 0 ? '#22c55e' : '#ef4444',
+                      color: d.growth >= 0 ? T.success : T.danger,
                       border: `1px solid ${d.growth >= 0 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
                     }}>
                       {d.growth >= 0 ? `▲ +${d.growth}%` : `▼ ${d.growth}%`}
@@ -720,14 +720,14 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '14px' }}>
         
         {/* CARD: PERBANDINGAN HARGA BAHAN BAKU PER OUTLET */}
-        <div style={{ background: '#111625', border: '1px solid #1e293b', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
             <div>
-              <h3 style={{ fontSize: '0.90rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Package size={18} color="#f59e0b" />
+              <h3 style={{ fontSize: '0.90rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Package size={18} color={T.accentGold} />
                 <span>Perbandingan Harga Bahan Baku per Outlet</span>
               </h3>
-              <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '2px 0 0 0' }}>Deteksi disparitas harga beli supplier antar cabang outlet</p>
+              <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>Deteksi disparitas harga beli supplier antar cabang outlet</p>
             </div>
 
             {/* Filters */}
@@ -735,7 +735,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
               <select
                 value={ingredientTimeRange}
                 onChange={e => setIngredientTimeRange(e.target.value)}
-                style={{ padding: '6px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '6px 10px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 <option value="bulan_ini">🗓 Bulan Ini</option>
                 <option value="minggu_ini">📆 Minggu Ini</option>
@@ -745,7 +745,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
               <select
                 value={selectedIngredientCategory}
                 onChange={e => setSelectedIngredientCategory(e.target.value)}
-                style={{ padding: '6px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ padding: '6px 10px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 <option value="ALL">📦 Semua Bahan Baku</option>
                 <option value="Ayam">🍗 Ayam</option>
@@ -759,27 +759,27 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '230px', overflowY: 'auto' }}>
             {ingredientComparisonList.length === 0 ? (
-              <div style={{ background: '#0f172a', border: '1px dashed #334155', borderRadius: '10px', padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.78rem' }}>
+              <div style={{ background: T.cardBg2, border: '1px dashed #334155', borderRadius: '10px', padding: '24px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.78rem' }}>
                 📦 Belum ada data bahan baku terdaftar. Tambahkan bahan baku baru di menu <strong>Data Master &gt; Bahan Baku</strong>.
               </div>
             ) : (
               ingredientComparisonList.map((ing, idx) => (
-                <div key={idx} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div key={idx} style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.80rem', fontWeight: '800', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ color: '#f59e0b' }}>📦 {ing.name}</span>
-                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', background: '#1e293b', padding: '2px 8px', borderRadius: '6px' }}>per {ing.unit}</span>
+                    <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: T.accentGold }}>📦 {ing.name}</span>
+                      <span style={{ fontSize: '0.68rem', color: T.txtSecondary, background: T.inputBg, padding: '2px 8px', borderRadius: '6px' }}>per {ing.unit}</span>
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: ing.disparity > 2000 ? '#ef4444' : '#34d399', fontWeight: '800' }}>
+                    <div style={{ fontSize: '0.72rem', color: ing.disparity > 2000 ? T.danger : T.success, fontWeight: '800' }}>
                       {ing.disparity > 2000 ? `⚠️ Selisih Harga: ${formatRupiah(ing.disparity)}` : '✅ Harga Stabil'}
                     </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', fontSize: '0.70rem' }}>
                     {ing.outletPrices.map((op, oIdx) => (
-                      <div key={oIdx} style={{ background: '#1e293b', padding: '5px 8px', borderRadius: '6px', textAlign: 'center', border: op.price === ing.maxPrice && ing.disparity > 2000 ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.05)' }}>
-                        <div style={{ color: '#cbd5e1', fontSize: '0.64rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{op.outletName}</div>
-                        <div style={{ fontWeight: '800', color: op.price === ing.maxPrice && ing.disparity > 2000 ? '#ef4444' : '#38bdf8', marginTop: '2px' }}>
+                      <div key={oIdx} style={{ background: T.inputBg, padding: '5px 8px', borderRadius: '6px', textAlign: 'center', border: op.price === ing.maxPrice && ing.disparity > 2000 ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ color: T.txtPrimary, fontSize: '0.64rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{op.outletName}</div>
+                        <div style={{ fontWeight: '800', color: op.price === ing.maxPrice && ing.disparity > 2000 ? T.danger : T.info, marginTop: '2px' }}>
                           {formatRupiah(op.price)}
                         </div>
                       </div>
@@ -796,25 +796,25 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
       {/* ------------------------------------------------------------- */}
       {/* 4. CARD 4: PERHITUNGAN & PERBANDINGAN HPP (COGS) TIAP OUTLET   */}
       {/* ------------------------------------------------------------- */}
-      <div style={{ background: '#111625', border: '1px solid #1e293b', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <h3 style={{ fontSize: '0.92rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Percent size={18} color="#ef4444" />
+            <h3 style={{ fontSize: '0.92rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Percent size={18} color={T.danger} />
               <span>Perhitungan &amp; Perbandingan HPP (Cost of Goods Sold) Tiap Outlet</span>
             </h3>
-            <p style={{ fontSize: '0.74rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+            <p style={{ fontSize: '0.74rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
               Analisis persentase HPP makanan/minuman terhadap omzet dengan batas ideal maksimum 60%.
             </p>
           </div>
 
           {/* Time Range Filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={14} color="#94a3b8" />
+            <Calendar size={14} color={T.txtSecondary} />
             <select
               value={hppTimeRange}
               onChange={e => setHppTimeRange(e.target.value)}
-              style={{ padding: '6px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
+              style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
             >
               <option value="bulan_ini">🗓 Bulan Ini (MTD)</option>
               <option value="hari_ini">📅 Hari Ini</option>
@@ -828,10 +828,10 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         <div style={{ width: '100%', height: '170px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={hppComparisonList} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
-              <YAxis stroke="#64748b" fontSize={11} tickLine={false} unit="%" />
-              <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #ef4444', borderRadius: '8px', color: '#ffffff', fontSize: '0.76rem' }} formatter={(val) => `${val}%`} />
+              <CartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
+              <XAxis dataKey="name" stroke={T.txtMuted} fontSize={11} tickLine={false} />
+              <YAxis stroke={T.txtMuted} fontSize={11} tickLine={false} unit="%" />
+              <Tooltip contentStyle={{ background: T.tooltipBg, border: `1px solid ${T.tooltipBorder}`, borderRadius: '8px', color: T.tooltipColor, fontSize: '0.76rem' }} formatter={(val) => `${val}%`} />
               <Bar dataKey="hppPct" name="Realisasi HPP (%)" fill="#ef4444" radius={[4, 4, 0, 0]} />
               <Bar dataKey="targetPct" name="Target Ideal HPP Max (60%)" fill="#22c55e" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -839,10 +839,10 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         </div>
 
         {/* Table HPP Breakdown */}
-        <div style={{ border: '1px solid #334155', borderRadius: '10px', overflow: 'hidden', background: '#0f172a' }}>
+        <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '10px', overflow: 'hidden', background: T.cardBg2 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+              <tr style={{ background: T.tableHeaderBg, color: T.txtPrimary, textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
                 <th style={{ padding: '9px 12px' }}>Nama Outlet Restoran</th>
                 <th style={{ padding: '9px 12px', textAlign: 'right' }}>Total Omzet Penjualan</th>
                 <th style={{ padding: '9px 12px', textAlign: 'right' }}>Total Nominal HPP</th>
@@ -854,16 +854,16 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             <tbody>
               {hppComparisonList.map(h => (
                 <tr key={h.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ padding: '8px 12px', fontWeight: '800', color: '#ffffff' }}>📍 {h.name}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', color: '#cbd5e1' }}>{formatRupiah(h.revenue)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: '#ef4444' }}>{formatRupiah(h.hppAmount)}</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '900', color: h.isOverBudget ? '#ef4444' : '#22c55e' }}>{h.hppPct}%</td>
-                  <td style={{ padding: '8px 12px', textAlign: 'center', color: '#22c55e', fontWeight: '700' }}>60.0%</td>
+                  <td style={{ padding: '8px 12px', fontWeight: '800', color: T.txtPrimary }}>📍 {h.name}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(h.revenue)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: T.danger }}>{formatRupiah(h.hppAmount)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '900', color: h.isOverBudget ? T.danger : T.success }}>{h.hppPct}%</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'center', color: T.success, fontWeight: '700' }}>60.0%</td>
                   <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                     <span style={{
                       padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
                       background: h.isOverBudget ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                      color: h.isOverBudget ? '#ef4444' : '#22c55e',
+                      color: h.isOverBudget ? T.danger : T.success,
                       border: `1px solid ${h.isOverBudget ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`
                     }}>
                       {h.isOverBudget ? '⚠️ Over Budget' : '✅ Aman / Ideal'}
@@ -879,14 +879,14 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
       {/* ------------------------------------------------------------- */}
       {/* 5. RIWAYAT TRANSAKSI HARIAN TERBARU                           */}
       {/* ------------------------------------------------------------- */}
-      <div style={{ background: '#111625', border: '1px solid #1e293b', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div>
-            <h3 style={{ fontSize: '0.90rem', fontWeight: '800', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={18} color="#a78bfa" />
+            <h3 style={{ fontSize: '0.90rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={18} color={T.accentGreen} />
               <span>Feed Transaksi Kasir &amp; Pengeluaran Harian Terkini</span>
             </h3>
-            <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: '2px 0 0 0' }}>Log masukan dan pengeluaran terverifikasi dari seluruh cabang</p>
+            <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>Log masukan dan pengeluaran terverifikasi dari seluruh cabang</p>
           </div>
 
           {/* Filter Type Buttons */}
@@ -894,31 +894,31 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             <button
               type="button"
               onClick={() => setTxTypeFilter('ALL')}
-              style={{ padding: '4px 10px', background: txTypeFilter === 'ALL' ? '#334155' : 'transparent', color: '#ffffff', border: '1px solid #334155', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+              style={{ padding: '4px 10px', background: txTypeFilter === 'ALL' ? T.borderStrong : 'transparent', color: T.txtPrimary, border: `1px solid ${T.borderStrong}`, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
             >
               Semua Tipe
             </button>
             <button
               type="button"
               onClick={() => setTxTypeFilter('income')}
-              style={{ padding: '4px 10px', background: txTypeFilter === 'income' ? 'rgba(34,197,94,0.2)' : 'transparent', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+              style={{ padding: '4px 10px', background: txTypeFilter === 'income' ? 'rgba(34,197,94,0.2)' : 'transparent', color: T.success, border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
             >
               📈 Pemasukan
             </button>
             <button
               type="button"
               onClick={() => setTxTypeFilter('expense')}
-              style={{ padding: '4px 10px', background: txTypeFilter === 'expense' ? 'rgba(239,68,68,0.2)' : 'transparent', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
+              style={{ padding: '4px 10px', background: txTypeFilter === 'expense' ? 'rgba(239,68,68,0.2)' : 'transparent', color: T.danger, border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
             >
               📉 Pengeluaran
             </button>
           </div>
         </div>
 
-        <div style={{ border: '1px solid #334155', borderRadius: '10px', overflow: 'hidden', background: '#0f172a' }}>
+        <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '10px', overflow: 'hidden', background: T.cardBg2 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: '#1e293b', color: '#cbd5e1', fontSize: '0.70rem', textTransform: 'uppercase', fontWeight: '800' }}>
+              <tr style={{ background: T.tableHeaderBg, color: T.txtPrimary, fontSize: '0.70rem', textTransform: 'uppercase', fontWeight: '800' }}>
                 <th style={{ padding: '9px 12px' }}>Tanggal</th>
                 <th style={{ padding: '9px 12px' }}>Outlet Restoran</th>
                 <th style={{ padding: '9px 12px' }}>Tipe</th>
@@ -931,9 +931,9 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             <tbody>
               {filteredRecentTx && filteredRecentTx.length > 0 ? (
                 filteredRecentTx.slice(0, 6).map((tx) => (
-                  <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', color: '#f8fafc' }}>
-                    <td style={{ padding: '8px 12px', color: '#cbd5e1', fontSize: '0.76rem' }}>{tx.date}</td>
-                    <td style={{ padding: '8px 12px', fontWeight: '700', color: '#ffffff' }}>📍 {tx.branch_name}</td>
+                  <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', color: T.txtPrimary }}>
+                    <td style={{ padding: '8px 12px', color: T.txtPrimary, fontSize: '0.76rem' }}>{tx.date}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: '700', color: T.txtPrimary }}>📍 {tx.branch_name}</td>
                     <td style={{ padding: '8px 12px' }}>
                       <span style={{
                         padding: '3px 8px',
@@ -941,22 +941,22 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                         fontSize: '0.70rem',
                         fontWeight: '800',
                         background: tx.type === 'income' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                        color: tx.type === 'income' ? '#22c55e' : '#ef4444',
+                        color: tx.type === 'income' ? T.success : T.danger,
                         border: `1px solid ${tx.type === 'income' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
                       }}>
                         {tx.type === 'income' ? '📈 Pemasukan' : '📉 Pengeluaran'}
                       </span>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <div style={{ fontWeight: '700', color: '#38bdf8' }}>{tx.category}</div>
-                      <div style={{ fontSize: '0.70rem', color: '#94a3b8' }}>{tx.description}</div>
+                      <div style={{ fontWeight: '700', color: T.info }}>{tx.category}</div>
+                      <div style={{ fontSize: '0.70rem', color: T.txtSecondary }}>{tx.description}</div>
                     </td>
-                    <td style={{ padding: '8px 12px', color: '#cbd5e1', fontSize: '0.76rem' }}>💳 {tx.payment_method}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: tx.type === 'income' ? '#22c55e' : '#ef4444' }}>
+                    <td style={{ padding: '8px 12px', color: T.txtPrimary, fontSize: '0.76rem' }}>💳 {tx.payment_method}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: tx.type === 'income' ? T.success : T.danger }}>
                       {tx.type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                      <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800' }}>
+                      <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: T.success, border: '1px solid rgba(34, 197, 94, 0.3)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800' }}>
                         ✓ Terverifikasi
                       </span>
                     </td>
@@ -964,7 +964,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} style={{ padding: '18px', textAlign: 'center', color: '#64748b', fontSize: '0.78rem' }}>
+                  <td colSpan={7} style={{ padding: '18px', textAlign: 'center', color: T.txtMuted, fontSize: '0.78rem' }}>
                     Belum ada transaksi harian tercatat untuk filter ini.
                   </td>
                 </tr>
@@ -991,32 +991,32 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(99,102,241,0.6)' }}>
-              <Bot size={28} color="#ffffff" />
+              <Bot size={28} color={T.txtPrimary} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#ffffff', margin: 0, letterSpacing: '-0.01em' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '-0.01em' }}>
                   Analisis Keuangan by AI (Antigravity Financial Agent)
                 </h3>
-                <span style={{ padding: '2px 8px', borderRadius: '12px', background: 'rgba(52, 211, 153, 0.2)', color: '#34d399', border: '1px solid #34d399', fontSize: '0.68rem', fontWeight: '900', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ padding: '2px 8px', borderRadius: '12px', background: 'rgba(52, 211, 153, 0.2)', color: T.success, border: '1px solid #34d399', fontSize: '0.68rem', fontWeight: '900', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   <Sparkles size={11} /> AI ONLINE
                 </span>
               </div>
-              <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: '3px 0 0 0' }}>
+              <p style={{ fontSize: '0.78rem', color: T.txtPrimary, margin: '3px 0 0 0' }}>
                 Wawasan cerdas berbasis AI mengenai kesehatan omzet, kontrol HPP, dan rekomendasi efisiensi operasional.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-              Diperbarui: <strong style={{ color: '#818cf8' }}>{aiAnalysisTime}</strong>
+            <span style={{ fontSize: '0.72rem', color: T.txtSecondary }}>
+              Diperbarui: <strong style={{ color: T.accentGreen }}>{aiAnalysisTime}</strong>
             </span>
             <button
               type="button"
               onClick={handleRunAiAnalysis}
               className="btn-emerald"
-              style={{ padding: '9px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', border: 'none' }}
+              style={{ padding: '9px 16px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: T.txtPrimary, border: 'none' }}
             >
               <RefreshCw size={14} className={isAnalyzingAI ? "animate-spin" : ""} />
               <span>Jalankan Analisis AI Terbaru</span>
@@ -1028,30 +1028,30 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         <div style={{ background: 'rgba(15, 23, 42, 0.7)', padding: '16px 20px', borderRadius: '14px', border: '1px solid rgba(129, 140, 248, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ background: 'rgba(52, 211, 153, 0.15)', border: '1px solid #34d399', padding: '10px 16px', borderRadius: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase' }}>SKOR KESEHATAN AI</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#34d399', marginTop: '2px' }}>94 / 100</div>
+              <div style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>SKOR KESEHATAN AI</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>94 / 100</div>
             </div>
             <div>
-              <div style={{ fontSize: '0.94rem', fontWeight: '900', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Award size={18} color="#34d399" />
+              <div style={{ fontSize: '0.94rem', fontWeight: '900', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Award size={18} color={T.success} />
                 <span>Kondisi Keuangan Multi-Restoran: Sangat Sehat &amp; Profitabel</span>
               </div>
-              <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '3px 0 0 0' }}>
-                Omzet harian terkonfirmasi positif ({formatRupiah(todayIncome)}) dengan margin laba bersih rata-rata <strong style={{ color: '#38bdf8' }}>{todayMargin}%</strong> across {allOutlets.length} cabang outlet.
+              <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
+                Omzet harian terkonfirmasi positif ({formatRupiah(todayIncome)}) dengan margin laba bersih rata-rata <strong style={{ color: T.info }}>{todayMargin}%</strong> across {allOutlets.length} cabang outlet.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <div style={{ background: '#1e293b', padding: '8px 14px', borderRadius: '10px', border: '1px solid #334155', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.66rem', color: '#94a3b8', display: 'block', fontWeight: '700' }}>DISPARITAS BAHAN</span>
-              <span style={{ fontSize: '0.88rem', fontWeight: '900', color: ingredientComparisonList.some(i => i.disparity > 2000) ? '#ef4444' : '#34d399' }}>
+            <div style={{ background: T.inputBg, padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, textAlign: 'center' }}>
+              <span style={{ fontSize: '0.66rem', color: T.txtSecondary, display: 'block', fontWeight: '700' }}>DISPARITAS BAHAN</span>
+              <span style={{ fontSize: '0.88rem', fontWeight: '900', color: ingredientComparisonList.some(i => i.disparity > 2000) ? T.danger : T.success }}>
                 {ingredientComparisonList.some(i => i.disparity > 2000) ? '⚠️ Terdeteksi' : '✅ Terkendali'}
               </span>
             </div>
-            <div style={{ background: '#1e293b', padding: '8px 14px', borderRadius: '10px', border: '1px solid #334155', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.66rem', color: '#94a3b8', display: 'block', fontWeight: '700' }}>RASIO COGS / HPP</span>
-              <span style={{ fontSize: '0.88rem', fontWeight: '900', color: hppComparisonList.some(h => h.isOverBudget) ? '#ef4444' : '#34d399' }}>
+            <div style={{ background: T.inputBg, padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, textAlign: 'center' }}>
+              <span style={{ fontSize: '0.66rem', color: T.txtSecondary, display: 'block', fontWeight: '700' }}>RASIO COGS / HPP</span>
+              <span style={{ fontSize: '0.88rem', fontWeight: '900', color: hppComparisonList.some(h => h.isOverBudget) ? T.danger : T.success }}>
                 {hppComparisonList.some(h => h.isOverBudget) ? '⚠️ Alert Over' : '✅ Ideal < 60%'}
               </span>
             </div>
@@ -1064,20 +1064,20 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
           {/* Insight 1: Analisis Omzet & Jam Sibuk */}
           <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(56, 189, 248, 0.15)', color: T.info }}>
                 <TrendingUp size={20} />
               </div>
               <div>
-                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                   📈 Proyeksi Pertumbuhan &amp; Tren Omzet
                 </h4>
-                <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>Evaluasi Tren Penjualan Kasir POS</span>
+                <span style={{ fontSize: '0.70rem', color: T.txtSecondary }}>Evaluasi Tren Penjualan Kasir POS</span>
               </div>
             </div>
-            <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-              Penjualan cabang menunjukkan performa stabil pada jam makan siang (11:30 - 14:00) dan malam (18:30 - 21:00). Proyeksi omzet hingga akhir bulan diperkirakan tumbuh <strong style={{ color: '#34d399' }}>+14.5%</strong> dibandingkan periode bulan lalu.
+            <p style={{ fontSize: '0.78rem', color: T.txtPrimary, margin: 0, lineHeight: '1.45' }}>
+              Penjualan cabang menunjukkan performa stabil pada jam makan siang (11:30 - 14:00) dan malam (18:30 - 21:00). Proyeksi omzet hingga akhir bulan diperkirakan tumbuh <strong style={{ color: T.success }}>+14.5%</strong> dibandingkan periode bulan lalu.
             </p>
-            <div style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: '800', background: 'rgba(56, 189, 248, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '0.72rem', color: T.info, fontWeight: '800', background: 'rgba(56, 189, 248, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Zap size={13} />
               <span>Saran AI: Tingkatkan stok bahan mentah pada hari Jumat-Minggu untuk mengantisipasi lonjakan order.</span>
             </div>
@@ -1086,24 +1086,24 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
           {/* Insight 2: Deteksi Disparitas Supplier & HPP */}
           <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', color: T.danger }}>
                 <ShieldAlert size={20} />
               </div>
               <div>
-                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                   ⚠️ Kontrol Disparitas Harga Beli &amp; Efisiensi HPP
                 </h4>
-                <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>Analisis Selisih Harga Supplier Antar Outlet</span>
+                <span style={{ fontSize: '0.70rem', color: T.txtSecondary }}>Analisis Selisih Harga Supplier Antar Outlet</span>
               </div>
             </div>
-            <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
+            <p style={{ fontSize: '0.78rem', color: T.txtPrimary, margin: 0, lineHeight: '1.45' }}>
               {ingredientComparisonList.some(i => i.disparity > 2000) ? (
-                <>Terdeteksi disparitas harga bahan mentah (seperti <strong style={{ color: '#f59e0b' }}>{ingredientComparisonList.find(i => i.disparity > 2000)?.name || 'Bahan Utama'}</strong>) antar cabang outlet dengan selisih hingga <strong style={{ color: '#ef4444' }}>{formatRupiah(ingredientComparisonList.find(i => i.disparity > 2000)?.disparity || 3000)}</strong>.</>
+                <>Terdeteksi disparitas harga bahan mentah (seperti <strong style={{ color: T.accentGold }}>{ingredientComparisonList.find(i => i.disparity > 2000)?.name || 'Bahan Utama'}</strong>) antar cabang outlet dengan selisih hingga <strong style={{ color: T.danger }}>{formatRupiah(ingredientComparisonList.find(i => i.disparity > 2000)?.disparity || 3000)}</strong>.</>
               ) : (
                 <>Disparitas harga beli bahan mentah antar cabang terkendali baik di bawah ambang batas toleransi.</>
               )}
             </p>
-            <div style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: '800', background: 'rgba(239, 68, 68, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '0.72rem', color: T.danger, fontWeight: '800', background: 'rgba(239, 68, 68, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <AlertTriangle size={13} />
               <span>Saran AI: Lakukan konsolidasi pengadaan bahan mentah dari 1 supplier terpusat untuk menjaga HPP di bawah 60%.</span>
             </div>
@@ -1112,20 +1112,20 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
           {/* Insight 3: Optimasi Menu Margin Tinggi */}
           <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(168, 85, 247, 0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', color: '#a855f7' }}>
+              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.15)', color: T.accentGreen }}>
                 <Lightbulb size={20} />
               </div>
               <div>
-                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                   💡 Rekomendasi Menu &amp; Margin Keuntungan
                 </h4>
-                <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>Strategi Upselling &amp; Bundling Produk</span>
+                <span style={{ fontSize: '0.70rem', color: T.txtSecondary }}>Strategi Upselling &amp; Bundling Produk</span>
               </div>
             </div>
-            <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-              Menu kategori Minuman &amp; Dessert memiliki margin keuntungan bersih tertinggi mencapai <strong style={{ color: '#34d399' }}>68% - 75%</strong>. Mendorong promosi bundling makanan utama dengan minuman khas dapat mendongkrak *Average Bill* harian.
+            <p style={{ fontSize: '0.78rem', color: T.txtPrimary, margin: 0, lineHeight: '1.45' }}>
+              Menu kategori Minuman &amp; Dessert memiliki margin keuntungan bersih tertinggi mencapai <strong style={{ color: T.success }}>68% - 75%</strong>. Mendorong promosi bundling makanan utama dengan minuman khas dapat mendongkrak *Average Bill* harian.
             </p>
-            <div style={{ fontSize: '0.72rem', color: '#a855f7', fontWeight: '800', background: 'rgba(168, 85, 247, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '0.72rem', color: T.accentGreen, fontWeight: '800', background: 'rgba(168, 85, 247, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Sparkles size={13} />
               <span>Saran AI: Buat Paket Combo Hemat di POS Kasir untuk menaikkan Average Bill dari {formatRupiah(todayAvgBill)} ke {formatRupiah(todayAvgBill * 1.2)}.</span>
             </div>
@@ -1134,20 +1134,20 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
           {/* Insight 4: Prediksi Restok & Alokasi Modal Kas */}
           <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '16px', borderRadius: '14px', border: '1px solid rgba(34, 197, 94, 0.3)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399' }}>
+              <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.15)', color: T.success }}>
                 <Activity size={20} />
               </div>
               <div>
-                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <h4 style={{ fontSize: '0.90rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                   ⚡ Prediksi Logistik &amp; Arus Kas Modal
                 </h4>
-                <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>Manajemen Kasir &amp; Stok Opname</span>
+                <span style={{ fontSize: '0.70rem', color: T.txtSecondary }}>Manajemen Kasir &amp; Stok Opname</span>
               </div>
             </div>
-            <p style={{ fontSize: '0.78rem', color: '#cbd5e1', margin: 0, lineHeight: '1.45' }}>
-              Arus kas operasional kasir terpantau lancar. Uang modal awal kasir terdistribusi rata Rp 2.000.000 / outlet dengan tingkat rekonsiliasi kasir fisik mencapai <strong style={{ color: '#38bdf8' }}>99.2% akurat</strong>.
+            <p style={{ fontSize: '0.78rem', color: T.txtPrimary, margin: 0, lineHeight: '1.45' }}>
+              Arus kas operasional kasir terpantau lancar. Uang modal awal kasir terdistribusi rata Rp 2.000.000 / outlet dengan tingkat rekonsiliasi kasir fisik mencapai <strong style={{ color: T.info }}>99.2% akurat</strong>.
             </p>
-            <div style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: '800', background: 'rgba(34, 197, 94, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '0.72rem', color: T.success, fontWeight: '800', background: 'rgba(34, 197, 94, 0.1)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <CheckCircle2 size={13} />
               <span>Saran AI: Pertahankan jadwal Audit Stock Opname rutin 2x seminggu untuk mencegah kebocoran barang rusak.</span>
             </div>
@@ -1156,9 +1156,9 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
         </div>
 
         {/* Interactive Prompt Query / Ask AI Quick Buttons */}
-        <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <span style={{ fontSize: '0.76rem', color: '#94a3b8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <HelpCircle size={14} color="#818cf8" />
+        <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '12px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <span style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <HelpCircle size={14} color={T.accentGreen} />
             <span>Tanyakan Analisis Spesifik pada Antigravity AI Agent:</span>
           </span>
 
@@ -1166,21 +1166,21 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             <button
               type="button"
               onClick={() => setAiActiveQuestion('hpp')}
-              style={{ padding: '6px 12px', background: aiActiveQuestion === 'hpp' ? 'rgba(99,102,241,0.3)' : '#1e293b', border: `1px solid ${aiActiveQuestion === 'hpp' ? '#818cf8' : '#334155'}`, borderRadius: '8px', color: '#ffffff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+              style={{ padding: '6px 12px', background: aiActiveQuestion === 'hpp' ? 'rgba(99,102,241,0.3)' : T.border, border: `1px solid ${aiActiveQuestion === 'hpp' ? T.accentGreen : T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
             >
               💡 "Bagaimana cara menjaga HPP di bawah 60%?"
             </button>
             <button
               type="button"
               onClick={() => setAiActiveQuestion('outlet')}
-              style={{ padding: '6px 12px', background: aiActiveQuestion === 'outlet' ? 'rgba(99,102,241,0.3)' : '#1e293b', border: `1px solid ${aiActiveQuestion === 'outlet' ? '#818cf8' : '#334155'}`, borderRadius: '8px', color: '#ffffff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+              style={{ padding: '6px 12px', background: aiActiveQuestion === 'outlet' ? 'rgba(99,102,241,0.3)' : T.border, border: `1px solid ${aiActiveQuestion === 'outlet' ? T.accentGreen : T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
             >
               📈 "Outlet mana dengan rasio profit paling tinggi?"
             </button>
             <button
               type="button"
               onClick={() => setAiActiveQuestion('disparity')}
-              style={{ padding: '6px 12px', background: aiActiveQuestion === 'disparity' ? 'rgba(99,102,241,0.3)' : '#1e293b', border: `1px solid ${aiActiveQuestion === 'disparity' ? '#818cf8' : '#334155'}`, borderRadius: '8px', color: '#ffffff', fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+              style={{ padding: '6px 12px', background: aiActiveQuestion === 'disparity' ? 'rgba(99,102,241,0.3)' : T.border, border: `1px solid ${aiActiveQuestion === 'disparity' ? T.accentGreen : T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
             >
               ⚠️ "Bahan baku apa yang mengalami selisih harga terbesar?"
             </button>
@@ -1188,10 +1188,10 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
 
           {/* Interactive Answer Box */}
           {aiActiveQuestion && (
-            <div style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid #818cf8', padding: '12px 14px', borderRadius: '10px', fontSize: '0.78rem', color: '#f8fafc', marginTop: '4px', lineHeight: '1.5' }}>
+            <div style={{ background: 'rgba(99, 102, 241, 0.1)', border: '1px solid #818cf8', padding: '12px 14px', borderRadius: '10px', fontSize: '0.78rem', color: T.txtPrimary, marginTop: '4px', lineHeight: '1.5' }}>
               {aiActiveQuestion === 'hpp' && (
                 <div>
-                  <strong style={{ color: '#818cf8', display: 'block', marginBottom: '4px' }}>🤖 Analisis AI - Cara Menjaga HPP di bawah 60%:</strong>
+                  <strong style={{ color: T.accentGreen, display: 'block', marginBottom: '4px' }}>🤖 Analisis AI - Cara Menjaga HPP di bawah 60%:</strong>
                   1. Lakukan audit resep porsi (*Yield Test*) secara berkala.<br/>
                   2. Buat kontrak pembelian terpusat (*Central Procurement*) untuk mendapatkan harga grosir supplier.<br/>
                   3. Atasi pemborosan (*waste*) bahan makanan dengan sistem FIFO pada stok dapur.
@@ -1199,14 +1199,14 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
               )}
               {aiActiveQuestion === 'outlet' && (
                 <div>
-                  <strong style={{ color: '#818cf8', display: 'block', marginBottom: '4px' }}>🤖 Analisis AI - Rasio Profit Outlet Tertinggi:</strong>
+                  <strong style={{ color: T.accentGreen, display: 'block', marginBottom: '4px' }}>🤖 Analisis AI - Rasio Profit Outlet Tertinggi:</strong>
                   Restoran Utama menduduki peringkat pertama dengan margin efisiensi operasional tertinggi. Disertai pengelolaan stok opname yang tepat waktu tanpa kehilangan bahan baku.
                 </div>
               )}
               {aiActiveQuestion === 'disparity' && (
                 <div>
-                  <strong style={{ color: '#818cf8', display: 'block', marginBottom: '4px' }}>🤖 Analisis AI - Disparitas Harga Bahan Baku:</strong>
-                  Bahan baku kategori <strong style={{ color: '#f59e0b' }}>Ayam &amp; Daging</strong> tercatat memiliki variasi harga terbelinya antar cabang outlet. Disarankan menyamakan vendor supplier resmi Restoran.
+                  <strong style={{ color: T.accentGreen, display: 'block', marginBottom: '4px' }}>🤖 Analisis AI - Disparitas Harga Bahan Baku:</strong>
+                  Bahan baku kategori <strong style={{ color: T.accentGold }}>Ayam &amp; Daging</strong> tercatat memiliki variasi harga terbelinya antar cabang outlet. Disarankan menyamakan vendor supplier resmi Restoran.
                 </div>
               )}
             </div>

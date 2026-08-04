@@ -591,9 +591,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   const getSelisihStatus = (sistem, fisik) => {
-    if (sistem === fisik) return { text: 'Pas', color: '#34d399', bg: 'rgba(52, 211, 153, 0.15)', border: 'rgba(52, 211, 153, 0.3)' };
-    if (sistem > fisik) return { text: 'SOP tidak berjalan', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.3)' };
-    return { text: 'Kehilangan', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)', border: 'rgba(244, 63, 94, 0.3)' };
+    if (sistem === fisik) return { text: 'Pas', color: T.success, bg: 'rgba(52, 211, 153, 0.15)', border: 'rgba(52, 211, 153, 0.3)' };
+    if (sistem > fisik) return { text: 'SOP tidak berjalan', color: T.accentGold, bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.3)' };
+    return { text: 'Kehilangan', color: T.danger, bg: 'rgba(244, 63, 94, 0.15)', border: 'rgba(244, 63, 94, 0.3)' };
   };
 
   const getItemPriceFromStokMasuk = (itemName) => {
@@ -1979,7 +1979,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           <td>${m.unit}</td>
           <td>${formatRupiah(m.price_unit)}</td>
           <td><b>${formatRupiah(m.total_price)}</b></td>
-          <td><span style="text-transform:uppercase; font-size:10px; font-weight:bold; color:${m.type_input === 'manual' ? '#818cf8' : '#f59e0b'}">${m.type_input || 'by kasir'}</span></td>
+          <td><span style="text-transform:uppercase; font-size:10px; font-weight:bold; color:${m.type_input === 'manual' ? T.info : T.accentGold}">${m.type_input || 'by kasir'}</span></td>
         </tr>
       `).join('');
     } else if (activeSubTab === 'stok_keluar') {
@@ -1990,9 +1990,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           <td>🏢 ${getOutletName(d.outletId)}</td>
           <td><b>${d.itemName}</b></td>
           <td>${d.itemType}</td>
-          <td style="color: #ef4444; font-weight: bold;">-${Math.abs(d.qty).toFixed(1)}</td>
+          <td style="color: ${T.danger}; font-weight: bold;">-${Math.abs(d.qty).toFixed(1)}</td>
           <td>${d.unit}</td>
-          <td style="color: #10b981; font-weight: bold;">${formatRupiah(d.cogsValue)}</td>
+          <td style="color: ${T.success}; font-weight: bold;">${formatRupiah(d.cogsValue)}</td>
           <td>${d.status}</td>
         </tr>
       `).join('');
@@ -2001,15 +2001,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         <tr>
           <td>${t.date}</td>
           <td>${t.created_by || 'Admin'}</td>
-          <td><span style="text-transform:uppercase; font-size:10px; font-weight:bold; color:${t.type_input === 'manual' ? '#818cf8' : '#f59e0b'}">${t.type_input || 'by approval'}</span></td>
+          <td><span style="text-transform:uppercase; font-size:10px; font-weight:bold; color:${t.type_input === 'manual' ? T.info : T.accentGold}">${t.type_input || 'by approval'}</span></td>
           <td>🏢 ${getOutletName(t.from_outlet_id)}</td>
           <td>🏢 ${getOutletName(t.to_outlet_id)}</td>
           <td><b>${t.item_name}</b></td>
           <td>${t.qty}</td>
           <td>${t.unit}</td>
-          <td><span style="font-weight: bold; color: ${t.status === 'Terkirim' ? '#10b981' : '#f59e0b'}">${t.status}</span></td>
+          <td><span style="font-weight: bold; color: ${t.status === 'Terkirim' ? T.success : T.accentGold}">${t.status}</span></td>
           <td>${t.notes}</td>
-          <td><span style="font-weight: bold; color: ${t.is_returned ? '#10b981' : '#ef4444'}">${t.is_returned ? 'Sudah Kembali' : 'Belum Kembali'}</span></td>
+          <td><span style="font-weight: bold; color: ${t.is_returned ? T.success : T.danger}">${t.is_returned ? 'Sudah Kembali' : 'Belum Kembali'}</span></td>
         </tr>
       `).join('');
     } else if (activeSubTab === 'stok_rusak') {
@@ -2017,10 +2017,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         <tr>
           <td>${m.date}</td>
           <td>${m.created_by || 'Admin'}</td>
-          <td><span style="text-transform:uppercase; font-size:10px; font-weight:bold; color:${m.type_input === 'manual' ? '#818cf8' : '#f59e0b'}">${m.type_input || 'by approval'}</span></td>
+          <td><span style="text-transform:uppercase; font-size:10px; font-weight:bold; color:${m.type_input === 'manual' ? T.info : T.accentGold}">${m.type_input || 'by approval'}</span></td>
           <td>🏢 ${getOutletName(m.outlet_id)}</td>
           <td><b>${m.item_name}</b></td>
-          <td style="color: #ef4444; font-weight: bold;">-${m.qty}</td>
+          <td style="color: ${T.danger}; font-weight: bold;">-${m.qty}</td>
           <td>${m.unit}</td>
           <td>${m.notes}</td>
         </tr>
@@ -2033,12 +2033,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           <td><b>${op.itemName}</b></td>
           <td>${op.unit}</td>
           <td>${op.stokAwal}</td>
-          <td style="color: #38bdf8; font-weight: bold;">+${op.stokMasuk}</td>
-          <td style="color: #fb7185; font-weight: bold;">-${op.stokKeluar}</td>
-          <td style="color: #34d399; font-weight: bold;">+${op.transferIn}</td>
-          <td style="color: #fb7185; font-weight: bold;">-${op.transferOut}</td>
-          <td style="color: #fb7185; font-weight: bold;">-${op.stokRusak}</td>
-          <td style="color: #34d399; font-weight: bold; font-size: 1.05em;">${op.sisaStokSystem.toFixed(1)} ${op.unit}</td>
+          <td style="color: ${T.info}; font-weight: bold;">+${op.stokMasuk}</td>
+          <td style="color: ${T.danger}; font-weight: bold;">-${op.stokKeluar}</td>
+          <td style="color: ${T.success}; font-weight: bold;">+${op.transferIn}</td>
+          <td style="color: ${T.danger}; font-weight: bold;">-${op.transferOut}</td>
+          <td style="color: ${T.danger}; font-weight: bold;">-${op.stokRusak}</td>
+          <td style="color: ${T.success}; font-weight: bold; font-size: 1.05em;">${op.sisaStokSystem.toFixed(1)} ${op.unit}</td>
         </tr>
       `).join('');
     } else if (activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname') {
@@ -2059,10 +2059,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             <td>-${op.transfer_keluar || 0}</td>
             <td>-${op.stok_rusak || 0}</td>
             <td><b>${sSistem}</b></td>
-            <td style="color: #10b981; font-weight: bold;">${op.stok_fisik || 0}</td>
-            <td><span style="font-weight: bold; color: ${sSistem === op.stok_fisik ? '#10b981' : sSistem > op.stok_fisik ? '#f59e0b' : '#ef4444'}">${statusText} (${diffVal > 0 ? `+${diffVal}` : diffVal === 0 ? '0' : `-${Math.abs(diffVal)}`})</span></td>
+            <td style="color: ${T.success}; font-weight: bold;">${op.stok_fisik || 0}</td>
+            <td><span style="font-weight: bold; color: ${sSistem === op.stok_fisik ? T.success : sSistem > op.stok_fisik ? T.accentGold : T.danger}">${statusText} (${diffVal > 0 ? `+${diffVal}` : diffVal === 0 ? '0' : `-${Math.abs(diffVal)}`})</span></td>
             <td>${formatRupiah(activePrice)}</td>
-            <td style="font-weight: bold; color: ${dendaVal > 0 ? '#ef4444' : '#64748b'}">${dendaVal > 0 ? formatRupiah(dendaVal) : '-'}</td>
+            <td style="font-weight: bold; color: ${dendaVal > 0 ? T.danger : T.txtMuted}">${dendaVal > 0 ? formatRupiah(dendaVal) : '-'}</td>
             <td>${op.notes || '-'}</td>
           </tr>
         `;
@@ -2074,7 +2074,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         const priceCells = outlets.map(o => {
           const prc = item.prices?.[o.id] || 0;
           const isHighest = prc === maxP && maxP > 0 && prices.some(p => p < maxP);
-          return `<td style="${isHighest ? 'color: #ef4444; font-weight: bold; background-color: #fee2e2;' : ''}">${formatRupiah(prc)}${isHighest ? ' 🔴 (Tertinggi)' : ''}</td>`;
+          return `<td style="${isHighest ? 'color: ${T.danger}; font-weight: bold; background-color: #fee2e2;' : ''}">${formatRupiah(prc)}${isHighest ? ' 🔴 (Tertinggi)' : ''}</td>`;
         }).join('');
         return `
           <tr>
@@ -2094,11 +2094,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: #1e293b; }
-            h2 { color: #0f172a; margin-bottom: 4px; }
-            p { font-size: 14px; color: #64748b; margin-top: 0; }
+            body { font-family: sans-serif; padding: 20px; color: ${T.txtPrimary}; }
+            h2 { color: ${T.txtPrimary}; margin-bottom: 4px; }
+            p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 11px; }
+            th, td { border: 1px solid ${T.border}; padding: 8px; text-align: left; font-size: 11px; }
             th { background-color: #f1f5f9; text-transform: uppercase; font-size: 10px; }
           </style>
         </head>
@@ -2275,24 +2275,24 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               style={{
                 fontSize: '0.8rem',
                 padding: '8px 12px',
-                borderColor: logShowColumnDropdown ? '#fbbf24' : 'rgba(255,255,255,0.1)',
-                background: logShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : '#1e293b',
-                color: logShowColumnDropdown ? '#fbbf24' : '#cbd5e1',
+                borderColor: logShowColumnDropdown ? T.accentGold : T.border,
+                background: logShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : T.border,
+                color: logShowColumnDropdown ? T.accentGold : T.txtPrimary,
                 height: '40px'
               }}
             >
-              <SlidersHorizontal size={15} color="#fbbf24" />
+              <SlidersHorizontal size={15} color={T.accentGold} />
               <span>👁️ Filter Kolom Ditampilkan</span>
               <ChevronDown size={14} style={{ transform: logShowColumnDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
             </button>
 
             {/* Export options */}
-            <button onClick={handleDownloadExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#34d399', borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
+            <button onClick={handleDownloadExcel} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.3)', height: '40px' }}>
               <FileSpreadsheet size={15} />
               <span>Download Excel</span>
             </button>
 
-            <button onClick={handleDownloadPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#fb7185', borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
+            <button onClick={handleDownloadPDF} className="btn-secondary" style={{ padding: '8px 12px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.3)', height: '40px' }}>
               <Printer size={15} />
               <span>Download PDF</span>
             </button>
@@ -2301,18 +2301,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
         {/* COLUMN VISIBILITY PANEL */}
         {logShowColumnDropdown && (
-          <div className="glass-card animate-fade-in" style={{ padding: '16px', border: '1px solid #fbbf24', background: '#1e293b', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '8px' }}>
-              <div style={{ fontWeight: '800', color: '#f8fafc', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <SlidersHorizontal size={16} color="#fbbf24" />
+          <div className="glass-card animate-fade-in" style={{ padding: '16px', border: `1px solid ${T.accentGold}`, background: T.cardBg, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '8px' }}>
+              <div style={{ fontWeight: '800', color: T.txtPrimary, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <SlidersHorizontal size={16} color={T.accentGold} />
                 <span>Pilih Kolom Tabel yang Ingin Ditampilkan</span>
               </div>
-              <button onClick={() => setLogShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '800', fontSize: '0.9rem' }}>
+              <button onClick={() => setLogShowColumnDropdown(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontWeight: '800', fontSize: '0.9rem' }}>
                 ✕ Tutup
               </button>
             </div>
             
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', background: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', background: T.cardBg2, padding: '12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
               {Object.keys(getActiveVisibleCols()).map(key => (
                 <label key={key} style={{
                   display: 'flex',
@@ -2320,19 +2320,19 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   gap: '6px',
                   cursor: 'pointer',
                   fontSize: '0.8rem',
-                  color: getActiveVisibleCols()[key] ? '#fbbf24' : '#cbd5e1',
+                  color: getActiveVisibleCols()[key] ? T.accentGold : T.txtPrimary,
                   fontWeight: getActiveVisibleCols()[key] ? '700' : '500',
-                  background: getActiveVisibleCols()[key] ? 'rgba(251, 191, 36, 0.12)' : '#1e293b',
+                  background: getActiveVisibleCols()[key] ? 'rgba(251, 191, 36, 0.12)' : T.border,
                   padding: '6px 12px',
                   borderRadius: '6px',
                   border: '1px solid',
-                  borderColor: getActiveVisibleCols()[key] ? '#fbbf24' : '#334155'
+                  borderColor: getActiveVisibleCols()[key] ? T.accentGold : T.border
                 }}>
                   <input
                     type="checkbox"
                     checked={getActiveVisibleCols()[key]}
                     onChange={() => handleToggleColumnVisibility(key)}
-                    style={{ accentColor: '#fbbf24' }}
+                    style={{ accentColor: T.accentGold }}
                   />
                   <span>
                     {key === 'date' ? '📅 Tanggal' : 
@@ -2386,7 +2386,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             { id: 'transfer_stok',     label: 'Transfer Stok',       icon: '🚚', color: T.accentGold },
             { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',  icon: '⚠️', color: T.danger },
             { id: 'stok_opname_system',label: 'Opname by Sistem',    icon: '🤖', color: T.success },
-            { id: 'stok_opname_report',label: 'Opname Report Outlet',icon: '📱', color: '#a78bfa' }
+            { id: 'stok_opname_report',label: 'Opname Report Outlet',icon: '📱', color: `${T.info}` }
           ].map(tab => {
             const isActive = activeSubTab === tab.id;
             return (
@@ -2427,15 +2427,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         {/* SUBTAB 1: STOK MASUK */}
         {activeSubTab === 'stok_masuk' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ArrowDownRight size={18} color="#38bdf8" />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ArrowDownRight size={18} color={T.info} />
               <span>Log Mutasi Masuk (Stock Inflow Receivings)</span>
             </h3>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
@@ -2451,7 +2451,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     if (paginatedMasuk.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                          <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
                             📭 Tidak ada log stok masuk untuk outlet / tanggal terpilih.
                           </td>
                         </tr>
@@ -2463,21 +2463,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isWebAdminInput = m.type_input === 'manual' || m.type_input === 'by laporan keuangan (ACC)';
 
                       return (
-                        <tr key={m.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={m.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
                           {/* 1. TANGGAL */}
-                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                          <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{m.date}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {getOutletName(m.outlet_id)}</div>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>📍 {getOutletName(m.outlet_id)}</div>
                           </td>
 
                           {/* 2. NO LAPORAN */}
                           <td style={{ padding: '14px 16px' }}>
-                            <div style={{ color: '#38bdf8', fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ color: T.info, fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span>{m.report_no || m.id}</span>
-                              <Eye size={14} color="#38bdf8" />
+                              <Eye size={14} color={T.info} />
                             </div>
-                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
-                              Bahan: <strong style={{ color: '#f8fafc' }}>{m.item_name}</strong> &bull; Qty: <strong style={{ color: '#34d399' }}>+{m.qty} {m.unit}</strong> &bull; Total: <strong style={{ color: '#38bdf8' }}>{formatRupiah(m.total_price || (m.qty * (m.price_unit || 0)))}</strong>
+                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
+                              Bahan: <strong style={{ color: T.txtPrimary }}>{m.item_name}</strong> &bull; Qty: <strong style={{ color: T.success }}>+{m.qty} {m.unit}</strong> &bull; Total: <strong style={{ color: T.info }}>{formatRupiah(m.total_price || (m.qty * (m.price_unit || 0)))}</strong>
                             </div>
                           </td>
 
@@ -2489,12 +2489,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               fontSize: '0.78rem',
                               fontWeight: '800',
                               background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
-                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
+                              color: isWebAdminInput ? T.info : T.info,
+                              border: isWebAdminInput ? `1px solid ${T.info}` : `1px solid ${T.info}`
                             }}>
                               {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
                             </span>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{m.created_by || 'Admin Logistik'}</div>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px' }}>{m.created_by || 'Admin Logistik'}</div>
                           </td>
 
                           {/* 4. STATUS */}
@@ -2503,8 +2503,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               padding: '6px 12px',
                               borderRadius: '8px',
                               background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isDone ? '#22c55e' : '#f59e0b'}`,
-                              color: isDone ? '#4ade80' : '#fbbf24',
+                              border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
+                              color: isDone ? T.success : T.accentGold,
                               fontWeight: '900',
                               fontSize: '0.78rem',
                               display: 'inline-flex',
@@ -2521,7 +2521,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <button
                               onClick={() => handleDeleteRecord(m.id, 'stok_masuk', m.report_no || m.id)}
                               style={{
-                                padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                                padding: '6px 10px', background: T.cardBg2, border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: T.danger, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
                               }}
                               title="Hapus Log Stok Masuk"
                             >
@@ -2553,11 +2553,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ArrowUpRight size={18} color="#fb7185" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ArrowUpRight size={18} color={T.danger} />
                   <span>Log Mutasi Keluar Penjualan POS (Autoconsumption Stock Deductions)</span>
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '2px' }}>
                   Pemotongan stok bahan baku otomatis dari transaksi penjualan POS Kasir & penginputan transaksi penjualan manual.
                 </p>
               </div>
@@ -2585,8 +2585,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   setShowAddSalesModal(true);
                 }}
                 style={{
-                  padding: '8px 16px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  color: '#ffffff', border: 'none', borderRadius: '8px',
+                  padding: '8px 16px', background: `linear-gradient(135deg, ${T.info} 0%, #4f46e5 100%)`,
+                  color: T.txtPrimary, border: 'none', borderRadius: '8px',
                   fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: '6px',
                   boxShadow: '0 4px 12px rgba(99,102,241,0.3)'
@@ -2597,10 +2597,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </button>
             </div>
             
-            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+            <div style={{ width: '100%', overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO TRANSAKSI</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
@@ -2616,7 +2616,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     if (paginatedSales.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                          <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
                             📭 Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih. Klik "+ Tambahkan Transaksi Penjualan" di atas.
                           </td>
                         </tr>
@@ -2636,11 +2636,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                         : 'Bahan Baku';
 
                       return (
-                        <tr key={tx.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={tx.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
                           {/* 1. TANGGAL */}
-                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                          <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{tx.date}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {getOutletName(tx.outlet_id)}</div>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>📍 {getOutletName(tx.outlet_id)}</div>
                           </td>
 
                           {/* 2. NO TRANSAKSI */}
@@ -2648,16 +2648,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <button
                               type="button"
                               onClick={() => setPreviewOutflowModalData(tx)}
-                              style={{ background: 'none', border: 'none', padding: 0, color: '#818cf8', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                              style={{ background: 'none', border: 'none', padding: 0, color: T.info, fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
                               title="Klik untuk melihat pratinjau detail transaksi & bahan baku terpotong"
                             >
                               <span>{tx.receiptNo || tx.id}</span>
-                              <Eye size={14} color="#818cf8" />
+                              <Eye size={14} color={T.info} />
                             </button>
-                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
-                              Menu: <strong style={{ color: '#f8fafc' }}>{itemsSummary}</strong>
+                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
+                              Menu: <strong style={{ color: T.txtPrimary }}>{itemsSummary}</strong>
                             </div>
-                            <div style={{ fontSize: '0.72rem', color: '#fb7185', marginTop: '1px' }}>
+                            <div style={{ fontSize: '0.72rem', color: T.danger, marginTop: '1px' }}>
                               Bahan Terpotong: <strong>{ingredientsSummary}</strong>
                             </div>
                           </td>
@@ -2670,12 +2670,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               fontSize: '0.78rem',
                               fontWeight: '800',
                               background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
-                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
+                              color: isWebAdminInput ? T.info : T.info,
+                              border: isWebAdminInput ? `1px solid ${T.info}` : `1px solid ${T.info}`
                             }}>
                               {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
                             </span>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{tx.created_by || 'Kasir'}</div>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px' }}>{tx.created_by || 'Kasir'}</div>
                           </td>
 
                           {/* 4. STATUS */}
@@ -2684,8 +2684,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               padding: '6px 12px',
                               borderRadius: '8px',
                               background: isPaid ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isPaid ? '#22c55e' : '#f59e0b'}`,
-                              color: isPaid ? '#4ade80' : '#fbbf24',
+                              border: `1px solid ${isPaid ? `${T.success}` : T.accentGold}`,
+                              color: isPaid ? T.success : T.accentGold,
                               fontWeight: '900',
                               fontSize: '0.78rem',
                               display: 'inline-flex',
@@ -2702,14 +2702,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                               <button
                                 onClick={() => handleOpenEditOutflowModal(tx)}
-                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.info, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
                                 <Edit3 size={14} /> Edit
                               </button>
 
                               <button
                                 onClick={() => handleDeleteRecord(tx.id, 'stok_keluar', tx.receiptNo || tx.id)}
-                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '6px 10px', background: T.cardBg2, border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: T.danger, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
                                 <Trash2 size={14} /> Hapus
                               </button>
@@ -2738,15 +2738,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         {/* SUBTAB 3: TRANSFER STOK */}
         {activeSubTab === 'transfer_stok' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Truck size={18} color="#fbbf24" />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Truck size={18} color={T.accentGold} />
               <span>Log Transfer Stok Antar Cabang Restoran</span>
             </h3>
             
-            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+            <div style={{ width: '100%', overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
@@ -2757,7 +2757,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <tbody>
                   {getFilteredTransfer().length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
                         📭 Tidak ada log transfer stok untuk outlet terpilih.
                       </td>
                     </tr>
@@ -2767,11 +2767,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isWebAdminInput = t.type_input === 'manual';
 
                       return (
-                        <tr key={t.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={t.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
                           {/* 1. TANGGAL */}
-                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                          <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{t.date}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>
                               🔴 {getOutletName(t.from_outlet_id || t.fromOutletId, t.from_outlet_name)} ➔ 🟢 {getOutletName(t.to_outlet_id || t.toOutletId, t.to_outlet_name)}
                             </div>
                           </td>
@@ -2781,14 +2781,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <button
                               type="button"
                               onClick={() => setPreviewTransferModalData(t)}
-                              style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                              style={{ background: 'none', border: 'none', padding: 0, color: T.info, fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
                               title="Klik untuk melihat pratinjau detail laporan"
                             >
                               <span>{t.report_no || t.id}</span>
-                              <Eye size={14} color="#38bdf8" />
+                              <Eye size={14} color={T.info} />
                             </button>
-                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
-                              Item: <strong style={{ color: '#f8fafc' }}>{t.item_name}</strong> &bull; Qty: <strong style={{ color: '#c084fc' }}>{t.qty} {t.unit}</strong>
+                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
+                              Item: <strong style={{ color: T.txtPrimary }}>{t.item_name}</strong> &bull; Qty: <strong style={{ color: `${T.info}` }}>{t.qty} {t.unit}</strong>
                             </div>
                           </td>
 
@@ -2800,12 +2800,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               fontSize: '0.78rem',
                               fontWeight: '800',
                               background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
-                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
+                              color: isWebAdminInput ? T.info : T.info,
+                              border: isWebAdminInput ? `1px solid ${T.info}` : `1px solid ${T.info}`
                             }}>
                               {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
                             </span>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{t.created_by || t.submitted_by || 'Admin'}</div>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px' }}>{t.created_by || t.submitted_by || 'Admin'}</div>
                           </td>
 
                           {/* 4. STATUS */}
@@ -2814,8 +2814,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               padding: '6px 12px',
                               borderRadius: '8px',
                               background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? '#22c55e' : '#f59e0b'}`,
-                              color: isApproved ? '#4ade80' : '#fbbf24',
+                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                              color: isApproved ? T.success : T.accentGold,
                               fontWeight: '900',
                               fontSize: '0.78rem',
                               display: 'inline-flex',
@@ -2832,7 +2832,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                               <button
                                 onClick={() => handleOpenEditRecord(t, 'transfer')}
-                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.info, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
                                 <Edit3 size={14} /> Edit
                               </button>
@@ -2840,7 +2840,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               {!isApproved && (
                                 <button
                                   onClick={() => handleApproveTransferRecord(t)}
-                                  style={{ padding: '6px 10px', background: 'rgba(251, 191, 36, 0.2)', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fbbf24', fontWeight: '900', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  style={{ padding: '6px 10px', background: 'rgba(251, 191, 36, 0.2)', border: `1px solid ${T.accentGold}`, borderRadius: '6px', color: T.accentGold, fontWeight: '900', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                                   title="Setujui Laporan Transfer Stok"
                                 >
                                   <CheckCircle size={14} /> ACC
@@ -2849,7 +2849,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                               <button
                                 onClick={() => handleDeleteRecord(t.id, 'transfer_stok', t.report_no || t.id)}
-                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '6px 10px', background: T.cardBg2, border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: T.danger, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
                                 <Trash2 size={14} /> Hapus
                               </button>
@@ -2872,11 +2872,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Trash2 size={18} color="#f43f5e" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Trash2 size={18} color={T.danger} />
                   <span>Daftar Log Laporan Barang Rusak (Waste & Retur Bahan Baku)</span>
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '4px 0 0 0' }}>
                   Pencatatan waste, retur, expired, & kerusakan bahan baku terintegrasi dua arah dengan POS Mobile APK
                 </p>
               </div>
@@ -2896,8 +2896,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     setShowAddModal('rusak');
                   }}
                   style={{
-                    padding: '8px 16px', background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
-                    color: '#ffffff', border: 'none', borderRadius: '8px',
+                    padding: '8px 16px', background: `linear-gradient(135deg, ${T.danger} 0%, #e11d48 100%)`,
+                    color: T.txtPrimary, border: 'none', borderRadius: '8px',
                     fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: '6px',
                     boxShadow: '0 4px 12px rgba(244,63,94,0.3)'
@@ -2909,10 +2909,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
             </div>
             
-            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+            <div style={{ width: '100%', overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
@@ -2923,7 +2923,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <tbody>
                   {getFilteredRusak().length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
                         📭 Belum ada log laporan barang rusak / waste untuk outlet terpilih. Klik "+ Tambah Stok Rusak" untuk membuat laporan.
                       </td>
                     </tr>
@@ -2954,11 +2954,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                         : (m.alasan_rusak || m.reason || m.damage_reason || '-');
 
                       return (
-                        <tr key={m.id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={m.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
                           {/* 1. TANGGAL */}
-                          <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
+                          <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{m.date}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {getOutletName(m.outlet_id, m.branch_name)}</div>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>📍 {getOutletName(m.outlet_id, m.branch_name)}</div>
                           </td>
 
                           {/* 2. NO LAPORAN */}
@@ -2969,14 +2969,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 e.stopPropagation();
                                 setPreviewWasteModalData(m);
                               }}
-                              style={{ background: 'none', border: 'none', padding: 0, color: '#fb7185', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
+                              style={{ background: 'none', border: 'none', padding: 0, color: T.danger, fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px' }}
                               title="Klik untuk lihat pratinjau rincian barang rusak"
                             >
                               <span>{m.report_no || m.id}</span>
-                              <Eye size={14} color="#fb7185" />
+                              <Eye size={14} color={T.danger} />
                             </button>
-                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
-                              Bahan: <strong style={{ color: '#38bdf8' }}>{displayItemName}</strong> &bull; Qty: <strong style={{ color: '#fb7185' }}>{displayQty}</strong> &bull; Alasan: <strong style={{ color: '#fbbf24' }}>{displayReason}</strong>
+                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
+                              Bahan: <strong style={{ color: T.info }}>{displayItemName}</strong> &bull; Qty: <strong style={{ color: T.danger }}>{displayQty}</strong> &bull; Alasan: <strong style={{ color: T.accentGold }}>{displayReason}</strong>
                             </div>
                           </td>
 
@@ -2988,12 +2988,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               fontSize: '0.78rem',
                               fontWeight: '800',
                               background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                              color: isWebAdminInput ? '#38bdf8' : '#818cf8',
-                              border: isWebAdminInput ? '1px solid #38bdf8' : '1px solid #6366f1'
+                              color: isWebAdminInput ? T.info : T.info,
+                              border: isWebAdminInput ? `1px solid ${T.info}` : `1px solid ${T.info}`
                             }}>
                               {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
                             </span>
-                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{m.input_by || m.submitted_by || m.created_by || 'Admin Logistik'}</div>
+                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px' }}>{m.input_by || m.submitted_by || m.created_by || 'Admin Logistik'}</div>
                           </td>
 
                           {/* 4. STATUS */}
@@ -3002,8 +3002,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               padding: '6px 12px',
                               borderRadius: '8px',
                               background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? '#22c55e' : '#f59e0b'}`,
-                              color: isApproved ? '#4ade80' : '#fbbf24',
+                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                              color: isApproved ? T.success : T.accentGold,
                               fontWeight: '900',
                               fontSize: '0.78rem',
                               display: 'inline-flex',
@@ -3020,14 +3020,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                               <button
                                 onClick={() => handleOpenEditRecord(m, 'waste')}
-                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.info, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
                                 <Edit3 size={14} /> Edit
                               </button>
 
                               <button
                                 onClick={() => handleDeleteRecord(m.id, 'stok_rusak', m.report_no || m.id)}
-                                style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '6px 10px', background: T.cardBg2, border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: T.danger, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
                                 <Trash2 size={14} /> Hapus
                               </button>
@@ -3048,32 +3048,32 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CheckSquare size={18} color="#34d399" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckSquare size={18} color={T.success} />
                   <span>Stock Opname by Sistem (Perhitungan Otomatis Real-Time)</span>
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '4px 0 0 0' }}>
                   Sisa Stok by Sistem = (Stok Awal + Stok Masuk + Transfer Stok In) - (Stok Keluar + Transfer Stok Out + Stok Rusak)
                 </p>
               </div>
 
               {/* Summary Badges */}
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <div style={{ background: '#1e293b', border: '1px solid #334155', padding: '6px 14px', borderRadius: '10px', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: '700' }}>
-                  Total Record: <span style={{ color: '#38bdf8', fontWeight: '900' }}>{calculateStockOpnameBySystem().length}</span>
+                <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '6px 14px', borderRadius: '10px', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700' }}>
+                  Total Record: <span style={{ color: T.info, fontWeight: '900' }}>{calculateStockOpnameBySystem().length}</span>
                 </div>
-                <div style={{ background: '#1e293b', border: '1px solid #334155', padding: '6px 14px', borderRadius: '10px', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: '700' }}>
-                  Total Sisa Stok System: <span style={{ color: '#34d399', fontWeight: '900' }}>
+                <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, padding: '6px 14px', borderRadius: '10px', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700' }}>
+                  Total Sisa Stok System: <span style={{ color: T.success, fontWeight: '900' }}>
                     {calculateStockOpnameBySystem().reduce((sum, r) => sum + r.sisaStokSystem, 0).toFixed(1)}
                   </span>
                 </div>
               </div>
             </div>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '12px' }}>
+            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                  <tr style={{ background: T.cardBg2, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                     {visibleColsOpnameSystem.date && <th style={{ padding: '12px 10px' }}>📅 Tanggal</th>}
                     {visibleColsOpnameSystem.outletName && <th style={{ padding: '12px 10px' }}>🏢 Nama Outlet</th>}
                     {visibleColsOpnameSystem.itemName && <th style={{ padding: '12px 10px' }}>🥦 Nama Bahan Baku</th>}
@@ -3090,17 +3090,17 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <tbody>
                   {calculateStockOpnameBySystem().length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={11} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                         Tidak ada data stok opname by sistem untuk outlet / rentang tanggal terpilih.
                       </td>
                     </tr>
                   ) : (
                     calculateStockOpnameBySystem().map(row => (
-                      <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        {visibleColsOpnameSystem.date && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{row.date}</td>}
+                      <tr key={row.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
+                        {visibleColsOpnameSystem.date && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{row.date}</td>}
                         {visibleColsOpnameSystem.outletName && <td style={{ padding: '12px 10px', fontWeight: '700' }}>🏢 {row.outletName}</td>}
-                        {visibleColsOpnameSystem.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: '#38bdf8' }}>{row.itemName}</td>}
-                        {visibleColsOpnameSystem.unit && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{row.unit}</td>}
+                        {visibleColsOpnameSystem.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: T.info }}>{row.itemName}</td>}
+                        {visibleColsOpnameSystem.unit && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{row.unit}</td>}
 
                         {/* STOK AWAL (Editable manual override if needed) */}
                         {visibleColsOpnameSystem.stokAwal && (
@@ -3116,10 +3116,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                   width: '75px',
                                   padding: '4px 6px',
                                   textAlign: 'right',
-                                  background: row.hasManualOverride ? 'rgba(251, 191, 36, 0.15)' : '#0f172a',
-                                  border: `1px solid ${row.hasManualOverride ? '#fbbf24' : '#334155'}`,
+                                  background: row.hasManualOverride ? 'rgba(251, 191, 36, 0.15)' : T.cardBg2,
+                                  border: `1px solid ${row.hasManualOverride ? T.accentGold : T.border}`,
                                   borderRadius: '6px',
-                                  color: row.hasManualOverride ? '#fbbf24' : '#ffffff',
+                                  color: row.hasManualOverride ? T.accentGold : T.txtPrimary,
                                   fontWeight: '800',
                                   fontSize: '0.82rem'
                                 }}
@@ -3130,35 +3130,35 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                         {/* STOK MASUK */}
                         {visibleColsOpnameSystem.stokMasuk && (
-                          <td style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8', fontWeight: '700' }}>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', color: T.info, fontWeight: '700' }}>
                             +{row.stokMasuk}
                           </td>
                         )}
 
                         {/* STOK KELUAR */}
                         {visibleColsOpnameSystem.stokKeluar && (
-                          <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '700' }}>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', color: T.danger, fontWeight: '700' }}>
                             -{row.stokKeluar}
                           </td>
                         )}
 
                         {/* TRANSFER STOK IN */}
                         {visibleColsOpnameSystem.transferIn && (
-                          <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399', fontWeight: '700' }}>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', color: T.success, fontWeight: '700' }}>
                             +{row.transferIn}
                           </td>
                         )}
 
                         {/* TRANSFER STOK OUT */}
                         {visibleColsOpnameSystem.transferOut && (
-                          <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '700' }}>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', color: T.danger, fontWeight: '700' }}>
                             -{row.transferOut}
                           </td>
                         )}
 
                         {/* STOK RUSAK */}
                         {visibleColsOpnameSystem.stokRusak && (
-                          <td style={{ padding: '12px 10px', textAlign: 'right', color: '#f43f5e', fontWeight: '700' }}>
+                          <td style={{ padding: '12px 10px', textAlign: 'right', color: T.danger, fontWeight: '700' }}>
                             -{row.stokRusak}
                           </td>
                         )}
@@ -3171,9 +3171,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               borderRadius: '8px',
                               fontWeight: '900',
                               fontSize: '0.88rem',
-                              color: row.sisaStokSystem < 0 ? '#f43f5e' : '#34d399',
+                              color: row.sisaStokSystem < 0 ? T.danger : T.success,
                               background: row.sisaStokSystem < 0 ? 'rgba(244, 63, 94, 0.15)' : 'rgba(52, 211, 153, 0.18)',
-                              border: `1px solid ${row.sisaStokSystem < 0 ? '#f43f5e' : '#34d399'}`
+                              border: `1px solid ${row.sisaStokSystem < 0 ? T.danger : T.success}`
                             }}>
                               {row.sisaStokSystem.toFixed(1)} {row.unit}
                             </span>
@@ -3192,16 +3192,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         {(activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                <CheckSquare size={18} color="#34d399" />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <CheckSquare size={18} color={T.success} />
                 <span>Log Stock Opname (Hasil Audit Fisik Inventoris)</span>
               </h3>
               
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 {/* Total Denda Hari Ini (Per Hari) */}
-                <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '6px 14px', borderRadius: '10px', color: '#fb7185', fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '6px 14px', borderRadius: '10px', color: T.danger, fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>📅 Denda Hari Ini:</span>
-                  <span style={{ fontSize: '0.9rem', color: '#ffffff' }}>
+                  <span style={{ fontSize: '0.9rem', color: T.txtPrimary }}>
                     {formatRupiah(
                       getFilteredOpname().reduce((acc, op) => {
                         const todayStr = new Date().toISOString().split('T')[0];
@@ -3224,9 +3224,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 </div>
 
                 {/* Total Denda Per Stok (Filter) */}
-                <div style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 14px', borderRadius: '10px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 14px', borderRadius: '10px', color: T.info, fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>💸 Total Denda Per Stok (Filter):</span>
-                  <span style={{ fontSize: '0.9rem', color: '#ffffff' }}>
+                  <span style={{ fontSize: '0.9rem', color: T.txtPrimary }}>
                     {formatRupiah(
                       getFilteredOpname().reduce((acc, op) => {
                         const autoSalesKeluar = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
@@ -3248,10 +3248,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
             </div>
             
-            <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                  <tr style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                     {visibleColsOpname.date && <th style={{ padding: '12px 10px' }}>Tanggal Audit</th>}
                     {visibleColsOpname.createdBy && <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>}
                     {visibleColsOpname.outletId && <th style={{ padding: '12px 10px' }}>Outlet</th>}
@@ -3266,7 +3266,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     {visibleColsOpname.stokFisik && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Fisik</th>}
                     {visibleColsOpname.selisih && <th style={{ padding: '12px 10px', textAlign: 'center' }}>Analisis Selisih</th>}
                     {visibleColsOpname.hargaSatuan && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Harga Satuan</th>}
-                    {visibleColsOpname.dendaStok && <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>⚠️ Denda Per Stok</th>}
+                    {visibleColsOpname.dendaStok && <th style={{ padding: '12px 10px', textAlign: 'right', color: T.danger }}>⚠️ Denda Per Stok</th>}
                     {visibleColsOpname.notes && <th style={{ padding: '12px 10px' }}>Catatan</th>}
                     <th style={{ padding: '12px 10px', textAlign: 'center', width: '220px' }}>Aksi</th>
                   </tr>
@@ -3274,7 +3274,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <tbody>
                   {getFilteredOpname().length === 0 ? (
                     <tr>
-                      <td colSpan={17} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={17} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                         Tidak ada log stock opname untuk outlet terpilih.
                       </td>
                     </tr>
@@ -3294,32 +3294,32 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isACC = op.status === 'ACC' || op.status === 'ok' || op.status === 'approved';
                       
                       return (
-                        <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                          {visibleColsOpname.date && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{op.date}</td>}
+                        <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
+                          {visibleColsOpname.date && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{op.date}</td>}
                           {visibleColsOpname.createdBy && (
-                            <td style={{ padding: '12px 10px', color: '#cbd5e1', fontWeight: '600' }}>
+                            <td style={{ padding: '12px 10px', color: T.txtPrimary, fontWeight: '600' }}>
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span>👤 {op.created_by || op.submitted_by || 'Admin'}</span>
-                                <span style={{ fontSize: '0.7rem', color: isACC ? '#34d399' : '#fbbf24', textTransform: 'uppercase', fontWeight: '800' }}>
+                                <span style={{ fontSize: '0.7rem', color: isACC ? T.success : T.accentGold, textTransform: 'uppercase', fontWeight: '800' }}>
                                   {isACC ? '🟢 ACC' : '⏳ PENDING'}
                                 </span>
                               </div>
                             </td>
                           )}
                           {visibleColsOpname.outletId && <td style={{ padding: '12px 10px', fontWeight: '700' }}>🏢 {getOutletName(op.outlet_id)}</td>}
-                          {visibleColsOpname.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: '#34d399' }}>{op.item_name}</td>}
+                          {visibleColsOpname.itemName && <td style={{ padding: '12px 10px', fontWeight: '800', color: T.success }}>{op.item_name}</td>}
                           {visibleColsOpname.stokAwal && <td style={{ padding: '12px 10px', textAlign: 'right' }}>{op.stok_awal || 0}</td>}
-                          {visibleColsOpname.stokMasuk && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8' }}>+{op.stok_masuk || 0}</td>}
+                          {visibleColsOpname.stokMasuk && <td style={{ padding: '12px 10px', textAlign: 'right', color: T.info }}>+{op.stok_masuk || 0}</td>}
                           {visibleColsOpname.stokKeluar && (
-                            <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
+                            <td style={{ padding: '12px 10px', textAlign: 'right', color: T.danger, fontWeight: '800' }}>
                               -{currentStokKeluar}
                             </td>
                           )}
-                          {visibleColsOpname.transferMasuk && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399' }}>+{op.transfer_masuk || 0}</td>}
-                          {visibleColsOpname.transferKeluar && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>-{op.transfer_keluar || 0}</td>}
-                          {visibleColsOpname.stokRusak && <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>-{currentStokRusak}</td>}
+                          {visibleColsOpname.transferMasuk && <td style={{ padding: '12px 10px', textAlign: 'right', color: T.success }}>+{op.transfer_masuk || 0}</td>}
+                          {visibleColsOpname.transferKeluar && <td style={{ padding: '12px 10px', textAlign: 'right', color: T.danger }}>-{op.transfer_keluar || 0}</td>}
+                          {visibleColsOpname.stokRusak && <td style={{ padding: '12px 10px', textAlign: 'right', color: T.danger, fontWeight: '800' }}>-{currentStokRusak}</td>}
                           {visibleColsOpname.stokSistem && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '700' }}>{sSistem}</td>}
-                          {visibleColsOpname.stokFisik && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{op.stok_fisik || 0}</td>}
+                          {visibleColsOpname.stokFisik && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: T.success }}>{op.stok_fisik || 0}</td>}
                           {visibleColsOpname.selisih && (
                             <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                               <span style={{
@@ -3333,19 +3333,19 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           )}
                           {visibleColsOpname.hargaSatuan && <td style={{ padding: '12px 10px', textAlign: 'right' }}>{formatRupiah(activePrice)}</td>}
                           {visibleColsOpname.dendaStok && (
-                            <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: dendaVal > 0 ? '#fb7185' : '#64748b' }}>
+                            <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: dendaVal > 0 ? T.danger : T.txtMuted }}>
                               {dendaVal > 0 ? formatRupiah(dendaVal) : '-'}
                             </td>
                           )}
-                          {visibleColsOpname.notes && <td style={{ padding: '12px 10px', color: '#94a3b8' }}>{op.notes}</td>}
+                          {visibleColsOpname.notes && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{op.notes}</td>}
                           
                           {/* Aksi ACC & Kirim APK */}
                           <td style={{ padding: '12px 10px', display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                             {(op.sent_to_apk || op.status === 'Approved' || op.status === 'APPROVED') ? (
                               <span style={{
                                 background: 'rgba(52, 211, 153, 0.2)',
-                                color: '#34d399',
-                                border: '1px solid #34d399',
+                                color: T.success,
+                                border: `1px solid ${T.success}`,
                                 padding: '4px 10px',
                                 borderRadius: '6px',
                                 fontSize: '0.74rem',
@@ -3363,7 +3363,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                     onClick={() => handleApproveOpnameReport(op)}
                                     style={{
                                       background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                      border: 'none', color: '#ffffff', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                                      border: 'none', color: T.txtPrimary, padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
                                     }}
                                     title="ACC / Setujui Laporan & Hitung Otomatis Stok Keluar Penjualan"
                                   >
@@ -3371,7 +3371,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                     <span>ACC</span>
                                   </button>
                                 ) : (
-                                  <span style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.4)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800' }}>
+                                  <span style={{ background: 'rgba(52, 211, 153, 0.15)', color: T.success, border: '1px solid rgba(52, 211, 153, 0.4)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800' }}>
                                     ✅ ACC
                                   </span>
                                 )}
@@ -3380,9 +3380,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                   onClick={() => handleSendToMobileAPK(op.item_name, op)}
                                   disabled={!isACC}
                                   style={{
-                                    background: isACC ? 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)' : 'rgba(148, 163, 184, 0.1)',
+                                    background: isACC ? `linear-gradient(135deg, ${T.info} 0%, #0284c7 100%)` : 'rgba(148, 163, 184, 0.1)',
                                     border: `1px solid ${isACC ? 'rgba(56, 189, 248, 0.4)' : 'rgba(148, 163, 184, 0.2)'}`,
-                                    color: isACC ? '#ffffff' : '#64748b',
+                                    color: isACC ? T.txtPrimary : T.txtMuted,
                                     padding: '5px 12px', borderRadius: '6px',
                                     cursor: isACC ? 'pointer' : 'not-allowed',
                                     fontSize: '0.75rem', fontWeight: '900',
@@ -3400,7 +3400,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <button
                               onClick={() => handleDeleteRecord(op.id, 'stok_opname')}
                               style={{
-                                background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: '#f43f5e', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
+                                background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: T.danger, padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
                               }}
                               title="Hapus Record"
                             >
@@ -3422,17 +3422,17 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
       {showAddModal === 'masuk' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '920px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '920px', maxHeight: '90vh', overflowY: 'auto', border: `1px solid ${T.info}`, display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ArrowDownRight size={22} color="#38bdf8" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ArrowDownRight size={22} color={T.info} />
                 <span>Tambah Laporan Logistik Masuk Manual</span>
               </h3>
               <button 
                 onClick={() => handleAddRow()} 
                 className="btn-primary" 
-                style={{ padding: '8px 14px', fontSize: '0.78rem', background: '#38bdf8', color: '#0f172a' }}
+                style={{ padding: '8px 14px', fontSize: '0.78rem', background: T.info, color: T.cardBg2 }}
               >
                 <Plus size={14} />
                 <span>Tambahkan Item Baru</span>
@@ -3440,34 +3440,34 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             </div>
 
             {/* Global Header Inputs (Date, Outlet, Author) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', background: T.cardBg2, padding: '16px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Input</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tanggal Input</label>
                 <input 
                   type="date" 
                   value={manualDate} 
                   onChange={e => setManualDate(e.target.value)} 
-                  style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem' }} 
+                  style={{ padding: '8px 12px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem' }} 
                 />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Nama Outlet Cabang</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Nama Outlet Cabang</label>
                 <select 
                   value={manualOutletId} 
                   onChange={e => setManualOutletId(Number(e.target.value))} 
-                  style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}
+                  style={{ padding: '8px 12px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem', cursor: 'pointer' }}
                 >
                   {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh (Petugas)</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Dibuat Oleh (Petugas)</label>
                 <select 
                   value={manualCreatedBy} 
                   onChange={e => setManualCreatedBy(e.target.value)} 
-                  style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem', cursor: 'pointer' }}
+                  style={{ padding: '8px 12px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem', cursor: 'pointer' }}
                 >
                   {userRightsList.map(u => <option key={u.id} value={u.name}>{u.name} ({u.role})</option>)}
                 </select>
@@ -3476,7 +3476,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
             {/* Dynamic Rows Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 40px', gap: '10px', fontSize: '0.75rem', color: '#cbd5e1', fontWeight: '700', textTransform: 'uppercase', paddingBottom: '4px', borderBottom: '1px solid #334155' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 40px', gap: '10px', fontSize: '0.75rem', color: T.txtPrimary, fontWeight: '700', textTransform: 'uppercase', paddingBottom: '4px', borderBottom: `1px solid ${T.border}` }}>
                 <div>Nama Item / Cari</div>
                 <div>Supplier</div>
                 <div style={{ textAlign: 'right' }}>Jumlah (Qty)</div>
@@ -3517,7 +3517,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           }
                           setManualRows(updated);
                         }}
-                        style={{ padding: '8px 10px', background: '#1e293b', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem', width: '100%' }}
+                        style={{ padding: '8px 10px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem', width: '100%' }}
                       />
 
                       {row.showSuggestions && (
@@ -3528,8 +3528,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             left: 0,
                             right: 0,
                             zIndex: 999,
-                            background: '#0f172a',
-                            border: '1px solid #38bdf8',
+                            background: T.cardBg2,
+                            border: `1px solid ${T.info}`,
                             borderRadius: '6px',
                             maxHeight: '180px',
                             overflowY: 'auto',
@@ -3557,23 +3557,23 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                   padding: '8px 12px',
                                   cursor: 'pointer',
                                   fontSize: '0.80rem',
-                                  color: '#f8fafc',
-                                  borderBottom: '1px solid #1e293b',
+                                  color: T.txtPrimary,
+                                  borderBottom: `1px solid ${T.border}`,
                                   display: 'flex',
                                   justify: 'space-between',
                                   alignItems: 'center'
                                 }}
-                                onMouseOver={e => e.currentTarget.style.background = '#1e293b'}
-                                onMouseOut={e => e.currentTarget.style.background = '#0f172a'}
+                                onMouseOver={e => e.currentTarget.style.background = T.border}
+                                onMouseOut={e => e.currentTarget.style.background = T.cardBg2}
                               >
                                 <span style={{ fontWeight: '700' }}>{ing.name}</span>
-                                <span style={{ fontSize: '0.70rem', color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '2px 6px', borderRadius: '4px' }}>
+                                <span style={{ fontSize: '0.70rem', color: T.info, background: 'rgba(56,189,248,0.15)', padding: '2px 6px', borderRadius: '4px' }}>
                                   Satuan: {ing.unit || 'pcs'}
                                 </span>
                               </div>
                             ))}
                           {ingredientsList.filter(i => (i.name || '').toLowerCase().includes((row.searchQuery || '').toLowerCase())).length === 0 && (
-                            <div style={{ padding: '10px', fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
+                            <div style={{ padding: '10px', fontSize: '0.75rem', color: T.txtSecondary, textAlign: 'center' }}>
                               Tidak ada bahan baku yang cocok
                             </div>
                           )}
@@ -3585,7 +3585,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     <select
                       value={row.supplierId}
                       onChange={e => handleUpdateRow(idx, 'supplierId', Number(e.target.value))}
-                      style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', cursor: 'pointer' }}
+                      style={{ padding: '8px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '4px', color: T.txtPrimary, fontSize: '0.8rem', cursor: 'pointer' }}
                     >
                       {suppliersList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -3596,7 +3596,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       placeholder="Jumlah"
                       value={row.qty}
                       onChange={e => handleUpdateRow(idx, 'qty', e.target.value)}
-                      style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', textAlign: 'right' }}
+                      style={{ padding: '8px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '4px', color: T.txtPrimary, fontSize: '0.8rem', textAlign: 'right' }}
                     />
 
                     {/* Satuan (Auto-filled from selected ingredient) */}
@@ -3605,7 +3605,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       readOnly
                       placeholder="Satuan"
                       value={row.unit || ''}
-                      style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: row.unit ? '#34d399' : '#64748b', fontSize: '0.8rem', fontWeight: '700', textAlign: 'center' }}
+                      style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '4px', color: row.unit ? T.success : T.txtMuted, fontSize: '0.8rem', fontWeight: '700', textAlign: 'center' }}
                     />
 
                     {/* Price Unit */}
@@ -3614,11 +3614,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       placeholder="Harga"
                       value={row.priceUnit}
                       onChange={e => handleUpdateRow(idx, 'priceUnit', e.target.value)}
-                      style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.8rem', textAlign: 'right' }}
+                      style={{ padding: '8px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '4px', color: T.txtPrimary, fontSize: '0.8rem', textAlign: 'right' }}
                     />
 
                     {/* Total Price (Formula) */}
-                    <div style={{ padding: '8px', textAlign: 'right', fontWeight: '800', color: '#34d399', fontSize: '0.82rem' }}>
+                    <div style={{ padding: '8px', textAlign: 'right', fontWeight: '800', color: T.success, fontSize: '0.82rem' }}>
                       {formatRupiah(totalVal)}
                     </div>
 
@@ -3627,7 +3627,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       type="button"
                       onClick={() => handleRemoveRow(idx)}
                       disabled={manualRows.length <= 1}
-                      style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', opacity: manualRows.length <= 1 ? 0.3 : 1 }}
+                      style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', opacity: manualRows.length <= 1 ? 0.3 : 1 }}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -3637,10 +3637,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             </div>
 
             {/* Bottom calculation & Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '700' }}>TOTAL NILAI BELANJA LOGISTIK:</span>
-                <span style={{ fontSize: '1.4rem', fontWeight: '900', color: '#34d399' }}>{formatRupiah(getManualGrandTotal())}</span>
+                <span style={{ fontSize: '0.85rem', color: T.txtSecondary, fontWeight: '700' }}>TOTAL NILAI BELANJA LOGISTIK:</span>
+                <span style={{ fontSize: '1.4rem', fontWeight: '900', color: T.success }}>{formatRupiah(getManualGrandTotal())}</span>
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -3649,7 +3649,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   type="button" 
                   onClick={() => setShowPreviewModal(true)} 
                   className="btn-primary" 
-                  style={{ padding: '10px 20px', fontSize: '0.85rem', background: '#38bdf8', color: '#0f172a' }}
+                  style={{ padding: '10px 20px', fontSize: '0.85rem', background: T.info, color: T.cardBg2 }}
                 >
                   Simpan Laporan
                 </button>
@@ -3664,29 +3664,29 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* ========================================================= */}
       {showPreviewModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '780px', border: '2px solid #34d399', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '780px', border: `2px solid ${T.success}`, display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#f8fafc', borderBottom: '1px solid #334155', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckSquare size={24} color="#34d399" />
+              <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: T.txtPrimary, borderBottom: `1px solid ${T.border}`, paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckSquare size={24} color={T.success} />
                 <span>Papan Konfirmasi & Preview Laporan Logistik</span>
               </h3>
-              <p style={{ color: '#cbd5e1', fontSize: '0.8rem', marginTop: '6px' }}>
+              <p style={{ color: T.txtPrimary, fontSize: '0.8rem', marginTop: '6px' }}>
                 Tinjau kembali daftar logistik masuk yang Anda catat sebelum disimpan permanen ke dalam basis data sistem.
               </p>
             </div>
 
             {/* Metadata Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', background: '#0f172a', padding: '12px 16px', borderRadius: '8px', border: '1px solid #334155', fontSize: '0.82rem' }}>
-              <div><span style={{ color: '#94a3b8' }}>Tanggal Input:</span> <strong style={{ color: '#f8fafc' }}>{manualDate}</strong></div>
-              <div><span style={{ color: '#94a3b8' }}>Outlet Cabang:</span> <strong style={{ color: '#f8fafc' }}>{getOutletName(manualOutletId)}</strong></div>
-              <div><span style={{ color: '#94a3b8' }}>Dibuat Oleh:</span> <strong style={{ color: '#f8fafc' }}>{manualCreatedBy}</strong></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', background: T.cardBg2, padding: '12px 16px', borderRadius: '8px', border: `1px solid ${T.border}`, fontSize: '0.82rem' }}>
+              <div><span style={{ color: T.txtSecondary }}>Tanggal Input:</span> <strong style={{ color: T.txtPrimary }}>{manualDate}</strong></div>
+              <div><span style={{ color: T.txtSecondary }}>Outlet Cabang:</span> <strong style={{ color: T.txtPrimary }}>{getOutletName(manualOutletId)}</strong></div>
+              <div><span style={{ color: T.txtSecondary }}>Dibuat Oleh:</span> <strong style={{ color: T.txtPrimary }}>{manualCreatedBy}</strong></div>
             </div>
 
             {/* Items Table Preview */}
-            <div style={{ border: '1px solid #334155', borderRadius: '8px', overflow: 'hidden', background: '#0f172a' }}>
+            <div style={{ border: `1px solid ${T.border}`, borderRadius: '8px', overflow: 'hidden', background: T.cardBg2 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                 <thead>
-                  <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#cbd5e1', fontWeight: '800' }}>
+                  <tr style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800' }}>
                     <th style={{ padding: '10px' }}>Nama Item</th>
                     <th style={{ padding: '10px' }}>Supplier</th>
                     <th style={{ padding: '10px', textAlign: 'right' }}>Jumlah</th>
@@ -3702,17 +3702,17 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     const qtyVal = Number(row.qty);
                     const prcVal = Number(row.priceUnit);
                     return (
-                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc' }}>
-                        <td style={{ padding: '10px', fontWeight: '700', color: '#38bdf8' }}>{ing.name}</td>
-                        <td style={{ padding: '10px', color: '#cbd5e1' }}>{sup.name}</td>
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
+                        <td style={{ padding: '10px', fontWeight: '700', color: T.info }}>{ing.name}</td>
+                        <td style={{ padding: '10px', color: T.txtPrimary }}>{sup.name}</td>
                         <td style={{ padding: '10px', textAlign: 'right', fontWeight: '700' }}>{qtyVal}</td>
-                        <td style={{ padding: '10px', color: '#94a3b8' }}>{ing.unit}</td>
+                        <td style={{ padding: '10px', color: T.txtSecondary }}>{ing.unit}</td>
                         <td style={{ padding: '10px', textAlign: 'right' }}>{formatRupiah(prcVal)}</td>
-                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: '#34d399' }}>{formatRupiah(qtyVal * prcVal)}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: T.success }}>{formatRupiah(qtyVal * prcVal)}</td>
                       </tr>
                     );
                   })}
-                  <tr style={{ background: '#1e293b', fontWeight: '900', color: '#34d399' }}>
+                  <tr style={{ background: T.cardBg, fontWeight: '900', color: T.success }}>
                     <td colspan="5" style={{ padding: '12px 10px' }}>TOTAL KESELURUHAN</td>
                     <td style={{ padding: '12px 10px', textAlign: 'right', fontSize: '0.9rem' }}>{formatRupiah(getManualGrandTotal())}</td>
                   </tr>
@@ -3721,12 +3721,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             </div>
 
             {/* Preview Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
               <button 
                 type="button" 
                 onClick={() => setShowPreviewModal(false)} 
                 className="btn-secondary" 
-                style={{ padding: '10px 18px', fontSize: '0.85rem', borderColor: '#fbbf24', color: '#fbbf24' }}
+                style={{ padding: '10px 18px', fontSize: '0.85rem', borderColor: T.accentGold, color: T.accentGold }}
               >
                 ✏️ Edit Lagi (Kembali)
               </button>
@@ -3734,7 +3734,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 type="button" 
                 onClick={() => handleCommitManualLogistics()} 
                 className="btn-primary" 
-                style={{ padding: '10px 24px', fontSize: '0.85rem', background: '#34d399', color: '#0f172a' }}
+                style={{ padding: '10px 24px', fontSize: '0.85rem', background: T.success, color: T.cardBg2 }}
               >
                 ✓ Simpan & Masukkan database
               </button>
@@ -3748,28 +3748,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* ========================================================= */}
       {editingRecord && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <form onSubmit={handleSaveEditRecord} className="glass-card animate-fade-in" style={{ padding: '24px', width: '480px', border: `1px solid ${editType === 'masuk' ? '#38bdf8' : editType === 'waste' ? '#f43f5e' : editType === 'opname' ? '#34d399' : '#fbbf24'}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+          <form onSubmit={handleSaveEditRecord} className="glass-card animate-fade-in" style={{ padding: '24px', width: '480px', border: `1px solid ${editType === 'masuk' ? T.info : editType === 'waste' ? T.danger : editType === 'opname' ? T.success : T.accentGold}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
               ✏️ {editType === 'masuk' ? 'Edit Record Logistik Masuk' : editType === 'waste' ? 'Edit Laporan Stok Rusak (Waste)' : editType === 'opname' ? 'Edit Audit Stock Opname' : 'Edit Transfer Stok Antarcabang'}
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Tanggal</span>
-                <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Tanggal</span>
+                <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }} />
               </div>
 
               {(editType === 'masuk' || editType === 'waste' || editType === 'opname') ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Restoran Outlet</span>
-                  <select value={editOutletId} onChange={e => setEditOutletId(Number(e.target.value))} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Restoran Outlet</span>
+                  <select value={editOutletId} onChange={e => setEditOutletId(Number(e.target.value))} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}>
                     {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Status Pengiriman</span>
-                  <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Status Pengiriman</span>
+                  <select value={editStatus} onChange={e => setEditStatus(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}>
                     <option value="Terkirim">Terkirim</option>
                     <option value="Dalam Perjalanan">Dalam Perjalanan</option>
                   </select>
@@ -3780,14 +3780,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             {editType === 'transfer' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Dari Outlet Asal</span>
-                  <select value={editFromOutletId} onChange={e => setEditFromOutletId(Number(e.target.value))} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Dari Outlet Asal</span>
+                  <select value={editFromOutletId} onChange={e => setEditFromOutletId(Number(e.target.value))} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}>
                     {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Ke Outlet Tujuan</span>
-                  <select value={editToOutletId} onChange={e => setEditToOutletId(Number(e.target.value))} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Ke Outlet Tujuan</span>
+                  <select value={editToOutletId} onChange={e => setEditToOutletId(Number(e.target.value))} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }}>
                     {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
@@ -3795,84 +3795,84 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Dibuat Oleh</span>
-              <input type="text" value={editCreatedBy} onChange={e => setEditCreatedBy(e.target.value)} style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem' }} />
+              <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Dibuat Oleh</span>
+              <input type="text" value={editCreatedBy} onChange={e => setEditCreatedBy(e.target.value)} style={{ padding: '10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem' }} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Nama Item / Bahan</span>
-              <input type="text" value={editItemName} onChange={e => setEditItemName(e.target.value)} style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem' }} />
+              <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Nama Item / Bahan</span>
+              <input type="text" value={editItemName} onChange={e => setEditItemName(e.target.value)} style={{ padding: '10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem' }} />
             </div>
 
             {editType === 'masuk' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Supplier</span>
-                <input type="text" value={editSupplier} onChange={e => setEditSupplier(e.target.value)} style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem' }} />
+                <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Supplier</span>
+                <input type="text" value={editSupplier} onChange={e => setEditSupplier(e.target.value)} style={{ padding: '10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem' }} />
               </div>
             )}
 
             {editType === 'opname' ? (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Satuan</span>
-                  <input type="text" value={editUnit} onChange={e => setEditUnit(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Satuan</span>
+                  <input type="text" value={editUnit} onChange={e => setEditUnit(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Stok Awal</span>
-                    <input type="number" value={editStokAwal} onChange={e => setEditStokAwal(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>Stok Awal</span>
+                    <input type="number" value={editStokAwal} onChange={e => setEditStokAwal(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Stok Masuk</span>
-                    <input type="number" value={editStokMasuk} onChange={e => setEditStokMasuk(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>Stok Masuk</span>
+                    <input type="number" value={editStokMasuk} onChange={e => setEditStokMasuk(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Stok Keluar</span>
-                    <input type="number" value={editStokKeluar} onChange={e => setEditStokKeluar(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>Stok Keluar</span>
+                    <input type="number" value={editStokKeluar} onChange={e => setEditStokKeluar(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Trans. Masuk</span>
-                    <input type="number" value={editTransferMasuk} onChange={e => setEditTransferMasuk(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>Trans. Masuk</span>
+                    <input type="number" value={editTransferMasuk} onChange={e => setEditTransferMasuk(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Trans. Keluar</span>
-                    <input type="number" value={editTransferKeluar} onChange={e => setEditTransferKeluar(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>Trans. Keluar</span>
+                    <input type="number" value={editTransferKeluar} onChange={e => setEditTransferKeluar(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Stok Rusak</span>
-                    <input type="number" value={editStokRusak} onChange={e => setEditStokRusak(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>Stok Rusak</span>
+                    <input type="number" value={editStokRusak} onChange={e => setEditStokRusak(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#34d399', fontWeight: '700' }}>Sisa Stok Fisik</span>
-                    <input type="number" value={editStokFisik} onChange={e => setEditStokFisik(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.success, fontWeight: '700' }}>Sisa Stok Fisik</span>
+                    <input type="number" value={editStokFisik} onChange={e => setEditStokFisik(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.success}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: '700' }}>Harga Satuan (Rp)</span>
-                    <input type="number" value={editHargaSatuan} onChange={e => setEditHargaSatuan(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #38bdf8', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: T.info, fontWeight: '700' }}>Harga Satuan (Rp)</span>
+                    <input type="number" value={editHargaSatuan} onChange={e => setEditHargaSatuan(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.info}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
                   </div>
                 </div>
               </>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Kuantitas (Qty)</span>
-                  <input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Kuantitas (Qty)</span>
+                  <input type="number" value={editQty} onChange={e => setEditQty(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Satuan</span>
-                  <input type="text" value={editUnit} onChange={e => setEditUnit(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Satuan</span>
+                  <input type="text" value={editUnit} onChange={e => setEditUnit(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }} />
                 </div>
               </div>
             )}
 
             {editType === 'masuk' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Harga Satuan (Rp)</span>
-                <input type="number" value={editPriceUnit} onChange={e => setEditPriceUnit(e.target.value)} style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem' }} />
+                <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Harga Satuan (Rp)</span>
+                <input type="number" value={editPriceUnit} onChange={e => setEditPriceUnit(e.target.value)} style={{ padding: '10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem' }} />
               </div>
             )}
 
@@ -3883,22 +3883,22 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   id="editIsReturned"
                   checked={editIsReturned}
                   onChange={e => setEditIsReturned(e.target.checked)}
-                  style={{ width: '16px', height: '16px', accentColor: '#fbbf24' }}
+                  style={{ width: '16px', height: '16px', accentColor: T.accentGold }}
                 />
-                <label htmlFor="editIsReturned" style={{ fontSize: '0.82rem', color: '#f8fafc', fontWeight: '700', cursor: 'pointer' }}>
+                <label htmlFor="editIsReturned" style={{ fontSize: '0.82rem', color: T.txtPrimary, fontWeight: '700', cursor: 'pointer' }}>
                   Tandai Sudah Dikembalikan (Retur Lunas)
                 </label>
               </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Catatan</span>
-              <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem' }} />
+              <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>Catatan</span>
+              <input type="text" value={editNotes} onChange={e => setEditNotes(e.target.value)} style={{ padding: '10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem' }} />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
               <button type="button" onClick={() => setEditingRecord(null)} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Batal</button>
-              <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: editType === 'masuk' ? '#38bdf8' : editType === 'waste' ? '#f43f5e' : editType === 'opname' ? '#34d399' : '#fbbf24', color: '#0f172a' }}>Simpan Perubahan</button>
+              <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: editType === 'masuk' ? T.info : editType === 'waste' ? T.danger : editType === 'opname' ? T.success : T.accentGold, color: T.cardBg2 }}>Simpan Perubahan</button>
             </div>
           </form>
         </div>
@@ -3913,20 +3913,20 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '95vw', maxWidth: '960px', maxHeight: '94vh', overflowY: 'auto',
-            padding: '18px', background: '#1e293b', border: '1px solid #a78bfa', borderRadius: '18px',
+            padding: '18px', background: T.cardBg, border: `1px solid ${T.info}`, borderRadius: '18px',
             display: 'flex', flexDirection: 'column', gap: '12px'
           }}>
             {/* Header Modal */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ padding: '8px', background: 'rgba(167, 139, 250, 0.15)', borderRadius: '10px', border: '1px solid rgba(167, 139, 250, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Truck size={22} color="#a78bfa" />
+                  <Truck size={22} color={T.info} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#f8fafc', margin: 0, letterSpacing: '-0.02em' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.txtPrimary, margin: 0, letterSpacing: '-0.02em' }}>
                     🚚 Buat Laporan Transfer Produk Antarcabang
                   </h3>
-                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
                     Formulir mutasi & pengiriman persediaan stok antarcabang restoran
                   </p>
                 </div>
@@ -3934,8 +3934,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <button 
                 onClick={() => setShowAddModal(null)} 
                 style={{
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#94a3b8', borderRadius: '8px', width: '32px', height: '32px',
+                  background: T.border, border: '1px solid rgba(255,255,255,0.1)',
+                  color: T.txtSecondary, borderRadius: '8px', width: '32px', height: '32px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', fontSize: '1.0rem', fontWeight: '700', transition: 'all 0.2s'
                 }}
@@ -4017,21 +4017,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
                   {/* KARTU 1: Tanggal & Nomor Laporan */}
-                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                  <div style={{ background: T.cardBg2, padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Transfer *</label>
+                      <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Transfer *</label>
                       <input type="date" required value={transferDate} onChange={e => setTransferDate(e.target.value)} className="form-input" style={{ width: '100%', height: '36px', fontSize: '0.80rem' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan Transfer *</label>
-                      <input type="text" required value={transferNo} onChange={e => setTransferNo(e.target.value)} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: '#a78bfa', fontSize: '0.80rem' }} />
+                      <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>📋 Nomor Laporan Transfer *</label>
+                      <input type="text" required value={transferNo} onChange={e => setTransferNo(e.target.value)} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: `${T.info}`, fontSize: '0.80rem' }} />
                     </div>
                   </div>
 
                   {/* KARTU 2: Diisi Oleh, Outlet Asal & Outlet Tujuan */}
-                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  <div style={{ background: T.cardBg2, padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Pengaju / Dibuat Oleh *</label>
+                      <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Pengaju / Dibuat Oleh *</label>
                       <select value={transferCreatedBy} onChange={e => setTransferCreatedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '36px', fontSize: '0.80rem' }}>
                         {userRightsList.map(a => (
                           <option key={a.id} value={a.name}>{a.name} ({a.role})</option>
@@ -4040,8 +4040,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.74rem', color: '#fb7185', fontWeight: '800', display: 'block', marginBottom: '4px' }}>🔴 Outlet Asal (Pengirim) *</label>
-                      <select value={transferFromOutletId} onChange={e => setTransferFromOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: '#fb7185', border: '1px solid #fb7185', fontSize: '0.80rem' }}>
+                      <label style={{ fontSize: '0.74rem', color: T.danger, fontWeight: '800', display: 'block', marginBottom: '4px' }}>🔴 Outlet Asal (Pengirim) *</label>
+                      <select value={transferFromOutletId} onChange={e => setTransferFromOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: T.danger, border: `1px solid ${T.danger}`, fontSize: '0.80rem' }}>
                         {outlets.map(o => (
                           <option key={o.id} value={o.id}>{o.name}</option>
                         ))}
@@ -4049,8 +4049,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: '800', display: 'block', marginBottom: '4px' }}>🟢 Outlet Tujuan (Penerima) *</label>
-                      <select value={transferToOutletId} onChange={e => setTransferToOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: '#34d399', border: '1px solid #34d399', fontSize: '0.80rem' }}>
+                      <label style={{ fontSize: '0.74rem', color: T.success, fontWeight: '800', display: 'block', marginBottom: '4px' }}>🟢 Outlet Tujuan (Penerima) *</label>
+                      <select value={transferToOutletId} onChange={e => setTransferToOutletId(Number(e.target.value))} className="form-input" style={{ width: '100%', height: '36px', fontWeight: '800', color: T.success, border: `1px solid ${T.success}`, fontSize: '0.80rem' }}>
                         {outlets.filter(o => o.id !== Number(transferFromOutletId)).map(o => (
                           <option key={o.id} value={o.id}>{o.name}</option>
                         ))}
@@ -4059,16 +4059,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   </div>
 
                   {/* KARTU 3: DETAIL BAHAN BAKU / PRODUK YANG DITRANSFER (MULTI-ITEM FIT TO PAGE) */}
-                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ background: T.cardBg2, padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <label style={{ fontSize: '0.78rem', color: T.info, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>📦 Detail Bahan Baku / Produk Yang Ditransfer ({transferBatchRows.length} Item)</span>
                       </label>
                       <button
                         type="button"
                         onClick={handleAddTransferRow}
                         style={{
-                          padding: '5px 12px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8',
+                          padding: '5px 12px', background: 'rgba(56, 189, 248, 0.15)', color: T.info,
                           border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px',
                           fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer',
                           display: 'inline-flex', alignItems: 'center', gap: '5px', transition: 'all 0.2s'
@@ -4080,14 +4080,14 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     </div>
 
                     {/* Format Tabel Fit To Page Proposional */}
-                    <div style={{ width: '100%', overflowX: 'auto', borderRadius: '10px', border: '1px solid #334155' }}>
+                    <div style={{ width: '100%', overflowX: 'auto', borderRadius: '10px', border: `1px solid ${T.border}` }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
                         <thead>
-                          <tr style={{ background: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '0.70rem', fontWeight: '800', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                          <tr style={{ background: T.cardBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.70rem', fontWeight: '800', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                             <th style={{ padding: '8px 10px', width: '35px', textAlign: 'center' }}>No</th>
                             <th style={{ padding: '8px 10px', minWidth: '180px' }}>Nama Produk / Stok Item *</th>
-                            <th style={{ padding: '8px 10px', width: '130px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Out (Outlet Pengirim) *</th>
-                            <th style={{ padding: '8px 10px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Transfer In (Outlet Penerima) *</th>
+                            <th style={{ padding: '8px 10px', width: '130px', textAlign: 'right', color: T.danger }}>📤 Transfer Out (Outlet Pengirim) *</th>
+                            <th style={{ padding: '8px 10px', width: '130px', textAlign: 'right', color: T.success }}>📥 Transfer In (Outlet Penerima) *</th>
                             <th style={{ padding: '8px 10px', width: '110px', textAlign: 'center' }}>Satuan / Unit</th>
                             <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Hapus</th>
                           </tr>
@@ -4099,9 +4099,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                             return (
                               <React.Fragment key={row.id || idx}>
-                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.5)' : '#0f172a' }}>
+                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.5)' : T.cardBg2 }}>
                                   {/* 1. Index */}
-                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>
+                                  <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: T.txtMuted, whiteSpace: 'nowrap' }}>
                                     {idx + 1}
                                   </td>
 
@@ -4118,7 +4118,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                         }
                                       }}
                                       className="form-input"
-                                      style={{ width: '100%', height: '34px', fontWeight: '800', color: '#34d399', fontSize: '0.78rem', borderRadius: '6px' }}
+                                      style={{ width: '100%', height: '34px', fontWeight: '800', color: T.success, fontSize: '0.78rem', borderRadius: '6px' }}
                                     >
                                       {ingredientsList.map(ing => (
                                         <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
@@ -4130,7 +4130,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                   {/* 3. Transfer Out Input */}
                                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-                                      <span style={{ color: '#fb7185', fontWeight: '900', fontSize: '0.85rem' }}>-</span>
+                                      <span style={{ color: T.danger, fontWeight: '900', fontSize: '0.85rem' }}>-</span>
                                       <input
                                         type="number"
                                         required
@@ -4140,7 +4140,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                         value={row.qty}
                                         onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
                                         className="form-input"
-                                        style={{ width: '75px', height: '34px', fontWeight: '900', color: '#fb7185', fontSize: '0.80rem', textAlign: 'right', borderRadius: '6px', border: '1px solid rgba(251, 113, 133, 0.4)' }}
+                                        style={{ width: '75px', height: '34px', fontWeight: '900', color: T.danger, fontSize: '0.80rem', textAlign: 'right', borderRadius: '6px', border: '1px solid rgba(251, 113, 133, 0.4)' }}
                                       />
                                     </div>
                                   </td>
@@ -4148,7 +4148,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                   {/* 4. Transfer In Input */}
                                   <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-                                      <span style={{ color: '#34d399', fontWeight: '900', fontSize: '0.85rem' }}>+</span>
+                                      <span style={{ color: T.success, fontWeight: '900', fontSize: '0.85rem' }}>+</span>
                                       <input
                                         type="number"
                                         required
@@ -4158,7 +4158,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                         value={row.qty}
                                         onChange={e => handleUpdateTransferRow(row.id, 'qty', e.target.value)}
                                         className="form-input"
-                                        style={{ width: '75px', height: '34px', fontWeight: '900', color: '#34d399', fontSize: '0.80rem', textAlign: 'right', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.4)' }}
+                                        style={{ width: '75px', height: '34px', fontWeight: '900', color: T.success, fontSize: '0.80rem', textAlign: 'right', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.4)' }}
                                       />
                                     </div>
                                   </td>
@@ -4178,7 +4178,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                       <div style={{
                                         height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         background: 'rgba(167, 139, 250, 0.1)', border: '1px solid rgba(167, 139, 250, 0.3)',
-                                        borderRadius: '6px', color: '#c084fc', fontWeight: '800', fontSize: '0.78rem'
+                                        borderRadius: '6px', color: `${T.info}`, fontWeight: '800', fontSize: '0.78rem'
                                       }}>
                                         🏷️ {autoUnit}
                                       </div>
@@ -4193,8 +4193,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                       disabled={transferBatchRows.length <= 1}
                                       style={{
                                         background: transferBatchRows.length <= 1 ? 'transparent' : 'rgba(244, 63, 94, 0.15)',
-                                        border: `1px solid ${transferBatchRows.length <= 1 ? 'rgba(255,255,255,0.1)' : 'rgba(244, 63, 94, 0.3)'}`,
-                                        color: transferBatchRows.length <= 1 ? '#475569' : '#f43f5e',
+                                        border: `1px solid ${transferBatchRows.length <= 1 ? T.border : 'rgba(244, 63, 94, 0.3)'}`,
+                                        color: transferBatchRows.length <= 1 ? T.borderStrong : T.danger,
                                         borderRadius: '6px', width: '28px', height: '28px',
                                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                         cursor: transferBatchRows.length <= 1 ? 'not-allowed' : 'pointer'
@@ -4210,7 +4210,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                   <tr style={{ background: 'rgba(56, 189, 248, 0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                     <td colSpan={6} style={{ padding: '8px 10px' }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: '800' }}>✏️ Nama Bahan Baku Baru:</span>
+                                        <span style={{ fontSize: '0.74rem', color: T.accentGold, fontWeight: '800' }}>✏️ Nama Bahan Baku Baru:</span>
                                         <input
                                           type="text"
                                           required
@@ -4218,7 +4218,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                           value={row.custom_item_name}
                                           onChange={e => handleUpdateTransferRow(row.id, 'custom_item_name', e.target.value)}
                                           className="form-input"
-                                          style={{ flex: 1, height: '32px', fontWeight: '800', color: '#fbbf24', fontSize: '0.78rem', borderRadius: '6px' }}
+                                          style={{ flex: 1, height: '32px', fontWeight: '800', color: T.accentGold, fontSize: '0.78rem', borderRadius: '6px' }}
                                         />
                                       </div>
                                     </td>
@@ -4233,8 +4233,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   </div>
 
                   {/* KARTU 4: Catatan / Alasan Transfer */}
-                  <div style={{ background: '#0f172a', padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <label style={{ fontSize: '0.74rem', color: '#94a3b8', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <div style={{ background: T.cardBg2, padding: '12px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <span>📝 Catatan / Alasan Transfer Bahan Baku</span>
                     </label>
                     <input 
@@ -4253,7 +4253,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       type="button" 
                       onClick={() => setShowAddModal(null)} 
                       style={{
-                        padding: '10px 20px', background: '#334155', color: '#ffffff',
+                        padding: '10px 20px', background: T.border, color: T.txtPrimary,
                         border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
                         fontWeight: '700', fontSize: '0.80rem', cursor: 'pointer', transition: 'all 0.2s'
                       }}
@@ -4263,8 +4263,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     <button 
                       type="submit" 
                       style={{
-                        padding: '10px 24px', background: 'linear-gradient(135deg, #c084fc 0%, #7c3aed 100%)',
-                        color: '#ffffff', border: 'none', borderRadius: '8px',
+                        padding: '10px 24px', background: `linear-gradient(135deg, ${T.info} 0%, #7c3aed 100%)`,
+                        color: T.txtPrimary, border: 'none', borderRadius: '8px',
                         fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer',
                         boxShadow: '0 4px 14px rgba(167,139,250,0.4)', transition: 'all 0.2s'
                       }}
@@ -4284,22 +4284,22 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto',
-            padding: '24px', background: '#1e293b', border: '1px solid #f43f5e', borderRadius: '18px',
+            padding: '24px', background: T.cardBg, border: `1px solid ${T.danger}`, borderRadius: '18px',
             display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Trash2 size={24} color="#f43f5e" />
+                <Trash2 size={24} color={T.danger} />
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                     Laporkan Stok Rusak / Waste
                   </h3>
-                  <p style={{ fontSize: '0.76rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                  <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
                     Formulir pencatatan waste, retur, expired, & kerusakan bahan baku
                   </p>
                 </div>
               </div>
-              <button onClick={() => { setShowAddModal(null); setEditingRecord(null); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+              <button onClick={() => { setShowAddModal(null); setEditingRecord(null); }} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
             </div>
 
             <form onSubmit={handleSaveRusak} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -4307,13 +4307,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               {/* Row 1: Tanggal Kejadian & Dibuat Oleh */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Kejadian *</span>
-                  <input type="date" required value={rusakDate} onChange={e => setRusakDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                  <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tanggal Kejadian *</span>
+                  <input type="date" required value={rusakDate} onChange={e => setRusakDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }} />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh *</span>
-                  <select value={rusakCreatedBy} onChange={e => setRusakCreatedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
+                  <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Dibuat Oleh *</span>
+                  <select value={rusakCreatedBy} onChange={e => setRusakCreatedBy(e.target.value)} className="form-input" style={{ width: '100%', height: '40px', padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem', cursor: 'pointer' }}>
                     {userRightsList.map(u => (
                       <option key={u.id} value={u.name}>{u.name} ({u.role || 'Staf Restoran'})</option>
                     ))}
@@ -4323,12 +4323,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
               {/* Row 2: Nama Outlet Cabang */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Nama Outlet Cabang</span>
+                <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Nama Outlet Cabang</span>
                 <select 
                   value={rusakOutletId} 
                   onChange={e => setRusakOutletId(e.target.value)} 
                   className="form-input"
-                  style={{ width: '100%', height: '40px', padding: '8px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '6px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
+                  style={{ width: '100%', height: '40px', padding: '8px', background: T.cardBg2, border: `1px solid ${T.success}`, borderRadius: '6px', color: T.success, fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
                 >
                   {outlets.map(o => <option key={o.id} value={o.id}>🏢 {o.name}</option>)}
                 </select>
@@ -4337,7 +4337,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               {/* Catatan Editing jika dalam mode Edit */}
               {editingRecord && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(251,191,36,0.08)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.3)' }}>
-                  <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}>📝 Catatan Editing (Wajib saat Edit Data) *</span>
+                  <span style={{ fontSize: '0.78rem', color: T.accentGold, fontWeight: '800' }}>📝 Catatan Editing (Wajib saat Edit Data) *</span>
                   <textarea
                     required
                     placeholder="Tuliskan catatan perbaikan atau alasan pengeditan data ini..."
@@ -4345,15 +4345,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     onChange={e => setRusakEditingNotes(e.target.value)}
                     rows={2}
                     className="form-input"
-                    style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fbbf24', fontSize: '0.80rem' }}
+                    style={{ width: '100%', padding: '8px', background: T.cardBg2, border: `1px solid ${T.accentGold}`, borderRadius: '6px', color: T.accentGold, fontSize: '0.80rem' }}
                   />
                 </div>
               )}
 
               {/* Dynamic Item Rows Section */}
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.82rem', color: '#f43f5e', fontWeight: '800' }}>
+                  <span style={{ fontSize: '0.82rem', color: T.danger, fontWeight: '800' }}>
                     🥬 Cari & Pilih Nama Item (Bahan Baku Rusak):
                   </span>
                   <button
@@ -4366,8 +4366,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       ]);
                     }}
                     style={{
-                      padding: '6px 12px', background: 'rgba(244, 63, 94, 0.2)', border: '1px solid #f43f5e',
-                      color: '#f43f5e', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                      padding: '6px 12px', background: 'rgba(244, 63, 94, 0.2)', border: `1px solid ${T.danger}`,
+                      color: T.danger, borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
                     }}
                   >
                     <PlusCircle size={14} />
@@ -4376,10 +4376,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 </div>
 
                 {rusakBatchRows.map((row, idx) => (
-                  <div key={row.id || idx} style={{ background: '#1e293b', padding: '12px', borderRadius: '10px', border: '1px solid #475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div key={row.id || idx} style={{ background: T.cardBg, padding: '12px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 36px', gap: '8px', alignItems: 'end' }}>
                       <div>
-                        <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '0.72rem', color: T.txtPrimary, fontWeight: '700', display: 'block', marginBottom: '2px' }}>
                           Item Bahan Baku *
                         </span>
                         <select
@@ -4395,7 +4395,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             setRusakBatchRows(updated);
                           }}
                           className="form-input"
-                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8', padding: '6px' }}
+                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '800', color: T.info, padding: '6px' }}
                         >
                           {ingredientsList.map(ing => (
                             <option key={ing.id} value={ing.name}>{ing.name} ({ing.unit || 'kg'})</option>
@@ -4405,7 +4405,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       </div>
 
                       <div>
-                        <span style={{ fontSize: '0.72rem', color: '#fb7185', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '0.72rem', color: T.danger, fontWeight: '700', display: 'block', marginBottom: '2px' }}>
                           Jumlah Qty Rusak *
                         </span>
                         <input
@@ -4421,12 +4421,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             setRusakBatchRows(updated);
                           }}
                           className="form-input"
-                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '900', color: '#fb7185', padding: '6px' }}
+                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', fontWeight: '900', color: T.danger, padding: '6px' }}
                         />
                       </div>
 
                       <div>
-                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '2px' }}>
                           Satuan (Otomatis)
                         </span>
                         <input
@@ -4434,12 +4434,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           readOnly
                           value={row.unit}
                           className="form-input"
-                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', background: '#0f172a', color: '#94a3b8', padding: '6px' }}
+                          style={{ width: '100%', height: '36px', fontSize: '0.80rem', background: T.cardBg2, color: T.txtSecondary, padding: '6px' }}
                         />
                       </div>
 
                       <div>
-                        <span style={{ fontSize: '0.72rem', color: '#fb7185', fontWeight: '700', display: 'block', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '0.72rem', color: T.danger, fontWeight: '700', display: 'block', marginBottom: '2px' }}>
                           Pilihan Alasan *
                         </span>
                         <select
@@ -4450,7 +4450,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             setRusakBatchRows(updated);
                           }}
                           className="form-input"
-                          style={{ width: '100%', height: '36px', fontSize: '0.78rem', fontWeight: '800', color: '#fb7185', padding: '6px' }}
+                          style={{ width: '100%', height: '36px', fontSize: '0.78rem', fontWeight: '800', color: T.danger, padding: '6px' }}
                         >
                           <option value="Terlalu kecil">Terlalu kecil</option>
                           <option value="Terlalu besar">Terlalu besar</option>
@@ -4470,7 +4470,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               setRusakBatchRows(updated);
                             }}
                             className="form-input"
-                            style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '700', marginTop: '4px' }}
+                            style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: T.accentGold, fontWeight: '700', marginTop: '4px' }}
                           />
                         )}
                       </div>
@@ -4481,7 +4481,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           onClick={() => {
                             setRusakBatchRows(prev => prev.filter((_, i) => i !== idx));
                           }}
-                          style={{ height: '36px', width: '36px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer', fontWeight: '900' }}
+                          style={{ height: '36px', width: '36px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', color: T.danger, borderRadius: '6px', cursor: 'pointer', fontWeight: '900' }}
                           title="Hapus baris ini"
                         >
                           ✕
@@ -4501,7 +4501,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           setRusakBatchRows(updated);
                         }}
                         className="form-input"
-                        style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}
+                        style={{ width: '100%', height: '34px', fontSize: '0.78rem', color: T.accentGold, fontWeight: '800' }}
                       />
                     )}
                   </div>
@@ -4513,7 +4513,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <button type="button" onClick={() => { setShowAddModal(null); setEditingRecord(null); }} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
                   Batal
                 </button>
-                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: '#f43f5e', color: 'white', fontWeight: '800' }}>
+                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '800' }}>
                   Lanjut ke Pratinjau (OK)
                 </button>
               </div>
@@ -4525,51 +4525,51 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* PAPAN PREVIEW MODAL STOK RUSAK WEB ADMIN */}
       {showRusakPreviewFormModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: '#1e293b', border: '1px solid #34d399', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: T.cardBg, border: `1px solid ${T.success}`, borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle size={22} color="#34d399" />
-                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                <CheckCircle size={22} color={T.success} />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                   📋 Papan Pratinjau Laporan Barang Rusak
                 </h3>
               </div>
-              <button onClick={() => setShowRusakPreviewFormModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
+              <button onClick={() => setShowRusakPreviewFormModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontSize: '1.2rem', fontWeight: '900' }}>✕</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.82rem', color: '#f8fafc', background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.82rem', color: T.txtPrimary, background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>No Laporan:</span>
-                <span style={{ fontWeight: '900', color: '#fb7185' }}>{rusakNo}</span>
+                <span style={{ color: T.txtSecondary }}>No Laporan:</span>
+                <span style={{ fontWeight: '900', color: T.danger }}>{rusakNo}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tanggal Kejadian:</span>
+                <span style={{ color: T.txtSecondary }}>Tanggal Kejadian:</span>
                 <span style={{ fontWeight: '800' }}>{rusakDate}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Pengaju / Dibuat Oleh:</span>
+                <span style={{ color: T.txtSecondary }}>Pengaju / Dibuat Oleh:</span>
                 <span style={{ fontWeight: '800' }}>👤 {rusakCreatedBy}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Outlet Cabang:</span>
-                <span style={{ fontWeight: '800', color: '#34d399' }}>🏢 {getOutletName(rusakOutletId)}</span>
+                <span style={{ color: T.txtSecondary }}>Outlet Cabang:</span>
+                <span style={{ fontWeight: '800', color: T.success }}>🏢 {getOutletName(rusakOutletId)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Tipe Input & Status:</span>
-                <span style={{ fontWeight: '800', color: '#818cf8' }}>🔵 By manual (PENDING)</span>
+                <span style={{ color: T.txtSecondary }}>Tipe Input & Status:</span>
+                <span style={{ fontWeight: '800', color: T.info }}>🔵 By manual (PENDING)</span>
               </div>
               {editingRecord && rusakEditingNotes && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'rgba(251,191,36,0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.3)' }}>
-                  <span style={{ color: '#fbbf24', fontWeight: '800', fontSize: '0.75rem' }}>📝 Catatan Editing:</span>
-                  <span style={{ color: '#f8fafc', fontSize: '0.78rem' }}>{rusakEditingNotes}</span>
+                  <span style={{ color: T.accentGold, fontWeight: '800', fontSize: '0.75rem' }}>📝 Catatan Editing:</span>
+                  <span style={{ color: T.txtPrimary, fontSize: '0.78rem' }}>{rusakEditingNotes}</span>
                 </div>
               )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.80rem', color: '#94a3b8', fontWeight: '800' }}>📦 Rincian Bahan Baku Rusak:</span>
+              <span style={{ fontSize: '0.80rem', color: T.txtSecondary, fontWeight: '800' }}>📦 Rincian Bahan Baku Rusak:</span>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                  <tr style={{ background: T.cardBg2, color: T.txtSecondary, borderBottom: `1px solid ${T.border}` }}>
                     <th style={{ padding: '8px' }}>Bahan Baku</th>
                     <th style={{ padding: '8px', textAlign: 'center' }}>Jumlah Qty</th>
                     <th style={{ padding: '8px' }}>Alasan Rusak</th>
@@ -4578,27 +4578,27 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <tbody>
                   {rusakBatchRows.map((row, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '8px', fontWeight: '800', color: '#38bdf8' }}>{row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Kustom') : row.item_name}</td>
-                      <td style={{ padding: '8px', textAlign: 'center', fontWeight: '900', color: '#fb7185' }}>{row.qty} {row.unit}</td>
-                      <td style={{ padding: '8px', color: '#cbd5e1' }}>{row.reason}</td>
+                      <td style={{ padding: '8px', fontWeight: '800', color: T.info }}>{row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Kustom') : row.item_name}</td>
+                      <td style={{ padding: '8px', textAlign: 'center', fontWeight: '900', color: T.danger }}>{row.qty} {row.unit}</td>
+                      <td style={{ padding: '8px', color: T.txtPrimary }}>{row.reason}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px', borderTop: '1px solid #334155', paddingTop: '14px' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px', borderTop: `1px solid ${T.border}`, paddingTop: '14px' }}>
               <button
                 type="button"
                 onClick={() => setShowRusakPreviewFormModal(false)}
-                style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: '1px solid #475569', color: '#94a3b8', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
+                style={{ padding: '9px 18px', background: 'rgba(100,116,139,0.2)', border: `1px solid ${T.borderStrong}`, color: T.txtSecondary, borderRadius: '8px', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
               >
                 ✏️ Edit Lagi
               </button>
               <button
                 type="button"
                 onClick={handleSaveRusakFinal}
-                style={{ padding: '9px 24px', background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)', border: 'none', color: '#ffffff', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
+                style={{ padding: '9px 24px', background: `linear-gradient(135deg, ${T.success} 0%, #059669 100%)`, border: 'none', color: T.txtPrimary, borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
               >
                 💾 Simpan Laporan
               </button>
@@ -4611,40 +4611,40 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* 4. Modal Stok Opname */}
       {showAddModal === 'opname' && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <form onSubmit={handleSaveOpname} className="glass-card animate-fade-in" style={{ padding: '24px', width: '500px', border: '1px solid #34d399', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#f8fafc', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+          <form onSubmit={handleSaveOpname} className="glass-card animate-fade-in" style={{ padding: '24px', width: '500px', border: `1px solid ${T.success}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
               📋 Mulai Audit Fisik (Stock Opname)
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Tanggal Audit</span>
-                <input type="date" value={opnameDate} onChange={e => setOpnameDate(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+                <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '700' }}>Tanggal Audit</span>
+                <input type="date" value={opnameDate} onChange={e => setOpnameDate(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Dibuat Oleh</span>
-                <select value={opnameCreatedBy} onChange={e => setOpnameCreatedBy(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
+                <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '700' }}>Dibuat Oleh</span>
+                <select value={opnameCreatedBy} onChange={e => setOpnameCreatedBy(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem', cursor: 'pointer' }}>
                   {userRightsList.map(u => <option key={u.id} value={u.name}>{u.name} ({u.role})</option>)}
                 </select>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Restoran Outlet</span>
-              <select value={opnameOutletId} onChange={e => setOpnameOutletId(Number(e.target.value))} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}>
+              <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '700' }}>Restoran Outlet</span>
+              <select value={opnameOutletId} onChange={e => setOpnameOutletId(Number(e.target.value))} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem', cursor: 'pointer' }}>
                 {outlets.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
             </div>
 
             {/* Nama Item (Searchable) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Cari & Pilih Nama Item (Bahan Baku)</span>
+              <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '700' }}>Cari & Pilih Nama Item (Bahan Baku)</span>
               <input
                 type="text"
                 placeholder="Ketik untuk mencari bahan..."
                 value={opnameSearchQuery}
                 onChange={e => setOpnameSearchQuery(e.target.value)}
-                style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px 6px 0 0', color: 'white', fontSize: '0.82rem' }}
+                style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px 6px 0 0', color: T.txtPrimary, fontSize: '0.82rem' }}
               />
               <select
                 value={opnameIngredientId}
@@ -4654,7 +4654,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   const found = ingredientsList.find(i => i.id === val);
                   if (found) setOpnameUnit(found.unit || 'pcs');
                 }}
-                style={{ padding: '8px', background: '#1e293b', border: '1px solid #334155', borderTop: 'none', borderRadius: '0 0 6px 6px', color: 'white', fontSize: '0.82rem', cursor: 'pointer' }}
+                style={{ padding: '8px', background: T.cardBg, border: `1px solid ${T.border}`, borderTop: 'none', borderRadius: '0 0 6px 6px', color: T.txtPrimary, fontSize: '0.82rem', cursor: 'pointer' }}
               >
                 {ingredientsList.filter(i => i.name.toLowerCase().includes(opnameSearchQuery.toLowerCase())).map(i => (
                   <option key={i.id} value={i.id}>{i.name}</option>
@@ -4664,31 +4664,31 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700' }}>Stok Awal</span>
-                <input type="number" value={opnameStokAwal} onChange={e => setOpnameStokAwal(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                <span style={{ fontSize: '0.7rem', color: T.txtSecondary, fontWeight: '700' }}>Stok Awal</span>
+                <input type="number" value={opnameStokAwal} onChange={e => setOpnameStokAwal(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700' }}>Stok Masuk</span>
-                <input type="number" value={opnameStokMasuk} onChange={e => setOpnameStokMasuk(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                <span style={{ fontSize: '0.7rem', color: T.txtSecondary, fontWeight: '700' }}>Stok Masuk</span>
+                <input type="number" value={opnameStokMasuk} onChange={e => setOpnameStokMasuk(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700' }}>Stok Keluar</span>
-                <input type="number" value={opnameStokKeluar} onChange={e => setOpnameStokKeluar(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                <span style={{ fontSize: '0.7rem', color: T.txtSecondary, fontWeight: '700' }}>Stok Keluar</span>
+                <input type="number" value={opnameStokKeluar} onChange={e => setOpnameStokKeluar(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700' }}>Trans. Masuk</span>
-                <input type="number" value={opnameTransferMasuk} onChange={e => setOpnameTransferMasuk(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                <span style={{ fontSize: '0.7rem', color: T.txtSecondary, fontWeight: '700' }}>Trans. Masuk</span>
+                <input type="number" value={opnameTransferMasuk} onChange={e => setOpnameTransferMasuk(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700' }}>Trans. Keluar</span>
-                <input type="number" value={opnameTransferKeluar} onChange={e => setOpnameTransferKeluar(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                <span style={{ fontSize: '0.7rem', color: T.txtSecondary, fontWeight: '700' }}>Trans. Keluar</span>
+                <input type="number" value={opnameTransferKeluar} onChange={e => setOpnameTransferKeluar(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: '700' }}>Stok Rusak</span>
-                <input type="number" value={opnameStokRusak} onChange={e => setOpnameStokRusak(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.8rem' }} />
+                <span style={{ fontSize: '0.7rem', color: T.txtSecondary, fontWeight: '700' }}>Stok Rusak</span>
+                <input type="number" value={opnameStokRusak} onChange={e => setOpnameStokRusak(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.8rem' }} />
               </div>
             </div>
 
@@ -4698,16 +4698,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               const calcSelisih = Number(opnameStokFisik || 0) - calcStokSistem;
 
               return (
-                <div style={{ background: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid #6366f1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ background: T.cardBg2, padding: '12px', borderRadius: '8px', border: `1px solid ${T.info}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <span style={{ fontSize: '0.74rem', color: '#818cf8', fontWeight: '800', display: 'block' }}>🔢 STOK YANG DIHITUNG (STOK SISTEM)</span>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#818cf8', marginTop: '2px' }}>
+                    <span style={{ fontSize: '0.74rem', color: T.info, fontWeight: '800', display: 'block' }}>🔢 STOK YANG DIHITUNG (STOK SISTEM)</span>
+                    <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>
                       {calcStokSistem} {opnameUnit || 'pcs'}
                     </div>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.74rem', color: calcSelisih === 0 ? '#34d399' : calcSelisih > 0 ? '#38bdf8' : '#fb7185', fontWeight: '800', display: 'block' }}>📊 ANALISIS SELISIH FISIK VS DIHITUNG</span>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '900', color: calcSelisih === 0 ? '#34d399' : calcSelisih > 0 ? '#38bdf8' : '#fb7185', marginTop: '2px' }}>
+                    <span style={{ fontSize: '0.74rem', color: calcSelisih === 0 ? T.success : calcSelisih > 0 ? T.info : T.danger, fontWeight: '800', display: 'block' }}>📊 ANALISIS SELISIH FISIK VS DIHITUNG</span>
+                    <div style={{ fontSize: '1.1rem', fontWeight: '900', color: calcSelisih === 0 ? T.success : calcSelisih > 0 ? T.info : T.danger, marginTop: '2px' }}>
                       {calcSelisih > 0 ? `+${calcSelisih}` : calcSelisih} {opnameUnit || 'pcs'}
                     </div>
                   </div>
@@ -4716,18 +4716,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             })()}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '800' }}>Sisa Stok Fisik</span>
-              <input type="number" value={opnameStokFisik} onChange={e => setOpnameStokFisik(e.target.value)} style={{ padding: '8px', background: '#0f172a', border: '1px solid #34d399', borderRadius: '6px', color: 'white', fontSize: '0.82rem' }} />
+              <span style={{ fontSize: '0.75rem', color: T.success, fontWeight: '800' }}>Sisa Stok Fisik</span>
+              <input type="number" value={opnameStokFisik} onChange={e => setOpnameStokFisik(e.target.value)} style={{ padding: '8px', background: T.cardBg2, border: `1px solid ${T.success}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem' }} />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: '700' }}>Catatan / Selisih Keterangan</span>
-              <input type="text" placeholder="Audit penyusutan atau kehilangan..." value={opnameNotes} onChange={e => setOpnameNotes(e.target.value)} style={{ padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.85rem' }} />
+              <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '700' }}>Catatan / Selisih Keterangan</span>
+              <input type="text" placeholder="Audit penyusutan atau kehilangan..." value={opnameNotes} onChange={e => setOpnameNotes(e.target.value)} style={{ padding: '10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem' }} />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
               <button type="button" onClick={() => setShowAddModal(null)} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Batal</button>
-              <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: '#34d399', color: '#0f172a' }}>Simpan Audit</button>
+              <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.success, color: T.cardBg2 }}>Simpan Audit</button>
             </div>
           </form>
         </div>
@@ -4738,25 +4738,25 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* ========================================================= */}
       {showAddPriceModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '100%', maxWidth: '520px', background: '#1e293b', border: '1px solid #c084fc', borderRadius: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '100%', maxWidth: '520px', background: T.cardBg, border: `1px solid ${T.info}`, borderRadius: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <DollarSign size={20} color="#c084fc" />
                 <span>{editingPriceRecord ? 'Edit Perbandingan Harga' : 'Tambah Perbandingan Harga Stok'}</span>
               </h3>
-              <button onClick={() => setShowAddPriceModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowAddPriceModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
                 <XCircle size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSavePriceRecord} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Tanggal Pencatatan *</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Tanggal Pencatatan *</label>
                 <input type="date" required value={priceDate} onChange={e => setPriceDate(e.target.value)} className="form-input" />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Nama Item (Bahan Baku Master Data) *</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Nama Item (Bahan Baku Master Data) *</label>
                 <select value={priceItemName} onChange={e => {
                   setPriceItemName(e.target.value);
                   const found = ingredientsList.find(i => i.name === e.target.value);
@@ -4770,41 +4770,41 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Kategori Bahan</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Kategori Bahan</label>
                   <input type="text" placeholder="Contoh: Bahan Utama" value={priceCategory} onChange={e => setPriceCategory(e.target.value)} className="form-input" />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Satuan (Unit)</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Satuan (Unit)</label>
                   <input type="text" placeholder="kg, liter, pcs" value={priceUnit} onChange={e => setPriceUnit(e.target.value)} className="form-input" />
                 </div>
               </div>
 
               {/* INPUT HARGA PER CABANG OUTLET */}
-              <div style={{ background: '#0f172a', padding: '14px', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#c084fc' }}>🏷️ Input Harga Satuan (IDR) per Cabang Outlet:</span>
+              <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '8px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: `${T.info}` }}>🏷️ Input Harga Satuan (IDR) per Cabang Outlet:</span>
                 {outlets.map(o => (
                   <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#cbd5e1', fontWeight: '600' }}>🏢 {o.name}</span>
+                    <span style={{ fontSize: '0.8rem', color: T.txtPrimary, fontWeight: '600' }}>🏢 {o.name}</span>
                     <input
                       type="number"
                       placeholder="0"
                       value={priceValues[o.id] || ''}
                       onChange={e => setPriceValues({ ...priceValues, [o.id]: e.target.value })}
                       className="form-input"
-                      style={{ width: '160px', textAlign: 'right', fontWeight: '700', color: '#f8fafc' }}
+                      style={{ width: '160px', textAlign: 'right', fontWeight: '700', color: T.txtPrimary }}
                     />
                   </div>
                 ))}
               </div>
 
               <div>
-                <label style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Catatan / Keterangan</label>
+                <label style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Catatan / Keterangan</label>
                 <input type="text" placeholder="Contoh: Kenaikan harga akibat pasokan supplier" value={priceNotes} onChange={e => setPriceNotes(e.target.value)} className="form-input" />
               </div>
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setShowAddPriceModal(false)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Batal</button>
-                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: '#c084fc', color: '#0f172a' }}>Simpan Perbandingan</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center', background: `${T.info}`, color: T.cardBg2 }}>Simpan Perbandingan</button>
               </div>
             </form>
           </div>
@@ -4819,69 +4819,69 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '580px', background: '#1e293b',
-            border: '1px solid #38bdf8', borderRadius: '18px', padding: '24px',
+            width: '100%', maxWidth: '580px', background: T.cardBg,
+            border: `1px solid ${T.info}`, borderRadius: '18px', padding: '24px',
             boxShadow: '0 20px 50px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '16px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ padding: '8px', background: 'rgba(56, 189, 248, 0.15)', borderRadius: '10px' }}>
-                  <Truck size={22} color="#38bdf8" />
+                  <Truck size={22} color={T.info} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                     Pratinjau Laporan Transfer {previewTransferModalData.report_no || previewTransferModalData.id}
                   </h3>
-                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Detail Mutasi Stok Antarcabang Restoran</span>
+                  <span style={{ fontSize: '0.74rem', color: T.txtSecondary }}>Detail Mutasi Stok Antarcabang Restoran</span>
                 </div>
               </div>
-              <button onClick={() => setPreviewTransferModalData(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem', fontWeight: '800' }}>✕</button>
+              <button onClick={() => setPreviewTransferModalData(null)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontSize: '1.2rem', fontWeight: '800' }}>✕</button>
             </div>
 
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
+            <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>📋 No. Laporan:</span>
-                <span style={{ fontWeight: '900', color: '#38bdf8' }}>{previewTransferModalData.report_no || previewTransferModalData.id}</span>
+                <span style={{ color: T.txtSecondary }}>📋 No. Laporan:</span>
+                <span style={{ fontWeight: '900', color: T.info }}>{previewTransferModalData.report_no || previewTransferModalData.id}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>📅 Tanggal:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewTransferModalData.date}</span>
+                <span style={{ color: T.txtSecondary }}>📅 Tanggal:</span>
+                <span style={{ fontWeight: '800', color: T.txtPrimary }}>{previewTransferModalData.date}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>👤 Pengaju / Dibuat Oleh:</span>
-                <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewTransferModalData.submitted_by || previewTransferModalData.created_by || 'Admin'}</span>
+                <span style={{ color: T.txtSecondary }}>👤 Pengaju / Dibuat Oleh:</span>
+                <span style={{ fontWeight: '800', color: T.txtPrimary }}>{previewTransferModalData.submitted_by || previewTransferModalData.created_by || 'Admin'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>🌾 Nama Produk / Stok Item:</span>
-                <span style={{ fontWeight: '900', color: '#38bdf8' }}>{previewTransferModalData.item_name}</span>
+                <span style={{ color: T.txtSecondary }}>🌾 Nama Produk / Stok Item:</span>
+                <span style={{ fontWeight: '900', color: T.info }}>{previewTransferModalData.item_name}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#fb7185', fontWeight: '800' }}>🔴 Outlet Asal (Pengirim):</span>
-                <span style={{ fontWeight: '800', color: '#fb7185' }}>{getOutletName(previewTransferModalData.from_outlet_id || previewTransferModalData.fromOutletId, previewTransferModalData.from_outlet_name || previewTransferModalData.fromOutletName)} (-{previewTransferModalData.qty} {previewTransferModalData.unit})</span>
+                <span style={{ color: T.danger, fontWeight: '800' }}>🔴 Outlet Asal (Pengirim):</span>
+                <span style={{ fontWeight: '800', color: T.danger }}>{getOutletName(previewTransferModalData.from_outlet_id || previewTransferModalData.fromOutletId, previewTransferModalData.from_outlet_name || previewTransferModalData.fromOutletName)} (-{previewTransferModalData.qty} {previewTransferModalData.unit})</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#34d399', fontWeight: '800' }}>🟢 Outlet Tujuan (Penerima):</span>
-                <span style={{ fontWeight: '800', color: '#34d399' }}>{getOutletName(previewTransferModalData.to_outlet_id || previewTransferModalData.toOutletId, previewTransferModalData.to_outlet_name || previewTransferModalData.toOutletName)} (+{previewTransferModalData.qty} {previewTransferModalData.unit})</span>
+                <span style={{ color: T.success, fontWeight: '800' }}>🟢 Outlet Tujuan (Penerima):</span>
+                <span style={{ fontWeight: '800', color: T.success }}>{getOutletName(previewTransferModalData.to_outlet_id || previewTransferModalData.toOutletId, previewTransferModalData.to_outlet_name || previewTransferModalData.toOutletName)} (+{previewTransferModalData.qty} {previewTransferModalData.unit})</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>🏷️ Satuan / Unit:</span>
-                <span style={{ fontWeight: '800', color: '#c084fc' }}>{previewTransferModalData.unit}</span>
+                <span style={{ color: T.txtSecondary }}>🏷️ Satuan / Unit:</span>
+                <span style={{ fontWeight: '800', color: `${T.info}` }}>{previewTransferModalData.unit}</span>
               </div>
               {previewTransferModalData.notes && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>📝 Catatan:</span>
-                  <span style={{ fontWeight: '600', color: '#cbd5e1' }}>{previewTransferModalData.notes}</span>
+                  <span style={{ color: T.txtSecondary }}>📝 Catatan:</span>
+                  <span style={{ fontWeight: '600', color: T.txtPrimary }}>{previewTransferModalData.notes}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #334155', paddingTop: '8px' }}>
-                <span style={{ color: '#94a3b8' }}>⚡ Status Approval:</span>
-                <span style={{ fontWeight: '900', color: (previewTransferModalData.status === 'Terkirim' || previewTransferModalData.status === 'Approved' || previewTransferModalData.status === 'ok') ? '#34d399' : '#fbbf24' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: `1px solid ${T.border}`, paddingTop: '8px' }}>
+                <span style={{ color: T.txtSecondary }}>⚡ Status Approval:</span>
+                <span style={{ fontWeight: '900', color: (previewTransferModalData.status === 'Terkirim' || previewTransferModalData.status === 'Approved' || previewTransferModalData.status === 'ok') ? T.success : T.accentGold }}>
                   {(previewTransferModalData.status === 'Terkirim' || previewTransferModalData.status === 'Approved' || previewTransferModalData.status === 'ok') ? '🟢 APPROVED / TERKIRIM' : '⏳ PENDING'}
                 </span>
               </div>
             </div>
 
-            <button onClick={() => setPreviewTransferModalData(null)} style={{ padding: '10px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer' }}>
+            <button onClick={() => setPreviewTransferModalData(null)} style={{ padding: '10px', background: T.border, color: T.txtPrimary, border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer' }}>
               Tutup Pratinjau
             </button>
           </div>
@@ -4891,13 +4891,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* 6. MODAL PRATINJAU BARANG RUSAK (PREVIEW WASTE REPORT) */}
       {previewWasteModalData && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '520px', background: '#1e293b', border: '1px solid #f43f5e', borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Trash2 size={20} color="#f43f5e" />
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '520px', background: T.cardBg, border: `1px solid ${T.danger}`, borderRadius: '14px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '10px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={20} color={T.danger} />
                 <span>Pratinjau Laporan Barang Rusak {previewWasteModalData.report_no || previewWasteModalData.id}</span>
               </h3>
-              <button onClick={() => setPreviewWasteModalData(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setPreviewWasteModalData(null)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
             </div>
 
             {(() => {
@@ -4919,36 +4919,36 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>📋 No. Laporan:</span>
-                    <span style={{ fontWeight: '900', color: '#fb7185' }}>{reportNo}</span>
+                    <span style={{ color: T.txtSecondary }}>📋 No. Laporan:</span>
+                    <span style={{ fontWeight: '900', color: T.danger }}>{reportNo}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>📅 Tanggal Pencatatan:</span>
-                    <span style={{ fontWeight: '800', color: '#ffffff' }}>{previewWasteModalData.date}</span>
+                    <span style={{ color: T.txtSecondary }}>📅 Tanggal Pencatatan:</span>
+                    <span style={{ fontWeight: '800', color: T.txtPrimary }}>{previewWasteModalData.date}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>👤 Diisi Oleh:</span>
-                    <span style={{ fontWeight: '800', color: '#ffffff' }}>👤 {previewWasteModalData.submitted_by || previewWasteModalData.created_by || 'Admin'}</span>
+                    <span style={{ color: T.txtSecondary }}>👤 Diisi Oleh:</span>
+                    <span style={{ fontWeight: '800', color: T.txtPrimary }}>👤 {previewWasteModalData.submitted_by || previewWasteModalData.created_by || 'Admin'}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>🏢 Outlet Cabang:</span>
-                    <span style={{ fontWeight: '800', color: '#cbd5e1' }}>🏢 {getOutletName(previewWasteModalData.outlet_id)}</span>
+                    <span style={{ color: T.txtSecondary }}>🏢 Outlet Cabang:</span>
+                    <span style={{ fontWeight: '800', color: T.txtPrimary }}>🏢 {getOutletName(previewWasteModalData.outlet_id)}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8' }}>⚡ Status Persetujuan:</span>
-                    <span style={{ fontWeight: '900', color: isApproved ? '#34d399' : '#fbbf24' }}>
+                    <span style={{ color: T.txtSecondary }}>⚡ Status Persetujuan:</span>
+                    <span style={{ fontWeight: '900', color: isApproved ? T.success : T.accentGold }}>
                       {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
                     </span>
                   </div>
 
                   {/* List Item Bahan Baku */}
-                  <div style={{ background: '#0f172a', borderRadius: '10px', padding: '12px', border: '1px solid #334155', marginTop: '4px' }}>
-                    <div style={{ fontWeight: '800', color: '#fb7185', marginBottom: '8px', fontSize: '0.80rem' }}>
+                  <div style={{ background: T.cardBg2, borderRadius: '10px', padding: '12px', border: `1px solid ${T.border}`, marginTop: '4px' }}>
+                    <div style={{ fontWeight: '800', color: T.danger, marginBottom: '8px', fontSize: '0.80rem' }}>
                       🥬 Rincian Bahan Baku Rusak ({itemsList.length} Item):
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
                       <thead>
-                        <tr style={{ background: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                        <tr style={{ background: T.cardBg, color: T.txtSecondary, borderBottom: `1px solid ${T.border}` }}>
                           <th style={{ padding: '6px', textAlign: 'left' }}>Bahan Baku</th>
                           <th style={{ padding: '6px', textAlign: 'right' }}>Jumlah</th>
                           <th style={{ padding: '6px', textAlign: 'left' }}>Alasan</th>
@@ -4956,17 +4956,17 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       </thead>
                       <tbody>
                         {itemsList.map((row, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#ffffff' }}>
-                            <td style={{ padding: '6px', fontWeight: '800', color: '#38bdf8' }}>📦 {row.item_name}</td>
-                            <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{row.qty || row.stok_rusak} {row.unit}</td>
-                            <td style={{ padding: '6px', color: '#fb7185' }}>⚠️ {row.damage_reason || row.reason || 'Lainnya'}</td>
+                          <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: T.txtPrimary }}>
+                            <td style={{ padding: '6px', fontWeight: '800', color: T.info }}>📦 {row.item_name}</td>
+                            <td style={{ padding: '6px', textAlign: 'right', fontWeight: '900', color: T.danger }}>-{row.qty || row.stok_rusak} {row.unit}</td>
+                            <td style={{ padding: '6px', color: T.danger }}>⚠️ {row.damage_reason || row.reason || 'Lainnya'}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
 
-                  <button onClick={() => setPreviewWasteModalData(null)} style={{ padding: '10px', background: '#334155', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', marginTop: '6px' }}>
+                  <button onClick={() => setPreviewWasteModalData(null)} style={{ padding: '10px', background: T.border, color: T.txtPrimary, border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', marginTop: '6px' }}>
                     Tutup Pratinjau
                   </button>
                 </div>
@@ -4980,16 +4980,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* ========================================================= */}
       {showAddSalesModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '780px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #6366f1', background: '#0f172a', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '780px', maxHeight: '90vh', overflowY: 'auto', border: `1px solid ${T.info}`, background: T.cardBg2, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '14px' }}>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShoppingBag size={22} color="#818cf8" />
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShoppingBag size={22} color={T.info} />
                   <span>{editingOutflowRecord ? `Edit Transaksi Penjualan (${salesNo})` : '🛍️ Tambah Transaksi Penjualan (Input Order POS Manual)'}</span>
                 </h3>
-                <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '4px 0 0 0' }}>
                   Input transaksi penjualan menu. Stok bahan baku akan terhitung & terpotong secara otomatis berdasarkan resep.
                 </p>
               </div>
@@ -5000,40 +5000,40 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   setShowAddSalesModal(false);
                   setEditingOutflowRecord(null);
                 }}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
+                style={{ background: 'none', border: 'none', color: T.txtSecondary, fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
               >
                 ✕
               </button>
             </div>
 
             {/* General Info Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', background: T.cardBg, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>📅 Tanggal Transaksi</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtPrimary }}>📅 Tanggal Transaksi</label>
                 <input
                   type="date"
                   value={salesDate}
                   onChange={e => setSalesDate(e.target.value)}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                  style={{ padding: '8px 12px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '700' }}
                 />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>🎫 No. Transaksi / Struk</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtPrimary }}>🎫 No. Transaksi / Struk</label>
                 <input
                   type="text"
                   value={salesNo}
                   onChange={e => setSalesNo(e.target.value)}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#818cf8', fontSize: '0.85rem', fontWeight: '900' }}
+                  style={{ padding: '8px 12px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.info, fontSize: '0.85rem', fontWeight: '900' }}
                 />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>🏢 Outlet / Cabang</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtPrimary }}>🏢 Outlet / Cabang</label>
                 <select
                   value={salesOutletId}
                   onChange={e => setSalesOutletId(Number(e.target.value))}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                  style={{ padding: '8px 12px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '700' }}
                 >
                   {outlets.map(o => (
                     <option key={o.id} value={o.id}>{o.name}</option>
@@ -5042,21 +5042,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>👤 Kasir / Admin Pengaju</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtPrimary }}>👤 Kasir / Admin Pengaju</label>
                 <input
                   type="text"
                   value={salesCreatedBy}
                   onChange={e => setSalesCreatedBy(e.target.value)}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                  style={{ padding: '8px 12px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '700' }}
                 />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>⚡ Status Pembayaran</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtPrimary }}>⚡ Status Pembayaran</label>
                 <select
                   value={salesStatus}
                   onChange={e => setSalesStatus(e.target.value)}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: salesStatus === 'Paid' ? '#4ade80' : '#fbbf24', fontSize: '0.85rem', fontWeight: '900' }}
+                  style={{ padding: '8px 12px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: salesStatus === 'Paid' ? T.success : T.accentGold, fontSize: '0.85rem', fontWeight: '900' }}
                 >
                   <option value="Paid">🟢 Paid (Lunas)</option>
                   <option value="Pending">⏳ Pending (Belum Lunas)</option>
@@ -5064,11 +5064,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#cbd5e1' }}>💳 Metode Pembayaran</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: '800', color: T.txtPrimary }}>💳 Metode Pembayaran</label>
                 <select
                   value={salesPaymentMethod}
                   onChange={e => setSalesPaymentMethod(e.target.value)}
-                  style={{ padding: '8px 12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem', fontWeight: '700' }}
+                  style={{ padding: '8px 12px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '700' }}
                 >
                   <option value="Cash">Cash (Tunai)</option>
                   <option value="QRIS">QRIS</option>
@@ -5081,23 +5081,23 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             {/* Menu Items Batch Table */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>🍔 Rincian Menu Penjualan</span>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({salesMenuRows.length} item)</span>
+                  <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>({salesMenuRows.length} item)</span>
                 </span>
                 <button
                   type="button"
                   onClick={handleAddSalesMenuRow}
-                  style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f1', color: '#818cf8', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
+                  style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: `1px solid ${T.info}`, color: T.info, borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
                 >
                   + Tambah Menu
                 </button>
               </div>
 
-              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '10px' }}>
+              <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                   <thead>
-                    <tr style={{ background: '#1e293b', color: '#cbd5e1', borderBottom: '1px solid #334155', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
+                    <tr style={{ background: T.cardBg, color: T.txtPrimary, borderBottom: `1px solid ${T.border}`, textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
                       <th style={{ padding: '10px 12px' }}>Pilih Product / Menu</th>
                       <th style={{ padding: '10px 12px', width: '190px' }}>🌶️ Varian Menu / Opsi</th>
                       <th style={{ padding: '10px 12px', width: '90px', textAlign: 'center' }}>Qty Sold</th>
@@ -5111,7 +5111,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const availVars = getProductVariants(row.product_name);
 
                       return (
-                        <tr key={row.id || idx} style={{ borderBottom: '1px solid #334155' }}>
+                        <tr key={row.id || idx} style={{ borderBottom: `1px solid ${T.border}` }}>
                           {/* 1. PRODUCT NAME */}
                           <td style={{ padding: '10px 12px' }}>
                             <input
@@ -5120,7 +5120,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               placeholder="Cari / Pilih Nama Menu..."
                               value={row.product_name}
                               onChange={e => handleUpdateSalesMenuRow(idx, 'product_name', e.target.value)}
-                              style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', fontWeight: '700' }}
+                              style={{ width: '100%', padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '700' }}
                             />
                             <datalist id={`prod-list-${idx}`}>
                               {(masterData.products || []).map(p => (
@@ -5135,7 +5135,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               <select
                                 value={row.variant_name || ''}
                                 onChange={e => handleUpdateSalesMenuRow(idx, 'variant_name', e.target.value)}
-                                style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #6366f1', borderRadius: '6px', color: '#818cf8', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
+                                style={{ width: '100%', padding: '8px', background: T.cardBg2, border: `1px solid ${T.info}`, borderRadius: '6px', color: T.info, fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
                               >
                                 <option value="">-- Normal / Standard --</option>
                                 {availVars.map((v, vIdx) => (
@@ -5151,7 +5151,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 placeholder="Ketik varian (opsional)..."
                                 value={row.variant_name || ''}
                                 onChange={e => handleUpdateSalesMenuRow(idx, 'variant_name', e.target.value)}
-                                style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#818cf8', fontSize: '0.82rem', fontWeight: '700' }}
+                                style={{ width: '100%', padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.info, fontSize: '0.82rem', fontWeight: '700' }}
                               />
                             )}
                             <datalist id={`var-list-${idx}`}>
@@ -5175,7 +5175,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               min="1"
                               value={row.qty}
                               onChange={e => handleUpdateSalesMenuRow(idx, 'qty', Math.max(1, Number(e.target.value)))}
-                              style={{ width: '70px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#34d399', fontSize: '0.85rem', fontWeight: '900', textAlign: 'center' }}
+                              style={{ width: '70px', padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.success, fontSize: '0.85rem', fontWeight: '900', textAlign: 'center' }}
                             />
                           </td>
 
@@ -5185,12 +5185,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               type="number"
                               value={row.price}
                               onChange={e => handleUpdateSalesMenuRow(idx, 'price', Number(e.target.value))}
-                              style={{ width: '110px', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', fontSize: '0.82rem', textAlign: 'right' }}
+                              style={{ width: '110px', padding: '8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.82rem', textAlign: 'right' }}
                             />
                           </td>
 
                           {/* 5. SUBTOTAL */}
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: T.info }}>
                             {formatRupiah(row.total || (row.qty * row.price))}
                           </td>
 
@@ -5199,7 +5199,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <button
                               type="button"
                               onClick={() => handleRemoveSalesMenuRow(idx)}
-                              style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.4)', color: '#fb7185', borderRadius: '6px', padding: '6px', cursor: 'pointer' }}
+                              style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.4)', color: T.danger, borderRadius: '6px', padding: '6px', cursor: 'pointer' }}
                               title="Hapus baris menu"
                             >
                               <Trash2 size={14} />
@@ -5213,16 +5213,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
 
               {/* Total Omset Sales Summary */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', background: '#1e293b', padding: '12px 16px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#cbd5e1' }}>Total Omset Penjualan:</span>
-                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', background: T.cardBg, padding: '12px 16px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>Total Omset Penjualan:</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: T.success }}>
                   {formatRupiah(salesMenuRows.reduce((sum, r) => sum + (Number(r.total) || 0), 0))}
                 </span>
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: `1px solid ${T.border}`, paddingTop: '16px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -5239,7 +5239,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 type="button"
                 onClick={handleSaveSalesTransaction}
                 className="btn-primary"
-                style={{ padding: '10px 24px', fontSize: '0.85rem', background: '#6366f1', color: '#ffffff' }}
+                style={{ padding: '10px 24px', fontSize: '0.85rem', background: `${T.info}`, color: T.txtPrimary }}
               >
                 ✓ Simpan Transaksi Penjualan
               </button>
@@ -5254,22 +5254,22 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* ========================================================= */}
       {previewOutflowModalData && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '680px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid #818cf8', background: '#0f172a', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '680px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid #818cf8', background: T.cardBg2, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#818cf8', margin: 0 }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.info, margin: 0 }}>
                   📋 Detail Transaksi Penjualan ({previewOutflowModalData.receiptNo})
                 </h3>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                  Outlet: <strong style={{ color: '#f8fafc' }}>{getOutletName(previewOutflowModalData.outlet_id)}</strong> &bull; Tanggal: <strong style={{ color: '#f8fafc' }}>{previewOutflowModalData.date} ({previewOutflowModalData.time})</strong>
+                <div style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '2px' }}>
+                  Outlet: <strong style={{ color: T.txtPrimary }}>{getOutletName(previewOutflowModalData.outlet_id)}</strong> &bull; Tanggal: <strong style={{ color: T.txtPrimary }}>{previewOutflowModalData.date} ({previewOutflowModalData.time})</strong>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => setPreviewOutflowModalData(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
+                style={{ background: 'none', border: 'none', color: T.txtSecondary, fontSize: '1.2rem', cursor: 'pointer', fontWeight: '800' }}
               >
                 ✕
               </button>
@@ -5277,29 +5277,29 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
             {/* Info Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Pengaju / Kasir</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', marginTop: '2px' }}>👤 {previewOutflowModalData.created_by}</div>
+              <div style={{ background: T.cardBg, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '0.72rem', color: T.txtSecondary }}>Pengaju / Kasir</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary, marginTop: '2px' }}>👤 {previewOutflowModalData.created_by}</div>
               </div>
-              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Status Pembayaran</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: '900', color: previewOutflowModalData.isPaid ? '#4ade80' : '#fbbf24', marginTop: '2px' }}>
+              <div style={{ background: T.cardBg, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '0.72rem', color: T.txtSecondary }}>Status Pembayaran</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '900', color: previewOutflowModalData.isPaid ? T.success : T.accentGold, marginTop: '2px' }}>
                   {previewOutflowModalData.isPaid ? '🟢 Paid (Lunas)' : '⏳ Pending'}
                 </div>
               </div>
-              <div style={{ background: '#1e293b', padding: '10px 12px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Metode Pembayaran</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#38bdf8', marginTop: '2px' }}>💳 {previewOutflowModalData.payment_method || 'Cash'}</div>
+              <div style={{ background: T.cardBg, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                <div style={{ fontSize: '0.72rem', color: T.txtSecondary }}>Metode Pembayaran</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.info, marginTop: '2px' }}>💳 {previewOutflowModalData.payment_method || 'Cash'}</div>
               </div>
             </div>
 
             {/* Menu Items Table */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc' }}>🍔 Rincian Menu Penjualan</div>
-              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>🍔 Rincian Menu Penjualan</div>
+              <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                   <thead>
-                    <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+                    <tr style={{ background: T.cardBg, color: T.txtPrimary, textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
                       <th style={{ padding: '8px 12px' }}>Nama Menu</th>
                       <th style={{ padding: '8px 12px', textAlign: 'center' }}>Qty</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Harga Satuan</th>
@@ -5308,28 +5308,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   </thead>
                   <tbody>
                     {(previewOutflowModalData.items || []).map((it, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #334155' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: '700', color: '#f8fafc' }}>{it.name || it.product_name}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '800', color: '#34d399' }}>{it.qty}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#94a3b8' }}>{formatRupiah(it.price)}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: '#38bdf8' }}>{formatRupiah(it.total || (it.qty * it.price))}</td>
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                        <td style={{ padding: '8px 12px', fontWeight: '700', color: T.txtPrimary }}>{it.name || it.product_name}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '800', color: T.success }}>{it.qty}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: T.txtSecondary }}>{formatRupiah(it.price)}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: T.info }}>{formatRupiah(it.total || (it.qty * it.price))}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div style={{ textAlign: 'right', fontSize: '0.9rem', fontWeight: '900', color: '#34d399', marginTop: '4px' }}>
+              <div style={{ textAlign: 'right', fontSize: '0.9rem', fontWeight: '900', color: T.success, marginTop: '4px' }}>
                 Total Omset: {formatRupiah(previewOutflowModalData.total_amount)}
               </div>
             </div>
 
             {/* Ingredients Deducted Table */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#fb7185' }}>🌾 Rincian Bahan Baku Terpotong Otomatis (Autoconsumption)</div>
-              <div style={{ overflowX: 'auto', border: '1px solid #334155', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.danger }}>🌾 Rincian Bahan Baku Terpotong Otomatis (Autoconsumption)</div>
+              <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                   <thead>
-                    <tr style={{ background: '#1e293b', color: '#cbd5e1', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
+                    <tr style={{ background: T.cardBg, color: T.txtPrimary, textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800' }}>
                       <th style={{ padding: '8px 12px' }}>Nama Bahan Baku</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Qty Terpotong</th>
                       <th style={{ padding: '8px 12px' }}>Satuan</th>
@@ -5338,11 +5338,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   </thead>
                   <tbody>
                     {(previewOutflowModalData.deducted_ingredients || []).map((ing, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #334155' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: '700', color: '#38bdf8' }}>{ing.ingredient_name || ing.name}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: '#fb7185' }}>-{ing.qty}</td>
-                        <td style={{ padding: '8px 12px', color: '#cbd5e1' }}>{ing.unit || 'kg'}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#34d399', fontWeight: '700' }}>{formatRupiah(ing.cogs || 0)}</td>
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                        <td style={{ padding: '8px 12px', fontWeight: '700', color: T.info }}>{ing.ingredient_name || ing.name}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: T.danger }}>-{ing.qty}</td>
+                        <td style={{ padding: '8px 12px', color: T.txtPrimary }}>{ing.unit || 'kg'}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: T.success, fontWeight: '700' }}>{formatRupiah(ing.cogs || 0)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -5350,7 +5350,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #334155', paddingTop: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${T.border}`, paddingTop: '12px' }}>
               <button
                 type="button"
                 onClick={() => setPreviewOutflowModalData(null)}
