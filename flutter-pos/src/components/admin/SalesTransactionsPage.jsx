@@ -1534,9 +1534,12 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const activeOutlets = outlets || [];
     const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
 
-    const filteredOutlets = catSelectedOutletIds.includes('ALL') 
-      ? activeOutlets 
-      : activeOutlets.filter(o => catSelectedOutletIds.includes(o.id));
+    let filteredOutlets = activeOutlets;
+    if (selectedBranch) {
+      filteredOutlets = activeOutlets.filter(o => Number(o.id) === Number(selectedBranch));
+    } else if (!catSelectedOutletIds.includes('ALL')) {
+      filteredOutlets = activeOutlets.filter(o => catSelectedOutletIds.some(id => Number(id) === Number(o.id)));
+    }
 
     const menuItems = products || [];
 
@@ -1550,10 +1553,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       let totalQtyAll = 0;
 
       filteredOutlets.forEach(otl => {
-        const itemTxs = salesTx.filter(t => 
-          Number(t.outlet_id) === Number(otl.id) &&
-          (t.item_name === item.name || t.product_name === item.name || (t.items && t.items.some(i => i.name === item.name)))
-        );
+        const itemTxs = salesTx.filter(t => {
+          if (Number(t.outlet_id) !== Number(otl.id)) return false;
+          if (t.status === 'Void') return false;
+          const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 10);
+          if (start && dt < start) return false;
+          if (end && dt > end) return false;
+          return (t.item_name === item.name || t.product_name === item.name || (t.items && t.items.some(i => i.name === item.name)));
+        });
+
         const qty = itemTxs.reduce((sum, t) => sum + Number(t.qty || t.quantity || 1), 0);
         const gross = itemTxs.reduce((sum, t) => sum + Number(t.amount || t.price || 0), 0);
         const disc = itemTxs.reduce((sum, t) => sum + Number(t.discount || 0), 0);
@@ -4030,38 +4038,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
 
 
-          {/* SECTION 3: FILTER RENTANG WAKTU & OUTLET TEPAT DI ATAS TABEL */}
-          <div className="glass-card animate-fade-in" style={{ padding: '16px 20px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Filter size={16} color="#38bdf8" />
-                <span>Filter Outlet & Rentang Waktu Tabel:</span>
-              </span>
-              <DoubleCalendarPicker
-                startDate={catStartDate}
-                endDate={catEndDate}
-                datePreset={catDatePreset}
-                setStartDate={setCatStartDate}
-                setEndDate={setCatEndDate}
-                setDatePreset={setCatDatePreset}
-                showPopover={catShowCalendarPopover}
-                setShowPopover={setCatShowCalendarPopover}
-                outlets={outlets}
-                selectedOutletIds={catSelectedOutletIds}
-                onToggleOutlet={handleToggleCatOutlet}
-                onToggleAllOutlets={() => handleToggleCatOutlet('ALL')}
-                showOutletDropdown={catShowOutletDropdown}
-                setShowOutletDropdown={setCatShowOutletDropdown}
-                selectedBranch={selectedBranch}
-              />
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '0.75rem', color: '#34d399', background: 'rgba(52, 211, 153, 0.12)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.25)', fontWeight: '700' }}>
-                📊 Filter Live Tabel & Export
-              </span>
-            </div>
-          </div>
+
 
           {/* SECTION 4: TABEL 1 RINCIAN NOMINAL PENJUALAN BY MENU (PER NAMA MENU) */}
           <div className="glass-card animate-fade-in" style={{ padding: '24px', background: '#0f172a', border: '1px solid #334155', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
