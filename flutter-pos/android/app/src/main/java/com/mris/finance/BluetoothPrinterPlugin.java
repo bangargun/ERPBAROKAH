@@ -95,8 +95,13 @@ public class BluetoothPrinterPlugin extends Plugin {
                     if (devName == null || devName.trim().isEmpty()) {
                         devName = "Printer Bluetooth (" + device.getAddress() + ")";
                     }
+                    
+                    // Live Ping Check apakah printer fisik MENYALA atau MATI
+                    boolean isOnline = checkDeviceLiveStatus(device, adapter);
+
                     dev.put("name", devName);
                     dev.put("address", device.getAddress());
+                    dev.put("isOnline", isOnline);
                     dev.put("type", device.getType() == BluetoothDevice.DEVICE_TYPE_CLASSIC ? "classic" : "le");
                     deviceArray.put(dev);
                 }
@@ -108,6 +113,24 @@ public class BluetoothPrinterPlugin extends Plugin {
         } catch (Exception e) {
             Log.e(TAG, "Error reading bonded devices", e);
             call.reject("READ_BONDED_ERROR", "Gagal membaca daftar paired printer: " + e.getMessage());
+        }
+    }
+
+    private boolean checkDeviceLiveStatus(BluetoothDevice device, BluetoothAdapter adapter) {
+        if (adapter == null || !adapter.isEnabled()) return false;
+        BluetoothSocket socket = null;
+        try {
+            adapter.cancelDiscovery();
+            // Ping singkat koneksi socket
+            socket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
+            socket.connect();
+            return true;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (socket != null) {
+                try { socket.close(); } catch (IOException ignored) {}
+            }
         }
     }
 
@@ -164,9 +187,10 @@ public class BluetoothPrinterPlugin extends Plugin {
 
             try {
                 BluetoothDevice device = adapter.getRemoteDevice(finalMac);
-                socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
                 adapter.cancelDiscovery();
-                socket.connect();
+
+                // Multi-method socket connection (Secure -> Insecure -> Reflection Channel 1)
+                socket = connectToDeviceSocket(device);
                 outputStream = socket.getOutputStream();
 
                 byte[] printData = buildEscPosData(finalText, finalPaperWidth);
@@ -184,13 +208,7 @@ public class BluetoothPrinterPlugin extends Plugin {
             } catch (IOException e) {
                 Log.e(TAG, "Print error: " + e.getMessage(), e);
                 String errMsg = e.getMessage() != null ? e.getMessage() : "IO Error";
-                if (errMsg.contains("Connection refused")) {
-                    call.reject("CONNECTION_REFUSED", "Printer menolak koneksi. Pastikan printer menyala dan tidak digunakan aplikasi lain.");
-                } else if (errMsg.contains("busy")) {
-                    call.reject("DEVICE_BUSY", "Printer sedang sibuk. Coba beberapa saat lagi.");
-                } else {
-                    call.reject("PRINT_ERROR", "Gagal mencetak: " + errMsg);
-                }
+                call.reject("PRINT_ERROR", "Gagal mencetak ke printer hardware: " + errMsg);
             } catch (Exception e) {
                 Log.e(TAG, "Unexpected error: " + e.getMessage(), e);
                 call.reject("UNKNOWN_ERROR", "Error tidak dikenal: " + e.getMessage());
@@ -203,6 +221,42 @@ public class BluetoothPrinterPlugin extends Plugin {
                 }
             }
         }).start();
+    }
+
+    /**
+     * Hubungkan socket dengan 3 metode fallback (Standard SPP -> Insecure SPP -> Reflection Channel 1)
+     */
+    private BluetoothSocket connectToDeviceSocket(BluetoothDevice device) throws IOException {
+        BluetoothSocket socket = null;
+        
+        // Method 1: Standard Secure RFCOMM SPP Socket
+        try {
+            socket = device.createRfcommSocketToServiceRecord(SPP_UUID);
+            socket.connect();
+            return socket;
+        } catch (IOException e1) {
+            Log.w(TAG, "Method 1 (Secure SPP) failed: " + e1.getMessage() + ". Trying Method 2 (Insecure SPP)...");
+        }
+
+        // Method 2: Insecure RFCOMM SPP Socket (Sangat Efektif untuk Printer RPP02N & T-104BT)
+        try {
+            socket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
+            socket.connect();
+            return socket;
+        } catch (IOException e2) {
+            Log.w(TAG, "Method 2 (Insecure SPP) failed: " + e2.getMessage() + ". Trying Method 3 (Reflection Channel 1)...");
+        }
+
+        // Method 3: Reflection Channel 1 Socket (Universal Hardware Fallback)
+        try {
+            java.lang.reflect.Method m = device.getClass().getMethod("createRfcommSocket", new Class[] { int.class });
+            socket = (BluetoothSocket) m.invoke(device, 1);
+            socket.connect();
+            return socket;
+        } catch (Exception e3) {
+            Log.e(TAG, "All 3 socket connection methods failed!", e3);
+            throw new IOException("Koneksi ke printer " + device.getName() + " (" + device.getAddress() + ") gagal. Pastikan printer menyala, saklar ON, dan lampu indikator Bluetooth menyala.");
+        }
     }
 
     /**
