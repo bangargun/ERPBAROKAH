@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
-import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint } from '../../utils/bluetoothPrinter';
+import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint, _browserPrintFallback } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
   History, 
@@ -232,7 +232,7 @@ export default function AndroidPosRegister({
     txtPrimary:     isLight ? '#0f172a'                          : '#f8fafc',
     txtSecondary:   isLight ? '#475569'                          : '#94a3b8',
     txtMuted:       isLight ? '#64748b'                          : '#64748b',
-    txtSidebarIcon: isLight ? '#bfdbfe'                          : '#93c5fd',
+    txtSidebarIcon: isLight ? '#f59e0b'                          : '#fbbf24',
     txtHeaderAccent: isLight ? '#1d4ed8'                         : '#60a5fa',
     border:         isLight ? '#e2e8f0'                          : 'rgba(255,255,255,0.08)',
     borderCard:     isLight ? '#d1d5db'                          : 'var(--pos-border-card)',
@@ -257,6 +257,7 @@ export default function AndroidPosRegister({
   const [isScanningPaired, setIsScanningPaired] = useState(false);
   const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
   const [printStatusMsg, setPrintStatusMsg] = useState('');
+  const [printerOfflineModal, setPrinterOfflineModal] = useState({ open: false, errorMsg: '', onFallback: null }); // Papan info printer tidak terhubung
 
   // Scan bonded Bluetooth devices dari pengaturan Android & System Printer Fallback
   const handleScanPairedPrinters = useCallback(async () => {
@@ -455,7 +456,8 @@ export default function AndroidPosRegister({
   const [manualRepNetSales, setManualRepNetSales] = useState(0);
   const [manualRepNonCash, setManualRepNonCash] = useState(0);
   const [manualRepSalesDiscount, setManualRepSalesDiscount] = useState(0);
-  const [manualModalIdeal, setManualModalIdeal] = useState(500000);
+  const [manualModalSaatIni, setManualModalSaatIni] = useState(0);
+  const [manualModalSeharusnya, setManualModalSeharusnya] = useState(0);
   const [manualRepDebtPayment, setManualRepDebtPayment] = useState(0);
   const [manualRepStatus, setManualRepStatus] = useState('pending');
   const [manualRepNotes, setManualRepNotes] = useState('');
@@ -614,11 +616,7 @@ export default function AndroidPosRegister({
         stockMovement: [...createdRecords, ...filterOld(prev.stockMovement)]
       };
 
-      fetch(getApiUrl('/api/master-data'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newMaster)
-      }).catch(() => {});
+      saveToServerWithGuard(newMaster);
 
       return newMaster;
     });
@@ -694,6 +692,41 @@ export default function AndroidPosRegister({
     } catch (e) {}
     checkOfflineQueueCount();
   }, [checkOfflineQueueCount]);
+
+  // ─── SAVE GUARD ──────────────────────────────────────────────────────────────
+  // Mencegah auto-sync 3 detik menimpa data laporan yang baru disimpan sebelum
+  // server sempat menerima POST. isSavingRef = true selama POST berlangsung.
+  const isSavingRef = React.useRef(false);
+
+  // Array key laporan yang harus di-merge (bukan di-overwrite) saat auto-sync
+  const LAPORAN_ARRAY_KEYS = [
+    'manualEntryRecords', 'approvedFinanceDaily',
+    'stockOpname', 'approvedLogistics',
+    'stockTransfer', 'approvedTransfers',
+    'stockMovement', 'damagedGoods', 'approvedWaste',
+  ];
+
+  // Helper terpusat: POST newMaster ke server dengan guard aktif
+  const saveToServerWithGuard = React.useCallback((newMaster) => {
+    isSavingRef.current = true;
+    // Backup laporan ke localStorage sebagai fallback
+    try {
+      const backup = {};
+      LAPORAN_ARRAY_KEYS.forEach(k => { if (newMaster[k]) backup[k] = newMaster[k]; });
+      localStorage.setItem('MRIS_POS_LAPORAN_BACKUP', JSON.stringify(backup));
+    } catch (e) {}
+
+    return fetch(getApiUrl('/api/master-data'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newMaster)
+    })
+      .catch(() => {})
+      .finally(() => {
+        // Beri jeda 8 detik setelah POST selesai sebelum sync otomatis dibolehkan lagi
+        setTimeout(() => { isSavingRef.current = false; }, 8000);
+      });
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // 2. Realtime Network & Offline Queue Auto-Flusher Effect
   React.useEffect(() => {
@@ -778,10 +811,16 @@ export default function AndroidPosRegister({
   // LIVE AUTO-FETCH MASTER DATA / USER ACCOUNTS ON LOGIN SCREEN
   useEffect(() => {
     const syncUsersFromServer = () => {
+      // ─── GUARD: Jangan sync saat sedang ada POST yang belum selesai ───────────
+      if (isSavingRef.current) return;
+
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
         .then(serverMaster => {
           if (!serverMaster || typeof serverMaster !== 'object') return;
+          // Double-check guard setelah fetch selesai (async delay)
+          if (isSavingRef.current) return;
+
           setMasterData(prev => {
             const mergedWeb = (Array.isArray(serverMaster.webAdminAccounts) && serverMaster.webAdminAccounts.length > 0)
               ? serverMaster.webAdminAccounts
@@ -796,9 +835,37 @@ export default function AndroidPosRegister({
               ? serverMaster.mobilePermissionMatrix
               : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
 
+            // ─── MERGE CERDAS untuk array laporan ────────────────────────────────
+            // Jika data lokal (prev) lebih baru dari server (clientUpdated > server _lastUpdated),
+            // pertahankan array laporan lokal agar tidak tertimpa.
+            const localIsNewer = (prev.clientUpdated || 0) > (serverMaster._lastUpdated || 0);
+
+            // Untuk setiap key laporan: ambil gabungan berdasarkan id unik
+            const smartMergeLaporanArray = (localArr, serverArr) => {
+              if (!Array.isArray(serverArr) || serverArr.length === 0) return localArr || [];
+              if (!Array.isArray(localArr) || localArr.length === 0) return serverArr;
+              if (localIsNewer) {
+                // Lokal lebih baru: gabungkan local + server, prioritaskan local (deduplicate by id)
+                const serverIds = new Set((localArr).map(i => String(i.id)));
+                const serverOnly = serverArr.filter(i => !serverIds.has(String(i.id)));
+                return [...localArr, ...serverOnly];
+              }
+              // Server lebih baru: gabungkan server + local, prioritaskan server (deduplicate by id)
+              const localIds = new Set((serverArr).map(i => String(i.id)));
+              const localOnly = localArr.filter(i => !localIds.has(String(i.id)));
+              return [...serverArr, ...localOnly];
+            };
+
+            const mergedLaporan = {};
+            LAPORAN_ARRAY_KEYS.forEach(k => {
+              mergedLaporan[k] = smartMergeLaporanArray(prev[k], serverMaster[k]);
+            });
+
             return {
               ...prev,
               ...serverMaster,
+              // Kembalikan merge cerdas laporan (jangan biarkan ...serverMaster menimpa)
+              ...mergedLaporan,
               webAdminAccounts: mergedWeb,
               mobileAccounts: mergedMobile,
               permissionMatrix: mergedPerm,
@@ -813,7 +880,7 @@ export default function AndroidPosRegister({
     syncUsersFromServer();
     const loginUsersTimer = setInterval(syncUsersFromServer, 3000);
     return () => clearInterval(loginUsersTimer);
-  }, [isAppLoggedIn]);
+  }, [isAppLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AUTOMATIC 15-MINUTE INACTIVITY AUTO-LOCK TO PAPAN LOGIN
   React.useEffect(() => {
@@ -1628,15 +1695,14 @@ export default function AndroidPosRegister({
         () => showPrintStatus('success', '✅ Cetak berhasil!'),
         (err) => {
           const msg = err?.message || String(err);
-          if (msg.includes('BLUETOOTH_DISABLED')) {
-            showPrintStatus('error', '❌ Bluetooth tidak aktif. Aktifkan Bluetooth.');
-          } else if (msg.includes('CONNECTION_REFUSED')) {
-            showPrintStatus('error', '❌ Printer menolak koneksi. Pastikan printer menyala.');
-          } else if (msg.includes('DEVICE_BUSY')) {
-            showPrintStatus('error', '❌ Printer sedang sibuk. Coba lagi.');
-          } else {
-            showPrintStatus('error', '❌ Gagal cetak: ' + msg);
-          }
+          let displayMsg = '❌ Gagal cetak: ' + msg;
+          if (msg.includes('BLUETOOTH_DISABLED')) displayMsg = '❌ Bluetooth tidak aktif. Aktifkan Bluetooth di perangkat Anda.';
+          else if (msg.includes('CONNECTION_REFUSED')) displayMsg = '❌ Printer menolak koneksi. Pastikan printer menyala dan dalam jangkauan.';
+          else if (msg.includes('DEVICE_BUSY')) displayMsg = '❌ Printer sedang sibuk. Tunggu sebentar lalu coba lagi.';
+          showPrintStatus('error', displayMsg);
+          // Tampilkan papan info printer offline
+          const lastTxt = textContent;
+          setPrinterOfflineModal({ open: true, errorMsg: displayMsg, onFallback: () => { _browserPrintFallback(lastTxt, printerPaperWidth); } });
         }
       );
     } catch (err) {
@@ -2437,6 +2503,109 @@ export default function AndroidPosRegister({
     return matchesCat && matchesSearch;
   });
 
+  // ── PRINTER STATUS BANNER HELPER ──
+  // Tampilkan status koneksi printer di setiap modal yang punya tombol cetak struk
+  const renderPrinterStatusBanner = () => {
+    const isCapacitorNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
+    const lastPrintError = printStatus === 'error' ? printStatusMsg : null;
+
+    let bgColor, borderColor, iconColor, icon, label, sublabel;
+
+    if (lastPrintError) {
+      bgColor = 'rgba(244,63,94,0.12)'; borderColor = '#f43f5e'; iconColor = '#f87171';
+      icon = '❌'; label = 'Printer Bermasalah'; sublabel = lastPrintError;
+    } else if (printStatus === 'printing') {
+      bgColor = 'rgba(99,102,241,0.12)'; borderColor = '#6366f1'; iconColor = '#a5b4fc';
+      icon = '⏳'; label = 'Sedang Mencetak...'; sublabel = printStatusMsg;
+    } else if (printStatus === 'success') {
+      bgColor = 'rgba(52,211,153,0.12)'; borderColor = '#34d399'; iconColor = '#34d399';
+      icon = '✅'; label = 'Cetak Berhasil'; sublabel = printStatusMsg;
+    } else if (!printerMac) {
+      bgColor = 'rgba(251,191,36,0.12)'; borderColor = '#fbbf24'; iconColor = '#fbbf24';
+      icon = '⚠️'; label = 'Printer Belum Dikonfigurasi'; sublabel = 'Cetak akan dialihkan ke PDF. Silakan atur printer di tab Setting Printer.';
+    } else if (!isCapacitorNative) {
+      bgColor = 'rgba(56,189,248,0.10)'; borderColor = '#38bdf8'; iconColor = '#38bdf8';
+      icon = '🖥️'; label = 'Mode Browser — Cetak PDF'; sublabel = `Di APK Android, struk langsung ke printer Bluetooth: ${printerMac}`;
+    } else {
+      bgColor = 'rgba(52,211,153,0.10)'; borderColor = '#34d399'; iconColor = '#34d399';
+      icon = '🖨️'; label = 'Printer Siap'; sublabel = `${pairedDevices.find(d => d.address === printerMac)?.name || 'Bluetooth ' + printerMac} • ${printerPaperWidth}mm`;
+    }
+
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px',
+        borderRadius: '10px', background: bgColor, border: `1px solid ${borderColor}`,
+        fontSize: '0.78rem', marginBottom: '10px'
+      }}>
+        <span style={{ fontSize: '1rem', flexShrink: 0, marginTop: '1px' }}>{icon}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: '800', color: iconColor }}>{label}</div>
+          <div style={{ color: '#94a3b8', marginTop: '2px', lineHeight: 1.4 }}>{sublabel}</div>
+        </div>
+        {!printerMac && (
+          <button
+            type="button"
+            onClick={() => setActiveNavTab('printer_setting')}
+            style={{ flexShrink: 0, background: '#fbbf24', color: '#0f172a', border: 'none', borderRadius: '7px', padding: '4px 10px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer' }}
+          >
+            Atur
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // ── PRINTER OFFLINE MODAL ──
+  // Popup informatif muncul otomatis ketika cetak gagal / printer tidak terhubung
+  const renderPrinterOfflineModal = () => {
+    if (!printerOfflineModal.open) return null;
+    return (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+        <div style={{ width: '100%', maxWidth: '380px', background: 'var(--pos-bg-card)', border: '1px solid #f43f5e', borderRadius: '18px', padding: '26px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 20px 60px rgba(244,63,94,0.25)' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '2.8rem', marginBottom: '8px' }}>🖨️</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#f87171' }}>Printer Tidak Terhubung</div>
+            <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '8px', lineHeight: 1.5 }}>
+              {printerOfflineModal.errorMsg || 'Gagal mengirim data ke printer Bluetooth.'}
+            </div>
+          </div>
+          <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '10px', padding: '12px 14px', fontSize: '0.76rem', color: '#94a3b8', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: '800', color: '#f87171', marginBottom: '6px' }}>💡 Cara Memperbaiki:</div>
+            <div>1. Pastikan printer Bluetooth <strong style={{ color: '#f8fafc' }}>menyala</strong> & tidak sleep.</div>
+            <div>2. Pastikan Bluetooth Android perangkat <strong style={{ color: '#f8fafc' }}>aktif</strong>.</div>
+            <div>3. Pastikan printer sudah <strong style={{ color: '#f8fafc' }}>dipair</strong> di Pengaturan Bluetooth.</div>
+            <div>4. Coba <strong style={{ color: '#f8fafc' }}>lepas & sambung ulang</strong> printer dari Setting.</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {printerOfflineModal.onFallback && (
+              <button
+                type="button"
+                onClick={() => { printerOfflineModal.onFallback(); setPrinterOfflineModal({ open: false, errorMsg: '', onFallback: null }); }}
+                style={{ padding: '12px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
+              >
+                📄 Cetak Sebagai PDF (Alternatif)
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setPrinterOfflineModal({ open: false, errorMsg: '', onFallback: null }); setActiveNavTab('printer_setting'); }}
+              style={{ padding: '12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              ⚙️ Buka Setting Printer
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrinterOfflineModal({ open: false, errorMsg: '', onFallback: null })}
+              style={{ padding: '10px', background: 'var(--pos-border-card)', border: 'none', color: 'var(--pos-txt-secondary)', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '0.82rem' }}
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       data-theme={appTheme}
@@ -2479,7 +2648,7 @@ export default function AndroidPosRegister({
           }}>
             POS
           </div>
-          <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#bfdbfe', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: '0.56rem', fontWeight: '800', color: '#f59e0b', textAlign: 'center', padding: '0 4px', maxWidth: '70px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
             {currentOutlet.name}
           </div>
         </div>
@@ -2523,9 +2692,9 @@ export default function AndroidPosRegister({
                   width: '64px',
                   height: '54px',
                   borderRadius: '12px',
-                  background: isActive ? T.bgSidebarActive : 'transparent',
-                  border: 'none',
-                  color: isActive ? '#ffffff' : T.txtSidebarIcon,
+                  background: isActive ? '#ffffff' : 'transparent',
+                  border: isActive ? '1px solid #f59e0b' : 'none',
+                  color: isActive ? '#000000' : '#f59e0b',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -2533,7 +2702,7 @@ export default function AndroidPosRegister({
                   gap: '3px',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  boxShadow: isActive ? '0 4px 12px rgba(37,99,235,0.35)' : 'none'
+                  boxShadow: isActive ? '0 4px 14px rgba(245,158,11,0.45)' : 'none'
                 }}
               >
                 {showSyncDot && (
@@ -2550,8 +2719,8 @@ export default function AndroidPosRegister({
                     }}
                   />
                 )}
-                <IconComp size={19} strokeWidth={isActive ? 2.5 : 1.8} />
-                <span style={{ fontSize: '0.64rem', fontWeight: isActive ? '900' : '700' }}>{nav.label}</span>
+                <IconComp size={19} color={isActive ? '#000000' : '#f59e0b'} strokeWidth={isActive ? 2.5 : 1.8} />
+                <span style={{ fontSize: '0.64rem', fontWeight: isActive ? '900' : '700', color: isActive ? '#000000' : '#f59e0b' }}>{nav.label}</span>
               </button>
             );
           })}
@@ -2564,19 +2733,20 @@ export default function AndroidPosRegister({
             width: '64px',
             height: '50px',
             borderRadius: '12px',
-            background: activeNavTab === 'pos_settings' ? T.bgSidebarActive : 'transparent',
-            border: 'none',
-            color: activeNavTab === 'pos_settings' ? '#ffffff' : T.txtSidebarIcon,
+            background: activeNavTab === 'pos_settings' ? '#ffffff' : 'transparent',
+            border: activeNavTab === 'pos_settings' ? '1px solid #f59e0b' : 'none',
+            color: activeNavTab === 'pos_settings' ? '#000000' : '#f59e0b',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '3px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            boxShadow: activeNavTab === 'pos_settings' ? '0 4px 14px rgba(245,158,11,0.45)' : 'none'
           }}
         >
-          <Settings size={19} />
-          <span style={{ fontSize: '0.64rem', fontWeight: '700' }}>Setting</span>
+          <Settings size={19} color={activeNavTab === 'pos_settings' ? '#000000' : '#f59e0b'} />
+          <span style={{ fontSize: '0.64rem', fontWeight: '700', color: activeNavTab === 'pos_settings' ? '#000000' : '#f59e0b' }}>Setting</span>
         </button>
       </aside>
 
@@ -6956,6 +7126,8 @@ export default function AndroidPosRegister({
             </div>
 
             {/* ACTION BUTTONS */}
+            {/* PRINTER STATUS BANNER — tampilkan di modal struk sebelum tombol cetak */}
+            {renderPrinterStatusBanner()}
             {(lastCompletedTx.isContohTagihan || lastCompletedTx.id?.startsWith('BILL') || lastCompletedTx.id?.startsWith('HOLD')) ? (
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
@@ -7015,6 +7187,8 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
+            {/* PRINTER STATUS BANNER — modal cetak ulang riwayat transaksi */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setSelectedTxDetail(null)} className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Tutup</button>
               <button onClick={() => handlePrintSingleReceipt(selectedTxDetail)} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
@@ -7786,6 +7960,8 @@ export default function AndroidPosRegister({
             </div>
 
             {/* ACTION BUTTONS */}
+            {/* PRINTER STATUS BANNER — modal pilih struk order */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 onClick={() => {
@@ -8397,6 +8573,8 @@ export default function AndroidPosRegister({
             )}
 
             {/* Modal Actions */}
+            {/* PRINTER STATUS BANNER — modal split bill */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => setShowSplitBillModal(false)}
@@ -8405,7 +8583,7 @@ export default function AndroidPosRegister({
                 Batal
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   let unassignedTotalRp = 0;
                   let unassignedItemsCount = 0;
 
@@ -8550,13 +8728,49 @@ export default function AndroidPosRegister({
 
                   splitPrintHTML += `</body></html>`;
 
-                  const win = window.open('', '_blank', 'width=400,height=600');
-                  if (win) {
-                    win.document.write(splitPrintHTML);
-                    win.document.close();
-                    win.focus();
-                    setTimeout(() => win.print(), 250);
+                  // Kirim ke driver BT jika terhubung, fallback ke PDF jika di browser
+                  // Bangun teks ESC/POS untuk split bill menggunakan buildReceiptText
+                  const outletName = currentOutlet?.name || 'POS KASIR BAROKAH';
+                  const charsPerLine = printerPaperWidth === '80' ? 48 : 32;
+                  const div = '-'.repeat(charsPerLine);
+                  const splitTextLines = [
+                    '[C][B]' + outletName.toUpperCase(),
+                    '[C]STRUK SPLIT BILL',
+                    div,
+                  ];
+
+                  if (splitType === 'by_item') {
+                    let grandSplitEsc = 0;
+                    splitCustomerList.forEach((cName, cIdx) => {
+                      const custItems = cart.map((item, idx) => {
+                        const q = itemQtySplitMap[idx]?.[cIdx] || 0;
+                        return q > 0 ? { ...item, splitQty: q } : null;
+                      }).filter(Boolean);
+                      if (custItems.length > 0) {
+                        const custTotal = custItems.reduce((s, it) => s + (it.splitQty * it.price), 0);
+                        grandSplitEsc += custTotal;
+                        splitTextLines.push('[B][ ' + cName.toUpperCase() + ' ]');
+                        custItems.forEach(it => splitTextLines.push(`${it.splitQty}x ${it.name.toUpperCase()}  ${formatRupiah(it.splitQty * it.price)}`));
+                        splitTextLines.push('Subtotal ' + cName + ': ' + formatRupiah(custTotal));
+                        splitTextLines.push(div);
+                      }
+                    });
+                    splitTextLines.push('[B]GRAND TOTAL MEJA: ' + formatRupiah(grandSplitEsc));
+                  } else {
+                    for (let i = 1; i <= splitPeopleCount; i++) {
+                      splitTextLines.push('[B]ORANG ' + i + ' dari ' + splitPeopleCount);
+                      splitTextLines.push('TAGIHAN PER ORANG: ' + formatRupiah(Math.round(cartTotal / splitPeopleCount)));
+                      splitTextLines.push(div);
+                    }
                   }
+                  splitTextLines.push('[C]*** BUKTI REKAP PEMBAYARAN ***');
+                  splitTextLines.push('');
+                  splitTextLines.push('');
+
+                  const splitTextContent = splitTextLines.join('\n');
+
+                  // Kirim ke printer Bluetooth atau fallback ke PDF
+                  await printTextToBluetooth(splitTextContent, 'bill');
 
                   setShowSplitBillModal(false);
                 }}
@@ -9676,6 +9890,8 @@ export default function AndroidPosRegister({
             </div>
 
             {/* Modal Actions */}
+            {/* PRINTER STATUS BANNER — modal cetak laporan shift closing */}
+            {renderPrinterStatusBanner()}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
@@ -9770,9 +9986,10 @@ export default function AndroidPosRegister({
               const uangDiLaci = labaKotor - autoNonCashVal - autoDiscountVal;
 
               // 5. PENGAMBILAN MODAL
-              const modalSaatIniVal = Number(manualModalIdeal || 500000);
+              const modalSaatIniVal = Number(manualModalSaatIni || 0);
+              const modalSeharusnyaVal = Number(manualModalSeharusnya || 0);
               const totalModalReturned = (manualCashReturnRows || []).reduce((sum, r) => sum + Number(r.amount_returned || r.returnAmount || 0), 0);
-              const sisaHutangModal = Math.max(0, modalSaatIniVal - totalModalReturned);
+              const sisaHutangModal = modalSeharusnyaVal - (modalSaatIniVal + totalModalReturned);
 
               return (
                 <form onSubmit={e => {
@@ -9799,7 +10016,9 @@ export default function AndroidPosRegister({
                     cash_in_drawer: uangDiLaci,
                     cash_physical: uangDiLaci,
                     actual_cash: uangDiLaci,
-                    modal_ideal: modalSaatIniVal,
+                    modal_ideal: modalSeharusnyaVal,
+                    modal_saat_ini: modalSaatIniVal,
+                    modal_seharusnya: modalSeharusnyaVal,
                     modal_refund_rows: manualCashReturnRows,
                     total_modal_returned: totalModalReturned,
                     modal_debt_remaining: sisaHutangModal,
@@ -9864,11 +10083,7 @@ export default function AndroidPosRegister({
                       approvedLogistics: [...autoLogisticsEntries, ...(prev.approvedLogistics || []).filter(s => !autoLogisticsEntries.some(a => a.id === s.id))]
                     };
 
-                    fetch(getApiUrl('/api/master-data'), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(newMaster)
-                    }).catch(() => {});
+                    saveToServerWithGuard(newMaster);
 
                     return newMaster;
                   });
@@ -10158,15 +10373,26 @@ export default function AndroidPosRegister({
                       </button>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                       <div>
-                        <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>Modal saat ini:</label>
+                        <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Modal saat ini (IDR):</label>
                         <input
                           type="number"
-                          value={manualModalIdeal || 500000}
-                          onChange={e => setManualModalIdeal(Number(e.target.value))}
-                          placeholder="Contoh: 500000"
+                          value={manualModalSaatIni}
+                          onChange={e => setManualModalSaatIni(Number(e.target.value))}
+                          placeholder="0"
                           style={{ width: '100%', padding: '9px 12px', background: 'var(--pos-bg-card)', border: '1px solid #c084fc', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontWeight: '800', fontSize: '0.85rem' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '800', display: 'block', marginBottom: '4px' }}>Modal seharusnya (IDR):</label>
+                        <input
+                          type="number"
+                          value={manualModalSeharusnya}
+                          onChange={e => setManualModalSeharusnya(Number(e.target.value))}
+                          placeholder="0"
+                          style={{ width: '100%', padding: '9px 12px', background: 'var(--pos-bg-card)', border: '1px solid #38bdf8', borderRadius: '8px', color: 'var(--pos-txt-primary)', fontWeight: '800', fontSize: '0.85rem' }}
                         />
                       </div>
                     </div>
@@ -10242,9 +10468,27 @@ export default function AndroidPosRegister({
                         <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#c084fc' }}>{formatRupiah(totalModalReturned)}</span>
                       </div>
 
-                      <div style={{ background: 'var(--pos-bg-card)', padding: '12px 14px', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8' }}>Sisa Hutang Modal (Modal saat ini - Total Dikembalikan):</span>
-                        <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(sisaHutangModal)}</span>
+                      <div style={{
+                        background: 'var(--pos-bg-card)',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: `1px solid ${sisaHutangModal < 0 ? '#f43f5e' : '#34d399'}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: sisaHutangModal < 0 ? '#f87171' : '#34d399' }}>
+                            {sisaHutangModal < 0 ? 'Sisa Hutang Modal (Masih Ada Hutang):' : 'Sisa Uang Modal (Sisa Uang / Lunas):'}
+                          </span>
+                          <span style={{ fontSize: '1.05rem', fontWeight: '900', color: sisaHutangModal < 0 ? '#f87171' : '#34d399' }}>
+                            {sisaHutangModal < 0 ? `- ${formatRupiah(Math.abs(sisaHutangModal))}` : formatRupiah(sisaHutangModal)}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.68rem', color: sisaHutangModal < 0 ? '#fb7185' : '#a7f3d0', fontWeight: '700' }}>
+                          {sisaHutangModal < 0 ? '⚠️ Bernilai negatif (masih ada hutang)' : '✅ Bernilai positif (sisa uang)'}
+                          <span style={{ opacity: 0.75, marginLeft: '6px' }}>[Modal seharusnya - (Modal saat ini + Total dikembalikan)]</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -10456,11 +10700,7 @@ export default function AndroidPosRegister({
                       stockMovement: [...newRecords, ...(prev.stockMovement || [])]
                     };
 
-                    fetch(getApiUrl('/api/master-data'), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(newMaster)
-                    }).catch(() => {});
+                    saveToServerWithGuard(newMaster);
 
                     return newMaster;
                   });
@@ -11243,11 +11483,7 @@ export default function AndroidPosRegister({
                       stockMovement: [...pendingTransferDraft.items, ...filterOld(prev.stockMovement)]
                     };
 
-                    fetch(getApiUrl('/api/master-data'), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(newMaster)
-                    }).catch(() => {});
+                    saveToServerWithGuard(newMaster);
 
                     return newMaster;
                   });
@@ -12501,6 +12737,9 @@ export default function AndroidPosRegister({
           </div>
         </div>
       )}
+
+      {/* ── PRINTER OFFLINE MODAL (GLOBAL) — tampil otomatis saat cetak gagal/printer tidak terhubung ── */}
+      {renderPrinterOfflineModal()}
 
       </div>
     </div>

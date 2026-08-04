@@ -97,7 +97,9 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     ],
 
     // BAGIAN 5: PEMBAYARAN PENGAMBILAN MODAL
-    modal_ideal: 500000,
+    modal_saat_ini: 0,
+    modal_seharusnya: 0,
+    modal_ideal: 0,
     modal_refund_rows: [
       { id: 1, date: new Date().toISOString().split('T')[0], amount_returned: 0, notes: 'Pengembalian Modal Initial' }
     ],
@@ -168,9 +170,9 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   // Uang di laci = Laba Kotor - Penjualan Non Cash - Diskon Penjualan
   const computedCashInDrawer = computedGrossProfit - Number(addForm.non_cash_sales || 0) - Number(addForm.sales_discount || 0);
 
-  // FORMULA PENGAMBILAN MODAL
+  // FORMULA PENGAMBILAN MODAL: Modal seharusnya - (Modal saat ini + Total dikembalikan)
   const computedTotalModalReturned = (addForm.modal_refund_rows || []).reduce((sum, r) => sum + (Number(r.amount_returned) || 0), 0);
-  const computedModalDebtRemaining = Number(addForm.modal_ideal || 0) - computedTotalModalReturned;
+  const computedModalDebtRemaining = Number(addForm.modal_seharusnya || addForm.modal_ideal || 0) - (Number(addForm.modal_saat_ini || 0) + computedTotalModalReturned);
 
   // KONSOLIDASI SELURUH LAPORAN HARIAN DARI POS KASIR & WEB ADMIN
   const rawReports = [
@@ -1425,16 +1427,27 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                 </button>
               </div>
 
-              {/* MODAL IDEAL INPUT */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              {/* MODAL INPUTS: Modal saat ini & Modal seharusnya */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>Modal saat ini:</label>
+                  <label style={{ fontSize: '0.74rem', color: '#c084fc', fontWeight: '800' }}>Modal saat ini (IDR):</label>
                   <input
                     type="number"
-                    value={addForm.modal_ideal}
-                    onChange={e => setAddForm({ ...addForm, modal_ideal: e.target.value })}
-                    placeholder="Contoh: 500000"
+                    value={addForm.modal_saat_ini}
+                    onChange={e => setAddForm({ ...addForm, modal_saat_ini: Number(e.target.value) })}
+                    placeholder="0"
                     style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid #c084fc', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: '800' }}>Modal seharusnya (IDR):</label>
+                  <input
+                    type="number"
+                    value={addForm.modal_seharusnya}
+                    onChange={e => setAddForm({ ...addForm, modal_seharusnya: Number(e.target.value) })}
+                    placeholder="0"
+                    style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
@@ -1503,9 +1516,27 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                   <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#c084fc' }}>{formatRupiah(computedTotalModalReturned)}</span>
                 </div>
 
-                <div style={{ background: '#1e293b', padding: '12px 14px', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#38bdf8' }}>Sisa Hutang Modal (Modal saat ini - Total Dikembalikan):</span>
-                  <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#38bdf8' }}>{formatRupiah(computedModalDebtRemaining)}</span>
+                <div style={{
+                  background: '#1e293b',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  border: `1px solid ${computedModalDebtRemaining < 0 ? '#f43f5e' : '#34d399'}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: '800', color: computedModalDebtRemaining < 0 ? '#f87171' : '#34d399' }}>
+                      {computedModalDebtRemaining < 0 ? 'Sisa Hutang Modal (Masih Ada Hutang):' : 'Sisa Uang Modal (Sisa Uang / Lunas):'}
+                    </span>
+                    <span style={{ fontSize: '1.05rem', fontWeight: '900', color: computedModalDebtRemaining < 0 ? '#f87171' : '#34d399' }}>
+                      {computedModalDebtRemaining < 0 ? `- ${formatRupiah(Math.abs(computedModalDebtRemaining))}` : formatRupiah(computedModalDebtRemaining)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: computedModalDebtRemaining < 0 ? '#fb7185' : '#a7f3d0', fontWeight: '700' }}>
+                    {computedModalDebtRemaining < 0 ? '⚠️ Bernilai negatif (masih ada hutang)' : '✅ Bernilai positif (sisa uang)'}
+                    <span style={{ opacity: 0.75, marginLeft: '6px' }}>[Modal seharusnya - (Modal saat ini + Total dikembalikan)]</span>
+                  </div>
                 </div>
               </div>
             </div>
