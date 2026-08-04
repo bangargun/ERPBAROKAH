@@ -115,12 +115,23 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
 
 ---
 
-## 🔢 VERSIONING
+## 🔢 VERSIONING & ATURAN SERI BUILD APK
 
-- Format versi: `vX.X.Y` — increment `Y` setiap perbaikan kecil, `X.Y` setiap fitur baru
-- Versi saat ini: **v3.0.0** (POS KASIR BAROKAH)
-- Nama file APK: `POS_KASIR_BAROKAH_v3.0.0_Build_YYYYMMDD_HHMM.apk`
-- Commit message format: `Jenis: deskripsi singkat (vX.X.Y)`
+- **Format Seri Nama Aplikasi POS Kasir**: `POS KASIR X.Y.Z` (Contoh: `POS KASIR 3.1.0`)
+- **Aturan Urutan Seri Update**:
+  - Rilis Seri 3.1: **POS KASIR 3.1.0**
+  - Update Pertama: **POS KASIR 3.1.1**
+  - Update Kedua: **POS KASIR 3.1.2**
+  - Update Ketiga: **POS KASIR 3.1.3**, dst.
+- **Standar Penamaan File APK Build di Root Workspace**:
+  `POS_KASIR_3.1.1_BUILDYYYYMMDD.apk`
+- **Synchronized Versioning Targets**:
+  Setiap kali membuat build versi baru, wajib menyinkronkan versi di:
+  1. `flutter-pos/android/app/build.gradle` (`versionCode 30101`, `versionName "3.1.1"`)
+  2. `flutter-pos/package.json` (`"version": "3.1.1"`)
+  3. `AndroidPosRegister.jsx` Badge Navigasi Header (`v3.1.1 GOLD`)
+  4. Root file APK `POS_KASIR_3.1.1_BUILDYYYYMMDD.apk`
+  5. Catatan: Jangan push file `.apk` ke GitHub (sesuai Aturan 11).
 
 ---
 
