@@ -220,8 +220,9 @@ export default function App() {
   // Live polling dari server VPS
   useEffect(() => {
     const fetchLatestFromServer = () => {
+      // Guard: jangan fetch saat admin baru saja mutasi data (5 detik jeda untuk menghindari race condition)
       const msSinceLastMutation = Date.now() - lastLocalMutationTsRef.current;
-      if (msSinceLastMutation < 15000) return;
+      if (msSinceLastMutation < 5000) return;
 
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)

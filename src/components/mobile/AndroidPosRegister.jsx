@@ -2070,13 +2070,18 @@ export default function AndroidPosRegister({
 
     const newReq = {
       id: `LOG-REQ-${Date.now().toString().substring(7)}`,
+      report_no: `LOG-REQ-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
       date: new Date().toISOString().split('T')[0],
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
+      outlet_name: currentOutlet.name,
       item_name: logisticsItemName,
       qty: `${logisticsQty} ${logisticsUnit}`,
-      requested_by: 'master (Kasir)',
+      requested_by: userSession?.name || currentUserSession?.name || 'Kasir Outlet',
+      submitted_by: userSession?.name || currentUserSession?.name || 'Kasir Outlet',
       status: 'Pending',
+      submitter_type: 'POS Kasir',
+      type_input: 'POS Kasir',
       notes: logisticsNotes || 'Permintaan Bahan Baku Kasir Outlet'
     };
 
@@ -2105,12 +2110,15 @@ export default function AndroidPosRegister({
 
     const newShiftReport = {
       id: `SHIFT-CLOSE-${Date.now().toString().substring(7)}`,
+      report_no: `LAP-SHIFT-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       outlet_id: currentOutlet.id,
       outlet_name: currentOutlet.name,
+      branch_name: currentOutlet.name,       // alias untuk ApprovalCenter Web Admin
       cashier_name: userSession?.name || currentUserSession?.name || masterData?.currentUser?.name || 'Kasir Outlet',
       initial_cash: initialCash,
+      // Field utama POS Kasir
       gross_sales: totalSalesGross,
       cash_sales: cashSales,
       non_cash_sales: qrisSales + edcSales,
@@ -2118,7 +2126,16 @@ export default function AndroidPosRegister({
       expected_cash: expectedCashInDrawer,
       physical_cash: physicalVal,
       variance: variance,
-      status: 'Pending'
+      // Alias field yang dibutuhkan ApprovalCenter Web Admin
+      net_sales: totalSalesGross,            // ApprovalCenter membaca: net_sales || total_sales || total_income
+      total_sales: totalSalesGross,
+      total_income: totalSalesGross,
+      total_expense: totalPettyExpense,      // ApprovalCenter membaca: total_expense
+      cash_in_drawer: physicalVal,           // ApprovalCenter membaca: cash_in_drawer
+      // Status & metadata
+      status: 'Pending',
+      submitter_type: 'POS Kasir',
+      type_input: 'POS Kasir'
     };
 
     setMasterData(prev => {

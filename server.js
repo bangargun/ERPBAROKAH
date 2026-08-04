@@ -1565,6 +1565,9 @@ app.post('/api/master-data', async (req, res) => {
     masterData = mergeMasterDataSafely(currentData, sanitizedIncoming);
     masterData._lastUpdated = Date.now();
 
+    // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — FIX KRITIS SINKRONISASI
+    await saveMasterDataToMySQL(masterData);
+    // Sync ke tabel-tabel relasional MySQL (shift_closings, stock_movement, dll)
     await syncToMySQL(masterData);
 
     return res.json({
@@ -1657,7 +1660,8 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       } catch (delErr) {}
     }
 
-    // Sync ulang sisa data ke relasi
+    // Sync ulang sisa data ke relasi dan JSON blob MySQL
+    await saveMasterDataToMySQL(existing);
     await syncToMySQL(existing);
 
     res.json({

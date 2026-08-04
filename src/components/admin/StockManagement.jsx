@@ -1130,8 +1130,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       if (m.type !== 'IN') return false;
       if (logStartDate && m.date < logStartDate) return false;
       if (logEndDate && m.date > logEndDate) return false;
-      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(m.outlet_id)) return false;
-      if (selectedBranch && m.outlet_id !== selectedBranch) return false;
+      // Fix type mismatch: bandingkan sebagai String agar '1' == 1
+      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(m.outlet_id) && !logSelectedOutletIds.includes(String(m.outlet_id))) return false;
+      if (selectedBranch && Number(m.outlet_id) !== Number(selectedBranch)) return false;
       return true;
     });
   };
@@ -1140,12 +1141,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     return getTransfersList().filter(t => {
       if (logStartDate && t.date < logStartDate) return false;
       if (logEndDate && t.date > logEndDate) return false;
-      
-      const matchFrom = logSelectedOutletIds.includes('ALL') || logSelectedOutletIds.includes(t.from_outlet_id);
-      const matchTo = logSelectedOutletIds.includes('ALL') || logSelectedOutletIds.includes(t.to_outlet_id);
+      // Fix type mismatch: cek String dan Number dari outlet_id
+      const matchFrom = logSelectedOutletIds.includes('ALL') || logSelectedOutletIds.includes(t.from_outlet_id) || logSelectedOutletIds.includes(String(t.from_outlet_id));
+      const matchTo = logSelectedOutletIds.includes('ALL') || logSelectedOutletIds.includes(t.to_outlet_id) || logSelectedOutletIds.includes(String(t.to_outlet_id));
       if (!matchFrom && !matchTo) return false;
 
-      if (selectedBranch && t.from_outlet_id !== selectedBranch && t.to_outlet_id !== selectedBranch) return false;
+      if (selectedBranch && Number(t.from_outlet_id) !== Number(selectedBranch) && Number(t.to_outlet_id) !== Number(selectedBranch)) return false;
       return true;
     });
   };
@@ -1169,8 +1170,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     const filtered = combined.filter(m => {
       if (logStartDate && m.date < logStartDate) return false;
       if (logEndDate && m.date > logEndDate) return false;
-      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(m.outlet_id)) return false;
-      if (selectedBranch && m.outlet_id !== selectedBranch) return false;
+      // Fix type mismatch: cek String dan Number
+      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(m.outlet_id) && !logSelectedOutletIds.includes(String(m.outlet_id))) return false;
+      if (selectedBranch && Number(m.outlet_id) !== Number(selectedBranch)) return false;
       return true;
     });
 
@@ -1187,8 +1189,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     return getOpnameList().filter(op => {
       if (logStartDate && op.date < logStartDate) return false;
       if (logEndDate && op.date > logEndDate) return false;
-      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(op.outlet_id)) return false;
-      if (selectedBranch && op.outlet_id !== selectedBranch) return false;
+      // Fix type mismatch: cek String dan Number
+      if (!logSelectedOutletIds.includes('ALL') && !logSelectedOutletIds.includes(op.outlet_id) && !logSelectedOutletIds.includes(String(op.outlet_id))) return false;
+      if (selectedBranch && Number(op.outlet_id) !== Number(selectedBranch)) return false;
       return true;
     });
   };
