@@ -616,7 +616,10 @@ export default function AndroidPosRegister({
         stockMovement: [...createdRecords, ...filterOld(prev.stockMovement)]
       };
 
-      saveToServerWithGuard(newMaster);
+      // Save locally to POS Kasir device state & localStorage backup (Independent mode)
+      try {
+        localStorage.setItem('MRIS_POS_LOCAL_WASTE', JSON.stringify(newMaster.approvedWaste));
+      } catch (e) {}
 
       return newMaster;
     });
@@ -693,12 +696,37 @@ export default function AndroidPosRegister({
     checkOfflineQueueCount();
   }, [checkOfflineQueueCount]);
 
+  // ─── ⏰ AUTOMATIC 08:00 AM DAILY PURGE OF UNBILLED CART ORDERS ─────────────────
+  React.useEffect(() => {
+    const check8AmCartReset = () => {
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      const lastPurgeDate = localStorage.getItem('MRIS_POS_LAST_8AM_PURGE');
+
+      // Condition: Time is 08:00 AM or later today, and 8 AM purge has not been executed today
+      if (now.getHours() >= 8 && lastPurgeDate !== todayStr) {
+        setCart([]);
+        setOpenedOriginalCart(null);
+        setTableStatusMap({});
+        try {
+          localStorage.removeItem('MRIS_POS_DRAFT_CART_ORDERS');
+          localStorage.setItem('MRIS_POS_LAST_8AM_PURGE', todayStr);
+        } catch (e) {}
+        console.log('[CartAutoReset] 8:00 AM Daily Cart Purge completed for:', todayStr);
+      }
+    };
+
+    check8AmCartReset();
+    const interval = setInterval(check8AmCartReset, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   // ─── SAVE GUARD ──────────────────────────────────────────────────────────────
-  // Mencegah auto-sync 3 detik menimpa data laporan yang baru disimpan sebelum
+  // Mencegah auto-sync 3 detik menimpa data yang baru disimpan sebelum
   // server sempat menerima POST. isSavingRef = true selama POST berlangsung.
   const isSavingRef = React.useRef(false);
 
-  // Array key laporan yang harus di-merge (bukan di-overwrite) saat auto-sync
+  // Array key laporan lokal POS Kasir (Di-isolasi dari Web Admin per permintaan user)
   const LAPORAN_ARRAY_KEYS = [
     'manualEntryRecords', 'approvedFinanceDaily',
     'stockOpname', 'approvedLogistics',
@@ -709,7 +737,7 @@ export default function AndroidPosRegister({
   // Helper terpusat: POST newMaster ke server dengan guard aktif
   const saveToServerWithGuard = React.useCallback((newMaster) => {
     isSavingRef.current = true;
-    // Backup laporan ke localStorage sebagai fallback
+    // Backup laporan ke localStorage sebagai fallback lokal
     try {
       const backup = {};
       LAPORAN_ARRAY_KEYS.forEach(k => { if (newMaster[k]) backup[k] = newMaster[k]; });
@@ -835,30 +863,11 @@ export default function AndroidPosRegister({
               ? serverMaster.mobilePermissionMatrix
               : (prev.mobilePermissionMatrix || initialMasterData.mobilePermissionMatrix);
 
-            // ─── MERGE CERDAS untuk array laporan ────────────────────────────────
-            // Jika data lokal (prev) lebih baru dari server (clientUpdated > server _lastUpdated),
-            // pertahankan array laporan lokal agar tidak tertimpa.
-            const localIsNewer = (prev.clientUpdated || 0) > (serverMaster._lastUpdated || 0);
-
-            // Untuk setiap key laporan: ambil gabungan berdasarkan id unik
-            const smartMergeLaporanArray = (localArr, serverArr) => {
-              if (!Array.isArray(serverArr) || serverArr.length === 0) return localArr || [];
-              if (!Array.isArray(localArr) || localArr.length === 0) return serverArr;
-              if (localIsNewer) {
-                // Lokal lebih baru: gabungkan local + server, prioritaskan local (deduplicate by id)
-                const serverIds = new Set((localArr).map(i => String(i.id)));
-                const serverOnly = serverArr.filter(i => !serverIds.has(String(i.id)));
-                return [...localArr, ...serverOnly];
-              }
-              // Server lebih baru: gabungkan server + local, prioritaskan server (deduplicate by id)
-              const localIds = new Set((serverArr).map(i => String(i.id)));
-              const localOnly = localArr.filter(i => !localIds.has(String(i.id)));
-              return [...serverArr, ...localOnly];
-            };
-
+            // ─── ISOLASI LAPORAN LOKAL POS KASIR ─────────────────────────────────
+            // Seluruh sub-tab laporan di POS Kasir tidak berkomunikasi/sinkron dengan Web Admin
             const mergedLaporan = {};
             LAPORAN_ARRAY_KEYS.forEach(k => {
-              mergedLaporan[k] = smartMergeLaporanArray(prev[k], serverMaster[k]);
+              mergedLaporan[k] = prev[k] || [];
             });
 
             return {
@@ -3459,47 +3468,49 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
-            {/* KETERANGAN SYNC MOBILE APK DENGAN SERVER & DATABASE */}
-            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            {/* KETERANGAN CART MULTI-ORDER NON-FIFO & RESET OTOMATIS PUKUL 08:00 AM */}
+            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(245,158,11,0.3)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399' }} />
+                <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 10px #f59e0b' }} />
                 <div>
                   <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Sinkronisasi Data Cart Mobile APK:</span>
-                    <span style={{ color: '#34d399', fontWeight: '900' }}>🟢 Live Server & Database Connected</span>
+                    <span>Kelola Cart Multi-Order (Non-FIFO / Bebas Akses):</span>
+                    <span style={{ color: '#fbbf24', fontWeight: '900' }}>⚡ Bebas Pilih Orderan & Bayar / Edit Kapan Saja</span>
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
-                    Pesanan Cart tersimpan dan tersinkronisasi otomatis dengan Database Server & Web Admin.
+                    ⏰ <strong>Aturan Reset Otomatis:</strong> Sisa isi pesanan yang belum dibayar di Cart akan terhapus otomatis setiap pukul 08:00 WIB Pagi.
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--pos-border)' }}>
-                  ⏱️ {lastSyncTime}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#fbbf24', background: 'rgba(245,158,11,0.12)', padding: '5px 12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  ⏰ Reset Pukul 08:00 Pagi
                 </span>
-                <button
-                  type="button"
-                  onClick={handleTriggerSyncData}
-                  disabled={isSyncingNow}
-                  style={{
-                    padding: '6px 14px',
-                    background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    border: 'none',
-                    color: 'var(--pos-txt-primary)',
-                    borderRadius: '10px',
-                    fontSize: '0.78rem',
-                    fontWeight: '900',
-                    cursor: isSyncingNow ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: isSyncingNow ? 'none' : '0 3px 10px rgba(37,99,235,0.3)'
-                  }}
-                >
-                  <RefreshCw size={14} className={isSyncingNow ? 'animate-spin' : ''} />
-                  <span>{isSyncingNow ? 'Syncing...' : '🔄 Sync Cart ke Server'}</span>
-                </button>
+                {pendingOrdersList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Yakin ingin mengosongkan seluruh pesanan yang tersisa di Cart?')) {
+                        setCart([]);
+                        setOpenedOriginalCart(null);
+                        setTableStatusMap({});
+                      }
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      background: 'rgba(239,68,68,0.2)',
+                      border: '1px solid #ef4444',
+                      color: '#fca5a5',
+                      borderRadius: '8px',
+                      fontSize: '0.76rem',
+                      fontWeight: '800',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🗑️ Reset Isi Cart
+                  </button>
+                )}
               </div>
             </div>
 
@@ -4289,47 +4300,25 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
-            {/* KETERANGAN SYNC MOBILE APK DENGAN DATABASE SERVER & WEB ADMIN (UNTUK SELURUH LAPORAN) */}
-            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            {/* KETERANGAN MODE LAPORAN MANDIRI POS KASIR (ISOLASI LOKAL - TANPA KOMUNIKASI WEB ADMIN) */}
+            <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(245,158,11,0.3)', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#34d399', boxShadow: '0 0 10px #34d399' }} />
+                <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#f59e0b', boxShadow: '0 0 10px #f59e0b' }} />
                 <div>
                   <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>Sinkronisasi Data Laporan Real-Time:</span>
-                    <span style={{ color: '#34d399', fontWeight: '900' }}>🟢 Database Server & Web Admin Connected</span>
+                    <span>Modul Laporan POS Kasir Mandiri:</span>
+                    <span style={{ color: '#f59e0b', fontWeight: '900' }}>🟡 Mode Lokal Mandiri (Bebas Komunikasi Web Admin)</span>
                   </div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
-                    Seluruh rekapitulasi omzet, kas harian, stok opname, dan pengeluaran terhubung live dengan server pusat.
+                    Seluruh rekapitulasi harian, stok opname, transfer, dan barang rusak di halaman ini disimpan secara lokal di perangkat POS Kasir.
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--pos-txt-secondary)', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--pos-border)' }}>
-                  ⏱️ {lastSyncTime}
+                <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#fbbf24', background: 'rgba(245,158,11,0.12)', padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  🔒 Mode Lokal POS Kasir
                 </span>
-                <button
-                  type="button"
-                  onClick={handleTriggerSyncData}
-                  disabled={isSyncingNow}
-                  style={{
-                    padding: '6px 14px',
-                    background: isSyncingNow ? 'var(--pos-border-card)' : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                    border: 'none',
-                    color: 'var(--pos-txt-primary)',
-                    borderRadius: '10px',
-                    fontSize: '0.78rem',
-                    fontWeight: '900',
-                    cursor: isSyncingNow ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: isSyncingNow ? 'none' : '0 3px 10px rgba(37,99,235,0.3)'
-                  }}
-                >
-                  <RefreshCw size={14} className={isSyncingNow ? 'animate-spin' : ''} />
-                  <span>{isSyncingNow ? 'Syncing...' : '🔄 Sync Laporan ke Server'}</span>
-                </button>
               </div>
             </div>
 
@@ -10083,12 +10072,15 @@ export default function AndroidPosRegister({
                       approvedLogistics: [...autoLogisticsEntries, ...(prev.approvedLogistics || []).filter(s => !autoLogisticsEntries.some(a => a.id === s.id))]
                     };
 
-                    saveToServerWithGuard(newMaster);
+                    // Save locally to POS Kasir device state & localStorage backup (Independent mode)
+                    try {
+                      localStorage.setItem('MRIS_POS_LOCAL_HARIAN', JSON.stringify(newMaster.approvedFinanceDaily));
+                    } catch (e) {}
 
                     return newMaster;
                   });
 
-                  alert(`✅ Laporan Harian ${manualRepNo} berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
+                  alert(`✅ Laporan Harian ${manualRepNo} berhasil disimpan secara lokal di POS Kasir!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
                   {/* 1. HEADER PARAMETERS */}
@@ -10700,10 +10692,15 @@ export default function AndroidPosRegister({
                       stockMovement: [...newRecords, ...(prev.stockMovement || [])]
                     };
 
-                    saveToServerWithGuard(newMaster);
+                    // Save locally to POS Kasir device state & localStorage backup (Independent mode)
+                    try {
+                      localStorage.setItem('MRIS_POS_LOCAL_OPNAME', JSON.stringify(newMaster.approvedLogistics));
+                    } catch (e) {}
 
                     return newMaster;
                   });
+
+                  alert(`✅ Laporan Stok Opname ${logNo} berhasil disimpan secara lokal di POS Kasir!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                   {/* Header Form: Tanggal, No Laporan, Diisi Oleh, Cabang Outlet */}
@@ -11483,7 +11480,12 @@ export default function AndroidPosRegister({
                       stockMovement: [...pendingTransferDraft.items, ...filterOld(prev.stockMovement)]
                     };
 
-                    saveToServerWithGuard(newMaster);
+                    // Save locally to POS Kasir device state & localStorage backup (Independent mode)
+                    try {
+                      localStorage.setItem('MRIS_POS_LOCAL_TRANSFER', JSON.stringify(newMaster.approvedTransfers));
+                    } catch (e) {}
+
+                    alert(`✅ Laporan Transfer ${pendingTransferDraft?.report_no || ''} berhasil disimpan secara lokal di POS Kasir!`);
 
                     return newMaster;
                   });
