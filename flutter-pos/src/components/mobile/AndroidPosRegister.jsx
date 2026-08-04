@@ -4779,9 +4779,21 @@ export default function AndroidPosRegister({
                       </thead>
                       <tbody>
                         {(() => {
+                          const deletedSet = new Set([
+                            ...(masterData?.deletedLogisticsIds || []),
+                            ...(masterData?.deletedOutflowIds || [])
+                          ].map(x => String(x)));
+
+                          const isDeleted = (item) => {
+                            if (!item) return false;
+                            const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+                            const itemRNo = String(item.report_no || item.receiptNo || '');
+                            return deletedSet.has(itemId) || deletedSet.has(itemRNo);
+                          };
+
                           const recordsMap = new Map();
-                          const rawApproved = masterData.approvedFinanceDaily || [];
-                          const rawManual = masterData.manualEntryRecords || [];
+                          const rawApproved = (masterData.approvedFinanceDaily || []).filter(item => !isDeleted(item));
+                          const rawManual = (masterData.manualEntryRecords || []).filter(item => !isDeleted(item));
                           [...rawApproved, ...rawManual].forEach(item => {
                             if (item && (item.id || item.report_no)) {
                               const key = String(item.id || item.report_no);
@@ -5866,17 +5878,31 @@ export default function AndroidPosRegister({
               <div style={{ background: 'var(--pos-bg-card)', padding: '20px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)', marginBottom: '14px' }}>Riwayat Status Pengajuan Logistik</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {(masterData?.approvedLogistics || []).map(req => (
-                    <div key={req.id} style={{ background: 'var(--pos-bg-app)', padding: '12px 14px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{req.item_name} ({req.qty})</div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>ID: {req.id} • {req.date}</div>
+                  {(() => {
+                    const deletedLogisticsSet = new Set([
+                      ...(masterData?.deletedLogisticsIds || []),
+                      ...(masterData?.deletedOutflowIds || [])
+                    ].map(x => String(x)));
+
+                    const approvedList = (masterData?.approvedLogistics || []).filter(req => {
+                      if (!req) return false;
+                      const reqId = String(req.id !== undefined && req.id !== null ? req.id : '');
+                      const reqRNo = String(req.report_no || req.receiptNo || '');
+                      return !deletedLogisticsSet.has(reqId) && !deletedLogisticsSet.has(reqRNo);
+                    });
+
+                    return approvedList.map(req => (
+                      <div key={req.id} style={{ background: 'var(--pos-bg-app)', padding: '12px 14px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{req.item_name} ({req.qty})</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>ID: {req.id} • {req.date}</div>
+                        </div>
+                        <span style={{ fontSize: '0.72rem', fontWeight: '800', padding: '3px 10px', borderRadius: '8px', background: req.status === 'Disetujui' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)', color: req.status === 'Disetujui' ? '#34d399' : '#fbbf24' }}>
+                          {req.status}
+                        </span>
                       </div>
-                      <span style={{ fontSize: '0.72rem', fontWeight: '800', padding: '3px 10px', borderRadius: '8px', background: req.status === 'Disetujui' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)', color: req.status === 'Disetujui' ? '#34d399' : '#fbbf24' }}>
-                        {req.status}
-                      </span>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </div>
             </div>

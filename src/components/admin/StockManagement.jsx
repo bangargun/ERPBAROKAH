@@ -3380,7 +3380,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             )}
 
                             <button
-                              onClick={() => handleDeleteRecord(op.id, 'stok_opname')}
+                              onClick={() => handleDeleteRecord(op.id, 'stok_opname', op.report_no || op.id)}
                               style={{
                                 background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', color: T.danger, padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px'
                               }}
