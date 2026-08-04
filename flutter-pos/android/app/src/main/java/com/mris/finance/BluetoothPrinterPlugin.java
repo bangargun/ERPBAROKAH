@@ -95,13 +95,11 @@ public class BluetoothPrinterPlugin extends Plugin {
                     if (devName == null || devName.trim().isEmpty()) {
                         devName = "Printer Bluetooth (" + device.getAddress() + ")";
                     }
-                    
-                    // Live Ping Check apakah printer fisik MENYALA atau MATI
-                    boolean isOnline = checkDeviceLiveStatus(device, adapter);
 
                     dev.put("name", devName);
                     dev.put("address", device.getAddress());
-                    dev.put("isOnline", isOnline);
+                    dev.put("isPaired", true);
+                    dev.put("isOnline", true);
                     dev.put("type", device.getType() == BluetoothDevice.DEVICE_TYPE_CLASSIC ? "classic" : "le");
                     deviceArray.put(dev);
                 }
@@ -116,22 +114,44 @@ public class BluetoothPrinterPlugin extends Plugin {
         }
     }
 
-    private boolean checkDeviceLiveStatus(BluetoothDevice device, BluetoothAdapter adapter) {
-        if (adapter == null || !adapter.isEnabled()) return false;
-        BluetoothSocket socket = null;
-        try {
-            adapter.cancelDiscovery();
-            // Ping singkat koneksi socket
-            socket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
-            socket.connect();
-            return true;
-        } catch (Exception e) {
-            return false;
-        } finally {
-            if (socket != null) {
-                try { socket.close(); } catch (IOException ignored) {}
-            }
+    /**
+     * Tes koneksi ke printer tertentu secara aktif via Triple-Fallback Socket.
+     * Params: { mac: string }
+     */
+    @PluginMethod
+    public void testConnection(PluginCall call) {
+        String mac = call.getString("mac");
+        if (mac == null || mac.isEmpty()) {
+            call.reject("INVALID_MAC", "MAC address printer tidak boleh kosong.");
+            return;
         }
+
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        if (adapter == null || !adapter.isEnabled()) {
+            call.reject("BLUETOOTH_DISABLED", "Bluetooth tidak aktif.");
+            return;
+        }
+
+        new Thread(() -> {
+            BluetoothSocket socket = null;
+            try {
+                BluetoothDevice device = adapter.getRemoteDevice(mac);
+                adapter.cancelDiscovery();
+                socket = connectToDeviceSocket(device);
+                
+                JSObject result = new JSObject();
+                result.put("success", true);
+                result.put("message", "Koneksi ke printer " + device.getName() + " BERHASIL!");
+                call.resolve(result);
+            } catch (Exception e) {
+                Log.e(TAG, "Test connection failed: " + e.getMessage(), e);
+                call.reject("TEST_FAILED", "Printer tidak merespon: " + e.getMessage());
+            } finally {
+                if (socket != null) {
+                    try { socket.close(); } catch (IOException ignored) {}
+                }
+            }
+        }).start();
     }
 
     @PermissionCallback

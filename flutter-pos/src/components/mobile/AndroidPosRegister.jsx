@@ -2879,7 +2879,7 @@ export default function AndroidPosRegister({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
-              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.1 GOLD</span>
+              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.2 GOLD</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
@@ -6243,40 +6243,30 @@ export default function AndroidPosRegister({
                           {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                           {pairedDevices.map(device => {
                             const isSelected = printerMac === device.address;
                             const isSystemDevice = device.type === 'system';
-                            const isOnline = device.isOnline !== false;
 
                             return (
-                              <button
+                              <div
                                 key={device.address}
-                                type="button"
-                                onClick={() => {
-                                  handleSavePrinterConfig(device.address, printerPaperWidth);
-                                  if (!isSystemDevice && device.isOnline === false) {
-                                    showPrintStatus('error', `⚠️ Printer ${device.name} terdeteksi OFFLINE / MATI. Nyalakan saklar printer terlebih dahulu.`);
-                                  }
-                                }}
                                 style={{
                                   display: 'flex', alignItems: 'center', gap: '14px',
                                   padding: '14px 16px',
                                   borderRadius: '12px',
-                                  border: `2px solid ${isSelected ? '#6366f1' : isOnline ? '#475569' : '#991b1b'}`,
-                                  background: isSelected ? 'rgba(99,102,241,0.35)' : isOnline ? '#1e293b' : 'rgba(153,27,27,0.2)',
+                                  border: `2px solid ${isSelected ? '#6366f1' : '#334155'}`,
+                                  background: isSelected ? 'rgba(99,102,241,0.25)' : '#1e293b',
                                   color: '#ffffff',
-                                  cursor: 'pointer',
-                                  textAlign: 'left',
                                   transition: 'all 0.15s',
-                                  width: '100%',
-                                  opacity: isOnline || isSystemDevice ? 1 : 0.85
+                                  width: '100%'
                                 }}
                               >
                                 {isSelected
                                   ? <BluetoothConnected size={24} color="#a5b4fc" />
-                                  : <Bluetooth size={24} color={isOnline ? '#38bdf8' : '#ef4444'} />}
-                                <div style={{ flex: 1, color: '#ffffff' }}>
+                                  : <Bluetooth size={24} color="#38bdf8" />}
+                                
+                                <div style={{ flex: 1, color: '#ffffff', cursor: 'pointer' }} onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}>
                                   <div className="device-name" style={{ fontWeight: '900', color: '#ffffff', fontSize: '0.98rem', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span>{device.name || 'Unnamed Device'}</span>
                                     {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (
@@ -6285,22 +6275,38 @@ export default function AndroidPosRegister({
                                         padding: '2px 8px',
                                         borderRadius: '6px',
                                         fontWeight: '800',
-                                        background: isOnline ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.2)',
-                                        color: isOnline ? '#34d399' : '#fca5a5',
-                                        border: `1px solid ${isOnline ? '#34d399' : '#ef4444'}`
+                                        background: 'rgba(52,211,153,0.2)',
+                                        color: '#34d399',
+                                        border: '1px solid #34d399'
                                       }}>
-                                        {isOnline ? '🟢 ONLINE' : '🔴 OFFLINE / MATI'}
+                                        🟢 TERHUBUNG PAIRING
                                       </span>
                                     )}
                                   </div>
-                                  <div className="device-mac" style={{ fontSize: '0.80rem', color: '#e2e8f0', marginTop: '3px', fontWeight: '700' }}>
-                                    {device.address} {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (isOnline ? '• Siap mencetak' : '• Saklar printer mati / terputus')}
+                                  <div className="device-mac" style={{ fontSize: '0.80rem', color: '#cbd5e1', marginTop: '3px', fontWeight: '700' }}>
+                                    {device.address} {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && '• Siap Dipilih & Dicetak'}
                                   </div>
                                 </div>
-                                {isSelected && (
-                                  <span style={{ fontSize: '0.75rem', background: '#6366f1', color: '#ffffff', borderRadius: '6px', padding: '4px 10px', fontWeight: '900', whiteSpace: 'nowrap' }}>✓ AKTIF</span>
-                                )}
-                              </button>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}
+                                    style={{
+                                      padding: '8px 14px',
+                                      borderRadius: '8px',
+                                      border: 'none',
+                                      background: isSelected ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : '#334155',
+                                      color: '#ffffff',
+                                      fontWeight: '800',
+                                      fontSize: '0.78rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {isSelected ? '✓ AKTIF' : 'Pilih'}
+                                  </button>
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
