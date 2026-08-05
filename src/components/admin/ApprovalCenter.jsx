@@ -174,13 +174,28 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const computedTotalModalReturned = (addForm.modal_refund_rows || []).reduce((sum, r) => sum + (Number(r.amount_returned) || 0), 0);
   const computedModalDebtRemaining = Number(addForm.modal_seharusnya || addForm.modal_ideal || 0) - (Number(addForm.modal_saat_ini || 0) + computedTotalModalReturned);
 
+  // HELPER UNTUK FILTER DELETED REPORT TOMBSTONES
+  const deletedReportIdsSet = new Set([
+    ...(masterData?.deletedReportIds || []).map(x => String(x)),
+    ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+  ]);
+
+  const isDeletedReport = (r) => {
+    if (!r) return true;
+    const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+    const rNo = String(r.report_no || r.receiptNo || '');
+    return (rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo));
+  };
+
   // KONSOLIDASI SELURUH LAPORAN HARIAN DARI POS KASIR & WEB ADMIN
   const rawReports = [
     ...(masterData?.approvedFinanceDaily || []),
     ...(masterData?.shiftClosings || []),
+    ...(masterData?.shift_closings || []),
     ...(masterData?.closedShifts || []),
-    ...(masterData?.dailyReports || [])
-  ];
+    ...(masterData?.dailyReports || []),
+    ...(masterData?.manualEntryRecords || [])
+  ].filter(r => !isDeletedReport(r));
 
   // Map deduplikasi berdasarkan ID / Report No
   const reportsMap = new Map();
@@ -552,20 +567,22 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       return rId !== targetId && rNo !== targetReportNo && rId !== targetReportNo && rNo !== targetId;
     };
 
-    // 1. Trigger explicit delete-item on backend API for both keys
-    fetch(getApiUrl('/api/master-data/delete-item'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId })
-    }).catch(() => {});
-
-    if (targetReportNo && targetReportNo !== targetId) {
+    // 1. Trigger explicit delete-item on backend API for both keys & report_no
+    try {
       fetch(getApiUrl('/api/master-data/delete-item'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetReportNo })
+        body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId, report_no: targetReportNo })
       }).catch(() => {});
-    }
+
+      if (targetReportNo && targetReportNo !== targetId) {
+        fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetReportNo, report_no: targetReportNo })
+        }).catch(() => {});
+      }
+    } catch (e) {}
 
     // 2. Filter local state, update deletedLogisticsIds & deletedReportIds, & post master data update
     setMasterData(prev => {
@@ -588,11 +605,13 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         manualEntryRecords: (prev.manualEntryRecords || []).filter(filterFn)
       };
 
-      fetch(getApiUrl('/api/master-data'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newMaster)
-      }).catch(() => {});
+      try {
+        fetch(getApiUrl('/api/master-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newMaster)
+        }).catch(() => {});
+      } catch (e) {}
 
       return newMaster;
     });

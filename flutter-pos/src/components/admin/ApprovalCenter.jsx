@@ -174,13 +174,28 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const computedTotalModalReturned = (addForm.modal_refund_rows || []).reduce((sum, r) => sum + (Number(r.amount_returned) || 0), 0);
   const computedModalDebtRemaining = Number(addForm.modal_seharusnya || addForm.modal_ideal || 0) - (Number(addForm.modal_saat_ini || 0) + computedTotalModalReturned);
 
+  // HELPER UNTUK FILTER DELETED REPORT TOMBSTONES
+  const deletedReportIdsSet = new Set([
+    ...(masterData?.deletedReportIds || []).map(x => String(x)),
+    ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+  ]);
+
+  const isDeletedReport = (r) => {
+    if (!r) return true;
+    const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+    const rNo = String(r.report_no || r.receiptNo || '');
+    return (rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo));
+  };
+
   // KONSOLIDASI SELURUH LAPORAN HARIAN DARI POS KASIR & WEB ADMIN
   const rawReports = [
     ...(masterData?.approvedFinanceDaily || []),
     ...(masterData?.shiftClosings || []),
+    ...(masterData?.shift_closings || []),
     ...(masterData?.closedShifts || []),
-    ...(masterData?.dailyReports || [])
-  ];
+    ...(masterData?.dailyReports || []),
+    ...(masterData?.manualEntryRecords || [])
+  ].filter(r => !isDeletedReport(r));
 
   // Map deduplikasi berdasarkan ID / Report No
   const reportsMap = new Map();
@@ -547,24 +562,41 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
     const filterFn = r => {
       if (!r) return false;
-      const rId = String(r.id !== undefined ? r.id : r.report_no || '');
+      const rId = String(r.id !== undefined && r.id !== null ? r.id : r.report_no || '');
       const rNo = String(r.report_no || '');
-      return rId !== targetId && rNo !== targetReportNo;
+      return rId !== targetId && rNo !== targetReportNo && rId !== targetReportNo && rNo !== targetId;
     };
 
-    // 1. Trigger explicit delete-item on backend API
-    fetch(getApiUrl('/api/master-data/delete-item'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId })
-    }).catch(() => {});
+    // 1. Trigger explicit delete-item on backend API for both keys & report_no
+    try {
+      fetch(getApiUrl('/api/master-data/delete-item'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId, report_no: targetReportNo })
+      }).catch(() => {});
 
-    // 2. Filter local state & post master data update
+      if (targetReportNo && targetReportNo !== targetId) {
+        fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetReportNo, report_no: targetReportNo })
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    // 2. Filter local state, update deletedLogisticsIds & deletedReportIds, & post master data update
     setMasterData(prev => {
       const now = Date.now();
+      const prevDelLog = (prev.deletedLogisticsIds || []).map(x => String(x));
+      const prevDelRep = (prev.deletedReportIds || []).map(x => String(x));
+      const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReportNo].filter(Boolean)));
+      const updatedDelRep = Array.from(new Set([...prevDelRep, targetId, targetReportNo].filter(Boolean)));
+
       const newMaster = {
         ...prev,
         _lastUpdated: now,
+        deletedLogisticsIds: updatedDelLog,
+        deletedReportIds: updatedDelRep,
         approvedFinanceDaily: (prev.approvedFinanceDaily || []).filter(filterFn),
         shiftClosings: (prev.shiftClosings || []).filter(filterFn),
         shift_closings: (prev.shift_closings || []).filter(filterFn),
@@ -573,11 +605,13 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         manualEntryRecords: (prev.manualEntryRecords || []).filter(filterFn)
       };
 
-      fetch(getApiUrl('/api/master-data'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newMaster)
-      }).catch(() => {});
+      try {
+        fetch(getApiUrl('/api/master-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newMaster)
+        }).catch(() => {});
+      } catch (e) {}
 
       return newMaster;
     });
