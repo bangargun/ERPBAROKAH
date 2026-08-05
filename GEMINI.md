@@ -174,4 +174,9 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
     - Selalu sertakan pengecekan null (`activeCust ? ... : null`) pada pembacaan objek dari `masterData` untuk mencegah `TypeError: Cannot read properties of null`.
     - Apabila terdapat pembersihan cache lokal tanpa mengganggu database VPS, tingkatkan key `mris_version` di `App.jsx` (contoh: `v57_outlet_clean`).
 11. **Rilis APK Khusus Lokal**: Setiap kali melakukan build file APK Android (`.apk`), file APK cukup dirilis/disimpan di direktori lokal komputer pengguna (misal di root workspace). **DILARANG KERAS** meng-commit atau meng-push file `.apk` ke repository GitHub.
-
+12. **🔒 LARANGAN MENYENTUH FITUR/KODE YANG SUDAH SELESAI**:
+    - Apabila sebuah fitur, halaman, komponen, fungsi, jalur file, sintaks, atau logika **sudah dinyatakan selesai / sudah berjalan dengan benar**, AI **DILARANG KERAS** mengubah, memindahkan, merestrukturisasi, mengoptimasi, atau menyentuhnya dalam bentuk apa pun — termasuk ketika AI menganggap ada cara yang "lebih baik".
+    - AI **tidak diberi kebebasan berinovasi** pada bagian kode yang sudah selesai. Inovasi bebas hanya boleh dilakukan pada fitur / kode baru yang sedang dikerjakan.
+    - Satu-satunya pengecualian adalah jika **user secara eksplisit meminta perbaikan** pada bagian tersebut (misalnya: "perbaiki X", "ubah Y", "ada bug di Z").
+    - **Contoh yang DILARANG** (meskipun tidak diminta): mengubah nama file/path, mengubah struktur komponen yang sudah jalan, mengganti sintaks yang sudah berfungsi, menambahkan "peningkatan" pada fitur yang sudah selesai, atau mereorganisasi kode sebagai "side effect" dari task lain.
+    - **Prinsip**: Jika sudah selesai → simpan dan jangan ganggu. Fokus HANYA pada task yang diminta.
