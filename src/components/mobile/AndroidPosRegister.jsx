@@ -11450,29 +11450,58 @@ export default function AndroidPosRegister({
                 id: acc.id, name: acc.name, role: acc.role || acc.jabatan || 'Kasir'
               }));
 
-              const handleUpdateStokAwal = (id, val) => {
-                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, stok_awal: val } : r));
+              const handleUpdateStokAwal = (ing, val) => {
+                const targetName = (ing.name || ing.item_name || '').toLowerCase().trim();
+                const targetId = ing.id || `ing-opname-${targetName}`;
+                setOpnameBatchRows(prev => {
+                  const exists = prev.some(r => (r.id && String(r.id) === String(targetId)) || (r.item_name || '').toLowerCase().trim() === targetName);
+                  if (exists) {
+                    return prev.map(r => ((r.id && String(r.id) === String(targetId)) || (r.item_name || '').toLowerCase().trim() === targetName) ? { ...r, stok_awal: val } : r);
+                  }
+                  return [...prev, {
+                    id: targetId,
+                    item_name: ing.name || ing.item_name,
+                    unit: ing.unit || 'kg',
+                    stok_awal: val,
+                    stok_fisik: ''
+                  }];
+                });
               };
 
-              const handleUpdateStokFisik = (id, val) => {
-                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, stok_fisik: val } : r));
+              const handleUpdateStokFisik = (ing, val) => {
+                const targetName = (ing.name || ing.item_name || '').toLowerCase().trim();
+                const targetId = ing.id || `ing-opname-${targetName}`;
+                setOpnameBatchRows(prev => {
+                  const exists = prev.some(r => (r.id && String(r.id) === String(targetId)) || (r.item_name || '').toLowerCase().trim() === targetName);
+                  if (exists) {
+                    return prev.map(r => ((r.id && String(r.id) === String(targetId)) || (r.item_name || '').toLowerCase().trim() === targetName) ? { ...r, stok_fisik: val } : r);
+                  }
+                  return [...prev, {
+                    id: targetId,
+                    item_name: ing.name || ing.item_name,
+                    unit: ing.unit || 'kg',
+                    stok_awal: ing.stock !== undefined ? ing.stock : (ing.stok || 0),
+                    stok_fisik: val
+                  }];
+                });
               };
 
               return (
                 <form onSubmit={e => {
                   e.preventDefault();
 
-                  if (!opnameBatchRows || opnameBatchRows.length === 0) {
+                  if (!ingredientsList || ingredientsList.length === 0) {
                     alert('Tidak ada bahan baku aktif yang dapat diaudit!');
                     return;
                   }
 
-                  const newRecords = opnameBatchRows.map((r, idx) => {
-                    const sAwal = Number(r.stok_awal || 0);
-                    const sMasuk = getStokMasukFromLaporanHarian(r.item_name, logDate, logOutletId);
-                    const trfIn = getTransferStokMasuk(r.item_name, logDate, logOutletId);
-                    const trfOut = getTransferStokKeluar(r.item_name, logDate, logOutletId);
-                    const sFisik = r.stok_fisik !== '' ? Number(r.stok_fisik) : sAwal;
+                  const newRecords = ingredientsList.map((ing, idx) => {
+                    const r = opnameBatchRows.find(item => (item.item_name || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim()) || {};
+                    const sAwal = Number(r.stok_awal !== undefined && r.stok_awal !== '' ? r.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0)));
+                    const sMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
+                    const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
+                    const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
+                    const sFisik = (r.stok_fisik !== undefined && r.stok_fisik !== '') ? Number(r.stok_fisik) : sAwal;
                     const sSistem = sAwal + sMasuk + trfIn - trfOut;
                     const selisih = sFisik - sSistem;
 
@@ -11485,8 +11514,8 @@ export default function AndroidPosRegister({
                       submitted_by: logSubmittedBy,
                       created_by: logSubmittedBy,
                       author_name: logSubmittedBy,
-                      item_name: r.item_name,
-                      unit: r.unit || 'kg',
+                      item_name: ing.name,
+                      unit: ing.unit || 'kg',
                       stok_awal: sAwal,
                       stok_masuk: sMasuk,
                       transfer_masuk: trfIn,
@@ -11580,7 +11609,7 @@ export default function AndroidPosRegister({
                             </tr>
                           ) : (
                             ingredientsList.map((ing, idx) => {
-                              const rowState = opnameBatchRows.find(r => (r.item_name || '').toLowerCase() === (ing.name || '').toLowerCase()) || {
+                              const rowState = opnameBatchRows.find(r => (r.item_name || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim()) || {
                                 id: ing.id || `ing-opname-${idx}`,
                                 item_name: ing.name,
                                 unit: ing.unit || 'kg',
@@ -11588,13 +11617,13 @@ export default function AndroidPosRegister({
                                 stok_fisik: ''
                               };
 
-                              const stokAwal = Number(rowState.stok_awal || 0);
+                              const stokAwal = Number(rowState.stok_awal !== undefined && rowState.stok_awal !== '' ? rowState.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0)));
                               const stokMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                               const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                               const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
 
                               const stokSistem = stokAwal + stokMasuk + trfIn - trfOut;
-                              const stokFisik = rowState.stok_fisik !== '' ? Number(rowState.stok_fisik) : '';
+                              const stokFisik = (rowState.stok_fisik !== undefined && rowState.stok_fisik !== '') ? Number(rowState.stok_fisik) : '';
                               const selisih = stokFisik !== '' ? (Number(stokFisik) - stokSistem) : null;
 
                               const selisihColor = selisih === null ? 'var(--pos-txt-secondary)' : selisih === 0 ? '#34d399' : selisih > 0 ? '#38bdf8' : '#fb7185';
@@ -11613,8 +11642,8 @@ export default function AndroidPosRegister({
                                     <input
                                       type="number"
                                       step="any"
-                                      value={rowState.stok_awal}
-                                      onChange={e => handleUpdateStokAwal(rowState.id, e.target.value)}
+                                      value={rowState.stok_awal !== undefined ? rowState.stok_awal : ''}
+                                      onChange={e => handleUpdateStokAwal(ing, e.target.value)}
                                       className="form-input"
                                       style={{ width: '90px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '800' }}
                                     />
@@ -11647,8 +11676,8 @@ export default function AndroidPosRegister({
                                       step="any"
                                       min="0"
                                       placeholder="Fisik..."
-                                      value={rowState.stok_fisik}
-                                      onChange={e => handleUpdateStokFisik(rowState.id, e.target.value)}
+                                      value={rowState.stok_fisik !== undefined ? rowState.stok_fisik : ''}
+                                      onChange={e => handleUpdateStokFisik(ing, e.target.value)}
                                       className="form-input"
                                       style={{ width: '100px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.88rem', fontWeight: '900', border: '1.5px solid #fbbf24', color: '#fbbf24' }}
                                     />
