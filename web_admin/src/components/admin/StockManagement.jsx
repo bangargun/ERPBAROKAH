@@ -192,6 +192,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       ? masterData.userRights
       : []);
 
+  // HELPER UNTUK FILTER TOMBSTONE DELETED LOGISTICS
+  const isDeletedRecord = (item) => {
+    if (!item) return false;
+    const delList = (masterData.deletedLogisticsIds || []).map(x => String(x));
+    if (delList.length === 0) return false;
+    const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+    const itemRNo = String(item.report_no || item.receiptNo || item.receipt_no || '');
+    return (itemId && delList.includes(itemId)) || (itemRNo && delList.includes(itemRNo));
+  };
+
   // LOGISTIC DATA (AUTOMATICALLY STREAMED FROM MASTER DATA & LAPORAN KEUANGAN)
   const getMovementsList = () => {
     const baseList = [...(masterData.stockMovement || [])];
@@ -253,7 +263,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       });
     }
 
-    return baseList;
+    return baseList.filter(m => !isDeletedRecord(m));
   };
 
   const getTransfersList = () => {
@@ -265,11 +275,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       const key = String(x.id || x.report_no);
       if (key && !ids.has(key)) res.push(x);
     });
-    return res;
+    return res.filter(t => !isDeletedRecord(t));
   };
 
   const getOpnameList = () => {
-    return masterData.stockOpname || [];
+    return (masterData.stockOpname || []).filter(op => !isDeletedRecord(op));
   };
 
   const calculateStockOpnameBySystem = () => {
@@ -1281,7 +1291,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       const filterItem = item => {
         if (!item) return false;
         const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
-        const iRNo = String(item.report_no || item.receiptNo || '');
+        const iRNo = String(item.report_no || item.receiptNo || item.receipt_no || '');
         return iId !== targetIdStr && iId !== targetReportNo && iRNo !== targetIdStr && iRNo !== targetReportNo;
       };
 
@@ -1298,7 +1308,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         approvedWaste: (prev.approvedWaste || []).filter(filterItem),
         stockMovement: (prev.stockMovement || []).filter(filterItem),
         stockIn: (prev.stockIn || []).filter(filterItem),
-        purchases: (prev.purchases || []).filter(filterItem)
+        purchases: (prev.purchases || []).filter(filterItem),
+        outletTransactions: (prev.outletTransactions || []).filter(filterItem),
+        salesTransactions: (prev.salesTransactions || []).filter(filterItem),
+        transactions: (prev.transactions || []).filter(filterItem)
       };
     });
 

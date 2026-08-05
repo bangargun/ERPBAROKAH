@@ -55,9 +55,8 @@ export default function PaginationControls({
             }}
           >
             <option value={10} style={{ background: T.dropdownBg, color: T.txtPrimary }}>10 Baris</option>
-            <option value={25} style={{ background: T.dropdownBg, color: T.txtPrimary }}>25 Baris</option>
+            <option value={30} style={{ background: T.dropdownBg, color: T.txtPrimary }}>30 Baris</option>
             <option value={50} style={{ background: T.dropdownBg, color: T.txtPrimary }}>50 Baris</option>
-            <option value={100} style={{ background: T.dropdownBg, color: T.txtPrimary }}>100 Baris</option>
           </select>
         </div>
         <span style={{ color: T.txtPrimary }}>
