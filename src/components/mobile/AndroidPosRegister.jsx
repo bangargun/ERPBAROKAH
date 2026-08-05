@@ -322,14 +322,19 @@ export default function AndroidPosRegister({
   }, []);
 
   // Helper: tampilkan status print toast sementara
+  // status: null | 'printing' | 'success' | 'success_pdf' | 'error'
+  //   'success'     = ✅ Hijau  — hardware printer berhasil cetak
+  //   'success_pdf' = 📄 Kuning — tidak ada printer, fallback ke PDF
+  //   'error'       = ❌ Merah  — gagal cetak, printer tidak merespon
   const showPrintStatus = useCallback((status, msg) => {
     setPrintStatus(status);
     setPrintStatusMsg(msg);
-    if (status === 'success' || status === 'error') {
+    const autoHideStatuses = ['success', 'success_pdf', 'error'];
+    if (autoHideStatuses.includes(status)) {
       setTimeout(() => {
         setPrintStatus(null);
         setPrintStatusMsg('');
-      }, 4000);
+      }, 5000);
     }
   }, []);
 
@@ -1808,28 +1813,60 @@ export default function AndroidPosRegister({
   }, []);
 
   // Print text langsung ke hardware Bluetooth printer (atau fallback ke iframe print di browser)
+  // Membedakan 3 skenario:
+  //   1. ✅ Sukses Hardware   → toast hijau "Cetak ke printer berhasil!"
+  //   2. 📄 Fallback PDF     → toast kuning "Dicetak sebagai PDF"
+  //   3. ❌ Gagal Hardware   → toast merah + printerOfflineModal dengan opsi retry/PDF/setting
   const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
-    showPrintStatus('printing', '🖨️ Mengirim data ke printer...');
+    showPrintStatus('printing', '⏳ Mengirim data ke printer Bluetooth...');
     try {
       await printToBluetoothPrinter(
         printerMac,
         textContent,
         printerPaperWidth,
-        () => showPrintStatus('success', '✅ Cetak berhasil!'),
+        // onSuccess — bisa dari hardware ATAU dari fallback PDF
+        (result) => {
+          if (result?.isHardware) {
+            // ✅ Printer hardware fisik berhasil mencetak
+            showPrintStatus('success', '✅ Struk berhasil dicetak di printer Bluetooth!');
+          } else if (result?.fallbackPdf) {
+            // 📄 Tidak ada printer / browser mode — dicetak sebagai PDF
+            showPrintStatus('success_pdf', '📄 Dicetak sebagai PDF (printer Bluetooth tidak dikonfigurasi)');
+          } else {
+            showPrintStatus('success', '✅ Cetak berhasil!');
+          }
+        },
+        // onError — hardware gagal, printer tidak merespon
         (err) => {
           const msg = err?.message || String(err);
-          let displayMsg = '❌ Gagal cetak: ' + msg;
-          if (msg.includes('BLUETOOTH_DISABLED')) displayMsg = '❌ Bluetooth tidak aktif. Aktifkan Bluetooth di perangkat Anda.';
-          else if (msg.includes('CONNECTION_REFUSED')) displayMsg = '❌ Printer menolak koneksi. Pastikan printer menyala dan dalam jangkauan.';
-          else if (msg.includes('DEVICE_BUSY')) displayMsg = '❌ Printer sedang sibuk. Tunggu sebentar lalu coba lagi.';
+          let displayMsg = '❌ Gagal cetak ke printer Bluetooth.';
+          if (msg.includes('BLUETOOTH_DISABLED') || msg.includes('Bluetooth tidak aktif')) {
+            displayMsg = '❌ Bluetooth HP tidak aktif! Aktifkan Bluetooth di Pengaturan Android.';
+          } else if (msg.includes('PERMISSION_DENIED')) {
+            displayMsg = '❌ Izin Bluetooth ditolak. Buka Pengaturan → Izin Aplikasi → Bluetooth.';
+          } else if (msg.includes('gagal') || msg.includes('Koneksi') || msg.includes('connect')) {
+            displayMsg = '❌ Printer tidak merespon. Pastikan printer menyala, Bluetooth printer aktif (lampu berkedip), dan sudah di-pair.';
+          } else if (msg) {
+            displayMsg = '❌ Error printer: ' + msg;
+          }
           showPrintStatus('error', displayMsg);
-          // Tampilkan papan info printer offline
+          // Tampilkan modal error dengan panduan dan opsi fallback PDF
           const lastTxt = textContent;
-          setPrinterOfflineModal({ open: true, errorMsg: displayMsg, onFallback: () => { _browserPrintFallback(lastTxt, printerPaperWidth); } });
+          setPrinterOfflineModal({
+            open: true,
+            errorMsg: displayMsg,
+            onFallback: () => {
+              _browserPrintFallback(lastTxt, printerPaperWidth);
+              showPrintStatus('success_pdf', '📄 Dicetak sebagai PDF (alternatif)');
+            }
+          });
         }
       );
     } catch (err) {
-      console.error('[BTPrinter] printTextToBluetooth error:', err);
+      // Catch-all untuk error JS yang tidak terduga
+      const msg = err?.message || String(err);
+      console.error('[BTPrinter] printTextToBluetooth unexpected error:', err);
+      showPrintStatus('error', '❌ Error tidak terduga: ' + msg);
     }
   }, [printerMac, printerPaperWidth, showPrintStatus]);
 
@@ -13068,7 +13105,11 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* ── GLOBAL FLOATING PRINT STATUS TOAST (AKURAT & JELAS SAAT BERHASIL/GAGAL) ── */}
+      {/* ── GLOBAL FLOATING PRINT STATUS TOAST ──
+          ✅ Hijau  = Printer hardware berhasil cetak
+          📄 Kuning = Tidak ada printer, dicetak sebagai PDF
+          ⏳ Biru   = Sedang mengirim data ke printer
+          ❌ Merah  = Gagal cetak, printer tidak merespon */}
       {printStatus && (
         <div style={{
           position: 'fixed',
@@ -13077,19 +13118,29 @@ export default function AndroidPosRegister({
           zIndex: 999999,
           padding: '14px 20px',
           borderRadius: '14px',
-          background: printStatus === 'success' ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : printStatus === 'printing' ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' : 'linear-gradient(135deg, #dc2626 0%, #f43f5e 100%)',
+          background:
+            printStatus === 'success'     ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' :
+            printStatus === 'success_pdf' ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)' :
+            printStatus === 'printing'    ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' :
+                                            'linear-gradient(135deg, #dc2626 0%, #f43f5e 100%)',
           color: '#ffffff',
           fontWeight: '900',
           fontSize: '0.90rem',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          boxShadow: printStatus === 'success' ? '0 10px 30px rgba(16,185,129,0.4)' : printStatus === 'printing' ? '0 10px 30px rgba(99,102,241,0.4)' : '0 10px 30px rgba(244,63,94,0.4)',
+          maxWidth: '340px',
+          boxShadow:
+            printStatus === 'success'     ? '0 10px 30px rgba(16,185,129,0.4)' :
+            printStatus === 'success_pdf' ? '0 10px 30px rgba(245,158,11,0.4)' :
+            printStatus === 'printing'    ? '0 10px 30px rgba(99,102,241,0.4)' :
+                                            '0 10px 30px rgba(244,63,94,0.4)',
           border: '1px solid rgba(255,255,255,0.2)'
         }}>
-          {printStatus === 'printing' && <span style={{ fontSize: '1.2rem' }}>⏳</span>}
-          {printStatus === 'success' && <span style={{ fontSize: '1.2rem' }}>✅</span>}
-          {printStatus === 'error' && <span style={{ fontSize: '1.2rem' }}>❌</span>}
+          {printStatus === 'printing'    && <span style={{ fontSize: '1.2rem' }}>⏳</span>}
+          {printStatus === 'success'     && <span style={{ fontSize: '1.2rem' }}>✅</span>}
+          {printStatus === 'success_pdf' && <span style={{ fontSize: '1.2rem' }}>📄</span>}
+          {printStatus === 'error'       && <span style={{ fontSize: '1.2rem' }}>❌</span>}
           <span>{printStatusMsg}</span>
         </div>
       )}
