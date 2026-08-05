@@ -6468,7 +6468,10 @@ export default function AndroidPosRegister({
                             const isSel = printerMac === device.address;
                             const isSystem = device.type === 'system';
                             const live = liveDeviceMap[device.address];
+                            // isBle = true HANYA jika plugin kembalikan 'le' (BLE murni, tidak ada SPP)
+                            // Printer DUAL seperti RPP02N sekarang dikembalikan sebagai 'classic' oleh Java plugin
                             const isBle = String(device.type || '').toLowerCase() === 'le';
+                            const typeLabel = isSystem ? 'PDF' : isBle ? 'BLE' : 'Classic';
 
                             return (
                               <div
@@ -6533,7 +6536,7 @@ export default function AndroidPosRegister({
                                   </div>
                                   <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '2px', fontFamily: 'monospace' }}>
                                     {device.address}
-                                    {isBle ? ' — Bluetooth Low Energy (BLE)' : isSystem ? ' — Cetak PDF via sistem' : ' — Bluetooth Classic'}
+                                    {isSystem ? ' — Cetak PDF via sistem' : isBle ? ' — BLE Only (tidak mendukung SPP cetak thermal)' : ` — Bluetooth Classic/SPP [${typeLabel}]`}
                                   </div>
                                 </div>
 

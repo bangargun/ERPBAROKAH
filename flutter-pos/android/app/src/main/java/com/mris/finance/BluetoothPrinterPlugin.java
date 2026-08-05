@@ -213,7 +213,22 @@ public class BluetoothPrinterPlugin extends Plugin {
                     dev.put("address", device.getAddress());
                     dev.put("isPaired", true);
                     dev.put("isOnline", true);
-                    dev.put("type", device.getType() == BluetoothDevice.DEVICE_TYPE_CLASSIC ? "classic" : "le");
+                    // PENTING: BluetoothDevice.getType() returns:
+                    //   1 = DEVICE_TYPE_CLASSIC  → Classic Bluetooth (SPP/RFCOMM) ✅ bisa cetak
+                    //   2 = DEVICE_TYPE_LE       → Bluetooth Low Energy saja     ❌ tidak bisa cetak via SPP
+                    //   3 = DEVICE_TYPE_DUAL     → Classic + BLE (contoh: RPP02N) ✅ bisa cetak via SPP
+                    // Sebelumnya hanya cek == CLASSIC, sehingga DUAL (RPP02N, dll) salah dikategorikan "le"
+                    int devType = device.getType();
+                    String typeStr;
+                    if (devType == BluetoothDevice.DEVICE_TYPE_CLASSIC || devType == BluetoothDevice.DEVICE_TYPE_DUAL) {
+                        typeStr = "classic"; // SPP/RFCOMM tersedia - printer thermal bisa digunakan
+                    } else if (devType == BluetoothDevice.DEVICE_TYPE_LE) {
+                        typeStr = "le";      // BLE only - printer thermal umumnya tidak bisa cetak via SPP
+                    } else {
+                        typeStr = "classic"; // DEVICE_TYPE_UNKNOWN (0) - anggap classic, biarkan user coba
+                    }
+                    dev.put("type", typeStr);
+
                     deviceArray.put(dev);
                 }
             }
