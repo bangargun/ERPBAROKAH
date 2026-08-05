@@ -262,46 +262,58 @@ export default function AndroidPosRegister({
   const [liveDeviceMap, setLiveDeviceMap] = useState({});
   const [checkingMacMap, setCheckingMacMap] = useState({});
 
-  // Scan bonded Bluetooth devices dari pengaturan Android & System Printer Fallback
+  // Scan bonded Bluetooth devices dari Pengaturan Android (PERANGKAT NYATA SAJA)
+  // Tidak ada preset palsu — hanya perangkat yang benar-benar di-pair di OS
   const handleScanPairedPrinters = useCallback(async () => {
     setIsScanningPaired(true);
-    setPrintStatusMsg('⏳ Sedang memindai printer Bluetooth & thermal...');
-    
-    // Delay 400ms untuk efek memindai yang responsif
-    await new Promise(r => setTimeout(r, 400));
+    setPairedDevices([]);
+    setPrintStatusMsg('⏳ Memindai perangkat Bluetooth yang sudah di-pair...');
 
     try {
-      let devices = [];
-      if (window.Capacitor?.isNativePlatform?.()) {
-        try {
-          devices = await scanPairedPrinters();
-        } catch (e) {
-          console.warn('[BTScan] Native scan failed:', e);
-        }
+      // --- Mode Browser (bukan APK) ---
+      if (!window.Capacitor?.isNativePlatform?.()) {
+        setPairedDevices([{ name: '📄 Cetak PDF (Mode Browser)', address: 'SYSTEM_PDF_PRINT', type: 'system' }]);
+        setPrintStatusMsg('ℹ️ Mode browser — Bluetooth tidak tersedia. Di APK Android, printer Bluetooth akan muncul di sini.');
+        setIsScanningPaired(false);
+        return;
       }
 
-      // Preset fallback devices agar printer selalu 100% dapat dipilih kasir
-      const presetPrinters = [
-        { name: '🖨️ Printer Thermal Bluetooth Kasir (Auto-Detect)', address: 'BT_THERMAL_AUTO', type: 'bluetooth' },
-        { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
-      ];
+      // --- Mode Capacitor Android: scan paired devices sungguhan ---
+      let devices = [];
+      try {
+        devices = await scanPairedPrinters();
+      } catch (scanErr) {
+        const msg = scanErr?.message || String(scanErr);
+        console.error('[BTScan] scanPairedPrinters error:', msg);
+        if (msg.toLowerCase().includes('bluetooth') && msg.toLowerCase().includes('disabled')) {
+          setPrintStatusMsg('❌ Bluetooth HP belum aktif! Buka: Pengaturan Android → Bluetooth → Aktifkan, lalu scan ulang.');
+        } else if (msg.toLowerCase().includes('permission')) {
+          setPrintStatusMsg('❌ Izin Bluetooth ditolak. Buka: Pengaturan → Aplikasi → POS Kasir → Izin → Aktifkan Bluetooth.');
+        } else {
+          setPrintStatusMsg('❌ Gagal scan Bluetooth: ' + msg + '. Pastikan Bluetooth aktif di HP.');
+        }
+        setIsScanningPaired(false);
+        return;
+      }
 
       if (devices && devices.length > 0) {
-        setPrintStatusMsg(`✅ Ditemukan ${devices.length} perangkat Bluetooth paired.`);
-        setPairedDevices([
-          ...devices,
-          ...presetPrinters
-        ]);
+        // Urutkan: non-BLE (Classic Bluetooth) duluan — printer thermal pakai Classic, bukan BLE
+        const sorted = [...devices].sort((a, b) => {
+          const aIsLe = String(a.type || '').toLowerCase() === 'le';
+          const bIsLe = String(b.type || '').toLowerCase() === 'le';
+          if (aIsLe && !bIsLe) return 1;
+          if (!aIsLe && bIsLe) return -1;
+          return 0;
+        });
+        setPairedDevices(sorted);
+        setPrintStatusMsg(`✅ Ditemukan ${sorted.length} perangkat Bluetooth paired. Pilih printer thermal Anda di bawah.`);
       } else {
-        setPrintStatusMsg('⚠️ Pemindaian selesai. Jika printer belum muncul di atas, silakan pilih "Auto-Detect" atau masukkan Alamat MAC Manual di bawah.');
-        setPairedDevices(presetPrinters);
+        setPairedDevices([]);
+        setPrintStatusMsg('⚠️ Tidak ada perangkat Bluetooth yang di-pair. Pair printer dulu: Pengaturan Android → Bluetooth → Tambah Perangkat Baru → pilih printer thermal Anda.');
       }
     } catch (err) {
-      setPrintStatusMsg('⚠️ Gagal membaca printer Bluetooth: ' + (err.message || 'Pastikan Bluetooth aktif'));
-      setPairedDevices([
-        { name: '🖨️ Printer Thermal Bluetooth Kasir (Auto-Detect)', address: 'BT_THERMAL_AUTO', type: 'bluetooth' },
-        { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
-      ]);
+      console.error('[BTScan] Unexpected error:', err);
+      setPrintStatusMsg('❌ Error tidak terduga: ' + (err?.message || String(err)));
     } finally {
       setIsScanningPaired(false);
     }
@@ -319,6 +331,10 @@ export default function AndroidPosRegister({
     } catch (e) {}
     setSaveSettingsSuccessToast(true);
     setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
+    // Reset live status map untuk mac baru
+    if (cleanMac) {
+      setLiveDeviceMap(prev => ({ ...prev, [cleanMac]: undefined }));
+    }
   }, []);
 
   // Helper: tampilkan status print toast sementara
@@ -339,18 +355,24 @@ export default function AndroidPosRegister({
   }, []);
 
   const handleCheckLiveStatus = useCallback(async (mac) => {
-    if (!mac || mac === 'BT_THERMAL_AUTO' || mac === 'SYSTEM_PDF_PRINT') return;
+    if (!mac || mac === 'SYSTEM_PDF_PRINT') return;
     setCheckingMacMap(prev => ({ ...prev, [mac]: true }));
-    showPrintStatus('info', '🔍 Memeriksa respon sinyal daya saklar printer...');
+    // Gunakan 'printing' bukan 'info' (status code valid)
+    showPrintStatus('printing', '🔍 Memeriksa koneksi printer...');
 
-    const res = await checkPrinterLiveStatus(mac);
-    setCheckingMacMap(prev => ({ ...prev, [mac]: false }));
-    setLiveDeviceMap(prev => ({ ...prev, [mac]: res.isLive }));
-
-    if (res.isLive) {
-      showPrintStatus('success', `🟢 SAKLAR PRINTER MENYALA! Printer ${mac} terhubung & merespon.`);
-    } else {
-      showPrintStatus('error', `🔴 SAKLAR PRINTER MATI / TERPUTUS! (${res.reason || 'Printer tidak merespon'})`);
+    try {
+      const res = await checkPrinterLiveStatus(mac);
+      setLiveDeviceMap(prev => ({ ...prev, [mac]: res.isLive }));
+      if (res.isLive) {
+        showPrintStatus('success', `🟢 Printer terhubung & siap cetak!`);
+      } else {
+        showPrintStatus('error', `🔴 Printer tidak merespon. ${res.reason ? '(' + res.reason + ')' : 'Cek: saklar printer ON, Bluetooth HP aktif, printer sudah di-pair.'}`);
+      }
+    } catch (err) {
+      setLiveDeviceMap(prev => ({ ...prev, [mac]: false }));
+      showPrintStatus('error', `❌ Gagal cek koneksi: ${err?.message || 'Pastikan Bluetooth aktif dan printer dinyalakan.'}`);
+    } finally {
+      setCheckingMacMap(prev => ({ ...prev, [mac]: false }));
     }
   }, [showPrintStatus]);
 
@@ -694,6 +716,15 @@ export default function AndroidPosRegister({
 
   // Settings Page Sub-Tab & Preferences States (Matching User Screenshot 100%)
   const [settingSubTab, setSettingSubTab] = useState('umum'); // 'umum' | 'printer' | 'sistem' | 'akun' | 'scanner' | 'dual_display'
+
+  // AUTO-SCAN: Saat user buka tab printer, scan otomatis agar list selalu fresh
+  useEffect(() => {
+    if (settingSubTab === 'printer') {
+      handleScanPairedPrinters();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingSubTab]);
+
   const [autoLockApp5Min, setAutoLockApp5Min] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState('Indonesia');
   const [scannerBeepEnabled, setScannerBeepEnabled] = useState(true);
@@ -6200,346 +6231,462 @@ export default function AndroidPosRegister({
                 )}
 
 
-                {/* SUB-TAB: PRINTER BLUETOOTH */}
-                {settingSubTab === 'printer' && (
-                  <div className="pos-printer-container" style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <PrinterIcon size={26} color="#6366f1" />
-                      <span>Koneksi Printer Bluetooth</span>
-                    </h2>
+                {/* SUB-TAB: PRINTER BLUETOOTH — ROMBAK TOTAL */}
+                {settingSubTab === 'printer' && (() => {
+                  // Status warna helpers
+                  const isHardwarePrinter = printerMac && printerMac !== 'SYSTEM_PDF_PRINT';
+                  const printerName = pairedDevices.find(d => d.address === printerMac)?.name || printerMac || null;
+                  const liveStatus = liveDeviceMap[printerMac]; // true | false | undefined
 
-                    {/* PRINT STATUS BANNER */}
-                    {printStatus && (
-                      <div style={{
-                        padding: '12px 16px',
-                        borderRadius: '12px',
-                        background: printStatus === 'success' ? 'rgba(52,211,153,0.15)' : printStatus === 'printing' ? 'rgba(99,102,241,0.15)' : 'rgba(244,63,94,0.15)',
-                        border: `1px solid ${printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#6366f1' : '#f43f5e'}`,
-                        color: printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#a5b4fc' : '#f87171',
-                        fontSize: '0.88rem',
-                        fontWeight: '700',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        {printStatus === 'printing' && <span>⏳</span>}
-                        {printStatusMsg}
+                  const statusBg = {
+                    success: 'rgba(52,211,153,0.15)', printing: 'rgba(99,102,241,0.15)',
+                    success_pdf: 'rgba(250,204,21,0.15)', error: 'rgba(244,63,94,0.15)'
+                  };
+                  const statusBorder = {
+                    success: '#34d399', printing: '#6366f1',
+                    success_pdf: '#facc15', error: '#f43f5e'
+                  };
+                  const statusColor = {
+                    success: '#34d399', printing: '#a5b4fc',
+                    success_pdf: '#facc15', error: '#f87171'
+                  };
+
+                  return (
+                    <div style={{ maxWidth: '660px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                      {/* JUDUL */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <PrinterIcon size={26} color="#6366f1" />
+                        <div>
+                          <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                            Koneksi Printer Bluetooth
+                          </h2>
+                          <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '3px 0 0', fontWeight: '600' }}>
+                            Hanya perangkat yang sudah di-pair di Pengaturan Android yang akan muncul di sini.
+                          </p>
+                        </div>
                       </div>
-                    )}
 
-                    {/* PRINTER TERKONFIGURASI */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🖨️ Printer Aktif</span>
-                        {printerMac && printerMac !== 'BT_THERMAL_AUTO' && printerMac !== 'SYSTEM_PDF_PRINT' && (
-                          <button
-                            type="button"
-                            onClick={() => handleCheckLiveStatus(printerMac)}
-                            disabled={checkingMacMap[printerMac]}
-                            style={{
-                              background: 'rgba(99,102,241,0.2)',
-                              border: '1px solid #6366f1',
-                              color: '#a5b4fc',
-                              borderRadius: '8px',
-                              padding: '4px 10px',
-                              fontSize: '0.75rem',
-                              fontWeight: '800',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <Zap size={14} />
-                            {checkingMacMap[printerMac] ? 'Memeriksa Saklar...' : '⚡ Tes Respon Saklar'}
-                          </button>
+                      {/* STATUS BANNER */}
+                      {(printStatusMsg || isScanningPaired) && (
+                        <div style={{
+                          padding: '12px 16px',
+                          borderRadius: '12px',
+                          background: printStatus ? statusBg[printStatus] || 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.07)',
+                          border: `1px solid ${printStatus ? statusBorder[printStatus] || '#475569' : '#475569'}`,
+                          color: printStatus ? statusColor[printStatus] || '#94a3b8' : '#94a3b8',
+                          fontSize: '0.84rem',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '8px',
+                          lineHeight: '1.5'
+                        }}>
+                          <span style={{ fontSize: '1.1rem', lineHeight: '1.2' }}>
+                            {isScanningPaired ? '⏳' : printStatus === 'success' ? '✅' : printStatus === 'error' ? '❌' : printStatus === 'success_pdf' ? '📄' : 'ℹ️'}
+                          </span>
+                          <span>{isScanningPaired ? 'Memindai perangkat Bluetooth...' : printStatusMsg}</span>
+                        </div>
+                      )}
+
+                      {/* KARTU: PRINTER AKTIF */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+                          🖨️ Printer Aktif
+                        </div>
+                        {printerMac ? (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '14px',
+                            padding: '16px',
+                            borderRadius: '12px',
+                            background: liveStatus === false ? 'rgba(239,68,68,0.1)' : liveStatus === true ? 'rgba(52,211,153,0.1)' : 'rgba(99,102,241,0.1)',
+                            border: `2px solid ${liveStatus === false ? '#ef4444' : liveStatus === true ? '#34d399' : '#6366f1'}`
+                          }}>
+                            <div style={{
+                              width: '44px', height: '44px', borderRadius: '12px',
+                              background: liveStatus === false ? 'rgba(239,68,68,0.2)' : liveStatus === true ? 'rgba(52,211,153,0.2)' : 'rgba(99,102,241,0.2)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                            }}>
+                              {isHardwarePrinter
+                                ? <BluetoothConnected size={22} color={liveStatus === false ? '#ef4444' : liveStatus === true ? '#34d399' : '#818cf8'} />
+                                : <PrinterIcon size={22} color="#818cf8" />}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {printerName || printerMac}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px', fontFamily: 'monospace' }}>
+                                {isHardwarePrinter ? printerMac : 'Cetak PDF via Browser'}
+                              </div>
+                              <div style={{ marginTop: '6px' }}>
+                                <span style={{
+                                  fontSize: '0.70rem', padding: '2px 8px', borderRadius: '6px', fontWeight: '800',
+                                  background: liveStatus === false ? 'rgba(239,68,68,0.2)' : liveStatus === true ? 'rgba(52,211,153,0.2)' : 'rgba(99,102,241,0.15)',
+                                  color: liveStatus === false ? '#fca5a5' : liveStatus === true ? '#6ee7b7' : '#c7d2fe',
+                                  border: `1px solid ${liveStatus === false ? '#ef4444' : liveStatus === true ? '#34d399' : '#6366f1'}`
+                                }}>
+                                  {liveStatus === true ? '🟢 Terhubung & Siap Cetak'
+                                    : liveStatus === false ? '🔴 Tidak Merespon / Mati'
+                                    : isHardwarePrinter ? '⚪ Belum dicek' : '📄 Mode PDF'}
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                              {isHardwarePrinter && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCheckLiveStatus(printerMac)}
+                                  disabled={checkingMacMap[printerMac]}
+                                  style={{
+                                    padding: '7px 12px', borderRadius: '8px', border: '1px solid #6366f1',
+                                    background: 'rgba(99,102,241,0.2)', color: '#a5b4fc',
+                                    fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', gap: '5px'
+                                  }}
+                                >
+                                  <Zap size={13} />
+                                  {checkingMacMap[printerMac] ? 'Cek...' : 'Cek Koneksi'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
+                                style={{
+                                  padding: '7px 12px', borderRadius: '8px', border: '1px solid #f43f5e',
+                                  background: 'rgba(244,63,94,0.1)', color: '#f43f5e',
+                                  fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer'
+                                }}
+                              >
+                                Lepas
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '12px',
+                            padding: '16px', borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.04)', border: '2px dashed #334155'
+                          }}>
+                            <BluetoothOff size={22} color="#64748b" />
+                            <div>
+                              <div style={{ color: '#94a3b8', fontWeight: '800', fontSize: '0.90rem' }}>Belum ada printer dipilih</div>
+                              <div style={{ color: '#64748b', fontSize: '0.76rem', marginTop: '2px' }}>Scan perangkat di bawah lalu pilih printer Anda.</div>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      {printerMac ? (
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px',
-                          background: liveDeviceMap[printerMac] === false ? 'rgba(239,68,68,0.15)' : 'rgba(52,211,153,0.1)',
-                          border: `1px solid ${liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'}`
-                        }}>
-                          <BluetoothConnected size={24} color={liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '900', color: liveDeviceMap[printerMac] === false ? '#fca5a5' : '#34d399', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span>{pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}</span>
-                              <span style={{
-                                fontSize: '0.68rem',
-                                padding: '2px 8px',
-                                borderRadius: '6px',
-                                fontWeight: '800',
-                                background: liveDeviceMap[printerMac] === false ? 'rgba(239,68,68,0.25)' : 'rgba(52,211,153,0.25)',
-                                color: liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399',
-                                border: `1px solid ${liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'}`
-                              }}>
-                                {liveDeviceMap[printerMac] === false ? '🔴 SAKLAR MATI / TERPUTUS' : '🟢 SAKLAR MENYALA'}
-                              </span>
+
+                      {/* KARTU: LEBAR KERTAS */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+                          📄 Lebar Kertas Thermal
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          {['58', '80'].map(w => (
+                            <button
+                              key={w}
+                              type="button"
+                              onClick={() => handleSavePrinterConfig(printerMac, w)}
+                              style={{
+                                flex: 1, padding: '16px 10px', borderRadius: '12px',
+                                border: `2px solid ${printerPaperWidth === w ? '#6366f1' : '#334155'}`,
+                                background: printerPaperWidth === w ? 'linear-gradient(135deg, #4f46e5, #3b82f6)' : '#1e293b',
+                                color: printerPaperWidth === w ? '#ffffff' : '#94a3b8',
+                                fontWeight: '900', fontSize: '1.05rem', cursor: 'pointer',
+                                transition: 'all 0.15s', textAlign: 'center'
+                              }}
+                            >
+                              {w}mm
+                              <div style={{ fontSize: '0.72rem', fontWeight: '700', marginTop: '4px', color: printerPaperWidth === w ? '#e0e7ff' : '#64748b' }}>
+                                {w === '58' ? 'Mini Kasir / PRP-58' : 'Lebar / RPP-80'}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* KARTU: DAFTAR PERANGKAT BLUETOOTH */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                              🔵 Perangkat Bluetooth Paired
                             </div>
-                            <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '3px', fontWeight: '700' }}>
-                              {printerMac} • Kertas {printerPaperWidth}mm
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '3px' }}>
+                              Hanya perangkat yang sudah di-pair di: <strong style={{ color: '#94a3b8' }}>Pengaturan Android → Bluetooth</strong>
                             </div>
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
-                            style={{ background: 'rgba(244,63,94,0.15)', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#f43f5e', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
-                          >
-                            Lepas
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px dashed #475569' }}>
-                          <BluetoothOff size={20} color="#94a3b8" />
-                          <span style={{ color: '#cbd5e1', fontSize: '0.88rem', fontWeight: '700' }}>Belum ada printer dipilih</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* LEBAR KERTAS */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>📄 Lebar Kertas Thermal</div>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        {['58', '80'].map(w => (
-                          <button
-                            key={w}
-                            type="button"
-                            onClick={() => handleSavePrinterConfig(printerMac, w)}
+                            onClick={handleScanPairedPrinters}
+                            disabled={isScanningPaired}
                             style={{
-                              flex: 1,
-                              padding: '14px',
-                              borderRadius: '12px',
-                              border: `2px solid ${printerPaperWidth === w ? '#6366f1' : '#334155'}`,
-                              background: printerPaperWidth === w ? 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' : '#1e293b',
-                              color: printerPaperWidth === w ? '#ffffff' : '#cbd5e1',
-                              fontWeight: '900',
-                              fontSize: '1.05rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s'
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '9px 16px', borderRadius: '10px', border: 'none',
+                              background: isScanningPaired ? 'rgba(99,102,241,0.2)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                              color: '#ffffff', fontWeight: '900', fontSize: '0.80rem',
+                              cursor: isScanningPaired ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 4px 12px rgba(99,102,241,0.3)', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                           >
-                            {w}mm
-                            <div style={{ fontSize: '0.74rem', fontWeight: '700', marginTop: '3px', color: printerPaperWidth === w ? '#e0e7ff' : '#cbd5e1' }}>
-                              {w === '58' ? 'Mini Kasir' : 'Lebar Standar'}
-                            </div>
+                            <Bluetooth size={15} />
+                            {isScanningPaired ? 'Memindai...' : '🔄 Scan Ulang'}
                           </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* SCAN PERANGKAT BLUETOOTH */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                        <div>
-                          <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>🔍 Perangkat Bluetooth Terpair</div>
-                          <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>Pair printer terlebih dahulu di: Pengaturan Android → Bluetooth</div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleScanPairedPrinters}
-                          disabled={isScanningPaired}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '6px',
-                            padding: '10px 18px',
-                            borderRadius: '10px',
-                            border: 'none',
-                            background: isScanningPaired ? 'rgba(99,102,241,0.2)' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                            color: '#ffffff',
-                            fontWeight: '900',
-                            fontSize: '0.82rem',
-                            cursor: isScanningPaired ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
-                            transition: 'all 0.15s'
-                          }}
-                        >
-                          <Bluetooth size={16} />
-                          {isScanningPaired ? 'Memindai...' : 'Scan Perangkat'}
-                        </button>
-                      </div>
 
-                      {/* DEVICE LIST */}
-                      {pairedDevices.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '28px', color: '#f8fafc', fontSize: '0.88rem', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155' }}>
-                          {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {pairedDevices.map(device => {
-                            const isSelected = printerMac === device.address;
-                            const isSystemDevice = device.type === 'system';
-                            const isLive = liveDeviceMap[device.address];
+                        <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {isScanningPaired && (
+                            <div style={{
+                              textAlign: 'center', padding: '28px',
+                              borderRadius: '12px', background: '#0f172a', border: '1px solid #1e293b',
+                              color: '#94a3b8', fontSize: '0.88rem', fontWeight: '700'
+                            }}>
+                              ⏳ Memindai perangkat Bluetooth yang di-pair di HP Anda...
+                            </div>
+                          )}
+
+                          {!isScanningPaired && pairedDevices.length === 0 && (
+                            <div style={{
+                              padding: '24px', borderRadius: '12px',
+                              background: '#0f172a', border: '1px dashed #334155',
+                              textAlign: 'center'
+                            }}>
+                              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📵</div>
+                              <div style={{ color: '#94a3b8', fontWeight: '800', fontSize: '0.90rem', marginBottom: '6px' }}>
+                                Tidak ada perangkat Bluetooth ditemukan
+                              </div>
+                              <div style={{ color: '#64748b', fontSize: '0.78rem', lineHeight: '1.6' }}>
+                                1. Nyalakan printer thermal Anda<br/>
+                                2. Buka <strong style={{ color: '#94a3b8' }}>Pengaturan Android → Bluetooth</strong><br/>
+                                3. Pair printer Anda (biasanya bernama RPP02N, PTP-II, dll)<br/>
+                                4. Kembali ke sini lalu tekan <strong style={{ color: '#94a3b8' }}>Scan Ulang</strong>
+                              </div>
+                            </div>
+                          )}
+
+                          {!isScanningPaired && pairedDevices.map(device => {
+                            const isSel = printerMac === device.address;
+                            const isSystem = device.type === 'system';
+                            const live = liveDeviceMap[device.address];
+                            const isBle = String(device.type || '').toLowerCase() === 'le';
 
                             return (
                               <div
                                 key={device.address}
+                                onClick={() => !isBle && handleSavePrinterConfig(device.address, printerPaperWidth)}
                                 style={{
-                                  display: 'flex', alignItems: 'center', gap: '14px',
-                                  padding: '14px 16px',
-                                  borderRadius: '12px',
-                                  border: `2px solid ${isSelected ? '#6366f1' : isLive === false ? '#ef4444' : '#334155'}`,
-                                  background: isSelected ? 'rgba(99,102,241,0.25)' : isLive === false ? 'rgba(239,68,68,0.1)' : '#1e293b',
-                                  color: '#ffffff',
-                                  transition: 'all 0.15s',
-                                  width: '100%'
+                                  display: 'flex', alignItems: 'center', gap: '12px',
+                                  padding: '14px 16px', borderRadius: '12px',
+                                  border: `2px solid ${isSel ? '#6366f1' : live === false ? '#ef4444' : '#1e293b'}`,
+                                  background: isSel ? 'rgba(99,102,241,0.18)' : live === false ? 'rgba(239,68,68,0.07)' : '#0f172a',
+                                  cursor: isBle ? 'default' : 'pointer',
+                                  opacity: isBle ? 0.5 : 1,
+                                  transition: 'all 0.15s'
                                 }}
                               >
-                                {isSelected
-                                  ? <BluetoothConnected size={24} color={isLive === false ? '#ef4444' : '#a5b4fc'} />
-                                  : <Bluetooth size={24} color={isLive === false ? '#ef4444' : '#38bdf8'} />}
-                                
-                                <div style={{ flex: 1, color: '#ffffff', cursor: 'pointer' }} onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}>
-                                  <div className="device-name" style={{ fontWeight: '900', color: '#ffffff', fontSize: '0.98rem', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span>{device.name || 'Unnamed Device'}</span>
-                                    {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (
+                                {/* ICON */}
+                                <div style={{
+                                  width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  background: isSel ? 'rgba(99,102,241,0.25)' : isSystem ? 'rgba(100,116,139,0.2)' : 'rgba(56,189,248,0.15)'
+                                }}>
+                                  {isSystem
+                                    ? <PrinterIcon size={20} color="#94a3b8" />
+                                    : isSel
+                                    ? <BluetoothConnected size={20} color="#818cf8" />
+                                    : <Bluetooth size={20} color="#38bdf8" />}
+                                </div>
+
+                                {/* INFO */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{
+                                    fontWeight: '900', fontSize: '0.92rem', color: '#ffffff',
+                                    display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'
+                                  }}>
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                                      {device.name || 'Perangkat Tanpa Nama'}
+                                    </span>
+                                    {isSel && (
                                       <span style={{
-                                        fontSize: '0.68rem',
-                                        padding: '2px 8px',
-                                        borderRadius: '6px',
-                                        fontWeight: '800',
-                                        background: isLive === false ? 'rgba(239,68,68,0.2)' : 'rgba(52,211,153,0.2)',
-                                        color: isLive === false ? '#ef4444' : '#34d399',
-                                        border: `1px solid ${isLive === false ? '#ef4444' : '#34d399'}`
+                                        fontSize: '0.65rem', padding: '2px 7px', borderRadius: '5px',
+                                        background: 'rgba(99,102,241,0.3)', color: '#c7d2fe',
+                                        border: '1px solid #6366f1', fontWeight: '900'
+                                      }}>✓ AKTIF</span>
+                                    )}
+                                    {isBle && (
+                                      <span style={{
+                                        fontSize: '0.65rem', padding: '2px 7px', borderRadius: '5px',
+                                        background: 'rgba(251,191,36,0.15)', color: '#fbbf24',
+                                        border: '1px solid #f59e0b', fontWeight: '800'
+                                      }}>BLE – tidak cocok untuk printer thermal</span>
+                                    )}
+                                    {!isSystem && !isBle && (
+                                      <span style={{
+                                        fontSize: '0.65rem', padding: '2px 7px', borderRadius: '5px', fontWeight: '800',
+                                        background: live === false ? 'rgba(239,68,68,0.2)' : live === true ? 'rgba(52,211,153,0.15)' : 'rgba(56,189,248,0.12)',
+                                        color: live === false ? '#fca5a5' : live === true ? '#6ee7b7' : '#7dd3fc',
+                                        border: `1px solid ${live === false ? '#ef4444' : live === true ? '#34d399' : '#38bdf8'}`
                                       }}>
-                                        {isLive === false ? '🔴 SAKLAR MATI / TERPUTUS' : isLive === true ? '🟢 SAKLAR MENYALA' : '🟢 TERHUBUNG PAIRING'}
+                                        {live === true ? '🟢 Online' : live === false ? '🔴 Offline' : '⚪ Belum dicek'}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="device-mac" style={{ fontSize: '0.80rem', color: '#cbd5e1', marginTop: '3px', fontWeight: '700' }}>
-                                    {device.address} {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (isLive === false ? '• Saklar printer mati / terputus' : '• Siap Dipilih & Dicetak')}
+                                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '2px', fontFamily: 'monospace' }}>
+                                    {device.address}
+                                    {isBle ? ' — Bluetooth Low Energy (BLE)' : isSystem ? ' — Cetak PDF via sistem' : ' — Bluetooth Classic'}
                                   </div>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (
+                                {/* ACTIONS */}
+                                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                  {!isSystem && !isBle && (
                                     <button
                                       type="button"
-                                      onClick={() => handleCheckLiveStatus(device.address)}
+                                      onClick={e => { e.stopPropagation(); handleCheckLiveStatus(device.address); }}
                                       disabled={checkingMacMap[device.address]}
                                       style={{
-                                        padding: '8px 10px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #6366f1',
-                                        background: 'rgba(99,102,241,0.2)',
-                                        color: '#a5b4fc',
-                                        fontWeight: '800',
-                                        fontSize: '0.75rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
+                                        padding: '7px 10px', borderRadius: '8px',
+                                        border: '1px solid #334155', background: 'rgba(99,102,241,0.15)',
+                                        color: '#94a3b8', fontWeight: '800', fontSize: '0.72rem',
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
                                       }}
                                     >
-                                      <Zap size={13} />
-                                      {checkingMacMap[device.address] ? 'Memeriksa...' : 'Tes Daya'}
+                                      <Zap size={12} />
+                                      {checkingMacMap[device.address] ? '...' : 'Cek'}
                                     </button>
                                   )}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}
-                                    style={{
-                                      padding: '8px 14px',
-                                      borderRadius: '8px',
-                                      border: 'none',
-                                      background: isSelected ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : '#334155',
-                                      color: '#ffffff',
-                                      fontWeight: '800',
-                                      fontSize: '0.78rem',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {isSelected ? '✓ AKTIF' : 'Pilih'}
-                                  </button>
+                                  {!isBle && (
+                                    <button
+                                      type="button"
+                                      onClick={e => { e.stopPropagation(); handleSavePrinterConfig(device.address, printerPaperWidth); }}
+                                      style={{
+                                        padding: '7px 14px', borderRadius: '8px', border: 'none',
+                                        background: isSel ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#1e293b',
+                                        color: '#ffffff', fontWeight: '900', fontSize: '0.78rem', cursor: 'pointer'
+                                      }}
+                                    >
+                                      {isSel ? '✓ Aktif' : 'Pilih'}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-                      )}
 
-                      {/* MANUAL MAC ADDRESS / CUSTOM DEVICE INPUT */}
-                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #475569' }}>
-                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff', marginBottom: '8px' }}>
-                          ⌨️ Atau Input Alamat MAC / Nama Printer Manual:
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input
-                            type="text"
-                            placeholder="Contoh: 00:11:22:33:44:55 atau RPP02N"
-                            value={printerMac}
-                            onChange={(e) => setPrinterMac(e.target.value)}
-                            style={{
-                              flex: 1,
-                              padding: '12px 14px',
-                              borderRadius: '10px',
-                              border: '1px solid #64748b',
-                              background: '#0f172a',
-                              color: '#ffffff',
-                              fontSize: '0.90rem',
-                              fontWeight: '800'
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSavePrinterConfig(printerMac, printerPaperWidth)}
-                            style={{
-                              padding: '10px 18px',
-                              borderRadius: '10px',
-                              border: 'none',
-                              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                              color: '#ffffff',
-                              fontWeight: '900',
-                              fontSize: '0.85rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Simpan MAC
-                          </button>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '6px', fontWeight: '700' }}>
-                          Contoh: 00:11:22:33:44:55 atau RPP02N
+                        {/* INPUT MAC MANUAL */}
+                        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed #1e293b' }}>
+                          <div style={{ fontSize: '0.80rem', fontWeight: '800', color: '#94a3b8', marginBottom: '8px' }}>
+                            ⌨️ Input Alamat MAC Manual (jika printer tidak muncul di atas):
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Contoh: 00:11:22:33:44:55"
+                              value={printerMac && printerMac !== 'SYSTEM_PDF_PRINT' ? printerMac : ''}
+                              onChange={e => setPrinterMac(e.target.value.toUpperCase())}
+                              style={{
+                                flex: 1, padding: '11px 14px', borderRadius: '10px',
+                                border: '1px solid #334155', background: '#0f172a',
+                                color: '#ffffff', fontSize: '0.88rem', fontWeight: '700',
+                                fontFamily: 'monospace', outline: 'none'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (printerMac && printerMac.length >= 5) {
+                                  handleSavePrinterConfig(printerMac, printerPaperWidth);
+                                }
+                              }}
+                              style={{
+                                padding: '11px 18px', borderRadius: '10px', border: 'none',
+                                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                                color: '#ffffff', fontWeight: '900', fontSize: '0.84rem', cursor: 'pointer'
+                              }}
+                            >
+                              Simpan
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: '5px' }}>
+                            Format: XX:XX:XX:XX:XX:XX (lihat di balik printer atau di Pengaturan Bluetooth Android)
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* TEST PRINT */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧪 Tes Cetak Printer</div>
-                      <div style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)' }}>
-                        {printerMac
-                          ? 'Kirim struk tes ke printer yang dipilih untuk memastikan koneksi dan format cetak berjalan normal.'
-                          : 'Pilih printer terlebih dahulu untuk mengaktifkan fitur tes cetak.'}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleExecuteTestPrint}
-                        disabled={!printerMac || printStatus === 'printing'}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                          padding: '14px',
-                          borderRadius: '12px',
-                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`,
-                          background: !printerMac ? 'rgba(100,116,139,0.1)' : 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)',
-                          color: !printerMac ? '#64748b' : '#34d399',
-                          fontWeight: '800',
-                          fontSize: '0.92rem',
-                          cursor: !printerMac ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        <PrinterIcon size={18} />
-                        {printStatus === 'printing' ? 'Mengirim...' : '🖨️ Kirim Test Print Sekarang'}
-                      </button>
-                      {testPrintSuccessToast && (
-                        <div style={{ textAlign: 'center', color: '#34d399', fontSize: '0.85rem', fontWeight: '700', padding: '8px', borderRadius: '8px', background: 'rgba(52,211,153,0.1)' }}>
-                          ✅ Struk tes berhasil dikirim ke printer!
+                      {/* KARTU: TES CETAK */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+                          🧪 Tes Cetak
                         </div>
-                      )}
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '14px' }}>
+                          {printerMac
+                            ? 'Kirim struk tes ke printer yang dipilih. Jika berhasil cetak, printer siap digunakan.'
+                            : 'Pilih printer terlebih dahulu untuk mengaktifkan tes cetak.'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleExecuteTestPrint}
+                          disabled={!printerMac || printStatus === 'printing'}
+                          style={{
+                            width: '100%',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            padding: '14px', borderRadius: '12px',
+                            border: `1px solid ${!printerMac ? '#334155' : '#34d399'}`,
+                            background: !printerMac ? 'rgba(100,116,139,0.08)' : 'linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.2))',
+                            color: !printerMac ? '#475569' : '#34d399',
+                            fontWeight: '900', fontSize: '0.92rem',
+                            cursor: !printerMac ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <PrinterIcon size={18} />
+                          {printStatus === 'printing' ? '⏳ Mengirim ke printer...' : '🖨️ Kirim Struk Tes Sekarang'}
+                        </button>
+                        {testPrintSuccessToast && (
+                          <div style={{
+                            marginTop: '10px', textAlign: 'center', padding: '10px',
+                            borderRadius: '10px', background: 'rgba(52,211,153,0.1)',
+                            color: '#34d399', fontSize: '0.84rem', fontWeight: '800',
+                            border: '1px solid #34d399'
+                          }}>
+                            ✅ Struk tes berhasil dikirim ke printer!
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PANDUAN LENGKAP */}
+                      <details style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <summary style={{ cursor: 'pointer', fontWeight: '900', color: '#94a3b8', fontSize: '0.88rem', userSelect: 'none' }}>
+                          📖 Panduan Lengkap Koneksi Printer Bluetooth
+                        </summary>
+                        <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {[
+                            { step: '1', title: 'Nyalakan printer thermal Anda', desc: 'Pastikan printer menyala dan lampu indikator Bluetooth berkedip (tanda siap pair).' },
+                            { step: '2', title: 'Pair di Pengaturan Android', desc: 'Buka Pengaturan → Bluetooth → Tambah Perangkat Baru → pilih nama printer (biasanya: RPP02N, PTP-II, Star, Epson TM-series, dll).' },
+                            { step: '3', title: 'Kembali ke sini dan Scan', desc: 'Tekan tombol "Scan Ulang". Printer yang sudah di-pair akan muncul di daftar perangkat.' },
+                            { step: '4', title: 'Pilih printer dan Cek Koneksi', desc: 'Klik nama printer lalu tekan tombol "Cek" untuk memastikan printer merespon. Status akan menjadi 🟢 Online.' },
+                            { step: '5', title: 'Tes Cetak', desc: 'Tekan "Kirim Struk Tes" untuk memverifikasi format cetak dan koneksi benar-benar berfungsi.' },
+                          ].map(({ step, title, desc }) => (
+                            <div key={step} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                              <div style={{
+                                width: '26px', height: '26px', borderRadius: '8px', flexShrink: 0,
+                                background: 'rgba(99,102,241,0.2)', border: '1px solid #6366f1',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#818cf8', fontWeight: '900', fontSize: '0.80rem'
+                              }}>{step}</div>
+                              <div>
+                                <div style={{ color: '#ffffff', fontWeight: '800', fontSize: '0.84rem' }}>{title}</div>
+                                <div style={{ color: '#64748b', fontSize: '0.76rem', marginTop: '2px', lineHeight: '1.5' }}>{desc}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+
                     </div>
-
-                  </div>
-                )}
-
-                {/* SUB-TAB 2: SISTEM (was 3) */}
+                  );
+                })()}
 
                 {settingSubTab === 'sistem' && (
                   <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
