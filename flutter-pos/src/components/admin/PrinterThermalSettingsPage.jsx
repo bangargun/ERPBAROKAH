@@ -18,18 +18,61 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
     };
   });
 
-  const [headerFooter, setHeaderFooter] = useState(() => {
-    return masterData?.printerSettings?.headerFooter || {
-      restaurantName: 'MRIS RESTORAN',
-      groupName: 'BAROKAH GROUP INDONESIA',
-      address: 'Jl. Pemuda No. 88, Surabaya',
-      phone: '(031) 555-8899',
+  const outlets = masterData?.outlets || [];
+  const [selectedOutletId, setSelectedOutletId] = useState(() => {
+    if (outlets.length > 0 && outlets[0].id != null) return String(outlets[0].id);
+    return '1';
+  });
+
+  const [headerFooterByOutlet, setHeaderFooterByOutlet] = useState(() => {
+    return masterData?.printerSettings?.headerFooterByOutlet || {};
+  });
+
+  const getOutletHeaderFooterDefault = (outletId) => {
+    const foundOutlet = outlets.find(o => String(o.id) === String(outletId)) || outlets[0];
+    const saved = (masterData?.printerSettings?.headerFooterByOutlet || {})[String(outletId)];
+    if (saved) return saved;
+
+    const outletName = foundOutlet?.name || foundOutlet?.branch_name || 'AYAM PECAK 2001 SEAFOOD';
+    const outletAddr = foundOutlet?.address || foundOutlet?.alamat || 'Jl. Pemuda No. 88, Surabaya';
+    const outletPhone = foundOutlet?.phone || foundOutlet?.telepon || '(031) 555-8899';
+    const groupName = foundOutlet?.group_name || foundOutlet?.company_name || masterData?.companyName || 'BAROKAH GROUP INDONESIA';
+
+    return {
+      restaurantName: 'BUKTI PEMBAYARAN',
+      groupName: outletName || groupName,
+      address: outletAddr,
+      phone: outletPhone,
       footerLine1: 'TERIMA KASIH ATAS KUNJUNGAN ANDA',
       footerLine2: 'SUDAH TERMASUK PB1 PAJAK RESTORAN',
       wifiSsid: 'BarokahResto_5G',
       wifiPassword: 'berkahselalu'
     };
+  };
+
+  const [headerFooter, setHeaderFooter] = useState(() => {
+    return headerFooterByOutlet[selectedOutletId] || getOutletHeaderFooterDefault(selectedOutletId);
   });
+
+  const handleSelectOutlet = (newOutletId) => {
+    setSelectedOutletId(newOutletId);
+    const existing = headerFooterByOutlet[String(newOutletId)];
+    setHeaderFooter(existing || getOutletHeaderFooterDefault(newOutletId));
+  };
+
+  const handleSyncFromDataMaster = () => {
+    const foundOutlet = outlets.find(o => String(o.id) === String(selectedOutletId)) || outlets[0];
+    const outletName = foundOutlet?.name || foundOutlet?.branch_name || 'AYAM PECAK 2001 SEAFOOD';
+    const outletAddr = foundOutlet?.address || foundOutlet?.alamat || 'Jl. Pemuda No. 88, Surabaya';
+    const outletPhone = foundOutlet?.phone || foundOutlet?.telepon || '(031) 555-8899';
+
+    setHeaderFooter(prev => ({
+      ...prev,
+      groupName: outletName,
+      address: outletAddr,
+      phone: outletPhone
+    }));
+  };
 
   const [savedSuccessToast, setSavedSuccessToast] = useState(false);
 
@@ -37,14 +80,38 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
   const handleSaveSettings = (e) => {
     if (e && e.preventDefault) e.preventDefault();
+    const updatedHeaderFooterByOutlet = {
+      ...headerFooterByOutlet,
+      [String(selectedOutletId)]: headerFooter
+    };
+
     const updatedSettings = {
       ...printerSettings,
-      headerFooter: headerFooter
+      headerFooter: headerFooter,
+      headerFooterByOutlet: updatedHeaderFooterByOutlet
     };
-    setMasterData(prev => ({
-      ...prev,
-      printerSettings: updatedSettings
-    }));
+
+    setMasterData(prev => {
+      const updatedOutlets = (prev.outlets || []).map(o => {
+        if (String(o.id) === String(selectedOutletId)) {
+          return {
+            ...o,
+            address: headerFooter.address || o.address,
+            phone: headerFooter.phone || o.phone
+          };
+        }
+        return o;
+      });
+
+      return {
+        ...prev,
+        _lastUpdated: Date.now(),
+        outlets: updatedOutlets,
+        printerSettings: updatedSettings
+      };
+    });
+
+    setHeaderFooterByOutlet(updatedHeaderFooterByOutlet);
     setSavedSuccessToast(true);
     setTimeout(() => setSavedSuccessToast(false), 3000);
   };
@@ -279,6 +346,40 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
           >
             <Save size={16} />
             <span>Simpan Header/Footer</span>
+          </button>
+        </div>
+
+        {/* OUTLET SELECTOR & SYNC BAR */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', background: T.cardBg2, padding: '12px 16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.86rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🏢 Pilih Outlet Restoran:
+            </span>
+            <select
+              value={selectedOutletId}
+              onChange={e => handleSelectOutlet(e.target.value)}
+              style={{ padding: '8px 14px', background: T.inputBg, border: `1px solid ${T.accentGold}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.86rem', cursor: 'pointer' }}
+            >
+              {outlets.length === 0 ? (
+                <option value="1">Ayam Pecak 2001 Seafood</option>
+              ) : (
+                outlets.map(o => (
+                  <option key={o.id} value={String(o.id)}>
+                    🏢 {o.name || o.branch_name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSyncFromDataMaster}
+            style={{ padding: '8px 14px', background: T.infoBg, border: `1px solid ${T.info}`, borderRadius: '8px', color: T.info, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Isi otomatis Nama, Alamat, & Telepon dari Halaman Data Master untuk Outlet ini"
+          >
+            <RefreshCw size={14} />
+            <span>Sync Data dari Master Outlet</span>
           </button>
         </div>
 
