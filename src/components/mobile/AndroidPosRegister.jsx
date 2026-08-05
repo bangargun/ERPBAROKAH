@@ -2142,121 +2142,6 @@ export default function AndroidPosRegister({
     return totalOut;
   }, [masterData]);
 
-  const getStokRusakFromLaporanWaste = useCallback((ingName, targetDate, targetOutletId) => {
-    if (!ingName) return 0;
-    let totalWaste = 0;
-    const wasteReports = [
-      ...(masterData?.approvedWaste || []),
-      ...(masterData?.damagedGoods || []),
-      ...(masterData?.stok_rusak || [])
-    ];
-
-    wasteReports.forEach(w => {
-      const wDate = w.date || w.tanggal;
-      const wOutlet = w.outlet_id || w.branch_id;
-
-      const dateMatch = !targetDate || !wDate || wDate === targetDate;
-      const outletMatch = !targetOutletId || !wOutlet || String(wOutlet) === String(targetOutletId);
-
-      if (dateMatch && outletMatch) {
-        const itemsList = w.items || w.waste_items || [w];
-        if (Array.isArray(itemsList)) {
-          itemsList.forEach(item => {
-            const nameStr = item.item_name || item.nama_barang || item.name || w.item_name || '';
-            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
-              totalWaste += Number(item.qty || item.jumlah || w.qty || w.stok_rusak || 0);
-            }
-          });
-        }
-      }
-    });
-
-    return totalWaste;
-  }, [masterData]);
-
-  const handleExportOpnameExcel = useCallback((records) => {
-    if (!records || records.length === 0) {
-      alert('Tidak ada data stok opname untuk di-export!');
-      return;
-    }
-    let csv = 'Tanggal Audit,No Laporan,Dibuat Oleh,Nama Item,Stok Awal,Stok Masuk,Stok Keluar,Transfer Masuk,Transfer Keluar,Stok Rusak,Stok Sistem,Stok Fisik,Status,Harga Satuan,Denda Per Stok\n';
-    records.forEach(r => {
-      const sSistem = (r.stok_awal || 0) + (r.stok_masuk || 0) + (r.transfer_masuk || 0) - ((r.stok_keluar || 0) + (r.stok_rusak || 0) + (r.transfer_keluar || 0));
-      const isDefisit = (r.stok_fisik || 0) < sSistem;
-      const statusStr = (r.status === 'Done' || r.status === 'ACC' || r.status === 'approved') ? 'Done' : 'Pending';
-      const harga = r.harga_satuan || 0;
-      const denda = isDefisit ? Math.abs((r.stok_fisik || 0) - sSistem) * harga : 0;
-      csv += `"${r.date || ''}","${r.report_no || r.id || ''}","${r.created_by || r.submitted_by || ''}","${r.item_name || ''}",${r.stok_awal || 0},${r.stok_masuk || 0},${r.stok_keluar || 0},${r.transfer_masuk || 0},${r.transfer_keluar || 0},${r.stok_rusak || 0},${sSistem},${r.stok_fisik || 0},"${statusStr}",${harga},${denda}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Laporan_Stok_Opname_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-  }, []);
-
-  const handleExportOpnamePDF = useCallback((records) => {
-    if (!records || records.length === 0) {
-      alert('Tidak ada data stok opname untuk di-export!');
-      return;
-    }
-    let printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    let html = `
-      <html>
-        <head>
-          <title>Laporan Stok Opname - POS Kasir</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; color: #111; }
-            h2 { margin-bottom: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
-            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-            th { background: #f1f5f9; font-weight: bold; }
-            .right { text-align: right; }
-            .center { text-align: center; }
-          </style>
-        </head>
-        <body>
-          <h2>📋 Laporan Stok Opname (POS Kasir)</h2>
-          <p>Tanggal Cetak: ${new Date().toLocaleString()}</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Tanggal</th>
-                <th>No Laporan</th>
-                <th>Dibuat Oleh</th>
-                <th>Nama Item</th>
-                <th class="right">Stok Awal</th>
-                <th class="right">Stok Masuk</th>
-                <th class="right">Stok Rusak</th>
-                <th class="right">Stok Fisik</th>
-                <th class="center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${records.map(r => `
-                <tr>
-                  <td>${r.date || ''}</td>
-                  <td>${r.report_no || r.id || ''}</td>
-                  <td>${r.created_by || r.submitted_by || ''}</td>
-                  <td>${r.item_name || ''}</td>
-                  <td class="right">${r.stok_awal || 0} ${r.unit || 'kg'}</td>
-                  <td class="right">${r.stok_masuk || 0} ${r.unit || 'kg'}</td>
-                  <td class="right">${r.stok_rusak || 0} ${r.unit || 'kg'}</td>
-                  <td class="right">${r.stok_fisik || 0} ${r.unit || 'kg'}</td>
-                  <td class="center">${(r.status === 'Done' || r.status === 'ACC' || r.status === 'approved') ? '🟢 DONE' : '⏳ PENDING'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `;
-    printWindow.document.write(html);
-    printWindow.document.close();
-  }, []);
-
   const handleOpenStokOpnameModal = useCallback((existingReport = null) => {
     const todayStr = new Date().toISOString().split('T')[0];
     const targetDate = existingReport?.date || todayStr;
@@ -3377,7 +3262,7 @@ export default function AndroidPosRegister({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
-              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.4 GOLD</span>
+              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.2.0 GOLD</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
@@ -6062,21 +5947,10 @@ export default function AndroidPosRegister({
                     </p>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleExportOpnameExcel(masterData?.stockOpname || [])}
-                      style={{ padding: '6px 14px', background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      📊 Download Excel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExportOpnamePDF(masterData?.stockOpname || [])}
-                      style={{ padding: '6px 14px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      📄 Download PDF
-                    </button>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <span style={{ fontSize: '0.78rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '6px 14px', borderRadius: '20px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>🔄 Data Live dari Web Admin Logistik</span>
+                    </span>
                   </div>
                 </div>
 
@@ -11585,9 +11459,8 @@ export default function AndroidPosRegister({
                     const sMasuk = getStokMasukFromLaporanHarian(r.item_name, logDate, logOutletId);
                     const trfIn = getTransferStokMasuk(r.item_name, logDate, logOutletId);
                     const trfOut = getTransferStokKeluar(r.item_name, logDate, logOutletId);
-                    const sRusak = getStokRusakFromLaporanWaste(r.item_name, logDate, logOutletId);
                     const sFisik = r.stok_fisik !== '' ? Number(r.stok_fisik) : sAwal;
-                    const sSistem = sAwal + sMasuk + trfIn - (trfOut + sRusak);
+                    const sSistem = sAwal + sMasuk + trfIn - trfOut;
                     const selisih = sFisik - sSistem;
 
                     return {
@@ -11606,11 +11479,11 @@ export default function AndroidPosRegister({
                       transfer_masuk: trfIn,
                       transfer_keluar: trfOut,
                       stok_keluar: 0,
-                      stok_rusak: sRusak,
+                      stok_rusak: 0,
                       stok_sistem: sSistem,
                       stok_fisik: sFisik,
                       selisih: selisih,
-                      status: 'Pending'
+                      status: 'approved'
                     };
                   });
 
@@ -11632,7 +11505,7 @@ export default function AndroidPosRegister({
                     return newMaster;
                   });
 
-                  alert(`✅ Form Stok Opname ${logNo} berisi ${newRecords.length} Bahan Baku Aktif berhasil dikirim ke Web Admin (Status: Pending)!`);
+                  alert(`✅ Form Stok Opname ${logNo} berisi ${newRecords.length} Bahan Baku Aktif berhasil disimpan!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
                   {/* Header Form: Tanggal Audit, No Laporan, Diisi Oleh, Cabang Outlet */}
@@ -11664,8 +11537,8 @@ export default function AndroidPosRegister({
 
                   {/* KETERANGAN PENJELAS FORMULIR STOK OPNAME */}
                   <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px 18px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700' }}>
-                    <span>📦 Menampilkan {ingredientsList.length} Bahan Baku Aktif (Blind Count Audit)</span>
-                    <span>💡 Stok Masuk, Transfer, &amp; Stok Rusak terisi otomatis dari laporan sistem</span>
+                    <span>📦 Menampilkan {ingredientsList.length} Bahan Baku Aktif dari Master Data</span>
+                    <span>💡 Stok Masuk otomatis terisi dari Laporan Harian (Default 0 jika tidak ada) & Sub Transfer Stok</span>
                   </div>
 
                   {/* TABEL MULTI-ITEM AUDIT BAHAN BAKU AKTIF MASTER DATA */}
@@ -11677,17 +11550,18 @@ export default function AndroidPosRegister({
                             <th style={{ padding: '12px 10px', width: '40px' }}>No</th>
                             <th style={{ padding: '12px 14px' }}>📦 Nama Bahan Baku</th>
                             <th style={{ padding: '12px 12px', width: '140px', textAlign: 'right' }}>📊 Stok Awal (Manual)</th>
-                            <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Stok Masuk (Auto)</th>
+                            <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Stok Masuk (Laporan Harian)</th>
                             <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
                             <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Keluar</th>
-                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#f43f5e' }}>🗑️ Stok Rusak (Auto)</th>
-                            <th style={{ padding: '12px 14px', width: '150px', textAlign: 'right', color: '#fbbf24' }}>⚖️ Sisa Stok Fisik (Manual) *</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right' }}>🔢 Stok Sistem</th>
+                            <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#fbbf24' }}>⚖️ Sisa Stok Fisik (Manual) *</th>
+                            <th style={{ padding: '12px 12px', width: '110px', textAlign: 'center' }}>Selisih</th>
                           </tr>
                         </thead>
                         <tbody>
                           {ingredientsList.length === 0 ? (
                             <tr>
-                              <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
+                              <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                                 Tidak ada Bahan Baku dengan status Aktif di Master Data.
                               </td>
                             </tr>
@@ -11705,7 +11579,13 @@ export default function AndroidPosRegister({
                               const stokMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                               const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                               const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
-                              const stokRusak = getStokRusakFromLaporanWaste(ing.name, logDate, logOutletId);
+
+                              const stokSistem = stokAwal + stokMasuk + trfIn - trfOut;
+                              const stokFisik = rowState.stok_fisik !== '' ? Number(rowState.stok_fisik) : '';
+                              const selisih = stokFisik !== '' ? (Number(stokFisik) - stokSistem) : null;
+
+                              const selisihColor = selisih === null ? 'var(--pos-txt-secondary)' : selisih === 0 ? '#34d399' : selisih > 0 ? '#38bdf8' : '#fb7185';
+                              const selisihLabel = selisih === null ? '-' : selisih === 0 ? 'PAS' : selisih > 0 ? `+${selisih}` : `${selisih}`;
 
                               return (
                                 <tr key={ing.id || idx} style={{ borderBottom: '1px solid var(--pos-border-card)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
@@ -11742,9 +11622,9 @@ export default function AndroidPosRegister({
                                     {trfOut} {ing.unit || 'kg'}
                                   </td>
 
-                                  {/* STOK RUSAK (OTOMATIS LAPORAN BARANG RUSAK) */}
-                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: stokRusak > 0 ? '#f43f5e' : 'var(--pos-txt-secondary)' }}>
-                                    {stokRusak} {ing.unit || 'kg'}
+                                  {/* STOK SISTEM */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#f8fafc' }}>
+                                    {stokSistem} {ing.unit || 'kg'}
                                   </td>
 
                                   {/* SISA STOK FISIK (DIISI MANUAL) */}
@@ -11757,8 +11637,15 @@ export default function AndroidPosRegister({
                                       value={rowState.stok_fisik}
                                       onChange={e => handleUpdateStokFisik(rowState.id, e.target.value)}
                                       className="form-input"
-                                      style={{ width: '110px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.88rem', fontWeight: '900', border: '1.5px solid #fbbf24', color: '#fbbf24' }}
+                                      style={{ width: '100px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.88rem', fontWeight: '900', border: '1.5px solid #fbbf24', color: '#fbbf24' }}
                                     />
+                                  </td>
+
+                                  {/* SELISIH */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                    <span style={{ fontSize: '0.78rem', fontWeight: '900', color: selisihColor }}>
+                                      {selisihLabel}
+                                    </span>
                                   </td>
                                 </tr>
                               );
