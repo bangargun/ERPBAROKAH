@@ -2387,15 +2387,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         )}
       </div>
 
-      {/* Sub-Tab Navigation Bar — 5 subtab rapi */}
+      {/* Sub-Tab Navigation Bar — 6 subtab rapi */}
       <div style={{ background: T.cardBg2, padding: '8px', borderRadius: '16px', border: `1px solid ${T.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '6px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '6px' }}>
           {[
             { id: 'stok_masuk',        label: 'Stok Masuk',                         icon: '📥', color: T.info },
             { id: 'stok_keluar',       label: 'Stok Keluar',                        icon: '📤', color: T.danger },
             { id: 'transfer_stok',     label: 'Transfer Stok',                      icon: '🚚', color: T.accentGold },
             { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',                 icon: '⚠️', color: T.danger },
-            { id: 'stok_opname',       label: 'Log Stock Opname (Hasil Audit Fisik)', icon: '📋', color: T.success }
+            { id: 'stok_opname_system',label: 'Opname by Sistem',                   icon: '🤖', color: T.info },
+            { id: 'stok_opname',       label: 'Log Opname Audit Fisik',             icon: '📋', color: T.success }
           ].map(tab => {
             const isActive = activeSubTab === tab.id;
             return (
@@ -3319,7 +3320,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 onClick={() => handleStartEdit(op, 'opname')}
                                 style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.info, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                <Edit size={13} /> Edit
+                                <Edit3 size={13} /> Edit
                               </button>
                               <button
                                 type="button"
