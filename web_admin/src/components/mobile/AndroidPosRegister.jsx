@@ -258,15 +258,15 @@ export default function AndroidPosRegister({
   const [isScanningPaired, setIsScanningPaired] = useState(false);
   const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
   const [printStatusMsg, setPrintStatusMsg] = useState('');
-  const [printerOfflineModal, setPrinterOfflineModal] = useState({ open: false, errorMsg: '', onFallback: null }); // Papan info printer tidak terhubung
+  const [printerOfflineModal, setPrinterOfflineModal] = useState({ open: false, errorMsg: '', onFallback: null });
   const [liveDeviceMap, setLiveDeviceMap] = useState({});
   const [checkingMacMap, setCheckingMacMap] = useState({});
-
-  // Scan bonded Bluetooth devices dari pengaturan Android & System Printer Fallback
+  // Scan bonded Bluetooth devices dari Pengaturan Android + preset fallback BT_THERMAL_AUTO
+  // RESTORED dari commit f394276 (3 Agustus 2026) — versi yang berhasil mendeteksi RPP02N
   const handleScanPairedPrinters = useCallback(async () => {
     setIsScanningPaired(true);
     setPrintStatusMsg('⏳ Sedang memindai printer Bluetooth & thermal...');
-    
+
     // Delay 400ms untuk efek memindai yang responsif
     await new Promise(r => setTimeout(r, 400));
 
@@ -319,33 +319,48 @@ export default function AndroidPosRegister({
     } catch (e) {}
     setSaveSettingsSuccessToast(true);
     setTimeout(() => setSaveSettingsSuccessToast(false), 3000);
+    // Reset live status map untuk mac baru
+    if (cleanMac) {
+      setLiveDeviceMap(prev => ({ ...prev, [cleanMac]: undefined }));
+    }
   }, []);
 
   // Helper: tampilkan status print toast sementara
+  // status: null | 'printing' | 'success' | 'success_pdf' | 'error'
+  //   'success'     = ✅ Hijau  — hardware printer berhasil cetak
+  //   'success_pdf' = 📄 Kuning — tidak ada printer, fallback ke PDF
+  //   'error'       = ❌ Merah  — gagal cetak, printer tidak merespon
   const showPrintStatus = useCallback((status, msg) => {
     setPrintStatus(status);
     setPrintStatusMsg(msg);
-    if (status === 'success' || status === 'error') {
+    const autoHideStatuses = ['success', 'success_pdf', 'error'];
+    if (autoHideStatuses.includes(status)) {
       setTimeout(() => {
         setPrintStatus(null);
         setPrintStatusMsg('');
-      }, 4000);
+      }, 5000);
     }
   }, []);
 
   const handleCheckLiveStatus = useCallback(async (mac) => {
-    if (!mac || mac === 'BT_THERMAL_AUTO' || mac === 'SYSTEM_PDF_PRINT') return;
+    if (!mac || mac === 'SYSTEM_PDF_PRINT') return;
     setCheckingMacMap(prev => ({ ...prev, [mac]: true }));
-    showPrintStatus('info', '🔍 Memeriksa respon sinyal daya saklar printer...');
+    // Gunakan 'printing' bukan 'info' (status code valid)
+    showPrintStatus('printing', '🔍 Memeriksa koneksi printer...');
 
-    const res = await checkPrinterLiveStatus(mac);
-    setCheckingMacMap(prev => ({ ...prev, [mac]: false }));
-    setLiveDeviceMap(prev => ({ ...prev, [mac]: res.isLive }));
-
-    if (res.isLive) {
-      showPrintStatus('success', `🟢 SAKLAR PRINTER MENYALA! Printer ${mac} terhubung & merespon.`);
-    } else {
-      showPrintStatus('error', `🔴 SAKLAR PRINTER MATI / TERPUTUS! (${res.reason || 'Printer tidak merespon'})`);
+    try {
+      const res = await checkPrinterLiveStatus(mac);
+      setLiveDeviceMap(prev => ({ ...prev, [mac]: res.isLive }));
+      if (res.isLive) {
+        showPrintStatus('success', `🟢 Printer terhubung & siap cetak!`);
+      } else {
+        showPrintStatus('error', `🔴 Printer tidak merespon. ${res.reason ? '(' + res.reason + ')' : 'Cek: saklar printer ON, Bluetooth HP aktif, printer sudah di-pair.'}`);
+      }
+    } catch (err) {
+      setLiveDeviceMap(prev => ({ ...prev, [mac]: false }));
+      showPrintStatus('error', `❌ Gagal cek koneksi: ${err?.message || 'Pastikan Bluetooth aktif dan printer dinyalakan.'}`);
+    } finally {
+      setCheckingMacMap(prev => ({ ...prev, [mac]: false }));
     }
   }, [showPrintStatus]);
 
@@ -689,6 +704,15 @@ export default function AndroidPosRegister({
 
   // Settings Page Sub-Tab & Preferences States (Matching User Screenshot 100%)
   const [settingSubTab, setSettingSubTab] = useState('umum'); // 'umum' | 'printer' | 'sistem' | 'akun' | 'scanner' | 'dual_display'
+
+  // AUTO-SCAN: Saat user buka tab printer, scan otomatis agar list selalu fresh
+  useEffect(() => {
+    if (settingSubTab === 'printer') {
+      handleScanPairedPrinters();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingSubTab]);
+
   const [autoLockApp5Min, setAutoLockApp5Min] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState('Indonesia');
   const [scannerBeepEnabled, setScannerBeepEnabled] = useState(true);
@@ -920,7 +944,9 @@ export default function AndroidPosRegister({
             const LOGISTICS_ARRAY_KEYS = new Set([
               'stockOpname', 'approvedLogistics', 'approvedOpname',
               'stockTransfer', 'approvedTransfers', 'damagedGoods',
-              'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+              'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+              'approvedFinanceDaily', 'shiftClosings', 'shift_closings',
+              'closedShifts', 'dailyReports', 'manualEntryRecords'
             ]);
 
             const smartMergeArray = (localArr, serverArr, keyName = '') => {
@@ -945,7 +971,7 @@ export default function AndroidPosRegister({
                 if (k) {
                   const existing = map.get(k);
                   if (!existing) {
-                    // Untuk array logistik, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
+                    // Untuk array logistik & laporan, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
                     if (!LOGISTICS_ARRAY_KEYS.has(keyName)) {
                       map.set(k, item);
                     }
@@ -955,11 +981,13 @@ export default function AndroidPosRegister({
                 }
               });
 
-              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedOutflowIds
+              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedReportIds / deletedOutflowIds
               const deletedSet = new Set([
                 ...(serverMaster.deletedLogisticsIds || []),
+                ...(serverMaster.deletedReportIds || []),
                 ...(serverMaster.deletedOutflowIds || []),
-                ...(prev.deletedLogisticsIds || [])
+                ...(prev.deletedLogisticsIds || []),
+                ...(prev.deletedReportIds || [])
               ].map(x => String(x)));
 
               return Array.from(map.values()).filter(item => {
@@ -1466,7 +1494,38 @@ export default function AndroidPosRegister({
     t => !t.outlet_id || Number(t.outlet_id) === Number(currentOutlet.id)
   );
 
-  const [tableStatusMap, setTableStatusMap] = useState({});
+  const [activeRecallOrderId, setActiveRecallOrderId] = useState(null);
+
+  // Persistence: tableStatusMap (Dine-in meja) & heldOrdersList (Take-away / Non-meja)
+  const [tableStatusMap, setTableStatusMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem('MRIS_POS_TABLE_STATUS_MAP');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const [heldOrdersList, setHeldOrdersList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('MRIS_POS_HELD_ORDERS_LIST');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('MRIS_POS_TABLE_STATUS_MAP', JSON.stringify(tableStatusMap || {}));
+    } catch (e) {}
+  }, [tableStatusMap]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('MRIS_POS_HELD_ORDERS_LIST', JSON.stringify(heldOrdersList || []));
+    } catch (e) {}
+  }, [heldOrdersList]);
 
   // Generate dynamic table list for current outlet
   const tables = React.useMemo(() => {
@@ -1538,34 +1597,74 @@ export default function AndroidPosRegister({
   const defaultFallbackTable = { id: 'T-01', number: 'Meja 01', seats: 4, status: 'available', pendingOrder: null };
   const selectedTableObj = tables.find(t => t.id === selectedTableId) || tables[0] || defaultFallbackTable;
 
-  // Get all occupied/pending table orders for Chart tab table
+  // Get all occupied/pending table & non-table orders for Cart & Order tab
   const pendingOrdersList = React.useMemo(() => {
     const list = [];
+
+    // 1. Table-based orders (Dine In)
     Object.entries(tableStatusMap || {}).forEach(([tableId, statusData]) => {
       if (statusData && statusData.status === 'occupied' && statusData.pendingOrder) {
         const tblObj = tables.find(t => t.id === tableId);
         const tblNum = tblObj?.number || `Meja ${tableId}`;
         const pOrder = statusData.pendingOrder;
-        
+
         list.push({
           tableId: tableId,
-          receiptNo: pOrder.holdTx?.id || `HOLD-${tableId}-${Date.now().toString().substring(8)}`,
+          orderId: pOrder.holdTx?.id || `HOLD-${tableId}`,
+          receiptNo: pOrder.holdTx?.id || `HOLD-${tableId}`,
           date: pOrder.holdTx?.date || new Date().toISOString().split('T')[0],
           time: pOrder.startTime || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
           customerName: pOrder.customerName || 'Pelanggan Umum',
           tableNumber: tblNum,
+          orderType: pOrder.holdTx?.order_type || 'Dine In',
           totalAmount: pOrder.totalAmount || 0,
           status: 'Belum Dibayar',
-          items: pOrder.items || []
+          items: pOrder.items || [],
+          holdTx: pOrder.holdTx
         });
       }
     });
+
+    // 2. Non-table orders (Take Away / Antrean Gantung)
+    (heldOrdersList || []).forEach(hOrder => {
+      if (hOrder && hOrder.status !== 'completed') {
+        list.push({
+          tableId: null,
+          heldOrderId: hOrder.id,
+          orderId: hOrder.id,
+          receiptNo: hOrder.id,
+          date: hOrder.date || new Date().toISOString().split('T')[0],
+          time: hOrder.time || '',
+          customerName: hOrder.customerName || hOrder.customer_name || 'Pelanggan Umum',
+          tableNumber: hOrder.table_number || 'N/A (Take Away)',
+          orderType: hOrder.order_type || 'Take Away',
+          totalAmount: hOrder.amount || hOrder.totalAmount || 0,
+          status: 'Belum Dibayar',
+          items: hOrder.items || [],
+          holdTx: hOrder.holdTx || hOrder
+        });
+      }
+    });
+
     return list;
-  }, [tableStatusMap, tables]);
+  }, [tableStatusMap, tables, heldOrdersList]);
 
   // Outlet Sales Transactions — useMemo: hanya dihitung ulang jika masterData atau selectedBranch berubah
   const outletTransactions = useMemo(() => {
-    const txList = masterData?.salesTransactions || masterData?.transactions || [];
+    const deletedSalesSet = new Set([
+      ...(masterData?.deletedSalesIds || []).map(x => String(x)),
+      ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+    ]);
+
+    const txList = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
+      if (!t) return false;
+      const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
+      const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+      if (tid && deletedSalesSet.has(tid)) return false;
+      if (trcpt && deletedSalesSet.has(trcpt)) return false;
+      return true;
+    });
+
     return txList.filter(t => {
       if (!selectedBranch || selectedBranch === 'ALL') return true;
       if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
@@ -1579,7 +1678,7 @@ export default function AndroidPosRegister({
         (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
       );
     });
-  }, [masterData?.salesTransactions, masterData?.transactions, selectedBranch, currentOutlet?.id]);
+  }, [masterData?.salesTransactions, masterData?.transactions, masterData?.deletedSalesIds, masterData?.deletedLogisticsIds, selectedBranch, currentOutlet?.id]);
 
   // Derived Financials — useMemo: tidak dihitung ulang saat ketikan input
   const totalSalesGross = useMemo(() =>
@@ -1673,51 +1772,76 @@ export default function AndroidPosRegister({
 
   const cartTotal = Math.max(0, subtotalAfterDiscount + numAdjustment);
 
-  // HOLD DINE-IN TABLE ORDER (SIMPAN PESANAN GANTUNG MEJA & AUTO PRINT DAPUR)
+  // HOLD DINE-IN TABLE OR TAKE AWAY ORDER (SIMPAN PESANAN GANTUNG BEBAS & AUTO PRINT DAPUR)
   const handleHoldTableOrder = () => {
     if (cart.length === 0 && (!openedOriginalCart || openedOriginalCart.length === 0)) return;
-    if (!selectedTableId) return;
 
-    const tblNum = selectedTableObj?.number || 'Meja 01';
+    const isDineIn = orderType === 'Dine In' && selectedTableId;
+    const tblNum = isDineIn ? (selectedTableObj?.number || 'Meja 01') : 'N/A (Take Away)';
     const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const currentDate = new Date().toISOString().split('T')[0];
 
     // Compute diff items for supplementary printing if order was opened & modified
     const finalPrintItems = openedOriginalCart ? computeOrderDiffItems(cart, openedOriginalCart) : [...cart];
 
+    const holdId = activeRecallOrderId || `HOLD-${Date.now().toString().substring(6)}`;
+
     const holdTx = {
-      id: `HOLD-${Date.now().toString().substring(6)}`,
+      id: holdId,
       date: currentDate,
       time: currentTime,
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
       customer_name: selectedCustomer || 'Pelanggan Umum',
-      order_type: 'Dine In (Pesanan Gantung)',
+      order_type: `${orderType} (Pesanan Gantung)`,
       table_number: tblNum,
       items: finalPrintItems,
       amount: cartTotal,
       payment_method: 'Pesanan Gantung (Belum Dibayar)',
-      cashier: 'master (Superadmin POS)',
+      cashier: currentUserSession?.name || 'Kasir Mobile',
       notes: `Pesanan Gantung ${tblNum}`,
       status: 'Belum Dibayar'
     };
 
-    setTableStatusMap(prev => ({
-      ...prev,
-      [selectedTableId]: {
-        status: 'occupied',
-        pendingOrder: {
-          items: [...cart],
-          totalAmount: cartTotal,
-          customerName: selectedCustomer,
-          startTime: currentTime,
-          holdTx: holdTx
+    if (isDineIn) {
+      setTableStatusMap(prev => ({
+        ...prev,
+        [selectedTableId]: {
+          status: 'occupied',
+          pendingOrder: {
+            items: [...cart],
+            totalAmount: cartTotal,
+            customerName: selectedCustomer,
+            startTime: currentTime,
+            holdTx: holdTx
+          }
         }
-      }
-    }));
+      }));
+    } else {
+      setHeldOrdersList(prev => {
+        const filtered = prev.filter(o => o.id !== holdId);
+        return [
+          ...filtered,
+          {
+            id: holdId,
+            date: currentDate,
+            time: currentTime,
+            customerName: selectedCustomer || 'Pelanggan Umum',
+            customer_name: selectedCustomer || 'Pelanggan Umum',
+            order_type: orderType,
+            table_number: tblNum,
+            items: [...cart],
+            totalAmount: cartTotal,
+            amount: cartTotal,
+            holdTx: holdTx
+          }
+        ];
+      });
+    }
 
     setCurrentSaveOrderTx(holdTx);
     setOpenedOriginalCart(null); // Reset after saving/updating
+    setActiveRecallOrderId(null);
     setActiveReceiptSelections({
       printKitchen: true,
       printBar: true,
@@ -1727,7 +1851,7 @@ export default function AndroidPosRegister({
 
     // Selalu tampilkan modal pilihan Struk Dapur & Bar (tanpa harga)
     setShowSaveOrderReceiptModal(true);
-    setCart([]);
+    handleClearCart();
   };
 
   // GENERATE CONTOH TAGIHAN SEMENTARA (MASUK PESANAN GANTUNG & CETAK CONTOH TAGIHAN)
@@ -1808,28 +1932,60 @@ export default function AndroidPosRegister({
   }, []);
 
   // Print text langsung ke hardware Bluetooth printer (atau fallback ke iframe print di browser)
+  // Membedakan 3 skenario:
+  //   1. ✅ Sukses Hardware   → toast hijau "Cetak ke printer berhasil!"
+  //   2. 📄 Fallback PDF     → toast kuning "Dicetak sebagai PDF"
+  //   3. ❌ Gagal Hardware   → toast merah + printerOfflineModal dengan opsi retry/PDF/setting
   const printTextToBluetooth = useCallback(async (textContent, ticketType = 'receipt') => {
-    showPrintStatus('printing', '🖨️ Mengirim data ke printer...');
+    showPrintStatus('printing', '⏳ Mengirim data ke printer Bluetooth...');
     try {
       await printToBluetoothPrinter(
         printerMac,
         textContent,
         printerPaperWidth,
-        () => showPrintStatus('success', '✅ Cetak berhasil!'),
+        // onSuccess — bisa dari hardware ATAU dari fallback PDF
+        (result) => {
+          if (result?.isHardware) {
+            // ✅ Printer hardware fisik berhasil mencetak
+            showPrintStatus('success', '✅ Struk berhasil dicetak di printer Bluetooth!');
+          } else if (result?.fallbackPdf) {
+            // 📄 Tidak ada printer / browser mode — dicetak sebagai PDF
+            showPrintStatus('success_pdf', '📄 Dicetak sebagai PDF (printer Bluetooth tidak dikonfigurasi)');
+          } else {
+            showPrintStatus('success', '✅ Cetak berhasil!');
+          }
+        },
+        // onError — hardware gagal, printer tidak merespon
         (err) => {
           const msg = err?.message || String(err);
-          let displayMsg = '❌ Gagal cetak: ' + msg;
-          if (msg.includes('BLUETOOTH_DISABLED')) displayMsg = '❌ Bluetooth tidak aktif. Aktifkan Bluetooth di perangkat Anda.';
-          else if (msg.includes('CONNECTION_REFUSED')) displayMsg = '❌ Printer menolak koneksi. Pastikan printer menyala dan dalam jangkauan.';
-          else if (msg.includes('DEVICE_BUSY')) displayMsg = '❌ Printer sedang sibuk. Tunggu sebentar lalu coba lagi.';
+          let displayMsg = '❌ Gagal cetak ke printer Bluetooth.';
+          if (msg.includes('BLUETOOTH_DISABLED') || msg.includes('Bluetooth tidak aktif')) {
+            displayMsg = '❌ Bluetooth HP tidak aktif! Aktifkan Bluetooth di Pengaturan Android.';
+          } else if (msg.includes('PERMISSION_DENIED')) {
+            displayMsg = '❌ Izin Bluetooth ditolak. Buka Pengaturan → Izin Aplikasi → Bluetooth.';
+          } else if (msg.includes('gagal') || msg.includes('Koneksi') || msg.includes('connect')) {
+            displayMsg = '❌ Printer tidak merespon. Pastikan printer menyala, Bluetooth printer aktif (lampu berkedip), dan sudah di-pair.';
+          } else if (msg) {
+            displayMsg = '❌ Error printer: ' + msg;
+          }
           showPrintStatus('error', displayMsg);
-          // Tampilkan papan info printer offline
+          // Tampilkan modal error dengan panduan dan opsi fallback PDF
           const lastTxt = textContent;
-          setPrinterOfflineModal({ open: true, errorMsg: displayMsg, onFallback: () => { _browserPrintFallback(lastTxt, printerPaperWidth); } });
+          setPrinterOfflineModal({
+            open: true,
+            errorMsg: displayMsg,
+            onFallback: () => {
+              _browserPrintFallback(lastTxt, printerPaperWidth);
+              showPrintStatus('success_pdf', '📄 Dicetak sebagai PDF (alternatif)');
+            }
+          });
         }
       );
     } catch (err) {
-      console.error('[BTPrinter] printTextToBluetooth error:', err);
+      // Catch-all untuk error JS yang tidak terduga
+      const msg = err?.message || String(err);
+      console.error('[BTPrinter] printTextToBluetooth unexpected error:', err);
+      showPrintStatus('error', '❌ Error tidak terduga: ' + msg);
     }
   }, [printerMac, printerPaperWidth, showPrintStatus]);
 
@@ -1904,6 +2060,141 @@ export default function AndroidPosRegister({
     await printTextToBluetooth(text);
   }, [currentOutlet, printerPaperWidth, printTextToBluetooth, masterData]);
 
+  // ─── HELPER KALKULASI STOK MASUK & TRANSFER STOK OPNAME ─────────────────
+  const getStokMasukFromLaporanHarian = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalMasuk = 0;
+    const reports = [
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.manualEntryRecords || []),
+      ...(masterData?.approvedLogistics || [])
+    ];
+
+    reports.forEach(report => {
+      const rDate = report.date || report.tanggal || report.report_date;
+      const rOutlet = report.outlet_id || report.branch_id;
+
+      const dateMatch = !targetDate || !rDate || rDate === targetDate;
+      const outletMatch = !targetOutletId || !rOutlet || String(rOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = report.cogs_items || report.pembelian_barang || report.items || report.ingredient_items || [];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.name || item.item_name || item.nama_barang || item.bahan || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalMasuk += Number(item.qty || item.jumlah || item.quantity || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalMasuk;
+  }, [masterData]);
+
+  const getTransferStokMasuk = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalIn = 0;
+    const transfers = [
+      ...(masterData?.approvedTransfers || []),
+      ...(masterData?.stockTransfer || [])
+    ];
+
+    transfers.forEach(trf => {
+      const tDate = trf.date || trf.tanggal;
+      const destOutlet = trf.destination_outlet_id || trf.target_outlet_id || trf.destination_outlet || trf.to_outlet_id;
+
+      const dateMatch = !targetDate || !tDate || tDate === targetDate;
+      const outletMatch = !targetOutletId || !destOutlet || String(destOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = trf.items || trf.transfer_items || [trf];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.item_name || item.nama_barang || item.name || trf.item_name || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalIn += Number(item.qty || item.jumlah || trf.qty || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalIn;
+  }, [masterData]);
+
+  const getTransferStokKeluar = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalOut = 0;
+    const transfers = [
+      ...(masterData?.approvedTransfers || []),
+      ...(masterData?.stockTransfer || [])
+    ];
+
+    transfers.forEach(trf => {
+      const tDate = trf.date || trf.tanggal;
+      const srcOutlet = trf.source_outlet_id || trf.from_outlet_id || trf.source_outlet;
+
+      const dateMatch = !targetDate || !tDate || tDate === targetDate;
+      const outletMatch = !targetOutletId || !srcOutlet || String(srcOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = trf.items || trf.transfer_items || [trf];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.item_name || item.nama_barang || item.name || trf.item_name || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalOut += Number(item.qty || item.jumlah || trf.qty || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalOut;
+  }, [masterData]);
+
+  const handleOpenStokOpnameModal = useCallback((existingReport = null) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const targetDate = existingReport?.date || todayStr;
+    const targetOutletId = existingReport?.outlet_id || currentOutlet.id || 1;
+
+    const rawIngredients = masterData.ingredients || [];
+    const activeIngs = rawIngredients.filter(ing =>
+      ing.tampilkan_di_apk !== 'Inaktif' &&
+      ing.tampilkan_di_apk !== 'inaktif' &&
+      ing.status !== 'Inaktif' &&
+      ing.status !== 'inaktif'
+    );
+
+    const initialRows = activeIngs.map((ing, idx) => {
+      const name = ing.name;
+      const unit = ing.unit || 'kg';
+
+      const matchPrev = existingReport?.items?.find(i => (i.item_name || i.nama_barang || '').toLowerCase() === name.toLowerCase())
+        || (existingReport && (existingReport.item_name || '').toLowerCase() === name.toLowerCase() ? existingReport : null);
+
+      const stokAwal = matchPrev?.stok_awal !== undefined ? matchPrev.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0));
+      const stokFisik = matchPrev?.stok_fisik !== undefined ? matchPrev.stok_fisik : '';
+
+      return {
+        id: ing.id || `ing-opname-${idx}`,
+        item_name: name,
+        unit: unit,
+        stok_awal: stokAwal,
+        stok_fisik: stokFisik
+      };
+    });
+
+    setOpnameBatchRows(initialRows);
+    setLogDate(targetDate);
+    setLogNo(existingReport?.report_no || existingReport?.id || `SO-${targetDate.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
+    setLogSubmittedBy(existingReport?.submitted_by || userSession?.name || currentUserSession?.name || 'Kasir Mobile');
+    setLogOutletId(targetOutletId);
+    setShowAddLogisticsModal(true);
+  }, [masterData, currentOutlet, userSession, currentUserSession]);
+
 
   // LAPORAN SHIFT CLOSING ke hardware Bluetooth printer
   const handlePrintShiftClosingReport = useCallback(async (shiftData) => {
@@ -1940,15 +2231,69 @@ export default function AndroidPosRegister({
 
     await printTextToBluetooth(lines);
   }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
-
-  // CHECKOUT / OPEN OCCUPIED TABLE FROM BOARD
   const handleCheckoutOccupiedTable = (table) => {
-    if (!table.pendingOrder) return;
+    if (!table || !table.pendingOrder) return;
     setCart([...table.pendingOrder.items]);
     setOpenedOriginalCart(JSON.parse(JSON.stringify(table.pendingOrder.items))); // Store original items snapshot
+    setActiveRecallOrderId(table.pendingOrder.holdTx?.id || `HOLD-${table.id}`);
     setSelectedCustomer(table.pendingOrder.customerName || 'Pelanggan Umum');
     setSelectedTableId(table.id);
+    setOrderType('Dine In');
     setShowTableMapModal(false);
+  };
+
+  // RECALL HELD ORDER (DINE IN OR TAKE AWAY)
+  const handleRecallPendingOrder = (row) => {
+    if (!row || !row.items) return;
+    setCart([...row.items]);
+    setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
+    setActiveRecallOrderId(row.orderId || row.heldOrderId || row.receiptNo);
+    setSelectedCustomer(row.customerName || 'Pelanggan Umum');
+    if (row.tableId) {
+      setSelectedTableId(row.tableId);
+      setOrderType('Dine In');
+    } else {
+      setOrderType(row.orderType || 'Take Away');
+    }
+    setActiveNavTab('kasir');
+    setShowTableMapModal(false);
+  };
+
+  // DELETE / CANCEL HELD PENDING ORDER FROM QUEUE
+  const handleDeletePendingOrder = (row, e = null) => {
+    if (e) e.stopPropagation();
+    if (!row) return;
+
+    const targetId = row.orderId || row.heldOrderId || row.receiptNo;
+    const custName = row.customerName || 'Pelanggan Umum';
+
+    if (window.confirm(`Apakah Anda yakin ingin menghapus / membatalkan pesanan gantung ${row.receiptNo} (${custName})?`)) {
+      if (row.tableId) {
+        setTableStatusMap(prev => {
+          const copy = { ...prev };
+          delete copy[row.tableId];
+          return copy;
+        });
+      }
+      
+      setHeldOrdersList(prev => prev.filter(o => o.id !== targetId && o.id !== row.heldOrderId && o.id !== row.orderId));
+
+      if (activeRecallOrderId === targetId) {
+        handleClearCart();
+        setActiveRecallOrderId(null);
+        setOpenedOriginalCart(null);
+      }
+    }
+  };
+
+  // QUICK PAY FROM PENDING ORDERS QUEUE
+  const handleQuickPayPendingOrder = (row, e = null) => {
+    if (e) e.stopPropagation();
+    if (!row || !row.items) return;
+    handleRecallPendingOrder(row);
+    setSelectedPaymentMethod('Cash');
+    setTenderedCash('');
+    setShowPaymentScreenModal(true);
   };
 
   // TAP 2: EXECUTE INSTANT PAYMENT & RESET TABLE TO KOSONG
@@ -2004,6 +2349,7 @@ export default function AndroidPosRegister({
     const pointsDeducted = methodName === 'Pembayaran Poin' ? Math.ceil(finalTotalAmount / 1000) : 0;
 
     let updatedCustomersList = masterData?.customers || [];
+
     if (finalCustomerName !== 'Pelanggan Umum') {
       const existingIdx = updatedCustomersList.findIndex(c => c.name?.toLowerCase() === finalCustomerName.toLowerCase());
       if (existingIdx !== -1) {
@@ -2106,16 +2452,22 @@ export default function AndroidPosRegister({
       return updated;
     });
 
-    // Reset Table status back to Available (Kosong)
+    // Reset Table status back to Available (Kosong) & remove from heldOrdersList
     if (orderType === 'Dine In' && selectedTableId) {
-      setTableStatusMap(prev => ({
-        ...prev,
-        [selectedTableId]: { status: 'available', pendingOrder: null }
-      }));
+      setTableStatusMap(prev => {
+        const copy = { ...prev };
+        delete copy[selectedTableId];
+        return copy;
+      });
+    }
+    if (activeRecallOrderId) {
+      setHeldOrdersList(prev => prev.filter(o => o.id !== activeRecallOrderId));
+      setActiveRecallOrderId(null);
     }
 
+    setOpenedOriginalCart(null);
     setLastCompletedTx(newTx);
-    setCart([]);
+    handleClearCart();
     setShowReceiptModal(true);
     handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
@@ -2923,7 +3275,7 @@ export default function AndroidPosRegister({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
-              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.1.4 GOLD</span>
+              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.2.0 GOLD</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
@@ -3179,8 +3531,35 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* Cart Sub-Header Meta Bar */}
-                <div style={{ padding: '10px 16px', background: T.bgApp, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtSecondary }}>#Pesanan Baru</span>
+                <div style={{ padding: '10px 16px', background: T.bgApp, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtSecondary }}>
+                      {activeRecallOrderId ? `✏️ ${activeRecallOrderId}` : '#Pesanan Baru'}
+                    </span>
+                    {(cart.length > 0 || activeRecallOrderId) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleClearCart();
+                          setActiveRecallOrderId(null);
+                          setOpenedOriginalCart(null);
+                        }}
+                        style={{
+                          background: 'rgba(37,99,235,0.15)',
+                          border: `1px solid ${isLight ? '#2563eb' : '#3b82f6'}`,
+                          color: isLight ? '#1d4ed8' : '#60a5fa',
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer'
+                        }}
+                        title="Kosongkan Cart untuk membuat pesanan baru tanpa menghapus pesanan gantung lain"
+                      >
+                        ➕ Order Baru
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={() => {
                       setCustomerSearchQuery('');
@@ -3683,13 +4062,7 @@ export default function AndroidPosRegister({
                       {pendingOrdersList.map((row) => (
                         <tr
                           key={row.receiptNo}
-                          onClick={() => {
-                            setSelectedTableId(row.tableId);
-                            setCart([...row.items]);
-                            setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
-                            setSelectedCustomer(row.customerName);
-                            setActiveNavTab('kasir');
-                          }}
+                          onClick={() => handleRecallPendingOrder(row)}
                           style={{
                             borderBottom: '1px solid rgba(255,255,255,0.05)',
                             color: 'var(--pos-txt-primary)',
@@ -3736,29 +4109,72 @@ export default function AndroidPosRegister({
                           </td>
 
                           {/* 8. AKSI */}
-                          <td style={{ padding: '14px', textAlign: 'right' }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedTableId(row.tableId);
-                                setCart([...row.items]);
-                                setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
-                                setSelectedCustomer(row.customerName);
-                                setActiveNavTab('kasir');
-                              }}
-                              style={{
-                                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                color: 'var(--pos-txt-primary)',
-                                border: 'none',
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                fontSize: '0.75rem',
-                                fontWeight: '800',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              📥 Buka Pesanan
-                            </button>
+                          <td style={{ padding: '14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRecallPendingOrder(row);
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                  color: 'var(--pos-txt-primary)',
+                                  border: 'none',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                📥 Buka / Ubah
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => handleQuickPayPendingOrder(row, e)}
+                                style={{
+                                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                  color: 'var(--pos-txt-primary)',
+                                  border: 'none',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                                }}
+                              >
+                                💳 Bayar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeletePendingOrder(row, e)}
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                                  color: '#f87171',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                🗑️ Hapus
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -6163,346 +6579,465 @@ export default function AndroidPosRegister({
                 )}
 
 
-                {/* SUB-TAB: PRINTER BLUETOOTH */}
-                {settingSubTab === 'printer' && (
-                  <div className="pos-printer-container" style={{ maxWidth: '650px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <PrinterIcon size={26} color="#6366f1" />
-                      <span>Koneksi Printer Bluetooth</span>
-                    </h2>
+                {/* SUB-TAB: PRINTER BLUETOOTH — ROMBAK TOTAL */}
+                {settingSubTab === 'printer' && (() => {
+                  // Status warna helpers
+                  const isHardwarePrinter = printerMac && printerMac !== 'SYSTEM_PDF_PRINT';
+                  const printerName = pairedDevices.find(d => d.address === printerMac)?.name || printerMac || null;
+                  const liveStatus = liveDeviceMap[printerMac]; // true | false | undefined
 
-                    {/* PRINT STATUS BANNER */}
-                    {printStatus && (
-                      <div style={{
-                        padding: '12px 16px',
-                        borderRadius: '12px',
-                        background: printStatus === 'success' ? 'rgba(52,211,153,0.15)' : printStatus === 'printing' ? 'rgba(99,102,241,0.15)' : 'rgba(244,63,94,0.15)',
-                        border: `1px solid ${printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#6366f1' : '#f43f5e'}`,
-                        color: printStatus === 'success' ? '#34d399' : printStatus === 'printing' ? '#a5b4fc' : '#f87171',
-                        fontSize: '0.88rem',
-                        fontWeight: '700',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        {printStatus === 'printing' && <span>⏳</span>}
-                        {printStatusMsg}
+                  const statusBg = {
+                    success: 'rgba(52,211,153,0.15)', printing: 'rgba(99,102,241,0.15)',
+                    success_pdf: 'rgba(250,204,21,0.15)', error: 'rgba(244,63,94,0.15)'
+                  };
+                  const statusBorder = {
+                    success: '#34d399', printing: '#6366f1',
+                    success_pdf: '#facc15', error: '#f43f5e'
+                  };
+                  const statusColor = {
+                    success: '#34d399', printing: '#a5b4fc',
+                    success_pdf: '#facc15', error: '#f87171'
+                  };
+
+                  return (
+                    <div style={{ maxWidth: '660px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                      {/* JUDUL */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <PrinterIcon size={26} color="#6366f1" />
+                        <div>
+                          <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+                            Koneksi Printer Bluetooth
+                          </h2>
+                          <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '3px 0 0', fontWeight: '600' }}>
+                            Hanya perangkat yang sudah di-pair di Pengaturan Android yang akan muncul di sini.
+                          </p>
+                        </div>
                       </div>
-                    )}
 
-                    {/* PRINTER TERKONFIGURASI */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🖨️ Printer Aktif</span>
-                        {printerMac && printerMac !== 'BT_THERMAL_AUTO' && printerMac !== 'SYSTEM_PDF_PRINT' && (
-                          <button
-                            type="button"
-                            onClick={() => handleCheckLiveStatus(printerMac)}
-                            disabled={checkingMacMap[printerMac]}
-                            style={{
-                              background: 'rgba(99,102,241,0.2)',
-                              border: '1px solid #6366f1',
-                              color: '#a5b4fc',
-                              borderRadius: '8px',
-                              padding: '4px 10px',
-                              fontSize: '0.75rem',
-                              fontWeight: '800',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <Zap size={14} />
-                            {checkingMacMap[printerMac] ? 'Memeriksa Saklar...' : '⚡ Tes Respon Saklar'}
-                          </button>
+                      {/* STATUS BANNER */}
+                      {(printStatusMsg || isScanningPaired) && (
+                        <div style={{
+                          padding: '12px 16px',
+                          borderRadius: '12px',
+                          background: printStatus ? statusBg[printStatus] || 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.07)',
+                          border: `1px solid ${printStatus ? statusBorder[printStatus] || '#475569' : '#475569'}`,
+                          color: printStatus ? statusColor[printStatus] || '#94a3b8' : '#94a3b8',
+                          fontSize: '0.84rem',
+                          fontWeight: '700',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '8px',
+                          lineHeight: '1.5'
+                        }}>
+                          <span style={{ fontSize: '1.1rem', lineHeight: '1.2' }}>
+                            {isScanningPaired ? '⏳' : printStatus === 'success' ? '✅' : printStatus === 'error' ? '❌' : printStatus === 'success_pdf' ? '📄' : 'ℹ️'}
+                          </span>
+                          <span>{isScanningPaired ? 'Memindai perangkat Bluetooth...' : printStatusMsg}</span>
+                        </div>
+                      )}
+
+                      {/* KARTU: PRINTER AKTIF */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+                          🖨️ Printer Aktif
+                        </div>
+                        {printerMac ? (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '14px',
+                            padding: '16px',
+                            borderRadius: '12px',
+                            background: liveStatus === false ? 'rgba(239,68,68,0.1)' : liveStatus === true ? 'rgba(52,211,153,0.1)' : 'rgba(99,102,241,0.1)',
+                            border: `2px solid ${liveStatus === false ? '#ef4444' : liveStatus === true ? '#34d399' : '#6366f1'}`
+                          }}>
+                            <div style={{
+                              width: '44px', height: '44px', borderRadius: '12px',
+                              background: liveStatus === false ? 'rgba(239,68,68,0.2)' : liveStatus === true ? 'rgba(52,211,153,0.2)' : 'rgba(99,102,241,0.2)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                            }}>
+                              {isHardwarePrinter
+                                ? <BluetoothConnected size={22} color={liveStatus === false ? '#ef4444' : liveStatus === true ? '#34d399' : '#818cf8'} />
+                                : <PrinterIcon size={22} color="#818cf8" />}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: '900', color: '#ffffff', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {printerName || printerMac}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px', fontFamily: 'monospace' }}>
+                                {isHardwarePrinter ? printerMac : 'Cetak PDF via Browser'}
+                              </div>
+                              <div style={{ marginTop: '6px' }}>
+                                <span style={{
+                                  fontSize: '0.70rem', padding: '2px 8px', borderRadius: '6px', fontWeight: '800',
+                                  background: liveStatus === false ? 'rgba(239,68,68,0.2)' : liveStatus === true ? 'rgba(52,211,153,0.2)' : 'rgba(99,102,241,0.15)',
+                                  color: liveStatus === false ? '#fca5a5' : liveStatus === true ? '#6ee7b7' : '#c7d2fe',
+                                  border: `1px solid ${liveStatus === false ? '#ef4444' : liveStatus === true ? '#34d399' : '#6366f1'}`
+                                }}>
+                                  {liveStatus === true ? '🟢 Terhubung & Siap Cetak'
+                                    : liveStatus === false ? '🔴 Tidak Merespon / Mati'
+                                    : isHardwarePrinter ? '⚪ Belum dicek' : '📄 Mode PDF'}
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                              {isHardwarePrinter && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCheckLiveStatus(printerMac)}
+                                  disabled={checkingMacMap[printerMac]}
+                                  style={{
+                                    padding: '7px 12px', borderRadius: '8px', border: '1px solid #6366f1',
+                                    background: 'rgba(99,102,241,0.2)', color: '#a5b4fc',
+                                    fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', gap: '5px'
+                                  }}
+                                >
+                                  <Zap size={13} />
+                                  {checkingMacMap[printerMac] ? 'Cek...' : 'Cek Koneksi'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
+                                style={{
+                                  padding: '7px 12px', borderRadius: '8px', border: '1px solid #f43f5e',
+                                  background: 'rgba(244,63,94,0.1)', color: '#f43f5e',
+                                  fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer'
+                                }}
+                              >
+                                Lepas
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '12px',
+                            padding: '16px', borderRadius: '12px',
+                            background: 'rgba(255,255,255,0.04)', border: '2px dashed #334155'
+                          }}>
+                            <BluetoothOff size={22} color="#64748b" />
+                            <div>
+                              <div style={{ color: '#94a3b8', fontWeight: '800', fontSize: '0.90rem' }}>Belum ada printer dipilih</div>
+                              <div style={{ color: '#64748b', fontSize: '0.76rem', marginTop: '2px' }}>Scan perangkat di bawah lalu pilih printer Anda.</div>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      {printerMac ? (
-                        <div style={{
-                          display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '12px',
-                          background: liveDeviceMap[printerMac] === false ? 'rgba(239,68,68,0.15)' : 'rgba(52,211,153,0.1)',
-                          border: `1px solid ${liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'}`
-                        }}>
-                          <BluetoothConnected size={24} color={liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '900', color: liveDeviceMap[printerMac] === false ? '#fca5a5' : '#34d399', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span>{pairedDevices.find(d => d.address === printerMac)?.name || 'Printer Bluetooth'}</span>
-                              <span style={{
-                                fontSize: '0.68rem',
-                                padding: '2px 8px',
-                                borderRadius: '6px',
-                                fontWeight: '800',
-                                background: liveDeviceMap[printerMac] === false ? 'rgba(239,68,68,0.25)' : 'rgba(52,211,153,0.25)',
-                                color: liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399',
-                                border: `1px solid ${liveDeviceMap[printerMac] === false ? '#ef4444' : '#34d399'}`
-                              }}>
-                                {liveDeviceMap[printerMac] === false ? '🔴 SAKLAR MATI / TERPUTUS' : '🟢 SAKLAR MENYALA'}
-                              </span>
+
+                      {/* KARTU: LEBAR KERTAS */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+                          📄 Lebar Kertas Thermal
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          {['58', '80'].map(w => (
+                            <button
+                              key={w}
+                              type="button"
+                              onClick={() => handleSavePrinterConfig(printerMac, w)}
+                              style={{
+                                flex: 1, padding: '16px 10px', borderRadius: '12px',
+                                border: `2px solid ${printerPaperWidth === w ? '#6366f1' : '#334155'}`,
+                                background: printerPaperWidth === w ? 'linear-gradient(135deg, #4f46e5, #3b82f6)' : '#1e293b',
+                                color: printerPaperWidth === w ? '#ffffff' : '#94a3b8',
+                                fontWeight: '900', fontSize: '1.05rem', cursor: 'pointer',
+                                transition: 'all 0.15s', textAlign: 'center'
+                              }}
+                            >
+                              {w}mm
+                              <div style={{ fontSize: '0.72rem', fontWeight: '700', marginTop: '4px', color: printerPaperWidth === w ? '#e0e7ff' : '#64748b' }}>
+                                {w === '58' ? 'Mini Kasir / PRP-58' : 'Lebar / RPP-80'}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* KARTU: DAFTAR PERANGKAT BLUETOOTH */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                              🔵 Perangkat Bluetooth Paired
                             </div>
-                            <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '3px', fontWeight: '700' }}>
-                              {printerMac} • Kertas {printerPaperWidth}mm
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '3px' }}>
+                              Hanya perangkat yang sudah di-pair di: <strong style={{ color: '#94a3b8' }}>Pengaturan Android → Bluetooth</strong>
                             </div>
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleSavePrinterConfig('', printerPaperWidth)}
-                            style={{ background: 'rgba(244,63,94,0.15)', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#f43f5e', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
-                          >
-                            Lepas
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px dashed #475569' }}>
-                          <BluetoothOff size={20} color="#94a3b8" />
-                          <span style={{ color: '#cbd5e1', fontSize: '0.88rem', fontWeight: '700' }}>Belum ada printer dipilih</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* LEBAR KERTAS */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>📄 Lebar Kertas Thermal</div>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        {['58', '80'].map(w => (
-                          <button
-                            key={w}
-                            type="button"
-                            onClick={() => handleSavePrinterConfig(printerMac, w)}
+                            onClick={handleScanPairedPrinters}
+                            disabled={isScanningPaired}
                             style={{
-                              flex: 1,
-                              padding: '14px',
-                              borderRadius: '12px',
-                              border: `2px solid ${printerPaperWidth === w ? '#6366f1' : '#334155'}`,
-                              background: printerPaperWidth === w ? 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' : '#1e293b',
-                              color: printerPaperWidth === w ? '#ffffff' : '#cbd5e1',
-                              fontWeight: '900',
-                              fontSize: '1.05rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s'
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '9px 16px', borderRadius: '10px', border: 'none',
+                              background: isScanningPaired ? 'rgba(99,102,241,0.2)' : 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                              color: '#ffffff', fontWeight: '900', fontSize: '0.80rem',
+                              cursor: isScanningPaired ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 4px 12px rgba(99,102,241,0.3)', whiteSpace: 'nowrap', flexShrink: 0
                             }}
                           >
-                            {w}mm
-                            <div style={{ fontSize: '0.74rem', fontWeight: '700', marginTop: '3px', color: printerPaperWidth === w ? '#e0e7ff' : '#cbd5e1' }}>
-                              {w === '58' ? 'Mini Kasir' : 'Lebar Standar'}
-                            </div>
+                            <Bluetooth size={15} />
+                            {isScanningPaired ? 'Memindai...' : '🔄 Scan Ulang'}
                           </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* SCAN PERANGKAT BLUETOOTH */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                        <div>
-                          <div style={{ fontSize: '0.95rem', fontWeight: '900', color: '#f8fafc' }}>🔍 Perangkat Bluetooth Terpair</div>
-                          <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>Pair printer terlebih dahulu di: Pengaturan Android → Bluetooth</div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleScanPairedPrinters}
-                          disabled={isScanningPaired}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '6px',
-                            padding: '10px 18px',
-                            borderRadius: '10px',
-                            border: 'none',
-                            background: isScanningPaired ? 'rgba(99,102,241,0.2)' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                            color: '#ffffff',
-                            fontWeight: '900',
-                            fontSize: '0.82rem',
-                            cursor: isScanningPaired ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
-                            transition: 'all 0.15s'
-                          }}
-                        >
-                          <Bluetooth size={16} />
-                          {isScanningPaired ? 'Memindai...' : 'Scan Perangkat'}
-                        </button>
-                      </div>
 
-                      {/* DEVICE LIST */}
-                      {pairedDevices.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '28px', color: '#f8fafc', fontSize: '0.88rem', borderRadius: '12px', background: '#1e293b', border: '1px solid #334155' }}>
-                          {isScanningPaired ? '⏳ Memindai perangkat...' : '📱 Tekan "Scan Perangkat" untuk memuat daftar printer yang sudah dipair.'}
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {pairedDevices.map(device => {
-                            const isSelected = printerMac === device.address;
-                            const isSystemDevice = device.type === 'system';
-                            const isLive = liveDeviceMap[device.address];
+                        <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {isScanningPaired && (
+                            <div style={{
+                              textAlign: 'center', padding: '28px',
+                              borderRadius: '12px', background: '#0f172a', border: '1px solid #1e293b',
+                              color: '#94a3b8', fontSize: '0.88rem', fontWeight: '700'
+                            }}>
+                              ⏳ Memindai perangkat Bluetooth yang di-pair di HP Anda...
+                            </div>
+                          )}
+
+                          {!isScanningPaired && pairedDevices.length === 0 && (
+                            <div style={{
+                              padding: '24px', borderRadius: '12px',
+                              background: '#0f172a', border: '1px dashed #334155',
+                              textAlign: 'center'
+                            }}>
+                              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📵</div>
+                              <div style={{ color: '#94a3b8', fontWeight: '800', fontSize: '0.90rem', marginBottom: '6px' }}>
+                                Tidak ada perangkat Bluetooth ditemukan
+                              </div>
+                              <div style={{ color: '#64748b', fontSize: '0.78rem', lineHeight: '1.6' }}>
+                                1. Nyalakan printer thermal Anda<br/>
+                                2. Buka <strong style={{ color: '#94a3b8' }}>Pengaturan Android → Bluetooth</strong><br/>
+                                3. Pair printer Anda (biasanya bernama RPP02N, PTP-II, dll)<br/>
+                                4. Kembali ke sini lalu tekan <strong style={{ color: '#94a3b8' }}>Scan Ulang</strong>
+                              </div>
+                            </div>
+                          )}
+
+                          {!isScanningPaired && pairedDevices.map(device => {
+                            const isSel = printerMac === device.address;
+                            const isSystem = device.type === 'system';
+                            const live = liveDeviceMap[device.address];
+                            // isBle = true HANYA jika plugin kembalikan 'le' (BLE murni, tidak ada SPP)
+                            // Printer DUAL seperti RPP02N sekarang dikembalikan sebagai 'classic' oleh Java plugin
+                            const isBle = String(device.type || '').toLowerCase() === 'le';
+                            const typeLabel = isSystem ? 'PDF' : isBle ? 'BLE' : 'Classic';
 
                             return (
                               <div
                                 key={device.address}
+                                onClick={() => !isBle && handleSavePrinterConfig(device.address, printerPaperWidth)}
                                 style={{
-                                  display: 'flex', alignItems: 'center', gap: '14px',
-                                  padding: '14px 16px',
-                                  borderRadius: '12px',
-                                  border: `2px solid ${isSelected ? '#6366f1' : isLive === false ? '#ef4444' : '#334155'}`,
-                                  background: isSelected ? 'rgba(99,102,241,0.25)' : isLive === false ? 'rgba(239,68,68,0.1)' : '#1e293b',
-                                  color: '#ffffff',
-                                  transition: 'all 0.15s',
-                                  width: '100%'
+                                  display: 'flex', alignItems: 'center', gap: '12px',
+                                  padding: '14px 16px', borderRadius: '12px',
+                                  border: `2px solid ${isSel ? '#6366f1' : live === false ? '#ef4444' : '#1e293b'}`,
+                                  background: isSel ? 'rgba(99,102,241,0.18)' : live === false ? 'rgba(239,68,68,0.07)' : '#0f172a',
+                                  cursor: isBle ? 'default' : 'pointer',
+                                  opacity: isBle ? 0.5 : 1,
+                                  transition: 'all 0.15s'
                                 }}
                               >
-                                {isSelected
-                                  ? <BluetoothConnected size={24} color={isLive === false ? '#ef4444' : '#a5b4fc'} />
-                                  : <Bluetooth size={24} color={isLive === false ? '#ef4444' : '#38bdf8'} />}
-                                
-                                <div style={{ flex: 1, color: '#ffffff', cursor: 'pointer' }} onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}>
-                                  <div className="device-name" style={{ fontWeight: '900', color: '#ffffff', fontSize: '0.98rem', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span>{device.name || 'Unnamed Device'}</span>
-                                    {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (
+                                {/* ICON */}
+                                <div style={{
+                                  width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  background: isSel ? 'rgba(99,102,241,0.25)' : isSystem ? 'rgba(100,116,139,0.2)' : 'rgba(56,189,248,0.15)'
+                                }}>
+                                  {isSystem
+                                    ? <PrinterIcon size={20} color="#94a3b8" />
+                                    : isSel
+                                    ? <BluetoothConnected size={20} color="#818cf8" />
+                                    : <Bluetooth size={20} color="#38bdf8" />}
+                                </div>
+
+                                {/* INFO */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{
+                                    fontWeight: '900', fontSize: '0.92rem', color: '#ffffff',
+                                    display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'
+                                  }}>
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                                      {device.name || 'Perangkat Tanpa Nama'}
+                                    </span>
+                                    {isSel && (
                                       <span style={{
-                                        fontSize: '0.68rem',
-                                        padding: '2px 8px',
-                                        borderRadius: '6px',
-                                        fontWeight: '800',
-                                        background: isLive === false ? 'rgba(239,68,68,0.2)' : 'rgba(52,211,153,0.2)',
-                                        color: isLive === false ? '#ef4444' : '#34d399',
-                                        border: `1px solid ${isLive === false ? '#ef4444' : '#34d399'}`
+                                        fontSize: '0.65rem', padding: '2px 7px', borderRadius: '5px',
+                                        background: 'rgba(99,102,241,0.3)', color: '#c7d2fe',
+                                        border: '1px solid #6366f1', fontWeight: '900'
+                                      }}>✓ AKTIF</span>
+                                    )}
+                                    {isBle && (
+                                      <span style={{
+                                        fontSize: '0.65rem', padding: '2px 7px', borderRadius: '5px',
+                                        background: 'rgba(251,191,36,0.15)', color: '#fbbf24',
+                                        border: '1px solid #f59e0b', fontWeight: '800'
+                                      }}>BLE – tidak cocok untuk printer thermal</span>
+                                    )}
+                                    {!isSystem && !isBle && (
+                                      <span style={{
+                                        fontSize: '0.65rem', padding: '2px 7px', borderRadius: '5px', fontWeight: '800',
+                                        background: live === false ? 'rgba(239,68,68,0.2)' : live === true ? 'rgba(52,211,153,0.15)' : 'rgba(56,189,248,0.12)',
+                                        color: live === false ? '#fca5a5' : live === true ? '#6ee7b7' : '#7dd3fc',
+                                        border: `1px solid ${live === false ? '#ef4444' : live === true ? '#34d399' : '#38bdf8'}`
                                       }}>
-                                        {isLive === false ? '🔴 SAKLAR MATI / TERPUTUS' : isLive === true ? '🟢 SAKLAR MENYALA' : '🟢 TERHUBUNG PAIRING'}
+                                        {live === true ? '🟢 Online' : live === false ? '🔴 Offline' : '⚪ Belum dicek'}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="device-mac" style={{ fontSize: '0.80rem', color: '#cbd5e1', marginTop: '3px', fontWeight: '700' }}>
-                                    {device.address} {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (isLive === false ? '• Saklar printer mati / terputus' : '• Siap Dipilih & Dicetak')}
+                                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '2px', fontFamily: 'monospace' }}>
+                                    {device.address}
+                                    {isSystem ? ' — Cetak PDF via sistem' : isBle ? ' — BLE Only (tidak mendukung SPP cetak thermal)' : ` — Bluetooth Classic/SPP [${typeLabel}]`}
                                   </div>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  {!isSystemDevice && device.address !== 'BT_THERMAL_AUTO' && (
+                                {/* ACTIONS */}
+                                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                  {!isSystem && !isBle && (
                                     <button
                                       type="button"
-                                      onClick={() => handleCheckLiveStatus(device.address)}
+                                      onClick={e => { e.stopPropagation(); handleCheckLiveStatus(device.address); }}
                                       disabled={checkingMacMap[device.address]}
                                       style={{
-                                        padding: '8px 10px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #6366f1',
-                                        background: 'rgba(99,102,241,0.2)',
-                                        color: '#a5b4fc',
-                                        fontWeight: '800',
-                                        fontSize: '0.75rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
+                                        padding: '7px 10px', borderRadius: '8px',
+                                        border: '1px solid #334155', background: 'rgba(99,102,241,0.15)',
+                                        color: '#94a3b8', fontWeight: '800', fontSize: '0.72rem',
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
                                       }}
                                     >
-                                      <Zap size={13} />
-                                      {checkingMacMap[device.address] ? 'Memeriksa...' : 'Tes Daya'}
+                                      <Zap size={12} />
+                                      {checkingMacMap[device.address] ? '...' : 'Cek'}
                                     </button>
                                   )}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSavePrinterConfig(device.address, printerPaperWidth)}
-                                    style={{
-                                      padding: '8px 14px',
-                                      borderRadius: '8px',
-                                      border: 'none',
-                                      background: isSelected ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : '#334155',
-                                      color: '#ffffff',
-                                      fontWeight: '800',
-                                      fontSize: '0.78rem',
-                                      cursor: 'pointer'
-                                    }}
-                                  >
-                                    {isSelected ? '✓ AKTIF' : 'Pilih'}
-                                  </button>
+                                  {!isBle && (
+                                    <button
+                                      type="button"
+                                      onClick={e => { e.stopPropagation(); handleSavePrinterConfig(device.address, printerPaperWidth); }}
+                                      style={{
+                                        padding: '7px 14px', borderRadius: '8px', border: 'none',
+                                        background: isSel ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#1e293b',
+                                        color: '#ffffff', fontWeight: '900', fontSize: '0.78rem', cursor: 'pointer'
+                                      }}
+                                    >
+                                      {isSel ? '✓ Aktif' : 'Pilih'}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-                      )}
 
-                      {/* MANUAL MAC ADDRESS / CUSTOM DEVICE INPUT */}
-                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #475569' }}>
-                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff', marginBottom: '8px' }}>
-                          ⌨️ Atau Input Alamat MAC / Nama Printer Manual:
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input
-                            type="text"
-                            placeholder="Contoh: 00:11:22:33:44:55 atau RPP02N"
-                            value={printerMac}
-                            onChange={(e) => setPrinterMac(e.target.value)}
-                            style={{
-                              flex: 1,
-                              padding: '12px 14px',
-                              borderRadius: '10px',
-                              border: '1px solid #64748b',
-                              background: '#0f172a',
-                              color: '#ffffff',
-                              fontSize: '0.90rem',
-                              fontWeight: '800'
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleSavePrinterConfig(printerMac, printerPaperWidth)}
-                            style={{
-                              padding: '10px 18px',
-                              borderRadius: '10px',
-                              border: 'none',
-                              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                              color: '#ffffff',
-                              fontWeight: '900',
-                              fontSize: '0.85rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Simpan MAC
-                          </button>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '6px', fontWeight: '700' }}>
-                          Contoh: 00:11:22:33:44:55 atau RPP02N
+                        {/* INPUT MAC MANUAL */}
+                        <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed #1e293b' }}>
+                          <div style={{ fontSize: '0.80rem', fontWeight: '800', color: '#94a3b8', marginBottom: '8px' }}>
+                            ⌨️ Input Alamat MAC Manual (jika printer tidak muncul di atas):
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Contoh: 00:11:22:33:44:55"
+                              value={printerMac && printerMac !== 'SYSTEM_PDF_PRINT' ? printerMac : ''}
+                              onChange={e => setPrinterMac(e.target.value.toUpperCase())}
+                              style={{
+                                flex: 1, padding: '11px 14px', borderRadius: '10px',
+                                border: '1px solid #334155', background: '#0f172a',
+                                color: '#ffffff', fontSize: '0.88rem', fontWeight: '700',
+                                fontFamily: 'monospace', outline: 'none'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (printerMac && printerMac.length >= 5) {
+                                  handleSavePrinterConfig(printerMac, printerPaperWidth);
+                                }
+                              }}
+                              style={{
+                                padding: '11px 18px', borderRadius: '10px', border: 'none',
+                                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                                color: '#ffffff', fontWeight: '900', fontSize: '0.84rem', cursor: 'pointer'
+                              }}
+                            >
+                              Simpan
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: '5px' }}>
+                            Format: XX:XX:XX:XX:XX:XX (lihat di balik printer atau di Pengaturan Bluetooth Android)
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* TEST PRINT */}
-                    <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ fontSize: '0.92rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🧪 Tes Cetak Printer</div>
-                      <div style={{ fontSize: '0.80rem', color: 'var(--pos-txt-secondary)' }}>
-                        {printerMac
-                          ? 'Kirim struk tes ke printer yang dipilih untuk memastikan koneksi dan format cetak berjalan normal.'
-                          : 'Pilih printer terlebih dahulu untuk mengaktifkan fitur tes cetak.'}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleExecuteTestPrint}
-                        disabled={!printerMac || printStatus === 'printing'}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                          padding: '14px',
-                          borderRadius: '12px',
-                          border: `1px solid ${!printerMac ? 'var(--pos-border)' : '#34d399'}`,
-                          background: !printerMac ? 'rgba(100,116,139,0.1)' : 'linear-gradient(135deg, rgba(52,211,153,0.25) 0%, rgba(16,185,129,0.25) 100%)',
-                          color: !printerMac ? '#64748b' : '#34d399',
-                          fontWeight: '800',
-                          fontSize: '0.92rem',
-                          cursor: !printerMac ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        <PrinterIcon size={18} />
-                        {printStatus === 'printing' ? 'Mengirim...' : '🖨️ Kirim Test Print Sekarang'}
-                      </button>
-                      {testPrintSuccessToast && (
-                        <div style={{ textAlign: 'center', color: '#34d399', fontSize: '0.85rem', fontWeight: '700', padding: '8px', borderRadius: '8px', background: 'rgba(52,211,153,0.1)' }}>
-                          ✅ Struk tes berhasil dikirim ke printer!
+                      {/* KARTU: TES CETAK */}
+                      <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+                          🧪 Tes Cetak
                         </div>
-                      )}
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '14px' }}>
+                          {printerMac
+                            ? 'Kirim struk tes ke printer yang dipilih. Jika berhasil cetak, printer siap digunakan.'
+                            : 'Pilih printer terlebih dahulu untuk mengaktifkan tes cetak.'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleExecuteTestPrint}
+                          disabled={!printerMac || printStatus === 'printing'}
+                          style={{
+                            width: '100%',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            padding: '14px', borderRadius: '12px',
+                            border: `1px solid ${!printerMac ? '#334155' : '#34d399'}`,
+                            background: !printerMac ? 'rgba(100,116,139,0.08)' : 'linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.2))',
+                            color: !printerMac ? '#475569' : '#34d399',
+                            fontWeight: '900', fontSize: '0.92rem',
+                            cursor: !printerMac ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <PrinterIcon size={18} />
+                          {printStatus === 'printing' ? '⏳ Mengirim ke printer...' : '🖨️ Kirim Struk Tes Sekarang'}
+                        </button>
+                        {testPrintSuccessToast && (
+                          <div style={{
+                            marginTop: '10px', textAlign: 'center', padding: '10px',
+                            borderRadius: '10px', background: 'rgba(52,211,153,0.1)',
+                            color: '#34d399', fontSize: '0.84rem', fontWeight: '800',
+                            border: '1px solid #34d399'
+                          }}>
+                            ✅ Struk tes berhasil dikirim ke printer!
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PANDUAN LENGKAP */}
+                      <details style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', padding: '20px' }}>
+                        <summary style={{ cursor: 'pointer', fontWeight: '900', color: '#94a3b8', fontSize: '0.88rem', userSelect: 'none' }}>
+                          📖 Panduan Lengkap Koneksi Printer Bluetooth
+                        </summary>
+                        <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {[
+                            { step: '1', title: 'Nyalakan printer thermal Anda', desc: 'Pastikan printer menyala dan lampu indikator Bluetooth berkedip (tanda siap pair).' },
+                            { step: '2', title: 'Pair di Pengaturan Android', desc: 'Buka Pengaturan → Bluetooth → Tambah Perangkat Baru → pilih nama printer (biasanya: RPP02N, PTP-II, Star, Epson TM-series, dll).' },
+                            { step: '3', title: 'Kembali ke sini dan Scan', desc: 'Tekan tombol "Scan Ulang". Printer yang sudah di-pair akan muncul di daftar perangkat.' },
+                            { step: '4', title: 'Pilih printer dan Cek Koneksi', desc: 'Klik nama printer lalu tekan tombol "Cek" untuk memastikan printer merespon. Status akan menjadi 🟢 Online.' },
+                            { step: '5', title: 'Tes Cetak', desc: 'Tekan "Kirim Struk Tes" untuk memverifikasi format cetak dan koneksi benar-benar berfungsi.' },
+                          ].map(({ step, title, desc }) => (
+                            <div key={step} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                              <div style={{
+                                width: '26px', height: '26px', borderRadius: '8px', flexShrink: 0,
+                                background: 'rgba(99,102,241,0.2)', border: '1px solid #6366f1',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#818cf8', fontWeight: '900', fontSize: '0.80rem'
+                              }}>{step}</div>
+                              <div>
+                                <div style={{ color: '#ffffff', fontWeight: '800', fontSize: '0.84rem' }}>{title}</div>
+                                <div style={{ color: '#64748b', fontSize: '0.76rem', marginTop: '2px', lineHeight: '1.5' }}>{desc}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+
                     </div>
-
-                  </div>
-                )}
-
-                {/* SUB-TAB 2: SISTEM (was 3) */}
+                  );
+                })()}
 
                 {settingSubTab === 'sistem' && (
                   <div style={{ maxWidth: '750px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -7587,7 +8122,7 @@ export default function AndroidPosRegister({
                               </div>
                             </div>
                           </div>
-<button style={{ background: isCur ? '#34d399' : '#6366f1', color: 'var(--pos-txt-white)', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
+                          <button style={{ background: isCur ? '#34d399' : '#6366f1', color: 'var(--pos-txt-white)', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
                             {isCur ? '✓ Terpilih' : 'Pilih'}
                           </button>
                         </div>
@@ -7636,7 +8171,7 @@ export default function AndroidPosRegister({
               borderBottom: '1px solid #e2e8f0',
               background: '#ffffff'
             }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-bg-card)', margin: 0, letterSpacing: '0.5px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '0.5px' }}>
                 {selectedProductForVariant.name.toUpperCase()}
               </h3>
               <button
@@ -7715,7 +8250,7 @@ export default function AndroidPosRegister({
                             }}
                           >
                             <div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#0f172a' }}>
                                 {item.title}
                               </div>
                               <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginTop: '2px' }}>
@@ -7798,7 +8333,8 @@ export default function AndroidPosRegister({
                         fontSize: '0.88rem',
                         fontWeight: '800',
                         color: '#f43f5e',
-                        outline: 'none'
+                        outline: 'none',
+                        background: '#ffffff'
                       }}
                     />
                   </div>
@@ -7830,10 +8366,11 @@ export default function AndroidPosRegister({
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid #cbd5e1',
                       fontSize: '0.88rem',
                       outline: 'none',
-                      color: 'var(--pos-bg-card)'
+                      color: '#0f172a',
+                      background: '#ffffff'
                     }}
                   />
                 </div>
@@ -7905,12 +8442,12 @@ export default function AndroidPosRegister({
                       flex: 1,
                       height: '48px',
                       background: '#583782',
-                      color: 'var(--pos-txt-primary)',
+                      color: '#ffffff',
                       border: 'none',
                       borderRadius: '10px',
                       padding: '0 16px',
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       fontSize: '0.95rem',
                       fontWeight: '800',
@@ -7932,18 +8469,18 @@ export default function AndroidPosRegister({
                         height: '32px',
                         borderRadius: '50%',
                         background: '#ef4444',
-                        color: 'var(--pos-txt-primary)',
+                        color: '#ffffff',
                         border: 'none',
                         display: 'flex',
                         alignItems: 'center',
-                        justify: 'center',
+                        justifyContent: 'center',
                         cursor: 'pointer'
                       }}
                     >
                       <Minus size={18} strokeWidth={3} />
                     </button>
 
-                    <span style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-bg-card)', minWidth: '24px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#0f172a', minWidth: '24px', textAlign: 'center' }}>
                       {modalProductQty}
                     </span>
 
@@ -7955,12 +8492,11 @@ export default function AndroidPosRegister({
                         height: '32px',
                         borderRadius: '50%',
                         background: '#22c55e',
-                        color: 'var(--pos-txt-primary)',
+                        color: '#ffffff',
                         border: 'none',
                         display: 'flex',
                         alignItems: 'center',
-                        justify: 'center',
-                        cursor: 'pointer'
+                        justifyContent: 'center',
                       }}
                     >
                       <Plus size={18} strokeWidth={3} />
@@ -9624,8 +10160,8 @@ export default function AndroidPosRegister({
                       }}
                       style={{
                         background: isSelected ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#ffffff',
-                        color: isSelected ? '#ffffff' : 'var(--pos-bg-card)',
-                        border: isSelected ? '2px solid #1d4ed8' : '1px solid #e2e8f0',
+                        color: isSelected ? '#ffffff' : '#0f172a',
+                        border: isSelected ? '2px solid #1d4ed8' : '1px solid #cbd5e1',
                         borderRadius: '12px',
                         padding: '16px 10px',
                         fontSize: '0.88rem',
@@ -9672,14 +10208,14 @@ export default function AndroidPosRegister({
               {/* CASH TENDERED QUICK PRESET BAR (IF CASH IS SELECTED) */}
               {selectedPaymentMethod === 'Cash' && (
                 <div style={{ background: '#ffffff', padding: '12px 16px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>Uang Tunai Diterima:</div>
+                  <div style={{ fontSize: '0.78rem', color: '#475569', fontWeight: '800' }}>Uang Tunai Diterima:</div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
                       type="number"
                       value={tenderedCash}
                       onChange={e => setTenderedCash(e.target.value)}
                       placeholder={`Nominal Tunai (cth: ${cartTotal})`}
-                      style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: '800', outline: 'none' }}
+                      style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: '800', outline: 'none', color: '#0f172a', background: '#ffffff' }}
                     />
                     <button
                       onClick={() => setTenderedCash(cartTotal.toString())}
@@ -9693,7 +10229,7 @@ export default function AndroidPosRegister({
                       <button
                         key={val}
                         onClick={() => setTenderedCash(val.toString())}
-                        style={{ flex: 1, background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 4px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--pos-border-card)', cursor: 'pointer' }}
+                        style={{ flex: 1, background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '8px 4px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', color: '#0f172a', cursor: 'pointer' }}
                       >
                         {formatRupiah(val)}
                       </button>
@@ -9723,21 +10259,21 @@ export default function AndroidPosRegister({
                   }}>
                     <div style={{ textAlign: 'center', flex: 1 }}>
                       <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Total Bayar</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: '#1e293b' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>
                         {formatRupiah(numTendered)}
                       </div>
                     </div>
                     <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
                     <div style={{ textAlign: 'center', flex: 1 }}>
                       <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kurang Bayar</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kurangBayar > 0 ? '#ef4444' : '#1e293b' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kurangBayar > 0 ? '#ef4444' : '#0f172a' }}>
                         {formatRupiah(kurangBayar)}
                       </div>
                     </div>
                     <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
                     <div style={{ textAlign: 'center', flex: 1 }}>
                       <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kembalian</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kembalian > 0 ? '#10b981' : '#1e293b' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kembalian > 0 ? '#10b981' : '#0f172a' }}>
                         {formatRupiah(kembalian)}
                       </div>
                     </div>
@@ -9762,8 +10298,8 @@ export default function AndroidPosRegister({
                     style={{
                       width: '100%',
                       height: '48px',
-                      background: isPaymentValid ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#e2e8f0',
-                      color: isPaymentValid ? '#ffffff' : '#94a3b8',
+                      background: isPaymentValid ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#cbd5e1',
+                      color: isPaymentValid ? '#ffffff' : '#475569',
                       border: 'none',
                       borderRadius: '12px',
                       fontSize: '1.05rem',
@@ -10881,7 +11417,7 @@ export default function AndroidPosRegister({
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
-            padding: '28px 36px', background: '#0b0f19', border: 'none', borderRadius: '0px',
+            padding: '24px 32px', background: '#0b0f19', border: 'none', borderRadius: '0px',
             display: 'flex', flexDirection: 'column', gap: '20px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
@@ -10902,107 +11438,90 @@ export default function AndroidPosRegister({
             </div>
 
             {(() => {
-              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
               const rawIngredients = masterData.ingredients || [];
               const ingredientsList = rawIngredients.filter(ing =>
-                ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
+                ing.tampilkan_di_apk !== 'Inaktif' &&
+                ing.tampilkan_di_apk !== 'inaktif' &&
+                ing.status !== 'Inaktif' &&
+                ing.status !== 'inaktif'
               );
 
               const adminList = (masterData.webAdminAccounts || masterData.mobileAccounts || []).map(acc => ({
                 id: acc.id, name: acc.name, role: acc.role || acc.jabatan || 'Kasir'
               }));
 
-              const handleUpdateRow = (id, field, value) => {
-                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+              const handleUpdateStokAwal = (id, val) => {
+                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, stok_awal: val } : r));
               };
 
-              const handleDeleteRow = (id) => {
-                setOpnameBatchRows(prev => prev.filter(r => r.id !== id));
-              };
-
-              const handleAddEmptyRow = () => {
-                const defaultIng = ingredientsList[0] || { name: 'Bahan Baku Baru', unit: 'kg' };
-                const newRow = {
-                  id: `batch-custom-${Date.now()}`,
-                  item_name: defaultIng.name,
-                  unit: defaultIng.unit || 'kg',
-                  stok_awal: '',
-                  stok_masuk: 0,
-                  transfer_masuk: 0,
-                  transfer_keluar: 0,
-                  stok_rusak: 0,
-                  stok_fisik: 0,
-                  isEditing: true
-                };
-                setOpnameBatchRows(prev => [...prev, newRow]);
+              const handleUpdateStokFisik = (id, val) => {
+                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, stok_fisik: val } : r));
               };
 
               return (
                 <form onSubmit={e => {
                   e.preventDefault();
 
-                  if (!opnameBatchRows || opnameBatchRows.length === 0 || !opnameBatchRows[0]?.item_name) {
-                    alert('Harap cari dan pilih bahan baku yang akan diaudit!');
+                  if (!opnameBatchRows || opnameBatchRows.length === 0) {
+                    alert('Tidak ada bahan baku aktif yang dapat diaudit!');
                     return;
                   }
 
-                  const selectedItemName = (opnameBatchRows[0]?.item_name || '').trim();
+                  const newRecords = opnameBatchRows.map((r, idx) => {
+                    const sAwal = Number(r.stok_awal || 0);
+                    const sMasuk = getStokMasukFromLaporanHarian(r.item_name, logDate, logOutletId);
+                    const trfIn = getTransferStokMasuk(r.item_name, logDate, logOutletId);
+                    const trfOut = getTransferStokKeluar(r.item_name, logDate, logOutletId);
+                    const sFisik = r.stok_fisik !== '' ? Number(r.stok_fisik) : sAwal;
+                    const sSistem = sAwal + sMasuk + trfIn - trfOut;
+                    const selisih = sFisik - sSistem;
 
-                  // ── VALIDASI MASTER DATA BAHAN BAKU PUSAT ───────────────────
-                  const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
-                  if (!isValidMasterIng) {
-                    alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${selectedItemName}" tidak terdaftar di Master Data Bahan Baku Pusat!\n\nHarap pilih dari sugesti otomatis yang tersedia.`);
-                    return;
-                  }
-
-                  const foundIng = ingredientsList.find(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
-                  const unitVal = opnameBatchRows[0]?.unit || foundIng?.unit || 'kg';
-                  const stokFisikVal = Number(opnameBatchRows[0]?.stok_fisik || 0);
-                  const stokAwalVal = Number(opnameBatchRows[0]?.stok_awal || foundIng?.stock || foundIng?.stok || 0);
-
-                  const newRecord = {
-                    id: logNo,
-                    report_no: logNo,
-                    date: logDate,
-                    outlet_id: logOutletId,
-                    branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || 'Restoran Utama',
-                    submitted_by: logSubmittedBy,
-                    created_by: logSubmittedBy,
-                    author_name: logSubmittedBy,
-                    item_name: selectedItemName,
-                    unit: unitVal,
-                    stok_awal: stokAwalVal,
-                    stok_masuk: 0,
-                    stok_keluar: 0,
-                    transfer_keluar: 0,
-                    transfer_masuk: 0,
-                    stok_rusak: 0,
-                    stok_fisik: stokFisikVal,
-                    status: 'Pending'
-                  };
+                    return {
+                      id: `${logNo}-${idx + 1}`,
+                      report_no: logNo,
+                      date: logDate,
+                      outlet_id: logOutletId,
+                      branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || 'Restoran Utama',
+                      submitted_by: logSubmittedBy,
+                      created_by: logSubmittedBy,
+                      author_name: logSubmittedBy,
+                      item_name: r.item_name,
+                      unit: r.unit || 'kg',
+                      stok_awal: sAwal,
+                      stok_masuk: sMasuk,
+                      transfer_masuk: trfIn,
+                      transfer_keluar: trfOut,
+                      stok_keluar: 0,
+                      stok_rusak: 0,
+                      stok_sistem: sSistem,
+                      stok_fisik: sFisik,
+                      selisih: selisih,
+                      status: 'approved'
+                    };
+                  });
 
                   setShowAddLogisticsModal(false);
 
                   setMasterData(prev => {
                     const now = Date.now();
+                    const filterOld = list => (list || []).filter(r => r.report_no !== logNo);
                     const newMaster = {
                       ...prev,
                       _lastUpdated: now,
                       clientUpdated: now,
-                      approvedLogistics: [newRecord, ...(prev.approvedLogistics || []).filter(r => r.report_no !== logNo)],
-                      stockOpname: [newRecord, ...(prev.stockOpname || []).filter(r => r.report_no !== logNo)],
-                      stockMovement: [newRecord, ...(prev.stockMovement || [])]
+                      approvedLogistics: [...newRecords, ...filterOld(prev.approvedLogistics)],
+                      stockOpname: [...newRecords, ...filterOld(prev.stockOpname)],
+                      stockMovement: [...newRecords, ...(prev.stockMovement || [])]
                     };
 
                     saveToServerWithGuard(newMaster);
-
                     return newMaster;
                   });
 
-                  alert(`✅ Laporan Stok Opname ${logNo} untuk "${selectedItemName}" berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
+                  alert(`✅ Form Stok Opname ${logNo} berisi ${newRecords.length} Bahan Baku Aktif berhasil disimpan!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-                  {/* Header Form: Tanggal, No Laporan, Diisi Oleh, Cabang Outlet */}
+                  {/* Header Form: Tanggal Audit, No Laporan, Diisi Oleh, Cabang Outlet */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px', background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)' }}>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📅 Tanggal Audit *</label>
@@ -11029,126 +11548,135 @@ export default function AndroidPosRegister({
                     </div>
                   </div>
 
-                  {/* FORM INPUT AUDIT 1 BAHAN BAKU (BEBAS RUMIT BATCH TABLE) */}
-                  <div style={{ background: 'var(--pos-bg-app)', padding: '24px', borderRadius: '16px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                    <div style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Package size={20} />
-                      <span>Input Audit Stok Opname per Item Laporan:</span>
-                    </div>
+                  {/* KETERANGAN PENJELAS FORMULIR STOK OPNAME */}
+                  <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px 18px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700' }}>
+                    <span>📦 Menampilkan {ingredientsList.length} Bahan Baku Aktif dari Master Data</span>
+                    <span>💡 Stok Masuk otomatis terisi dari Laporan Harian (Default 0 jika tidak ada) & Sub Transfer Stok</span>
+                  </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '16px', alignItems: 'end' }}>
-                      {/* SUGESTI BAHAN BAKU TERVALIDASI */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#f8fafc', fontWeight: '800', display: 'block', marginBottom: '6px' }}>
-                          📦 Cari & Pilih Nama Bahan Baku (Wajib dari Master Data) *
-                        </label>
-                        <div style={{ position: 'relative', width: '100%' }}>
-                          <input
-                            type="text"
-                            required
-                            value={opnameBatchRows[0]?.item_name || ''}
-                            onFocus={() => setActiveSuggestRowId('opname-single')}
-                            onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
-                            onChange={e => {
-                              const val = e.target.value;
-                              const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
-                              setOpnameBatchRows([{
-                                id: 'single-opname',
-                                item_name: val,
-                                unit: found?.unit || 'kg',
-                                stok_awal: found?.stock || found?.stok || 0,
-                                stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
-                              }]);
-                              setActiveSuggestRowId('opname-single');
-                            }}
-                            placeholder="Ketik nama bahan baku..."
-                            style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#ffffff', fontSize: '0.90rem', fontWeight: '800', outline: 'none' }}
-                          />
+                  {/* TABEL MULTI-ITEM AUDIT BAHAN BAKU AKTIF MASTER DATA */}
+                  <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto', maxHeight: '55vh' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
+                            <th style={{ padding: '12px 10px', width: '40px' }}>No</th>
+                            <th style={{ padding: '12px 14px' }}>📦 Nama Bahan Baku</th>
+                            <th style={{ padding: '12px 12px', width: '140px', textAlign: 'right' }}>📊 Stok Awal (Manual)</th>
+                            <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Stok Masuk (Laporan Harian)</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Keluar</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right' }}>🔢 Stok Sistem</th>
+                            <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#fbbf24' }}>⚖️ Sisa Stok Fisik (Manual) *</th>
+                            <th style={{ padding: '12px 12px', width: '110px', textAlign: 'center' }}>Selisih</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ingredientsList.length === 0 ? (
+                            <tr>
+                              <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
+                                Tidak ada Bahan Baku dengan status Aktif di Master Data.
+                              </td>
+                            </tr>
+                          ) : (
+                            ingredientsList.map((ing, idx) => {
+                              const rowState = opnameBatchRows.find(r => (r.item_name || '').toLowerCase() === (ing.name || '').toLowerCase()) || {
+                                id: ing.id || `ing-opname-${idx}`,
+                                item_name: ing.name,
+                                unit: ing.unit || 'kg',
+                                stok_awal: ing.stock !== undefined ? ing.stock : (ing.stok || 0),
+                                stok_fisik: ''
+                              };
 
-                          {/* FLOATING SUGESTI DROPDOWN HIGH-CONTRAST */}
-                          {activeSuggestRowId === 'opname-single' && (
-                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99999, background: '#090d16', border: '2px solid #38bdf8', borderRadius: '10px', marginTop: '6px', maxHeight: '240px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
-                              {ingredientsList
-                                .filter(s => !(opnameBatchRows[0]?.item_name || '') || (s.name || '').toLowerCase().includes((opnameBatchRows[0]?.item_name || '').toLowerCase()))
-                                .slice(0, 10)
-                                .map((sug, i) => (
-                                  <div
-                                    key={i}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      setOpnameBatchRows([{
-                                        id: 'single-opname',
-                                        item_name: sug.name,
-                                        unit: sug.unit || 'kg',
-                                        stok_awal: sug.stock || sug.stok || 0,
-                                        stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
-                                      }]);
-                                      setActiveSuggestRowId(null);
-                                    }}
-                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                  >
-                                    <div>
-                                      <strong style={{ color: '#ffffff', display: 'block', fontSize: '0.88rem' }}>📦 {sug.name}</strong>
-                                      <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: '700' }}>Stok Sistem: {sug.stock || sug.stok || 0} {sug.unit || 'kg'} • {sug.category || 'HPP'}</span>
-                                    </div>
-                                    <span style={{ background: '#38bdf8', color: '#000000', padding: '3px 10px', borderRadius: '6px', fontWeight: '900', fontSize: '0.72rem' }}>Pilih &amp; Salin ↵</span>
-                                  </div>
-                                ))}
-                            </div>
+                              const stokAwal = Number(rowState.stok_awal || 0);
+                              const stokMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
+                              const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
+                              const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
+
+                              const stokSistem = stokAwal + stokMasuk + trfIn - trfOut;
+                              const stokFisik = rowState.stok_fisik !== '' ? Number(rowState.stok_fisik) : '';
+                              const selisih = stokFisik !== '' ? (Number(stokFisik) - stokSistem) : null;
+
+                              const selisihColor = selisih === null ? 'var(--pos-txt-secondary)' : selisih === 0 ? '#34d399' : selisih > 0 ? '#38bdf8' : '#fb7185';
+                              const selisihLabel = selisih === null ? '-' : selisih === 0 ? 'PAS' : selisih > 0 ? `+${selisih}` : `${selisih}`;
+
+                              return (
+                                <tr key={ing.id || idx} style={{ borderBottom: '1px solid var(--pos-border-card)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                                  <td style={{ padding: '10px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{idx + 1}</td>
+                                  <td style={{ padding: '10px 14px' }}>
+                                    <strong style={{ color: 'var(--pos-txt-primary)', display: 'block', fontSize: '0.88rem' }}>{ing.name}</strong>
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>Satuan: {ing.unit || 'kg'} • {ing.category || 'Bahan Utama'}</span>
+                                  </td>
+
+                                  {/* STOK AWAL (DIISI MANUAL) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      value={rowState.stok_awal}
+                                      onChange={e => handleUpdateStokAwal(rowState.id, e.target.value)}
+                                      className="form-input"
+                                      style={{ width: '90px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '800' }}
+                                    />
+                                  </td>
+
+                                  {/* STOK MASUK (OTOMATIS LAPORAN HARIAN / DEFAULT 0) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: stokMasuk > 0 ? '#34d399' : 'var(--pos-txt-secondary)' }}>
+                                    {stokMasuk} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* TRANSFER STOK MASUK (OTOMATIS SUB TRANSFER STOK) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfIn > 0 ? '#38bdf8' : 'var(--pos-txt-secondary)' }}>
+                                    {trfIn} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* TRANSFER STOK KELUAR (OTOMATIS SUB TRANSFER STOK) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfOut > 0 ? '#fb7185' : 'var(--pos-txt-secondary)' }}>
+                                    {trfOut} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* STOK SISTEM */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#f8fafc' }}>
+                                    {stokSistem} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* SISA STOK FISIK (DIISI MANUAL) */}
+                                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      min="0"
+                                      placeholder="Fisik..."
+                                      value={rowState.stok_fisik}
+                                      onChange={e => handleUpdateStokFisik(rowState.id, e.target.value)}
+                                      className="form-input"
+                                      style={{ width: '100px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.88rem', fontWeight: '900', border: '1.5px solid #fbbf24', color: '#fbbf24' }}
+                                    />
+                                  </td>
+
+                                  {/* SELISIH */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                    <span style={{ fontSize: '0.78rem', fontWeight: '900', color: selisihColor }}>
+                                      {selisihLabel}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
-                        </div>
-                      </div>
-
-                      {/* STOK AWAL SISTEM */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>Stok Sistem / Satuan</label>
-                        <div style={{ height: '44px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', padding: '0 12px', color: '#34d399', fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span>{opnameBatchRows[0]?.stok_awal || 0}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{opnameBatchRows[0]?.unit || 'kg'}</span>
-                        </div>
-                      </div>
-
-                      {/* SISA STOK FISIK AUDIT */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🔢 Sisa Stok Fisik *</label>
-                        <input
-                          type="number"
-                          required
-                          step="any"
-                          min="0"
-                          placeholder="Jumlah fisik..."
-                          value={opnameBatchRows[0]?.stok_fisik || ''}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setOpnameBatchRows(prev => [{
-                              ...(prev[0] || { id: 'single-opname', item_name: '', unit: 'kg', stok_awal: 0 }),
-                              stok_fisik: val
-                            }]);
-                          }}
-                          className="form-input"
-                          style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#38bdf8', fontSize: '0.95rem', fontWeight: '900', outline: 'none' }}
-                        />
-                      </div>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
-                  {/* Footer Status & Tombol Simpan */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                      <span style={{ fontSize: '0.78rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '4px 12px', borderRadius: '6px', fontWeight: '800' }}>⏳ Pending (Butuh Persetujuan Web Admin)</span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.08)', color: 'var(--pos-txt-primary)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}>
-                        Batal
-                      </button>
-                      <button type="submit" style={{ padding: '12px 28px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#000000', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>💾 KIRIM LAPORAN STOK OPNAME</span>
-                      </button>
-                    </div>
+                  {/* Footer Action Buttons (Status Approval DIHAPUS sesuai instruksi user) */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.08)', color: 'var(--pos-txt-primary)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.88rem' }}>
+                      Batal
+                    </button>
+                    <button type="submit" style={{ padding: '12px 32px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#000000', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.90rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>💾 SIMPAN &amp; KIRIM LAPORAN STOK OPNAME</span>
+                    </button>
                   </div>
 
                 </form>
@@ -13068,7 +13596,11 @@ export default function AndroidPosRegister({
         </div>
       )}
 
-      {/* ── GLOBAL FLOATING PRINT STATUS TOAST (AKURAT & JELAS SAAT BERHASIL/GAGAL) ── */}
+      {/* ── GLOBAL FLOATING PRINT STATUS TOAST ──
+          ✅ Hijau  = Printer hardware berhasil cetak
+          📄 Kuning = Tidak ada printer, dicetak sebagai PDF
+          ⏳ Biru   = Sedang mengirim data ke printer
+          ❌ Merah  = Gagal cetak, printer tidak merespon */}
       {printStatus && (
         <div style={{
           position: 'fixed',
@@ -13077,19 +13609,29 @@ export default function AndroidPosRegister({
           zIndex: 999999,
           padding: '14px 20px',
           borderRadius: '14px',
-          background: printStatus === 'success' ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : printStatus === 'printing' ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' : 'linear-gradient(135deg, #dc2626 0%, #f43f5e 100%)',
+          background:
+            printStatus === 'success'     ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' :
+            printStatus === 'success_pdf' ? 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)' :
+            printStatus === 'printing'    ? 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' :
+                                            'linear-gradient(135deg, #dc2626 0%, #f43f5e 100%)',
           color: '#ffffff',
           fontWeight: '900',
           fontSize: '0.90rem',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          boxShadow: printStatus === 'success' ? '0 10px 30px rgba(16,185,129,0.4)' : printStatus === 'printing' ? '0 10px 30px rgba(99,102,241,0.4)' : '0 10px 30px rgba(244,63,94,0.4)',
+          maxWidth: '340px',
+          boxShadow:
+            printStatus === 'success'     ? '0 10px 30px rgba(16,185,129,0.4)' :
+            printStatus === 'success_pdf' ? '0 10px 30px rgba(245,158,11,0.4)' :
+            printStatus === 'printing'    ? '0 10px 30px rgba(99,102,241,0.4)' :
+                                            '0 10px 30px rgba(244,63,94,0.4)',
           border: '1px solid rgba(255,255,255,0.2)'
         }}>
-          {printStatus === 'printing' && <span style={{ fontSize: '1.2rem' }}>⏳</span>}
-          {printStatus === 'success' && <span style={{ fontSize: '1.2rem' }}>✅</span>}
-          {printStatus === 'error' && <span style={{ fontSize: '1.2rem' }}>❌</span>}
+          {printStatus === 'printing'    && <span style={{ fontSize: '1.2rem' }}>⏳</span>}
+          {printStatus === 'success'     && <span style={{ fontSize: '1.2rem' }}>✅</span>}
+          {printStatus === 'success_pdf' && <span style={{ fontSize: '1.2rem' }}>📄</span>}
+          {printStatus === 'error'       && <span style={{ fontSize: '1.2rem' }}>❌</span>}
           <span>{printStatusMsg}</span>
         </div>
       )}

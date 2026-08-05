@@ -471,9 +471,16 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         return true;
       });
 
+      const prevDelSales = (masterData?.deletedSalesIds || []).map(x => String(x));
+      const prevDelLog = (masterData?.deletedLogisticsIds || []).map(x => String(x));
+      const updatedDelSales = Array.from(new Set([...prevDelSales, targetId, targetReceiptNo, String(id)].filter(Boolean)));
+      const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReceiptNo, String(id)].filter(Boolean)));
+
       const updated = {
         ...masterData,
         _lastUpdated: Date.now(),
+        deletedSalesIds: updatedDelSales,
+        deletedLogisticsIds: updatedDelLog,
         salesTransactions: updatedSalesTx,
         transactions: updatedTx,
         outletTransactions: updatedOutletTx,
@@ -489,8 +496,15 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         await fetch(getApiUrl('/api/master-data/delete-item'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'salesTransactions', id: targetId })
+          body: JSON.stringify({ key: 'salesTransactions', id: targetId, receipt_no: targetReceiptNo })
         });
+        if (targetReceiptNo && targetReceiptNo !== targetId) {
+          await fetch(getApiUrl('/api/master-data/delete-item'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'salesTransactions', id: targetReceiptNo, receipt_no: targetReceiptNo })
+          });
+        }
       } catch (err) {
         console.error('Delete transaction API error:', err);
       }
@@ -501,8 +515,22 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     }
   };
 
-  // FILTERING TRANSACTIONS
-  const filteredTransactions = transactions.filter(item => {
+  // FILTERING TRANSACTIONS WITH TOMBSTONE DELETION GUARD
+  const deletedSalesSet = new Set([
+    ...(masterData?.deletedSalesIds || []).map(x => String(x)),
+    ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+  ]);
+
+  const rawTransactionsList = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
+    if (!t) return false;
+    const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
+    const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+    if (tid && deletedSalesSet.has(tid)) return false;
+    if (trcpt && deletedSalesSet.has(trcpt)) return false;
+    return true;
+  });
+
+  const filteredTransactions = rawTransactionsList.filter(item => {
     if (outletFilter !== 'ALL' && Number(item.outlet_id) !== Number(outletFilter)) return false;
     if (startDate && item.date < startDate) return false;
     if (endDate && item.date > endDate) return false;

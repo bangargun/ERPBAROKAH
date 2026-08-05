@@ -1651,7 +1651,20 @@ export default function AndroidPosRegister({
 
   // Outlet Sales Transactions — useMemo: hanya dihitung ulang jika masterData atau selectedBranch berubah
   const outletTransactions = useMemo(() => {
-    const txList = masterData?.salesTransactions || masterData?.transactions || [];
+    const deletedSalesSet = new Set([
+      ...(masterData?.deletedSalesIds || []).map(x => String(x)),
+      ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+    ]);
+
+    const txList = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
+      if (!t) return false;
+      const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
+      const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+      if (tid && deletedSalesSet.has(tid)) return false;
+      if (trcpt && deletedSalesSet.has(trcpt)) return false;
+      return true;
+    });
+
     return txList.filter(t => {
       if (!selectedBranch || selectedBranch === 'ALL') return true;
       if (typeof selectedBranch === 'number' || (!isNaN(Number(selectedBranch)) && Number(selectedBranch) > 0)) {
@@ -1665,7 +1678,7 @@ export default function AndroidPosRegister({
         (currentOutlet && (Number(t.outlet_id) === Number(currentOutlet.id) || Number(t.branch_id) === Number(currentOutlet.id)))
       );
     });
-  }, [masterData?.salesTransactions, masterData?.transactions, selectedBranch, currentOutlet?.id]);
+  }, [masterData?.salesTransactions, masterData?.transactions, masterData?.deletedSalesIds, masterData?.deletedLogisticsIds, selectedBranch, currentOutlet?.id]);
 
   // Derived Financials — useMemo: tidak dihitung ulang saat ketikan input
   const totalSalesGross = useMemo(() =>

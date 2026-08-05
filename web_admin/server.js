@@ -1630,15 +1630,23 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     const idStr = String(id);
     const nowTs = Date.now();
 
-    // Catat ID yang dihapus ke tombstone tracking
+    // Catat ID & Receipt No yang dihapus ke tombstone tracking
+    const targetRcpt = String(req.body.receipt_no || '');
     existing.deletedLogisticsIds = Array.from(new Set([
       ...(existing.deletedLogisticsIds || []),
-      idStr
-    ]));
+      idStr,
+      targetRcpt
+    ].filter(Boolean)));
     existing.deletedReportIds = Array.from(new Set([
       ...(existing.deletedReportIds || []),
-      idStr
-    ]));
+      idStr,
+      targetRcpt
+    ].filter(Boolean)));
+    existing.deletedSalesIds = Array.from(new Set([
+      ...(existing.deletedSalesIds || []),
+      idStr,
+      targetRcpt
+    ].filter(Boolean)));
 
     const reportKeys = ['approvedFinanceDaily', 'shiftClosings', 'shift_closings', 'closedShifts', 'dailyReports', 'manualEntryRecords'];
     const logisticsKeys = [
