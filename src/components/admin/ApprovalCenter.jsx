@@ -547,24 +547,39 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
     const filterFn = r => {
       if (!r) return false;
-      const rId = String(r.id !== undefined ? r.id : r.report_no || '');
+      const rId = String(r.id !== undefined && r.id !== null ? r.id : r.report_no || '');
       const rNo = String(r.report_no || '');
-      return rId !== targetId && rNo !== targetReportNo;
+      return rId !== targetId && rNo !== targetReportNo && rId !== targetReportNo && rNo !== targetId;
     };
 
-    // 1. Trigger explicit delete-item on backend API
+    // 1. Trigger explicit delete-item on backend API for both keys
     fetch(getApiUrl('/api/master-data/delete-item'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId })
     }).catch(() => {});
 
-    // 2. Filter local state & post master data update
+    if (targetReportNo && targetReportNo !== targetId) {
+      fetch(getApiUrl('/api/master-data/delete-item'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetReportNo })
+      }).catch(() => {});
+    }
+
+    // 2. Filter local state, update deletedLogisticsIds & deletedReportIds, & post master data update
     setMasterData(prev => {
       const now = Date.now();
+      const prevDelLog = (prev.deletedLogisticsIds || []).map(x => String(x));
+      const prevDelRep = (prev.deletedReportIds || []).map(x => String(x));
+      const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReportNo].filter(Boolean)));
+      const updatedDelRep = Array.from(new Set([...prevDelRep, targetId, targetReportNo].filter(Boolean)));
+
       const newMaster = {
         ...prev,
         _lastUpdated: now,
+        deletedLogisticsIds: updatedDelLog,
+        deletedReportIds: updatedDelRep,
         approvedFinanceDaily: (prev.approvedFinanceDaily || []).filter(filterFn),
         shiftClosings: (prev.shiftClosings || []).filter(filterFn),
         shift_closings: (prev.shift_closings || []).filter(filterFn),

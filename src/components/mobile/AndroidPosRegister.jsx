@@ -944,7 +944,9 @@ export default function AndroidPosRegister({
             const LOGISTICS_ARRAY_KEYS = new Set([
               'stockOpname', 'approvedLogistics', 'approvedOpname',
               'stockTransfer', 'approvedTransfers', 'damagedGoods',
-              'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+              'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+              'approvedFinanceDaily', 'shiftClosings', 'shift_closings',
+              'closedShifts', 'dailyReports', 'manualEntryRecords'
             ]);
 
             const smartMergeArray = (localArr, serverArr, keyName = '') => {
@@ -969,7 +971,7 @@ export default function AndroidPosRegister({
                 if (k) {
                   const existing = map.get(k);
                   if (!existing) {
-                    // Untuk array logistik, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
+                    // Untuk array logistik & laporan, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
                     if (!LOGISTICS_ARRAY_KEYS.has(keyName)) {
                       map.set(k, item);
                     }
@@ -979,11 +981,13 @@ export default function AndroidPosRegister({
                 }
               });
 
-              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedOutflowIds
+              // Filter out semua item yang ID/report_no nya ada di deletedLogisticsIds / deletedReportIds / deletedOutflowIds
               const deletedSet = new Set([
                 ...(serverMaster.deletedLogisticsIds || []),
+                ...(serverMaster.deletedReportIds || []),
                 ...(serverMaster.deletedOutflowIds || []),
-                ...(prev.deletedLogisticsIds || [])
+                ...(prev.deletedLogisticsIds || []),
+                ...(prev.deletedReportIds || [])
               ].map(x => String(x)));
 
               return Array.from(map.values()).filter(item => {
@@ -1490,7 +1494,38 @@ export default function AndroidPosRegister({
     t => !t.outlet_id || Number(t.outlet_id) === Number(currentOutlet.id)
   );
 
-  const [tableStatusMap, setTableStatusMap] = useState({});
+  const [activeRecallOrderId, setActiveRecallOrderId] = useState(null);
+
+  // Persistence: tableStatusMap (Dine-in meja) & heldOrdersList (Take-away / Non-meja)
+  const [tableStatusMap, setTableStatusMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem('MRIS_POS_TABLE_STATUS_MAP');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const [heldOrdersList, setHeldOrdersList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('MRIS_POS_HELD_ORDERS_LIST');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('MRIS_POS_TABLE_STATUS_MAP', JSON.stringify(tableStatusMap || {}));
+    } catch (e) {}
+  }, [tableStatusMap]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('MRIS_POS_HELD_ORDERS_LIST', JSON.stringify(heldOrdersList || []));
+    } catch (e) {}
+  }, [heldOrdersList]);
 
   // Generate dynamic table list for current outlet
   const tables = React.useMemo(() => {
@@ -1562,30 +1597,57 @@ export default function AndroidPosRegister({
   const defaultFallbackTable = { id: 'T-01', number: 'Meja 01', seats: 4, status: 'available', pendingOrder: null };
   const selectedTableObj = tables.find(t => t.id === selectedTableId) || tables[0] || defaultFallbackTable;
 
-  // Get all occupied/pending table orders for Chart tab table
+  // Get all occupied/pending table & non-table orders for Cart & Order tab
   const pendingOrdersList = React.useMemo(() => {
     const list = [];
+
+    // 1. Table-based orders (Dine In)
     Object.entries(tableStatusMap || {}).forEach(([tableId, statusData]) => {
       if (statusData && statusData.status === 'occupied' && statusData.pendingOrder) {
         const tblObj = tables.find(t => t.id === tableId);
         const tblNum = tblObj?.number || `Meja ${tableId}`;
         const pOrder = statusData.pendingOrder;
-        
+
         list.push({
           tableId: tableId,
-          receiptNo: pOrder.holdTx?.id || `HOLD-${tableId}-${Date.now().toString().substring(8)}`,
+          orderId: pOrder.holdTx?.id || `HOLD-${tableId}`,
+          receiptNo: pOrder.holdTx?.id || `HOLD-${tableId}`,
           date: pOrder.holdTx?.date || new Date().toISOString().split('T')[0],
           time: pOrder.startTime || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
           customerName: pOrder.customerName || 'Pelanggan Umum',
           tableNumber: tblNum,
+          orderType: pOrder.holdTx?.order_type || 'Dine In',
           totalAmount: pOrder.totalAmount || 0,
           status: 'Belum Dibayar',
-          items: pOrder.items || []
+          items: pOrder.items || [],
+          holdTx: pOrder.holdTx
         });
       }
     });
+
+    // 2. Non-table orders (Take Away / Antrean Gantung)
+    (heldOrdersList || []).forEach(hOrder => {
+      if (hOrder && hOrder.status !== 'completed') {
+        list.push({
+          tableId: null,
+          heldOrderId: hOrder.id,
+          orderId: hOrder.id,
+          receiptNo: hOrder.id,
+          date: hOrder.date || new Date().toISOString().split('T')[0],
+          time: hOrder.time || '',
+          customerName: hOrder.customerName || hOrder.customer_name || 'Pelanggan Umum',
+          tableNumber: hOrder.table_number || 'N/A (Take Away)',
+          orderType: hOrder.order_type || 'Take Away',
+          totalAmount: hOrder.amount || hOrder.totalAmount || 0,
+          status: 'Belum Dibayar',
+          items: hOrder.items || [],
+          holdTx: hOrder.holdTx || hOrder
+        });
+      }
+    });
+
     return list;
-  }, [tableStatusMap, tables]);
+  }, [tableStatusMap, tables, heldOrdersList]);
 
   // Outlet Sales Transactions — useMemo: hanya dihitung ulang jika masterData atau selectedBranch berubah
   const outletTransactions = useMemo(() => {
@@ -1697,51 +1759,76 @@ export default function AndroidPosRegister({
 
   const cartTotal = Math.max(0, subtotalAfterDiscount + numAdjustment);
 
-  // HOLD DINE-IN TABLE ORDER (SIMPAN PESANAN GANTUNG MEJA & AUTO PRINT DAPUR)
+  // HOLD DINE-IN TABLE OR TAKE AWAY ORDER (SIMPAN PESANAN GANTUNG BEBAS & AUTO PRINT DAPUR)
   const handleHoldTableOrder = () => {
     if (cart.length === 0 && (!openedOriginalCart || openedOriginalCart.length === 0)) return;
-    if (!selectedTableId) return;
 
-    const tblNum = selectedTableObj?.number || 'Meja 01';
+    const isDineIn = orderType === 'Dine In' && selectedTableId;
+    const tblNum = isDineIn ? (selectedTableObj?.number || 'Meja 01') : 'N/A (Take Away)';
     const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const currentDate = new Date().toISOString().split('T')[0];
 
     // Compute diff items for supplementary printing if order was opened & modified
     const finalPrintItems = openedOriginalCart ? computeOrderDiffItems(cart, openedOriginalCart) : [...cart];
 
+    const holdId = activeRecallOrderId || `HOLD-${Date.now().toString().substring(6)}`;
+
     const holdTx = {
-      id: `HOLD-${Date.now().toString().substring(6)}`,
+      id: holdId,
       date: currentDate,
       time: currentTime,
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
       customer_name: selectedCustomer || 'Pelanggan Umum',
-      order_type: 'Dine In (Pesanan Gantung)',
+      order_type: `${orderType} (Pesanan Gantung)`,
       table_number: tblNum,
       items: finalPrintItems,
       amount: cartTotal,
       payment_method: 'Pesanan Gantung (Belum Dibayar)',
-      cashier: 'master (Superadmin POS)',
+      cashier: currentUserSession?.name || 'Kasir Mobile',
       notes: `Pesanan Gantung ${tblNum}`,
       status: 'Belum Dibayar'
     };
 
-    setTableStatusMap(prev => ({
-      ...prev,
-      [selectedTableId]: {
-        status: 'occupied',
-        pendingOrder: {
-          items: [...cart],
-          totalAmount: cartTotal,
-          customerName: selectedCustomer,
-          startTime: currentTime,
-          holdTx: holdTx
+    if (isDineIn) {
+      setTableStatusMap(prev => ({
+        ...prev,
+        [selectedTableId]: {
+          status: 'occupied',
+          pendingOrder: {
+            items: [...cart],
+            totalAmount: cartTotal,
+            customerName: selectedCustomer,
+            startTime: currentTime,
+            holdTx: holdTx
+          }
         }
-      }
-    }));
+      }));
+    } else {
+      setHeldOrdersList(prev => {
+        const filtered = prev.filter(o => o.id !== holdId);
+        return [
+          ...filtered,
+          {
+            id: holdId,
+            date: currentDate,
+            time: currentTime,
+            customerName: selectedCustomer || 'Pelanggan Umum',
+            customer_name: selectedCustomer || 'Pelanggan Umum',
+            order_type: orderType,
+            table_number: tblNum,
+            items: [...cart],
+            totalAmount: cartTotal,
+            amount: cartTotal,
+            holdTx: holdTx
+          }
+        ];
+      });
+    }
 
     setCurrentSaveOrderTx(holdTx);
     setOpenedOriginalCart(null); // Reset after saving/updating
+    setActiveRecallOrderId(null);
     setActiveReceiptSelections({
       printKitchen: true,
       printBar: true,
@@ -1751,7 +1838,7 @@ export default function AndroidPosRegister({
 
     // Selalu tampilkan modal pilihan Struk Dapur & Bar (tanpa harga)
     setShowSaveOrderReceiptModal(true);
-    setCart([]);
+    handleClearCart();
   };
 
   // GENERATE CONTOH TAGIHAN SEMENTARA (MASUK PESANAN GANTUNG & CETAK CONTOH TAGIHAN)
@@ -1960,6 +2047,256 @@ export default function AndroidPosRegister({
     await printTextToBluetooth(text);
   }, [currentOutlet, printerPaperWidth, printTextToBluetooth, masterData]);
 
+  // ─── HELPER KALKULASI STOK MASUK & TRANSFER STOK OPNAME ─────────────────
+  const getStokMasukFromLaporanHarian = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalMasuk = 0;
+    const reports = [
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.manualEntryRecords || []),
+      ...(masterData?.approvedLogistics || [])
+    ];
+
+    reports.forEach(report => {
+      const rDate = report.date || report.tanggal || report.report_date;
+      const rOutlet = report.outlet_id || report.branch_id;
+
+      const dateMatch = !targetDate || !rDate || rDate === targetDate;
+      const outletMatch = !targetOutletId || !rOutlet || String(rOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = report.cogs_items || report.pembelian_barang || report.items || report.ingredient_items || [];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.name || item.item_name || item.nama_barang || item.bahan || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalMasuk += Number(item.qty || item.jumlah || item.quantity || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalMasuk;
+  }, [masterData]);
+
+  const getTransferStokMasuk = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalIn = 0;
+    const transfers = [
+      ...(masterData?.approvedTransfers || []),
+      ...(masterData?.stockTransfer || [])
+    ];
+
+    transfers.forEach(trf => {
+      const tDate = trf.date || trf.tanggal;
+      const destOutlet = trf.destination_outlet_id || trf.target_outlet_id || trf.destination_outlet || trf.to_outlet_id;
+
+      const dateMatch = !targetDate || !tDate || tDate === targetDate;
+      const outletMatch = !targetOutletId || !destOutlet || String(destOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = trf.items || trf.transfer_items || [trf];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.item_name || item.nama_barang || item.name || trf.item_name || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalIn += Number(item.qty || item.jumlah || trf.qty || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalIn;
+  }, [masterData]);
+
+  const getTransferStokKeluar = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalOut = 0;
+    const transfers = [
+      ...(masterData?.approvedTransfers || []),
+      ...(masterData?.stockTransfer || [])
+    ];
+
+    transfers.forEach(trf => {
+      const tDate = trf.date || trf.tanggal;
+      const srcOutlet = trf.source_outlet_id || trf.from_outlet_id || trf.source_outlet;
+
+      const dateMatch = !targetDate || !tDate || tDate === targetDate;
+      const outletMatch = !targetOutletId || !srcOutlet || String(srcOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = trf.items || trf.transfer_items || [trf];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.item_name || item.nama_barang || item.name || trf.item_name || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalOut += Number(item.qty || item.jumlah || trf.qty || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalOut;
+  }, [masterData]);
+
+  const getStokRusakFromLaporanWaste = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalWaste = 0;
+    const wasteReports = [
+      ...(masterData?.approvedWaste || []),
+      ...(masterData?.damagedGoods || []),
+      ...(masterData?.stok_rusak || [])
+    ];
+
+    wasteReports.forEach(w => {
+      const wDate = w.date || w.tanggal;
+      const wOutlet = w.outlet_id || w.branch_id;
+
+      const dateMatch = !targetDate || !wDate || wDate === targetDate;
+      const outletMatch = !targetOutletId || !wOutlet || String(wOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = w.items || w.waste_items || [w];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.item_name || item.nama_barang || item.name || w.item_name || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalWaste += Number(item.qty || item.jumlah || w.qty || w.stok_rusak || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalWaste;
+  }, [masterData]);
+
+  const handleExportOpnameExcel = useCallback((records) => {
+    if (!records || records.length === 0) {
+      alert('Tidak ada data stok opname untuk di-export!');
+      return;
+    }
+    let csv = 'Tanggal Audit,No Laporan,Dibuat Oleh,Nama Item,Stok Awal,Stok Masuk,Stok Keluar,Transfer Masuk,Transfer Keluar,Stok Rusak,Stok Sistem,Stok Fisik,Status,Harga Satuan,Denda Per Stok\n';
+    records.forEach(r => {
+      const sSistem = (r.stok_awal || 0) + (r.stok_masuk || 0) + (r.transfer_masuk || 0) - ((r.stok_keluar || 0) + (r.stok_rusak || 0) + (r.transfer_keluar || 0));
+      const isDefisit = (r.stok_fisik || 0) < sSistem;
+      const statusStr = (r.status === 'Done' || r.status === 'ACC' || r.status === 'approved') ? 'Done' : 'Pending';
+      const harga = r.harga_satuan || 0;
+      const denda = isDefisit ? Math.abs((r.stok_fisik || 0) - sSistem) * harga : 0;
+      csv += `"${r.date || ''}","${r.report_no || r.id || ''}","${r.created_by || r.submitted_by || ''}","${r.item_name || ''}",${r.stok_awal || 0},${r.stok_masuk || 0},${r.stok_keluar || 0},${r.transfer_masuk || 0},${r.transfer_keluar || 0},${r.stok_rusak || 0},${sSistem},${r.stok_fisik || 0},"${statusStr}",${harga},${denda}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Laporan_Stok_Opname_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  }, []);
+
+  const handleExportOpnamePDF = useCallback((records) => {
+    if (!records || records.length === 0) {
+      alert('Tidak ada data stok opname untuk di-export!');
+      return;
+    }
+    let printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    let html = `
+      <html>
+        <head>
+          <title>Laporan Stok Opname - POS Kasir</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #111; }
+            h2 { margin-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+            th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+            th { background: #f1f5f9; font-weight: bold; }
+            .right { text-align: right; }
+            .center { text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h2>📋 Laporan Stok Opname (POS Kasir)</h2>
+          <p>Tanggal Cetak: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>No Laporan</th>
+                <th>Dibuat Oleh</th>
+                <th>Nama Item</th>
+                <th class="right">Stok Awal</th>
+                <th class="right">Stok Masuk</th>
+                <th class="right">Stok Rusak</th>
+                <th class="right">Stok Fisik</th>
+                <th class="center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${records.map(r => `
+                <tr>
+                  <td>${r.date || ''}</td>
+                  <td>${r.report_no || r.id || ''}</td>
+                  <td>${r.created_by || r.submitted_by || ''}</td>
+                  <td>${r.item_name || ''}</td>
+                  <td class="right">${r.stok_awal || 0} ${r.unit || 'kg'}</td>
+                  <td class="right">${r.stok_masuk || 0} ${r.unit || 'kg'}</td>
+                  <td class="right">${r.stok_rusak || 0} ${r.unit || 'kg'}</td>
+                  <td class="right">${r.stok_fisik || 0} ${r.unit || 'kg'}</td>
+                  <td class="center">${(r.status === 'Done' || r.status === 'ACC' || r.status === 'approved') ? '🟢 DONE' : '⏳ PENDING'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }, []);
+
+  const handleOpenStokOpnameModal = useCallback((existingReport = null) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const targetDate = existingReport?.date || todayStr;
+    const targetOutletId = existingReport?.outlet_id || currentOutlet.id || 1;
+
+    const rawIngredients = masterData.ingredients || [];
+    const activeIngs = rawIngredients.filter(ing =>
+      ing.tampilkan_di_apk !== 'Inaktif' &&
+      ing.tampilkan_di_apk !== 'inaktif' &&
+      ing.status !== 'Inaktif' &&
+      ing.status !== 'inaktif'
+    );
+
+    const initialRows = activeIngs.map((ing, idx) => {
+      const name = ing.name;
+      const unit = ing.unit || 'kg';
+
+      const matchPrev = existingReport?.items?.find(i => (i.item_name || i.nama_barang || '').toLowerCase() === name.toLowerCase())
+        || (existingReport && (existingReport.item_name || '').toLowerCase() === name.toLowerCase() ? existingReport : null);
+
+      const stokAwal = matchPrev?.stok_awal !== undefined ? matchPrev.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0));
+      const stokFisik = matchPrev?.stok_fisik !== undefined ? matchPrev.stok_fisik : '';
+
+      return {
+        id: ing.id || `ing-opname-${idx}`,
+        item_name: name,
+        unit: unit,
+        stok_awal: stokAwal,
+        stok_fisik: stokFisik
+      };
+    });
+
+    setOpnameBatchRows(initialRows);
+    setLogDate(targetDate);
+    setLogNo(existingReport?.report_no || existingReport?.id || `SO-${targetDate.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
+    setLogSubmittedBy(existingReport?.submitted_by || userSession?.name || currentUserSession?.name || 'Kasir Mobile');
+    setLogOutletId(targetOutletId);
+    setShowAddLogisticsModal(true);
+  }, [masterData, currentOutlet, userSession, currentUserSession]);
+
 
   // LAPORAN SHIFT CLOSING ke hardware Bluetooth printer
   const handlePrintShiftClosingReport = useCallback(async (shiftData) => {
@@ -1996,15 +2333,69 @@ export default function AndroidPosRegister({
 
     await printTextToBluetooth(lines);
   }, [currentOutlet, printerPaperWidth, printTextToBluetooth]);
-
-  // CHECKOUT / OPEN OCCUPIED TABLE FROM BOARD
   const handleCheckoutOccupiedTable = (table) => {
-    if (!table.pendingOrder) return;
+    if (!table || !table.pendingOrder) return;
     setCart([...table.pendingOrder.items]);
     setOpenedOriginalCart(JSON.parse(JSON.stringify(table.pendingOrder.items))); // Store original items snapshot
+    setActiveRecallOrderId(table.pendingOrder.holdTx?.id || `HOLD-${table.id}`);
     setSelectedCustomer(table.pendingOrder.customerName || 'Pelanggan Umum');
     setSelectedTableId(table.id);
+    setOrderType('Dine In');
     setShowTableMapModal(false);
+  };
+
+  // RECALL HELD ORDER (DINE IN OR TAKE AWAY)
+  const handleRecallPendingOrder = (row) => {
+    if (!row || !row.items) return;
+    setCart([...row.items]);
+    setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
+    setActiveRecallOrderId(row.orderId || row.heldOrderId || row.receiptNo);
+    setSelectedCustomer(row.customerName || 'Pelanggan Umum');
+    if (row.tableId) {
+      setSelectedTableId(row.tableId);
+      setOrderType('Dine In');
+    } else {
+      setOrderType(row.orderType || 'Take Away');
+    }
+    setActiveNavTab('kasir');
+    setShowTableMapModal(false);
+  };
+
+  // DELETE / CANCEL HELD PENDING ORDER FROM QUEUE
+  const handleDeletePendingOrder = (row, e = null) => {
+    if (e) e.stopPropagation();
+    if (!row) return;
+
+    const targetId = row.orderId || row.heldOrderId || row.receiptNo;
+    const custName = row.customerName || 'Pelanggan Umum';
+
+    if (window.confirm(`Apakah Anda yakin ingin menghapus / membatalkan pesanan gantung ${row.receiptNo} (${custName})?`)) {
+      if (row.tableId) {
+        setTableStatusMap(prev => {
+          const copy = { ...prev };
+          delete copy[row.tableId];
+          return copy;
+        });
+      }
+      
+      setHeldOrdersList(prev => prev.filter(o => o.id !== targetId && o.id !== row.heldOrderId && o.id !== row.orderId));
+
+      if (activeRecallOrderId === targetId) {
+        handleClearCart();
+        setActiveRecallOrderId(null);
+        setOpenedOriginalCart(null);
+      }
+    }
+  };
+
+  // QUICK PAY FROM PENDING ORDERS QUEUE
+  const handleQuickPayPendingOrder = (row, e = null) => {
+    if (e) e.stopPropagation();
+    if (!row || !row.items) return;
+    handleRecallPendingOrder(row);
+    setSelectedPaymentMethod('Cash');
+    setTenderedCash('');
+    setShowPaymentScreenModal(true);
   };
 
   // TAP 2: EXECUTE INSTANT PAYMENT & RESET TABLE TO KOSONG
@@ -2060,6 +2451,7 @@ export default function AndroidPosRegister({
     const pointsDeducted = methodName === 'Pembayaran Poin' ? Math.ceil(finalTotalAmount / 1000) : 0;
 
     let updatedCustomersList = masterData?.customers || [];
+
     if (finalCustomerName !== 'Pelanggan Umum') {
       const existingIdx = updatedCustomersList.findIndex(c => c.name?.toLowerCase() === finalCustomerName.toLowerCase());
       if (existingIdx !== -1) {
@@ -2162,16 +2554,22 @@ export default function AndroidPosRegister({
       return updated;
     });
 
-    // Reset Table status back to Available (Kosong)
+    // Reset Table status back to Available (Kosong) & remove from heldOrdersList
     if (orderType === 'Dine In' && selectedTableId) {
-      setTableStatusMap(prev => ({
-        ...prev,
-        [selectedTableId]: { status: 'available', pendingOrder: null }
-      }));
+      setTableStatusMap(prev => {
+        const copy = { ...prev };
+        delete copy[selectedTableId];
+        return copy;
+      });
+    }
+    if (activeRecallOrderId) {
+      setHeldOrdersList(prev => prev.filter(o => o.id !== activeRecallOrderId));
+      setActiveRecallOrderId(null);
     }
 
+    setOpenedOriginalCart(null);
     setLastCompletedTx(newTx);
-    setCart([]);
+    handleClearCart();
     setShowReceiptModal(true);
     handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
   };
@@ -3235,8 +3633,35 @@ export default function AndroidPosRegister({
                 </div>
 
                 {/* Cart Sub-Header Meta Bar */}
-                <div style={{ padding: '10px 16px', background: T.bgApp, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtSecondary }}>#Pesanan Baru</span>
+                <div style={{ padding: '10px 16px', background: T.bgApp, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtSecondary }}>
+                      {activeRecallOrderId ? `✏️ ${activeRecallOrderId}` : '#Pesanan Baru'}
+                    </span>
+                    {(cart.length > 0 || activeRecallOrderId) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleClearCart();
+                          setActiveRecallOrderId(null);
+                          setOpenedOriginalCart(null);
+                        }}
+                        style={{
+                          background: 'rgba(37,99,235,0.15)',
+                          border: `1px solid ${isLight ? '#2563eb' : '#3b82f6'}`,
+                          color: isLight ? '#1d4ed8' : '#60a5fa',
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer'
+                        }}
+                        title="Kosongkan Cart untuk membuat pesanan baru tanpa menghapus pesanan gantung lain"
+                      >
+                        ➕ Order Baru
+                      </button>
+                    )}
+                  </div>
                   <button
                     onClick={() => {
                       setCustomerSearchQuery('');
@@ -3739,13 +4164,7 @@ export default function AndroidPosRegister({
                       {pendingOrdersList.map((row) => (
                         <tr
                           key={row.receiptNo}
-                          onClick={() => {
-                            setSelectedTableId(row.tableId);
-                            setCart([...row.items]);
-                            setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
-                            setSelectedCustomer(row.customerName);
-                            setActiveNavTab('kasir');
-                          }}
+                          onClick={() => handleRecallPendingOrder(row)}
                           style={{
                             borderBottom: '1px solid rgba(255,255,255,0.05)',
                             color: 'var(--pos-txt-primary)',
@@ -3792,29 +4211,72 @@ export default function AndroidPosRegister({
                           </td>
 
                           {/* 8. AKSI */}
-                          <td style={{ padding: '14px', textAlign: 'right' }}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedTableId(row.tableId);
-                                setCart([...row.items]);
-                                setOpenedOriginalCart(JSON.parse(JSON.stringify(row.items)));
-                                setSelectedCustomer(row.customerName);
-                                setActiveNavTab('kasir');
-                              }}
-                              style={{
-                                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                color: 'var(--pos-txt-primary)',
-                                border: 'none',
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                fontSize: '0.75rem',
-                                fontWeight: '800',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              📥 Buka Pesanan
-                            </button>
+                          <td style={{ padding: '14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRecallPendingOrder(row);
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                  color: 'var(--pos-txt-primary)',
+                                  border: 'none',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                📥 Buka / Ubah
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => handleQuickPayPendingOrder(row, e)}
+                                style={{
+                                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                  color: 'var(--pos-txt-primary)',
+                                  border: 'none',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
+                                }}
+                              >
+                                💳 Bayar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeletePendingOrder(row, e)}
+                                style={{
+                                  background: 'rgba(239, 68, 68, 0.15)',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                                  color: '#f87171',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                🗑️ Hapus
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -5600,10 +6062,21 @@ export default function AndroidPosRegister({
                     </p>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <span style={{ fontSize: '0.78rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '6px 14px', borderRadius: '20px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>🔄 Data Live dari Web Admin Logistik</span>
-                    </span>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleExportOpnameExcel(masterData?.stockOpname || [])}
+                      style={{ padding: '6px 14px', background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      📊 Download Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExportOpnamePDF(masterData?.stockOpname || [])}
+                      style={{ padding: '6px 14px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      📄 Download PDF
+                    </button>
                   </div>
                 </div>
 
@@ -7762,7 +8235,7 @@ export default function AndroidPosRegister({
                               </div>
                             </div>
                           </div>
-<button style={{ background: isCur ? '#34d399' : '#6366f1', color: 'var(--pos-txt-white)', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
+                          <button style={{ background: isCur ? '#34d399' : '#6366f1', color: 'var(--pos-txt-white)', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '900' }}>
                             {isCur ? '✓ Terpilih' : 'Pilih'}
                           </button>
                         </div>
@@ -7811,7 +8284,7 @@ export default function AndroidPosRegister({
               borderBottom: '1px solid #e2e8f0',
               background: '#ffffff'
             }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: 'var(--pos-bg-card)', margin: 0, letterSpacing: '0.5px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '0.5px' }}>
                 {selectedProductForVariant.name.toUpperCase()}
               </h3>
               <button
@@ -7890,7 +8363,7 @@ export default function AndroidPosRegister({
                             }}
                           >
                             <div>
-                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#1e293b' }}>
+                              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: '#0f172a' }}>
                                 {item.title}
                               </div>
                               <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginTop: '2px' }}>
@@ -7973,7 +8446,8 @@ export default function AndroidPosRegister({
                         fontSize: '0.88rem',
                         fontWeight: '800',
                         color: '#f43f5e',
-                        outline: 'none'
+                        outline: 'none',
+                        background: '#ffffff'
                       }}
                     />
                   </div>
@@ -8005,10 +8479,11 @@ export default function AndroidPosRegister({
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid #cbd5e1',
                       fontSize: '0.88rem',
                       outline: 'none',
-                      color: 'var(--pos-bg-card)'
+                      color: '#0f172a',
+                      background: '#ffffff'
                     }}
                   />
                 </div>
@@ -8080,12 +8555,12 @@ export default function AndroidPosRegister({
                       flex: 1,
                       height: '48px',
                       background: '#583782',
-                      color: 'var(--pos-txt-primary)',
+                      color: '#ffffff',
                       border: 'none',
                       borderRadius: '10px',
                       padding: '0 16px',
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       fontSize: '0.95rem',
                       fontWeight: '800',
@@ -8107,18 +8582,18 @@ export default function AndroidPosRegister({
                         height: '32px',
                         borderRadius: '50%',
                         background: '#ef4444',
-                        color: 'var(--pos-txt-primary)',
+                        color: '#ffffff',
                         border: 'none',
                         display: 'flex',
                         alignItems: 'center',
-                        justify: 'center',
+                        justifyContent: 'center',
                         cursor: 'pointer'
                       }}
                     >
                       <Minus size={18} strokeWidth={3} />
                     </button>
 
-                    <span style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-bg-card)', minWidth: '24px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#0f172a', minWidth: '24px', textAlign: 'center' }}>
                       {modalProductQty}
                     </span>
 
@@ -8130,12 +8605,11 @@ export default function AndroidPosRegister({
                         height: '32px',
                         borderRadius: '50%',
                         background: '#22c55e',
-                        color: 'var(--pos-txt-primary)',
+                        color: '#ffffff',
                         border: 'none',
                         display: 'flex',
                         alignItems: 'center',
-                        justify: 'center',
-                        cursor: 'pointer'
+                        justifyContent: 'center',
                       }}
                     >
                       <Plus size={18} strokeWidth={3} />
@@ -9799,8 +10273,8 @@ export default function AndroidPosRegister({
                       }}
                       style={{
                         background: isSelected ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#ffffff',
-                        color: isSelected ? '#ffffff' : 'var(--pos-bg-card)',
-                        border: isSelected ? '2px solid #1d4ed8' : '1px solid #e2e8f0',
+                        color: isSelected ? '#ffffff' : '#0f172a',
+                        border: isSelected ? '2px solid #1d4ed8' : '1px solid #cbd5e1',
                         borderRadius: '12px',
                         padding: '16px 10px',
                         fontSize: '0.88rem',
@@ -9847,14 +10321,14 @@ export default function AndroidPosRegister({
               {/* CASH TENDERED QUICK PRESET BAR (IF CASH IS SELECTED) */}
               {selectedPaymentMethod === 'Cash' && (
                 <div style={{ background: '#ffffff', padding: '12px 16px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>Uang Tunai Diterima:</div>
+                  <div style={{ fontSize: '0.78rem', color: '#475569', fontWeight: '800' }}>Uang Tunai Diterima:</div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
                       type="number"
                       value={tenderedCash}
                       onChange={e => setTenderedCash(e.target.value)}
                       placeholder={`Nominal Tunai (cth: ${cartTotal})`}
-                      style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: '800', outline: 'none' }}
+                      style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: '800', outline: 'none', color: '#0f172a', background: '#ffffff' }}
                     />
                     <button
                       onClick={() => setTenderedCash(cartTotal.toString())}
@@ -9868,7 +10342,7 @@ export default function AndroidPosRegister({
                       <button
                         key={val}
                         onClick={() => setTenderedCash(val.toString())}
-                        style={{ flex: 1, background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 4px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--pos-border-card)', cursor: 'pointer' }}
+                        style={{ flex: 1, background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '8px 4px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', color: '#0f172a', cursor: 'pointer' }}
                       >
                         {formatRupiah(val)}
                       </button>
@@ -9898,21 +10372,21 @@ export default function AndroidPosRegister({
                   }}>
                     <div style={{ textAlign: 'center', flex: 1 }}>
                       <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Total Bayar</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: '#1e293b' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>
                         {formatRupiah(numTendered)}
                       </div>
                     </div>
                     <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
                     <div style={{ textAlign: 'center', flex: 1 }}>
                       <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kurang Bayar</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kurangBayar > 0 ? '#ef4444' : '#1e293b' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kurangBayar > 0 ? '#ef4444' : '#0f172a' }}>
                         {formatRupiah(kurangBayar)}
                       </div>
                     </div>
                     <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
                     <div style={{ textAlign: 'center', flex: 1 }}>
                       <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kembalian</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kembalian > 0 ? '#10b981' : '#1e293b' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kembalian > 0 ? '#10b981' : '#0f172a' }}>
                         {formatRupiah(kembalian)}
                       </div>
                     </div>
@@ -9937,8 +10411,8 @@ export default function AndroidPosRegister({
                     style={{
                       width: '100%',
                       height: '48px',
-                      background: isPaymentValid ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#e2e8f0',
-                      color: isPaymentValid ? '#ffffff' : '#94a3b8',
+                      background: isPaymentValid ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#cbd5e1',
+                      color: isPaymentValid ? '#ffffff' : '#475569',
                       border: 'none',
                       borderRadius: '12px',
                       fontSize: '1.05rem',
@@ -11056,7 +11530,7 @@ export default function AndroidPosRegister({
         }}>
           <div className="glass-card animate-fade-in" style={{
             width: '100vw', height: '100vh', maxWidth: '100vw', maxHeight: '100vh', overflowY: 'auto',
-            padding: '28px 36px', background: '#0b0f19', border: 'none', borderRadius: '0px',
+            padding: '24px 32px', background: '#0b0f19', border: 'none', borderRadius: '0px',
             display: 'flex', flexDirection: 'column', gap: '20px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
@@ -11077,107 +11551,91 @@ export default function AndroidPosRegister({
             </div>
 
             {(() => {
-              // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
               const rawIngredients = masterData.ingredients || [];
               const ingredientsList = rawIngredients.filter(ing =>
-                ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
+                ing.tampilkan_di_apk !== 'Inaktif' &&
+                ing.tampilkan_di_apk !== 'inaktif' &&
+                ing.status !== 'Inaktif' &&
+                ing.status !== 'inaktif'
               );
 
               const adminList = (masterData.webAdminAccounts || masterData.mobileAccounts || []).map(acc => ({
                 id: acc.id, name: acc.name, role: acc.role || acc.jabatan || 'Kasir'
               }));
 
-              const handleUpdateRow = (id, field, value) => {
-                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+              const handleUpdateStokAwal = (id, val) => {
+                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, stok_awal: val } : r));
               };
 
-              const handleDeleteRow = (id) => {
-                setOpnameBatchRows(prev => prev.filter(r => r.id !== id));
-              };
-
-              const handleAddEmptyRow = () => {
-                const defaultIng = ingredientsList[0] || { name: 'Bahan Baku Baru', unit: 'kg' };
-                const newRow = {
-                  id: `batch-custom-${Date.now()}`,
-                  item_name: defaultIng.name,
-                  unit: defaultIng.unit || 'kg',
-                  stok_awal: '',
-                  stok_masuk: 0,
-                  transfer_masuk: 0,
-                  transfer_keluar: 0,
-                  stok_rusak: 0,
-                  stok_fisik: 0,
-                  isEditing: true
-                };
-                setOpnameBatchRows(prev => [...prev, newRow]);
+              const handleUpdateStokFisik = (id, val) => {
+                setOpnameBatchRows(prev => prev.map(r => r.id === id ? { ...r, stok_fisik: val } : r));
               };
 
               return (
                 <form onSubmit={e => {
                   e.preventDefault();
 
-                  if (!opnameBatchRows || opnameBatchRows.length === 0 || !opnameBatchRows[0]?.item_name) {
-                    alert('Harap cari dan pilih bahan baku yang akan diaudit!');
+                  if (!opnameBatchRows || opnameBatchRows.length === 0) {
+                    alert('Tidak ada bahan baku aktif yang dapat diaudit!');
                     return;
                   }
 
-                  const selectedItemName = (opnameBatchRows[0]?.item_name || '').trim();
+                  const newRecords = opnameBatchRows.map((r, idx) => {
+                    const sAwal = Number(r.stok_awal || 0);
+                    const sMasuk = getStokMasukFromLaporanHarian(r.item_name, logDate, logOutletId);
+                    const trfIn = getTransferStokMasuk(r.item_name, logDate, logOutletId);
+                    const trfOut = getTransferStokKeluar(r.item_name, logDate, logOutletId);
+                    const sRusak = getStokRusakFromLaporanWaste(r.item_name, logDate, logOutletId);
+                    const sFisik = r.stok_fisik !== '' ? Number(r.stok_fisik) : sAwal;
+                    const sSistem = sAwal + sMasuk + trfIn - (trfOut + sRusak);
+                    const selisih = sFisik - sSistem;
 
-                  // ── VALIDASI MASTER DATA BAHAN BAKU PUSAT ───────────────────
-                  const isValidMasterIng = ingredientsList.some(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
-                  if (!isValidMasterIng) {
-                    alert(`⛔ PENGAJUAN DITOLAK!\n\nBahan baku "${selectedItemName}" tidak terdaftar di Master Data Bahan Baku Pusat!\n\nHarap pilih dari sugesti otomatis yang tersedia.`);
-                    return;
-                  }
-
-                  const foundIng = ingredientsList.find(i => (i.name || '').trim().toLowerCase() === selectedItemName.toLowerCase());
-                  const unitVal = opnameBatchRows[0]?.unit || foundIng?.unit || 'kg';
-                  const stokFisikVal = Number(opnameBatchRows[0]?.stok_fisik || 0);
-                  const stokAwalVal = Number(opnameBatchRows[0]?.stok_awal || foundIng?.stock || foundIng?.stok || 0);
-
-                  const newRecord = {
-                    id: logNo,
-                    report_no: logNo,
-                    date: logDate,
-                    outlet_id: logOutletId,
-                    branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || 'Restoran Utama',
-                    submitted_by: logSubmittedBy,
-                    created_by: logSubmittedBy,
-                    author_name: logSubmittedBy,
-                    item_name: selectedItemName,
-                    unit: unitVal,
-                    stok_awal: stokAwalVal,
-                    stok_masuk: 0,
-                    stok_keluar: 0,
-                    transfer_keluar: 0,
-                    transfer_masuk: 0,
-                    stok_rusak: 0,
-                    stok_fisik: stokFisikVal,
-                    status: 'Pending'
-                  };
+                    return {
+                      id: `${logNo}-${idx + 1}`,
+                      report_no: logNo,
+                      date: logDate,
+                      outlet_id: logOutletId,
+                      branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || 'Restoran Utama',
+                      submitted_by: logSubmittedBy,
+                      created_by: logSubmittedBy,
+                      author_name: logSubmittedBy,
+                      item_name: r.item_name,
+                      unit: r.unit || 'kg',
+                      stok_awal: sAwal,
+                      stok_masuk: sMasuk,
+                      transfer_masuk: trfIn,
+                      transfer_keluar: trfOut,
+                      stok_keluar: 0,
+                      stok_rusak: sRusak,
+                      stok_sistem: sSistem,
+                      stok_fisik: sFisik,
+                      selisih: selisih,
+                      status: 'Pending'
+                    };
+                  });
 
                   setShowAddLogisticsModal(false);
 
                   setMasterData(prev => {
                     const now = Date.now();
+                    const filterOld = list => (list || []).filter(r => r.report_no !== logNo);
                     const newMaster = {
                       ...prev,
                       _lastUpdated: now,
                       clientUpdated: now,
-                      approvedLogistics: [newRecord, ...(prev.approvedLogistics || []).filter(r => r.report_no !== logNo)],
-                      stockOpname: [newRecord, ...(prev.stockOpname || []).filter(r => r.report_no !== logNo)],
-                      stockMovement: [newRecord, ...(prev.stockMovement || [])]
+                      approvedLogistics: [...newRecords, ...filterOld(prev.approvedLogistics)],
+                      stockOpname: [...newRecords, ...filterOld(prev.stockOpname)],
+                      stockMovement: [...newRecords, ...(prev.stockMovement || [])]
                     };
 
                     saveToServerWithGuard(newMaster);
-
                     return newMaster;
                   });
 
-                  alert(`✅ Laporan Stok Opname ${logNo} untuk "${selectedItemName}" berhasil dikirim ke Web Admin (Status: Pending / Menunggu Persetujuan)!`);
+                  alert(`✅ Form Stok Opname ${logNo} berisi ${newRecords.length} Bahan Baku Aktif berhasil dikirim ke Web Admin (Status: Pending)!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-                  {/* Header Form: Tanggal, No Laporan, Diisi Oleh, Cabang Outlet */}
+                  {/* Header Form: Tanggal Audit, No Laporan, Diisi Oleh, Cabang Outlet */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px', background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)' }}>
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>📅 Tanggal Audit *</label>
@@ -11204,126 +11662,121 @@ export default function AndroidPosRegister({
                     </div>
                   </div>
 
-                  {/* FORM INPUT AUDIT 1 BAHAN BAKU (BEBAS RUMIT BATCH TABLE) */}
-                  <div style={{ background: 'var(--pos-bg-app)', padding: '24px', borderRadius: '16px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                    <div style={{ fontSize: '0.92rem', fontWeight: '900', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Package size={20} />
-                      <span>Input Audit Stok Opname per Item Laporan:</span>
-                    </div>
+                  {/* KETERANGAN PENJELAS FORMULIR STOK OPNAME */}
+                  <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px 18px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700' }}>
+                    <span>📦 Menampilkan {ingredientsList.length} Bahan Baku Aktif (Blind Count Audit)</span>
+                    <span>💡 Stok Masuk, Transfer, &amp; Stok Rusak terisi otomatis dari laporan sistem</span>
+                  </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '16px', alignItems: 'end' }}>
-                      {/* SUGESTI BAHAN BAKU TERVALIDASI */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#f8fafc', fontWeight: '800', display: 'block', marginBottom: '6px' }}>
-                          📦 Cari & Pilih Nama Bahan Baku (Wajib dari Master Data) *
-                        </label>
-                        <div style={{ position: 'relative', width: '100%' }}>
-                          <input
-                            type="text"
-                            required
-                            value={opnameBatchRows[0]?.item_name || ''}
-                            onFocus={() => setActiveSuggestRowId('opname-single')}
-                            onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
-                            onChange={e => {
-                              const val = e.target.value;
-                              const found = ingredientsList.find(i => (i.name || '').toLowerCase() === val.toLowerCase());
-                              setOpnameBatchRows([{
-                                id: 'single-opname',
-                                item_name: val,
-                                unit: found?.unit || 'kg',
-                                stok_awal: found?.stock || found?.stok || 0,
-                                stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
-                              }]);
-                              setActiveSuggestRowId('opname-single');
-                            }}
-                            placeholder="Ketik nama bahan baku..."
-                            style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#ffffff', fontSize: '0.90rem', fontWeight: '800', outline: 'none' }}
-                          />
+                  {/* TABEL MULTI-ITEM AUDIT BAHAN BAKU AKTIF MASTER DATA */}
+                  <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto', maxHeight: '55vh' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
+                            <th style={{ padding: '12px 10px', width: '40px' }}>No</th>
+                            <th style={{ padding: '12px 14px' }}>📦 Nama Bahan Baku</th>
+                            <th style={{ padding: '12px 12px', width: '140px', textAlign: 'right' }}>📊 Stok Awal (Manual)</th>
+                            <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Stok Masuk (Auto)</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Keluar</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#f43f5e' }}>🗑️ Stok Rusak (Auto)</th>
+                            <th style={{ padding: '12px 14px', width: '150px', textAlign: 'right', color: '#fbbf24' }}>⚖️ Sisa Stok Fisik (Manual) *</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ingredientsList.length === 0 ? (
+                            <tr>
+                              <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
+                                Tidak ada Bahan Baku dengan status Aktif di Master Data.
+                              </td>
+                            </tr>
+                          ) : (
+                            ingredientsList.map((ing, idx) => {
+                              const rowState = opnameBatchRows.find(r => (r.item_name || '').toLowerCase() === (ing.name || '').toLowerCase()) || {
+                                id: ing.id || `ing-opname-${idx}`,
+                                item_name: ing.name,
+                                unit: ing.unit || 'kg',
+                                stok_awal: ing.stock !== undefined ? ing.stock : (ing.stok || 0),
+                                stok_fisik: ''
+                              };
 
-                          {/* FLOATING SUGESTI DROPDOWN HIGH-CONTRAST */}
-                          {activeSuggestRowId === 'opname-single' && (
-                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99999, background: '#090d16', border: '2px solid #38bdf8', borderRadius: '10px', marginTop: '6px', maxHeight: '240px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
-                              {ingredientsList
-                                .filter(s => !(opnameBatchRows[0]?.item_name || '') || (s.name || '').toLowerCase().includes((opnameBatchRows[0]?.item_name || '').toLowerCase()))
-                                .slice(0, 10)
-                                .map((sug, i) => (
-                                  <div
-                                    key={i}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      setOpnameBatchRows([{
-                                        id: 'single-opname',
-                                        item_name: sug.name,
-                                        unit: sug.unit || 'kg',
-                                        stok_awal: sug.stock || sug.stok || 0,
-                                        stok_fisik: opnameBatchRows[0]?.stok_fisik || 0
-                                      }]);
-                                      setActiveSuggestRowId(null);
-                                    }}
-                                    style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                  >
-                                    <div>
-                                      <strong style={{ color: '#ffffff', display: 'block', fontSize: '0.88rem' }}>📦 {sug.name}</strong>
-                                      <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: '700' }}>Stok Sistem: {sug.stock || sug.stok || 0} {sug.unit || 'kg'} • {sug.category || 'HPP'}</span>
-                                    </div>
-                                    <span style={{ background: '#38bdf8', color: '#000000', padding: '3px 10px', borderRadius: '6px', fontWeight: '900', fontSize: '0.72rem' }}>Pilih &amp; Salin ↵</span>
-                                  </div>
-                                ))}
-                            </div>
+                              const stokAwal = Number(rowState.stok_awal || 0);
+                              const stokMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
+                              const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
+                              const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
+                              const stokRusak = getStokRusakFromLaporanWaste(ing.name, logDate, logOutletId);
+
+                              return (
+                                <tr key={ing.id || idx} style={{ borderBottom: '1px solid var(--pos-border-card)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                                  <td style={{ padding: '10px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{idx + 1}</td>
+                                  <td style={{ padding: '10px 14px' }}>
+                                    <strong style={{ color: 'var(--pos-txt-primary)', display: 'block', fontSize: '0.88rem' }}>{ing.name}</strong>
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)' }}>Satuan: {ing.unit || 'kg'} • {ing.category || 'Bahan Utama'}</span>
+                                  </td>
+
+                                  {/* STOK AWAL (DIISI MANUAL) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      value={rowState.stok_awal}
+                                      onChange={e => handleUpdateStokAwal(rowState.id, e.target.value)}
+                                      className="form-input"
+                                      style={{ width: '90px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '800' }}
+                                    />
+                                  </td>
+
+                                  {/* STOK MASUK (OTOMATIS LAPORAN HARIAN / DEFAULT 0) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: stokMasuk > 0 ? '#34d399' : 'var(--pos-txt-secondary)' }}>
+                                    {stokMasuk} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* TRANSFER STOK MASUK (OTOMATIS SUB TRANSFER STOK) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfIn > 0 ? '#38bdf8' : 'var(--pos-txt-secondary)' }}>
+                                    {trfIn} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* TRANSFER STOK KELUAR (OTOMATIS SUB TRANSFER STOK) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfOut > 0 ? '#fb7185' : 'var(--pos-txt-secondary)' }}>
+                                    {trfOut} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* STOK RUSAK (OTOMATIS LAPORAN BARANG RUSAK) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: stokRusak > 0 ? '#f43f5e' : 'var(--pos-txt-secondary)' }}>
+                                    {stokRusak} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* SISA STOK FISIK (DIISI MANUAL) */}
+                                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      min="0"
+                                      placeholder="Fisik..."
+                                      value={rowState.stok_fisik}
+                                      onChange={e => handleUpdateStokFisik(rowState.id, e.target.value)}
+                                      className="form-input"
+                                      style={{ width: '110px', height: '36px', textAlign: 'right', padding: '0 8px', borderRadius: '6px', fontSize: '0.88rem', fontWeight: '900', border: '1.5px solid #fbbf24', color: '#fbbf24' }}
+                                    />
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
-                        </div>
-                      </div>
-
-                      {/* STOK AWAL SISTEM */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>Stok Sistem / Satuan</label>
-                        <div style={{ height: '44px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', padding: '0 12px', color: '#34d399', fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span>{opnameBatchRows[0]?.stok_awal || 0}</span>
-                          <span style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{opnameBatchRows[0]?.unit || 'kg'}</span>
-                        </div>
-                      </div>
-
-                      {/* SISA STOK FISIK AUDIT */}
-                      <div>
-                        <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🔢 Sisa Stok Fisik *</label>
-                        <input
-                          type="number"
-                          required
-                          step="any"
-                          min="0"
-                          placeholder="Jumlah fisik..."
-                          value={opnameBatchRows[0]?.stok_fisik || ''}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setOpnameBatchRows(prev => [{
-                              ...(prev[0] || { id: 'single-opname', item_name: '', unit: 'kg', stok_awal: 0 }),
-                              stok_fisik: val
-                            }]);
-                          }}
-                          className="form-input"
-                          style={{ width: '100%', height: '44px', padding: '8px 14px', background: '#090d16', border: '1.5px solid #38bdf8', borderRadius: '10px', color: '#38bdf8', fontSize: '0.95rem', fontWeight: '900', outline: 'none' }}
-                        />
-                      </div>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
-                  {/* Footer Status & Tombol Simpan */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                      <span style={{ fontSize: '0.78rem', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.15)', padding: '4px 12px', borderRadius: '6px', fontWeight: '800' }}>⏳ Pending (Butuh Persetujuan Web Admin)</span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.08)', color: 'var(--pos-txt-primary)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}>
-                        Batal
-                      </button>
-                      <button type="submit" style={{ padding: '12px 28px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#000000', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>💾 KIRIM LAPORAN STOK OPNAME</span>
-                      </button>
-                    </div>
+                  {/* Footer Action Buttons (Status Approval DIHAPUS sesuai instruksi user) */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                    <button type="button" onClick={() => setShowAddLogisticsModal(false)} style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.08)', color: 'var(--pos-txt-primary)', border: '1px solid var(--pos-border-card)', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.88rem' }}>
+                      Batal
+                    </button>
+                    <button type="submit" style={{ padding: '12px 32px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: '#000000', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.90rem', cursor: 'pointer', boxShadow: '0 4px 16px rgba(56,189,248,0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>💾 SIMPAN &amp; KIRIM LAPORAN STOK OPNAME</span>
+                    </button>
                   </div>
 
                 </form>

@@ -180,3 +180,14 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
     - Satu-satunya pengecualian adalah jika **user secara eksplisit meminta perbaikan** pada bagian tersebut (misalnya: "perbaiki X", "ubah Y", "ada bug di Z").
     - **Contoh yang DILARANG** (meskipun tidak diminta): mengubah nama file/path, mengubah struktur komponen yang sudah jalan, mengganti sintaks yang sudah berfungsi, menambahkan "peningkatan" pada fitur yang sudah selesai, atau mereorganisasi kode sebagai "side effect" dari task lain.
     - **Prinsip**: Jika sudah selesai → simpan dan jangan ganggu. Fokus HANYA pada task yang diminta.
+13. **🔒 PERLINDUNGAN MUTLAK DRIVER PRINTER THERMAL (KODE TERKUNCI)**:
+    - Driver printer thermal Bluetooth versi **3.2.0** (`✅ Pertama kali BERHASIL — 3 Agustus 2026`) yang terletak pada file:
+      - `BluetoothPrinterPlugin.java` (`flutter-pos/android/app/src/main/java/com/mris/finance/BluetoothPrinterPlugin.java` dan `android/app/src/main/java/com/mris/finance/BluetoothPrinterPlugin.java`)
+      - `bluetoothPrinter.js` (`src/utils/bluetoothPrinter.js` dan `flutter-pos/src/utils/bluetoothPrinter.js`)
+      - Logika scan & print di `AndroidPosRegister.jsx`
+    - **TIDAK BOLEH DIUBAH, MERESTRUKTURISASI, ATAU DIUBAH SINTAKSNYA** dalam situasi apa pun.
+    - Komponen driver ini mencakup:
+      - Strategi 3-tier fallback socket (Secure SPP → Insecure SPP → Reflection Channel 1)
+      - Pembungkusan `try-catch` pada `adapter.cancelDiscovery()` dan `device.getName()` untuk pencegahan `SecurityException` di Android 12+
+      - Method `@PluginMethod`: `scanDevices`, `connectDevice`, `disconnectDevice`, `printText`, `testConnection`, `checkLiveStatus`
+    - **JANGAN DISENTUH ATAU DIKUTAK-KATIK** kecuali ada perintah perbaikan eksplisit langsung dari pengguna.

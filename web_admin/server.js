@@ -524,49 +524,64 @@ const syncToMySQL = async (masterData) => {
       ]);
     }
 
-    // 2. Sync Users to MySQL relational table
-    const usersMap = new Map();
-    const userSources = [
-      ...(masterData.users || []),
-      ...(masterData.userAccounts || []),
-      ...(masterData.webAdminAccounts || []),
-      ...(masterData.mobileAccounts || [])
-    ];
-    userSources.forEach(u => {
-      if (u && (u.id || u.username)) {
-        const key = String(u.id || u.username);
-        usersMap.set(key, u);
-      }
-    });
-
-    for (const u of Array.from(usersMap.values())) {
+    // 2. Sync Web Admin Users & Mobile POS Users to separate relational tables in MySQL
+    const webUsers = masterData.webAdminAccounts || [];
+    const webUserIds = [];
+    for (const u of webUsers) {
+      if (!u || !u.id) continue;
       const uId = Number(u.id) || Date.now();
-      const uName = String(u.name || u.username || 'User');
-      const uUsername = String(u.username || u.name || `user_${uId}`).toLowerCase().replace(/\s+/g, '_');
-      const uPassword = String(u.password || u.mobileLoginPassword || '1234');
-      const uRole = String(u.role || 'Kasir');
-      const uOutlet = String(u.outlet || u.assignedOutlet || 'Semua Outlet (Central)');
+      webUserIds.push(uId);
+      const uName = String(u.name || u.username || 'Admin');
+      const uUsername = String(u.username || u.name || `admin_${uId}`).toLowerCase().replace(/\s+/g, '_');
+      const uPassword = String(u.password || '1234');
+      const uRole = String(u.role || 'Super Admin');
+      const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
       const uStatus = String(u.status || 'Aktif');
-      const canMobile = u.canLoginMobile !== false ? 1 : 0;
-      const mobPass = String(u.mobileLoginPassword || u.password || '');
+
+      await mysqlPool.execute(`
+        INSERT INTO web_admin_users (id, name, username, password, role, outlet, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          name = VALUES(name), username = VALUES(username), password = VALUES(password),
+          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status)
+      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus]);
+    }
+    if (webUserIds.length > 0) {
+      const ph = webUserIds.map(() => '?').join(',');
+      await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id NOT IN (${ph})`, webUserIds);
+    } else {
+      await mysqlPool.execute(`DELETE FROM \`web_admin_users\``);
+    }
+
+    const mobileUsers = masterData.mobileAccounts || [];
+    const mobileUserIds = [];
+    for (const u of mobileUsers) {
+      if (!u || !u.id) continue;
+      const uId = Number(u.id) || Date.now();
+      mobileUserIds.push(uId);
+      const uName = String(u.name || u.username || 'Staf Mobile');
+      const uUsername = String(u.username || u.name || `mobile_${uId}`).toLowerCase().replace(/\s+/g, '_');
+      const uPassword = String(u.mobileLoginPassword || u.password || '123');
+      const uRole = String(u.role || 'Kasir');
+      const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
+      const uStatus = String(u.status || 'Aktif');
       const canReports = u.canAccessMobileReports ? 1 : 0;
       const repPass = String(u.mobileReportPassword || '');
 
       await mysqlPool.execute(`
-        INSERT INTO users (id, name, username, password, role, outlet, status, can_login_mobile, mobile_login_password, can_access_mobile_reports, mobile_report_password)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO mobile_pos_users (id, name, username, password, role, outlet, status, can_access_reports, report_password)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
-          name = VALUES(name),
-          username = VALUES(username),
-          password = VALUES(password),
-          role = VALUES(role),
-          outlet = VALUES(outlet),
-          status = VALUES(status),
-          can_login_mobile = VALUES(can_login_mobile),
-          mobile_login_password = VALUES(mobile_login_password),
-          can_access_mobile_reports = VALUES(can_access_mobile_reports),
-          mobile_report_password = VALUES(mobile_report_password)
-      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canMobile, mobPass, canReports, repPass]);
+          name = VALUES(name), username = VALUES(username), password = VALUES(password),
+          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status),
+          can_access_reports = VALUES(can_access_reports), report_password = VALUES(report_password)
+      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canReports, repPass]);
+    }
+    if (mobileUserIds.length > 0) {
+      const ph = mobileUserIds.map(() => '?').join(',');
+      await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id NOT IN (${ph})`, mobileUserIds);
+    } else {
+      await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\``);
     }
 
     // 3. Sync Categories to MySQL relational table
@@ -1386,14 +1401,54 @@ app.all('/api/webhook/deploy', (req, res) => {
 
   res.json({ success: true, message: '🚀 Deployment command triggered on VPS in background...' });
 
-  const deployCmd = `if [ -f "/var/www/deploy.sh" ]; then bash /var/www/deploy.sh; else DIR=$(pwd); if [ -d "/var/www/erp-barokah" ]; then DIR="/var/www/erp-barokah"; elif [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; cd "$DIR" && git fetch origin && git reset --hard origin/main && (cd web_admin && npm run build && cp -r dist/* ../dist/ 2>/dev/null || true) && (pm2 reload all || pm2 restart all || pm2 restart erp-barokah); fi`;
+  // Step 1: jalankan deploy.sh (atau fallback git pull + pm2 restart)
+  // Step 2: SELALU rebuild web_admin setelah deploy agar dist ter-update
+  const getProjectDir = `DIR="/var/www/erp-barokah"; if [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; echo $DIR`;
+  const deployCmd = `
+    if [ -f "/var/www/deploy.sh" ]; then
+      bash /var/www/deploy.sh;
+    fi;
+    DIR="/var/www/erp-barokah";
+    if [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi;
+    cd "$DIR" && git fetch origin && git reset --hard origin/main && echo "✅ git pull done";
+    cd "$DIR/web_admin" && npm run build && echo "✅ web_admin build done" && cp -r dist/* ../dist/ && echo "✅ dist copied";
+    pm2 reload all || pm2 restart all || true;
+  `;
 
-  exec(deployCmd, (error, stdout, stderr) => {
+  exec(deployCmd, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
     if (error) {
       console.error('❌ Auto-deploy failed:', error.message);
+      console.error('stderr:', stderr);
       return;
     }
     console.log('✅ Auto-deploy output:\n', stdout);
+  });
+});
+
+// Endpoint khusus: force rebuild web_admin saja (tanpa full deploy)
+// Berguna untuk memaksa update tampilan tanpa restart backend
+app.all('/api/webhook/build-frontend', (req, res) => {
+  const secret = req.query.secret || req.body?.secret || req.headers['x-deploy-secret'];
+  const DEPLOY_SECRET = process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026';
+
+  if (secret !== DEPLOY_SECRET) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  let projectDir = '/var/www/erp-barokah';
+  if (fs.existsSync('/var/www/ERPBAROKAH')) projectDir = '/var/www/ERPBAROKAH';
+  else if (fs.existsSync('/var/www/MRIS')) projectDir = '/var/www/MRIS';
+
+  const buildCmd = `cd "${projectDir}/web_admin" && npm run build && cp -r dist/* ../dist/ && echo "BUILD_OK"`;
+
+
+  exec(buildCmd, { maxBuffer: 1024 * 1024 * 10, timeout: 300000 }, (error, stdout, stderr) => {
+    if (error) {
+      console.error('❌ Frontend build failed:', error.message);
+      return res.status(500).json({ success: false, error: error.message, stderr });
+    }
+    console.log('✅ Frontend build output:\n', stdout);
+    res.json({ success: true, message: '✅ Frontend build selesai', output: stdout.slice(-500) });
   });
 });
 
@@ -1403,11 +1458,29 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   const incTs = Number(incoming._lastUpdated) || 0;
   const extTs = Number(existing._lastUpdated) || 0;
 
+  // Field kritis yang TIDAK BOLEH di-overwrite dengan [] kosong (perlindungan data user & permission matrix)
+  const USER_CRITICAL_KEYS = new Set([
+    'webAdminAccounts',
+    'mobileAccounts',
+    'userRights',
+    'users',
+    'userAccounts',
+    'permissionMatrix',
+    'mobilePermissionMatrix'
+  ]);
+
   Object.keys(incoming).forEach(key => {
     const incVal = incoming[key];
     const extVal = existing[key];
 
     if (Array.isArray(incVal)) {
+      // Proteksi khusus: field user-kritis tidak boleh di-overwrite dengan [] tanpa _isExplicitClear
+      if (USER_CRITICAL_KEYS.has(key) && incVal.length === 0 && Array.isArray(extVal) && extVal.length > 0 && !incoming._isExplicitClear) {
+        // Pertahankan data existing yang ada — jangan izinkan array kosong menimpa data user
+        result[key] = extVal;
+        return;
+      }
+
       // If incoming payload timestamp is newer or equal (active client mutation), adopt incVal directly to respect additions & deletions 100%
       if (incTs >= extTs || !extVal) {
         if (incVal.length > 0) {
@@ -1430,6 +1503,48 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
       result[key] = incVal;
     }
   });
+
+  // Jaminan Tambahan: jika incoming payload sama sekali TIDAK menyertakan key kritis, wajib pertahankan dari existing
+  USER_CRITICAL_KEYS.forEach(critKey => {
+    if ((!incoming[critKey] || (Array.isArray(incoming[critKey]) && incoming[critKey].length === 0)) && Array.isArray(existing[critKey]) && existing[critKey].length > 0 && !incoming._isExplicitClear) {
+      result[critKey] = existing[critKey];
+    }
+  });
+
+  // Bersihkan item logistik & laporan yang sudah terhapus di deletedLogisticsIds / deletedReportIds / deletedOutflowIds
+  const deletedLogSet = new Set([
+    ...(result.deletedLogisticsIds || []),
+    ...(incoming.deletedLogisticsIds || []),
+    ...(result.deletedReportIds || []),
+    ...(incoming.deletedReportIds || []),
+    ...(result.deletedOutflowIds || []),
+    ...(incoming.deletedOutflowIds || [])
+  ].map(x => String(x)));
+
+  if (deletedLogSet.size > 0) {
+    const deletedArr = Array.from(deletedLogSet);
+    result.deletedLogisticsIds = deletedArr;
+    result.deletedReportIds = deletedArr;
+
+    const ALL_PURGED_KEYS = [
+      'stockOpname', 'approvedLogistics', 'approvedOpname',
+      'stockTransfer', 'approvedTransfers', 'damagedGoods',
+      'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+      'approvedFinanceDaily', 'shiftClosings', 'shift_closings',
+      'closedShifts', 'dailyReports', 'manualEntryRecords'
+    ];
+
+    ALL_PURGED_KEYS.forEach(lk => {
+      if (Array.isArray(result[lk])) {
+        result[lk] = result[lk].filter(item => {
+          if (!item) return false;
+          const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
+          const iRNo = String(item.report_no || item.receiptNo || '');
+          return !deletedLogSet.has(iId) && !deletedLogSet.has(iRNo);
+        });
+      }
+    });
+  }
 
   return result;
 };
@@ -1464,147 +1579,122 @@ app.get('/api/master-data', async (req, res) => {
     if (mysqlData && typeof mysqlData === 'object') {
       return res.json(sanitizeMasterDataPayload(mysqlData));
     }
-    // Jika MySQL belum pernah diisi, gunakan data awal default
-    res.json(sanitizeMasterDataPayload(defaultMasterData));
+    return res.json(sanitizeMasterDataPayload(masterData));
   } catch (err) {
-    console.error('GET /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal mengambil data master terpusat dari MySQL mris_db' });
+    return res.json(sanitizeMasterDataPayload(masterData));
   }
 });
 
-// POST /api/master-data — 100% MySQL PRIMARY STORAGE
+// POST /api/master-data — 100% MySQL PRIMARY STORAGE UPDATE
 app.post('/api/master-data', async (req, res) => {
   try {
-    const payload = req.body;
-    if (!payload || typeof payload !== 'object') {
-      return res.status(400).json({ error: 'Payload tidak valid' });
-    }
-    const nowTs = Date.now();
+    const incomingData = req.body;
 
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      existing = defaultMasterData;
+    if (!incomingData || typeof incomingData !== 'object') {
+      return res.status(400).json({ success: false, error: 'Payload tidak valid' });
     }
 
-    const sanitizedPayload = sanitizeMasterDataPayload(payload);
-    const mergedData = mergeMasterDataSafely(existing, sanitizedPayload);
-    const newMasterData = sanitizeMasterDataPayload({ ...mergedData, _lastUpdated: nowTs });
+    // Baca data terkini dari MySQL; jika gagal/null, gunakan defaultMasterData sebagai base
+    const currentData = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const sanitizedIncoming = sanitizeMasterDataPayload(incomingData);
 
-    // Simpan ke MySQL mris_db
-    const mysqlOk = await saveMasterDataToMySQL(newMasterData);
+    // Merge data incoming dengan data server terkini
+    const mergedData = mergeMasterDataSafely(currentData, sanitizedIncoming);
+    mergedData._lastUpdated = Date.now();
 
-    // Sinkronisasi langsung ke tabel relasi MySQL (sales_transactions, outlets, products, dll)
-    await syncToMySQL(newMasterData);
+    // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — FIX KRITIS SINKRONISASI
+    await saveMasterDataToMySQL(mergedData);
+    // Sync ke tabel-tabel relasional MySQL (shift_closings, stock_movement, dll)
+    await syncToMySQL(mergedData);
 
-    const timestamp = new Date().toISOString();
-    res.json({
+    return res.json({
       success: true,
-      message: 'Data master berhasil disimpan ke MySQL mris_db (Database Utama)',
-      storage: 'mysql_mris_db',
-      timestamp,
-      _lastUpdated: nowTs
+      message: 'Master data berhasil diperbarui & tersinkronisasi ke MySQL mris_db',
+      data: mergedData,
+      _lastUpdated: mergedData._lastUpdated
     });
   } catch (err) {
-    console.error('POST /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal menyinkronkan data master ke MySQL mris_db' });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE /api/master-data/:key/:id — Direct Permanent Item Deletion Endpoint
-app.delete('/api/master-data/:key/:id', async (req, res) => {
-  try {
-    const { key, id } = req.params;
-    if (!key || !id) {
-      return res.status(400).json({ error: 'Key dan ID wajib diisi' });
-    }
-
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      return res.status(404).json({ error: 'Master data tidak ditemukan' });
-    }
-
-    const idStr = String(id);
-    const nowTs = Date.now();
-
-    // Hapus item dari array di masterData JSON
-    if (Array.isArray(existing[key])) {
-      existing[key] = existing[key].filter(item => {
-        if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : item.code || item.name);
-        return itemId !== idStr;
-      });
-    }
-
-    existing._lastUpdated = nowTs;
-
-    // Simpan masterData JSON terbaru ke MySQL mris_master_data
-    await saveMasterDataToMySQL(existing);
-
-    // Hapus baris dari tabel relasi MySQL jika ada
-    if (mysqlPool) {
-      const relTable = key === 'products' ? 'products' :
-                       key === 'categories' ? 'categories' :
-                       key === 'outlets' ? 'outlets' :
-                       key === 'users' || key === 'userRights' ? 'users' :
-                       key === 'ingredients' ? 'ingredients' :
-                       key === 'suppliers' ? 'suppliers' :
-                       key === 'customers' ? 'customers' : null;
-      if (relTable) {
-        try {
-          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]);
-        } catch (delErr) {}
-      }
-    }
-
-    // Sync ulang sisa data ke relasi
-    await syncToMySQL(existing);
-
-    res.json({
-      success: true,
-      message: `Item ID ${id} dari ${key} berhasil dihapus permanen`,
-      masterData: existing,
-      _lastUpdated: nowTs
-    });
-  } catch (err) {
-    console.error('DELETE /api/master-data/:key/:id error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/master-data/delete-item — Nginx/Cloudflare Compatible Deletion Endpoint
+// POST /api/master-data/delete-item — Hapus spesifik item dari masterData & MySQL
 app.post('/api/master-data/delete-item', async (req, res) => {
   try {
-    const { key, id } = req.body || {};
+    const { key, id } = req.body;
     if (!key || id === undefined || id === null) {
-      return res.status(400).json({ error: 'Key dan ID wajib diisi' });
+      return res.status(400).json({ success: false, error: 'Parameter key dan id wajib diisi' });
     }
 
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      return res.status(404).json({ error: 'Master data tidak ditemukan' });
-    }
-
+    const existing = (await getMasterDataFromMySQL()) || defaultMasterData;
     const idStr = String(id);
     const nowTs = Date.now();
 
-    // Hapus item dari array di masterData JSON
-    if (key === 'salesTransactions' || key === 'transactions') {
-      const findTx = (arr) => Array.isArray(arr) ? arr.find(item => item && (String(item.id) === idStr || String(item.receipt_no) === idStr || String(item.receiptNo) === idStr || String(item.invoice_no) === idStr)) : null;
-      const found = findTx(existing.salesTransactions) || findTx(existing.transactions) || findTx(existing.outletTransactions);
-      
-      let targetId = idStr;
-      let targetReceiptNo = null;
-      if (found) {
-        targetId = String(found.id || idStr);
-        targetReceiptNo = found.receipt_no || found.receiptNo || found.invoice_no || null;
-      }
+    // Catat ID yang dihapus ke tombstone tracking
+    existing.deletedLogisticsIds = Array.from(new Set([
+      ...(existing.deletedLogisticsIds || []),
+      idStr
+    ]));
+    existing.deletedReportIds = Array.from(new Set([
+      ...(existing.deletedReportIds || []),
+      idStr
+    ]));
 
-      const isMatch = (item) => {
+    const reportKeys = ['approvedFinanceDaily', 'shiftClosings', 'shift_closings', 'closedShifts', 'dailyReports', 'manualEntryRecords'];
+    const logisticsKeys = [
+      'stockOpname', 'approvedLogistics', 'approvedOpname',
+      'stockTransfer', 'approvedTransfers', 'damagedGoods',
+      'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+      'stok_masuk', 'stok_keluar', 'transfer_stok', 'stok_rusak', 'stok_opname'
+    ];
+
+    if (reportKeys.includes(key)) {
+      const matchReport = r => {
+        if (!r) return false;
+        const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+        const rNo = String(r.report_no || '');
+        return rId === idStr || rNo === idStr;
+      };
+
+      reportKeys.forEach(rk => {
+        if (Array.isArray(existing[rk])) {
+          existing[rk] = existing[rk].filter(r => !matchReport(r));
+        }
+      });
+    } else if (logisticsKeys.includes(key)) {
+      const matchLogistics = item => {
         if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : '');
-        const itemRcpt = String(item.receipt_no || item.receiptNo || item.invoice_no || '');
-        if (itemId && (itemId === targetId || itemId === idStr)) return true;
-        if (targetReceiptNo && itemRcpt && itemRcpt === targetReceiptNo) return true;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemRNo = String(item.report_no || item.receiptNo || '');
+        return itemId === idStr || itemRNo === idStr;
+      };
+
+      // Hapus dari SEMUA key logistik terkait
+      const ALL_LOGISTICS_KEYS = [
+        'stockOpname', 'approvedLogistics', 'approvedOpname',
+        'stockTransfer', 'approvedTransfers', 'damagedGoods',
+        'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+      ];
+
+      ALL_LOGISTICS_KEYS.forEach(lk => {
+        if (Array.isArray(existing[lk])) {
+          existing[lk] = existing[lk].filter(item => !matchLogistics(item));
+        }
+      });
+
+      // Hapus dari tabel relasi MySQL stock_movement
+      if (mysqlPool && idStr) {
+        try {
+          await mysqlPool.execute(`DELETE FROM \`stock_movement\` WHERE id = ? OR reason LIKE ? OR ingredient_name = ?`, [idStr, `%${idStr}%`, idStr]);
+        } catch (delErr) {}
+      }
+    } else if (key === 'salesTransactions' || key === 'transactions' || key === 'outletTransactions') {
+      const targetId = idStr;
+      const isMatch = item => {
+        if (!item) return false;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemRcpt = String(item.receipt_no || item.transaction_id || '');
+        if (itemId === targetId || itemId === idStr) return true;
         if (itemRcpt && (itemRcpt === targetId || itemRcpt === idStr)) return true;
         return false;
       };
@@ -1618,21 +1708,6 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       if (Array.isArray(existing.outletTransactions)) {
         existing.outletTransactions = existing.outletTransactions.filter(item => !isMatch(item));
       }
-      if (Array.isArray(existing.stockMovement)) {
-        existing.stockMovement = existing.stockMovement.filter(item => {
-          if (!item) return false;
-          const refId = String(item.ref_id || item.transaction_id || item.receipt_no || '');
-          if (refId && (refId === targetId || refId === idStr || (targetReceiptNo && refId === targetReceiptNo))) return false;
-          return true;
-        });
-      }
-    } else if (key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'users' || key === 'userRights' || key === 'userAccounts') {
-      const isUserMatch = item => item && String(item.id !== undefined ? item.id : item.username || item.name) === idStr;
-      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !isUserMatch(u));
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;
@@ -1643,27 +1718,30 @@ app.post('/api/master-data/delete-item', async (req, res) => {
 
     existing._lastUpdated = nowTs;
 
-    // Simpan masterData JSON terbaru ke MySQL mris_master_data
-    await saveMasterDataToMySQL(existing);
-
-    // Hapus baris dari tabel relasi MySQL jika ada
-    if (mysqlPool) {
-      const relTable = key === 'products' ? 'products' :
-                       key === 'categories' ? 'categories' :
-                       key === 'outlets' ? 'outlets' :
-                       key === 'users' || key === 'userRights' || key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'userAccounts' ? 'users' :
-                       key === 'ingredients' ? 'ingredients' :
-                       key === 'suppliers' ? 'suppliers' :
-                       key === 'customers' ? 'customers' :
-                       key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
-      if (relTable) {
-        try {
-          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
-        } catch (delErr) {}
-      }
+    // Hapus murni dari tabel relasi MySQL berdasarkan Primary Key (ID) masing-masing
+    if (mysqlPool && idStr) {
+      try {
+        if (key === 'webAdminAccounts') {
+          await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id = ?`, [idStr]);
+        } else if (key === 'mobileAccounts') {
+          await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
+        } else {
+          const relTable = key === 'products' ? 'products' :
+                           key === 'categories' ? 'categories' :
+                           key === 'outlets' ? 'outlets' :
+                           key === 'ingredients' ? 'ingredients' :
+                           key === 'suppliers' ? 'suppliers' :
+                           key === 'customers' ? 'customers' :
+                           key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
+          if (relTable) {
+            await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
+          }
+        }
+      } catch (delErr) {}
     }
 
-    // Sync ulang sisa data ke relasi
+    // Sync ulang sisa data ke relasi dan JSON blob MySQL
+    await saveMasterDataToMySQL(existing);
     await syncToMySQL(existing);
 
     res.json({
@@ -1731,6 +1809,24 @@ app.get('*', (req, res, next) => {
     return next();
   }
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
+});
+
+// ── EMERGENCY ENDPOINT: git pull + rebuild frontend (tidak pakai require()) ──
+app.all('/api/webhook/force-build', (req, res) => {
+  const secret = req.query.secret || req.body?.secret;
+  if (secret !== (process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026')) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  const pullBuildCmd = [
+    'DIR="/var/www/erp-barokah"',
+    'cd "$DIR" && git fetch origin && git reset --hard origin/main',
+    'cd "$DIR/web_admin" && npm run build && cp -r dist/* ../dist/',
+    'echo "FORCE_BUILD_OK"'
+  ].join(' && ');
+  exec(pullBuildCmd, { maxBuffer: 1024 * 1024 * 20, timeout: 300000 }, (err, stdout, stderr) => {
+    if (err) return res.status(500).json({ success: false, error: err.message, stderr: stderr?.slice(-1000) });
+    res.json({ success: true, output: stdout?.slice(-500) });
+  });
 });
 
 // Start Server — PORT resmi produksi: 5001 (dikunci, tidak tergantung env)

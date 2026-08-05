@@ -1511,24 +1511,30 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     }
   });
 
-  // Bersihkan item logistik yang sudah terhapus di deletedLogisticsIds / deletedOutflowIds
+  // Bersihkan item logistik & laporan yang sudah terhapus di deletedLogisticsIds / deletedReportIds / deletedOutflowIds
   const deletedLogSet = new Set([
     ...(result.deletedLogisticsIds || []),
     ...(incoming.deletedLogisticsIds || []),
+    ...(result.deletedReportIds || []),
+    ...(incoming.deletedReportIds || []),
     ...(result.deletedOutflowIds || []),
     ...(incoming.deletedOutflowIds || [])
   ].map(x => String(x)));
 
   if (deletedLogSet.size > 0) {
-    result.deletedLogisticsIds = Array.from(deletedLogSet);
+    const deletedArr = Array.from(deletedLogSet);
+    result.deletedLogisticsIds = deletedArr;
+    result.deletedReportIds = deletedArr;
 
-    const ALL_LOGISTICS_KEYS = [
+    const ALL_PURGED_KEYS = [
       'stockOpname', 'approvedLogistics', 'approvedOpname',
       'stockTransfer', 'approvedTransfers', 'damagedGoods',
-      'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+      'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+      'approvedFinanceDaily', 'shiftClosings', 'shift_closings',
+      'closedShifts', 'dailyReports', 'manualEntryRecords'
     ];
 
-    ALL_LOGISTICS_KEYS.forEach(lk => {
+    ALL_PURGED_KEYS.forEach(lk => {
       if (Array.isArray(result[lk])) {
         result[lk] = result[lk].filter(item => {
           if (!item) return false;
@@ -1624,6 +1630,16 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     const idStr = String(id);
     const nowTs = Date.now();
 
+    // Catat ID yang dihapus ke tombstone tracking
+    existing.deletedLogisticsIds = Array.from(new Set([
+      ...(existing.deletedLogisticsIds || []),
+      idStr
+    ]));
+    existing.deletedReportIds = Array.from(new Set([
+      ...(existing.deletedReportIds || []),
+      idStr
+    ]));
+
     const reportKeys = ['approvedFinanceDaily', 'shiftClosings', 'shift_closings', 'closedShifts', 'dailyReports', 'manualEntryRecords'];
     const logisticsKeys = [
       'stockOpname', 'approvedLogistics', 'approvedOpname',
@@ -1652,12 +1668,6 @@ app.post('/api/master-data/delete-item', async (req, res) => {
         const itemRNo = String(item.report_no || item.receiptNo || '');
         return itemId === idStr || itemRNo === idStr;
       };
-
-      // Catat ke deletedLogisticsIds
-      existing.deletedLogisticsIds = Array.from(new Set([
-        ...(existing.deletedLogisticsIds || []),
-        idStr
-      ]));
 
       // Hapus dari SEMUA key logistik terkait
       const ALL_LOGISTICS_KEYS = [
