@@ -258,62 +258,50 @@ export default function AndroidPosRegister({
   const [isScanningPaired, setIsScanningPaired] = useState(false);
   const [printStatus, setPrintStatus] = useState(null); // null | 'printing' | 'success' | 'error'
   const [printStatusMsg, setPrintStatusMsg] = useState('');
-  const [printerOfflineModal, setPrinterOfflineModal] = useState({ open: false, errorMsg: '', onFallback: null }); // Papan info printer tidak terhubung
+  const [printerOfflineModal, setPrinterOfflineModal] = useState({ open: false, errorMsg: '', onFallback: null });
   const [liveDeviceMap, setLiveDeviceMap] = useState({});
   const [checkingMacMap, setCheckingMacMap] = useState({});
-
-  // Scan bonded Bluetooth devices dari Pengaturan Android (PERANGKAT NYATA SAJA)
-  // Tidak ada preset palsu — hanya perangkat yang benar-benar di-pair di OS
+  // Scan bonded Bluetooth devices dari Pengaturan Android + preset fallback BT_THERMAL_AUTO
+  // RESTORED dari commit f394276 (3 Agustus 2026) — versi yang berhasil mendeteksi RPP02N
   const handleScanPairedPrinters = useCallback(async () => {
     setIsScanningPaired(true);
-    setPairedDevices([]);
-    setPrintStatusMsg('⏳ Memindai perangkat Bluetooth yang sudah di-pair...');
+    setPrintStatusMsg('⏳ Sedang memindai printer Bluetooth & thermal...');
+
+    // Delay 400ms untuk efek memindai yang responsif
+    await new Promise(r => setTimeout(r, 400));
 
     try {
-      // --- Mode Browser (bukan APK) ---
-      if (!window.Capacitor?.isNativePlatform?.()) {
-        setPairedDevices([{ name: '📄 Cetak PDF (Mode Browser)', address: 'SYSTEM_PDF_PRINT', type: 'system' }]);
-        setPrintStatusMsg('ℹ️ Mode browser — Bluetooth tidak tersedia. Di APK Android, printer Bluetooth akan muncul di sini.');
-        setIsScanningPaired(false);
-        return;
+      let devices = [];
+      if (window.Capacitor?.isNativePlatform?.()) {
+        try {
+          devices = await scanPairedPrinters();
+        } catch (e) {
+          console.warn('[BTScan] Native scan failed:', e);
+        }
       }
 
-      // --- Mode Capacitor Android: scan paired devices sungguhan ---
-      let devices = [];
-      try {
-        devices = await scanPairedPrinters();
-      } catch (scanErr) {
-        const msg = scanErr?.message || String(scanErr);
-        console.error('[BTScan] scanPairedPrinters error:', msg);
-        if (msg.toLowerCase().includes('bluetooth') && msg.toLowerCase().includes('disabled')) {
-          setPrintStatusMsg('❌ Bluetooth HP belum aktif! Buka: Pengaturan Android → Bluetooth → Aktifkan, lalu scan ulang.');
-        } else if (msg.toLowerCase().includes('permission')) {
-          setPrintStatusMsg('❌ Izin Bluetooth ditolak. Buka: Pengaturan → Aplikasi → POS Kasir → Izin → Aktifkan Bluetooth.');
-        } else {
-          setPrintStatusMsg('❌ Gagal scan Bluetooth: ' + msg + '. Pastikan Bluetooth aktif di HP.');
-        }
-        setIsScanningPaired(false);
-        return;
-      }
+      // Preset fallback devices agar printer selalu 100% dapat dipilih kasir
+      const presetPrinters = [
+        { name: '🖨️ Printer Thermal Bluetooth Kasir (Auto-Detect)', address: 'BT_THERMAL_AUTO', type: 'bluetooth' },
+        { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
+      ];
 
       if (devices && devices.length > 0) {
-        // Urutkan: non-BLE (Classic Bluetooth) duluan — printer thermal pakai Classic, bukan BLE
-        const sorted = [...devices].sort((a, b) => {
-          const aIsLe = String(a.type || '').toLowerCase() === 'le';
-          const bIsLe = String(b.type || '').toLowerCase() === 'le';
-          if (aIsLe && !bIsLe) return 1;
-          if (!aIsLe && bIsLe) return -1;
-          return 0;
-        });
-        setPairedDevices(sorted);
-        setPrintStatusMsg(`✅ Ditemukan ${sorted.length} perangkat Bluetooth paired. Pilih printer thermal Anda di bawah.`);
+        setPrintStatusMsg(`✅ Ditemukan ${devices.length} perangkat Bluetooth paired.`);
+        setPairedDevices([
+          ...devices,
+          ...presetPrinters
+        ]);
       } else {
-        setPairedDevices([]);
-        setPrintStatusMsg('⚠️ Tidak ada perangkat Bluetooth yang di-pair. Pair printer dulu: Pengaturan Android → Bluetooth → Tambah Perangkat Baru → pilih printer thermal Anda.');
+        setPrintStatusMsg('⚠️ Pemindaian selesai. Jika printer belum muncul di atas, silakan pilih "Auto-Detect" atau masukkan Alamat MAC Manual di bawah.');
+        setPairedDevices(presetPrinters);
       }
     } catch (err) {
-      console.error('[BTScan] Unexpected error:', err);
-      setPrintStatusMsg('❌ Error tidak terduga: ' + (err?.message || String(err)));
+      setPrintStatusMsg('⚠️ Gagal membaca printer Bluetooth: ' + (err.message || 'Pastikan Bluetooth aktif'));
+      setPairedDevices([
+        { name: '🖨️ Printer Thermal Bluetooth Kasir (Auto-Detect)', address: 'BT_THERMAL_AUTO', type: 'bluetooth' },
+        { name: '📄 System PDF & Cetak Layar', address: 'SYSTEM_PDF_PRINT', type: 'system' }
+      ]);
     } finally {
       setIsScanningPaired(false);
     }
