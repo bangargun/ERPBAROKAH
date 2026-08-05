@@ -138,12 +138,18 @@ public class BluetoothPrinterPlugin extends Plugin {
             BluetoothSocket socket = null;
             try {
                 BluetoothDevice device = adapter.getRemoteDevice(mac);
-                adapter.cancelDiscovery();
+                try { adapter.cancelDiscovery(); } catch (Throwable ignored) {}
                 socket = connectToDeviceSocket(device);
                 
+                String devName = mac;
+                try {
+                    String dName = device.getName();
+                    if (dName != null && !dName.trim().isEmpty()) devName = dName;
+                } catch (Throwable ignored) {}
+
                 JSObject res = new JSObject();
                 res.put("address", mac);
-                res.put("name", device.getName());
+                res.put("name", devName);
                 res.put("isLive", true);
                 res.put("reason", "Printer Hidup & Merespon");
                 call.resolve(res);
@@ -204,7 +210,8 @@ public class BluetoothPrinterPlugin extends Plugin {
             if (pairedDevices != null) {
                 for (BluetoothDevice device : pairedDevices) {
                     JSObject dev = new JSObject();
-                    String devName = device.getName();
+                    String devName = null;
+                    try { devName = device.getName(); } catch (Throwable ignored) {}
                     if (devName == null || devName.trim().isEmpty()) {
                         devName = "Printer Bluetooth (" + device.getAddress() + ")";
                     }
@@ -264,12 +271,18 @@ public class BluetoothPrinterPlugin extends Plugin {
             BluetoothSocket socket = null;
             try {
                 BluetoothDevice device = adapter.getRemoteDevice(mac);
-                adapter.cancelDiscovery();
+                try { adapter.cancelDiscovery(); } catch (Throwable ignored) {}
                 socket = connectToDeviceSocket(device);
                 
+                String devName = mac;
+                try {
+                    String dName = device.getName();
+                    if (dName != null && !dName.trim().isEmpty()) devName = dName;
+                } catch (Throwable ignored) {}
+
                 JSObject result = new JSObject();
                 result.put("success", true);
-                result.put("message", "Koneksi ke printer " + device.getName() + " BERHASIL!");
+                result.put("message", "Koneksi ke printer " + devName + " BERHASIL!");
                 call.resolve(result);
             } catch (Exception e) {
                 Log.e(TAG, "Test connection failed: " + e.getMessage(), e);
@@ -335,7 +348,7 @@ public class BluetoothPrinterPlugin extends Plugin {
 
             try {
                 BluetoothDevice device = adapter.getRemoteDevice(finalMac);
-                adapter.cancelDiscovery();
+                try { adapter.cancelDiscovery(); } catch (Throwable ignored) {}
 
                 // Multi-method socket connection (Secure -> Insecure -> Reflection Channel 1)
                 socket = connectToDeviceSocket(device);
