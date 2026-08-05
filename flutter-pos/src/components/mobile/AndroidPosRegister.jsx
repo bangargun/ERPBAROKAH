@@ -4520,11 +4520,31 @@ export default function AndroidPosRegister({
                         Pelanggan dapat melakukan scan QR Code ini menggunakan kamera smartphone untuk mendaftar profil mandiri.
                       </div>
 
-                      {/* Fake Barcode / QR Code Box */}
+                      {/* Real Scannable Barcode / QR Code Box */}
                       <div style={{ background: '#ffffff', padding: '20px', borderRadius: '16px', display: 'inline-block', marginBottom: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
-                        <div style={{ width: '160px', height: '160px', background: '#000000', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--pos-txt-white)', fontSize: '3rem', margin: '0 auto' }}>
-                          <QrCode size={120} color="#ffffff" />
-                        </div>
+                        {(() => {
+                          const isLocalOrNative = typeof window !== 'undefined' && (
+                            window.location.origin.includes('localhost') ||
+                            window.location.origin.includes('capacitor') ||
+                            window.location.origin.includes('127.0.0.1') ||
+                            window.location.protocol === 'file:'
+                          );
+                          const publicBaseUrl = isLocalOrNative 
+                            ? 'https://mris.barokahgroupindonesia.tech' 
+                            : window.location.origin;
+                          const selfRegUrl = `${publicBaseUrl}/register-customer?outlet=${currentOutlet.id || 1}`;
+                          return (
+                            <img 
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(selfRegUrl)}`} 
+                              alt="QR Code Membership"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = `https://quickchart.io/qr?text=${encodeURIComponent(selfRegUrl)}&size=200`;
+                              }}
+                              style={{ width: '160px', height: '160px', display: 'block', margin: '0 auto', borderRadius: '8px', background: '#ffffff' }}
+                            />
+                          );
+                        })()}
                         <div style={{ fontSize: '0.85rem', fontWeight: '900', color: '#000000', marginTop: '10px', fontFamily: 'monospace' }}>
                           MEMBER-{custCode.split(' ')[0]}
                         </div>
@@ -10471,90 +10491,111 @@ export default function AndroidPosRegister({
       )}
 
       {/* 11. MODAL FULLSCREEN SCAN BARCODE / QR REGISTRASI MANDIRI PELANGGAN */}
-      {showQrSelfRegModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: '#090d16', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px'
-        }}>
-          <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
-            <button onClick={() => setShowQrSelfRegModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--pos-txt-primary)', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800' }}>
-              ✕ Tutup
-            </button>
-          </div>
+      {showQrSelfRegModal && (() => {
+        const isLocalOrNative = typeof window !== 'undefined' && (
+          window.location.origin.includes('localhost') ||
+          window.location.origin.includes('capacitor') ||
+          window.location.origin.includes('127.0.0.1') ||
+          window.location.protocol === 'file:'
+        );
+        const publicBaseUrl = isLocalOrNative 
+          ? 'https://mris.barokahgroupindonesia.tech' 
+          : window.location.origin;
+        const selfRegUrl = `${publicBaseUrl}/register-customer?outlet=${currentOutlet.id || 1}`;
 
-          <div className="animate-fade-in" style={{ textAlign: 'center', maxWidth: '440px', width: '100%' }}>
-            <div style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '6px' }}>
-              📲 Barcode / QR Code Registrasi Mandiri Pelanggan
-            </div>
-            <div style={{ fontSize: '0.84rem', color: 'var(--pos-txt-secondary)', marginBottom: '24px' }}>
-              Arahkan kamera smartphone pelanggan ke QR Code berikut untuk pendaftaran profil mandiri di {currentOutlet.name}.
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: '#090d16', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px'
+          }}>
+            <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+              <button onClick={() => setShowQrSelfRegModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--pos-txt-primary)', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800' }}>
+                ✕ Tutup
+              </button>
             </div>
 
-            {/* Giant QR Display Box */}
-            <div style={{ background: '#ffffff', padding: '24px', borderRadius: '24px', display: 'inline-block', boxShadow: '0 20px 50px rgba(99,102,241,0.3)', marginBottom: '24px' }}>
-              <QrCode size={220} color="#000000" />
-              <div style={{ marginTop: '12px', fontSize: '0.88rem', fontWeight: '900', color: '#6366f1', letterSpacing: '0.5px' }}>
-                SCAN DENGAN HP UNTUK DAFTAR MANDIRI
+            <div className="animate-fade-in" style={{ textAlign: 'center', maxWidth: '440px', width: '100%' }}>
+              <div style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '6px' }}>
+                📲 Barcode / QR Code Registrasi Mandiri Pelanggan
+              </div>
+              <div style={{ fontSize: '0.84rem', color: 'var(--pos-txt-secondary)', marginBottom: '20px' }}>
+                Arahkan kamera smartphone pelanggan ke QR Code berikut untuk pendaftaran profil mandiri di <strong>{currentOutlet.name}</strong>.
+              </div>
+
+              {/* Giant Real Scannable QR Display Box */}
+              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '24px', display: 'inline-block', boxShadow: '0 20px 50px rgba(99,102,241,0.35)', marginBottom: '20px' }}>
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(selfRegUrl)}`} 
+                  alt="QR Code Registrasi Mandiri Pelanggan"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://quickchart.io/qr?text=${encodeURIComponent(selfRegUrl)}&size=260`;
+                  }}
+                  style={{ width: '220px', height: '220px', display: 'block', margin: '0 auto', borderRadius: '12px', background: '#ffffff' }}
+                />
+                <div style={{ marginTop: '14px', fontSize: '0.88rem', fontWeight: '900', color: '#6366f1', letterSpacing: '0.5px' }}>
+                  SCAN DENGAN HP UNTUK DAFTAR MANDIRI
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--pos-bg-card)', borderRadius: '12px', padding: '14px 16px', border: '1px solid var(--pos-border-card)', color: 'var(--pos-txt-secondary)', fontSize: '0.80rem', marginBottom: '20px', textAlign: 'center' }}>
+                <div>🔗 URL Registrasi Mandiri:</div>
+                <a
+                  href={selfRegUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#38bdf8', fontWeight: '900', wordBreak: 'break-all', fontSize: '0.85rem', display: 'inline-block', marginTop: '4px', textDecoration: 'underline' }}
+                >
+                  {selfRegUrl}
+                </a>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.open(selfRegUrl, '_blank');
+                  }}
+                  style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '0.90rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <QrCode size={18} />
+                  <span>🔗 Buka Form Registrasi Mandiri di Tab Baru</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const namePrompt = prompt("Simulasi Isi Form Mandiri oleh Pelanggan:\nMasukkan Nama Pelanggan:");
+                    if (namePrompt) {
+                      const phonePrompt = prompt("Masukkan Nomor HP / WhatsApp Pelanggan:");
+                      const newCustObj = {
+                        id: Date.now(),
+                        code: `000${(masterData.customers?.length || 0) + 37} - BMJ`,
+                        name: namePrompt,
+                        phone: phonePrompt || '-',
+                        outlet_id: currentOutlet.id || 1,
+                        outlet_name: currentOutlet.name || 'Restoran Utama',
+                        customer_type: 'Self-Reg Member',
+                        points: 10
+                      };
+                      setMasterData(prev => ({
+                        ...prev,
+                        customers: [...(prev.customers || []), newCustObj]
+                      }));
+                      setSelectedCustomerIdForDetail(newCustObj.id);
+                      alert(`Selamat ${namePrompt}! Pendaftaran profil mandiri berhasil via Scan QR!`);
+                      setShowQrSelfRegModal(false);
+                    }
+                  }}
+                  style={{ width: '100%', padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-secondary)', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  🧪 Fast-Test Simulasi di Layar Ini
+                </button>
               </div>
             </div>
-
-            <div style={{ background: 'var(--pos-bg-card)', borderRadius: '12px', padding: '14px 16px', border: '1px solid var(--pos-border-card)', color: 'var(--pos-txt-secondary)', fontSize: '0.80rem', marginBottom: '20px', textAlign: 'center' }}>
-              <div>🔗 URL Registrasi Mandiri:</div>
-              <a
-                href={`/register-customer?outlet=${currentOutlet.id}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: '#38bdf8', fontWeight: '900', wordBreak: 'break-all', fontSize: '0.85rem', display: 'inline-block', marginTop: '4px', textDecoration: 'underline' }}
-              >
-                {window.location.origin}/register-customer?outlet={currentOutlet.id}
-              </a>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  window.open(`/register-customer?outlet=${currentOutlet.id}`, '_blank');
-                }}
-                style={{ width: '100%', padding: '14px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '12px', fontWeight: '900', fontSize: '0.90rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                <QrCode size={18} />
-                <span>🔗 Buka Form Registrasi Mandiri di Tab Baru</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const namePrompt = prompt("Simulasi Isi Form Mandiri oleh Pelanggan:\nMasukkan Nama Pelanggan:");
-                  if (namePrompt) {
-                    const phonePrompt = prompt("Masukkan Nomor HP / WhatsApp Pelanggan:");
-                    const newCustObj = {
-                      id: Date.now(),
-                      code: `000${(masterData.customers?.length || 0) + 37} - BMJ`,
-                      name: namePrompt,
-                      phone: phonePrompt || '-',
-                      outlet_id: currentOutlet.id || 1,
-                      outlet_name: currentOutlet.name || 'Restoran Utama',
-                      customer_type: 'Self-Reg Member',
-                      points: 10
-                    };
-                    setMasterData(prev => ({
-                      ...prev,
-                      customers: [...(prev.customers || []), newCustObj]
-                    }));
-                    setSelectedCustomerIdForDetail(newCustObj.id);
-                    alert(`Selamat ${namePrompt}! Pendaftaran profil mandiri berhasil via Scan QR!`);
-                    setShowQrSelfRegModal(false);
-                  }
-                }}
-                style={{ width: '100%', padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-secondary)', border: 'none', borderRadius: '12px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
-              >
-                🧪 Fast-Test Simulasi di Layar Ini
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 12. MODAL INTERAKTIF DETAIL SHIFT PENGGUNA APLIKASI */}
       {selectedShiftDetailModal && (
