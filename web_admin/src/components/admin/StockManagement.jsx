@@ -24,7 +24,8 @@ import {
   Smartphone,
   Eye,
   Clock,
-  ShoppingBag
+  ShoppingBag,
+  Cpu
 } from 'lucide-react';
 import { DoubleCalendarPicker, buildExportFilename, getOutletNameStrForExport } from './SalesTransactionsPage';
 import PaginationControls from './PaginationControls';
