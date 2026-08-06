@@ -257,20 +257,26 @@ export default function App() {
                 return null;
               };
 
-              const mergeReportsById = (prevList = [], serverList = []) => {
-                if (!Array.isArray(serverList) || serverList.length === 0) return prevList || [];
-                if (!Array.isArray(prevList) || prevList.length === 0) return serverList;
+              const deletedSet = new Set([
+                ...(prev.deletedLogisticsIds || []),
+                ...(prev.deletedReportIds || []),
+                ...(prev.deletedSalesIds || []),
+                ...(prev.deletedOutflowIds || []),
+                ...(serverData.deletedLogisticsIds || []),
+                ...(serverData.deletedReportIds || []),
+                ...(serverData.deletedSalesIds || []),
+                ...(serverData.deletedOutflowIds || [])
+              ].map(x => String(x)));
 
+              const mergeReportsById = (prevList = [], serverList = []) => {
                 const map = new Map();
-                // 1. Masukkan data server
-                serverList.forEach(item => {
+                (serverList || []).forEach(item => {
                   const k = getItemKey(item);
-                  if (k) map.set(k, item);
+                  if (k && !deletedSet.has(k)) map.set(k, item);
                 });
-                // 2. Gabungkan data lokal
-                prevList.forEach(item => {
+                (prevList || []).forEach(item => {
                   const k = getItemKey(item);
-                  if (k) {
+                  if (k && !deletedSet.has(k)) {
                     const serverItem = map.get(k);
                     if (!serverItem) {
                       map.set(k, item);
