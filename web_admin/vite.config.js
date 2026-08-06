@@ -16,7 +16,6 @@ export default defineConfig({
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]',
         manualChunks: {
-          vendor: ['react', 'react-dom'],
           icons: ['lucide-react'],
           charts: ['recharts']
         }
