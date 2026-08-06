@@ -2440,8 +2440,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             { id: 'stok_keluar',       label: 'Stok Keluar',                        icon: '📤', color: T.danger },
             { id: 'transfer_stok',     label: 'Transfer Stok',                      icon: '🚚', color: T.accentGold },
             { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',                 icon: '⚠️', color: T.danger },
-            { id: 'stok_opname_system',label: 'Opname by Sistem',                   icon: '🤖', color: T.info },
-            { id: 'stok_opname',       label: 'Log Opname Audit Fisik',             icon: '📋', color: T.success }
+            { id: 'stok_opname_system',label: 'Opname by Sistem (Auto Mutasi)',   icon: '🤖', color: T.info },
+            { id: 'stok_opname',       label: 'Audit Opname Fisik (POS Kasir)',     icon: '📋', color: T.success }
           ].map(tab => {
             const isActive = activeSubTab === tab.id;
             return (
@@ -3206,13 +3206,138 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           </div>
         )}
 
-        {/* SUBTAB: STOK OPNAME (HASIL AUDIT FISIK INVENTORIS) */}
-        {(activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname_system' || activeSubTab === 'stok_opname') && (
+        {/* SUBTAB: OPNAME BY SISTEM (REKAP MUTASI LOGISTIK OTOMATIS) */}
+        {activeSubTab === 'stok_opname_system' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.info, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Cpu size={18} color={T.info} />
+                  <span>Opname by Sistem (Kalkulasi Mutasi Logistik Otomatis)</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '3px', margin: 0 }}>
+                  Rekapitulasi kalkulasi mutasi stok otomatis (Stok Masuk, Stok Keluar, Transfer In, Transfer Out, Stok Rusak) dari Pusat Kontrol Logistik &amp; Stok. Mandiri &amp; terpisah dari Audit Fisik POS.
+                </p>
+              </div>
+
+              {/* FILTER ITEM BAHAN BAKU */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary }}>Filter Item Bahan Baku:</span>
+                <select
+                  value={opnameItemFilter}
+                  onChange={e => setOpnameItemFilter(e.target.value)}
+                  style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
+                >
+                  <option value="ALL">🌐 Semua Bahan Baku (All Items)</option>
+                  {allOpnameIngredientNames.map(name => (
+                    <option key={name} value={name}>🥬 {name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+                <thead>
+                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '50px' }}>NO</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NAMA ITEM / BAHAN BAKU</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '100px', textAlign: 'center' }}>SATUAN</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right' }}>STOK AWAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.success }}>📥 STOK MASUK</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.danger }}>📤 STOK KELUAR</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.info }}>🚚 TRANSFER IN</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.danger }}>🚚 TRANSFER OUT</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.accentGold }}>⚠️ STOK RUSAK</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px', textAlign: 'right', color: '#38bdf8' }}>🖥️ SISA STOK SISTEM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const rawSystemRows = calculateStockOpnameBySystem();
+                    const systemRows = opnameItemFilter && opnameItemFilter !== 'ALL'
+                      ? rawSystemRows.filter(r => (r.itemName || '').toLowerCase() === opnameItemFilter.toLowerCase())
+                      : rawSystemRows;
+                    const paginatedSystemRows = systemRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+                    if (systemRows.length === 0) return (
+                      <tr>
+                        <td colSpan={10} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
+                          Tidak ada data bahan baku untuk kalkulasi Opname by Sistem.
+                        </td>
+                      </tr>
+                    );
+
+                    return paginatedSystemRows.map((row, idx) => {
+                      return (
+                        <tr key={row.id || idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                          <td style={{ padding: '14px 16px', color: T.txtSecondary, fontWeight: '700' }}>
+                            {(currentPage - 1) * pageSize + idx + 1}
+                          </td>
+
+                          <td style={{ padding: '14px 16px' }}>
+                            <strong style={{ color: T.txtPrimary, display: 'block', fontSize: '0.88rem' }}>
+                              🥬 {row.itemName}
+                            </strong>
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'center', color: T.txtSecondary, fontWeight: '700' }}>
+                            {row.unit}
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>
+                            {row.stokAwal} {row.unit}
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.stokMasuk > 0 ? T.success : T.txtMuted }}>
+                            {row.stokMasuk} {row.unit}
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.stokKeluar > 0 ? T.danger : T.txtMuted }}>
+                            {row.stokKeluar} {row.unit}
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.transferIn > 0 ? T.info : T.txtMuted }}>
+                            {row.transferIn} {row.unit}
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.transferOut > 0 ? T.danger : T.txtMuted }}>
+                            {row.transferOut} {row.unit}
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.stokRusak > 0 ? T.accentGold : T.txtMuted }}>
+                            {row.stokRusak} {row.unit}
+                          </td>
+
+                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.90rem' }}>
+                            {row.sisaStokSystem} {row.unit}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={Math.ceil((opnameItemFilter && opnameItemFilter !== 'ALL' ? calculateStockOpnameBySystem().filter(r => (r.itemName || '').toLowerCase() === opnameItemFilter.toLowerCase()) : calculateStockOpnameBySystem()).length / pageSize) || 1}
+              onPageChange={(p) => setCurrentPage(p)}
+              pageSize={pageSize}
+              onPageSizeChange={(sz) => { setPageSize(sz); setCurrentPage(1); }}
+              totalItems={(opnameItemFilter && opnameItemFilter !== 'ALL' ? calculateStockOpnameBySystem().filter(r => (r.itemName || '').toLowerCase() === opnameItemFilter.toLowerCase()) : calculateStockOpnameBySystem()).length}
+            />
+          </div>
+        )}
+
+        {/* SUBTAB: STOK OPNAME (HASIL AUDIT FISIK INVENTORIS POS KASIR) */}
+        {(activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                 <CheckSquare size={18} color={T.success} />
-                <span>Log Stock Opname (Hasil Audit Fisik Inventoris)</span>
+                <span>Log Stock Opname (Hasil Audit Fisik Inventoris POS Kasir)</span>
               </h3>
               
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
