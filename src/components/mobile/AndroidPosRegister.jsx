@@ -11753,7 +11753,6 @@ export default function AndroidPosRegister({
                                     {trfOut} {ing.unit || 'kg'}
                                   </td>
 
-
                                   {/* SISA STOK FISIK (DIISI MANUAL) */}
                                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                                     <input
@@ -11768,12 +11767,7 @@ export default function AndroidPosRegister({
                                     />
                                   </td>
 
-                                  {/* SELISIH */}
-                                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                    <span style={{ fontSize: '0.78rem', fontWeight: '900', color: selisihColor }}>
-                                      {selisihLabel}
-                                    </span>
-                                  </td>
+                                  
                                 </tr>
                               );
                             })
