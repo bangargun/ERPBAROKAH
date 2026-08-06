@@ -6157,7 +6157,6 @@ export default function AndroidPosRegister({
                           <th style={{ padding: '12px 10px' }}>Tanggal Audit</th>
                           <th style={{ padding: '12px 10px' }}>No Laporan</th>
                           <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>
-                          <th style={{ padding: '12px 10px' }}>Nama Stok Item</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Awal</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Masuk (+)</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', background: 'rgba(251, 113, 133, 0.1)' }}>🔴 Stok Keluar (Web Admin)</th>
@@ -6165,8 +6164,6 @@ export default function AndroidPosRegister({
                           <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>Transfer Stok Out</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Rusak (-)</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right' }}>🔢 Stok Sistem</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right' }}>⚖️ Stok Fisik</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'center' }}>📊 Selisih</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8' }}>💵 Harga Satuan</th>
                           <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', background: 'rgba(244, 63, 94, 0.1)' }}>⚠️ Denda Per Stok</th>
                           <th style={{ padding: '12px 10px', textAlign: 'center' }}>Aksi</th>
@@ -6186,7 +6183,7 @@ export default function AndroidPosRegister({
                           if (filteredOpnameList.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={16} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                                <td colSpan={13} style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
                                   Tidak ada data Laporan Stok Opname pada rentang waktu terpilih.
                                 </td>
                               </tr>
@@ -6247,7 +6244,6 @@ export default function AndroidPosRegister({
                                     </span>
                                   </div>
                                 </td>
-                                <td style={{ padding: '12px 10px', fontWeight: '900', color: '#34d399' }}>📦 {op.item_name}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--pos-txt-secondary)' }}>{op.stok_awal || 0} {op.unit || 'kg'}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8', fontWeight: '700' }}>+{op.stok_masuk || 0}</td>
                                 
@@ -6264,9 +6260,6 @@ export default function AndroidPosRegister({
                                 </td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>-{op.stok_rusak || 0}</td>
                                 <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>{sSistem}</td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.88rem' }}>{op.stok_fisik || 0} {op.unit || 'kg'}</td>
-                                
-                                {/* SELISIH */}
                                 <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                                   <span style={{
                                     padding: '4px 8px', borderRadius: '8px', fontSize: '0.70rem', fontWeight: '900',
