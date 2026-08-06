@@ -11624,7 +11624,7 @@ export default function AndroidPosRegister({
                       stok_sistem: sSistem,
                       stok_fisik: sFisik,
                       selisih: selisih,
-                      status: 'approved'
+                      status: 'pending'
                     };
                   });
 
