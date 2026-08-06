@@ -282,6 +282,126 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     return (masterData.stockOpname || []).filter(op => !isDeletedRecord(op));
   };
 
+  // OPNAME BY SISTEM (BAHAN BAKU TIDAK DITAMPILKAN DI APK MOBILE POS)
+  const getSystemOpnameList = () => {
+    const rawIngs = ingredientsList || [];
+    // Filter bahan baku yang TIDAK ditampilkan di APK (status / tampilkan_di_apk === Inaktif)
+    const hiddenIngs = rawIngs.filter(ing =>
+      ing.tampilkan_di_apk === 'Inaktif' ||
+      ing.tampilkan_di_apk === 'inaktif' ||
+      ing.tampilkan_di_apk === 'Tidak' ||
+      ing.tampilkan_di_apk === 'tidak' ||
+      ing.tampilkan_di_apk === false ||
+      ing.tampilkan_bahan_baku === false ||
+      ing.tampilkan_bahan_baku === 'Tidak' ||
+      ing.tampilkan_bahan_baku === 'tidak' ||
+      ing.status === 'Inaktif' ||
+      ing.status === 'inaktif' ||
+      ing.show_in_app === false
+    );
+
+    // Fallback: Jika tidak ada bahan baku yang di-set Inaktif di master data, tampilkan semua bahan baku sistem
+    const targetIngs = hiddenIngs.length > 0 ? hiddenIngs : rawIngs;
+
+    const movements = getMovementsList();
+    const transfersList = getTransfersList();
+
+    const isAllOutlets = !selectedBranch || String(selectedBranch) === 'ALL' || logSelectedOutletIds.includes('ALL');
+    const targetBranchId = selectedBranch && String(selectedBranch) !== 'ALL' ? selectedBranch : (logSelectedOutletIds.includes('ALL') ? null : logSelectedOutletIds[0]);
+
+    const dateStr = logStartDate && logEndDate
+      ? `${logStartDate} s/d ${logEndDate}`
+      : (logStartDate || logEndDate || new Date().toISOString().split('T')[0]);
+
+    return targetIngs.map((ing, idx) => {
+      const ingNameLower = (ing.name || '').toLowerCase().trim();
+
+      // 1. Stok Masuk
+      const stokMasuk = movements
+        .filter(m => {
+          if (m.type !== 'IN') return false;
+          if ((m.item_name || m.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && m.date < logStartDate) return false;
+          if (logEndDate && m.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(m.outlet_id) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, m) => sum + Number(m.qty || 0), 0);
+
+      // 2. Stok Keluar (Penjualan + Transfer Out + Waste)
+      const stokKeluarPenjualan = (masterData.stockOutflow || [])
+        .filter(s => {
+          if ((s.itemName || s.item_name || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && s.date < logStartDate) return false;
+          if (logEndDate && s.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(s.outletId || s.branch_id || 1) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, s) => sum + Math.abs(Number(s.qty || 0)), 0);
+
+      const transferIn = transfersList
+        .filter(t => {
+          if ((t.item_name || t.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && t.date < logStartDate) return false;
+          if (logEndDate && t.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(t.to_outlet_id || t.toOutletId) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, t) => sum + Number(t.qty || 0), 0);
+
+      const transferOut = transfersList
+        .filter(t => {
+          if ((t.item_name || t.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && t.date < logStartDate) return false;
+          if (logEndDate && t.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(t.from_outlet_id || t.fromOutletId) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, t) => sum + Number(t.qty || 0), 0);
+
+      const stokRusak = (masterData.damagedGoods || [])
+        .concat(masterData.approvedWaste || [])
+        .filter(d => {
+          if ((d.item_name || d.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
+          if (logStartDate && d.date < logStartDate) return false;
+          if (logEndDate && d.date > logEndDate) return false;
+          if (!isAllOutlets && targetBranchId !== null && Number(d.outlet_id || d.branch_id) !== Number(targetBranchId)) return false;
+          return true;
+        })
+        .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || 0), 0);
+
+      const totalStokKeluar = stokKeluarPenjualan + transferOut + stokRusak;
+
+      // 3. Stok Awal
+      const manualKey = `ing_${targetBranchId || 'ALL'}_${ing.name}`;
+      let stokAwal = 0;
+      if (manualStokAwalMap[manualKey] !== undefined && manualStokAwalMap[manualKey] !== '') {
+        stokAwal = Number(manualStokAwalMap[manualKey]);
+      } else {
+        stokAwal = Number(ing.initialStock !== undefined ? ing.initialStock : (ing.stock || ing.stok || 0));
+      }
+
+      // 4. Sisa Stok by Sistem
+      const sisaStok = (stokAwal + stokMasuk + transferIn) - totalStokKeluar;
+
+      const reportNo = `OPSYS-${ing.code || `BHN-${ing.id || idx + 1}`}`;
+      const outletNameStr = targetBranchId ? getOutletName(targetBranchId) : 'Semua Outlet Cabang';
+
+      return {
+        id: `op-sys-${ing.id || idx}`,
+        date: dateStr,
+        reportNo,
+        outletName: outletNameStr,
+        itemName: ing.name,
+        unit: ing.unit || 'kg',
+        stokAwal,
+        stokMasuk: stokMasuk + transferIn,
+        stokKeluar: totalStokKeluar,
+        sisaStok
+      };
+    }).sort((a, b) => a.itemName.localeCompare(b.itemName));
+  };
+
   const calculateStockOpnameBySystem = () => {
     const movements = getMovementsList();
     const transfersList = getTransfersList();
@@ -3286,8 +3406,111 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           </div>
         )}
 
-        {/* SUBTAB: STOK OPNAME (HASIL AUDIT FISIK INVENTORIS) */}
-        {(activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname_system' || activeSubTab === 'stok_opname') && (
+        {/* SUBTAB 5: OPNAME BY SISTEM (BAHAN BAKU TIDAK DITAMPILKAN DI APK) */}
+        {activeSubTab === 'stok_opname_system' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <SlidersHorizontal size={18} color={T.info} />
+                  <span>Opname by Sistem (Bahan Baku Tidak Ditampilkan di APK Mobile POS)</span>
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '2px' }}>
+                  Kalkulasi otomatis stok sistem untuk bahan baku yang di-set <strong>Tampilkan di APK: Inaktif</strong>. Didukung filter rentang waktu & outlet.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+                <thead>
+                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>NAMA OUTLET</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NAMA ITEM</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '120px' }}>STOK AWAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '120px', color: T.info }}>STOK MASUK</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '120px', color: T.danger }}>STOK KELUAR</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '130px', color: T.success }}>SISA STOK</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const systemOpnameData = getSystemOpnameList();
+                    const paginatedSystem = systemOpnameData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+                    if (systemOpnameData.length === 0) return (
+                      <tr>
+                        <td colSpan={8} style={{ padding: '35px', textAlign: 'center', color: T.txtMuted }}>
+                          📭 Tidak ada data bahan baku sistem untuk filter terpilih.
+                        </td>
+                      </tr>
+                    );
+
+                    return paginatedSystem.map(item => (
+                      <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        {/* 1. TANGGAL */}
+                        <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
+                          <div>📅 {item.date}</div>
+                        </td>
+
+                        {/* 2. NO LAPORAN */}
+                        <td style={{ padding: '14px 16px', fontWeight: '900', color: T.info }}>
+                          <span>📄 {item.reportNo}</span>
+                        </td>
+
+                        {/* 3. NAMA OUTLET */}
+                        <td style={{ padding: '14px 16px', fontWeight: '700' }}>
+                          <span>🏢 {item.outletName}</span>
+                        </td>
+
+                        {/* 4. NAMA ITEM */}
+                        <td style={{ padding: '14px 16px', fontWeight: '800' }}>
+                          <div style={{ color: T.txtPrimary, fontSize: '0.88rem' }}>📦 {item.itemName}</div>
+                          <div style={{ fontSize: '0.72rem', color: T.txtMuted, marginTop: '2px' }}>Satuan: {item.unit} &bull; Tampilkan di APK: Inaktif</div>
+                        </td>
+
+                        {/* 5. STOK AWAL */}
+                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>
+                          {item.stokAwal} {item.unit}
+                        </td>
+
+                        {/* 6. STOK MASUK */}
+                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '800', color: T.info }}>
+                          +{item.stokMasuk} {item.unit}
+                        </td>
+
+                        {/* 7. STOK KELUAR */}
+                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '800', color: T.danger }}>
+                          -{item.stokKeluar} {item.unit}
+                        </td>
+
+                        {/* 8. SISA STOK */}
+                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: item.sisaStok >= 0 ? T.success : T.danger, fontSize: '0.90rem' }}>
+                          {item.sisaStok} {item.unit}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            {/* PAGINATION CONTROLS */}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={Math.ceil(getSystemOpnameList().length / pageSize) || 1}
+              pageSize={pageSize}
+              totalItems={getSystemOpnameList().length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
+          </div>
+        )}
+
+        {/* SUBTAB 6: STOK OPNAME (HASIL AUDIT FISIK INVENTORIS KASIR / OUTLET) */}
+        {(activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
