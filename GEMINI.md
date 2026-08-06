@@ -262,15 +262,29 @@ cd /var/www/erp-barokah && git pull origin main
 
 ## 🔒 STATUS HALAMAN & MODUL TERKUNCI (SELESAI & DIKUNCI TOTAL — 6 AGUSTUS 2026)
 
-> **DIKUNCI / DILARANG DIUBAH-UBAH (SELESAI TOTAL):**
-> 1. **Modul Logistik & Stok (`StockManagement.jsx`)**:
->    - Stok Masuk, Transfer Stok, Stok Rusak (Waste 1-Tahap Direct Save berstatus Done), Log Opname Audit.
->    - Kolom Item (Bahan Baku) & Dropdown Filter Item Bahan Baku (Seluruh Bahan Baku).
+> **DIKUNCI TOTAL & HUKUM MUTLAK (DILARANG UBAH/SULAP KODE BERFUNGSI):**
+> 1. **Modul Manajemen Stok & Logistik (`StockManagement.jsx`)**:
+>    - **Subtab 1: Stok Masuk**: Input & Log Stok Masuk Pembelian.
+>    - **Subtab 2: Stok Keluar**: Log Penjualan POS + Kolom `NAMA ITEM (BAHAN BAKU KELUAR)`.
+>    - **Subtab 3: Transfer Stok**: Log Pengiriman & Penerimaan Antar Cabang.
+>    - **Subtab 4: Stok Rusak (Waste)**: Direct Save 1-Tahap (Status Done).
+>    - **Subtab 5: Opname by Sistem (Auto Mutasi)**: Tabel Mandiri 10 Kolom (`NO | NAMA ITEM | SATUAN | STOK AWAL | STOK MASUK | STOK KELUAR | TRANSFER IN | TRANSFER OUT | STOK RUSAK | SISA STOK SISTEM`).
+>    - **Subtab 6: Audit Opname Fisik (POS Kasir)**: Tabel 12 Kolom Lengkap (`TANGGAL | NAMA OUTLET | ITEM | NO LAPORAN | STOK KELUAR | STOK FISIK | SELISIH | HARGA SATUAN | DENDA STOK | PENGAJU | STATUS | AKSI (Edit & Delete)`).
+> 
 > 2. **Persetujuan Manajemen (`ApprovalCenter.jsx`)**:
->    - Persetujuan Laporan Harian dengan Kolom NAMA OUTLET (`TANGGAL | NAMA OUTLET | NO LAPORAN | PENGAJU | STATUS | AKSI`).
-> 3. **Laporan Keuangan & Entry Manual (`ManualFinancialEntryPage.jsx`, `FinancialOverview.jsx`)**:
->    - Form & Tabel Rekap Keuangan Harian (`Nama Outlet & Shift`).
-> 4. **POS Kasir Mobile Android (`AndroidPosRegister.jsx` / `flutter-pos`)**:
->    - Form & handler Stok Rusak 1-Tahap Direct Save, driver thermal printer 3.2.0, POS Kasir register.
+>    - Persetujuan Laporan Harian dengan Kolom `NAMA OUTLET` (`TANGGAL | NAMA OUTLET | NO LAPORAN | PENGAJU | STATUS | AKSI`).
+> 
+> 3. **Laporan Keuangan & Entry Manual (`ManualFinancialEntryPage.jsx`, `FinancialOverview.jsx`, `FinancialReportsFull.jsx`)**:
+>    - Form & Tabel Rekap Keuangan Harian (`Nama Outlet & Shift`), Laporan Laba Rugi, & Arus Kas.
+> 
+> 4. **Log Aktivitas Sistem (`ActivityLogPage.jsx`)**:
+>    - Real-Time Audit Trail Logging (Web Admin & Mobile POS Kasir) dengan filter platform, cabang, pencarian, & ekspor Excel/PDF.
+> 
+> 5. **POS Kasir Mobile Android (`AndroidPosRegister.jsx` / `flutter-pos`)**:
+>    - Driver Thermal Printer Bluetooth 3.2.0 (SPP Tiered Socket Fallback), Form & Handler Stok Rusak 1-Tahap Direct Save, POS Kasir register.
 >    - **APK Build Output**: `flutter-pos/android/app/build/outputs/apk/debug/app-debug.apk` / `web_admin/public/mris-pos.apk` / `dist/mris-pos.apk`.
+> 
+> 6. **Aturan Keamanan Bundler & Deploy VPS (Vite Hash Security)**:
+>    - **WAJIB** menggunakan standar Content Hashing Vite (`index-[hash].js`) pada `vite.config.js` untuk mencegah browser HTTP cache mismatch / blank screen.
+>    - **WAJIB** menyalin hasil build `web_admin/dist/*` ke root `dist/` setiap kali deploy ke VPS (`cp -r web_admin/dist/* dist/`).
 
