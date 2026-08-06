@@ -191,3 +191,69 @@ cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMM
       - Pembungkusan `try-catch` pada `adapter.cancelDiscovery()` dan `device.getName()` untuk pencegahan `SecurityException` di Android 12+
       - Method `@PluginMethod`: `scanDevices`, `connectDevice`, `disconnectDevice`, `printText`, `testConnection`, `checkLiveStatus`
     - **JANGAN DISENTUH ATAU DIKUTAK-KATIK** kecuali ada perintah perbaikan eksplisit langsung dari pengguna.
+
+---
+
+## 🚀 ATURAN DEPLOYMENT VPS — WAJIB DIBACA SEBELUM DEPLOY
+
+### ⚠️ KRITIS: Nginx VPS melayani dari `dist/` (root), BUKAN `web_admin/dist/`
+
+> **TEMUAN 6 Agustus 2026** — Root cause dari semua masalah "tombol tidak berfungsi di VPS tapi berfungsi di local":
+> Nginx di VPS (`mris-admin.barokahgroupindonesia.tech`) membaca file dari **`/var/www/erp-barokah/dist/`** (direktori root), **BUKAN** dari `web_admin/dist/`.
+
+### Perintah Deploy yang BENAR:
+
+```bash
+# ✅ WAJIB: Build KEDUANYA setiap kali ada perubahan web_admin
+cd /Users/argun/Documents/MRIS
+
+# 1. Build web_admin terlebih dahulu
+npm --prefix web_admin run build
+
+# 2. WAJIB copy hasil build ke root dist/ (yang di-serve nginx VPS)
+cp -r web_admin/dist/assets/index.js dist/assets/index.js
+cp -r web_admin/dist/assets/index.css dist/assets/index.css
+cp -r web_admin/dist/assets/icons.js dist/assets/icons.js
+cp -r web_admin/dist/assets/charts.js dist/assets/charts.js
+cp -r web_admin/dist/assets/vendor.js dist/assets/vendor.js
+cp web_admin/dist/index.html dist/index.html
+
+# 3. Commit dan push
+git add dist/ web_admin/dist/
+git commit -m "build: sync dist/ dan web_admin/dist/"
+git push origin main
+```
+
+```bash
+# Di VPS: cukup git pull saja (tidak perlu npm build di VPS)
+cd /var/www/erp-barokah && git pull origin main
+```
+
+### ❌ JANGAN PERNAH:
+- Hanya jalankan `npm --prefix web_admin run build` tanpa copy ke `dist/` → VPS tidak akan berubah!
+- Hanya jalankan `git pull` di VPS tanpa memastikan `dist/` sudah diupdate di commit terbaru
+
+---
+
+## 🔒 ARSITEKTUR LOGISTIK — KODE TERKUNCI (STABIL 6 Agustus 2026)
+
+### Status Fungsi Approve di `web_admin/src/components/admin/StockManagement.jsx`
+
+> **DINYATAKAN SELESAI & BERFUNGSI** — Commit: `a1dafdc` + sync dist `90dcb7d`
+> **DILARANG DIUBAH, DIGABUNG, ATAU DIRESTRUKTURISASI** sesuai Aturan 12.
+
+### Fungsi Approve TERPISAH (1 fungsi per subtab) — JANGAN DIGABUNG:
+
+| Subtab | Fungsi Handler | Array yang diupdate |
+|---|---|---|
+| **Stok Masuk** | `handleApproveMasukRecord(record)` | `stockMovement`, `approvedLogistics` |
+| **Transfer Stok** | `handleApproveTransferRecord(record)` | `stockTransfer`, `approvedTransfers`, `stockMovement` |
+| **Stok Rusak (Waste)** | `handleApproveWasteRecord(record)` | `damagedGoods`, `approvedWaste`, `stockMovement` |
+| **Log Opname Audit** | `handleApproveOpnameReport(op)` | `stockOpname`, `approvedLogistics` |
+
+### Pelajaran: Kesalahan Fatal yang Pernah Dilakukan
+- ❌ Menggabungkan ke satu fungsi `handleToggleLogisticsStatus(record, logType)` → MERUSAK sinkronisasi
+- ❌ Mengubah `<button>` kembali ke `<span>` → STATUS tidak bisa diklik
+- ❌ Hanya build `web_admin/dist/` tanpa update `dist/` → VPS tidak berubah
+- ❌ Melakukan `curl POST` test ke API server dengan `_lastUpdated: 9999999999999` → merusak merge logic server
+- ✅ **Yang benar**: Fungsi terpisah per subtab + `<button>` dengan onClick + sync kedua dist/
