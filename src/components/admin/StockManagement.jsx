@@ -1355,6 +1355,26 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || d.jumlah_rusak || 0), 0);
   };
 
+  // APPROVE STOK MASUK (dari POS Kasir → Web Admin klik Done)
+  const handleApproveMasukRecord = (record) => {
+    const targetReportNo = record.report_no || record.id;
+    setMasterData(prev => {
+      const updateItem = (item) => {
+        if (item.id === record.id || (item.report_no && String(item.report_no) === String(targetReportNo))) {
+          return { ...item, status: 'Done', is_approved: true, sent_to_apk: true, approved_at: new Date().toISOString(), approved_by: 'Admin Web', status_keterangan: 'by approved' };
+        }
+        return item;
+      };
+      return {
+        ...prev,
+        _lastUpdated: Date.now(),
+        stockMovement: (prev.stockMovement || []).map(updateItem),
+        approvedLogistics: (prev.approvedLogistics || []).map(updateItem)
+      };
+    });
+    alert(`✅ Stok Masuk (${record.item_name || targetReportNo}) BERHASIL DISETUJUI!\nStatus berubah menjadi 🟢 Done dan tersinkron ke POS Kasir.`);
+  };
+
   // ACC / APPROVE OPNAME REPORT FROM OUTLET
   const handleApproveOpnameReport = (op) => {
     const autoStokKeluarPenjualan = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
@@ -2537,21 +2557,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
-                              color: isDone ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); if (!isDone) handleApproveMasukRecord(m); else alert('Status sudah Done (Disetujui). Klik Edit untuk mengubah.'); }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
+                                color: isDone ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: isDone ? 'default' : 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isDone ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui (Done) stok masuk ini'}
+                            >
                               {isDone ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isDone ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 5. AKSI */}
@@ -2869,21 +2896,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
-                              color: isApproved ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveTransferRecord(t); else alert('Status sudah Done (Disetujui).'); }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                                color: isApproved ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: isApproved ? 'default' : 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isApproved ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui transfer stok ini'}
+                            >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 5. AKSI */}
@@ -3080,21 +3114,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
-                              color: isApproved ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveWasteRecord(m); else alert('Status sudah Done (Disetujui).'); }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                                color: isApproved ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: isApproved ? 'default' : 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isApproved ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui (Done) laporan barang rusak ini'}
+                            >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 5. AKSI */}
@@ -3295,21 +3336,28 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 5. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? T.success : T.accentGold}`,
-                              color: isApproved ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveOpnameReport(op); else alert('Laporan sudah Done (ACC / Disetujui).'); }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isApproved ? T.success : T.accentGold}`,
+                                color: isApproved ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: isApproved ? 'default' : 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isApproved ? 'Laporan sudah Done (ACC)' : 'Klik untuk menyetujui (ACC / Done) laporan opname ini dan kirim ke POS Kasir'}
+                            >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (ACC)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 6. AKSI */}

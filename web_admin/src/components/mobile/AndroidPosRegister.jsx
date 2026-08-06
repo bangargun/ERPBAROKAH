@@ -12565,7 +12565,7 @@ export default function AndroidPosRegister({
                     return;
                   }
 
-                  setShowWastePreviewFormModal(true);
+                  handleSaveWasteFinal();
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                   {/* Row 1: Tanggal Kejadian & Dibuat Oleh */}
@@ -12833,7 +12833,7 @@ export default function AndroidPosRegister({
                     </button>
                     <button type="submit" style={{ padding: '9px 22px', background: 'linear-gradient(135deg, #f43f5e, #e11d48)', border: 'none', color: 'var(--pos-txt-white)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(244,63,94,0.35)' }}>
                       <Trash2 size={15} />
-                      <span>Lanjut ke Pratinjau (OK)</span>
+                      <span>💾 Simpan Laporan Barang Rusak</span>
                     </button>
                   </div>
                 </form>

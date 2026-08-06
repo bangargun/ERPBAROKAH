@@ -874,44 +874,50 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
                       {/* 4. STATUS */}
                       <td style={{ padding: '14px 16px' }}>
-                        {(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? (
-                          <span style={{
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isDone = item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done';
+                            if (isDone) {
+                              if (window.confirm(`Status laporan (${item.report_no || item.id}) saat ini "Done". Apakah Anda yakin ingin mengubah kembali ke "Pending"?`)) {
+                                handleUpdateStatus(item, 'Pending');
+                              }
+                            } else {
+                              handleUpdateStatus(item, 'Done');
+                            }
+                          }}
+                          style={{
                             padding: '6px 12px',
                             borderRadius: '8px',
-                            background: 'rgba(34, 197, 94, 0.15)',
-                            border: '1px solid #22c55e',
-                            color: '#4ade80',
+                            background: (item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done')
+                              ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                            border: `1px solid ${(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? '#22c55e' : '#f59e0b'}`,
+                            color: (item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? '#4ade80' : '#fbbf24',
                             fontWeight: '900',
                             fontSize: '0.78rem',
+                            cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '6px'
-                          }}>
-                            <CheckSquare size={14} />
-                            <span>Done (Disetujui)</span>
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleUpdateStatus(item, 'Done')}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: 'rgba(245, 158, 11, 0.2)',
-                              border: '1px solid #f59e0b',
-                              color: '#fbbf24',
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                            title="Klik untuk menyetujui (Approve) laporan ini"
-                          >
-                            <Clock size={14} />
-                            <span>⏳ Pending (Klik Approve)</span>
-                          </button>
-                        )}
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                          }}
+                          title={(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done')
+                            ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending"
+                            : "Klik untuk menyetujui (Approve) laporan ini menjadi Done"
+                          }
+                        >
+                          {(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? (
+                            <>
+                              <CheckSquare size={14} />
+                              <span>Done (Disetujui)</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={14} />
+                              <span>⏳ Pending (Klik Approve)</span>
+                            </>
+                          )}
+                        </button>
                       </td>
 
                       {/* 5. AKSI (EDIT & HAPUS) */}

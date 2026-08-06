@@ -1791,8 +1791,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
       return;
     }
-    // Opens Papan Preview Modal for user review
-    setShowRusakPreviewFormModal(true);
+    // Langsung simpan 1-tahap (Direct Save)
+    handleSaveRusakFinal();
   };
 
   const handleSaveRusakFinal = () => {
@@ -1840,10 +1840,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         created_by: rusakCreatedBy,
         author_name: rusakCreatedBy,
         sumber_input: 'web_admin',
-        status_keterangan: 'by manual',
+        status_keterangan: 'by approved',
         type_input: 'manual',
-        status: 'pending',
-        is_approved: false,
+        status: 'Done',
+        is_approved: true,
+        sent_to_apk: true,
+        approved_at: new Date().toISOString(),
+        approved_by: 'Admin Web',
         editing_notes: rusakEditingNotes || '',
         notes: finalNotesStr,
         created_at: new Date().toISOString()
@@ -1868,6 +1871,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
       return {
         ...prev,
+        _lastUpdated: Date.now(),
         ingredients: updatedIngredients,
         damagedGoods: [...createdRecords, ...filterOld(prev.damagedGoods)],
         approvedWaste: [...createdRecords, ...filterOld(prev.approvedWaste)],
@@ -1875,7 +1879,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       };
     });
 
-    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Bahan Baku) berhasil disimpan!\nKeterangan "by manual" aktif. Silakan klik ACC & Kirim APK jika ingin menghubungkan ke POS Mobile APK.`);
+    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Bahan Baku) BERHASIL DISIMPAN & DISETUJUI (DONE)!\nStatus otomatis berstatus Done dan tersinkronisasi ke POS Kasir.`);
     setShowRusakPreviewFormModal(false);
     setShowAddModal(null);
     setEditingRecord(null);
@@ -4495,7 +4499,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   Batal
                 </button>
                 <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '800' }}>
-                  Lanjut ke Pratinjau (OK)
+                  💾 Simpan Laporan Barang Rusak
                 </button>
               </div>
             </form>

@@ -234,37 +234,28 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
  */
 export const printToBluetoothPrinter = async (mac, textContent, paperWidth = '58', onSuccess, onError) => {
   if (isCapacitor() && mac) {
-    // Mode Capacitor (Android) — kirim ke native plugin Bluetooth hardware printer
+    // Mode Capacitor (Android) — kirim ke native plugin Bluetooth
     try {
       const result = await BluetoothPrinter.printText({
         mac,
         text: textContent,
         paperWidth: String(paperWidth)
       });
-      // ✅ SUKSES HARDWARE: printer fisik benar-benar menerima dan mencetak data
-      if (onSuccess) onSuccess({ success: true, isHardware: true, message: result?.message || 'Cetak ke printer berhasil.' });
-      return { success: true, isHardware: true };
+      if (onSuccess) onSuccess(result);
+      return result;
     } catch (err) {
-      // ❌ GAGAL HARDWARE: printer tidak merespon / Bluetooth error
-      console.error('[BTPrinter] Native printText GAGAL:', err);
-      const errObj = { message: err?.message || String(err), code: err?.code || 'PRINT_ERROR' };
-      // Panggil onError — biarkan caller memutuskan apakah fallback ke PDF
-      if (onError) {
-        onError(errObj);
-      } else {
-        // Jika tidak ada onError handler, fallback ke PDF secara diam-diam
-        console.warn('[BTPrinter] Tidak ada onError handler, otomatis fallback ke PDF...');
-        _browserPrintFallback(textContent, paperWidth);
-        if (onSuccess) onSuccess({ success: false, isHardware: false, fallbackPdf: true, errorMsg: errObj.message });
-      }
-      return { success: false, isHardware: false, fallbackPdf: false, errorMsg: errObj.message };
+      console.error('[BTPrinter] Native printText error:', err);
+      console.warn('[BTPrinter] Bluetooth printer error / tidak merespon, otomatis mengalihkan ke Cetak PDF...');
+      _browserPrintFallback(textContent, paperWidth);
+      if (onSuccess) onSuccess({ success: true, fallbackPdf: true, errorMsg: err?.message });
+      return { success: true, fallbackPdf: true, errorMsg: err?.message };
     }
   } else {
-    // Mode Browser / MAC kosong — langsung fallback ke PDF Print (tidak ada hardware)
-    console.warn('[BTPrinter] Printer Bluetooth tidak dikonfigurasi atau bukan Capacitor. Mencetak sebagai PDF.');
+    // Mode Browser / Printer Tidak Ada (MAC Kosong) — langsung alihkan ke PDF Print!
+    console.warn('[BTPrinter] Printer Bluetooth tidak ditemukan / MAC belum dipilih. Otomatis mencetak dalam format PDF.');
     _browserPrintFallback(textContent, paperWidth);
-    if (onSuccess) onSuccess({ success: true, isHardware: false, fallbackPdf: true });
-    return { success: true, isHardware: false, fallbackPdf: true };
+    if (onSuccess) onSuccess({ success: true, fallbackPdf: true });
+    return { success: true, fallbackPdf: true };
   }
 };
 
