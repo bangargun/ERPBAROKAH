@@ -3560,16 +3560,27 @@ export default function AndroidPosRegister({
                       </button>
                     )}
                   </div>
-                  <button
-                    onClick={() => {
-                      setCustomerSearchQuery('');
-                      setShowCustomerSearchModal(true);
-                    }}
-                    style={{ background: 'none', border: 'none', color: isLight ? '#1d4ed8' : '#60a5fa', fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <User size={14} />
-                    <span>👤 {selectedCustomer || 'Pilih Pelanggan'}</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setCustomerSearchQuery('');
+                        setShowCustomerSearchModal(true);
+                      }}
+                      style={{ background: 'none', border: 'none', color: isLight ? '#1d4ed8' : '#60a5fa', fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <User size={14} />
+                      <span>👤 {selectedCustomer || 'Pilih Pelanggan'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowQrSelfRegModal(true)}
+                      title="Tampilkan QR Code Registrasi Mandiri Pelanggan"
+                      style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', border: 'none', color: '#ffffff', padding: '4px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 6px rgba(99,102,241,0.4)' }}
+                    >
+                      <QrCode size={13} />
+                      <span>QR Member</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Dine In Info Bar */}
@@ -8013,6 +8024,48 @@ export default function AndroidPosRegister({
               </button>
             </div>
 
+            {/* BANNER REGISTRASI MANDIRI MEMBER / QR CODE */}
+            <div style={{
+              background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+              borderRadius: '12px',
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'space-between',
+              marginBottom: '14px',
+              boxShadow: '0 4px 12px rgba(79,70,229,0.3)',
+              color: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <QrCode size={22} color="#ffffff" />
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '900' }}>📲 Registrasi Mandiri Member Pelanggan</div>
+                  <div style={{ fontSize: '0.72rem', opacity: 0.9 }}>Minta pelanggan scan QR Code di HP untuk daftar mandiri</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCustomerSearchModal(false);
+                  setShowQrSelfRegModal(true);
+                }}
+                style={{
+                  padding: '8px 14px',
+                  background: '#ffffff',
+                  color: '#4f46e5',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '900',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Buka QR Code
+              </button>
+            </div>
+
             {/* REAL-TIME SEARCH FIELD */}
             <div style={{ position: 'relative', marginBottom: '16px' }}>
               <input
@@ -10470,6 +10523,20 @@ export default function AndroidPosRegister({
                 </div>
               </div>
 
+              <div style={{ marginBottom: '14px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddCustomerModal(false);
+                    setShowQrSelfRegModal(true);
+                  }}
+                  style={{ width: '100%', padding: '10px', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '10px', fontWeight: '800', fontSize: '0.80rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <QrCode size={16} />
+                  <span>📲 Tampilkan QR Code Registrasi Mandiri di HP Pelanggan</span>
+                </button>
+              </div>
+
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   type="button"
@@ -10506,7 +10573,7 @@ export default function AndroidPosRegister({
         return (
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: '#090d16', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px'
+            background: '#090d16', zIndex: 10000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px'
           }}>
             <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
               <button onClick={() => setShowQrSelfRegModal(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--pos-txt-primary)', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800' }}>
@@ -10560,6 +10627,17 @@ export default function AndroidPosRegister({
                 >
                   <QrCode size={18} />
                   <span>🔗 Buka Form Registrasi Mandiri di Tab Baru</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(selfRegUrl);
+                    alert("🔗 Link Registrasi Mandiri Pelanggan berhasil disalin!");
+                  }}
+                  style={{ width: '100%', padding: '12px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '12px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  📋 Salin Link Registrasi Mandiri
                 </button>
 
                 <button

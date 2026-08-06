@@ -389,7 +389,18 @@ export default function App() {
   // RENDER CONTROL: SEPARATE WEB ADMIN VS POS MOBILE
   // ==========================================
 
-  // 1. Native Capacitor Android Tablet APK Mode -> Strictly Render POS Kasir Mobile
+  // 1. Customer QR Self Registration Page (Check route FIRST so QR scan on phone works without login)
+  if (isSelfRegPath || viewMode === 'register_customer') {
+    return (
+      <CustomerSelfRegistrationPage
+        masterData={masterData}
+        setMasterData={updateMasterData}
+        onBackToPos={() => setViewMode(isCapacitorNative ? 'mobile' : 'admin')}
+      />
+    );
+  }
+
+  // 2. Native Capacitor Android Tablet APK Mode -> Strictly Render POS Kasir Mobile
   if (isCapacitorNative || viewMode === 'mobile') {
     return (
       <AndroidPosRegister
@@ -400,17 +411,6 @@ export default function App() {
         onShiftCloseClick={() => {}}
         onSwitchToAdmin={() => {}}
         onLogout={handleLogout}
-      />
-    );
-  }
-
-  // 2. Customer QR Self Registration Page
-  if (isSelfRegPath || viewMode === 'register_customer') {
-    return (
-      <CustomerSelfRegistrationPage
-        masterData={masterData}
-        setMasterData={updateMasterData}
-        onBackToPos={() => setViewMode('admin')}
       />
     );
   }
