@@ -295,18 +295,63 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       }
     }
 
-    // COST OF GOODS SOLD (HPP) BREAKDOWN
-    const cogsTotalApproved = approvedReports.reduce((sum, f) => {
-      if (f.cogs_items && f.cogs_items.length > 0) {
-        return sum + f.cogs_items.reduce((s, i) => s + Number(i.amount || (i.qty * i.price_unit) || 0), 0);
+    // COST OF GOODS SOLD (HPP) BREAKDOWN & INGREDIENT ITEMIZATION
+    const cogsItemsMap = {};
+
+    approvedReports.forEach(f => {
+      const rows = f.cogs_items || f.expense_rows || [];
+      let reportHasHppRow = false;
+
+      rows.forEach(r => {
+        const catType = String(r.category_type || r.category || '').toLowerCase();
+        const isHpp = !r.category_type || catType.includes('hpp') || catType.includes('bahan') || catType.includes('mentah');
+        if (isHpp && (r.item_name || r.name)) {
+          reportHasHppRow = true;
+          const rawName = (r.item_name || r.name || 'Bahan Baku Utama').trim();
+          const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+          const amt = Number(r.subtotal || r.amount || (Number(r.qty || 0) * Number(r.price_per_unit || r.price_unit || 0)) || 0);
+          const qty = Number(r.qty || 0);
+          const unit = r.unit || '';
+
+          if (!cogsItemsMap[name]) {
+            cogsItemsMap[name] = { name, amount: 0, qty: 0, unit, count: 0 };
+          }
+          cogsItemsMap[name].amount += amt;
+          cogsItemsMap[name].qty += qty;
+          if (unit && !cogsItemsMap[name].unit) cogsItemsMap[name].unit = unit;
+          cogsItemsMap[name].count += 1;
+        }
+      });
+
+      if (!reportHasHppRow && Number(f.cogs_expense || 0) > 0) {
+        const name = 'Ayam Potongan & Bahan Baku Utama';
+        if (!cogsItemsMap[name]) {
+          cogsItemsMap[name] = { name, amount: 0, qty: 0, unit: '', count: 0 };
+        }
+        cogsItemsMap[name].amount += Number(f.cogs_expense || 0);
+        cogsItemsMap[name].count += 1;
       }
-      return sum + Number(f.cogs_expense || 0);
-    }, 0);
+    });
+
+    const cogsItemList = Object.values(cogsItemsMap).filter(i => i.amount > 0);
+    const cogsTotalApproved = cogsItemList.length > 0 
+      ? cogsItemList.reduce((s, i) => s + i.amount, 0)
+      : approvedReports.reduce((s, f) => s + Number(f.cogs_expense || 0), 0);
 
     const hppVal = cogsTotalApproved;
     const hppUtamaVal = hppVal * 0.70;
     const hppBumbuVal = hppVal * 0.20;
     const hppMinumanVal = hppVal * 0.10;
+
+    // Fallback itemized breakdown if no specific rows present but HPP > 0
+    if (cogsItemList.length === 0 && hppVal > 0) {
+      cogsItemList.push(
+        { name: 'Ayam Potongan & Daging Utama', amount: hppUtamaVal, qty: 0, unit: '', note: 'Bahan mentah utama olahan dapur' },
+        { name: 'Minyak Goreng, Bumbu & Sayuran', amount: hppBumbuVal, qty: 0, unit: '', note: 'Bumbu dapur & bahan pembantu' },
+        { name: 'Bahan Minuman & Packaged Goods', amount: hppMinumanVal, qty: 0, unit: '', note: 'Bahan bar minuman & kemasan' }
+      );
+    }
+
     const biayaPengiriman = approvedReports.reduce((s, f) => s + Number(f.shipping_fee || f.delivery_cost || 0), 0);
     const totalCogsVal = hppVal + biayaPengiriman;
 
@@ -405,6 +450,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       transferRevenueVal,
       diskonPenjualan,
       totalIncomeVal,
+      cogsItemList,
       hppVal,
       hppUtamaVal,
       hppBumbuVal,
@@ -723,9 +769,11 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     csv += `"TOTAL INCOME",${totalIncomeVal},100%\n`;
     csv += `COST OF GOODS SOLD,,\n`;
     csv += `"[5002] Harga Pokok Produksi / Penjualan (HPP)",${hppVal},${calcPercent(hppVal, totalIncomeVal)}%\n`;
-    csv += `"[5002.01] HPP Bahan Baku Utama (Daging, Ayam & Seafood)",${hppUtamaVal},${calcPercent(hppUtamaVal, totalIncomeVal)}%\n`;
-    csv += `"[5002.02] HPP Sayuran, Bumbu & Bahan Dapur",${hppBumbuVal},${calcPercent(hppBumbuVal, totalIncomeVal)}%\n`;
-    csv += `"[5002.03] HPP Minuman & Packaged Goods",${hppMinumanVal},${calcPercent(hppMinumanVal, totalIncomeVal)}%\n`;
+    cogsItemList.forEach((item, idx) => {
+      const subCode = `5002.${String(idx + 1).padStart(2, '0')}`;
+      const qtyStr = item.qty > 0 ? ` (${item.qty} ${item.unit || ''})` : '';
+      csv += `"[${subCode}] Bahan Baku: ${item.name}${qtyStr}",${item.amount},${calcPercent(item.amount, totalIncomeVal)}%\n`;
+    });
     csv += `"[5005] Biaya Pengiriman & Expedisi Bahan",${biayaPengiriman},${calcPercent(biayaPengiriman, totalIncomeVal)}%\n`;
     csv += `"TOTAL COST OF GOODS SOLD",${totalCogsVal},${calcPercent(totalCogsVal, totalIncomeVal)}%\n`;
     csv += `"GROSS PROFIT",${grossProfitVal},${calcPercent(grossProfitVal, totalIncomeVal)}%\n`;
@@ -1141,9 +1189,17 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               {/* 2. COST OF GOODS SOLD */}
               {renderRow('2. Cost of Goods Sold (Harga Pokok Produksi)', null, true)}
               {renderRow('[5002] Harga Pokok Produksi / Penjualan (HPP)', p => p.hppVal, false, false, 1, T.info, 'transparent', '5002')}
-              {renderRow('↳ [5002.01] HPP Bahan Baku Utama (Daging, Ayam & Seafood)', p => p.hppUtamaVal, false, false, 2, T.txtSecondary, 'transparent', '5002.01')}
-              {renderRow('↳ [5002.02] HPP Sayuran, Bumbu & Bahan Dapur', p => p.hppBumbuVal, false, false, 2, T.txtSecondary, 'transparent', '5002.02')}
-              {renderRow('↳ [5002.03] HPP Minuman & Packaged Goods', p => p.hppMinumanVal, false, false, 2, T.txtSecondary, 'transparent', '5002.03')}
+              {(() => {
+                const p0 = comparedMonths[0]?.pnl;
+                const items = p0?.cogsItemList || [];
+                return items.map((item, idx) => {
+                  const subCode = `5002.${String(idx + 1).padStart(2, '0')}`;
+                  return renderRow(`↳ [${subCode}] Bahan Baku: ${item.name}`, p => {
+                    const found = p.cogsItemList?.find(i => i.name.toLowerCase() === item.name.toLowerCase());
+                    return found ? found.amount : 0;
+                  }, false, false, 2, T.txtSecondary, 'transparent', subCode);
+                });
+              })()}
               {renderRow('[5005] Biaya Pengiriman & Expedisi Bahan', p => p.biayaPengiriman, false, false, 1, T.info, 'transparent', '5005')}
               {renderRow('Total Cost of Goods Sold', p => p.totalCogsVal, false, true, 0, T.danger, T.tableStripeBg)}
 
@@ -2103,54 +2159,35 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     </td>
                   </tr>
 
-                  {/* HPP ITEMIZATION BY MATERIAL CATEGORY */}
-                  <tr
-                    onClick={() => handleOpenAccountDetail('5002.01', 'HPP Bahan Baku Utama (Daging, Ayam & Seafood)', hppUtamaVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '5px 10px 5px 48px', color: T.txtSecondary, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [5002.01] HPP Bahan Baku Utama (Daging, Ayam &amp; Seafood)</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', color: T.txtPrimary, fontSize: '0.82rem' }}>
-                      {formatLunaCurrency(hppUtamaVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', color: T.txtMuted, fontSize: '0.82rem' }}>
-                      {calcPercent(hppUtamaVal, totalIncomeVal)}
-                    </td>
-                  </tr>
-
-                  <tr
-                    onClick={() => handleOpenAccountDetail('5002.02', 'HPP Sayuran, Bumbu & Bahan Dapur', hppBumbuVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '5px 10px 5px 48px', color: T.txtSecondary, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [5002.02] HPP Sayuran, Bumbu &amp; Bahan Dapur</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', color: T.txtPrimary, fontSize: '0.82rem' }}>
-                      {formatLunaCurrency(hppBumbuVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', color: T.txtMuted, fontSize: '0.82rem' }}>
-                      {calcPercent(hppBumbuVal, totalIncomeVal)}
-                    </td>
-                  </tr>
-
-                  <tr
-                    onClick={() => handleOpenAccountDetail('5002.03', 'HPP Minuman & Packaged Goods', hppMinumanVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '5px 10px 5px 48px', color: T.txtSecondary, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [5002.03] HPP Minuman &amp; Packaged Goods</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', color: T.txtPrimary, fontSize: '0.82rem' }}>
-                      {formatLunaCurrency(hppMinumanVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '5px 10px', color: T.txtMuted, fontSize: '0.82rem' }}>
-                      {calcPercent(hppMinumanVal, totalIncomeVal)}
-                    </td>
-                  </tr>
+                  {/* HPP ITEMIZATION BY SPECIFIC INGREDIENT MATERIAL */}
+                  {cogsItemList.map((item, idx) => {
+                    const subCode = `5002.${String(idx + 1).padStart(2, '0')}`;
+                    const qtyStr = item.qty > 0 ? ` (${item.qty} ${item.unit || ''})` : '';
+                    return (
+                      <tr
+                        key={item.name + idx}
+                        onClick={() => handleOpenAccountDetail(subCode, `Bahan Baku: ${item.name}`, item.amount)}
+                        style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <td style={{ padding: '6px 10px 6px 48px', color: T.txtSecondary, fontSize: '0.82rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: T.txtPrimary }}>
+                            <span>↳ [{subCode}] Bahan Baku: {item.name}{qtyStr}</span>
+                          </div>
+                          <div style={{ fontSize: '0.73rem', color: T.txtMuted, marginTop: '2px' }}>
+                            {item.note ? item.note : `Rincian akumulasi pengeluaran HPP bahan mentah ${item.name}`}
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '6px 10px', color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '700', verticalAlign: 'top' }}>
+                          {formatLunaCurrency(item.amount)}
+                        </td>
+                        <td style={{ textAlign: 'right', padding: '6px 10px', color: T.txtMuted, fontSize: '0.82rem', verticalAlign: 'top' }}>
+                          {calcPercent(item.amount, totalIncomeVal)}
+                        </td>
+                      </tr>
+                    );
+                  })}
 
                   {/* ACCOUNT 5005 */}
                   <tr
