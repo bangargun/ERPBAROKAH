@@ -11694,15 +11694,13 @@ export default function AndroidPosRegister({
                             <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Stok Masuk (Laporan Harian)</th>
                             <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
                             <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Keluar</th>
-                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right' }}>🔢 Stok Sistem</th>
                             <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#fbbf24' }}>⚖️ Sisa Stok Fisik (Manual) *</th>
-                            <th style={{ padding: '12px 12px', width: '110px', textAlign: 'center' }}>Selisih</th>
                           </tr>
                         </thead>
                         <tbody>
                           {ingredientsList.length === 0 ? (
                             <tr>
-                              <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
+                              <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                                 Tidak ada Bahan Baku dengan status Aktif di Master Data.
                               </td>
                             </tr>
@@ -11716,17 +11714,9 @@ export default function AndroidPosRegister({
                                 stok_fisik: ''
                               };
 
-                              const stokAwal = Number(rowState.stok_awal !== undefined && rowState.stok_awal !== '' ? rowState.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0)));
                               const stokMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                               const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                               const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
-
-                              const stokSistem = stokAwal + stokMasuk + trfIn - trfOut;
-                              const stokFisik = (rowState.stok_fisik !== undefined && rowState.stok_fisik !== '') ? Number(rowState.stok_fisik) : '';
-                              const selisih = stokFisik !== '' ? (Number(stokFisik) - stokSistem) : null;
-
-                              const selisihColor = selisih === null ? 'var(--pos-txt-secondary)' : selisih === 0 ? '#34d399' : selisih > 0 ? '#38bdf8' : '#fb7185';
-                              const selisihLabel = selisih === null ? '-' : selisih === 0 ? 'PAS' : selisih > 0 ? `+${selisih}` : `${selisih}`;
 
                               return (
                                 <tr key={ing.id || idx} style={{ borderBottom: '1px solid var(--pos-border-card)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
@@ -11763,10 +11753,6 @@ export default function AndroidPosRegister({
                                     {trfOut} {ing.unit || 'kg'}
                                   </td>
 
-                                  {/* STOK SISTEM */}
-                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: '#f8fafc' }}>
-                                    {stokSistem} {ing.unit || 'kg'}
-                                  </td>
 
                                   {/* SISA STOK FISIK (DIISI MANUAL) */}
                                   <td style={{ padding: '10px 14px', textAlign: 'right' }}>
