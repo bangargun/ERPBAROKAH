@@ -474,7 +474,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
   const currentPnl = computePnlDataForDateRange(startDate, endDate);
   const {
     pendapatanUsaha, cashRevenueVal, qrisRevenueVal, edcRevenueVal, transferRevenueVal,
-    diskonPenjualan, totalIncomeVal, hppVal, hppUtamaVal, hppBumbuVal, hppMinumanVal,
+    diskonPenjualan, totalIncomeVal, cogsItemList = [], hppVal, hppUtamaVal, hppBumbuVal, hppMinumanVal,
     biayaPengiriman, totalCogsVal, grossProfitVal, expenseList, totalExpenseVal,
     netOperatingIncomeVal, otherIncomeItems, totalOtherIncomeVal, otherExpenseItems,
     totalOtherExpenseVal, netOtherIncomeVal, netIncomeVal
