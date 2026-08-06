@@ -3425,15 +3425,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '130px' }}>TANGGAL</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>NAMA OUTLET</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>ITEM / BAHAN BAKU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '130px' }}>NO LAPORAN</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', color: '#fbbf24', width: '140px' }}>STOK FISIK</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '150px' }}>ANALISIS SELISIH</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px' }}>PENGAJU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '130px' }}>STATUS</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '140px' }}>AKSI</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '110px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '130px' }}>NAMA OUTLET</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '150px' }}>ITEM / BAHAN BAKU</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '120px' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, width: '110px' }}>STOK KELUAR</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: '#fbbf24', width: '110px' }}>STOK FISIK</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'center', width: '130px' }}>SELISIH</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', width: '120px' }}>HARGA SATUAN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, width: '120px' }}>DENDA STOK</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '110px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'center', width: '110px' }}>STATUS</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', width: '130px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3443,7 +3446,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                     if (filteredOpname.length === 0) return (
                       <tr>
-                        <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
+                        <td colSpan={12} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                           Tidak ada log stock opname fisik untuk filter terpilih.
                         </td>
                       </tr>
@@ -3465,26 +3468,30 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const currentStokRusak = (op.stok_rusak !== undefined && op.stok_rusak > 0) ? op.stok_rusak : autoWasteQty;
 
                       const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - (currentStokKeluar + currentStokRusak + (op.transfer_keluar || 0));
-                      const diffVal = (op.stok_fisik !== undefined ? op.stok_fisik : (op.stok_awal || 0)) - sSistem;
-                      const isDefisit = (op.stok_fisik !== undefined ? op.stok_fisik : (op.stok_awal || 0)) < sSistem;
+                      const stokFisikVal = op.stok_fisik !== undefined ? op.stok_fisik : (op.stok_awal || 0);
+                      const diffVal = stokFisikVal - sSistem;
+                      const isDefisit = diffVal < 0;
+
+                      const activePrice = getItemPriceFromStokMasuk(op.item_name) || op.harga_satuan || 0;
+                      const dendaVal = isDefisit ? Math.abs(diffVal) * activePrice : 0;
 
                       return (
                         <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
                           {/* 1. TANGGAL */}
-                          <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
+                          <td style={{ padding: '14px 12px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{op.date}</div>
                             <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{op.time || ''}</div>
                           </td>
 
                           {/* 2. NAMA OUTLET */}
-                          <td style={{ padding: '14px 16px' }}>
+                          <td style={{ padding: '14px 12px' }}>
                             <span style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '5px' }}>
                               🏢 {outletName}
                             </span>
                           </td>
 
                           {/* 3. ITEM / BAHAN BAKU */}
-                          <td style={{ padding: '14px 16px' }}>
+                          <td style={{ padding: '14px 12px' }}>
                             <span style={{
                               padding: '5px 11px',
                               borderRadius: '8px',
@@ -3503,7 +3510,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           </td>
 
                           {/* 4. NO LAPORAN */}
-                          <td style={{ padding: '14px 16px', fontWeight: '900' }}>
+                          <td style={{ padding: '14px 12px', fontWeight: '900' }}>
                             <button
                               type="button"
                               onClick={() => setPreviewOpnameReportModalData(op)}
@@ -3520,13 +3527,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </button>
                           </td>
 
-                          {/* 5. STOK FISIK */}
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: '#fbbf24' }}>
-                            {op.stok_fisik !== undefined ? op.stok_fisik : (op.stok_awal || 0)} {op.unit || 'kg'}
+                          {/* 5. STOK KELUAR */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: currentStokKeluar > 0 ? T.danger : T.txtMuted }}>
+                            {currentStokKeluar} {op.unit || 'kg'}
                           </td>
 
-                          {/* 6. ANALISIS SELISIH */}
-                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          {/* 6. STOK FISIK */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#fbbf24' }}>
+                            {stokFisikVal} {op.unit || 'kg'}
+                          </td>
+
+                          {/* 7. SELISIH */}
+                          <td style={{ padding: '14px 12px', textAlign: 'center' }}>
                             <span style={{
                               padding: '4px 10px',
                               borderRadius: '6px',
@@ -3536,12 +3548,22 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               color: isDefisit ? T.danger : T.success,
                               border: `1px solid ${isDefisit ? 'rgba(244, 63, 94, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`
                             }}>
-                              {isDefisit ? `⚠️ Defisit (${diffVal.toFixed(1)})` : diffVal > 0 ? `🟢 Surplus (+${diffVal.toFixed(1)})` : '✅ Sesuai (0)'}
+                              {isDefisit ? `⚠️ ${diffVal.toFixed(1)} ${op.unit || 'kg'}` : diffVal > 0 ? `🟢 +${diffVal.toFixed(1)} ${op.unit || 'kg'}` : `✅ 0 ${op.unit || 'kg'}`}
                             </span>
                           </td>
 
-                          {/* 4. PENGAJU */}
-                          <td style={{ padding: '14px 16px' }}>
+                          {/* 8. HARGA SATUAN */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>
+                            {formatRupiah(activePrice)}
+                          </td>
+
+                          {/* 9. DENDA STOK */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: dendaVal > 0 ? T.danger : T.txtMuted }}>
+                            {formatRupiah(dendaVal)}
+                          </td>
+
+                          {/* 10. PENGAJU */}
+                          <td style={{ padding: '14px 12px' }}>
                             <span style={{
                               padding: '4px 10px',
                               borderRadius: '6px',
@@ -3556,8 +3578,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px' }}>{makerName}</div>
                           </td>
 
-                          {/* 5. STATUS */}
-                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          {/* 11. STATUS */}
+                          <td style={{ padding: '14px 12px', textAlign: 'center' }}>
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveOpnameReport(op); else alert('Laporan sudah Done (ACC / Disetujui).'); }}
@@ -3582,8 +3604,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </button>
                           </td>
 
-                          {/* 6. AKSI */}
-                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          {/* 12. AKSI */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right' }}>
                             <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
                               <button
                                 type="button"
@@ -3597,7 +3619,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 onClick={() => handleDeleteRecord(op.id, 'stok_opname', op.report_no || op.id)}
                                 style={{ padding: '6px 10px', background: T.cardBg2, border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: T.danger, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                               >
-                                <Trash2 size={13} /> Hapus
+                                <Trash2 size={13} /> Delete
                               </button>
                             </div>
                           </td>
