@@ -588,7 +588,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [opnameUnit, setOpnameUnit] = useState(ingredientsList[0] ? ingredientsList[0].unit : 'kg');
   const [opnameNotes, setOpnameNotes] = useState('');
   const [opnameCreatorFilter, setOpnameCreatorFilter] = useState('ALL'); // 'ALL' | 'by_kasir' | 'by_outlet'
+  const [opnameItemFilter, setOpnameItemFilter] = useState('ALL'); // 'ALL' | specific ingredient name
   const [previewOpnameReportModalData, setPreviewOpnameReportModalData] = useState(null);
+
+  // Extract all unique ingredient names for Opname Item Filter
+  const allOpnameIngredientNames = useMemo(() => {
+    const namesSet = new Set();
+    (masterData.ingredients || []).forEach(i => {
+      if (i.name && i.name.trim()) namesSet.add(i.name.trim());
+    });
+    (getOpnameList() || []).forEach(op => {
+      const n = op.item_name || op.nama_barang;
+      if (n && n.trim()) namesSet.add(n.trim());
+    });
+    return Array.from(namesSet).sort();
+  }, [masterData.ingredients, masterData.stockOpname, masterData.approvedLogistics]);
 
   // HELPER FUNCTIONS
   const getOutletName = (id, explicitName) => {
@@ -1214,6 +1228,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       const isKasir = (op.type_input && op.type_input.toLowerCase().includes('mobile')) || (op.submitted_by && !op.created_by) || ((op.created_by || '').toLowerCase().includes('kasir'));
       if (opnameCreatorFilter === 'by_kasir' && !isKasir) return false;
       if (opnameCreatorFilter === 'by_outlet' && isKasir) return false;
+
+      // Filter Item Bahan Baku
+      if (opnameItemFilter && opnameItemFilter !== 'ALL') {
+        const opItem = String(op.item_name || op.nama_barang || '').toLowerCase().trim();
+        const targetItem = String(opnameItemFilter).toLowerCase().trim();
+        if (opItem !== targetItem) return false;
+      }
 
       return true;
     });
@@ -3204,6 +3225,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   </select>
                 </div>
 
+                {/* FILTER ITEM BAHAN BAKU */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary }}>Filter Item Bahan Baku:</span>
+                  <select
+                    value={opnameItemFilter}
+                    onChange={e => setOpnameItemFilter(e.target.value)}
+                    style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
+                  >
+                    <option value="ALL">🌐 Semua Bahan Baku (All Items)</option>
+                    {allOpnameIngredientNames.map(name => (
+                      <option key={name} value={name}>🥬 {name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Total Denda Hari Ini (Per Hari) */}
                 <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '6px 14px', borderRadius: '10px', color: T.danger, fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>📅 Denda Hari Ini:</span>
@@ -3258,10 +3294,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>NAMA OUTLET</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>ITEM / BAHAN BAKU</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>PENGAJU</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '140px' }}>STATUS</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '170px' }}>AKSI</th>
                   </tr>
@@ -3273,7 +3310,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                     if (filteredOpname.length === 0) return (
                       <tr>
-                        <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
+                        <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                           Tidak ada log stock opname untuk filter terpilih.
                         </td>
                       </tr>
@@ -3285,6 +3322,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const makerName = op.created_by || op.submitted_by || 'Admin';
                       const outletName = getOutletName(op.outlet_id);
                       const isApproved = op.status === 'ACC' || op.status === 'ok' || op.status === 'approved' || op.status === 'Approved' || op.status === 'Done';
+                      const itemNameStr = op.item_name || op.nama_barang || 'Bahan Baku';
 
                       return (
                         <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
@@ -3301,7 +3339,26 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </span>
                           </td>
 
-                          {/* 3. NO LAPORAN (KLIK UNTUK PRATINJAU) */}
+                          {/* 3. ITEM / BAHAN BAKU */}
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{
+                              padding: '5px 11px',
+                              borderRadius: '8px',
+                              fontSize: '0.82rem',
+                              fontWeight: '900',
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              color: T.info,
+                              border: `1px solid ${T.info}`,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              🥬 {itemNameStr}
+                            </span>
+                            {op.unit && <span style={{ fontSize: '0.72rem', color: T.txtMuted, marginLeft: '6px' }}>({op.unit})</span>}
+                          </td>
+
+                          {/* 4. NO LAPORAN (KLIK UNTUK PRATINJAU) */}
                           <td style={{ padding: '14px 16px', fontWeight: '900' }}>
                             <button
                               type="button"
@@ -3318,7 +3375,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               <Eye size={14} color={T.success} />
                             </button>
                             <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
-                              Item: <strong style={{ color: T.txtPrimary }}>{op.item_name || 'Audit Fisik'}</strong>
+                              Item: <strong style={{ color: T.txtPrimary }}>{itemNameStr}</strong>
                             </div>
                           </td>
 
