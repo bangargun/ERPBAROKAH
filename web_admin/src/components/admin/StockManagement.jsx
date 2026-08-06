@@ -1355,121 +1355,24 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || d.jumlah_rusak || 0), 0);
   };
 
-  // UNIFIED TOGGLE LOGISTICS STATUS HANDLER (WEB ADMIN -> POS KASIR SYNC)
-  const handleToggleLogisticsStatus = (record, logType) => {
-    if (!record) return;
-
-    const currentStatus = record.status;
-    const isCurrentlyDone =
-      currentStatus === 'Done' || currentStatus === 'done' ||
-      currentStatus === 'ACC' || currentStatus === 'ok' ||
-      currentStatus === 'Approved' || currentStatus === 'approved' ||
-      record.is_approved === true;
-
-    const newStatus = isCurrentlyDone ? 'Pending' : 'Done';
-    const newApproved = !isCurrentlyDone;
-
-    const recordId = record.id;
-    // Untuk stok_opname: POS menyimpan banyak baris per laporan dengan report_no yang sama
-    // Gunakan report_no sebagai kunci utama pencocokan
-    const recordReportNo = record.report_no || record.id;
-    const reportLabel = record.item_name || record.report_no || record.id;
-
-    if (isCurrentlyDone) {
-      if (!window.confirm(`Status laporan (${reportLabel}) saat ini sudah "Done / Disetujui". Apakah Anda yakin ingin mengubah kembali statusnya menjadi "⏳ Pending"?`)) {
-        return;
-      }
-    }
-
-    // Matcher kuat berdasarkan id ATAU report_no
-    const matchRecord = (item) =>
-      item.id === recordId ||
-      (recordId && String(item.id) === String(recordId)) ||
-      (recordReportNo && item.report_no && String(item.report_no) === String(recordReportNo));
-
-    const updateObj = (item) => {
-      if (!matchRecord(item)) return item;
-      return {
-        ...item,
-        status: newStatus,
-        is_approved: newApproved,
-        sent_to_apk: true,
-        approved_at: newApproved ? new Date().toISOString() : null,
-        approved_by: newApproved ? 'Admin Web' : null,
-        status_keterangan: newApproved ? 'by approved' : 'pending'
-      };
-    };
-
+  // APPROVE STOK MASUK (dari POS Kasir → Web Admin klik Done)
+  const handleApproveMasukRecord = (record) => {
+    const targetReportNo = record.report_no || record.id;
     setMasterData(prev => {
-      let newPrev = { ...prev, _lastUpdated: Date.now() };
-
-      if (logType === 'stok_masuk') {
-        // stockMovement adalah sumber utama untuk getFilteredMasuk() → wajib diupdate
-        const updatedMovement = (prev.stockMovement || []).map(updateObj);
-        const alreadyInMovement = (prev.stockMovement || []).some(matchRecord);
-
-        newPrev.stockMovement = alreadyInMovement
-          ? updatedMovement
-          : [...updatedMovement, { ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }];
-
-        // Update juga approvedLogistics sebagai sinkronisasi ke POS Mobile
-        const updatedApp = (prev.approvedLogistics || []).map(updateObj);
-        const alreadyInApp = (prev.approvedLogistics || []).some(matchRecord);
-        newPrev.approvedLogistics = alreadyInApp
-          ? updatedApp
-          : [{ ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }, ...updatedApp];
-
-      } else if (logType === 'transfer_stok') {
-        newPrev.stockTransfer = (prev.stockTransfer || []).map(updateObj);
-        newPrev.approvedTransfers = (prev.approvedTransfers || []).map(updateObj);
-        newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
-
-      } else if (logType === 'stok_rusak') {
-        newPrev.damagedGoods = (prev.damagedGoods || []).map(updateObj);
-        newPrev.approvedWaste = (prev.approvedWaste || []).map(updateObj);
-        newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
-
-      } else if (logType === 'stok_opname') {
-        // POS Kasir menyimpan ke 3 array: stockOpname, approvedLogistics, stockMovement
-        // Saat admin klik Done, SEMUA 3 array harus diupdate agar status sinkron ke POS
-        const autoStokKeluar = getAutoSalesOutflowForIngredient(record.item_name, record.outlet_id);
-        const activePrice = getItemPriceFromStokMasuk(record.item_name) || record.harga_satuan || 0;
-
-        // Untuk stok_opname: matching dilakukan berdasarkan report_no (satu laporan = banyak baris)
-        const matchOpname = (item) =>
-          (recordReportNo && item.report_no && String(item.report_no) === String(recordReportNo)) ||
-          item.id === recordId ||
-          (recordId && String(item.id) === String(recordId));
-
-        const updateOpnameObj = (item) => {
-          if (!matchOpname(item)) return item;
-          return {
-            ...item,
-            stok_keluar: newApproved ? (item.stok_keluar || autoStokKeluar) : item.stok_keluar,
-            harga_satuan: activePrice || item.harga_satuan,
-            status: newStatus,
-            is_approved: newApproved,
-            sent_to_apk: true,
-            approved_at: newApproved ? new Date().toISOString() : null,
-            approved_by: newApproved ? 'Admin Web' : null,
-            status_keterangan: newApproved ? 'by approved' : 'pending'
-          };
-        };
-
-        // Update semua 3 array sekaligus (sama seperti cara POS Kasir menyimpan)
-        newPrev.stockOpname = (prev.stockOpname || []).map(updateOpnameObj);
-        newPrev.approvedLogistics = (prev.approvedLogistics || []).map(updateOpnameObj);
-        newPrev.stockMovement = (prev.stockMovement || []).map(updateOpnameObj);
-      }
-
-      return newPrev;
+      const updateItem = (item) => {
+        if (item.id === record.id || (item.report_no && String(item.report_no) === String(targetReportNo))) {
+          return { ...item, status: 'Done', is_approved: true, sent_to_apk: true, approved_at: new Date().toISOString(), approved_by: 'Admin Web', status_keterangan: 'by approved' };
+        }
+        return item;
+      };
+      return {
+        ...prev,
+        _lastUpdated: Date.now(),
+        stockMovement: (prev.stockMovement || []).map(updateItem),
+        approvedLogistics: (prev.approvedLogistics || []).map(updateItem)
+      };
     });
-
-    if (newApproved) {
-      alert(`✅ Status laporan (${reportLabel}) BERHASIL DIUBAH MENJADI 🟢 DONE!\nStatus di Web Admin & POS Kasir Mobile kini otomatis berubah menjadi Done (Disetujui).`);
-    } else {
-      alert(`ℹ️ Status laporan (${reportLabel}) telah diubah menjadi ⏳ PENDING.`);
-    }
+    alert(`✅ Stok Masuk (${record.item_name || targetReportNo}) BERHASIL DISETUJUI!\nStatus berubah menjadi 🟢 Done dan tersinkron ke POS Kasir.`);
   };
 
   // ACC / APPROVE OPNAME REPORT FROM OUTLET
@@ -2656,10 +2559,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(m, 'stok_masuk');
-                              }}
+                              onClick={(e) => { e.stopPropagation(); if (!isDone) handleApproveMasukRecord(m); else alert('Status sudah Done (Disetujui). Klik Edit untuk mengubah.'); }}
                               style={{
                                 padding: '6px 12px',
                                 borderRadius: '8px',
@@ -2671,10 +2571,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                cursor: 'pointer',
+                                cursor: isDone ? 'default' : 'pointer',
                                 transition: 'all 0.2s ease'
                               }}
-                              title={isDone ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status laporan ini menjadi Done (Disetujui)"}
+                              title={isDone ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui (Done) stok masuk ini'}
                             >
                               {isDone ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isDone ? 'Done (Disetujui)' : '⏳ Pending'}</span>
@@ -2998,10 +2898,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(t, 'transfer_stok');
-                              }}
+                              onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveTransferRecord(t); else alert('Status sudah Done (Disetujui).'); }}
                               style={{
                                 padding: '6px 12px',
                                 borderRadius: '8px',
@@ -3013,10 +2910,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                cursor: 'pointer',
+                                cursor: isApproved ? 'default' : 'pointer',
                                 transition: 'all 0.2s ease'
                               }}
-                              title={isApproved ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status transfer ini menjadi Done (Disetujui)"}
+                              title={isApproved ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui transfer stok ini'}
                             >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
@@ -3219,10 +3116,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(m, 'stok_rusak');
-                              }}
+                              onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveWasteRecord(m); else alert('Status sudah Done (Disetujui).'); }}
                               style={{
                                 padding: '6px 12px',
                                 borderRadius: '8px',
@@ -3234,10 +3128,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                cursor: 'pointer',
+                                cursor: isApproved ? 'default' : 'pointer',
                                 transition: 'all 0.2s ease'
                               }}
-                              title={isApproved ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status barang rusak ini menjadi Done (Disetujui)"}
+                              title={isApproved ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui (Done) laporan barang rusak ini'}
                             >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
@@ -3386,11 +3280,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isKasir = (op.type_input && op.type_input.toLowerCase().includes('mobile')) || (op.submitted_by && !op.created_by) || ((op.created_by || '').toLowerCase().includes('kasir'));
                       const makerName = op.created_by || op.submitted_by || 'Admin';
                       const outletName = getOutletName(op.outlet_id);
-                      const isApproved =
-                        op.status === 'ACC' || op.status === 'ok' ||
-                        op.status === 'approved' || op.status === 'Approved' ||
-                        op.status === 'Done' || op.status === 'done' ||
-                        op.is_approved === true;
+                      const isApproved = op.status === 'ACC' || op.status === 'ok' || op.status === 'approved' || op.status === 'Approved' || op.status === 'Done';
 
                       return (
                         <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
@@ -3448,10 +3338,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(op, 'stok_opname');
-                              }}
+                              onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveOpnameReport(op); else alert('Laporan sudah Done (ACC / Disetujui).'); }}
                               style={{
                                 padding: '6px 12px',
                                 borderRadius: '8px',
@@ -3463,10 +3350,10 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                cursor: 'pointer',
+                                cursor: isApproved ? 'default' : 'pointer',
                                 transition: 'all 0.2s ease'
                               }}
-                              title={isApproved ? "Status Done (ACC). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status audit opname ini menjadi Done (Disetujui)"}
+                              title={isApproved ? 'Laporan sudah Done (ACC)' : 'Klik untuk menyetujui (ACC / Done) laporan opname ini dan kirim ke POS Kasir'}
                             >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (ACC)' : '⏳ Pending'}</span>
