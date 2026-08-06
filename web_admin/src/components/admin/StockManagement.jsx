@@ -1365,6 +1365,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     const newStatus = isCurrentlyDone ? 'Pending' : 'Done';
     const newApproved = !isCurrentlyDone;
 
+    const recordId = record.id;
     const recordReportNo = record.report_no || record.id;
     const reportLabel = record.item_name || record.report_no || record.id;
 
@@ -1374,62 +1375,74 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       }
     }
 
-    setMasterData(prev => {
-      const updateObj = (item) => {
-        if (item.id === record.id || (item.report_no && String(item.report_no) === String(recordReportNo))) {
-          return {
-            ...item,
-            status: newStatus,
-            is_approved: newApproved,
-            sent_to_apk: true,
-            approved_at: newApproved ? new Date().toISOString() : null,
-            approved_by: newApproved ? 'Admin Web' : null,
-            status_keterangan: newApproved ? 'by approved' : 'pending'
-          };
-        }
-        return item;
-      };
+    // Fungsi matcher yang kuat — cocokkan berdasarkan id DAN report_no
+    const matchRecord = (item) =>
+      item.id === recordId ||
+      (recordId && String(item.id) === String(recordId)) ||
+      (recordReportNo && item.report_no && String(item.report_no) === String(recordReportNo));
 
+    const updateObj = (item) => {
+      if (!matchRecord(item)) return item;
+      return {
+        ...item,
+        status: newStatus,
+        is_approved: newApproved,
+        sent_to_apk: true,
+        approved_at: newApproved ? new Date().toISOString() : null,
+        approved_by: newApproved ? 'Admin Web' : null,
+        status_keterangan: newApproved ? 'by approved' : 'pending'
+      };
+    };
+
+    setMasterData(prev => {
       let newPrev = { ...prev, _lastUpdated: Date.now() };
 
       if (logType === 'stok_masuk') {
-        const existingApp = prev.approvedLogistics || [];
-        const updatedApp = existingApp.map(updateObj);
-        const existingOp = prev.stockOpname || [];
-        const updatedOp = existingOp.map(updateObj);
+        // stockMovement adalah sumber utama untuk getFilteredMasuk() → wajib diupdate
+        const updatedMovement = (prev.stockMovement || []).map(updateObj);
+        // Jika record tidak ada di stockMovement (berasal dari approvedLogistics), tambahkan
+        const alreadyInMovement = (prev.stockMovement || []).some(matchRecord);
 
-        newPrev.approvedLogistics = updatedApp.some(item => item.id === record.id || item.report_no === recordReportNo)
+        newPrev.stockMovement = alreadyInMovement
+          ? updatedMovement
+          : [...updatedMovement, { ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }];
+
+        // Update juga approvedLogistics sebagai fallback sinkronisasi ke POS Mobile
+        const updatedApp = (prev.approvedLogistics || []).map(updateObj);
+        const alreadyInApp = (prev.approvedLogistics || []).some(matchRecord);
+        newPrev.approvedLogistics = alreadyInApp
           ? updatedApp
           : [{ ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }, ...updatedApp];
-        newPrev.stockOpname = updatedOp.map(updateObj);
+
       } else if (logType === 'transfer_stok') {
         newPrev.stockTransfer = (prev.stockTransfer || []).map(updateObj);
         newPrev.approvedTransfers = (prev.approvedTransfers || []).map(updateObj);
         newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
+
       } else if (logType === 'stok_rusak') {
         newPrev.damagedGoods = (prev.damagedGoods || []).map(updateObj);
         newPrev.approvedWaste = (prev.approvedWaste || []).map(updateObj);
         newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
+
       } else if (logType === 'stok_opname') {
         const autoStokKeluar = getAutoSalesOutflowForIngredient(record.item_name, record.outlet_id);
         const activePrice = getItemPriceFromStokMasuk(record.item_name) || record.harga_satuan || 0;
 
         const updateOpnameObj = (item) => {
-          if (item.id === record.id || (item.report_no && String(item.report_no) === String(recordReportNo))) {
-            return {
-              ...item,
-              stok_keluar: newApproved ? (item.stok_keluar || autoStokKeluar) : item.stok_keluar,
-              harga_satuan: activePrice,
-              status: newStatus,
-              is_approved: newApproved,
-              sent_to_apk: true,
-              approved_at: newApproved ? new Date().toISOString() : null,
-              approved_by: newApproved ? 'Admin Web' : null
-            };
-          }
-          return item;
+          if (!matchRecord(item)) return item;
+          return {
+            ...item,
+            stok_keluar: newApproved ? (item.stok_keluar || autoStokKeluar) : item.stok_keluar,
+            harga_satuan: activePrice,
+            status: newStatus,
+            is_approved: newApproved,
+            sent_to_apk: true,
+            approved_at: newApproved ? new Date().toISOString() : null,
+            approved_by: newApproved ? 'Admin Web' : null
+          };
         };
 
+        // stockOpname adalah sumber utama untuk getOpnameList() / getFilteredOpname()
         newPrev.stockOpname = (prev.stockOpname || []).map(updateOpnameObj);
         newPrev.approvedLogistics = (prev.approvedLogistics || []).map(updateOpnameObj);
       }
