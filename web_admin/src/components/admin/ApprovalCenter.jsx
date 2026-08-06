@@ -816,7 +816,8 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '170px' }}>NAMA OUTLET</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>STATUS</th>
@@ -826,7 +827,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                     📭 Belum ada laporan harian yang sesuai dengan filter.
                   </td>
                 </tr>
@@ -838,7 +839,13 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                       {/* 1. TANGGAL */}
                       <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
                         <div>{formatDateIndo(item.date)}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {item.outlet_name}</div>
+                      </td>
+
+                      {/* 2. NAMA OUTLET */}
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          🏢 {item.outlet_name || 'Restoran Utama'}
+                        </span>
                       </td>
 
                       {/* 2. NO LAPORAN (CLICKABLE) */}

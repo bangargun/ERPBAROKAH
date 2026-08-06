@@ -1261,7 +1261,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                 {visibleColsFinance.date && <th style={{ padding: '12px 10px' }}>Tanggal</th>}
                 {visibleColsFinance.reportNo && <th style={{ padding: '12px 10px' }}>No. Laporan</th>}
-                {visibleColsFinance.outlet && <th style={{ padding: '12px 10px' }}>Outlet & Shift</th>}
+                {visibleColsFinance.outlet && <th style={{ padding: '12px 10px' }}>Nama Outlet & Shift</th>}
                 {visibleColsFinance.cashier && <th style={{ padding: '12px 10px' }}>Kasir / Penanggung Jawab</th>}
                 {visibleColsFinance.netSales && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Pendapatan (Net)</th>}
                 {visibleColsFinance.nonCashSales && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Selain Cash</th>}
