@@ -2003,13 +2003,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   const handleSaveRusak = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (rusakBatchRows.length === 0 || rusakBatchRows.some(r => !r.item_name || !r.qty)) {
       alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
       return;
     }
-    // Opens Papan Preview Modal for user review
-    setShowRusakPreviewFormModal(true);
+    // Langsung simpan dengan status DONE saat diinput dari Web Admin
+    handleSaveRusakFinal();
   };
 
   const handleSaveRusakFinal = () => {
@@ -2059,8 +2059,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         sumber_input: 'web_admin',
         status_keterangan: 'by manual',
         type_input: 'manual',
-        status: 'pending',
-        is_approved: false,
+        status: 'Done',
+        is_approved: true,
+        sent_to_apk: true,
         editing_notes: rusakEditingNotes || '',
         notes: finalNotesStr,
         created_at: new Date().toISOString()
@@ -2092,7 +2093,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       };
     });
 
-    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Bahan Baku) berhasil disimpan!\nKeterangan "by manual" aktif. Silakan klik ACC & Kirim APK jika ingin menghubungkan ke POS Mobile APK.`);
+    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Item) BERHASIL DISIMPAN DENGAN STATUS DONE!`);
     setShowRusakPreviewFormModal(false);
     setShowAddModal(null);
     setEditingRecord(null);
@@ -4834,8 +4835,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <button type="button" onClick={() => { setShowAddModal(null); setEditingRecord(null); }} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
                   Batal
                 </button>
-                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '800' }}>
-                  Lanjut ke Pratinjau (OK)
+                <button type="submit" className="btn-primary" style={{ padding: '8px 20px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '900' }}>
+                  OK (Simpan Stok Rusak)
                 </button>
               </div>
             </form>
