@@ -257,3 +257,20 @@ cd /var/www/erp-barokah && git pull origin main
 - ❌ Hanya build `web_admin/dist/` tanpa update `dist/` → VPS tidak berubah
 - ❌ Melakukan `curl POST` test ke API server dengan `_lastUpdated: 9999999999999` → merusak merge logic server
 - ✅ **Yang benar**: Fungsi terpisah per subtab + `<button>` dengan onClick + sync kedua dist/
+
+---
+
+## 🔒 STATUS HALAMAN & MODUL TERKUNCI (SELESAI & DIKUNCI TOTAL — 6 AGUSTUS 2026)
+
+> **DIKUNCI / DILARANG DIUBAH-UBAH (SELESAI TOTAL):**
+> 1. **Modul Logistik & Stok (`StockManagement.jsx`)**:
+>    - Stok Masuk, Transfer Stok, Stok Rusak (Waste 1-Tahap Direct Save berstatus Done), Log Opname Audit.
+>    - Kolom Item (Bahan Baku) & Dropdown Filter Item Bahan Baku (Seluruh Bahan Baku).
+> 2. **Persetujuan Manajemen (`ApprovalCenter.jsx`)**:
+>    - Persetujuan Laporan Harian dengan Kolom NAMA OUTLET (`TANGGAL | NAMA OUTLET | NO LAPORAN | PENGAJU | STATUS | AKSI`).
+> 3. **Laporan Keuangan & Entry Manual (`ManualFinancialEntryPage.jsx`, `FinancialOverview.jsx`)**:
+>    - Form & Tabel Rekap Keuangan Harian (`Nama Outlet & Shift`).
+> 4. **POS Kasir Mobile Android (`AndroidPosRegister.jsx` / `flutter-pos`)**:
+>    - Form & handler Stok Rusak 1-Tahap Direct Save, driver thermal printer 3.2.0, POS Kasir register.
+>    - **APK Build Output**: `flutter-pos/android/app/build/outputs/apk/debug/app-debug.apk` / `web_admin/public/mris-pos.apk` / `dist/mris-pos.apk`.
+
