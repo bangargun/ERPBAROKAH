@@ -3141,8 +3141,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     );
 
                     return paginatedRusak.map(m => {
-                      const isSent = m.status === 'Terkirim' || m.sent_to_apk;
-                      const isApproved = isSent || m.status === 'ok' || m.status === 'approved' || m.status === 'Approved' || m.status === 'ACC' || m.is_approved || m.status === 'Done';
+                      const isApproved =
+                        m.status === 'Done' || m.status === 'done' ||
+                        m.status === 'ok' || m.status === 'approved' ||
+                        m.status === 'Approved' || m.status === 'ACC' ||
+                        m.status === 'Terkirim' ||
+                        m.is_approved === true;
                       const isWebAdminInput = m.sumber_input === 'web_admin' || m.status_keterangan === 'by manual' || m.type_input === 'manual';
 
                       const rawItems = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])].filter(x => (x.report_no && x.report_no === (m.report_no || m.id)) || x.id === m.id);
