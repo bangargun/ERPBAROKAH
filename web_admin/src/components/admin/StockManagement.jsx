@@ -1355,6 +1355,95 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || d.jumlah_rusak || 0), 0);
   };
 
+  // UNIFIED TOGGLE LOGISTICS STATUS HANDLER (WEB ADMIN -> POS KASIR SYNC)
+  const handleToggleLogisticsStatus = (record, logType) => {
+    if (!record) return;
+
+    const currentStatus = record.status;
+    const isCurrentlyDone = currentStatus === 'Done' || currentStatus === 'done' || currentStatus === 'ACC' || currentStatus === 'ok' || currentStatus === 'Approved' || currentStatus === 'approved' || record.is_approved;
+
+    const newStatus = isCurrentlyDone ? 'Pending' : 'Done';
+    const newApproved = !isCurrentlyDone;
+
+    const recordReportNo = record.report_no || record.id;
+    const reportLabel = record.item_name || record.report_no || record.id;
+
+    if (isCurrentlyDone) {
+      if (!window.confirm(`Status laporan (${reportLabel}) saat ini sudah "Done / Disetujui". Apakah Anda yakin ingin mengubah kembali statusnya menjadi "⏳ Pending"?`)) {
+        return;
+      }
+    }
+
+    setMasterData(prev => {
+      const updateObj = (item) => {
+        if (item.id === record.id || (item.report_no && String(item.report_no) === String(recordReportNo))) {
+          return {
+            ...item,
+            status: newStatus,
+            is_approved: newApproved,
+            sent_to_apk: true,
+            approved_at: newApproved ? new Date().toISOString() : null,
+            approved_by: newApproved ? 'Admin Web' : null,
+            status_keterangan: newApproved ? 'by approved' : 'pending'
+          };
+        }
+        return item;
+      };
+
+      let newPrev = { ...prev, _lastUpdated: Date.now() };
+
+      if (logType === 'stok_masuk') {
+        const existingApp = prev.approvedLogistics || [];
+        const updatedApp = existingApp.map(updateObj);
+        const existingOp = prev.stockOpname || [];
+        const updatedOp = existingOp.map(updateObj);
+
+        newPrev.approvedLogistics = updatedApp.some(item => item.id === record.id || item.report_no === recordReportNo)
+          ? updatedApp
+          : [{ ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }, ...updatedApp];
+        newPrev.stockOpname = updatedOp.map(updateObj);
+      } else if (logType === 'transfer_stok') {
+        newPrev.stockTransfer = (prev.stockTransfer || []).map(updateObj);
+        newPrev.approvedTransfers = (prev.approvedTransfers || []).map(updateObj);
+        newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
+      } else if (logType === 'stok_rusak') {
+        newPrev.damagedGoods = (prev.damagedGoods || []).map(updateObj);
+        newPrev.approvedWaste = (prev.approvedWaste || []).map(updateObj);
+        newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
+      } else if (logType === 'stok_opname') {
+        const autoStokKeluar = getAutoSalesOutflowForIngredient(record.item_name, record.outlet_id);
+        const activePrice = getItemPriceFromStokMasuk(record.item_name) || record.harga_satuan || 0;
+
+        const updateOpnameObj = (item) => {
+          if (item.id === record.id || (item.report_no && String(item.report_no) === String(recordReportNo))) {
+            return {
+              ...item,
+              stok_keluar: newApproved ? (item.stok_keluar || autoStokKeluar) : item.stok_keluar,
+              harga_satuan: activePrice,
+              status: newStatus,
+              is_approved: newApproved,
+              sent_to_apk: true,
+              approved_at: newApproved ? new Date().toISOString() : null,
+              approved_by: newApproved ? 'Admin Web' : null
+            };
+          }
+          return item;
+        };
+
+        newPrev.stockOpname = (prev.stockOpname || []).map(updateOpnameObj);
+        newPrev.approvedLogistics = (prev.approvedLogistics || []).map(updateOpnameObj);
+      }
+
+      return newPrev;
+    });
+
+    if (newApproved) {
+      alert(`✅ Status laporan (${reportLabel}) BERHASIL DIUBAH MENJADI 🟢 DONE!\nStatus di Web Admin & POS Kasir Mobile kini otomatis berubah menjadi Done.`);
+    } else {
+      alert(`ℹ️ Status laporan (${reportLabel}) telah diubah menjadi ⏳ PENDING.`);
+    }
+  };
+
   // ACC / APPROVE OPNAME REPORT FROM OUTLET
   const handleApproveOpnameReport = (op) => {
     const autoStokKeluarPenjualan = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
@@ -2537,21 +2626,31 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
-                              color: isDone ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleLogisticsStatus(m, 'stok_masuk');
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
+                                color: isDone ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isDone ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status laporan ini menjadi Done (Disetujui)"}
+                            >
                               {isDone ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isDone ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 5. AKSI */}
@@ -2869,21 +2968,31 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
-                              color: isApproved ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleLogisticsStatus(t, 'transfer_stok');
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                                color: isApproved ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isApproved ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status transfer ini menjadi Done (Disetujui)"}
+                            >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 5. AKSI */}
@@ -3080,21 +3189,31 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
-                              color: isApproved ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleLogisticsStatus(m, 'stok_rusak');
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                                color: isApproved ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isApproved ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status barang rusak ini menjadi Done (Disetujui)"}
+                            >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 5. AKSI */}
@@ -3295,21 +3414,31 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 5. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                              border: `1px solid ${isApproved ? T.success : T.accentGold}`,
-                              color: isApproved ? T.success : T.accentGold,
-                              fontWeight: '900',
-                              fontSize: '0.78rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleLogisticsStatus(op, 'stok_opname');
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                                border: `1px solid ${isApproved ? T.success : T.accentGold}`,
+                                color: isApproved ? T.success : T.accentGold,
+                                fontWeight: '900',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              title={isApproved ? "Status Done (ACC). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status audit opname ini menjadi Done (Disetujui)"}
+                            >
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (ACC)' : '⏳ Pending'}</span>
-                            </span>
+                            </button>
                           </td>
 
                           {/* 6. AKSI */}
