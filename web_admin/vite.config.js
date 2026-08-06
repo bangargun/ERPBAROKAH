@@ -8,18 +8,6 @@ export default defineConfig({
     host: true
   },
   build: {
-    chunkSizeWarningLimit: 2500,
-    rollupOptions: {
-      output: {
-        // Nama file fixed (tanpa hash) agar VPS tidak perlu update index.html setiap deploy
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name].[ext]',
-        manualChunks: {
-          icons: ['lucide-react'],
-          charts: ['recharts']
-        }
-      }
-    }
+    chunkSizeWarningLimit: 2500
   }
 });
