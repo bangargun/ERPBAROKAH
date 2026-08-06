@@ -1360,12 +1360,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     if (!record) return;
 
     const currentStatus = record.status;
-    const isCurrentlyDone = currentStatus === 'Done' || currentStatus === 'done' || currentStatus === 'ACC' || currentStatus === 'ok' || currentStatus === 'Approved' || currentStatus === 'approved' || record.is_approved;
+    const isCurrentlyDone =
+      currentStatus === 'Done' || currentStatus === 'done' ||
+      currentStatus === 'ACC' || currentStatus === 'ok' ||
+      currentStatus === 'Approved' || currentStatus === 'approved' ||
+      record.is_approved === true;
 
     const newStatus = isCurrentlyDone ? 'Pending' : 'Done';
     const newApproved = !isCurrentlyDone;
 
     const recordId = record.id;
+    // Untuk stok_opname: POS menyimpan banyak baris per laporan dengan report_no yang sama
+    // Gunakan report_no sebagai kunci utama pencocokan
     const recordReportNo = record.report_no || record.id;
     const reportLabel = record.item_name || record.report_no || record.id;
 
@@ -1375,7 +1381,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       }
     }
 
-    // Fungsi matcher yang kuat — cocokkan berdasarkan id DAN report_no
+    // Matcher kuat berdasarkan id ATAU report_no
     const matchRecord = (item) =>
       item.id === recordId ||
       (recordId && String(item.id) === String(recordId)) ||
@@ -1400,14 +1406,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       if (logType === 'stok_masuk') {
         // stockMovement adalah sumber utama untuk getFilteredMasuk() → wajib diupdate
         const updatedMovement = (prev.stockMovement || []).map(updateObj);
-        // Jika record tidak ada di stockMovement (berasal dari approvedLogistics), tambahkan
         const alreadyInMovement = (prev.stockMovement || []).some(matchRecord);
 
         newPrev.stockMovement = alreadyInMovement
           ? updatedMovement
           : [...updatedMovement, { ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }];
 
-        // Update juga approvedLogistics sebagai fallback sinkronisasi ke POS Mobile
+        // Update juga approvedLogistics sebagai sinkronisasi ke POS Mobile
         const updatedApp = (prev.approvedLogistics || []).map(updateObj);
         const alreadyInApp = (prev.approvedLogistics || []).some(matchRecord);
         newPrev.approvedLogistics = alreadyInApp
@@ -1425,33 +1430,43 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
 
       } else if (logType === 'stok_opname') {
+        // POS Kasir menyimpan ke 3 array: stockOpname, approvedLogistics, stockMovement
+        // Saat admin klik Done, SEMUA 3 array harus diupdate agar status sinkron ke POS
         const autoStokKeluar = getAutoSalesOutflowForIngredient(record.item_name, record.outlet_id);
         const activePrice = getItemPriceFromStokMasuk(record.item_name) || record.harga_satuan || 0;
 
+        // Untuk stok_opname: matching dilakukan berdasarkan report_no (satu laporan = banyak baris)
+        const matchOpname = (item) =>
+          (recordReportNo && item.report_no && String(item.report_no) === String(recordReportNo)) ||
+          item.id === recordId ||
+          (recordId && String(item.id) === String(recordId));
+
         const updateOpnameObj = (item) => {
-          if (!matchRecord(item)) return item;
+          if (!matchOpname(item)) return item;
           return {
             ...item,
             stok_keluar: newApproved ? (item.stok_keluar || autoStokKeluar) : item.stok_keluar,
-            harga_satuan: activePrice,
+            harga_satuan: activePrice || item.harga_satuan,
             status: newStatus,
             is_approved: newApproved,
             sent_to_apk: true,
             approved_at: newApproved ? new Date().toISOString() : null,
-            approved_by: newApproved ? 'Admin Web' : null
+            approved_by: newApproved ? 'Admin Web' : null,
+            status_keterangan: newApproved ? 'by approved' : 'pending'
           };
         };
 
-        // stockOpname adalah sumber utama untuk getOpnameList() / getFilteredOpname()
+        // Update semua 3 array sekaligus (sama seperti cara POS Kasir menyimpan)
         newPrev.stockOpname = (prev.stockOpname || []).map(updateOpnameObj);
         newPrev.approvedLogistics = (prev.approvedLogistics || []).map(updateOpnameObj);
+        newPrev.stockMovement = (prev.stockMovement || []).map(updateOpnameObj);
       }
 
       return newPrev;
     });
 
     if (newApproved) {
-      alert(`✅ Status laporan (${reportLabel}) BERHASIL DIUBAH MENJADI 🟢 DONE!\nStatus di Web Admin & POS Kasir Mobile kini otomatis berubah menjadi Done.`);
+      alert(`✅ Status laporan (${reportLabel}) BERHASIL DIUBAH MENJADI 🟢 DONE!\nStatus di Web Admin & POS Kasir Mobile kini otomatis berubah menjadi Done (Disetujui).`);
     } else {
       alert(`ℹ️ Status laporan (${reportLabel}) telah diubah menjadi ⏳ PENDING.`);
     }
@@ -3371,7 +3386,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isKasir = (op.type_input && op.type_input.toLowerCase().includes('mobile')) || (op.submitted_by && !op.created_by) || ((op.created_by || '').toLowerCase().includes('kasir'));
                       const makerName = op.created_by || op.submitted_by || 'Admin';
                       const outletName = getOutletName(op.outlet_id);
-                      const isApproved = op.status === 'ACC' || op.status === 'ok' || op.status === 'approved' || op.status === 'Approved' || op.status === 'Done';
+                      const isApproved =
+                        op.status === 'ACC' || op.status === 'ok' ||
+                        op.status === 'approved' || op.status === 'Approved' ||
+                        op.status === 'Done' || op.status === 'done' ||
+                        op.is_approved === true;
 
                       return (
                         <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
