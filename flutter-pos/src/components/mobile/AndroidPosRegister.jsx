@@ -11096,14 +11096,48 @@ export default function AndroidPosRegister({
                                     onBlur={() => setTimeout(() => setActiveSuggestRowId(null), 250)}
                                     onChange={e => {
                                       const val = e.target.value;
-                                      const foundSug = expenseSuggestions.find(s => s.name.toLowerCase() === val.toLowerCase());
+                                      const valLower = val.toLowerCase().trim();
+
+                                      // 1. Lookup in suggestions
+                                      const foundSug = (expenseSuggestions || []).find(s => (s.name || '').toLowerCase().trim() === valLower);
+                                      // 2. Lookup in ingredients master
+                                      const foundIng = (masterData?.ingredients || []).find(i => (i.name || '').toLowerCase().trim() === valLower);
+                                      // 3. Lookup in costs master
+                                      const foundCost = (masterData?.costs || []).find(c => (c.name || '').toLowerCase().trim() === valLower);
+
+                                      let cat = row.category_type || 'HPP Bahan Baku';
+                                      let unt = row.unit || 'kg';
+                                      let prc = row.price_per_unit || 0;
+
+                                      if (foundSug) {
+                                        cat = foundSug.category_type || 'HPP Bahan Baku';
+                                        unt = foundSug.unit || unt;
+                                        prc = Number(foundSug.price || prc);
+                                      } else if (foundIng) {
+                                        cat = 'HPP Bahan Baku';
+                                        unt = foundIng.unit || unt;
+                                        prc = Number(foundIng.cost || foundIng.price || foundIng.harga_satuan || prc);
+                                      } else if (foundCost) {
+                                        cat = foundCost.category_type || 'Beban Operasional';
+                                        unt = foundCost.unit || 'transaksi';
+                                        prc = Number(foundCost.amount || foundCost.price || prc);
+                                      } else if (valLower) {
+                                        // 4. Smart Keyword Categorization
+                                        if (/(beras|minyak|ayam|daging|ikan|telur|bumbu|tepung|gula|garam|sayur|cabai|cabe|bawang|saos|sauce|kecap|susu|keju|es|packaging|plastik|cup|box|kotak|sedotan|kertas|bahan|sirup|kopi|teh|mentega|mie|nasi)/i.test(valLower)) {
+                                          cat = 'HPP Bahan Baku';
+                                        } else if (/(listrik|air|pdam|pln|wifi|indihome|internet|pulsa|lpg|gas|telepon)/i.test(valLower)) {
+                                          cat = 'Beban Listrik/Air/Utilitas';
+                                        } else if (/(gaji|upah|thr|bonus|kasbon|lembur|gajih|staf|karyawan)/i.test(valLower)) {
+                                          cat = 'Beban Gaji & Upah';
+                                        } else if (/(sewa|kontrak|renovasi|maintenance|servis|service|kebersihan|sampah|keamanan|parkir|pajak|ijin|izin|atk|nota|sapu|lap|banner|brosur|iklan|promosi)/i.test(valLower)) {
+                                          cat = 'Beban Operasional';
+                                        }
+                                      }
+
                                       setManualExpenseRows(prev => (prev || []).map(r => {
                                         if (r.id === row.id) {
-                                          const cat = foundSug ? foundSug.category_type : (r.category_type || 'HPP Bahan Baku');
-                                          const unt = foundSug ? foundSug.unit : (r.unit || 'kg');
-                                          const prc = foundSug ? foundSug.price : (r.price_per_unit || 0);
-                                          const q = Number(r.qty || 1);
-                                          return { ...r, item_name: val, name: val, category_type: cat, unit: unt, price_per_unit: prc, subtotal: q * prc, amount: q * prc };
+                                          const qNum = typeof r.qty === 'number' ? r.qty : (Number(r.qty) || 0);
+                                          return { ...r, item_name: val, name: val, category_type: cat, unit: unt, price_per_unit: prc, subtotal: qNum * prc, amount: qNum * prc };
                                         }
                                         return r;
                                       }));
@@ -11124,7 +11158,7 @@ export default function AndroidPosRegister({
                                             key={i}
                                             onMouseDown={(e) => {
                                               e.preventDefault();
-                                              const q = Number(row.qty || 1);
+                                              const qNum = typeof row.qty === 'number' ? row.qty : (Number(row.qty) || 0);
                                               const prc = Number(sug.price || 0);
                                               setManualExpenseRows(prev => (prev || []).map(r => r.id === row.id ? {
                                                 ...r,
@@ -11133,8 +11167,8 @@ export default function AndroidPosRegister({
                                                 category_type: sug.category_type || 'HPP Bahan Baku',
                                                 unit: sug.unit || 'kg',
                                                 price_per_unit: prc,
-                                                subtotal: q * prc,
-                                                amount: q * prc
+                                                subtotal: qNum * prc,
+                                                amount: qNum * prc
                                               } : r));
                                               setActiveSuggestRowId(null);
                                             }}
@@ -11176,13 +11210,15 @@ export default function AndroidPosRegister({
                                   type="number"
                                   step="any"
                                   min="0"
-                                  value={row.qty || 1}
+                                  value={row.qty !== undefined && row.qty !== null ? row.qty : ''}
                                   onChange={e => {
-                                    const q = Number(e.target.value) || 0;
+                                    const rawVal = e.target.value;
+                                    const q = rawVal === '' ? '' : (isNaN(Number(rawVal)) ? rawVal : Number(rawVal));
                                     setManualExpenseRows(prev => (prev || []).map(r => {
                                       if (r.id === row.id) {
+                                        const numQ = typeof q === 'number' ? q : (Number(q) || 0);
                                         const p = Number(r.price_per_unit || 0);
-                                        return { ...r, qty: q, subtotal: q * p, amount: q * p };
+                                        return { ...r, qty: q, subtotal: numQ * p, amount: numQ * p };
                                       }
                                       return r;
                                     }));
@@ -11208,13 +11244,15 @@ export default function AndroidPosRegister({
                                 <input
                                   type="number"
                                   min="0"
-                                  value={row.price_per_unit || 0}
+                                  value={row.price_per_unit !== undefined && row.price_per_unit !== null ? row.price_per_unit : ''}
                                   onChange={e => {
-                                    const p = Number(e.target.value) || 0;
+                                    const rawVal = e.target.value;
+                                    const p = rawVal === '' ? '' : (isNaN(Number(rawVal)) ? rawVal : Number(rawVal));
                                     setManualExpenseRows(prev => (prev || []).map(r => {
                                       if (r.id === row.id) {
-                                        const q = Number(r.qty || 1);
-                                        return { ...r, price_per_unit: p, subtotal: q * p, amount: q * p };
+                                        const numP = typeof p === 'number' ? p : (Number(p) || 0);
+                                        const numQ = typeof r.qty === 'number' ? r.qty : (Number(r.qty) || 0);
+                                        return { ...r, price_per_unit: p, subtotal: numQ * numP, amount: numQ * numP };
                                       }
                                       return r;
                                     }));
