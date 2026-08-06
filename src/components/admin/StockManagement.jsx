@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Package, 
   ArrowDownRight, 
@@ -588,7 +588,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [opnameUnit, setOpnameUnit] = useState(ingredientsList[0] ? ingredientsList[0].unit : 'kg');
   const [opnameNotes, setOpnameNotes] = useState('');
   const [opnameCreatorFilter, setOpnameCreatorFilter] = useState('ALL'); // 'ALL' | 'by_kasir' | 'by_outlet'
+  const [opnameItemFilter, setOpnameItemFilter] = useState('ALL'); // 'ALL' | specific ingredient name
   const [previewOpnameReportModalData, setPreviewOpnameReportModalData] = useState(null);
+
+  // Extract all unique ingredient names for Opname Item Filter
+  const allOpnameIngredientNames = useMemo(() => {
+    const namesSet = new Set();
+    (masterData.ingredients || []).forEach(i => {
+      if (i.name && i.name.trim()) namesSet.add(i.name.trim());
+    });
+    (getOpnameList() || []).forEach(op => {
+      const n = op.item_name || op.nama_barang;
+      if (n && n.trim()) namesSet.add(n.trim());
+    });
+    return Array.from(namesSet).sort();
+  }, [masterData.ingredients, masterData.stockOpname, masterData.approvedLogistics]);
 
   // HELPER FUNCTIONS
   const getOutletName = (id, explicitName) => {
@@ -1215,6 +1229,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       if (opnameCreatorFilter === 'by_kasir' && !isKasir) return false;
       if (opnameCreatorFilter === 'by_outlet' && isKasir) return false;
 
+      // Filter Item Bahan Baku
+      if (opnameItemFilter && opnameItemFilter !== 'ALL') {
+        const opItem = String(op.item_name || op.nama_barang || '').toLowerCase().trim();
+        const targetItem = String(opnameItemFilter).toLowerCase().trim();
+        if (opItem !== targetItem) return false;
+      }
+
       return true;
     });
   };
@@ -1791,8 +1812,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
       return;
     }
-    // Opens Papan Preview Modal for user review
-    setShowRusakPreviewFormModal(true);
+    // Langsung simpan 1-tahap (Direct Save)
+    handleSaveRusakFinal();
   };
 
   const handleSaveRusakFinal = () => {
@@ -1840,10 +1861,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         created_by: rusakCreatedBy,
         author_name: rusakCreatedBy,
         sumber_input: 'web_admin',
-        status_keterangan: 'by manual',
+        status_keterangan: 'by approved',
         type_input: 'manual',
-        status: 'pending',
-        is_approved: false,
+        status: 'Done',
+        is_approved: true,
+        sent_to_apk: true,
+        approved_at: new Date().toISOString(),
+        approved_by: 'Admin Web',
         editing_notes: rusakEditingNotes || '',
         notes: finalNotesStr,
         created_at: new Date().toISOString()
@@ -1868,6 +1892,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
       return {
         ...prev,
+        _lastUpdated: Date.now(),
         ingredients: updatedIngredients,
         damagedGoods: [...createdRecords, ...filterOld(prev.damagedGoods)],
         approvedWaste: [...createdRecords, ...filterOld(prev.approvedWaste)],
@@ -1875,7 +1900,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       };
     });
 
-    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Bahan Baku) berhasil disimpan!\nKeterangan "by manual" aktif. Silakan klik ACC & Kirim APK jika ingin menghubungkan ke POS Mobile APK.`);
+    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Bahan Baku) BERHASIL DISIMPAN & DISETUJUI (DONE)!\nStatus otomatis berstatus Done dan tersinkronisasi ke POS Kasir.`);
     setShowRusakPreviewFormModal(false);
     setShowAddModal(null);
     setEditingRecord(null);
@@ -2666,12 +2691,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>NAMA OUTLET</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO TRANSAKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '170px' }}>NO TRANSAKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', color: T.danger }}>NAMA ITEM (BAHAN BAKU KELUAR)</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '130px' }}>PENGAJU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '150px' }}>STATUS</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '170px' }}>AKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '140px' }}>STATUS</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '150px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2682,7 +2708,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     if (paginatedSales.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
+                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
                             📭 Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih. Klik "+ Tambahkan Transaksi Penjualan" di atas.
                           </td>
                         </tr>
@@ -2727,11 +2753,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               <span>{tx.receiptNo || tx.id}</span>
                               <Eye size={14} color={T.info} />
                             </button>
-                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
-                              Menu: <strong style={{ color: T.txtPrimary }}>{itemsSummary}</strong>
+                          </td>
+
+                          {/* 4. NAMA ITEM (BAHAN BAKU KELUAR) */}
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ fontSize: '0.84rem', fontWeight: '900', color: T.danger, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>📦 {ingredientsSummary}</span>
                             </div>
-                            <div style={{ fontSize: '0.72rem', color: T.danger, marginTop: '1px' }}>
-                              Bahan Terpotong: <strong>{ingredientsSummary}</strong>
+                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '3px' }}>
+                              Menu: <strong style={{ color: T.txtPrimary }}>{itemsSummary}</strong>
                             </div>
                           </td>
 
@@ -3200,6 +3230,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   </select>
                 </div>
 
+                {/* FILTER ITEM BAHAN BAKU */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary }}>Filter Item Bahan Baku:</span>
+                  <select
+                    value={opnameItemFilter}
+                    onChange={e => setOpnameItemFilter(e.target.value)}
+                    style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
+                  >
+                    <option value="ALL">🌐 Semua Bahan Baku (All Items)</option>
+                    {allOpnameIngredientNames.map(name => (
+                      <option key={name} value={name}>🥬 {name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Total Denda Hari Ini (Per Hari) */}
                 <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '6px 14px', borderRadius: '10px', color: T.danger, fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>📅 Denda Hari Ini:</span>
@@ -3254,12 +3299,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>TANGGAL</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>NAMA OUTLET</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>PENGAJU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '140px' }}>STATUS</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '170px' }}>AKSI</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '130px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '130px' }}>NAMA OUTLET</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '150px' }}>ITEM / BAHAN BAKU</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '130px' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.success }}>STOK MASUK</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger }}>STOK KELUAR</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.info }}>TRANSFER IN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger }}>TRANSFER OUT</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.accentGold }}>STOK RUSAK</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '120px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', textAlign: 'center', width: '120px' }}>STATUS</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', textAlign: 'right', width: '140px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3269,7 +3320,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                     if (filteredOpname.length === 0) return (
                       <tr>
-                        <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
+                        <td colSpan={12} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                           Tidak ada log stock opname untuk filter terpilih.
                         </td>
                       </tr>
@@ -3281,6 +3332,19 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const makerName = op.created_by || op.submitted_by || 'Admin';
                       const outletName = getOutletName(op.outlet_id);
                       const isApproved = op.status === 'ACC' || op.status === 'ok' || op.status === 'approved' || op.status === 'Approved' || op.status === 'Done';
+                      const itemNameStr = op.item_name || op.nama_barang || 'Bahan Baku';
+
+                      const autoSalesKeluar = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
+                      const autoWasteQty = getAutoWasteForIngredient(op.item_name, op.outlet_id, op.date);
+                      const currentStokKeluar = (op.status === 'ACC' || op.status === 'ok' || op.status === 'approved') 
+                        ? (op.stok_keluar !== undefined ? op.stok_keluar : autoSalesKeluar) 
+                        : (op.stok_keluar || autoSalesKeluar);
+                      const currentStokRusak = (op.stok_rusak !== undefined && op.stok_rusak > 0) ? op.stok_rusak : autoWasteQty;
+
+                      const stokMasukVal = op.stok_masuk || 0;
+                      const transferInVal = op.transfer_masuk || 0;
+                      const transferOutVal = op.transfer_keluar || 0;
+                      const unitStr = op.unit || 'kg';
 
                       return (
                         <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
@@ -3297,7 +3361,26 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </span>
                           </td>
 
-                          {/* 3. NO LAPORAN (KLIK UNTUK PRATINJAU) */}
+                          {/* 3. ITEM / BAHAN BAKU */}
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{
+                              padding: '5px 11px',
+                              borderRadius: '8px',
+                              fontSize: '0.82rem',
+                              fontWeight: '900',
+                              background: 'rgba(56, 189, 248, 0.12)',
+                              color: T.info,
+                              border: `1px solid ${T.info}`,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              🥬 {itemNameStr}
+                            </span>
+                            {op.unit && <span style={{ fontSize: '0.72rem', color: T.txtMuted, marginLeft: '6px' }}>({op.unit})</span>}
+                          </td>
+
+                          {/* 4. NO LAPORAN (KLIK UNTUK PRATINJAU) */}
                           <td style={{ padding: '14px 16px', fontWeight: '900' }}>
                             <button
                               type="button"
@@ -3314,8 +3397,33 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               <Eye size={14} color={T.success} />
                             </button>
                             <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
-                              Item: <strong style={{ color: T.txtPrimary }}>{op.item_name || 'Audit Fisik'}</strong>
+                              Item: <strong style={{ color: T.txtPrimary }}>{itemNameStr}</strong>
                             </div>
+                          </td>
+
+                          {/* 5. STOK MASUK */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: stokMasukVal > 0 ? T.success : T.txtMuted }}>
+                            {stokMasukVal} {unitStr}
+                          </td>
+
+                          {/* 6. STOK KELUAR */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: currentStokKeluar > 0 ? T.danger : T.txtMuted }}>
+                            {currentStokKeluar} {unitStr}
+                          </td>
+
+                          {/* 7. TRANSFER IN */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: transferInVal > 0 ? T.info : T.txtMuted }}>
+                            {transferInVal} {unitStr}
+                          </td>
+
+                          {/* 8. TRANSFER OUT */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: transferOutVal > 0 ? T.danger : T.txtMuted }}>
+                            {transferOutVal} {unitStr}
+                          </td>
+
+                          {/* 9. STOK RUSAK */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: currentStokRusak > 0 ? T.accentGold : T.txtMuted }}>
+                            {currentStokRusak} {unitStr}
                           </td>
 
                           {/* 4. PENGAJU */}
@@ -4495,7 +4603,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   Batal
                 </button>
                 <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '800' }}>
-                  Lanjut ke Pratinjau (OK)
+                  💾 Simpan Laporan Barang Rusak
                 </button>
               </div>
             </form>

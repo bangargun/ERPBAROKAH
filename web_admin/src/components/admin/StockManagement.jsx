@@ -2691,12 +2691,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>NAMA OUTLET</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO TRANSAKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '170px' }}>NO TRANSAKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', color: T.danger }}>NAMA ITEM (BAHAN BAKU KELUAR)</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '130px' }}>PENGAJU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '150px' }}>STATUS</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '170px' }}>AKSI</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '140px' }}>STATUS</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '150px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2707,7 +2708,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     if (paginatedSales.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
+                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
                             📭 Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih. Klik "+ Tambahkan Transaksi Penjualan" di atas.
                           </td>
                         </tr>
@@ -2752,11 +2753,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                               <span>{tx.receiptNo || tx.id}</span>
                               <Eye size={14} color={T.info} />
                             </button>
-                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
-                              Menu: <strong style={{ color: T.txtPrimary }}>{itemsSummary}</strong>
+                          </td>
+
+                          {/* 4. NAMA ITEM (BAHAN BAKU KELUAR) */}
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ fontSize: '0.84rem', fontWeight: '900', color: T.danger, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>📦 {ingredientsSummary}</span>
                             </div>
-                            <div style={{ fontSize: '0.72rem', color: T.danger, marginTop: '1px' }}>
-                              Bahan Terpotong: <strong>{ingredientsSummary}</strong>
+                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '3px' }}>
+                              Menu: <strong style={{ color: T.txtPrimary }}>{itemsSummary}</strong>
                             </div>
                           </td>
 
@@ -3294,13 +3299,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>NAMA OUTLET</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>ITEM / BAHAN BAKU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>PENGAJU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '140px' }}>STATUS</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '170px' }}>AKSI</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '130px' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '130px' }}>NAMA OUTLET</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '150px' }}>ITEM / BAHAN BAKU</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '130px' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.success }}>STOK MASUK</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger }}>STOK KELUAR</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.info }}>TRANSFER IN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger }}>TRANSFER OUT</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.accentGold }}>STOK RUSAK</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', width: '120px' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', textAlign: 'center', width: '120px' }}>STATUS</th>
+                    <th style={{ padding: '14px 14px', fontWeight: '800', textAlign: 'right', width: '140px' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3310,7 +3320,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                     if (filteredOpname.length === 0) return (
                       <tr>
-                        <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
+                        <td colSpan={12} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                           Tidak ada log stock opname untuk filter terpilih.
                         </td>
                       </tr>
@@ -3323,6 +3333,18 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const outletName = getOutletName(op.outlet_id);
                       const isApproved = op.status === 'ACC' || op.status === 'ok' || op.status === 'approved' || op.status === 'Approved' || op.status === 'Done';
                       const itemNameStr = op.item_name || op.nama_barang || 'Bahan Baku';
+
+                      const autoSalesKeluar = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
+                      const autoWasteQty = getAutoWasteForIngredient(op.item_name, op.outlet_id, op.date);
+                      const currentStokKeluar = (op.status === 'ACC' || op.status === 'ok' || op.status === 'approved') 
+                        ? (op.stok_keluar !== undefined ? op.stok_keluar : autoSalesKeluar) 
+                        : (op.stok_keluar || autoSalesKeluar);
+                      const currentStokRusak = (op.stok_rusak !== undefined && op.stok_rusak > 0) ? op.stok_rusak : autoWasteQty;
+
+                      const stokMasukVal = op.stok_masuk || 0;
+                      const transferInVal = op.transfer_masuk || 0;
+                      const transferOutVal = op.transfer_keluar || 0;
+                      const unitStr = op.unit || 'kg';
 
                       return (
                         <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
@@ -3377,6 +3399,31 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
                               Item: <strong style={{ color: T.txtPrimary }}>{itemNameStr}</strong>
                             </div>
+                          </td>
+
+                          {/* 5. STOK MASUK */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: stokMasukVal > 0 ? T.success : T.txtMuted }}>
+                            {stokMasukVal} {unitStr}
+                          </td>
+
+                          {/* 6. STOK KELUAR */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: currentStokKeluar > 0 ? T.danger : T.txtMuted }}>
+                            {currentStokKeluar} {unitStr}
+                          </td>
+
+                          {/* 7. TRANSFER IN */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: transferInVal > 0 ? T.info : T.txtMuted }}>
+                            {transferInVal} {unitStr}
+                          </td>
+
+                          {/* 8. TRANSFER OUT */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: transferOutVal > 0 ? T.danger : T.txtMuted }}>
+                            {transferOutVal} {unitStr}
+                          </td>
+
+                          {/* 9. STOK RUSAK */}
+                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: currentStokRusak > 0 ? T.accentGold : T.txtMuted }}>
+                            {currentStokRusak} {unitStr}
                           </td>
 
                           {/* 4. PENGAJU */}
