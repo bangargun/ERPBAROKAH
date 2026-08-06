@@ -5444,8 +5444,6 @@ export default function AndroidPosRegister({
                           <th style={{ padding: '12px 14px' }}>📅 Tanggal</th>
                           <th style={{ padding: '12px 14px' }}>📋 No Laporan</th>
                           <th style={{ padding: '12px 14px' }}>👤 Diisi Oleh</th>
-                          <th style={{ padding: '12px 14px' }}>📦 Nama Item</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8' }}>📊 Stok Fisik</th>
                           <th style={{ padding: '12px 12px', textAlign: 'center' }}>⚡ Status</th>
                           <th style={{ padding: '12px 12px', textAlign: 'center' }}>⚙️ Aksi</th>
                         </tr>
@@ -5457,7 +5455,7 @@ export default function AndroidPosRegister({
                           // 1. Manual logistics / stock opname entries
                           [...(masterData.approvedLogistics || []), ...(masterData.stockOpname || [])].forEach(op => {
                             if (op && (op.id || op.report_no)) {
-                              combinedOpnameMap.set(String(op.id || op.report_no), op);
+                              combinedOpnameMap.set(String(op.report_no || op.id), op);
                             }
                           });
 
@@ -5470,7 +5468,7 @@ export default function AndroidPosRegister({
                           if (filteredOpname.length === 0) {
                             return (
                               <tr>
-                                <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
                                   📭 Belum ada log laporan stock opname harian terdaftar.
                                 </td>
                               </tr>
@@ -5479,7 +5477,6 @@ export default function AndroidPosRegister({
 
                           return filteredOpname.map((item, idx) => {
                             const isDone = item.status === 'Done' || item.status === 'done' || item.status === 'ACC' || item.status === 'ok' || item.status === 'Approved' || item.status === 'approved';
-                            const stokFisik = Number(item.stok_fisik || 0);
 
                             // 12-Hour Edit Window Calculation
                             const reportTime = item.timestamp || (item.created_at ? new Date(item.created_at).getTime() : new Date(`${item.date}T12:00:00`).getTime());
@@ -5517,16 +5514,6 @@ export default function AndroidPosRegister({
                                 {/* DIISI OLEH */}
                                 <td style={{ padding: '12px 14px', color: 'var(--pos-txt-primary)', fontWeight: '600' }}>
                                   👤 {item.submitted_by || item.created_by || 'Kasir'}
-                                </td>
-
-                                {/* NAMA ITEM */}
-                                <td style={{ padding: '12px 14px', fontWeight: '800', color: '#34d399' }}>
-                                  📦 {item.item_name || 'Bahan Baku Batch'}
-                                </td>
-
-                                {/* STOK FISIK */}
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.90rem' }}>
-                                  {stokFisik} {item.unit || 'kg'}
                                 </td>
 
                                 {/* STATUS (PENDING / DONE) */}
