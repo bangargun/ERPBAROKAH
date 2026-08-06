@@ -678,8 +678,6 @@ export default function AndroidPosRegister({
 
       saveToServerWithGuard(newMaster);
 
-      alert(`✅ Data Laporan Barang Rusak ${wasteNo} (${wasteBatchRows.length} Item) berhasil disimpan!\nStatus saat ini: ⏳ PENDING (Menunggu Persetujuan Admin Web).`);
-
       return newMaster;
     });
   };
@@ -3277,7 +3275,7 @@ export default function AndroidPosRegister({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
-              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.2.2 GOLD</span>
+              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.2.0 GOLD</span>
             </h1>
             <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
@@ -12567,7 +12565,7 @@ export default function AndroidPosRegister({
                     return;
                   }
 
-                  handleSaveWasteFinal();
+                  setShowWastePreviewFormModal(true);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                   {/* Row 1: Tanggal Kejadian & Dibuat Oleh */}
@@ -12835,7 +12833,7 @@ export default function AndroidPosRegister({
                     </button>
                     <button type="submit" style={{ padding: '9px 22px', background: 'linear-gradient(135deg, #f43f5e, #e11d48)', border: 'none', color: 'var(--pos-txt-white)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(244,63,94,0.35)' }}>
                       <Trash2 size={15} />
-                      <span>OK (Simpan Barang Rusak)</span>
+                      <span>Lanjut ke Pratinjau (OK)</span>
                     </button>
                   </div>
                 </form>

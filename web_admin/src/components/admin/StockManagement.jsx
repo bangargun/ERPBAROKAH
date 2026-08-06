@@ -282,126 +282,6 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     return (masterData.stockOpname || []).filter(op => !isDeletedRecord(op));
   };
 
-  // OPNAME BY SISTEM (BAHAN BAKU TIDAK DITAMPILKAN DI APK MOBILE POS)
-  const getSystemOpnameList = () => {
-    const rawIngs = ingredientsList || [];
-    // Filter bahan baku yang TIDAK ditampilkan di APK (status / tampilkan_di_apk === Inaktif)
-    const hiddenIngs = rawIngs.filter(ing =>
-      ing.tampilkan_di_apk === 'Inaktif' ||
-      ing.tampilkan_di_apk === 'inaktif' ||
-      ing.tampilkan_di_apk === 'Tidak' ||
-      ing.tampilkan_di_apk === 'tidak' ||
-      ing.tampilkan_di_apk === false ||
-      ing.tampilkan_bahan_baku === false ||
-      ing.tampilkan_bahan_baku === 'Tidak' ||
-      ing.tampilkan_bahan_baku === 'tidak' ||
-      ing.status === 'Inaktif' ||
-      ing.status === 'inaktif' ||
-      ing.show_in_app === false
-    );
-
-    // Fallback: Jika tidak ada bahan baku yang di-set Inaktif di master data, tampilkan semua bahan baku sistem
-    const targetIngs = hiddenIngs.length > 0 ? hiddenIngs : rawIngs;
-
-    const movements = getMovementsList();
-    const transfersList = getTransfersList();
-
-    const isAllOutlets = !selectedBranch || String(selectedBranch) === 'ALL' || logSelectedOutletIds.includes('ALL');
-    const targetBranchId = selectedBranch && String(selectedBranch) !== 'ALL' ? selectedBranch : (logSelectedOutletIds.includes('ALL') ? null : logSelectedOutletIds[0]);
-
-    const dateStr = logStartDate && logEndDate
-      ? `${logStartDate} s/d ${logEndDate}`
-      : (logStartDate || logEndDate || new Date().toISOString().split('T')[0]);
-
-    return targetIngs.map((ing, idx) => {
-      const ingNameLower = (ing.name || '').toLowerCase().trim();
-
-      // 1. Stok Masuk
-      const stokMasuk = movements
-        .filter(m => {
-          if (m.type !== 'IN') return false;
-          if ((m.item_name || m.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
-          if (logStartDate && m.date < logStartDate) return false;
-          if (logEndDate && m.date > logEndDate) return false;
-          if (!isAllOutlets && targetBranchId !== null && Number(m.outlet_id) !== Number(targetBranchId)) return false;
-          return true;
-        })
-        .reduce((sum, m) => sum + Number(m.qty || 0), 0);
-
-      // 2. Stok Keluar (Penjualan + Transfer Out + Waste)
-      const stokKeluarPenjualan = (masterData.stockOutflow || [])
-        .filter(s => {
-          if ((s.itemName || s.item_name || '').toLowerCase().trim() !== ingNameLower) return false;
-          if (logStartDate && s.date < logStartDate) return false;
-          if (logEndDate && s.date > logEndDate) return false;
-          if (!isAllOutlets && targetBranchId !== null && Number(s.outletId || s.branch_id || 1) !== Number(targetBranchId)) return false;
-          return true;
-        })
-        .reduce((sum, s) => sum + Math.abs(Number(s.qty || 0)), 0);
-
-      const transferIn = transfersList
-        .filter(t => {
-          if ((t.item_name || t.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
-          if (logStartDate && t.date < logStartDate) return false;
-          if (logEndDate && t.date > logEndDate) return false;
-          if (!isAllOutlets && targetBranchId !== null && Number(t.to_outlet_id || t.toOutletId) !== Number(targetBranchId)) return false;
-          return true;
-        })
-        .reduce((sum, t) => sum + Number(t.qty || 0), 0);
-
-      const transferOut = transfersList
-        .filter(t => {
-          if ((t.item_name || t.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
-          if (logStartDate && t.date < logStartDate) return false;
-          if (logEndDate && t.date > logEndDate) return false;
-          if (!isAllOutlets && targetBranchId !== null && Number(t.from_outlet_id || t.fromOutletId) !== Number(targetBranchId)) return false;
-          return true;
-        })
-        .reduce((sum, t) => sum + Number(t.qty || 0), 0);
-
-      const stokRusak = (masterData.damagedGoods || [])
-        .concat(masterData.approvedWaste || [])
-        .filter(d => {
-          if ((d.item_name || d.itemName || '').toLowerCase().trim() !== ingNameLower) return false;
-          if (logStartDate && d.date < logStartDate) return false;
-          if (logEndDate && d.date > logEndDate) return false;
-          if (!isAllOutlets && targetBranchId !== null && Number(d.outlet_id || d.branch_id) !== Number(targetBranchId)) return false;
-          return true;
-        })
-        .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || 0), 0);
-
-      const totalStokKeluar = stokKeluarPenjualan + transferOut + stokRusak;
-
-      // 3. Stok Awal
-      const manualKey = `ing_${targetBranchId || 'ALL'}_${ing.name}`;
-      let stokAwal = 0;
-      if (manualStokAwalMap[manualKey] !== undefined && manualStokAwalMap[manualKey] !== '') {
-        stokAwal = Number(manualStokAwalMap[manualKey]);
-      } else {
-        stokAwal = Number(ing.initialStock !== undefined ? ing.initialStock : (ing.stock || ing.stok || 0));
-      }
-
-      // 4. Sisa Stok by Sistem
-      const sisaStok = (stokAwal + stokMasuk + transferIn) - totalStokKeluar;
-
-      const reportNo = `OPSYS-${ing.code || `BHN-${ing.id || idx + 1}`}`;
-      const outletNameStr = targetBranchId ? getOutletName(targetBranchId) : 'Semua Outlet Cabang';
-
-      return {
-        id: `op-sys-${ing.id || idx}`,
-        date: dateStr,
-        reportNo,
-        outletName: outletNameStr,
-        itemName: ing.name,
-        unit: ing.unit || 'kg',
-        stokAwal,
-        stokMasuk: stokMasuk + transferIn,
-        stokKeluar: totalStokKeluar,
-        sisaStok
-      };
-    }).sort((a, b) => a.itemName.localeCompare(b.itemName));
-  };
-
   const calculateStockOpnameBySystem = () => {
     const movements = getMovementsList();
     const transfersList = getTransfersList();
@@ -1475,123 +1355,6 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       .reduce((sum, d) => sum + Number(d.qty || d.stok_rusak || d.jumlah_rusak || 0), 0);
   };
 
-  // UNIFIED TOGGLE LOGISTICS STATUS HANDLER (WEB ADMIN -> POS KASIR SYNC)
-  const handleToggleLogisticsStatus = (record, logType) => {
-    if (!record) return;
-
-    const currentStatus = record.status;
-    const isCurrentlyDone =
-      currentStatus === 'Done' || currentStatus === 'done' ||
-      currentStatus === 'ACC' || currentStatus === 'ok' ||
-      currentStatus === 'Approved' || currentStatus === 'approved' ||
-      record.is_approved === true;
-
-    const newStatus = isCurrentlyDone ? 'Pending' : 'Done';
-    const newApproved = !isCurrentlyDone;
-
-    const recordId = record.id;
-    // Untuk stok_opname: POS menyimpan banyak baris per laporan dengan report_no yang sama
-    // Gunakan report_no sebagai kunci utama pencocokan
-    const recordReportNo = record.report_no || record.id;
-    const reportLabel = record.item_name || record.report_no || record.id;
-
-    if (isCurrentlyDone) {
-      if (!window.confirm(`Status laporan (${reportLabel}) saat ini sudah "Done / Disetujui". Apakah Anda yakin ingin mengubah kembali statusnya menjadi "⏳ Pending"?`)) {
-        return;
-      }
-    }
-
-    // Matcher kuat berdasarkan id ATAU report_no
-    const matchRecord = (item) =>
-      item.id === recordId ||
-      (recordId && String(item.id) === String(recordId)) ||
-      (recordReportNo && item.report_no && String(item.report_no) === String(recordReportNo));
-
-    const updateObj = (item) => {
-      if (!matchRecord(item)) return item;
-      return {
-        ...item,
-        status: newStatus,
-        is_approved: newApproved,
-        sent_to_apk: true,
-        approved_at: newApproved ? new Date().toISOString() : null,
-        approved_by: newApproved ? 'Admin Web' : null,
-        status_keterangan: newApproved ? 'by approved' : 'pending'
-      };
-    };
-
-    setMasterData(prev => {
-      let newPrev = { ...prev, _lastUpdated: Date.now() };
-
-      if (logType === 'stok_masuk') {
-        // stockMovement adalah sumber utama untuk getFilteredMasuk() → wajib diupdate
-        const updatedMovement = (prev.stockMovement || []).map(updateObj);
-        const alreadyInMovement = (prev.stockMovement || []).some(matchRecord);
-
-        newPrev.stockMovement = alreadyInMovement
-          ? updatedMovement
-          : [...updatedMovement, { ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }];
-
-        // Update juga approvedLogistics sebagai sinkronisasi ke POS Mobile
-        const updatedApp = (prev.approvedLogistics || []).map(updateObj);
-        const alreadyInApp = (prev.approvedLogistics || []).some(matchRecord);
-        newPrev.approvedLogistics = alreadyInApp
-          ? updatedApp
-          : [{ ...record, status: newStatus, is_approved: newApproved, sent_to_apk: true }, ...updatedApp];
-
-      } else if (logType === 'transfer_stok') {
-        newPrev.stockTransfer = (prev.stockTransfer || []).map(updateObj);
-        newPrev.approvedTransfers = (prev.approvedTransfers || []).map(updateObj);
-        newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
-
-      } else if (logType === 'stok_rusak') {
-        newPrev.damagedGoods = (prev.damagedGoods || []).map(updateObj);
-        newPrev.approvedWaste = (prev.approvedWaste || []).map(updateObj);
-        newPrev.stockMovement = (prev.stockMovement || []).map(updateObj);
-
-      } else if (logType === 'stok_opname') {
-        // POS Kasir menyimpan ke 3 array: stockOpname, approvedLogistics, stockMovement
-        // Saat admin klik Done, SEMUA 3 array harus diupdate agar status sinkron ke POS
-        const autoStokKeluar = getAutoSalesOutflowForIngredient(record.item_name, record.outlet_id);
-        const activePrice = getItemPriceFromStokMasuk(record.item_name) || record.harga_satuan || 0;
-
-        // Untuk stok_opname: matching dilakukan berdasarkan report_no (satu laporan = banyak baris)
-        const matchOpname = (item) =>
-          (recordReportNo && item.report_no && String(item.report_no) === String(recordReportNo)) ||
-          item.id === recordId ||
-          (recordId && String(item.id) === String(recordId));
-
-        const updateOpnameObj = (item) => {
-          if (!matchOpname(item)) return item;
-          return {
-            ...item,
-            stok_keluar: newApproved ? (item.stok_keluar || autoStokKeluar) : item.stok_keluar,
-            harga_satuan: activePrice || item.harga_satuan,
-            status: newStatus,
-            is_approved: newApproved,
-            sent_to_apk: true,
-            approved_at: newApproved ? new Date().toISOString() : null,
-            approved_by: newApproved ? 'Admin Web' : null,
-            status_keterangan: newApproved ? 'by approved' : 'pending'
-          };
-        };
-
-        // Update semua 3 array sekaligus (sama seperti cara POS Kasir menyimpan)
-        newPrev.stockOpname = (prev.stockOpname || []).map(updateOpnameObj);
-        newPrev.approvedLogistics = (prev.approvedLogistics || []).map(updateOpnameObj);
-        newPrev.stockMovement = (prev.stockMovement || []).map(updateOpnameObj);
-      }
-
-      return newPrev;
-    });
-
-    if (newApproved) {
-      alert(`✅ Status laporan (${reportLabel}) BERHASIL DIUBAH MENJADI 🟢 DONE!\nStatus di Web Admin & POS Kasir Mobile kini otomatis berubah menjadi Done (Disetujui).`);
-    } else {
-      alert(`ℹ️ Status laporan (${reportLabel}) telah diubah menjadi ⏳ PENDING.`);
-    }
-  };
-
   // ACC / APPROVE OPNAME REPORT FROM OUTLET
   const handleApproveOpnameReport = (op) => {
     const autoStokKeluarPenjualan = getAutoSalesOutflowForIngredient(op.item_name, op.outlet_id);
@@ -2003,13 +1766,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   };
 
   const handleSaveRusak = (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     if (rusakBatchRows.length === 0 || rusakBatchRows.some(r => !r.item_name || !r.qty)) {
       alert('Harap lengkapi item bahan baku dan jumlah Qty rusak!');
       return;
     }
-    // Langsung simpan dengan status DONE saat diinput dari Web Admin
-    handleSaveRusakFinal();
+    // Opens Papan Preview Modal for user review
+    setShowRusakPreviewFormModal(true);
   };
 
   const handleSaveRusakFinal = () => {
@@ -2059,9 +1822,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         sumber_input: 'web_admin',
         status_keterangan: 'by manual',
         type_input: 'manual',
-        status: 'Done',
-        is_approved: true,
-        sent_to_apk: true,
+        status: 'pending',
+        is_approved: false,
         editing_notes: rusakEditingNotes || '',
         notes: finalNotesStr,
         created_at: new Date().toISOString()
@@ -2093,7 +1855,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       };
     });
 
-    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Item) BERHASIL DISIMPAN DENGAN STATUS DONE!`);
+    alert(`✅ Laporan Barang Rusak ${reportNo} (${rusakBatchRows.length} Bahan Baku) berhasil disimpan!\nKeterangan "by manual" aktif. Silakan klik ACC & Kirim APK jika ingin menghubungkan ke POS Mobile APK.`);
     setShowRusakPreviewFormModal(false);
     setShowAddModal(null);
     setEditingRecord(null);
@@ -2775,31 +2537,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(m, 'stok_masuk');
-                              }}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                                border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
-                                color: isDone ? T.success : T.accentGold,
-                                fontWeight: '900',
-                                fontSize: '0.78rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease'
-                              }}
-                              title={isDone ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status laporan ini menjadi Done (Disetujui)"}
-                            >
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
+                              color: isDone ? T.success : T.accentGold,
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
                               {isDone ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isDone ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </button>
+                            </span>
                           </td>
 
                           {/* 5. AKSI */}
@@ -3117,31 +2869,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(t, 'transfer_stok');
-                              }}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                                border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
-                                color: isApproved ? T.success : T.accentGold,
-                                fontWeight: '900',
-                                fontSize: '0.78rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease'
-                              }}
-                              title={isApproved ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status transfer ini menjadi Done (Disetujui)"}
-                            >
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                              color: isApproved ? T.success : T.accentGold,
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </button>
+                            </span>
                           </td>
 
                           {/* 5. AKSI */}
@@ -3262,21 +3004,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     );
 
                     return paginatedRusak.map(m => {
-                      const isWebAdminInput =
-                        m.sumber_input === 'web_admin' ||
-                        m.status_keterangan === 'by manual' ||
-                        m.type_input === 'manual' ||
-                        (m.created_by && String(m.created_by).toLowerCase().includes('admin')) ||
-                        (m.input_by && String(m.input_by).toLowerCase().includes('admin')) ||
-                        (m.submitted_by && String(m.submitted_by).toLowerCase().includes('admin'));
-
-                      const isApproved =
-                        isWebAdminInput ||
-                        m.status === 'Done' || m.status === 'done' ||
-                        m.status === 'ok' || m.status === 'approved' ||
-                        m.status === 'Approved' || m.status === 'ACC' ||
-                        m.status === 'Terkirim' ||
-                        m.is_approved === true;
+                      const isSent = m.status === 'Terkirim' || m.sent_to_apk;
+                      const isApproved = isSent || m.status === 'ok' || m.status === 'approved' || m.status === 'Approved' || m.status === 'ACC' || m.is_approved || m.status === 'Done';
+                      const isWebAdminInput = m.sumber_input === 'web_admin' || m.status_keterangan === 'by manual' || m.type_input === 'manual';
 
                       const rawItems = [...(masterData.damagedGoods || []), ...(masterData.approvedWaste || [])].filter(x => (x.report_no && x.report_no === (m.report_no || m.id)) || x.id === m.id);
                       const uniqueItemsMap = new Map();
@@ -3350,31 +3080,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 4. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(m, 'stok_rusak');
-                              }}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                                border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
-                                color: isApproved ? T.success : T.accentGold,
-                                fontWeight: '900',
-                                fontSize: '0.78rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease'
-                              }}
-                              title={isApproved ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status barang rusak ini menjadi Done (Disetujui)"}
-                            >
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isApproved ? `${T.success}` : T.accentGold}`,
+                              color: isApproved ? T.success : T.accentGold,
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (Disetujui)' : '⏳ Pending'}</span>
-                            </button>
+                            </span>
                           </td>
 
                           {/* 5. AKSI */}
@@ -3415,111 +3135,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           </div>
         )}
 
-        {/* SUBTAB 5: OPNAME BY SISTEM (BAHAN BAKU TIDAK DITAMPILKAN DI APK) */}
-        {activeSubTab === 'stok_opname_system' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <SlidersHorizontal size={18} color={T.info} />
-                  <span>Opname by Sistem (Bahan Baku Tidak Ditampilkan di APK Mobile POS)</span>
-                </h3>
-                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '2px' }}>
-                  Kalkulasi otomatis stok sistem untuk bahan baku yang di-set <strong>Tampilkan di APK: Inaktif</strong>. Didukung filter rentang waktu & outlet.
-                </p>
-              </div>
-            </div>
-
-            <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
-                <thead>
-                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>NO LAPORAN</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>NAMA OUTLET</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NAMA ITEM</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '120px' }}>STOK AWAL</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '120px', color: T.info }}>STOK MASUK</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '120px', color: T.danger }}>STOK KELUAR</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '130px', color: T.success }}>SISA STOK</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const systemOpnameData = getSystemOpnameList();
-                    const paginatedSystem = systemOpnameData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-                    if (systemOpnameData.length === 0) return (
-                      <tr>
-                        <td colSpan={8} style={{ padding: '35px', textAlign: 'center', color: T.txtMuted }}>
-                          📭 Tidak ada data bahan baku sistem untuk filter terpilih.
-                        </td>
-                      </tr>
-                    );
-
-                    return paginatedSystem.map(item => (
-                      <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
-                        {/* 1. TANGGAL */}
-                        <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
-                          <div>📅 {item.date}</div>
-                        </td>
-
-                        {/* 2. NO LAPORAN */}
-                        <td style={{ padding: '14px 16px', fontWeight: '900', color: T.info }}>
-                          <span>📄 {item.reportNo}</span>
-                        </td>
-
-                        {/* 3. NAMA OUTLET */}
-                        <td style={{ padding: '14px 16px', fontWeight: '700' }}>
-                          <span>🏢 {item.outletName}</span>
-                        </td>
-
-                        {/* 4. NAMA ITEM */}
-                        <td style={{ padding: '14px 16px', fontWeight: '800' }}>
-                          <div style={{ color: T.txtPrimary, fontSize: '0.88rem' }}>📦 {item.itemName}</div>
-                          <div style={{ fontSize: '0.72rem', color: T.txtMuted, marginTop: '2px' }}>Satuan: {item.unit} &bull; Tampilkan di APK: Inaktif</div>
-                        </td>
-
-                        {/* 5. STOK AWAL */}
-                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>
-                          {item.stokAwal} {item.unit}
-                        </td>
-
-                        {/* 6. STOK MASUK */}
-                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '800', color: T.info }}>
-                          +{item.stokMasuk} {item.unit}
-                        </td>
-
-                        {/* 7. STOK KELUAR */}
-                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '800', color: T.danger }}>
-                          -{item.stokKeluar} {item.unit}
-                        </td>
-
-                        {/* 8. SISA STOK */}
-                        <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: item.sisaStok >= 0 ? T.success : T.danger, fontSize: '0.90rem' }}>
-                          {item.sisaStok} {item.unit}
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
-            </div>
-
-            {/* PAGINATION CONTROLS */}
-            <PaginationControls
-              currentPage={currentPage}
-              totalPages={Math.ceil(getSystemOpnameList().length / pageSize) || 1}
-              pageSize={pageSize}
-              totalItems={getSystemOpnameList().length}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-            />
-          </div>
-        )}
-
-        {/* SUBTAB 6: STOK OPNAME (HASIL AUDIT FISIK INVENTORIS KASIR / OUTLET) */}
-        {(activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname') && (
+        {/* SUBTAB: STOK OPNAME (HASIL AUDIT FISIK INVENTORIS) */}
+        {(activeSubTab === 'stok_opname_report' || activeSubTab === 'stok_opname_system' || activeSubTab === 'stok_opname') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
@@ -3622,11 +3239,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isKasir = (op.type_input && op.type_input.toLowerCase().includes('mobile')) || (op.submitted_by && !op.created_by) || ((op.created_by || '').toLowerCase().includes('kasir'));
                       const makerName = op.created_by || op.submitted_by || 'Admin';
                       const outletName = getOutletName(op.outlet_id);
-                      const isApproved =
-                        op.status === 'ACC' || op.status === 'ok' ||
-                        op.status === 'approved' || op.status === 'Approved' ||
-                        op.status === 'Done' || op.status === 'done' ||
-                        op.is_approved === true;
+                      const isApproved = op.status === 'ACC' || op.status === 'ok' || op.status === 'approved' || op.status === 'Approved' || op.status === 'Done';
 
                       return (
                         <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
@@ -3682,31 +3295,21 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                           {/* 5. STATUS */}
                           <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleLogisticsStatus(op, 'stok_opname');
-                              }}
-                              style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                                border: `1px solid ${isApproved ? T.success : T.accentGold}`,
-                                color: isApproved ? T.success : T.accentGold,
-                                fontWeight: '900',
-                                fontSize: '0.78rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease'
-                              }}
-                              title={isApproved ? "Status Done (ACC). Klik untuk mengubah kembali ke Pending" : "Klik untuk mengubah status audit opname ini menjadi Done (Disetujui)"}
-                            >
+                            <span style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
+                              border: `1px solid ${isApproved ? T.success : T.accentGold}`,
+                              color: isApproved ? T.success : T.accentGold,
+                              fontWeight: '900',
+                              fontSize: '0.78rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
                               {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
                               <span>{isApproved ? 'Done (ACC)' : '⏳ Pending'}</span>
-                            </button>
+                            </span>
                           </td>
 
                           {/* 6. AKSI */}
@@ -4843,8 +4446,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <button type="button" onClick={() => { setShowAddModal(null); setEditingRecord(null); }} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
                   Batal
                 </button>
-                <button type="submit" className="btn-primary" style={{ padding: '8px 20px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '900' }}>
-                  OK (Simpan Stok Rusak)
+                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '800' }}>
+                  Lanjut ke Pratinjau (OK)
                 </button>
               </div>
             </form>
