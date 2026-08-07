@@ -1159,12 +1159,25 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {variants.map((v, i) => (
-                        <span key={i} style={{ background: T.cardBg, border: `1px solid ${T.border}`, color: T.txtPrimary, padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          {v}
-                          <X size={14} color={T.danger} style={{ cursor: 'pointer' }} onClick={() => handleRemoveVariant(v)} />
-                        </span>
-                      ))}
+                      {variants.map((v, i) => {
+                        const firstOutId = selectedOutletIds[0];
+                        const pVal = firstOutId ? (
+                          variantPrices[v]?.[firstOutId] || variantPrices[v]?.[String(firstOutId)] ||
+                          standardPrices[firstOutId] || standardPrices[String(firstOutId)] || 0
+                        ) : 0;
+
+                        return (
+                          <span key={i} style={{ background: T.cardBg, border: `1px solid ${T.border}`, color: T.txtPrimary, padding: '5px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{v}</span>
+                            {pVal > 0 && (
+                              <span style={{ color: T.success, fontWeight: '800', fontSize: '0.74rem' }}>
+                                ({formatRupiah(pVal)})
+                              </span>
+                            )}
+                            <X size={14} color={T.danger} style={{ cursor: 'pointer', marginLeft: '2px' }} onClick={() => handleRemoveVariant(v)} />
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -1274,7 +1287,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             <span style={{ fontSize: '0.8rem', color: T.success, fontWeight: '800' }}>Rp</span>
                             <input
                               type="number"
-                              placeholder="Harga dasar outlet..."
+                              placeholder="Nominal harga..."
                               value={currentVal}
                               onChange={e => handleUpdateStandardPrice(outId, e.target.value)}
                               style={{
@@ -1289,50 +1302,6 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               }}
                             />
                           </div>
-
-                          {/* OPTIONAL PER-VARIANT INDEPENDENT PRICE OVERRIDES */}
-                          {variants.length > 0 && (
-                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dashed ${T.border}` }}>
-                              <div style={{ fontSize: '0.70rem', color: T.accentGold, fontWeight: '800', marginBottom: '6px' }}>
-                                Harga Per Varian (Opsional Edit):
-                              </div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                {variants.map(vName => {
-                                  const stdVal = Number(currentVal || 0);
-                                  const rawVarVal = (variantPrices[vName] && variantPrices[vName][outId] !== undefined)
-                                    ? variantPrices[vName][outId]
-                                    : ((variantPrices[vName] && variantPrices[vName][String(outId)] !== undefined) ? variantPrices[vName][String(outId)] : stdVal);
-
-                                  return (
-                                    <div key={vName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', background: T.cardBg2, padding: '3px 6px', borderRadius: '6px', border: `1px solid ${T.border}` }}>
-                                      <span style={{ fontSize: '0.70rem', color: T.txtPrimary, fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '90px' }}>
-                                        {vName}
-                                      </span>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', width: '90px' }}>
-                                        <span style={{ fontSize: '0.68rem', color: T.success, fontWeight: '800' }}>Rp</span>
-                                        <input
-                                          type="number"
-                                          placeholder={String(stdVal)}
-                                          value={rawVarVal}
-                                          onChange={e => handleUpdateVariantPrice(vName, outId, e.target.value)}
-                                          style={{
-                                            width: '100%',
-                                            padding: '2px 4px',
-                                            borderRadius: '4px',
-                                            border: `1px solid ${T.border}`,
-                                            background: T.inputBg,
-                                            color: T.success,
-                                            fontWeight: '800',
-                                            fontSize: '0.75rem'
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
 
                           <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dashed ${T.border}` }}>
                             <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
