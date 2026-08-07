@@ -135,53 +135,53 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
   const paginatedPayments = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Data Metode Pembayaran
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola pilihan saluran pembayaran kasir (Cash, Transfer, QRIS, E-Wallet, dan Pendapatan Lain-lain)
           </p>
         </div>
 
-        <button onClick={handleOpenAddModal} className="btn-primary">
-          <Plus size={18} />
+        <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+          <Plus size={15} />
           <span>Tambahkan Metode Pembayaran</span>
         </button>
       </div>
 
       {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama atau kode metode pembayaran..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
+          style={{ paddingLeft: '34px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border, fontSize: '0.76rem', height: '34px' }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+      <div className="glass-card" style={{ padding: '16px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '12px' }}>Kode (Jenis Pembayaran)</th>
-                <th style={{ padding: '12px' }}>Nama Metode Pembayaran</th>
-                <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>Kode (Jenis Pembayaran)</th>
+                <th style={{ padding: '10px 10px' }}>Nama Metode Pembayaran</th>
+                <th style={{ padding: '10px 10px' }}>Status</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={4} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada data metode pembayaran.
                   </td>
                 </tr>
@@ -189,19 +189,20 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
                 paginatedPayments.map(item => {
                   const badgeStyle = getCodeBadgeStyle(item.code);
                   const isAktif = (item.status || 'Aktif') === 'Aktif';
+                  const cleanItemName = (item.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (
-                    <tr key={item.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={item.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. KODE (JENIS PEMBAYARAN) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: badgeStyle.bg,
                           color: badgeStyle.color,
                           border: `1px solid ${badgeStyle.border}`,
-                          padding: '4px 10px',
-                          borderRadius: '8px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                           fontWeight: '800',
-                          fontSize: '0.8rem',
+                          fontSize: '0.68rem',
                           fontFamily: 'monospace'
                         }}>
                           {item.code || 'Cash'}
@@ -209,23 +210,23 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
                       </td>
 
                       {/* 2. NAMA METODE PEMBAYARAN */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <CreditCard size={16} color={T.info} />
-                          <span>{item.name}</span>
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', color: T.txtPrimary }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CreditCard size={14} color={T.info} />
+                          <span>{cleanItemName}</span>
                         </div>
                       </td>
 
                       {/* 3. STATUS */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: isAktif ? T.successBg : T.dangerBg,
                           color: isAktif ? T.success : T.danger,
                           border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
-                          padding: '4px 10px',
+                          padding: '2px 8px',
                           borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700'
+                          fontSize: '0.68rem',
+                          fontWeight: '800'
                         }}>
                           ● {isAktif ? 'Aktif' : 'Inaktif'}
                         </span>

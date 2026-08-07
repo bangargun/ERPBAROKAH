@@ -155,82 +155,82 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
   const paginatedCustomers = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Data Pelanggan & Membership
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Manajemen database pelanggan, nomor whatsapp, asal outlet, dan kualifikasi Tier Membership otomatis
           </p>
         </div>
 
-        <button onClick={handleOpenAddModal} className="btn-primary">
-          <Plus size={18} />
+        <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+          <Plus size={15} />
           <span>Tambahkan Pelanggan</span>
         </button>
       </div>
 
       {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.info }}>
-            <Users size={22} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+        <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.info }}>
+            <Users size={18} />
           </div>
           <div>
-            <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>TOTAL PELANGGAN</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.txtPrimary, marginTop: '2px' }}>{customersList.length} Orang</h3>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700' }}>Total Pelanggan</div>
+            <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary }}>{customersList.length} Orang</div>
           </div>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.accentGoldBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.accentGold }}>
-            <Award size={22} />
+        <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: T.accentGoldBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.accentGold }}>
+            <Award size={18} />
           </div>
           <div>
-            <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>CUSTOMER VIP (&gt; 5JT)</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.accentGold, marginTop: '2px' }}>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700' }}>Customer VIP</div>
+            <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.accentGold }}>
               {customersList.filter(c => (c.total_spend || 0) > 5000000).length} VIP
-            </h3>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Search Filter Bar */}
-      <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      {/* Search Bar */}
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari nama, no. whatsapp, atau no. membership..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
+          style={{ paddingLeft: '34px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border, fontSize: '0.76rem', height: '34px' }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+      <div className="glass-card" style={{ padding: '16px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, background: T.tableHeaderBg, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '12px' }}>No. Membership (Auto)</th>
-                <th style={{ padding: '12px' }}>Nama Pelanggan</th>
-                <th style={{ padding: '12px' }}>Nomor WhatsApp</th>
-                <th style={{ padding: '12px' }}>Asal Outlet</th>
-                <th style={{ padding: '12px' }}>Tanggal Bergabung</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Total Belanja</th>
-                <th style={{ padding: '12px' }}>Tier Membership</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, background: T.tableHeaderBg, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>No. Membership (Auto)</th>
+                <th style={{ padding: '10px 10px' }}>Nama Pelanggan</th>
+                <th style={{ padding: '10px 10px' }}>Nomor WhatsApp</th>
+                <th style={{ padding: '10px 10px' }}>Asal Outlet</th>
+                <th style={{ padding: '10px 10px' }}>Tanggal Bergabung</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Total Belanja</th>
+                <th style={{ padding: '10px 10px' }}>Tier Membership</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
+                  <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.76rem' }}>
                     Belum ada data pelanggan yang cocok.
                   </td>
                 </tr>
@@ -238,27 +238,28 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
                 paginatedCustomers.map(cust => {
                   const tier = calculateTier(cust.total_spend);
                   const joinDate = cust.join_date || '2026-07-20';
+                  const cleanCustName = (cust.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (
-                    <tr key={cust.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={cust.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. NOMOR MEMBERSHIP */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: T.infoBg,
                           color: T.info,
                           border: `1px solid ${T.infoBorder}`,
-                          padding: '4px 10px',
-                          borderRadius: '8px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                           fontWeight: '800',
-                          fontSize: '0.8rem',
+                          fontSize: '0.68rem',
                           fontFamily: 'monospace'
                         }}>
                           {cust.code || `MBR-00${cust.id}`}
                         </span>
                       </td>
 
-                      {/* 2. NAMA PELANGGAN (Klik Nama Pelanggan -> Papan Informasi Detail Analisis Pelanggan) */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem' }}>
+                      {/* 2. NAMA PELANGGAN */}
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem' }}>
                         <button
                           type="button"
                           onClick={() => setSelectedCustomerDetail(cust)}
@@ -266,21 +267,21 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
                             background: 'none',
                             border: 'none',
                             color: T.info,
-                            fontWeight: '900',
+                            fontWeight: '800',
                             cursor: 'pointer',
                             padding: 0,
                             textAlign: 'left',
-                            fontSize: '0.9rem',
+                            fontSize: '0.76rem',
                             textDecoration: 'underline'
                           }}
                           title="Klik untuk melihat papan informasi detail histori transaksi, total belanja & kuantitas menu dibeli"
                         >
-                          👤 {cust.name}
+                          {cleanCustName}
                         </button>
                       </td>
 
-                      {/* 3. NOMOR WHATSAPP (WITH DIRECT CHAT LINK) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      {/* 3. NOMOR WHATSAPP */}
+                      <td style={{ padding: '8px 10px' }}>
                         <a
                           href={getWhatsAppLink(cust.phone)}
                           target="_blank"
@@ -293,9 +294,10 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
                             alignItems: 'center',
                             gap: '4px',
                             background: T.successBg,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            border: `1px solid ${T.successBorder}`
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            border: `1px solid ${T.successBorder}`,
+                            fontSize: '0.70rem'
                           }}
                         >
                           <MessageSquare size={13} />

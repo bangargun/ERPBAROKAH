@@ -141,56 +141,56 @@ export default function OutletManagement({ masterData, setMasterData, themeMode 
   const paginatedOutlets = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Data Outlet Restoran
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola data cabang restoran, alamat lokasi operasional, dan status keaktifan outlet multi-cabang
           </p>
         </div>
 
-        <button onClick={handleOpenAddModal} className="btn-primary">
-          <Plus size={18} />
+        <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+          <Plus size={15} />
           <span>Tambahkan Outlet</span>
         </button>
       </div>
 
       {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama, alamat, atau kode outlet..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
+          style={{ paddingLeft: '34px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border, fontSize: '0.76rem', height: '34px' }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderColor: T.border }}>
+      <div className="glass-card" style={{ padding: '16px', background: T.cardBg, borderColor: T.border }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
-                <th style={{ padding: '12px' }}>Kode Outlet</th>
-                <th style={{ padding: '12px' }}>Nama Outlet</th>
-                <th style={{ padding: '12px' }}>Alamat Lokasi</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Target Outlet (Omzet)</th>
-                <th style={{ padding: '12px', textAlign: 'center' }}>Jumlah Karyawan</th>
-                <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', background: T.tableHeaderBg, fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>Kode Outlet</th>
+                <th style={{ padding: '10px 10px' }}>Nama Outlet</th>
+                <th style={{ padding: '10px 10px' }}>Alamat Lokasi</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Target Outlet (Omzet)</th>
+                <th style={{ padding: '10px 10px', textAlign: 'center' }}>Jumlah Karyawan</th>
+                <th style={{ padding: '10px 10px' }}>Status</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedOutlets.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada data outlet yang dikonfigurasi.
                   </td>
                 </tr>
@@ -199,19 +199,20 @@ export default function OutletManagement({ masterData, setMasterData, themeMode 
                   const isAktif = (outlet.status || 'Aktif') === 'Aktif';
                   const targetVal = outlet.target_omzet !== undefined ? outlet.target_omzet : (outlet.target || 50000000);
                   const empVal = outlet.employee_count !== undefined ? outlet.employee_count : (outlet.employees || 10);
+                  const cleanOutletName = (outlet.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (
-                    <tr key={outlet.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={outlet.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. KODE OUTLET */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: T.infoBg,
                           color: T.info,
                           border: `1px solid ${T.infoBorder}`,
-                          padding: '4px 10px',
-                          borderRadius: '8px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                           fontWeight: '800',
-                          fontSize: '0.8rem',
+                          fontSize: '0.68rem',
                           fontFamily: 'monospace'
                         }}>
                           {outlet.code || `OTL-00${outlet.id}`}
@@ -219,7 +220,7 @@ export default function OutletManagement({ masterData, setMasterData, themeMode 
                       </td>
 
                       {/* 2. NAMA OUTLET */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem' }}>
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem' }}>
                         <button
                           type="button"
                           onClick={() => setSelectedOutletDetail(outlet)}
@@ -227,20 +228,20 @@ export default function OutletManagement({ masterData, setMasterData, themeMode 
                             background: 'none',
                             border: 'none',
                             color: T.info,
-                            fontWeight: '900',
+                            fontWeight: '800',
                             cursor: 'pointer',
                             padding: 0,
                             textAlign: 'left',
-                            fontSize: '0.9rem',
+                            fontSize: '0.76rem',
                             textDecoration: 'underline',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '6px'
+                            gap: '4px'
                           }}
                           title="Klik untuk melihat papan informasi detail kuantitas terjual, total omzet & history penjualan outlet ini"
                         >
-                          <Store size={16} color={T.info} />
-                          <span>{outlet.name}</span>
+                          <Store size={14} color={T.info} />
+                          <span>{cleanOutletName}</span>
                         </button>
                       </td>
 

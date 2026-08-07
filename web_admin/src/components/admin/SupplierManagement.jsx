@@ -143,55 +143,55 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
   const paginatedSuppliers = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Data Supplier & Vendor Pasokan
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola data mitra supplier bahan baku (Bahan Kering, Sayur Mayur, Ikan, Lain-lain) per lokasi outlet
           </p>
         </div>
 
-        <button onClick={handleOpenAddModal} className="btn-primary">
-          <Plus size={18} />
+        <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+          <Plus size={15} />
           <span>Tambahkan Supplier</span>
         </button>
       </div>
 
       {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama supplier, outlet, atau kode..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px' }}
+          style={{ paddingLeft: '34px', fontSize: '0.76rem', height: '34px' }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+      <div className="glass-card" style={{ padding: '16px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
-                <th style={{ padding: '12px' }}>Kode Supplier (Auto)</th>
-                <th style={{ padding: '12px' }}>Nama Supplier</th>
-                <th style={{ padding: '12px' }}>Outlet Tujuan</th>
-                <th style={{ padding: '12px' }}>Jenis Pasokan</th>
-                <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', background: T.tableHeaderBg, fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>Kode Supplier (Auto)</th>
+                <th style={{ padding: '10px 10px' }}>Nama Supplier</th>
+                <th style={{ padding: '10px 10px' }}>Outlet Tujuan</th>
+                <th style={{ padding: '10px 10px' }}>Jenis Pasokan</th>
+                <th style={{ padding: '10px 10px' }}>Status</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
+                  <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.76rem' }}>
                     Belum ada data supplier yang dikonfigurasi.
                   </td>
                 </tr>
@@ -199,19 +199,20 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
                 paginatedSuppliers.map(sup => {
                   const isAktif = (sup.status || 'Aktif') === 'Aktif';
                   const types = sup.supply_types || ['Bahan Kering'];
+                  const cleanSupName = (sup.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (
-                    <tr key={sup.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={sup.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. KODE SUPPLIER (Auto) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: T.accentGreenBg,
                           color: T.info,
                           border: `1px solid ${T.border}`,
-                          padding: '4px 10px',
-                          borderRadius: '8px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                           fontWeight: '800',
-                          fontSize: '0.8rem',
+                          fontSize: '0.68rem',
                           fontFamily: 'monospace'
                         }}>
                           {sup.code || `SUP-00${sup.id}`}
@@ -219,17 +220,17 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
                       </td>
 
                       {/* 2. NAMA SUPPLIER */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Truck size={16} color={T.info} />
-                          <span>{sup.name}</span>
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', color: T.txtPrimary }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Truck size={14} color={T.info} />
+                          <span>{cleanSupName}</span>
                         </div>
                       </td>
 
                       {/* 3. OUTLET TUJUAN */}
-                      <td style={{ padding: '14px 12px', color: T.txtSecondary }}>
-                        <span style={{ background: T.cardBg2, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${T.borderStrong}`, fontSize: '0.78rem' }}>
-                          🏢 {getOutletName(sup.outlet_id)}
+                      <td style={{ padding: '8px 10px', color: T.txtSecondary }}>
+                        <span style={{ background: T.cardBg2, padding: '2px 6px', borderRadius: '4px', border: `1px solid ${T.borderStrong}`, fontSize: '0.70rem' }}>
+                          {getOutletName(sup.outlet_id)}
                         </span>
                       </td>
 

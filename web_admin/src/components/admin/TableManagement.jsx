@@ -98,67 +98,67 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Data Meja Restoran
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola data meja per outlet sebagai sumber data master penomoran meja untuk Mobile APK POS Kasir
           </p>
         </div>
 
-        <button onClick={handleOpenAddModal} className="btn-primary">
-          <Plus size={18} />
+        <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+          <Plus size={15} />
           <span>Tambahkan Meja</span>
         </button>
       </div>
 
       {/* Info Banner for Mobile APK Integration */}
-      <div className="glass-card" style={{ padding: '16px 20px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: T.info, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
-          <Smartphone size={22} />
+      <div className="glass-card" style={{ padding: '12px 16px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: T.info, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
+          <Smartphone size={18} />
         </div>
         <div>
-          <h4 style={{ fontSize: '0.9rem', fontWeight: '800', color: T.info }}>Sumber Data Master Mobile APK</h4>
-          <p style={{ fontSize: '0.78rem', color: T.txtSecondary, marginTop: '2px' }}>
-            Seluruh penomoran meja (MEJA-01, MEJA-02, dst.) yang dikonfigurasi di sini akan secara otomatis menjadi pilihan nomor meja pada Mobile APK pengguna saat memilih meja pesanan.
+          <h4 style={{ fontSize: '0.78rem', fontWeight: '800', color: T.info, margin: 0 }}>Sumber Data Master Mobile APK</h4>
+          <p style={{ fontSize: '0.70rem', color: T.txtSecondary, marginTop: '2px', margin: 0 }}>
+            Seluruh penomoran meja (MEJA-01, MEJA-02, dst.) yang dikonfigurasi di sini akan secara otomatis menjadi pilihan nomor meja pada Mobile APK.
           </p>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama outlet..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px' }}
+          style={{ paddingLeft: '34px', fontSize: '0.76rem', height: '34px' }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px' }}>
+      <div className="glass-card" style={{ padding: '16px' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '12px' }}>Nama Outlet</th>
-                <th style={{ padding: '12px' }}>Jumlah Meja</th>
-                <th style={{ padding: '12px' }}>Rincian Nomor Meja (Sumber Mobile APK)</th>
-                <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>Nama Outlet</th>
+                <th style={{ padding: '10px 10px' }}>Jumlah Meja</th>
+                <th style={{ padding: '10px 10px' }}>Rincian Nomor Meja (Sumber Mobile APK)</th>
+                <th style={{ padding: '10px 10px' }}>Status</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={5} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada data meja yang dikonfigurasi.
                   </td>
                 </tr>
@@ -169,53 +169,53 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                   const isAktif = (group.status || 'Aktif') === 'Aktif';
 
                   return (
-                    <tr key={group.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={group.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. NAMA OUTLET */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Store size={16} color={T.info} />
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', color: T.txtPrimary }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Store size={14} color={T.info} />
                           <span>{outletName}</span>
                         </div>
                       </td>
 
                       {/* 2. JUMLAH MEJA */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', color: T.info }}>
-                        <span style={{ background: T.cardBg2, padding: '4px 10px', borderRadius: '6px', border: `1px solid ${T.borderStrong}` }}>
-                          🪑 {count} Meja
+                      <td style={{ padding: '8px 10px', fontWeight: '800', color: T.info }}>
+                        <span style={{ background: T.cardBg2, padding: '2px 6px', borderRadius: '4px', border: `1px solid ${T.borderStrong}`, fontSize: '0.70rem' }}>
+                          {count} Meja
                         </span>
                       </td>
 
                       {/* 3. RINCIAN NOMOR MEJA */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{
                             background: T.infoBg,
                             color: T.info,
                             border: `1px solid ${T.infoBorder}`,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            fontSize: '0.75rem',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.68rem',
                             fontWeight: '700',
                             fontFamily: 'monospace'
                           }}>
                             MEJA-01 s/d MEJA-{count.toString().padStart(2, '0')}
                           </span>
-                          <span style={{ fontSize: '0.7rem', color: T.txtMuted, fontStyle: 'italic' }}>
+                          <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontStyle: 'italic' }}>
                             ({count} Meja Aktif APK)
                           </span>
                         </div>
                       </td>
 
                       {/* 4. STATUS */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: isAktif ? T.successBg : T.dangerBg,
                           color: isAktif ? T.success : T.danger,
                           border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
-                          padding: '4px 10px',
+                          padding: '2px 8px',
                           borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700'
+                          fontSize: '0.68rem',
+                          fontWeight: '800'
                         }}>
                           ● {isAktif ? 'Aktif' : 'Inaktif'}
                         </span>

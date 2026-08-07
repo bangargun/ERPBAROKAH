@@ -130,102 +130,100 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
   const paginatedCategories = filteredCategories.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Kategori Menu
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Pengelompokan menu makanan & minuman restoran dengan auto-code dan akumulasi menu terhubung
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={() => setShowExcelImportModal(true)}
             style={{
-              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+              background: T.info,
               color: '#ffffff',
               border: 'none',
-              padding: '8px 14px',
+              padding: '6px 12px',
               borderRadius: '8px',
               fontWeight: '700',
-              fontSize: '0.78rem',
+              fontSize: '0.72rem',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(2,132,199,0.3)'
+              boxShadow: T.shadowSm
             }}
           >
-            <FileSpreadsheet size={15} />
-            <span>📥 Template & Upload Excel</span>
+            <FileSpreadsheet size={14} />
+            <span>Template & Upload Excel</span>
           </button>
 
-          <button onClick={() => setShowAddModal(true)} className="btn-primary">
-            <Plus size={18} />
+          <button onClick={() => setShowAddModal(true)} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+            <Plus size={15} />
             <span>Tambahkan Kategori Menu</span>
           </button>
         </div>
       </div>
 
       {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.info }}>
-            <Layers size={22} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+        <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.info }}>
+            <Layers size={18} />
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>TOTAL KATEGORI</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.txtPrimary, marginTop: '2px' }}>{masterData.categories.length} Kategori</h3>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700' }}>Total Kategori</div>
+            <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary }}>{masterData.categories.length}</div>
           </div>
         </div>
 
-        <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', background: T.cardBg, border: `1px solid ${T.border}` }}>
-          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: T.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.success }}>
-            <CheckCircle2 size={22} />
+        <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: T.successBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.success }}>
+            <CheckCircle2 size={18} />
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', color: T.txtSecondary, fontWeight: '600', textTransform: 'uppercase' }}>STATUS AKTIF</span>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.success, marginTop: '2px' }}>{activeCount} Aktif</h3>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700' }}>Kategori Aktif</div>
+            <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.success }}>{activeCount}</div>
           </div>
         </div>
       </div>
 
-      {/* Search Filter Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
-          <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input
-            type="text"
-            placeholder="Cari berdasarkan nama atau kode kategori..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="form-input"
-            style={{ paddingLeft: '36px', background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
-          />
-        </div>
+      {/* Search Bar */}
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        <input
+          type="text"
+          placeholder="Cari berdasarkan nama atau kode kategori..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="form-input"
+          style={{ paddingLeft: '34px', background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary, fontSize: '0.76rem', height: '34px' }}
+        />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+      <div className="glass-card" style={{ padding: '16px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, background: T.tableHeaderBg, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '12px' }}>Kode Kategori (Auto)</th>
-                <th style={{ padding: '12px' }}>Nama Kategori</th>
-                <th style={{ padding: '12px' }}>Menu Terhubung (Klik untuk Detail Analisis)</th>
-                <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, background: T.tableHeaderBg, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>Kode Kategori (Auto)</th>
+                <th style={{ padding: '10px 10px' }}>Nama Kategori</th>
+                <th style={{ padding: '10px 10px' }}>Menu Terhubung</th>
+                <th style={{ padding: '10px 10px' }}>Status</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedCategories.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={5} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada data kategori menu yang cocok.
                   </td>
                 </tr>
@@ -233,27 +231,28 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
                 paginatedCategories.map(cat => {
                   const associatedProducts = getAssociatedProducts(cat.id, cat.name);
                   const isAktif = cat.status === 'Aktif';
+                  const cleanCatName = (cat.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (
-                    <tr key={cat.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={cat.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. KODE KATEGORI (Auto Generated) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: T.infoBg,
                           color: T.info,
                           border: `1px solid ${T.infoBorder}`,
-                          padding: '4px 10px',
-                          borderRadius: '8px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                           fontWeight: '800',
-                          fontSize: '0.8rem',
+                          fontSize: '0.68rem',
                           fontFamily: 'monospace'
                         }}>
                           {cat.code || `CAT-00${cat.id}`}
                         </span>
                       </td>
 
-                      {/* 2. KATEGORI (Klik Nama Kategori -> Papan Informasi Detail Analisis Kategori) */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem' }}>
+                      {/* 2. KATEGORI */}
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem' }}>
                         <button
                           type="button"
                           onClick={() => setSelectedCategoryDetail(cat)}
@@ -261,76 +260,74 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
                             background: 'none',
                             border: 'none',
                             color: T.accentGold,
-                            fontWeight: '900',
+                            fontWeight: '800',
                             cursor: 'pointer',
                             padding: 0,
                             textAlign: 'left',
-                            fontSize: '0.9rem',
+                            fontSize: '0.76rem',
                             textDecoration: 'underline'
                           }}
                           title="Klik untuk melihat papan informasi detail penjualan kuantitas & history transaksi kategori ini"
                         >
-                          🏷️ {cat.name}
+                          {cleanCatName}
                         </button>
                       </td>
 
-                      {/* 3. MENU TERHUBUNG (Klik Nama Menu -> Papan Informasi Detail Menu) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      {/* 3. MENU TERHUBUNG */}
+                      <td style={{ padding: '8px 10px' }}>
                         {associatedProducts.length > 0 ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <span style={{ color: T.info, fontWeight: '700', fontSize: '0.80rem' }}>
-                              📦 {associatedProducts.length} Menu Terhubung
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ color: T.info, fontWeight: '700', fontSize: '0.68rem' }}>
+                              {associatedProducts.length} Menu Terhubung
                             </span>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {associatedProducts.map(p => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => setSelectedMenuDetail(p)}
-                                  style={{
-                                    background: T.infoBg,
-                                    border: `1px solid ${T.infoBorder}`,
-                                    color: T.info,
-                                    borderRadius: '8px',
-                                    padding: '3px 9px',
-                                    fontSize: '0.74rem',
-                                    fontWeight: '800',
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    transition: 'all 0.15s ease'
-                                  }}
-                                  title="Klik untuk melihat papan informasi detail penjualan menu ini"
-                                >
-                                  <span>🍽️ {p.name}</span>
-                                </button>
-                              ))}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {associatedProducts.map(p => {
+                                const cleanPName = (p.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                                return (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => setSelectedMenuDetail(p)}
+                                    style={{
+                                      background: T.infoBg,
+                                      border: `1px solid ${T.infoBorder}`,
+                                      color: T.info,
+                                      borderRadius: '6px',
+                                      padding: '2px 6px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: '700',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                    title="Klik untuk melihat papan informasi detail penjualan menu ini"
+                                  >
+                                    <span>{cleanPName}</span>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         ) : (
-                          <span style={{ color: T.txtMuted, fontSize: '0.78rem', fontStyle: 'italic' }}>
+                          <span style={{ color: T.txtMuted, fontSize: '0.68rem', fontStyle: 'italic' }}>
                             Belum ada menu
                           </span>
                         )}
                       </td>
 
                       {/* 4. STATUS (Aktif / Inaktif) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: isAktif ? T.successBg : T.dangerBg,
                           color: isAktif ? T.success : T.danger,
                           border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
-                          padding: '4px 10px',
+                          padding: '2px 8px',
                           borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px'
+                          fontSize: '0.68rem',
+                          fontWeight: '800'
                         }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isAktif ? T.success : T.danger }}></span>
-                          {cat.status || 'Aktif'}
+                          ● {isAktif ? 'Aktif' : 'Non Aktif'}
                         </span>
                       </td>
 

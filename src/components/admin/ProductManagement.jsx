@@ -584,34 +584,32 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
         {/* TABLE CONTENT */}
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', background: T.tableHeaderBg }}>
-                <th style={{ padding: '14px 16px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', background: T.tableHeaderBg }}>
+                <th style={{ padding: '10px 10px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
               </tr>
             </thead>
             <tbody>
               {paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '50px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada produk yang ditambahkan.
                   </td>
                 </tr>
               ) : (
                 paginatedProducts.map(p => {
                   const categoryName = (masterData.categories.find(c => c.id === p.category_id)?.name || p.category_name || 'Umum').toUpperCase();
-                  const isAktif = p.status === 'Aktif';
-                  const firstLetter = p.name ? p.name.charAt(0).toUpperCase() : 'P';
-                  const variantCount = p.variants ? p.variants.length : (p.priceCombinations ? p.priceCombinations.length : 0);
+                  const cleanMenuName = (p.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim().toUpperCase();
 
-                  // Primary Outlet Name & Price (HANYA pilih outlet yang memiliki harga > 0)
+                  // Primary Outlet Name & Price
                   const validPriceOutlets = (masterData.outlets || []).filter(o => {
                     const oid = String(o.id);
                     let pr = 0;
@@ -664,14 +662,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
 
                   return (
-                    <tr key={p.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={p.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. SKU */}
-                      <td style={{ padding: '14px 16px', color: T.txtSecondary, fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: '600' }}>
+                      <td style={{ padding: '8px 10px', color: T.txtSecondary, fontFamily: 'monospace', fontSize: '0.70rem', fontWeight: '600' }}>
                         {p.sku || p.code || `MNM-00${p.id}`}
                       </td>
 
-                      {/* 2. MENU (Teks Nama Menu - Klik untuk Papan Informasi Detail Analisis) */}
-                      <td style={{ padding: '14px 16px', fontWeight: '800', fontSize: '0.84rem', letterSpacing: '0.3px' }}>
+                      {/* 2. MENU */}
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', letterSpacing: '0.2px' }}>
                         <button
                           type="button"
                           onClick={() => setSelectedMenuDetail(p)}
@@ -679,54 +677,54 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             background: 'none',
                             border: 'none',
                             color: T.info,
-                            fontWeight: '900',
+                            fontWeight: '800',
                             cursor: 'pointer',
                             padding: 0,
                             textAlign: 'left',
-                            fontSize: '0.84rem',
+                            fontSize: '0.76rem',
                             textDecoration: 'underline'
                           }}
                           title="Klik untuk melihat papan informasi detail kuantitas terjual & riwayat penjualan menu ini"
                         >
-                          🍽️ {p.name.toUpperCase()}
+                          {cleanMenuName}
                         </button>
                       </td>
 
                       {/* 3. KATEGORI */}
-                      <td style={{ padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '0.78rem' }}>
+                      <td style={{ padding: '8px 10px', color: T.txtSecondary, fontWeight: '700', fontSize: '0.72rem' }}>
                         {categoryName}
                       </td>
 
-                      {/* 4. HARGA (Outlet Name cyan + Bold Price, disembunyikan jika 0) */}
-                      <td style={{ padding: '14px 16px' }}>
+                      {/* 4. HARGA */}
+                      <td style={{ padding: '8px 10px' }}>
                         {primaryPrice > 0 ? (
                           <>
                             {outletNameHeader && (
-                              <div style={{ fontSize: '0.68rem', color: T.info, fontWeight: '800', textTransform: 'uppercase', marginBottom: '2px', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <div style={{ fontSize: '0.64rem', color: T.info, fontWeight: '800', textTransform: 'uppercase', marginBottom: '1px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {outletNameHeader}
                               </div>
                             )}
-                            <div style={{ fontWeight: '900', color: T.success, fontSize: '0.85rem' }}>
+                            <div style={{ fontWeight: '800', color: T.success, fontSize: '0.78rem' }}>
                               {formatRupiah(primaryPrice)}
                             </div>
                             {validPriceOutlets.length > 1 && (
-                              <div style={{ fontSize: '0.7rem', color: T.txtMuted, marginTop: '2px', fontWeight: '600' }}>
+                              <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '1px', fontWeight: '600' }}>
                                 +{validPriceOutlets.length - 1} outlet lainnya
                               </div>
                             )}
                           </>
                         ) : (
-                          <span style={{ color: T.danger, fontSize: '0.75rem', fontWeight: '800', background: T.dangerBg, padding: '2px 8px', borderRadius: '4px', border: `1px solid ${T.dangerBorder}` }}>⚠️ Belum Di-set</span>
+                          <span style={{ color: T.danger, fontSize: '0.68rem', fontWeight: '800', background: T.dangerBg, padding: '2px 6px', borderRadius: '4px', border: `1px solid ${T.dangerBorder}` }}>Belum Di-set</span>
                         )}
                       </td>
 
                       {/* 5. BAHAN BAKU */}
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         {(() => {
                           const comps = p.compositions || p.ingredients || [];
                           if (!comps || comps.length === 0) {
                             return (
-                              <span style={{ background: T.cardBg2, color: T.txtMuted, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
+                              <span style={{ background: T.cardBg2, color: T.txtMuted, border: `1px solid ${T.border}`, padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '600' }}>
                                 Belum ada
                               </span>
                             );
@@ -746,16 +744,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
                           if (ingList.length === 0) {
                             return (
-                              <span style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                              <span style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700' }}>
                                 {comps.length} Bahan Baku
                               </span>
                             );
                           }
 
                           return (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
                               {ingList.map((ingName, idx) => (
-                                <span key={idx} style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                                <span key={idx} style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700' }}>
                                   {ingName}
                                 </span>
                               ))}
@@ -764,50 +762,50 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         })()}
                       </td>
 
-                      {/* 6. VARIANT (Menampilkan Nama Varian) */}
-                      <td style={{ padding: '14px 16px' }}>
+                      {/* 6. VARIANT */}
+                      <td style={{ padding: '8px 10px' }}>
                         {(p.variants && p.variants.length > 0) ? (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
                             {p.variants.map((vName, vIdx) => (
-                              <span key={vIdx} style={{ background: T.infoBg, color: T.info, border: `1px solid ${T.infoBorder}`, padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                              <span key={vIdx} style={{ background: T.infoBg, color: T.info, border: `1px solid ${T.infoBorder}`, padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '700' }}>
                                 {vName}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span style={{ color: T.txtMuted, fontSize: '0.75rem', fontStyle: 'italic' }}>Tanpa Varian</span>
+                          <span style={{ color: T.txtMuted, fontSize: '0.68rem', fontStyle: 'italic' }}>Tanpa Varian</span>
                         )}
                       </td>
 
                       {/* 7. STATUS */}
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         {(() => {
                           const st = p.status || 'Aktif';
                           if (st === 'Aktif') {
                             return (
-                              <span style={{ background: T.successBg, color: T.success, border: `1px solid ${T.successBorder}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
-                                🟢 Aktif
+                              <span style={{ background: T.successBg, color: T.success, border: `1px solid ${T.successBorder}`, padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '800' }}>
+                                Aktif
                               </span>
                             );
                           } else if (st === 'Inaktif') {
                             return (
-                              <span style={{ background: T.dangerBg, color: T.danger, border: `1px solid ${T.dangerBorder}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
-                                🔴 Inaktif
+                              <span style={{ background: T.dangerBg, color: T.danger, border: `1px solid ${T.dangerBorder}`, padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '800' }}>
+                                Inaktif
                               </span>
                             );
                           } else {
                             return (
-                              <span style={{ background: T.hoverBg, color: T.txtSecondary, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>
-                                👁️ Hide
+                              <span style={{ background: T.hoverBg, color: T.txtSecondary, border: `1px solid ${T.border}`, padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: '800' }}>
+                                Hide
                               </span>
                             );
                           }
                         })()}
                       </td>
 
-                      {/* 8. AKSI (Tombol Edit & Delete) */}
-                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                      {/* 8. AKSI */}
+                      <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
                           <button
                             type="button"
                             onClick={() => setSelectedMenuDetail(p)}
@@ -816,9 +814,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               background: T.infoBg,
                               color: T.info,
                               border: `1px solid ${T.infoBorder}`,
-                              padding: '5px 10px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
-                              fontSize: '0.75rem',
+                              fontSize: '0.68rem',
                               fontWeight: '700',
                               cursor: 'pointer',
                               display: 'inline-flex',
@@ -826,20 +824,19 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               gap: '4px'
                             }}
                           >
-                            <Eye size={14} color={T.info} />
-                            <span>History</span>
+                            <Eye size={12} />
+                            <span>Detail</span>
                           </button>
 
                           <button
                             onClick={() => handleOpenEditForm(p)}
-                            title="Edit Produk"
                             style={{
                               background: T.cardBg2,
                               color: T.txtPrimary,
                               border: `1px solid ${T.border}`,
-                              padding: '5px 10px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
-                              fontSize: '0.75rem',
+                              fontSize: '0.68rem',
                               fontWeight: '700',
                               cursor: 'pointer',
                               display: 'inline-flex',
@@ -847,29 +844,26 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color={T.info} />
+                            <Edit3 size={12} color={T.info} />
                             <span>Edit</span>
                           </button>
 
                           <button
                             onClick={() => handleDeleteProduct(p.id, p.name)}
-                            title="Hapus Produk"
                             style={{
                               background: T.dangerBg,
                               color: T.danger,
                               border: `1px solid ${T.dangerBorder}`,
-                              padding: '5px 10px',
+                              padding: '3px 6px',
                               borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: '700',
+                              fontSize: '0.68rem',
                               cursor: 'pointer',
                               display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
+                              alignItems: 'center'
                             }}
+                            title="Hapus Menu"
                           >
-                            <Trash2 size={14} />
-                            <span>Delete</span>
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>

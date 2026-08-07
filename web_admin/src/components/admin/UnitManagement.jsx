@@ -139,55 +139,55 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
   const paginatedUnits = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Data Satuan / Unit Pengukuran
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola master satuan unit standar industri kuliner F&B untuk resep bahan dapur, stok inventoris, dan porsi menu
           </p>
         </div>
 
-        <button onClick={handleOpenAddModal} className="btn-primary">
-          <Plus size={18} />
+        <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+          <Plus size={15} />
           <span>Tambahkan Satuan/Unit</span>
         </button>
       </div>
 
       {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama, simbol, atau kode unit..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px' }}
+          style={{ paddingLeft: '34px', fontSize: '0.76rem', height: '34px' }}
         />
       </div>
 
       {/* Table Section */}
-      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+      <div className="glass-card" style={{ padding: '16px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
-                <th style={{ padding: '12px' }}>Kode Unit (Auto)</th>
-                <th style={{ padding: '12px' }}>Nama Satuan</th>
-                <th style={{ padding: '12px' }}>Simbol Unit</th>
-                <th style={{ padding: '12px' }}>Kategori Kuliner F&B</th>
-                <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', background: T.tableHeaderBg, fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>Kode Unit (Auto)</th>
+                <th style={{ padding: '10px 10px' }}>Nama Satuan</th>
+                <th style={{ padding: '10px 10px' }}>Simbol Unit</th>
+                <th style={{ padding: '10px 10px' }}>Kategori Kuliner F&B</th>
+                <th style={{ padding: '10px 10px' }}>Status</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedUnits.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada data satuan unit yang dikonfigurasi.
                   </td>
                 </tr>
@@ -195,19 +195,20 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
                 paginatedUnits.map(unit => {
                   const isAktif = (unit.status || 'Aktif') === 'Aktif';
                   const badgeStyle = getCategoryBadgeStyle(unit.category);
+                  const cleanUnitName = (unit.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (
-                    <tr key={unit.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={unit.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. KODE UNIT (Auto) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: T.accentGreenBg,
                           color: T.accentGreen,
                           border: `1px solid ${T.accentGreenBg}`,
-                          padding: '4px 10px',
-                          borderRadius: '8px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                           fontWeight: '800',
-                          fontSize: '0.8rem',
+                          fontSize: '0.68rem',
                           fontFamily: 'monospace'
                         }}>
                           {unit.code || `UNT-00${unit.id}`}
@@ -215,16 +216,16 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
                       </td>
 
                       {/* 2. NAMA SATUAN */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.9rem', color: T.txtPrimary }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Scale size={16} color={T.info} />
-                          <span>{unit.name}</span>
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', color: T.txtPrimary }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Scale size={14} color={T.info} />
+                          <span>{cleanUnitName}</span>
                         </div>
                       </td>
 
                       {/* 3. SIMBOL UNIT */}
-                      <td style={{ padding: '14px 12px' }}>
-                        <span style={{ background: T.cardBg2, color: T.success, fontWeight: '800', padding: '4px 10px', borderRadius: '6px', border: `1px solid ${T.border}`, fontFamily: 'monospace' }}>
+                      <td style={{ padding: '8px 10px' }}>
+                        <span style={{ background: T.cardBg2, color: T.success, fontWeight: '800', padding: '2px 6px', borderRadius: '4px', border: `1px solid ${T.border}`, fontFamily: 'monospace', fontSize: '0.70rem' }}>
                           {unit.symbol}
                         </span>
                       </td>
