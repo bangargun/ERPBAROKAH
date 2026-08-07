@@ -557,7 +557,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 <th style={{ padding: '14px 16px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
                 <th style={{ padding: '14px 16px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
                 <th style={{ padding: '14px 16px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '14px 16px' }}>Komposisi <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '14px 16px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
                 <th style={{ padding: '14px 16px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
                 <th style={{ padding: '14px 16px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
                 <th style={{ padding: '14px 16px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
@@ -686,17 +686,48 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         )}
                       </td>
 
-                      {/* 5. KOMPOSISI */}
+                      {/* 5. BAHAN BAKU */}
                       <td style={{ padding: '14px 16px' }}>
-                        {p.compositions && p.compositions.length > 0 ? (
-                          <span style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
-                            {p.name}
-                          </span>
-                        ) : (
-                          <span style={{ background: T.cardBg2, color: T.txtMuted, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
-                            Belum ada
-                          </span>
-                        )}
+                        {(() => {
+                          const comps = p.compositions || p.ingredients || [];
+                          if (!comps || comps.length === 0) {
+                            return (
+                              <span style={{ background: T.cardBg2, color: T.txtMuted, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600' }}>
+                                Belum ada
+                              </span>
+                            );
+                          }
+
+                          const ingList = comps.map(c => {
+                            if (c.ingredient_name) return c.ingredient_name;
+                            if (c.ingredientName) return c.ingredientName;
+                            if (c.name && c.name !== p.name) return c.name;
+                            if (c.ingredient_id || c.ingredientId) {
+                              const ingId = c.ingredient_id || c.ingredientId;
+                              const found = (masterData.ingredients || []).find(i => String(i.id) === String(ingId));
+                              if (found && found.name) return found.name;
+                            }
+                            return null;
+                          }).filter(Boolean);
+
+                          if (ingList.length === 0) {
+                            return (
+                              <span style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                                {comps.length} Bahan Baku
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {ingList.map((ingName, idx) => (
+                                <span key={idx} style={{ background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                                  {ingName}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* 6. VARIANT (Menampilkan Nama Varian) */}
@@ -1257,15 +1288,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 )}
               </div>
 
-              {/* SECTION 6: KOMPOSISI HARGA POKOK PRODUKSI (HPP & STOK) */}
+              {/* SECTION 6: BAHAN BAKU HARGA POKOK PRODUKSI (HPP & STOK) */}
               <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', padding: '16px', background: T.cardBg2 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
-                      Komposisi Harga Pokok Produksi
+                      Bahan Baku (Resep HPP & Stok)
                     </div>
                     <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
-                      Tambahkan harga pokok produksi untuk estimasi HPP dan stok.
+                      Tambahkan rincian bahan baku untuk pemotongan stok otomatis & estimasi HPP.
                     </div>
                   </div>
 
@@ -1288,18 +1319,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     }}
                   >
                     <Plus size={14} />
-                    <span>Tambah Harga Pokok Produksi</span>
+                    <span>Tambah Bahan Baku</span>
                   </button>
                 </div>
 
                 {compositions.length === 0 ? (
                   <div style={{ padding: '12px', background: T.cardBg, borderRadius: '8px', border: `1px dashed ${T.border}`, color: T.info, fontSize: '0.78rem', textAlign: 'center' }}>
-                    Belum ada komposisi HPP. Klik "+ Tambah Harga Pokok Produksi" di atas.
+                    Belum ada bahan baku HPP. Klik "+ Tambah Bahan Baku" di atas.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', gap: '8px', fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', paddingLeft: '4px' }}>
-                      <span>Harga Pokok Produksi</span>
+                      <span>Bahan Baku</span>
                       <span>Qty</span>
                       <span>Unit</span>
                       <span></span>
