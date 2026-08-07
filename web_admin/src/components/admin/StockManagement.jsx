@@ -3476,150 +3476,147 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const dendaVal = isDefisit ? Math.abs(diffVal) * activePrice : 0;
 
                       return (
-                        <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={op.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
                           {/* 1. TANGGAL */}
-                          <td style={{ padding: '14px 12px', color: T.txtPrimary, fontWeight: '600' }}>
+                          <td style={{ padding: '8px 10px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{op.date}</div>
-                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{op.time || ''}</div>
+                            <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '2px' }}>{op.time || ''}</div>
                           </td>
 
                           {/* 2. NAMA OUTLET */}
-                          <td style={{ padding: '14px 12px' }}>
-                            <span style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              🏢 {outletName}
+                          <td style={{ padding: '8px 10px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: T.txtPrimary }}>
+                              {outletName}
                             </span>
                           </td>
 
                           {/* 3. ITEM / BAHAN BAKU */}
-                          <td style={{ padding: '14px 12px' }}>
+                          <td style={{ padding: '8px 10px' }}>
                             <span style={{
-                              padding: '5px 11px',
-                              borderRadius: '8px',
-                              fontSize: '0.82rem',
-                              fontWeight: '900',
-                              background: 'rgba(56, 189, 248, 0.12)',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: '800',
+                              background: 'rgba(56, 189, 248, 0.10)',
                               color: T.info,
-                              border: `1px solid ${T.info}`,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
+                              border: '1px solid rgba(56, 189, 248, 0.25)',
+                              display: 'inline-block'
                             }}>
-                              🥬 {itemNameStr}
+                              {itemNameStr}
                             </span>
-                            {op.unit && <span style={{ fontSize: '0.72rem', color: T.txtMuted, marginLeft: '6px' }}>({op.unit})</span>}
+                            {op.unit && <span style={{ fontSize: '0.64rem', color: T.txtMuted, marginLeft: '4px' }}>({op.unit})</span>}
                           </td>
 
                           {/* 4. NO LAPORAN */}
-                          <td style={{ padding: '14px 12px', fontWeight: '900' }}>
+                          <td style={{ padding: '8px 10px', fontWeight: '800' }}>
                             <button
                               type="button"
                               onClick={() => setPreviewOpnameReportModalData(op)}
                               style={{
                                 background: 'none', border: 'none', padding: 0,
-                                color: T.success, fontWeight: '900', fontSize: '0.88rem',
+                                color: T.success, fontWeight: '800', fontSize: '0.72rem',
                                 cursor: 'pointer', textDecoration: 'underline', textAlign: 'left',
-                                display: 'flex', alignItems: 'center', gap: '6px'
+                                display: 'inline-flex', alignItems: 'center', gap: '4px'
                               }}
                               title="Klik untuk membuka hasil laporan stok opname secara lengkap"
                             >
                               <span>{reportNo}</span>
-                              <Eye size={14} color={T.success} />
+                              <Eye size={12} color={T.success} />
                             </button>
                           </td>
 
                           {/* 5. STOK KELUAR */}
-                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: currentStokKeluar > 0 ? T.danger : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: currentStokKeluar > 0 ? T.danger : T.txtMuted }}>
                             {currentStokKeluar} {op.unit || 'kg'}
                           </td>
 
                           {/* 6. STOK FISIK */}
-                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: '#fbbf24' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#fbbf24' }}>
                             {stokFisikVal} {op.unit || 'kg'}
                           </td>
 
                           {/* 7. SELISIH */}
-                          <td style={{ padding: '14px 12px', textAlign: 'center' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                             <span style={{
-                              padding: '4px 10px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
-                              fontSize: '0.78rem',
+                              fontSize: '0.66rem',
                               fontWeight: '800',
-                              background: isDefisit ? 'rgba(244, 63, 94, 0.15)' : 'rgba(52, 211, 153, 0.15)',
+                              background: isDefisit ? 'rgba(244, 63, 94, 0.12)' : 'rgba(52, 211, 153, 0.12)',
                               color: isDefisit ? T.danger : T.success,
-                              border: `1px solid ${isDefisit ? 'rgba(244, 63, 94, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`
+                              border: `1px solid ${isDefisit ? 'rgba(244, 63, 94, 0.28)' : 'rgba(52, 211, 153, 0.28)'}`
                             }}>
-                              {isDefisit ? `⚠️ ${diffVal.toFixed(1)} ${op.unit || 'kg'}` : diffVal > 0 ? `🟢 +${diffVal.toFixed(1)} ${op.unit || 'kg'}` : `✅ 0 ${op.unit || 'kg'}`}
+                              {isDefisit ? `Defisit (${diffVal.toFixed(1)} ${op.unit || 'kg'})` : diffVal > 0 ? `+${diffVal.toFixed(1)} ${op.unit || 'kg'}` : `0 ${op.unit || 'kg'}`}
                             </span>
                           </td>
 
                           {/* 8. HARGA SATUAN */}
-                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '700', color: T.txtPrimary }}>
                             {formatRupiah(activePrice)}
                           </td>
 
                           {/* 9. DENDA STOK */}
-                          <td style={{ padding: '14px 12px', textAlign: 'right', fontWeight: '900', color: dendaVal > 0 ? T.danger : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: dendaVal > 0 ? T.danger : T.txtMuted }}>
                             {formatRupiah(dendaVal)}
                           </td>
 
                           {/* 10. PENGAJU */}
-                          <td style={{ padding: '14px 12px' }}>
+                          <td style={{ padding: '8px 10px' }}>
                             <span style={{
-                              padding: '4px 10px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
-                              fontSize: '0.78rem',
+                              fontSize: '0.66rem',
                               fontWeight: '800',
-                              background: isKasir ? 'rgba(52, 211, 153, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                              background: isKasir ? 'rgba(52, 211, 153, 0.12)' : 'rgba(56, 189, 248, 0.12)',
                               color: isKasir ? T.success : T.info,
-                              border: `1px solid ${isKasir ? 'rgba(52,211,153,0.4)' : 'rgba(56,189,248,0.4)'}`
+                              border: `1px solid ${isKasir ? 'rgba(52,211,153,0.28)' : 'rgba(56,189,248,0.28)'}`
                             }}>
-                              {isKasir ? '📱 By Kasir' : '🏢 By Outlet'}
+                              {isKasir ? 'By Kasir' : 'By Outlet'}
                             </span>
-                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px' }}>{makerName}</div>
+                            <div style={{ fontSize: '0.64rem', color: T.txtSecondary, marginTop: '2px' }}>{makerName}</div>
                           </td>
 
                           {/* 11. STATUS */}
-                          <td style={{ padding: '14px 12px', textAlign: 'center' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); if (!isApproved) handleApproveOpnameReport(op); else alert('Laporan sudah Done (ACC / Disetujui).'); }}
                               style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                background: isApproved ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                                border: `1px solid ${isApproved ? T.success : T.accentGold}`,
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                background: isApproved ? 'rgba(34, 197, 94, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+                                border: `1px solid ${isApproved ? 'rgba(34, 197, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
                                 color: isApproved ? T.success : T.accentGold,
-                                fontWeight: '900',
-                                fontSize: '0.78rem',
+                                fontWeight: '800',
+                                fontSize: '0.66rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
+                                gap: '4px',
                                 cursor: isApproved ? 'default' : 'pointer',
                                 transition: 'all 0.2s ease'
                               }}
                               title={isApproved ? 'Laporan sudah Done (ACC)' : 'Klik untuk menyetujui (ACC / Done) laporan opname ini dan kirim ke POS Kasir'}
                             >
-                              {isApproved ? <CheckSquare size={14} /> : <Clock size={14} />}
-                              <span>{isApproved ? 'Done (ACC)' : '⏳ Pending'}</span>
+                              <span>{isApproved ? 'Done (ACC)' : 'Pending'}</span>
                             </button>
                           </td>
 
                           {/* 12. AKSI */}
-                          <td style={{ padding: '14px 12px', textAlign: 'right' }}>
-                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end', alignItems: 'center' }}>
                               <button
                                 type="button"
                                 onClick={() => handleStartEdit(op, 'opname')}
-                                style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.info, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '4px 8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '5px', color: T.info, fontWeight: '700', fontSize: '0.66rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                               >
-                                <Edit3 size={13} /> Edit
+                                Edit
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteRecord(op.id, 'stok_opname', op.report_no || op.id)}
-                                style={{ padding: '6px 10px', background: T.cardBg2, border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: T.danger, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                style={{ padding: '4px 8px', background: T.cardBg2, border: '1px solid rgba(244, 63, 94, 0.3)', borderRadius: '5px', color: T.danger, fontWeight: '700', fontSize: '0.66rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                               >
-                                <Trash2 size={13} /> Delete
+                                Delete
                               </button>
                             </div>
                           </td>

@@ -227,5 +227,12 @@ export function getThemePalette(themeMode) {
     tabInactiveBg:  '#1e293b',
     tabInactiveColor:'#94a3b8',
     tabBorder:      '#334155',
+
+    // ── Ultra Minimalist Typography & Borders ──
+    fsTitle:        '0.75rem',  // 12px
+    fsSubtitle:     '0.56rem',  // 9px
+    fsBody:         '0.50rem',  // 8px
+    fsBadge:        '0.46rem',  // 7.5px
+    borderUltraThin:'1px solid rgba(255, 255, 255, 0.05)',
   };
 }
