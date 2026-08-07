@@ -131,10 +131,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     const newV = tempVariantInput.trim();
     if (!variants.includes(newV)) {
       setVariants([...variants, newV]);
-      // Initialize default per-outlet prices for this new variant
+      // Initialize default per-outlet prices for this new variant, pre-filled from standard outlet prices
       const initPrices = {};
-      masterData.outlets.forEach(o => {
-        initPrices[o.id] = 0;
+      selectedOutletIds.forEach(outId => {
+        initPrices[outId] = standardPrices[outId] !== undefined ? standardPrices[outId] : (standardPrices[String(outId)] || 0);
       });
       setVariantPrices(prev => ({ ...prev, [newV]: initPrices }));
     }
@@ -160,13 +160,27 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     }));
   };
 
-  // Update Standard Price for specific Outlet (when no variants exist)
+  // Update Standard Price for specific Outlet and auto-sync uncustomized variant prices
   const handleUpdateStandardPrice = (outletId, val) => {
     const num = parseFloat(val) || 0;
+    const oldPrice = standardPrices[outletId] !== undefined ? Number(standardPrices[outletId]) : (Number(standardPrices[String(outletId)]) || 0);
+
     setStandardPrices(prev => ({
       ...prev,
       [outletId]: num
     }));
+
+    setVariantPrices(prev => {
+      const updated = { ...prev };
+      variants.forEach(vName => {
+        const currentVarP = updated[vName] ? Number(updated[vName][outletId] || 0) : 0;
+        if (!updated[vName]) updated[vName] = {};
+        if (currentVarP === 0 || currentVarP === oldPrice) {
+          updated[vName][outletId] = num;
+        }
+      });
+      return updated;
+    });
   };
 
   // 3. Add Composition Row
@@ -1260,7 +1274,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             <span style={{ fontSize: '0.8rem', color: T.success, fontWeight: '800' }}>Rp</span>
                             <input
                               type="number"
-                              placeholder="Nominal harga..."
+                              placeholder="Harga dasar outlet..."
                               value={currentVal}
                               onChange={e => handleUpdateStandardPrice(outId, e.target.value)}
                               style={{
@@ -1275,6 +1289,51 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               }}
                             />
                           </div>
+
+                          {/* OPTIONAL PER-VARIANT INDEPENDENT PRICE OVERRIDES */}
+                          {variants.length > 0 && (
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dashed ${T.border}` }}>
+                              <div style={{ fontSize: '0.70rem', color: T.accentGold, fontWeight: '800', marginBottom: '6px' }}>
+                                Harga Per Varian (Opsional Edit):
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                {variants.map(vName => {
+                                  const stdVal = Number(currentVal || 0);
+                                  const rawVarVal = (variantPrices[vName] && variantPrices[vName][outId] !== undefined)
+                                    ? variantPrices[vName][outId]
+                                    : ((variantPrices[vName] && variantPrices[vName][String(outId)] !== undefined) ? variantPrices[vName][String(outId)] : stdVal);
+
+                                  return (
+                                    <div key={vName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', background: T.cardBg2, padding: '3px 6px', borderRadius: '6px', border: `1px solid ${T.border}` }}>
+                                      <span style={{ fontSize: '0.70rem', color: T.txtPrimary, fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '90px' }}>
+                                        {vName}
+                                      </span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', width: '90px' }}>
+                                        <span style={{ fontSize: '0.68rem', color: T.success, fontWeight: '800' }}>Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder={String(stdVal)}
+                                          value={rawVarVal}
+                                          onChange={e => handleUpdateVariantPrice(vName, outId, e.target.value)}
+                                          style={{
+                                            width: '100%',
+                                            padding: '2px 4px',
+                                            borderRadius: '4px',
+                                            border: `1px solid ${T.border}`,
+                                            background: T.inputBg,
+                                            color: T.success,
+                                            fontWeight: '800',
+                                            fontSize: '0.75rem'
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                           <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dashed ${T.border}` }}>
                             <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
                               📱 Tampilkan di POS APK:
