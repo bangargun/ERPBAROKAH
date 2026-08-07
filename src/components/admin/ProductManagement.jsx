@@ -253,9 +253,21 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     const stdP = product.standardPrices || (Object.keys(stdPrices).length > 0 ? stdPrices : {});
     const vP = product.variantPrices || vPrices;
 
+    // Ensure variant prices inherit standard outlet price if 0 or missing
+    if (product.variants && product.variants.length > 0) {
+      product.variants.forEach(vName => {
+        if (!vP[vName]) vP[vName] = {};
+        Object.keys(stdP).forEach(outId => {
+          if (!vP[vName][outId] || Number(vP[vName][outId]) === 0) {
+            vP[vName][outId] = stdP[outId];
+          }
+        });
+      });
+    }
+
     const rawOutletIds = Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0
       ? product.selectedOutletIds 
-      : (comboOutlets.size > 0 ? Array.from(comboOutlets) : []);
+      : (comboOutlets.size > 0 ? Array.from(comboOutlets) : (Object.keys(stdP).map(id => isNaN(id) ? id : Number(id))));
 
     const activeOutletIds = rawOutletIds.filter(outId => {
       const stdVal = Number(stdP[outId] || 0);
@@ -268,9 +280,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       return stdVal > 0 || varVal > 0;
     });
 
-    setSelectedOutletIds(activeOutletIds);
-    setVariantPrices(vPrices);
-    setStandardPrices(product.standardPrices || (Object.keys(stdPrices).length > 0 ? stdPrices : {}));
+    setSelectedOutletIds(activeOutletIds.length > 0 ? activeOutletIds : rawOutletIds);
+    setVariantPrices(vP);
+    setStandardPrices(stdP);
     setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
     setCompositions(product.compositions || []);
     setShowFormModal(true);
@@ -297,6 +309,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     
     // Auto-generate priceCombinations for 100% backward compatibility & multi-outlet reporting
     const generatedPriceCombinations = [];
+    const syncedVariantPrices = {};
 
     if (variants.length === 0) {
       generatedPriceCombinations.push({
@@ -309,9 +322,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       });
     } else {
       variants.forEach((vName, idx) => {
-        const pMap = variantPrices[vName] || {};
+        const pMap = variantPrices[vName] ? { ...variantPrices[vName] } : {};
+        syncedVariantPrices[vName] = {};
+
         selectedOutletIds.forEach(outId => {
-          if (pMap[outId] === undefined) pMap[outId] = 0;
+          const stdVal = Number(standardPrices[outId] !== undefined ? standardPrices[outId] : (standardPrices[String(outId)] || 0));
+          const varVal = Number(pMap[outId] !== undefined ? pMap[outId] : (pMap[String(outId)] || 0));
+          const effectiveVal = varVal > 0 ? varVal : stdVal;
+
+          pMap[outId] = effectiveVal;
+          syncedVariantPrices[vName][outId] = effectiveVal;
         });
 
         generatedPriceCombinations.push({
@@ -325,7 +345,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       });
     }
 
-    const firstPriceVal = Object.values(standardPrices)[0] || Object.values(variantPrices[variants[0]] || {})[0] || 0;
+    const firstPriceVal = Object.values(standardPrices)[0] || Object.values(syncedVariantPrices[variants[0]] || {})[0] || 0;
 
     const productPayload = {
       id: editingProductId || Date.now(),
@@ -344,7 +364,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       image_url: prodImageUrl || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400',
       variants,
       selectedOutletIds,
-      variantPrices,
+      variantPrices: syncedVariantPrices,
       standardPrices,
       apkStatus: outletApkStatus,
       outletApkStatus: outletApkStatus,

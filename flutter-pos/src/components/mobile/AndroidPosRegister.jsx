@@ -8278,12 +8278,21 @@ export default function AndroidPosRegister({
                     {/* Radio Options List */}
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {varList.map((item, idx) => {
-                        let vPrice = selectedProductForVariant.price || 0;
-                        if (item.name !== 'Standard' && selectedProductForVariant.variantPrices?.[item.name]?.[activeOutletId] !== undefined) {
-                          vPrice = selectedProductForVariant.variantPrices[item.name][activeOutletId];
-                        } else if (selectedProductForVariant.standardPrices?.[activeOutletId] !== undefined) {
-                          vPrice = selectedProductForVariant.standardPrices[activeOutletId];
+                        const stdPrice = Number(
+                          selectedProductForVariant.standardPrices?.[activeOutletId] !== undefined
+                            ? selectedProductForVariant.standardPrices[activeOutletId]
+                            : (selectedProductForVariant.standardPrices?.[String(activeOutletId)] !== undefined
+                                ? selectedProductForVariant.standardPrices[String(activeOutletId)]
+                                : selectedProductForVariant.price || 0)
+                        );
+
+                        let rawVarPrice = undefined;
+                        if (item.name !== 'Standard' && selectedProductForVariant.variantPrices?.[item.name]) {
+                          const vMap = selectedProductForVariant.variantPrices[item.name];
+                          rawVarPrice = vMap[activeOutletId] !== undefined ? vMap[activeOutletId] : vMap[String(activeOutletId)];
                         }
+
+                        const vPrice = (rawVarPrice !== undefined && Number(rawVarPrice) > 0) ? Number(rawVarPrice) : stdPrice;
 
                         const isSelected = activeVarObj.name === item.name;
 
