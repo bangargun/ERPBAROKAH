@@ -26,8 +26,10 @@ import {
   Minus
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
 
-export default function ApprovalCenter({ masterData, setMasterData, selectedBranch }) {
+export default function ApprovalCenter({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+  const T = getThemePalette(themeMode);
   // FILTER STATES
   const [searchQuery, setSearchQuery] = useState('');
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
