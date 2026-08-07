@@ -112,12 +112,12 @@ export default function MasterDataManagement({ masterData, setMasterData, select
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
       <div>
-        <h2 style={{ fontSize: '1.20rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
+        <h2 style={{ fontSize: '0.98rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '-0.01em' }}>
           Sumber Data Master (Master Data Center)
         </h2>
-        <p style={{ color: T.txtSecondary, fontSize: '0.78rem', marginTop: '2px', margin: 0 }}>
+        <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
           Kelola data utama restoran: Produk, Kategori, Bahan Baku, Pelanggan, Meja, Outlet, Pembayaran, Supplier, Satuan, Akuntansi
         </p>
       </div>
@@ -136,30 +136,30 @@ export default function MasterDataManagement({ masterData, setMasterData, select
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '6px',
-                padding: '6px 10px',
+                padding: '5px 8px',
                 borderRadius: '8px',
                 border: '1px solid',
                 borderColor: isActive ? T.accentGold : T.border,
                 background: isActive ? T.navActiveBg : T.cardBg,
                 color: isActive ? T.navActiveTxt : T.txtSecondary,
                 fontWeight: isActive ? '800' : '600',
-                fontSize: '0.76rem',
+                fontSize: '0.72rem',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 boxShadow: isActive ? T.navActiveShadow : 'none'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                <Icon size={14} color={isActive ? T.navActiveTxt : T.txtMuted} />
+                <Icon size={13} color={isActive ? T.navActiveTxt : T.txtMuted} />
                 <span>{tab.name}</span>
               </div>
               <span style={{
                 background: isActive ? 'rgba(255,255,255,0.25)' : T.cardBg2,
                 color: isActive ? '#ffffff' : T.txtMuted,
-                fontSize: '0.66rem',
+                fontSize: '0.64rem',
                 fontWeight: '700',
-                padding: '1px 6px',
-                borderRadius: '8px'
+                padding: '1px 5px',
+                borderRadius: '6px'
               }}>
                 {tab.count}
               </span>

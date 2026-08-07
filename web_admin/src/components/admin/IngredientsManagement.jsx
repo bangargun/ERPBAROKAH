@@ -182,29 +182,29 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
   const paginatedIngredients = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
             Data Bahan Baku (Ingredients Master)
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola master bahan baku dapur, batas stok kritis, dan pengelompokan akun Harga Pokok Produksi (HPP)
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={() => setShowExcelImportModal(true)}
             style={{
               background: T.info,
               color: T.txtInverse,
               border: 'none',
-              padding: '8px 14px',
+              padding: '6px 12px',
               borderRadius: '8px',
               fontWeight: '700',
-              fontSize: '0.78rem',
+              fontSize: '0.72rem',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
@@ -212,74 +212,75 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
               boxShadow: T.shadowSm
             }}
           >
-            <FileSpreadsheet size={15} />
-            <span>📥 Template & Upload Excel</span>
+            <FileSpreadsheet size={14} />
+            <span>Template & Upload Excel</span>
           </button>
 
-          <button onClick={handleOpenAddForm} className="btn-primary">
-            <Plus size={18} />
+          <button onClick={handleOpenAddForm} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+            <Plus size={15} />
             <span>Tambahkan Bahan Baku</span>
           </button>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '380px' }}>
-        <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+      <div style={{ position: 'relative', maxWidth: '360px' }}>
+        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           placeholder="Cari berdasarkan nama atau kode bahan baku..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           className="form-input"
-          style={{ paddingLeft: '36px', background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
+          style={{ paddingLeft: '34px', background: T.inputBg, borderColor: T.border, color: T.txtPrimary, fontSize: '0.76rem', height: '34px' }}
         />
       </div>
 
       {/* Table Management */}
-      <div className="glass-card" style={{ padding: '20px', background: T.cardBg, border: `1px solid ${T.border}` }}>
+      <div className="glass-card" style={{ padding: '16px', background: T.cardBg, border: `1px solid ${T.border}` }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', background: T.tableHeaderBg }}>
-                <th style={{ padding: '12px' }}>Kode Bahan (Auto)</th>
-                <th style={{ padding: '12px' }}>Nama Bahan Baku</th>
-                <th style={{ padding: '12px' }}>Satuan Unit</th>
-                <th style={{ padding: '12px' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Aksi</th>
+              <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', background: T.tableHeaderBg, fontWeight: '800' }}>
+                <th style={{ padding: '10px 10px' }}>Kode Bahan (Auto)</th>
+                <th style={{ padding: '10px 10px' }}>Nama Bahan Baku</th>
+                <th style={{ padding: '10px 10px' }}>Satuan Unit</th>
+                <th style={{ padding: '10px 10px' }}>Status</th>
+                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedIngredients.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={5} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada data bahan baku yang cocok.
                   </td>
                 </tr>
               ) : (
                 paginatedIngredients.map(ing => {
                   const isAktif = (ing.status || 'Aktif') === 'Aktif';
+                  const cleanName = (ing.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (
-                    <tr key={ing.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={ing.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. KODE BAHAN (Auto) */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: T.infoBg,
                           color: T.info,
                           border: `1px solid ${T.infoBorder}`,
-                          padding: '4px 10px',
-                          borderRadius: '8px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
                           fontWeight: '800',
-                          fontSize: '0.8rem',
+                          fontSize: '0.68rem',
                           fontFamily: 'monospace'
                         }}>
                           {ing.code || `BHN-00${ing.id}`}
                         </span>
                       </td>
 
-                      {/* 2. NAMA BAHAN BAKU (Klik untuk Papan Informasi Detail Analisis & Resep Menu) */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', fontSize: '0.88rem' }}>
+                      {/* 2. NAMA BAHAN BAKU */}
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem' }}>
                         <button
                           type="button"
                           onClick={() => setSelectedIngredientDetail(ing)}
@@ -287,44 +288,44 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                             background: 'none',
                             border: 'none',
                             color: T.success,
-                            fontWeight: '900',
+                            fontWeight: '800',
                             cursor: 'pointer',
                             padding: 0,
                             textAlign: 'left',
-                            fontSize: '0.88rem',
+                            fontSize: '0.76rem',
                             textDecoration: 'underline'
                           }}
                           title="Klik untuk melihat papan informasi detail resep menu terhubung, kuantitas terpakai & history penjualan"
                         >
-                          🥦 {ing.name}
+                          {cleanName}
                         </button>
                       </td>
 
                       {/* 3. SATUAN UNIT */}
-                      <td style={{ padding: '14px 12px', color: T.txtSecondary }}>
-                        <span style={{ background: T.cardBg2, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, fontSize: '0.78rem', color: T.txtPrimary }}>
+                      <td style={{ padding: '8px 10px', color: T.txtSecondary }}>
+                        <span style={{ background: T.cardBg2, padding: '2px 6px', borderRadius: '4px', border: `1px solid ${T.border}`, fontSize: '0.70rem', color: T.txtPrimary }}>
                           {ing.unit}
                         </span>
                       </td>
 
                       {/* 4. STATUS */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '8px 10px' }}>
                         <span style={{
                           background: isAktif ? T.successBg : T.dangerBg,
                           color: isAktif ? T.success : T.danger,
                           border: `1px solid ${isAktif ? T.successBorder : T.dangerBorder}`,
-                          padding: '4px 10px',
+                          padding: '2px 8px',
                           borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: '700'
+                          fontSize: '0.68rem',
+                          fontWeight: '800'
                         }}>
                           ● {isAktif ? 'Aktif' : 'Non Aktif'}
                         </span>
                       </td>
 
                       {/* 5. AKSI (Edit, Preview, Delete) */}
-                      <td style={{ padding: '14px 12px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                      <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
                           <button
                             onClick={() => handleOpenPreviewOnly(ing)}
                             title="Pratinjau Bahan"
@@ -332,17 +333,17 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                               background: T.infoBg,
                               color: T.info,
                               border: `1px solid ${T.infoBorder}`,
-                              padding: '5px 10px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
+                              fontSize: '0.68rem',
+                              fontWeight: '700',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px'
                             }}
                           >
-                            <Eye size={14} />
+                            <Eye size={12} />
                             <span>Preview</span>
                           </button>
 
@@ -352,37 +353,36 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                               background: T.cardBg2,
                               color: T.txtPrimary,
                               border: `1px solid ${T.border}`,
-                              padding: '5px 10px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
+                              fontSize: '0.68rem',
+                              fontWeight: '700',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px'
                             }}
                           >
-                            <Edit3 size={14} color={T.info} />
+                            <Edit3 size={12} />
                             <span>Edit</span>
                           </button>
 
                           <button
-                            onClick={() => handleDeleteIngredient(ing.id, ing.name)}
+                            onClick={() => handleDeleteIngredient(ing.id)}
                             style={{
                               background: T.dangerBg,
                               color: T.danger,
                               border: `1px solid ${T.dangerBorder}`,
-                              padding: '5px 10px',
+                              padding: '3px 6px',
                               borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
+                              fontSize: '0.68rem',
                               cursor: 'pointer',
                               display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
+                              alignItems: 'center'
                             }}
+                            title="Hapus Bahan Baku Ini"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </td>
