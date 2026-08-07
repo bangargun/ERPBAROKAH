@@ -339,29 +339,29 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
       {/* PAGE HEADER & ACTION BAR */}
       <div style={{
         display: 'flex',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '24px',
+        marginBottom: '16px',
         background: themeMode === 'warm_minimalist' ? '#143022' : T.cardBg,
-        padding: '20px 24px',
-        borderRadius: '18px',
+        padding: '14px 18px',
+        borderRadius: '12px',
         border: `1px solid ${T.border}`
       }}>
         <div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: '900', color: themeMode === 'warm_minimalist' ? '#ffffff' : T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <BookOpen size={28} color={T.success} />
+          <h1 style={{ fontSize: '0.96rem', fontWeight: '900', color: themeMode === 'warm_minimalist' ? '#ffffff' : T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BookOpen size={20} color={T.success} />
             <span>Kelola Dokumen Standar Operasional Prosedur (SOP)</span>
           </h1>
-          <p style={{ fontSize: '0.82rem', color: themeMode === 'warm_minimalist' ? 'rgba(255,255,255,0.7)' : T.txtSecondary, margin: '4px 0 0 0' }}>
+          <p style={{ fontSize: '0.72rem', color: themeMode === 'warm_minimalist' ? 'rgba(255,255,255,0.7)' : T.txtSecondary, margin: '2px 0 0 0' }}>
             Manajemen Panduan Kerja Staf Restoran, Prosedur Pembayaran Kasir, &amp; Generator AI Dokumen SOP
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* TOAST NOTIFICATION FOR SYNC */}
           {toastSyncSuccess && (
-            <div className="animate-fade-in" style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, padding: '8px 14px', borderRadius: '12px', fontSize: '0.80rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CheckCircle2 size={18} />
+            <div className="animate-fade-in" style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, padding: '6px 12px', borderRadius: '8px', fontSize: '0.70rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={16} />
               <span>Daftar SOP Berhasil Terkirim ke POS Mobile Kasir!</span>
             </div>
           )}
@@ -371,23 +371,23 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
             type="button"
             onClick={() => setShowAiGeneratorModal(true)}
             style={{
-              padding: '10px 18px',
+              padding: '6px 12px',
               background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
               color: '#ffffff',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '8px',
               fontWeight: '900',
-              fontSize: '0.84rem',
+              fontSize: '0.72rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 14px rgba(168,85,247,0.4)',
+              gap: '6px',
+              boxShadow: '0 2px 8px rgba(168,85,247,0.3)',
               transition: 'transform 0.2s ease'
             }}
           >
-            <Sparkles size={18} />
-            <span>✨ Generate by AI</span>
+            <Sparkles size={14} />
+            <span>Generate by AI</span>
           </button>
 
           {/* BUTTON 2: SYNC TO MOBILE APK */}
@@ -395,22 +395,22 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
             type="button"
             onClick={handleSyncToMobileApk}
             style={{
-              padding: '10px 18px',
+              padding: '6px 12px',
               background: T.primaryBtn,
               color: '#ffffff',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '8px',
               fontWeight: '900',
-              fontSize: '0.84rem',
+              fontSize: '0.72rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              boxShadow: `0 4px 14px ${T.primaryBtnShadow}`
+              gap: '6px',
+              boxShadow: `0 2px 8px ${T.primaryBtnShadow}`
             }}
           >
-            <Smartphone size={18} />
-            <span>📱 Kirim ke Mobile APK</span>
+            <Smartphone size={14} />
+            <span>Kirim ke Mobile APK</span>
           </button>
 
           {/* BUTTON 3: TAMBAH MANUAL */}
@@ -418,21 +418,21 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
             type="button"
             onClick={handleOpenAddModal}
             style={{
-              padding: '10px 18px',
-              background: T.controlBg,
-              color: T.txtPrimary,
-              border: `1px solid ${T.border}`,
-              borderRadius: '12px',
+              padding: '6px 12px',
+              background: T.successBg,
+              border: `1px solid ${T.successBorder}`,
+              color: T.success,
+              borderRadius: '8px',
               fontWeight: '900',
-              fontSize: '0.84rem',
+              fontSize: '0.72rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '6px'
             }}
           >
-            <Plus size={18} />
-            <span>+ Input Manual</span>
+            <Plus size={14} />
+            <span>+ Buat SOP Manual</span>
           </button>
         </div>
       </div>

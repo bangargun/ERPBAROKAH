@@ -2260,11 +2260,11 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* Title Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Package size={28} color={T.accentGold} />
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <Package size={20} color={T.accentGold} />
             <span>Pusat Kontrol Logistik &amp; Stok (Logistics &amp; Supply)</span>
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Pantau barang masuk supplier, pemotongan stok kasir otomatis, transfer antarcabang, barang rusak (waste), dan stock opname fisik.
           </p>
         </div>
@@ -2462,13 +2462,13 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  padding: '10px 8px',
-                  borderRadius: '10px',
+                  padding: '5px 8px',
+                  borderRadius: '8px',
                   border: isActive ? `1.5px solid ${tab.color}` : `1px solid ${T.border}`,
                   background: isActive ? `${tab.color}18` : T.cardBg,
                   color: isActive ? tab.color : T.txtSecondary,
                   fontWeight: isActive ? '800' : '600',
-                  fontSize: '0.80rem',
+                  fontSize: '0.72rem',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   boxShadow: isActive ? `0 3px 12px ${tab.color}30` : 'none'

@@ -3566,51 +3566,25 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease, color 0.25s ease' }} className="animate-fade-in">
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      {/* PAGE TITLE HEADER */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em' }}>
-              Transaksi Penjualan (Sales POS Center)
-            </h2>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 10px',
-              borderRadius: '20px',
-              background: syncPulse ? 'rgba(52, 211, 153, 0.25)' : 'rgba(52, 211, 153, 0.12)',
-              border: '1px solid rgba(52, 211, 153, 0.3)',
-              color: T.success,
-              fontSize: '0.75rem',
-              fontWeight: '800',
-              transition: 'all 0.3s ease'
-            }}>
-              <span style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: T.success,
-                boxShadow: syncPulse ? `0 0 12px ${T.success}` : `0 0 6px ${T.success}`,
-                display: 'inline-block'
-              }}></span>
-              <span>⚡ Auto Sync Mobile APK: AKTIF</span>
-              <span style={{ color: T.txtSecondary, fontWeight: '500', marginLeft: '2px' }}>({lastSyncTime})</span>
-            </div>
-          </div>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
+            Laporan Transaksi & Analytics Penjualan POS
+          </h2>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Pusat analisis & rekapan omzet transaksi kasir restoran (Terhubung Realtime dengan Mobile APK Kasir)
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={handleManualSync}
             className="btn-secondary"
             disabled={isSyncing}
             style={{
-              padding: '8px 14px',
-              fontSize: '0.8rem',
+              padding: '6px 12px',
+              fontSize: '0.72rem',
               color: T.info,
               borderColor: 'rgba(56, 189, 248, 0.3)',
               display: 'flex',
@@ -3619,14 +3593,14 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               cursor: 'pointer'
             }}
           >
-            <RefreshCw size={15} className={isSyncing ? "animate-spin" : ""} />
+            <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
             <span>{isSyncing ? "Menyinkronkan..." : "Sync Mobile APK"}</span>
           </button>
         </div>
       </div>
 
       {/* 9 Sub-Tabs Navigation Grid (3 Baris x 3 Sub-Tab) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
         {analysisTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -3637,15 +3611,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '10px 12px',
-                borderRadius: '12px',
+                gap: '6px',
+                padding: '5px 8px',
+                borderRadius: '8px',
                 border: '1px solid',
                 borderColor: isActive ? T.accentGold : T.border,
                 background: isActive ? T.navActiveBg : T.cardBg,
                 color: isActive ? T.navActiveTxt : T.txtSecondary,
                 fontWeight: isActive ? '800' : '600',
-                fontSize: '0.8rem',
+                fontSize: '0.72rem',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 whiteSpace: 'nowrap',
@@ -3653,7 +3627,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 textOverflow: 'ellipsis'
               }}
             >
-              <Icon size={16} color={isActive ? `${T.info}` : T.txtMuted} />
+              <Icon size={14} color={isActive ? `${T.info}` : T.txtMuted} />
               <span>{tab.name}</span>
             </button>
           );

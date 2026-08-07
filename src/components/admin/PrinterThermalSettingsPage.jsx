@@ -134,16 +134,16 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
   };
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', color: T.txtPrimary, background: T.pageBg, minHeight: '100vh' }}>
+    <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px', color: T.txtPrimary, background: T.pageBg, minHeight: '100vh' }}>
       
       {/* HEADER PAGE */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Printer size={28} color={T.info} />
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Printer size={20} color={T.info} />
             <span>Pengaturan Printer &amp; Thermal Output POS Kasir</span>
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola printer dapur, printer bar, printer kasir, routing kategori menu, dan mode cetak otomatis.
           </p>
         </div>
@@ -151,9 +151,9 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
         <button
           onClick={handleSaveSettings}
           className="btn-primary"
-          style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', background: T.primaryBtn, borderRadius: '12px', fontWeight: '900', cursor: 'pointer', color: '#ffffff', border: 'none', boxShadow: `0 4px 14px ${T.primaryBtnShadow}` }}
+          style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', background: T.primaryBtn, borderRadius: '8px', fontSize: '0.72rem', fontWeight: '900', cursor: 'pointer', color: '#ffffff', border: 'none', boxShadow: `0 2px 8px ${T.primaryBtnShadow}` }}
         >
-          <Save size={18} />
+          <Save size={14} />
           <span>Simpan Pengaturan</span>
         </button>
       </div>

@@ -640,31 +640,31 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', color: '#f8fafc' }} className="animate-fade-in">
       
       {/* HEADER BAR */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '900', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ClipboardCheck size={26} color="#38bdf8" />
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ClipboardCheck size={20} color={T.info} />
             <span>Persetujuan Manajemen (Persetujuan Laporan Harian)</span>
           </h2>
-          <p style={{ color: '#94a3b8', fontSize: '0.84rem', marginTop: '4px', margin: 0 }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Persetujuan laporan keuangan shift closing dari POS Kasir Outlet &amp; Input Laporan Manual Admin Central.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={handleExportCSV}
-            style={{ padding: '9px 16px', background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ padding: '6px 12px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.info, fontWeight: '800', fontSize: '0.72rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <FileSpreadsheet size={16} />
+            <FileSpreadsheet size={14} />
             <span>Export Excel CSV</span>
           </button>
 
           <button
             onClick={() => setShowAddModal(true)}
-            style={{ padding: '9px 16px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '10px', color: '#0f172a', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(56, 189, 248, 0.3)' }}
+            style={{ padding: '6px 12px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '8px', color: '#0f172a', fontWeight: '900', fontSize: '0.72rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(56, 189, 248, 0.3)' }}
           >
-            <Plus size={16} />
+            <Plus size={14} />
             <span>+ Tambah Laporan Harian (Admin)</span>
           </button>
         </div>
@@ -816,7 +816,8 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '180px' }}>TANGGAL</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '170px' }}>NAMA OUTLET</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>STATUS</th>
@@ -826,7 +827,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                     📭 Belum ada laporan harian yang sesuai dengan filter.
                   </td>
                 </tr>
@@ -838,7 +839,13 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                       {/* 1. TANGGAL */}
                       <td style={{ padding: '14px 16px', color: '#f8fafc', fontWeight: '600' }}>
                         <div>{formatDateIndo(item.date)}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>📍 {item.outlet_name}</div>
+                      </td>
+
+                      {/* 2. NAMA OUTLET */}
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          🏢 {item.outlet_name || 'Restoran Utama'}
+                        </span>
                       </td>
 
                       {/* 2. NO LAPORAN (CLICKABLE) */}

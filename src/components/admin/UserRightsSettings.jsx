@@ -660,51 +660,51 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
   const inp = { width: '100%', padding: '9px 13px', borderRadius: '9px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.87rem', boxSizing: 'border-box' };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1150px', margin: '0 auto', background: T.pageBg, minHeight: '100vh' }}>
+    <div style={{ padding: '14px', maxWidth: '1150px', margin: '0 auto', background: T.pageBg, minHeight: '100vh' }}>
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Users size={22} color={T.accentGold} />
+      <div style={{ marginBottom: '14px' }}>
+        <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Users size={18} color={T.accentGold} />
           Pengaturan Hak User &amp; Permission Matrix
         </h2>
-        <p style={{ color: T.txtSecondary, fontSize: '0.83rem', margin: 0 }}>
+        <p style={{ color: T.txtSecondary, fontSize: '0.72rem', margin: 0 }}>
           Kelola akun pengguna Web Based Admin, POS Mobile, dan Matriks Hak Akses Peran / Individual User.
         </p>
       </div>
 
       {/* Main Sub-Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
         <button onClick={() => setActiveTab('mobile')} style={{
-          padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
+          padding: '5px 8px', borderRadius: '8px', fontWeight: '800', fontSize: '0.72rem', cursor: 'pointer', border: 'none',
           background: activeTab === 'mobile' ? T.tabActiveBg : T.tabInactiveBg,
           color: activeTab === 'mobile' ? T.tabActiveColor : T.tabInactiveColor,
-          display: 'flex', alignItems: 'center', gap: '7px'
+          display: 'flex', alignItems: 'center', gap: '5px'
         }}>
-          <Smartphone size={15} /> POS Mobile Accounts
+          <Smartphone size={14} /> POS Mobile Accounts
         </button>
         <button onClick={() => setActiveTab('web')} style={{
-          padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
+          padding: '5px 8px', borderRadius: '8px', fontWeight: '800', fontSize: '0.72rem', cursor: 'pointer', border: 'none',
           background: activeTab === 'web' ? T.tabActiveBg : T.tabInactiveBg,
           color: activeTab === 'web' ? T.tabActiveColor : T.tabInactiveColor,
-          display: 'flex', alignItems: 'center', gap: '7px'
+          display: 'flex', alignItems: 'center', gap: '5px'
         }}>
-          <ShieldCheck size={15} /> Web Admin Accounts
+          <ShieldCheck size={14} /> Web Admin Accounts
         </button>
         <button onClick={() => setActiveTab('matrix')} style={{
-          padding: '9px 20px', borderRadius: '10px', fontWeight: '800', fontSize: '0.84rem', cursor: 'pointer', border: 'none',
+          padding: '5px 8px', borderRadius: '8px', fontWeight: '800', fontSize: '0.72rem', cursor: 'pointer', border: 'none',
           background: activeTab === 'matrix' ? T.tabActiveBg : T.tabInactiveBg,
           color: activeTab === 'matrix' ? T.tabActiveColor : T.tabInactiveColor,
-          display: 'flex', alignItems: 'center', gap: '7px'
+          display: 'flex', alignItems: 'center', gap: '5px'
         }}>
-          <Shield size={15} /> Permission Matrix (Matriks Role)
+          <Shield size={14} /> Permission Matrix (Matriks Role)
         </button>
 
         <button onClick={handleRefresh} disabled={loading} style={{
-          padding: '9px 14px', borderRadius: '10px', fontWeight: '700', fontSize: '0.84rem', cursor: 'pointer',
+          padding: '5px 8px', borderRadius: '8px', fontWeight: '700', fontSize: '0.72rem', cursor: 'pointer',
           background: T.controlBg, color: T.txtSecondary, border: `1px solid ${T.border}`,
-          display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', opacity: loading ? 0.6 : 1
+          display: 'flex', alignItems: 'center', gap: '5px', marginLeft: 'auto', opacity: loading ? 0.6 : 1
         }}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           {loading ? 'Memuat...' : 'Refresh'}
         </button>
       </div>

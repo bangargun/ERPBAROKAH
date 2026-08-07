@@ -243,25 +243,25 @@ export default function LoyaltyProgramPage({ masterData, setMasterData, themeMod
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg }} className="animate-fade-in">
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Award size={28} color={T.warning} />
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Award size={20} color={T.warning} />
             <span>Program Loyalitas Pelanggan (Loyalty &amp; Rewards)</span>
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.875rem', marginTop: '4px' }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Kelola tingkatan membership (New, Loyal, VIP), sistem poin belanja, benefit reward, dan katalog penukaran voucher
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setActiveTab('tiers')} style={{ background: activeTab === 'tiers' ? T.tabActiveBg : T.tabInactiveBg, color: activeTab === 'tiers' ? T.tabActiveColor : T.tabInactiveColor, border: `1px solid ${T.tabBorder}` }} className={activeTab === 'tiers' ? 'btn-primary' : 'btn-secondary'}>
-            <Star size={16} />
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button onClick={() => setActiveTab('tiers')} style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', background: activeTab === 'tiers' ? T.tabActiveBg : T.tabInactiveBg, color: activeTab === 'tiers' ? T.tabActiveColor : T.tabInactiveColor, border: `1px solid ${T.tabBorder}` }} className={activeTab === 'tiers' ? 'btn-primary' : 'btn-secondary'}>
+            <Star size={14} />
             <span>Tingkatan Membership</span>
           </button>
-          <button onClick={() => setActiveTab('rewards')} style={{ background: activeTab === 'rewards' ? T.tabActiveBg : T.tabInactiveBg, color: activeTab === 'rewards' ? T.tabActiveColor : T.tabInactiveColor, border: `1px solid ${T.tabBorder}` }} className={activeTab === 'rewards' ? 'btn-primary' : 'btn-secondary'}>
-            <Gift size={16} />
+          <button onClick={() => setActiveTab('rewards')} style={{ padding: '5px 8px', fontSize: '0.72rem', borderRadius: '8px', background: activeTab === 'rewards' ? T.tabActiveBg : T.tabInactiveBg, color: activeTab === 'rewards' ? T.tabActiveColor : T.tabInactiveColor, border: `1px solid ${T.tabBorder}` }} className={activeTab === 'rewards' ? 'btn-primary' : 'btn-secondary'}>
+            <Gift size={14} />
             <span>Katalog Hadiah</span>
           </button>
         </div>

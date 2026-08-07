@@ -268,18 +268,18 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
       )}
 
       {/* Header Title */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <History size={22} color={T.accentGold} />
+          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <History size={18} color={T.accentGold} />
             <span>Log Aktivitas Sistem (System Audit Trail)</span>
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.80rem', marginTop: '3px', margin: 0 }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
             Rekap jejak audit aktivitas penggunaan Mobile APK Kasir dan pengguna Web Admin seluruh outlet cabang.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button 
             type="button"
             onClick={handleSyncRealtimeLogs} 
@@ -287,18 +287,18 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px', 
-              padding: '8px 14px', 
-              borderRadius: '10px', 
+              padding: '6px 12px', 
+              borderRadius: '8px', 
               background: T.infoBg, 
               border: `1px solid ${T.infoBorder}`, 
               color: T.info, 
-              fontSize: '0.78rem', 
+              fontSize: '0.72rem', 
               fontWeight: '800', 
               cursor: 'pointer' 
             }}
             title="Muat ulang jejak audit real-time dari seluruh transaksi & modul"
           >
-            <RefreshCw size={15} color={T.info} />
+            <RefreshCw size={14} color={T.info} />
             <span>Sync Audit Real-time</span>
           </button>
 
@@ -309,12 +309,12 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px', 
-              padding: '8px 14px', 
-              borderRadius: '10px', 
+              padding: '6px 12px', 
+              borderRadius: '8px', 
               background: T.dangerBg, 
               border: `1px solid ${T.dangerBorder}`, 
               color: T.danger, 
-              fontSize: '0.78rem', 
+              fontSize: '0.72rem', 
               fontWeight: '800', 
               cursor: 'pointer' 
             }}
