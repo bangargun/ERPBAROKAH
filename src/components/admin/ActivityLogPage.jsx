@@ -60,7 +60,16 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
     setTimeout(() => setResetSuccessToast(false), 4000);
   };
 
-  // DERIVE LOGS - IF CLEARED, SHOW ONLY NEW REAL-TIME LOGS
+  // HANDLE SYNC / RECOVER REAL-TIME AUDIT LOGS
+  const handleSyncRealtimeLogs = () => {
+    setMasterData(prev => ({
+      ...prev,
+      systemLogsCleared: false,
+      _lastUpdated: Date.now()
+    }));
+  };
+
+  // DERIVE LOGS - COMPREHENSIVE DYNAMIC REAL-TIME AUDIT TRAIL AGGREGATION
   const allLogs = useMemo(() => {
     const isCleared = masterData?.systemLogsCleared === true;
     const list = [];
@@ -72,7 +81,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
         id: cl.id || `custom-${idx}`,
         timestamp: cl.timestamp || new Date().toISOString().replace('T', ' ').substring(0, 19),
         platform: cl.platform || 'web',
-        platform_label: cl.platform === 'mobile' ? '📱 Mobile APK Kasir' : '💻 Web Based Admin',
+        platform_label: cl.platform === 'mobile' ? 'Mobile APK Kasir' : 'Web Based Admin',
         user: cl.user || cl.author_name || 'Super Admin',
         outlet_id: cl.outlet_id || 'ALL',
         branch_name: cl.branch_name || (outlets.find(o => Number(o.id) === Number(cl.outlet_id))?.name) || 'Semua Outlet (Central)',
@@ -82,27 +91,95 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
       });
     });
 
-    // If log reset has been triggered and customLogs is empty, return empty list (0 logs)
-    if (isCleared && customLogs.length === 0) {
-      return [];
-    }
-
-    // If not cleared, map live POS transactions
-    if (!isCleared) {
+    // 2. Real-Time Activity Aggregation (if not cleared or if custom logs exist)
+    if (!isCleared || customLogs.length > 0) {
+      // 2a. Sales Transactions (POS Kasir)
       const salesTx = masterData?.salesTransactions || masterData?.recentTransactions || [];
       salesTx.forEach((tx, idx) => {
         const branchObj = outlets.find(o => Number(o.id) === Number(tx.outlet_id));
         list.push({
           id: `log-tx-${tx.id || idx}`,
-          timestamp: tx.timestamp || `${tx.date || '2026-08-03'} 12:30:${String(10 + idx).padStart(2, '0')}`,
+          timestamp: tx.timestamp || `${tx.date || '2026-08-08'} ${tx.time || '12:30:00'}`,
           platform: 'mobile',
-          platform_label: '📱 Mobile APK Kasir',
+          platform_label: 'Mobile APK Kasir',
           user: tx.cashier || tx.kasir_name || 'Kasir Restoran',
           outlet_id: tx.outlet_id || 1,
           branch_name: branchObj?.name || tx.branch_name || 'PECEL LELE PAK HAJI KISARAN',
-          action_type: '🛒 Transaksi Penjualan Kasir',
-          details: `Mencatat transaksi penjualan #${tx.id || (idx + 1)} sebesar ${formatRupiah(tx.amount)}. Metode Pembayaran: ${tx.payment_method || 'Tunai/Cash'}. ${tx.notes || ''}`,
+          action_type: 'Transaksi Penjualan Kasir',
+          details: `Mencatat transaksi penjualan #${tx.receiptNo || tx.id || (idx + 1)} sebesar ${formatRupiah(tx.amount || tx.total_price)}. Metode Pembayaran: ${tx.payment_method || 'Tunai/Cash'}. ${tx.notes || ''}`,
           device_info: 'Android POS Terminal (APK)'
+        });
+      });
+
+      // 2b. Shift Closings (POS Kasir / Web Admin)
+      const shiftClosings = masterData?.shift_closings || masterData?.approvedFinanceDaily || [];
+      shiftClosings.forEach((sc, idx) => {
+        const branchObj = outlets.find(o => Number(o.id) === Number(sc.outlet_id));
+        list.push({
+          id: `log-sc-${sc.id || idx}`,
+          timestamp: sc.timestamp || `${sc.date || '2026-08-08'} 22:00:00`,
+          platform: 'mobile',
+          platform_label: 'Mobile APK Kasir',
+          user: sc.kasir_name || sc.cashier || 'Kasir Restoran',
+          outlet_id: sc.outlet_id || 1,
+          branch_name: branchObj?.name || sc.outlet_name || 'PECEL LELE PAK HAJI KISARAN',
+          action_type: 'Penutupan Shift Kasir',
+          details: `Merekap laporan penutupan shift kasir. Omzet Bersih: ${formatRupiah(sc.net_sales || sc.total_omzet)}. Kas Aktual: ${formatRupiah(sc.actual_cash || sc.cash_received)}. Status: ${sc.status || 'OK'}`,
+          device_info: 'Android POS Terminal (APK)'
+        });
+      });
+
+      // 2c. Stock Inflows (Logistik)
+      const stockInflows = masterData?.stock_masuk || masterData?.mutasiMasuk || [];
+      stockInflows.forEach((sm, idx) => {
+        const branchObj = outlets.find(o => Number(o.id) === Number(sm.outlet_id));
+        list.push({
+          id: `log-sm-${sm.id || idx}`,
+          timestamp: `${sm.date || '2026-08-08'} ${sm.time || '10:00:00'}`,
+          platform: 'web',
+          platform_label: 'Web Based Admin',
+          user: sm.created_by || 'Admin Logistik',
+          outlet_id: sm.outlet_id || 1,
+          branch_name: branchObj?.name || 'Central Warehouse',
+          action_type: 'Penerimaan Stok Masuk',
+          details: `Mencatat penerimaan bahan baku ${sm.item_name} sejumlah +${sm.qty} ${sm.unit}. Total Nilai: ${formatRupiah(sm.total_price || (sm.qty * (sm.price_unit || 0)))}`,
+          device_info: 'Web Logistics Browser'
+        });
+      });
+
+      // 2d. Stock Waste / Damage (Logistik)
+      const stockWaste = masterData?.stok_rusak || masterData?.stokWaste || [];
+      stockWaste.forEach((sw, idx) => {
+        const branchObj = outlets.find(o => Number(o.id) === Number(sw.outlet_id));
+        list.push({
+          id: `log-sw-${sw.id || idx}`,
+          timestamp: `${sw.date || '2026-08-08'} ${sw.time || '11:15:00'}`,
+          platform: 'web',
+          platform_label: 'Web Based Admin',
+          user: sw.input_by || sw.created_by || 'Admin Logistik',
+          outlet_id: sw.outlet_id || 1,
+          branch_name: branchObj?.name || 'Central Outlet',
+          action_type: 'Pencatatan Stok Rusak (Waste)',
+          details: `Melaporkan barang rusak/waste: ${sw.item_name} (-${sw.qty} ${sw.unit}). Alasan: ${sw.reason || 'Expired/Damage'}`,
+          device_info: 'Web Logistics Browser'
+        });
+      });
+
+      // 2e. Daily Expenses (Keuangan)
+      const dailyExpenses = masterData?.dailyExpenses || masterData?.pengeluaranHarian || [];
+      dailyExpenses.forEach((de, idx) => {
+        const branchObj = outlets.find(o => Number(o.id) === Number(de.outlet_id));
+        list.push({
+          id: `log-de-${de.id || idx}`,
+          timestamp: `${de.date || '2026-08-08'} ${de.time || '14:20:00'}`,
+          platform: de.source === 'mobile' ? 'mobile' : 'web',
+          platform_label: de.source === 'mobile' ? 'Mobile APK Kasir' : 'Web Based Admin',
+          user: de.input_by || 'Staf Keuangan',
+          outlet_id: de.outlet_id || 1,
+          branch_name: branchObj?.name || 'Outlet Restoran',
+          action_type: 'Pengeluaran Operasional',
+          details: `Pencatatan pengeluaran harian: ${de.category_name || de.notes || 'Biaya Operasional'} sebesar ${formatRupiah(de.amount || de.total)}`,
+          device_info: de.source === 'mobile' ? 'Android POS Terminal (APK)' : 'Web Finance Portal'
         });
       });
     }
@@ -202,7 +279,29 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button 
+            type="button"
+            onClick={handleSyncRealtimeLogs} 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              padding: '8px 14px', 
+              borderRadius: '10px', 
+              background: T.infoBg, 
+              border: `1px solid ${T.infoBorder}`, 
+              color: T.info, 
+              fontSize: '0.78rem', 
+              fontWeight: '800', 
+              cursor: 'pointer' 
+            }}
+            title="Muat ulang jejak audit real-time dari seluruh transaksi & modul"
+          >
+            <RefreshCw size={15} color={T.info} />
+            <span>Sync Audit Real-time</span>
+          </button>
+
           <button 
             type="button"
             onClick={() => setShowResetConfirmModal(true)} 
@@ -262,7 +361,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           }}
         >
           <Smartphone size={16} />
-          <span>📱 Log Mobile APK Kasir</span>
+          <span>Log Mobile APK Kasir</span>
         </button>
 
         <button
@@ -275,7 +374,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
           }}
         >
           <Laptop size={16} />
-          <span>💻 Log Web Based Admin</span>
+          <span>Log Web Based Admin</span>
         </button>
       </div>
 
@@ -302,9 +401,9 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                 cursor: 'pointer'
               }}
             >
-              <option value="ALL">🏢 Semua Outlet Restoran (Konsolidasi)</option>
+              <option value="ALL">Semua Outlet Restoran (Konsolidasi)</option>
               {outlets.map(o => (
-                <option key={o.id} value={o.id}>📍 {o.name}</option>
+                <option key={o.id} value={o.id}>{o.name}</option>
               ))}
             </select>
           </div>
@@ -357,7 +456,7 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
         <div style={{ overflowX: 'auto', border: `1px solid ${T.borderStrong}`, borderRadius: '12px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ background: T.tableHeaderBg, borderBottom: `1.5px solid ${T.borderStrong}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontWeight: '800', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 <th style={{ padding: '14px 12px', width: '175px' }}>Waktu & Jam</th>
                 <th style={{ padding: '14px 12px', width: '165px' }}>Platform</th>
                 <th style={{ padding: '14px 12px', width: '175px' }}>Pengguna (User)</th>
@@ -371,7 +470,14 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
               {paginatedLogs.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '48px', textAlign: 'center', color: T.txtMuted, fontSize: '0.88rem' }}>
-                    📥 Log aktivitas telah di-reset bersih (0 data). Aktivitas transaksi & admin baru akan tercatat di sini secara otomatis.
+                    <div>Log aktivitas telah di-reset bersih (0 data). Aktivitas transaksi & admin baru akan tercatat di sini secara otomatis.</div>
+                    <button 
+                      type="button" 
+                      onClick={handleSyncRealtimeLogs}
+                      style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '8px', background: T.accentGoldBg, border: `1px solid ${T.accentGoldBorder}`, color: T.accentGold, fontWeight: '800', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >
+                      Muat Jejak Audit Real-time
+                    </button>
                   </td>
                 </tr>
               ) : (
@@ -379,10 +485,10 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                   const isMobile = log.platform === 'mobile';
 
                   return (
-                    <tr key={log.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       
                       {/* Timestamp Presisi */}
-                      <td style={{ padding: '14px 12px', color: T.accentGold, fontWeight: '800', fontFamily: 'monospace', fontSize: '0.82rem' }}>
+                      <td style={{ padding: '10px 12px', color: T.accentGold, fontWeight: '800', fontFamily: 'monospace', fontSize: '0.78rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <Clock size={14} color={T.accentGold} />
                           <span>{log.timestamp}</span>
@@ -390,41 +496,41 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
                       </td>
 
                       {/* Platform Badge */}
-                      <td style={{ padding: '14px 12px' }}>
+                      <td style={{ padding: '10px 12px' }}>
                         <span style={{
-                          padding: '5px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800',
+                          padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
                           background: isMobile ? T.successBg : T.infoBg,
                           color: isMobile ? T.success : T.info,
                           border: `1px solid ${isMobile ? T.successBorder : T.infoBorder}`,
                           display: 'inline-flex', alignItems: 'center', gap: '6px'
                         }}>
-                          {isMobile ? <Smartphone size={13} /> : <Laptop size={13} />}
+                          {isMobile ? <Smartphone size={12} /> : <Laptop size={12} />}
                           <span>{isMobile ? 'Mobile APK' : 'Web Admin'}</span>
                         </span>
                       </td>
 
                       {/* User */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', color: T.txtPrimary }}>
-                        👤 {log.user}
+                      <td style={{ padding: '10px 12px', fontWeight: '800', color: T.txtPrimary, fontSize: '0.78rem' }}>
+                        {log.user}
                       </td>
 
                       {/* Outlet */}
-                      <td style={{ padding: '14px 12px', color: T.txtSecondary, fontWeight: '600' }}>
-                        📍 {log.branch_name}
+                      <td style={{ padding: '10px 12px', color: T.txtSecondary, fontWeight: '600', fontSize: '0.76rem' }}>
+                        {log.branch_name}
                       </td>
 
                       {/* Jenis Aktivitas */}
-                      <td style={{ padding: '14px 12px', fontWeight: '800', color: isMobile ? T.success : T.info }}>
+                      <td style={{ padding: '10px 12px', fontWeight: '800', color: isMobile ? T.success : T.info, fontSize: '0.78rem' }}>
                         {log.action_type}
                       </td>
 
                       {/* Detail Keterangan */}
-                      <td style={{ padding: '14px 12px', color: T.txtSecondary, fontSize: '0.82rem', lineHeight: '1.45' }}>
+                      <td style={{ padding: '10px 12px', color: T.txtSecondary, fontSize: '0.78rem', lineHeight: '1.4' }}>
                         {log.details}
                       </td>
 
                       {/* Device Info */}
-                      <td style={{ padding: '14px 12px', color: T.txtMuted, fontSize: '0.74rem', fontStyle: 'italic' }}>
+                      <td style={{ padding: '10px 12px', color: T.txtMuted, fontSize: '0.72rem', fontStyle: 'italic' }}>
                         {log.device_info}
                       </td>
 
