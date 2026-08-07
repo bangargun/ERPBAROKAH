@@ -2338,7 +2338,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               }}
             >
               <SlidersHorizontal size={15} color={T.accentGold} />
-              <span>👁️ Filter Kolom Ditampilkan</span>
+              <span>Filter Kolom Ditampilkan</span>
               <ChevronDown size={14} style={{ transform: logShowColumnDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
             </button>
 
@@ -2391,40 +2391,40 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     style={{ accentColor: T.accentGold }}
                   />
                   <span>
-                    {key === 'date' ? '📅 Tanggal' : 
-                     key === 'outletId' ? '🏢 Outlet' :
-                     key === 'createdBy' ? '👤 Dibuat Oleh' :
-                     key === 'itemName' ? '📦 Nama Item' :
-                     key === 'supplier' ? '🏢 Supplier' :
-                     key === 'qty' ? '📊 Kuantitas' :
-                     key === 'unit' ? '⚖️ Satuan' :
-                     key === 'priceUnit' ? '💵 Harga Satuan' :
-                     key === 'totalPrice' ? '💰 Total Harga' :
-                     key === 'typeInput' ? '⚡ Tipe Input' :
-                     key === 'receiptNo' ? '🎫 No. Struk' :
-                     key === 'dateTime' ? '🕒 Waktu' :
-                     key === 'outletName' ? '🏢 Outlet' :
-                     key === 'itemType' ? '🏷️ Jenis' :
-                     key === 'cogsValue' ? '💵 Nilai HPP' :
-                     key === 'status' ? '⚡ Status' :
-                     key === 'fromOutlet' ? '📤 Outlet Asal' :
-                     key === 'toOutlet' ? '📥 Outlet Tujuan' :
-                     key === 'loss' ? '💸 Estimasi Rugi' :
-                     key === 'systemQty' ? '🖥️ Stok Sistem' :
-                     key === 'actualQty' ? '⚖️ Stok Fisik' :
-                     key === 'variance' ? '📈 Selisih' :
-                     key === 'stokAwal' ? '📦 Stok Awal' :
-                     key === 'stokMasuk' ? '📥 Stok Masuk' :
-                     key === 'stokKeluar' ? '📤 Stok Keluar' :
-                     key === 'transferMasuk' ? '📥 Transfer Penerima' :
-                     key === 'transferKeluar' ? '📤 Transfer Pemberi' :
-                     key === 'stokRusak' ? '⚠️ Stok Rusak' :
-                     key === 'stokFisik' ? '⚖️ Sisa Stok Fisik' :
-                     key === 'stokSistem' ? '🖥️ Sisa Stok Sistem' :
-                     key === 'selisih' ? '📈 Selisih' :
-                     key === 'hargaSatuan' ? '💵 Harga Satuan' :
-                     key === 'dendaStok' ? '💸 Denda Stok' :
-                     key === 'notes' ? '📝 Catatan' : key === 'returnStatus' ? '🔄 Analisis Pengembalian' : key}
+                    {key === 'date' ? 'Tanggal' : 
+                     key === 'outletId' ? 'Outlet' :
+                     key === 'createdBy' ? 'Dibuat Oleh' :
+                     key === 'itemName' ? 'Nama Item' :
+                     key === 'supplier' ? 'Supplier' :
+                     key === 'qty' ? 'Kuantitas' :
+                     key === 'unit' ? 'Satuan' :
+                     key === 'priceUnit' ? 'Harga Satuan' :
+                     key === 'totalPrice' ? 'Total Harga' :
+                     key === 'typeInput' ? 'Tipe Input' :
+                     key === 'receiptNo' ? 'No. Struk' :
+                     key === 'dateTime' ? 'Waktu' :
+                     key === 'outletName' ? 'Outlet' :
+                     key === 'itemType' ? 'Jenis' :
+                     key === 'cogsValue' ? 'Nilai HPP' :
+                     key === 'status' ? 'Status' :
+                     key === 'fromOutlet' ? 'Outlet Asal' :
+                     key === 'toOutlet' ? 'Outlet Tujuan' :
+                     key === 'loss' ? 'Estimasi Rugi' :
+                     key === 'systemQty' ? 'Stok Sistem' :
+                     key === 'actualQty' ? 'Stok Fisik' :
+                     key === 'variance' ? 'Selisih' :
+                     key === 'stokAwal' ? 'Stok Awal' :
+                     key === 'stokMasuk' ? 'Stok Masuk' :
+                     key === 'stokKeluar' ? 'Stok Keluar' :
+                     key === 'transferMasuk' ? 'Transfer Penerima' :
+                     key === 'transferKeluar' ? 'Transfer Pemberi' :
+                     key === 'stokRusak' ? 'Stok Rusak' :
+                     key === 'stokFisik' ? 'Sisa Stok Fisik' :
+                     key === 'stokSistem' ? 'Sisa Stok Sistem' :
+                     key === 'selisih' ? 'Selisih' :
+                     key === 'hargaSatuan' ? 'Harga Satuan' :
+                     key === 'dendaStok' ? 'Denda Stok' :
+                     key === 'notes' ? 'Catatan' : key === 'returnStatus' ? 'Analisis Pengembalian' : key}
                   </span>
                 </label>
               ))}
@@ -2437,12 +2437,12 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       <div style={{ background: T.cardBg2, padding: '8px', borderRadius: '16px', border: `1px solid ${T.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '6px' }}>
           {[
-            { id: 'stok_masuk',        label: 'Stok Masuk',                         icon: '📥', color: T.info },
-            { id: 'stok_keluar',       label: 'Stok Keluar',                        icon: '📤', color: T.danger },
-            { id: 'transfer_stok',     label: 'Transfer Stok',                      icon: '🚚', color: T.accentGold },
-            { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',                 icon: '⚠️', color: T.danger },
-            { id: 'stok_opname_system',label: 'Opname by Sistem (Auto Mutasi)',   icon: '🤖', color: T.info },
-            { id: 'stok_opname',       label: 'Audit Opname Fisik (POS Kasir)',     icon: '📋', color: T.success }
+            { id: 'stok_masuk',        label: 'Stok Masuk',                         color: T.info },
+            { id: 'stok_keluar',       label: 'Stok Keluar',                        color: T.danger },
+            { id: 'transfer_stok',     label: 'Transfer Stok',                      color: T.accentGold },
+            { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',                 color: T.danger },
+            { id: 'stok_opname_system',label: 'Opname by Sistem (Auto Mutasi)',   color: T.info },
+            { id: 'stok_opname',       label: 'Audit Opname Fisik (POS Kasir)',     color: T.success }
           ].map(tab => {
             const isActive = activeSubTab === tab.id;
             return (
@@ -2474,8 +2474,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   boxShadow: isActive ? `0 3px 12px ${tab.color}30` : 'none'
                 }}
               >
-                <span style={{ fontSize: '0.85rem' }}>{tab.icon}</span>
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '130px' }}>{tab.label}</span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{tab.label}</span>
               </button>
             );
           })}
@@ -2540,75 +2539,74 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isWebAdminInput = m.type_input === 'manual' || m.type_input === 'by laporan keuangan (ACC)';
 
                       return (
-                        <tr key={m.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={m.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
                           {/* 1. TANGGAL */}
-                          <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
+                          <td style={{ padding: '8px 10px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{m.date}</div>
-                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{m.time || ''}</div>
+                            <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '2px' }}>{m.time || ''}</div>
                           </td>
 
                           {/* 2. NAMA OUTLET */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <span style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              🏢 {getOutletName(m.outlet_id)}
+                          <td style={{ padding: '8px 10px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: T.txtPrimary }}>
+                              {getOutletName(m.outlet_id)}
                             </span>
                           </td>
 
                           {/* 2. NO LAPORAN */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ color: T.info, fontWeight: '900', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <td style={{ padding: '8px 10px' }}>
+                            <div style={{ color: T.info, fontWeight: '800', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <span>{m.report_no || m.id}</span>
-                              <Eye size={14} color={T.info} />
+                              <Eye size={12} color={T.info} />
                             </div>
-                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px' }}>
+                            <div style={{ fontSize: '0.64rem', color: T.txtSecondary, marginTop: '2px' }}>
                               Bahan: <strong style={{ color: T.txtPrimary }}>{m.item_name}</strong> &bull; Qty: <strong style={{ color: T.success }}>+{m.qty} {m.unit}</strong> &bull; Total: <strong style={{ color: T.info }}>{formatRupiah(m.total_price || (m.qty * (m.price_unit || 0)))}</strong>
                             </div>
                           </td>
 
                           {/* 3. PENGAJU */}
-                          <td style={{ padding: '14px 16px' }}>
+                          <td style={{ padding: '8px 10px' }}>
                             <span style={{
-                              padding: '4px 10px',
+                              padding: '3px 8px',
                               borderRadius: '6px',
-                              fontSize: '0.78rem',
+                              fontSize: '0.66rem',
                               fontWeight: '800',
-                              background: isWebAdminInput ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                              background: isWebAdminInput ? 'rgba(56, 189, 248, 0.12)' : 'rgba(99, 102, 241, 0.12)',
                               color: isWebAdminInput ? T.info : T.info,
-                              border: isWebAdminInput ? `1px solid ${T.info}` : `1px solid ${T.info}`
+                              border: isWebAdminInput ? '1px solid rgba(56, 189, 248, 0.28)' : '1px solid rgba(99, 102, 241, 0.28)'
                             }}>
-                              {isWebAdminInput ? '👤 Admin' : '📱 POS Kasir'}
+                              {isWebAdminInput ? 'Admin' : 'POS Kasir'}
                             </span>
-                            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px' }}>{m.created_by || 'Admin Logistik'}</div>
+                            <div style={{ fontSize: '0.64rem', color: T.txtSecondary, marginTop: '2px' }}>{m.created_by || 'Admin Logistik'}</div>
                           </td>
 
                           {/* 4. STATUS */}
-                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); if (!isDone) handleApproveMasukRecord(m); else alert('Status sudah Done (Disetujui). Klik Edit untuk mengubah.'); }}
                               style={{
-                                padding: '6px 12px',
-                                borderRadius: '8px',
-                                background: isDone ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                                border: `1px solid ${isDone ? `${T.success}` : T.accentGold}`,
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                background: isDone ? 'rgba(34, 197, 94, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+                                border: `1px solid ${isDone ? 'rgba(34, 197, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
                                 color: isDone ? T.success : T.accentGold,
-                                fontWeight: '900',
-                                fontSize: '0.78rem',
+                                fontWeight: '800',
+                                fontSize: '0.66rem',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
+                                gap: '4px',
                                 cursor: isDone ? 'default' : 'pointer',
                                 transition: 'all 0.2s ease'
                               }}
-                              title={isDone ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui (Done) stok masuk ini'}
+                              title={isDone ? 'Status sudah Done (Disetujui)' : 'Klik untuk menyetujui log stok masuk ini'}
                             >
-                              {isDone ? <CheckSquare size={14} /> : <Clock size={14} />}
-                              <span>{isDone ? 'Done (Disetujui)' : '⏳ Pending'}</span>
+                              <span>{isDone ? 'Done' : 'Pending'}</span>
                             </button>
                           </td>
 
                           {/* 5. AKSI */}
-                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>
                             <button
                               onClick={() => handleDeleteRecord(m.id, 'stok_masuk', m.report_no || m.id)}
                               style={{
@@ -3229,9 +3227,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   onChange={e => setOpnameItemFilter(e.target.value)}
                   style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
                 >
-                  <option value="ALL">🌐 Semua Bahan Baku (All Items)</option>
+                  <option value="ALL">Semua Bahan Baku (All Items)</option>
                   {allOpnameIngredientNames.map(name => (
-                    <option key={name} value={name}>🥬 {name}</option>
+                    <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
               </div>
@@ -3240,17 +3238,17 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '50px' }}>NO</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800' }}>NAMA ITEM / BAHAN BAKU</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '100px', textAlign: 'center' }}>SATUAN</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right' }}>STOK AWAL</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.success }}>📥 STOK MASUK</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.danger }}>📤 STOK KELUAR</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.info }}>🚚 TRANSFER IN</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.danger }}>🚚 TRANSFER OUT</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.accentGold }}>⚠️ STOK RUSAK</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px', textAlign: 'right', color: '#38bdf8' }}>🖥️ SISA STOK SISTEM</th>
+                  <tr style={{ background: T.cardBg2, borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, textAlign: 'left' }}>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '50px' }}>NO</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800' }}>NAMA ITEM / BAHAN BAKU</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '100px', textAlign: 'center' }}>SATUAN</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right' }}>STOK AWAL</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.success }}>STOK MASUK</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.danger }}>STOK KELUAR</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.info }}>TRANSFER IN</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.danger }}>TRANSFER OUT</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.accentGold }}>STOK RUSAK</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '160px', textAlign: 'right', color: '#38bdf8' }}>SISA STOK SISTEM</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3271,46 +3269,46 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                     return paginatedSystemRows.map((row, idx) => {
                       return (
-                        <tr key={row.id || idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
-                          <td style={{ padding: '14px 16px', color: T.txtSecondary, fontWeight: '700' }}>
+                        <tr key={row.id || idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                          <td style={{ padding: '8px 10px', color: T.txtSecondary, fontWeight: '700' }}>
                             {(currentPage - 1) * pageSize + idx + 1}
                           </td>
 
-                          <td style={{ padding: '14px 16px' }}>
-                            <strong style={{ color: T.txtPrimary, display: 'block', fontSize: '0.88rem' }}>
-                              🥬 {row.itemName}
+                          <td style={{ padding: '8px 10px' }}>
+                            <strong style={{ color: T.txtPrimary, display: 'block', fontSize: '0.76rem' }}>
+                              {row.itemName}
                             </strong>
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'center', color: T.txtSecondary, fontWeight: '700' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'center', color: T.txtSecondary, fontWeight: '700' }}>
                             {row.unit}
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>
                             {row.stokAwal} {row.unit}
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.stokMasuk > 0 ? T.success : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: row.stokMasuk > 0 ? T.success : T.txtMuted }}>
                             {row.stokMasuk} {row.unit}
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.stokKeluar > 0 ? T.danger : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: row.stokKeluar > 0 ? T.danger : T.txtMuted }}>
                             {row.stokKeluar} {row.unit}
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.transferIn > 0 ? T.info : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: row.transferIn > 0 ? T.info : T.txtMuted }}>
                             {row.transferIn} {row.unit}
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.transferOut > 0 ? T.danger : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: row.transferOut > 0 ? T.danger : T.txtMuted }}>
                             {row.transferOut} {row.unit}
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: row.stokRusak > 0 ? T.accentGold : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: row.stokRusak > 0 ? T.accentGold : T.txtMuted }}>
                             {row.stokRusak} {row.unit}
                           </td>
 
-                          <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', fontSize: '0.90rem' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#38bdf8', fontSize: '0.78rem' }}>
                             {row.sisaStokSystem} {row.unit}
                           </td>
                         </tr>
@@ -3350,9 +3348,9 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     onChange={e => setOpnameCreatorFilter(e.target.value)}
                     style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer' }}
                   >
-                    <option value="ALL">🌐 Semua (All Makers)</option>
-                    <option value="by_kasir">📱 By Kasir (Mobile POS)</option>
-                    <option value="by_outlet">🏢 By Outlet (Web Based)</option>
+                    <option value="ALL">Semua (All Makers)</option>
+                    <option value="by_kasir">By Kasir (Mobile POS)</option>
+                    <option value="by_outlet">By Outlet (Web Based)</option>
                   </select>
                 </div>
 
@@ -3364,16 +3362,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     onChange={e => setOpnameItemFilter(e.target.value)}
                     style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
                   >
-                    <option value="ALL">🌐 Semua Bahan Baku (All Items)</option>
+                    <option value="ALL">Semua Bahan Baku (All Items)</option>
                     {allOpnameIngredientNames.map(name => (
-                      <option key={name} value={name}>🥬 {name}</option>
+                      <option key={name} value={name}>{name}</option>
                     ))}
                   </select>
                 </div>
 
                 {/* Total Denda Hari Ini (Per Hari) */}
                 <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '6px 14px', borderRadius: '10px', color: T.danger, fontSize: '0.8rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>📅 Denda Hari Ini:</span>
+                  <span>Denda Hari Ini:</span>
                   <span style={{ fontSize: '0.9rem', color: T.txtPrimary }}>
                     {formatRupiah(
                       getFilteredOpname().reduce((acc, op) => {
