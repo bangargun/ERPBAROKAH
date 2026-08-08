@@ -2021,19 +2021,19 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               </div>
 
               {/* TABLE P&L */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1.24rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1.40rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary }}>
-                    <th style={{ textAlign: 'left', padding: '18px 20px', fontWeight: '800', fontSize: '1.20rem' }}>Description</th>
-                    <th style={{ textAlign: 'right', padding: '18px 20px', fontWeight: '800', width: '300px', fontSize: '1.20rem' }}>Total</th>
-                    <th style={{ textAlign: 'right', padding: '18px 20px', fontWeight: '800', width: '170px', fontSize: '1.20rem' }}>% of Income</th>
+                    <th style={{ textAlign: 'left', padding: '20px 24px', fontWeight: '800', fontSize: '1.35rem' }}>Description</th>
+                    <th style={{ textAlign: 'right', padding: '20px 24px', fontWeight: '800', width: '340px', fontSize: '1.35rem' }}>Total</th>
+                    <th style={{ textAlign: 'right', padding: '20px 24px', fontWeight: '800', width: '190px', fontSize: '1.35rem' }}>% of Income</th>
                   </tr>
                 </thead>
                 <tbody>
 
                   {/* 1. INCOME */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '28px 14px 14px 14px', fontSize: '1.40rem' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '32px 16px 16px 16px', fontSize: '1.60rem' }}>
                       Income
                     </td>
                   </tr>
@@ -2044,14 +2044,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '14px 12px 14px 28px', color: T.info, fontWeight: '700', fontSize: '1.28rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <td style={{ padding: '16px 14px 16px 32px', color: T.info, fontWeight: '700', fontSize: '1.40rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span>[4001] Pendapatan Usaha</span>
-                      <ExternalLink size={18} color={T.info} style={{ opacity: 0.6 }} />
+                      <ExternalLink size={20} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.38rem' }}>
                       {formatLunaCurrency(pendapatanUsaha)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.38rem' }}>
                       {calcPercent(pendapatanUsaha, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2062,13 +2062,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '12px 12px 12px 48px', color: T.txtSecondary, fontSize: '1.18rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '14px 14px 14px 54px', color: T.txtSecondary, fontSize: '1.30rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>↳ [4001.01] Penjualan Kas Tunai (Cash)</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary, fontSize: '1.18rem', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtPrimary, fontSize: '1.30rem', fontWeight: '600' }}>
                       {formatLunaCurrency(cashRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtMuted, fontSize: '1.18rem' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtMuted, fontSize: '1.30rem' }}>
                       {calcPercent(cashRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2078,13 +2078,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '12px 12px 12px 48px', color: T.txtSecondary, fontSize: '1.18rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '14px 14px 14px 54px', color: T.txtSecondary, fontSize: '1.30rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>↳ [4001.02] Penjualan Barcode QRIS &amp; E-Wallet</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary, fontSize: '1.18rem', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtPrimary, fontSize: '1.30rem', fontWeight: '600' }}>
                       {formatLunaCurrency(qrisRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtMuted, fontSize: '1.18rem' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtMuted, fontSize: '1.30rem' }}>
                       {calcPercent(qrisRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2094,13 +2094,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '12px 12px 12px 48px', color: T.txtSecondary, fontSize: '1.18rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '14px 14px 14px 54px', color: T.txtSecondary, fontSize: '1.30rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>↳ [4001.03] Penjualan Kartu Debit/Kredit (EDC)</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary, fontSize: '1.18rem', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtPrimary, fontSize: '1.30rem', fontWeight: '600' }}>
                       {formatLunaCurrency(edcRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtMuted, fontSize: '1.18rem' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtMuted, fontSize: '1.30rem' }}>
                       {calcPercent(edcRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2110,13 +2110,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '12px 12px 12px 48px', color: T.txtSecondary, fontSize: '1.18rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '14px 14px 14px 54px', color: T.txtSecondary, fontSize: '1.30rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>↳ [4001.04] Penjualan Transfer Bank</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary, fontSize: '1.18rem', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtPrimary, fontSize: '1.30rem', fontWeight: '600' }}>
                       {formatLunaCurrency(transferRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtMuted, fontSize: '1.18rem' }}>
+                    <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtMuted, fontSize: '1.30rem' }}>
                       {calcPercent(transferRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2127,32 +2127,32 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '14px 12px 14px 28px', color: T.danger, fontWeight: '700', fontSize: '1.28rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <td style={{ padding: '16px 14px 16px 32px', color: T.danger, fontWeight: '700', fontSize: '1.40rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span>[4002] Diskon Penjualan (Potongan Promo)</span>
-                      <ExternalLink size={18} color={T.danger} style={{ opacity: 0.6 }} />
+                      <ExternalLink size={20} color={T.danger} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.danger, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.danger, fontWeight: '700', fontSize: '1.38rem' }}>
                       {formatLunaCurrency(diskonPenjualan)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.38rem' }}>
                       {calcPercent(diskonPenjualan, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* TOTAL INCOME */}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.32rem' }}>
-                    <td style={{ padding: '16px 16px', color: T.success }}>Total Income</td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.success }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.45rem' }}>
+                    <td style={{ padding: '18px 20px', color: T.success }}>Total Income</td>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.success }}>
                       {formatLunaCurrency(totalIncomeVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.success }}>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.success }}>
                       100
                     </td>
                   </tr>
 
                   {/* 2. COST OF GOODS SOLD */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '28px 14px 14px 14px', fontSize: '1.40rem' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '32px 16px 16px 16px', fontSize: '1.60rem' }}>
                       Cost of Goods Sold (Harga Pokok Produksi)
                     </td>
                   </tr>
@@ -2163,14 +2163,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '14px 12px 14px 28px', color: T.info, fontWeight: '700', fontSize: '1.28rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <td style={{ padding: '16px 14px 16px 32px', color: T.info, fontWeight: '700', fontSize: '1.40rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span>[5002] Harga Pokok Produksi / Penjualan (HPP)</span>
-                      <ExternalLink size={18} color={T.info} style={{ opacity: 0.6 }} />
+                      <ExternalLink size={20} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.38rem' }}>
                       {formatLunaCurrency(hppVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.38rem' }}>
                       {calcPercent(hppVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2187,18 +2187,18 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <td style={{ padding: '12px 12px 12px 48px', color: T.txtSecondary, fontSize: '1.18rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: T.txtPrimary, fontSize: '1.18rem' }}>
+                        <td style={{ padding: '14px 14px 14px 54px', color: T.txtSecondary, fontSize: '1.30rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: T.txtPrimary, fontSize: '1.30rem' }}>
                             <span>↳ [{subCode}] Bahan Baku: {item.name}{qtyStr}</span>
                           </div>
-                          <div style={{ fontSize: '1.0rem', color: T.txtMuted, marginTop: '3px' }}>
+                          <div style={{ fontSize: '1.10rem', color: T.txtMuted, marginTop: '4px' }}>
                             {item.note ? item.note : `Rincian akumulasi pengeluaran HPP bahan mentah ${item.name}`}
                           </div>
                         </td>
-                        <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary, fontSize: '1.18rem', fontWeight: '700', verticalAlign: 'top' }}>
+                        <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtPrimary, fontSize: '1.30rem', fontWeight: '700', verticalAlign: 'top' }}>
                           {formatLunaCurrency(item.amount)}
                         </td>
-                        <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtMuted, fontSize: '1.18rem', verticalAlign: 'top' }}>
+                        <td style={{ textAlign: 'right', padding: '14px 20px', color: T.txtMuted, fontSize: '1.30rem', verticalAlign: 'top' }}>
                           {calcPercent(item.amount, totalIncomeVal)}
                         </td>
                       </tr>
@@ -2211,43 +2211,43 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '14px 12px 14px 28px', color: T.info, fontWeight: '700', fontSize: '1.28rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <td style={{ padding: '16px 14px 16px 32px', color: T.info, fontWeight: '700', fontSize: '1.40rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span>[5005] Biaya Pengiriman &amp; Expedisi Bahan</span>
-                      <ExternalLink size={18} color={T.info} style={{ opacity: 0.6 }} />
+                      <ExternalLink size={20} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.38rem' }}>
                       {formatLunaCurrency(biayaPengiriman)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.26rem' }}>
+                    <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.38rem' }}>
                       {calcPercent(biayaPengiriman, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* TOTAL COGS */}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.32rem' }}>
-                    <td style={{ padding: '16px 16px', color: T.danger }}>Total Cost of Goods Sold</td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.danger }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.45rem' }}>
+                    <td style={{ padding: '18px 20px', color: T.danger }}>Total Cost of Goods Sold</td>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.danger }}>
                       {formatLunaCurrency(totalCogsVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.danger }}>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.danger }}>
                       {calcPercent(totalCogsVal, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* 3. GROSS PROFIT */}
-                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '1.45rem' }}>
-                    <td style={{ padding: '22px 16px', color: T.success, textTransform: 'uppercase' }}>GROSS PROFIT</td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.success }}>
+                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '1.65rem' }}>
+                    <td style={{ padding: '24px 20px', color: T.success, textTransform: 'uppercase' }}>GROSS PROFIT</td>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.success }}>
                       {formatLunaCurrency(grossProfitVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.success }}>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.success }}>
                       {calcPercent(grossProfitVal, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* 4. EXPENSE */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '28px 14px 14px 14px', fontSize: '1.40rem' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '32px 16px 16px 16px', fontSize: '1.60rem' }}>
                       Expense
                     </td>
                   </tr>
@@ -2261,43 +2261,43 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                         style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <td style={{ padding: '14px 12px 14px 28px', color: T.info, fontWeight: '700', fontSize: '1.28rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <td style={{ padding: '16px 14px 16px 32px', color: T.info, fontWeight: '700', fontSize: '1.40rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span>{ex.codeName}</span>
-                          <ExternalLink size={18} color={T.info} style={{ opacity: 0.6 }} />
+                          <ExternalLink size={20} color={T.info} style={{ opacity: 0.6 }} />
                         </td>
-                        <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.26rem' }}>
+                        <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.38rem' }}>
                           {formatLunaCurrency(ex.amount)}
                         </td>
-                        <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.26rem' }}>
+                        <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.38rem' }}>
                           {calcPercent(ex.amount, totalIncomeVal)}
                         </td>
                       </tr>
                     );
                   })}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.32rem' }}>
-                    <td style={{ padding: '16px 16px', color: T.danger }}>Total Expense</td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.danger }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.45rem' }}>
+                    <td style={{ padding: '18px 20px', color: T.danger }}>Total Expense</td>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.danger }}>
                       {formatLunaCurrency(totalExpenseVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.danger }}>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.danger }}>
                       {calcPercent(totalExpenseVal, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* 5. NET OPERATING INCOME */}
-                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '1.45rem' }}>
-                    <td style={{ padding: '22px 16px', color: T.success, textTransform: 'uppercase' }}>NET OPERATING INCOME</td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.success }}>
+                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '1.65rem' }}>
+                    <td style={{ padding: '24px 20px', color: T.success, textTransform: 'uppercase' }}>NET OPERATING INCOME</td>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.success }}>
                       {formatLunaCurrency(netOperatingIncomeVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.success }}>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.success }}>
                       {calcPercent(netOperatingIncomeVal, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* 6. OTHER INCOME */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '28px 14px 14px 14px', fontSize: '1.40rem' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '32px 16px 16px 16px', fontSize: '1.60rem' }}>
                       Other Income
                     </td>
                   </tr>
@@ -2308,31 +2308,31 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                       style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <td style={{ padding: '14px 12px 14px 28px', color: T.info, fontWeight: '700', fontSize: '1.28rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <td style={{ padding: '16px 14px 16px 32px', color: T.info, fontWeight: '700', fontSize: '1.40rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span>{oi.codeName}</span>
-                        <ExternalLink size={18} color={T.info} style={{ opacity: 0.6 }} />
+                        <ExternalLink size={20} color={T.info} style={{ opacity: 0.6 }} />
                       </td>
-                      <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.26rem' }}>
+                      <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.38rem' }}>
                         {formatLunaCurrency(oi.amount)}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.26rem' }}>
+                      <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.38rem' }}>
                         {calcPercent(oi.amount, totalIncomeVal)}
                       </td>
                     </tr>
                   ))}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.32rem' }}>
-                    <td style={{ padding: '16px 16px', color: T.success }}>Total Other Income</td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.success }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.45rem' }}>
+                    <td style={{ padding: '18px 20px', color: T.success }}>Total Other Income</td>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.success }}>
                       {formatLunaCurrency(totalOtherIncomeVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.success }}>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.success }}>
                       {calcPercent(totalOtherIncomeVal, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* 7. OTHER EXPENSE */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '28px 14px 14px 14px', fontSize: '1.40rem' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '32px 16px 16px 16px', fontSize: '1.60rem' }}>
                       Other Expense
                     </td>
                   </tr>
@@ -2343,46 +2343,46 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                       style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <td style={{ padding: '14px 12px 14px 28px', color: T.info, fontWeight: '700', fontSize: '1.28rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <td style={{ padding: '16px 14px 16px 32px', color: T.info, fontWeight: '700', fontSize: '1.40rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span>{oe.codeName}</span>
-                        <ExternalLink size={18} color={T.info} style={{ opacity: 0.6 }} />
+                        <ExternalLink size={20} color={T.info} style={{ opacity: 0.6 }} />
                       </td>
-                      <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.26rem' }}>
+                      <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.38rem' }}>
                         {formatLunaCurrency(oe.amount)}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '14px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.26rem' }}>
+                      <td style={{ textAlign: 'right', padding: '16px 20px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.38rem' }}>
                         {calcPercent(oe.amount, totalIncomeVal)}
                       </td>
                     </tr>
                   ))}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.32rem' }}>
-                    <td style={{ padding: '16px 16px', color: T.danger }}>Total Other Expense</td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.danger }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.45rem' }}>
+                    <td style={{ padding: '18px 20px', color: T.danger }}>Total Other Expense</td>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.danger }}>
                       {formatLunaCurrency(totalOtherExpenseVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '16px 16px', color: T.danger }}>
+                    <td style={{ textAlign: 'right', padding: '18px 20px', color: T.danger }}>
                       {calcPercent(totalOtherExpenseVal, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* 8. NET OTHER INCOME */}
-                  <tr style={{ fontWeight: '900', background: T.dangerBg, borderTop: `2px solid ${T.danger}`, borderBottom: `2px solid ${T.danger}`, fontSize: '1.45rem' }}>
-                    <td style={{ padding: '22px 16px', color: T.danger, textTransform: 'uppercase' }}>NET OTHER INCOME</td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.danger }}>
+                  <tr style={{ fontWeight: '900', background: T.dangerBg, borderTop: `2px solid ${T.danger}`, borderBottom: `2px solid ${T.danger}`, fontSize: '1.65rem' }}>
+                    <td style={{ padding: '24px 20px', color: T.danger, textTransform: 'uppercase' }}>NET OTHER INCOME</td>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.danger }}>
                       {formatLunaCurrency(netOtherIncomeVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.danger }}>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.danger }}>
                       {calcPercent(netOtherIncomeVal, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* 9. NET INCOME */}
-                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '1.45rem' }}>
-                    <td style={{ padding: '22px 16px', color: T.success, textTransform: 'uppercase' }}>NET INCOME</td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.success }}>
+                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '1.65rem' }}>
+                    <td style={{ padding: '24px 20px', color: T.success, textTransform: 'uppercase' }}>NET INCOME</td>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.success }}>
                       {formatLunaCurrency(netIncomeVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '22px 16px', color: T.success }}>
+                    <td style={{ textAlign: 'right', padding: '24px 20px', color: T.success }}>
                       {calcPercent(netIncomeVal, totalIncomeVal)}
                     </td>
                   </tr>
