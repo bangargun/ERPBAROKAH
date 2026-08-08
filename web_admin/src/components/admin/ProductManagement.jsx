@@ -32,6 +32,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid' | 'table'
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('Semua');
+  const [selectedOutletFilter, setSelectedOutletFilter] = useState('Semua');
   const [showFormModal, setShowFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
@@ -59,16 +60,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
+    const file = e.dataTransfer.files[0];
+    if (file) {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          setProdImageUrl(uploadEvent.target.result);
+        reader.onloadend = () => {
+          setProdImageUrl(reader.result);
         };
         reader.readAsDataURL(file);
       } else {
-        alert('Mohon unggah file format gambar (JPG, PNG, WEBP).');
+        alert('File harus berupa gambar (JPG, PNG, GIF)');
       }
     }
   };
@@ -82,6 +83,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           setProdImageUrl(uploadEvent.target.result);
         };
         reader.readAsDataURL(file);
+      } else {
+        alert('File harus berupa gambar (JPG, PNG, GIF)');
       }
     }
   };
@@ -542,6 +545,32 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               <option value="Aktif">🟢 Aktif</option>
               <option value="Inaktif">🔴 Inaktif</option>
               <option value="Hide">👁️ Hide (Sembunyi)</option>
+            </select>
+
+            {/* Outlet Filter Dropdown */}
+            <select
+              value={selectedOutletFilter}
+              onChange={e => {
+                setSelectedOutletFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                fontSize: '0.8rem',
+                background: T.inputBg,
+                color: selectedOutletFilter !== 'Semua' ? T.info : T.txtPrimary,
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="Semua">🏬 Semua Outlet</option>
+              {(masterData.outlets || []).map(otl => (
+                <option key={otl.id} value={String(otl.id)}>
+                  {otl.name}
+                </option>
+              ))}
             </select>
 
             {/* Excel Download & Upload Button */}
