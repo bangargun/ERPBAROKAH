@@ -1482,110 +1482,125 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
-      {/* HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em', margin: 0 }}>
-            Pusat Laporan Keuangan &amp; Analisis AI
-          </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '4px', margin: 0 }}>
-            Laporan Laba Rugi (P&amp;L), Neraca Keuangan, Arus Kas, dan Audit Transaksi Multi-Outlet
-          </p>
+      {/* STICKY TOP HEADER CONTAINER (Laporan Keuangan Navigasi Sticky) */}
+      <div style={{
+        position: 'sticky',
+        top: '-20px',
+        zIndex: 100,
+        background: T.pageBg,
+        paddingTop: '20px',
+        paddingBottom: '12px',
+        marginTop: '-20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.25)'
+      }}>
+        {/* HEADER SECTION */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em', margin: 0 }}>
+              Pusat Laporan Keuangan &amp; Analisis AI
+            </h2>
+            <p style={{ color: T.txtSecondary, fontSize: '0.86rem', marginTop: '4px', margin: 0 }}>
+              Laporan Laba Rugi (P&amp;L), Neraca Keuangan, Arus Kas, dan Audit Transaksi Multi-Outlet
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* SUB-TAB NAVIGATION BAR */}
-      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
-        <button
-          onClick={() => setActiveSubTab('pnl')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: '10px',
-            border: '1px solid',
-            borderColor: activeSubTab === 'pnl' ? T.accentGold : T.border,
-            background: activeSubTab === 'pnl' ? T.navActiveBg : T.cardBg,
-            color: activeSubTab === 'pnl' ? T.navActiveTxt : T.txtSecondary,
-            fontWeight: '700',
-            fontSize: '0.84rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <FileText size={16} />
-          <span>Laporan Laba Rugi (P&amp;L)</span>
-        </button>
+        {/* SUB-TAB NAVIGATION BAR */}
+        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
+          <button
+            onClick={() => setActiveSubTab('pnl')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: '1px solid',
+              borderColor: activeSubTab === 'pnl' ? T.accentGold : T.border,
+              background: activeSubTab === 'pnl' ? T.navActiveBg : T.cardBg,
+              color: activeSubTab === 'pnl' ? T.navActiveTxt : T.txtSecondary,
+              fontWeight: '700',
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <FileText size={16} />
+            <span>Laporan Laba Rugi (P&amp;L)</span>
+          </button>
 
-        <button
-          onClick={() => setActiveSubTab('balance')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: '10px',
-            border: '1px solid',
-            borderColor: activeSubTab === 'balance' ? T.accentGold : T.border,
-            background: activeSubTab === 'balance' ? T.navActiveBg : T.cardBg,
-            color: activeSubTab === 'balance' ? T.navActiveTxt : T.txtSecondary,
-            fontWeight: '700',
-            fontSize: '0.84rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <PieChart size={16} />
-          <span>Neraca Keuangan (Balance Sheet)</span>
-        </button>
+          <button
+            onClick={() => setActiveSubTab('balance')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: '1px solid',
+              borderColor: activeSubTab === 'balance' ? T.accentGold : T.border,
+              background: activeSubTab === 'balance' ? T.navActiveBg : T.cardBg,
+              color: activeSubTab === 'balance' ? T.navActiveTxt : T.txtSecondary,
+              fontWeight: '700',
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <PieChart size={16} />
+            <span>Neraca Keuangan (Balance Sheet)</span>
+          </button>
 
-        <button
-          onClick={() => setActiveSubTab('cashflow')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: '10px',
-            border: '1px solid',
-            borderColor: activeSubTab === 'cashflow' ? T.accentGold : T.border,
-            background: activeSubTab === 'cashflow' ? T.navActiveBg : T.cardBg,
-            color: activeSubTab === 'cashflow' ? T.navActiveTxt : T.txtSecondary,
-            fontWeight: '700',
-            fontSize: '0.84rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <ArrowLeftRight size={16} />
-          <span>Laporan Arus Kas (Cash Flow)</span>
-        </button>
+          <button
+            onClick={() => setActiveSubTab('cashflow')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: '1px solid',
+              borderColor: activeSubTab === 'cashflow' ? T.accentGold : T.border,
+              background: activeSubTab === 'cashflow' ? T.navActiveBg : T.cardBg,
+              color: activeSubTab === 'cashflow' ? T.navActiveTxt : T.txtSecondary,
+              fontWeight: '700',
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <ArrowLeftRight size={16} />
+            <span>Laporan Arus Kas (Cash Flow)</span>
+          </button>
 
-        <button
-          onClick={() => setActiveSubTab('ai')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: '10px',
-            border: `1px solid ${T.success}`,
-            background: activeSubTab === 'ai' ? `linear-gradient(135deg, ${T.success}30 0%, ${T.info}20 100%)` : T.cardBg,
-            color: T.success,
-            fontWeight: '700',
-            fontSize: '0.84rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Sparkles size={16} />
-          <span>Perbandingan Laba/Rugi &amp; AI</span>
-        </button>
+          <button
+            onClick={() => setActiveSubTab('ai')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              border: `1px solid ${T.success}`,
+              background: activeSubTab === 'ai' ? `linear-gradient(135deg, ${T.success}30 0%, ${T.info}20 100%)` : T.cardBg,
+              color: T.success,
+              fontWeight: '700',
+              fontSize: '0.86rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Sparkles size={16} />
+            <span>Perbandingan Laba/Rugi &amp; AI</span>
+          </button>
+        </div>
       </div>
 
       {/* TOP FILTER BAR: SHARED FOR P&L, BALANCE SHEET & CASH FLOW */}
