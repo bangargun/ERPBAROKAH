@@ -3566,116 +3566,131 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease, color 0.25s ease' }} className="animate-fade-in">
-      {/* PAGE TITLE HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
-            Laporan Transaksi & Analytics Penjualan POS
-          </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
-            Pusat analisis & rekapan omzet transaksi kasir restoran (Terhubung Realtime dengan Mobile APK Kasir)
-          </p>
-        </div>
+      {/* STICKY TOP HEADER CONTAINER (Batas Atas Scroll: Sinkronisasi Otomatis Mobile APK Kasir) */}
+      <div style={{
+        position: 'sticky',
+        top: '-20px',
+        zIndex: 100,
+        background: T.pageBg,
+        paddingTop: '20px',
+        paddingBottom: '8px',
+        marginTop: '-20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '14px',
+        boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.25)'
+      }}>
+        {/* PAGE TITLE HEADER */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
+              Laporan Transaksi & Analytics Penjualan POS
+            </h2>
+            <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
+              Pusat analisis & rekapan omzet transaksi kasir restoran (Terhubung Realtime dengan Mobile APK Kasir)
+            </p>
+          </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={handleManualSync}
-            className="btn-secondary"
-            disabled={isSyncing}
-            style={{
-              padding: '6px 12px',
-              fontSize: '0.72rem',
-              color: T.info,
-              borderColor: 'rgba(56, 189, 248, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-            <span>{isSyncing ? "Menyinkronkan..." : "Sync Mobile APK"}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 9 Sub-Tabs Navigation Grid (3 Baris x 3 Sub-Tab) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-        {analysisTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={handleManualSync}
+              className="btn-secondary"
+              disabled={isSyncing}
               style={{
+                padding: '6px 12px',
+                fontSize: '0.72rem',
+                color: T.info,
+                borderColor: 'rgba(56, 189, 248, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '5px 8px',
-                borderRadius: '8px',
-                border: '1px solid',
-                borderColor: isActive ? T.accentGold : T.border,
-                background: isActive ? T.navActiveBg : T.cardBg,
-                color: isActive ? T.navActiveTxt : T.txtSecondary,
-                fontWeight: isActive ? '800' : '600',
-                fontSize: '0.72rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                cursor: 'pointer'
               }}
             >
-              <Icon size={14} color={isActive ? `${T.info}` : T.txtMuted} />
-              <span>{tab.name}</span>
+              <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
+              <span>{isSyncing ? "Menyinkronkan..." : "Sync Mobile APK"}</span>
             </button>
-          );
-        })}
-      </div>
-
-      {/* GLOBAL AUTO SYNC STATUS BANNER BAR */}
-      <div className="glass-card animate-fade-in" style={{
-        padding: '12px 18px',
-        background: 'linear-gradient(90deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%)',
-        border: '1px solid rgba(52, 211, 153, 0.3)',
-        borderRadius: '12px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Zap size={18} color={ T.success } />
-          <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
-            Sinkronisasi Otomatis Mobile APK Kasir
-          </span>
-          <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
-            | Terakhir disinkronkan: <b style={{ color: T.info }}>{lastSyncTime}</b> | Terhubung: <b style={{ color: T.success }}>{outlets.length} Outlet POS</b>
-          </span>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '0.75rem', color: T.success, background: 'rgba(52, 211, 153, 0.12)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.2)', fontWeight: '700' }}>
-            ✓ Realtime Streaming Active
-          </span>
-          <button
-            onClick={() => setIsAutoSyncEnabled(!isAutoSyncEnabled)}
-            style={{
-              background: isAutoSyncEnabled ? 'rgba(52, 211, 153, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-              border: '1px solid',
-              borderColor: isAutoSyncEnabled ? 'rgba(52, 211, 153, 0.4)' : T.border,
-              color: isAutoSyncEnabled ? `${T.success}` : T.txtSecondary,
-              padding: '4px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            Auto Sync: {isAutoSyncEnabled ? 'ON' : 'OFF'}
-          </button>
+        {/* 9 Sub-Tabs Navigation Grid (3 Baris x 3 Sub-Tab) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+          {analysisTabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 8px',
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: isActive ? T.accentGold : T.border,
+                  background: isActive ? T.navActiveBg : T.cardBg,
+                  color: isActive ? T.navActiveTxt : T.txtSecondary,
+                  fontWeight: isActive ? '800' : '600',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}
+              >
+                <Icon size={14} color={isActive ? `${T.info}` : T.txtMuted} />
+                <span>{tab.name}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* GLOBAL AUTO SYNC STATUS BANNER BAR */}
+        <div className="glass-card animate-fade-in" style={{
+          padding: '12px 18px',
+          background: 'linear-gradient(90deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%)',
+          border: '1px solid rgba(52, 211, 153, 0.3)',
+          borderRadius: '12px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Zap size={18} color={ T.success } />
+            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
+              Sinkronisasi Otomatis Mobile APK Kasir
+            </span>
+            <span style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
+              | Terakhir disinkronkan: <b style={{ color: T.info }}>{lastSyncTime}</b> | Terhubung: <b style={{ color: T.success }}>{outlets.length} Outlet POS</b>
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '0.75rem', color: T.success, background: 'rgba(52, 211, 153, 0.12)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.2)', fontWeight: '700' }}>
+              ✓ Realtime Streaming Active
+            </span>
+            <button
+              onClick={() => setIsAutoSyncEnabled(!isAutoSyncEnabled)}
+              style={{
+                background: isAutoSyncEnabled ? 'rgba(52, 211, 153, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                border: '1px solid',
+                borderColor: isAutoSyncEnabled ? 'rgba(52, 211, 153, 0.4)' : T.border,
+                color: isAutoSyncEnabled ? `${T.success}` : T.txtSecondary,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Auto Sync: {isAutoSyncEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
         </div>
       </div>
 
