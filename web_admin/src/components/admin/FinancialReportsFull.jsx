@@ -1481,41 +1481,41 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
       {/* HEADER SECTION */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
+          <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.02em', margin: 0 }}>
             Pusat Laporan Keuangan &amp; Analisis AI
           </h2>
-          <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
+          <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '4px', margin: 0 }}>
             Laporan Laba Rugi (P&amp;L), Neraca Keuangan, Arus Kas, dan Audit Transaksi Multi-Outlet
           </p>
         </div>
       </div>
 
       {/* SUB-TAB NAVIGATION BAR */}
-      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
         <button
           onClick={() => setActiveSubTab('pnl')}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '5px 8px',
-            borderRadius: '8px',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '10px',
             border: '1px solid',
             borderColor: activeSubTab === 'pnl' ? T.accentGold : T.border,
             background: activeSubTab === 'pnl' ? T.navActiveBg : T.cardBg,
             color: activeSubTab === 'pnl' ? T.navActiveTxt : T.txtSecondary,
             fontWeight: '700',
-            fontSize: '0.72rem',
+            fontSize: '0.84rem',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             whiteSpace: 'nowrap'
           }}
         >
-          <FileText size={14} />
+          <FileText size={16} />
           <span>Laporan Laba Rugi (P&amp;L)</span>
         </button>
 
@@ -1524,21 +1524,21 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '5px 8px',
-            borderRadius: '8px',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '10px',
             border: '1px solid',
             borderColor: activeSubTab === 'balance' ? T.accentGold : T.border,
             background: activeSubTab === 'balance' ? T.navActiveBg : T.cardBg,
             color: activeSubTab === 'balance' ? T.navActiveTxt : T.txtSecondary,
             fontWeight: '700',
-            fontSize: '0.72rem',
+            fontSize: '0.84rem',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             whiteSpace: 'nowrap'
           }}
         >
-          <PieChart size={14} />
+          <PieChart size={16} />
           <span>Neraca Keuangan (Balance Sheet)</span>
         </button>
 
@@ -1547,21 +1547,21 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '5px 8px',
-            borderRadius: '8px',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '10px',
             border: '1px solid',
             borderColor: activeSubTab === 'cashflow' ? T.accentGold : T.border,
             background: activeSubTab === 'cashflow' ? T.navActiveBg : T.cardBg,
             color: activeSubTab === 'cashflow' ? T.navActiveTxt : T.txtSecondary,
             fontWeight: '700',
-            fontSize: '0.72rem',
+            fontSize: '0.84rem',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             whiteSpace: 'nowrap'
           }}
         >
-          <ArrowLeftRight size={14} />
+          <ArrowLeftRight size={16} />
           <span>Laporan Arus Kas (Cash Flow)</span>
         </button>
 
@@ -1570,20 +1570,20 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            padding: '5px 8px',
-            borderRadius: '8px',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '10px',
             border: `1px solid ${T.success}`,
             background: activeSubTab === 'ai' ? `linear-gradient(135deg, ${T.success}30 0%, ${T.info}20 100%)` : T.cardBg,
             color: T.success,
             fontWeight: '700',
-            fontSize: '0.72rem',
+            fontSize: '0.84rem',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             whiteSpace: 'nowrap'
           }}
         >
-          <Sparkles size={14} />
+          <Sparkles size={16} />
           <span>Perbandingan Laba/Rugi &amp; AI</span>
         </button>
       </div>
