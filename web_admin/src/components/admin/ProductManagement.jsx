@@ -186,16 +186,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // 3. Add Composition Row
   const handleAddCompositionRow = () => {
     const defaultIng = masterData.ingredients?.[0] || null;
-    const defaultUnit = masterData.units?.[0]?.symbol || 'Gram';
+    const autoUnit = defaultIng ? (defaultIng.unit || defaultIng.satuan || defaultIng.unit_name || masterData.units?.[0]?.symbol || 'Gram') : 'Gram';
 
     setCompositions([
       ...compositions,
       {
         id: Date.now(),
-        ingredient_id: defaultIng.id,
-        ingredient_name: defaultIng.name,
-        qty: 100,
-        unit: defaultIng.unit || defaultUnit
+        ingredient_id: defaultIng ? defaultIng.id : '',
+        ingredient_name: defaultIng ? defaultIng.name : '',
+        qty: 1,
+        unit: autoUnit
       }
     ]);
   };
@@ -208,12 +208,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setCompositions(compositions.map(c => {
       if (c.id === compId) {
         if (field === 'ingredient_id') {
-          const ing = masterData.ingredients.find(i => i.id === parseInt(val));
+          const ing = (masterData.ingredients || []).find(i => String(i.id) === String(val));
+          const autoUnit = ing ? (ing.unit || ing.satuan || ing.unit_name || c.unit) : c.unit;
           return {
             ...c,
-            ingredient_id: parseInt(val),
+            ingredient_id: val,
             ingredient_name: ing ? ing.name : c.ingredient_name,
-            unit: ing ? ing.unit : c.unit
+            unit: autoUnit
           };
         }
         return { ...c, [field]: val };
@@ -298,7 +299,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setVariantPrices(vP);
     setStandardPrices(stdP);
     setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
-    setCompositions(product.compositions || []);
+    const loadedCompositions = (product.compositions || []).map(comp => {
+      const matchedIng = (masterData.ingredients || []).find(i => String(i.id) === String(comp.ingredient_id) || i.name === comp.ingredient_name);
+      return {
+        ...comp,
+        unit: comp.unit || matchedIng?.unit || matchedIng?.satuan || matchedIng?.unit_name || 'Gram'
+      };
+    });
+    setCompositions(loadedCompositions);
     setShowFormModal(true);
   };
 
@@ -1420,7 +1428,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         />
 
                         <select
-                          value={comp.unit || (masterData.units?.[0]?.symbol || masterData.units?.[0]?.name || 'Gram')}
+                          value={comp.unit || 'Gram'}
                           onChange={e => handleUpdateComposition(comp.id, 'unit', e.target.value)}
                           style={{
                             width: '100%',
@@ -1432,22 +1440,34 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             fontSize: '0.8rem'
                           }}
                         >
-                          {(masterData.units && masterData.units.length > 0 ? masterData.units : [
-                            { id: 1, name: 'Kilogram', symbol: 'kg' },
-                            { id: 2, name: 'Gram', symbol: 'Gram' },
-                            { id: 3, name: 'Liter', symbol: 'Liter' },
-                            { id: 4, name: 'Milliliter', symbol: 'ml' },
-                            { id: 5, name: 'Porsi', symbol: 'Porsi' },
-                            { id: 6, name: 'Pcs', symbol: 'pcs' },
-                            { id: 7, name: 'Bungkus', symbol: 'Bungkus' }
-                          ]).map(u => {
-                            const val = u.symbol || u.name;
-                            return (
-                              <option key={u.id} value={val}>
-                                {val} ({u.name})
-                              </option>
-                            );
-                          })}
+                          {(() => {
+                            const baseUnits = masterData.units && masterData.units.length > 0
+                              ? masterData.units.map(u => ({ id: u.id, name: u.name, symbol: u.symbol || u.name }))
+                              : [
+                                { id: 1, name: 'Kilogram', symbol: 'kg' },
+                                { id: 2, name: 'Gram', symbol: 'Gram' },
+                                { id: 3, name: 'Liter', symbol: 'Liter' },
+                                { id: 4, name: 'Milliliter', symbol: 'ml' },
+                                { id: 5, name: 'Porsi', symbol: 'Porsi' },
+                                { id: 6, name: 'Pcs', symbol: 'pcs' },
+                                { id: 7, name: 'Ekor', symbol: 'EKOR' },
+                                { id: 8, name: 'Bungkus', symbol: 'Bungkus' }
+                              ];
+
+                            const unitList = [...baseUnits];
+                            if (comp.unit && !unitList.some(u => (u.symbol || u.name).toLowerCase() === String(comp.unit).toLowerCase())) {
+                              unitList.push({ id: `custom-${comp.unit}`, name: comp.unit, symbol: comp.unit });
+                            }
+
+                            return unitList.map(u => {
+                              const val = u.symbol || u.name;
+                              return (
+                                <option key={u.id} value={val}>
+                                  {val} {u.name && u.name !== val ? `(${u.name})` : ''}
+                                </option>
+                              );
+                            });
+                          })()}
                         </select>
 
                         <button type="button" onClick={() => handleRemoveComposition(comp.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', textAlign: 'center' }}>
