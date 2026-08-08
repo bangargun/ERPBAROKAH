@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BookOpen, Plus, Search, Edit3, Trash2, X, CheckCircle2, Tag, Layers, FolderPlus, Info, HelpCircle, ArrowRight, ShieldCheck, FileText, Scale, ArrowLeftRight } from 'lucide-react';
+import { BookOpen, Plus, Search, Edit3, Trash2, X, CheckCircle2, Tag, Layers, FolderPlus, Info, HelpCircle, ArrowRight, ShieldCheck, FileText, Scale, ArrowLeftRight, Download, Upload, FileSpreadsheet, FileUp, RefreshCw, AlertCircle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 
@@ -10,6 +11,15 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
+
+  // Excel Upload State
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadStep, setUploadStep] = useState('select'); // 'select' | 'preview'
+  const [parsedAccounts, setParsedAccounts] = useState([]);
+  const [importMode, setImportMode] = useState('append'); // 'append' | 'overwrite'
+  const [uploadError, setUploadError] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   // Pagination States (Default 25 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,6 +35,308 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
   const [notes, setNotes] = useState('');
 
   const accountsList = masterData.chartOfAccounts || masterData.expenseMaster || [];
+
+  // Template Excel Download Handler
+  const handleDownloadTemplate = () => {
+    const sampleData = [
+      {
+        'Kode Akun': '1001',
+        'Nama Akun Akuntansi': 'Kas Utama Kasir Outlet',
+        'Kelompok Akun': 'Aktiva / Asset',
+        'Target Laporan': 'Laporan Neraca',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Kas kecil di laci kasir outlet'
+      },
+      {
+        'Kode Akun': '1002',
+        'Nama Akun Akuntansi': 'Bank BCA Operasional Restoran',
+        'Kelompok Akun': 'Aktiva / Asset',
+        'Target Laporan': 'Laporan Neraca',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Rekening penampungan transaksi EDC & QRIS'
+      },
+      {
+        'Kode Akun': '1101',
+        'Nama Akun Akuntansi': 'Piutang Penjualan Katering',
+        'Kelompok Akun': 'Aktiva / Asset',
+        'Target Laporan': 'Laporan Neraca',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Piutang jatuh tempo pesanan katering'
+      },
+      {
+        'Kode Akun': '1201',
+        'Nama Akun Akuntansi': 'Stok Persediaan Bahan Baku Daging & Ayam',
+        'Kelompok Akun': 'Aktiva / Asset',
+        'Target Laporan': 'Laporan Neraca',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Persediaan bahan mentah dapur utama'
+      },
+      {
+        'Kode Akun': '2001',
+        'Nama Akun Akuntansi': 'Hutang Pemasok Bahan Food & Beverage',
+        'Kelompok Akun': 'Pasiva / Liability',
+        'Target Laporan': 'Laporan Neraca',
+        'Saldo Normal': 'Kredit',
+        'Status': 'Aktif',
+        'Catatan': 'Hutang dagang pembelian bahan baku'
+      },
+      {
+        'Kode Akun': '2101',
+        'Nama Akun Akuntansi': 'Hutang Pajak Restoran (PB1 10%)',
+        'Kelompok Akun': 'Pasiva / Liability',
+        'Target Laporan': 'Laporan Neraca',
+        'Saldo Normal': 'Kredit',
+        'Status': 'Aktif',
+        'Catatan': 'Kewajiban pajak daerah bulanan'
+      },
+      {
+        'Kode Akun': '3001',
+        'Nama Akun Akuntansi': 'Modal Disetor Pemilik Restoran',
+        'Kelompok Akun': 'Ekuitas / Equity',
+        'Target Laporan': 'Laporan Neraca',
+        'Saldo Normal': 'Kredit',
+        'Status': 'Aktif',
+        'Catatan': 'Modal awal pendirian outlet'
+      },
+      {
+        'Kode Akun': '4001',
+        'Nama Akun Akuntansi': 'Pendapatan Usaha Penjualan Makanan & Minuman',
+        'Kelompok Akun': 'Pendapatan / Revenue',
+        'Target Laporan': 'Laporan Laba Rugi',
+        'Saldo Normal': 'Kredit',
+        'Status': 'Aktif',
+        'Catatan': 'Penjualan Omset Bruto Kasir'
+      },
+      {
+        'Kode Akun': '4002',
+        'Nama Akun Akuntansi': 'Diskon & Promo Penjualan',
+        'Kelompok Akun': 'Pendapatan / Revenue',
+        'Target Laporan': 'Laporan Laba Rugi',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Potongan harga promo atau member'
+      },
+      {
+        'Kode Akun': '5001',
+        'Nama Akun Akuntansi': 'HPP Bahan Baku Makanan & Bumbu',
+        'Kelompok Akun': 'HPP / COGS',
+        'Target Laporan': 'Laporan Laba Rugi',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Biaya konsumsi bahan baku'
+      },
+      {
+        'Kode Akun': '5002',
+        'Nama Akun Akuntansi': 'HPP Kemasan & Food Packaging',
+        'Kelompok Akun': 'HPP / COGS',
+        'Target Laporan': 'Laporan Laba Rugi',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Takeaway boxes, kantong plastik, cup'
+      },
+      {
+        'Kode Akun': '6001',
+        'Nama Akun Akuntansi': 'Beban Gaji & Tunjangan Karyawan',
+        'Kelompok Akun': 'Beban Operasional (OPEX)',
+        'Target Laporan': 'Laporan Laba Rugi',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Gaji staf dapur, kasir & waiter'
+      },
+      {
+        'Kode Akun': '6002',
+        'Nama Akun Akuntansi': 'Beban Listrik, Air PLN & LPG',
+        'Kelompok Akun': 'Beban Operasional (OPEX)',
+        'Target Laporan': 'Laporan Laba Rugi',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Tagihan utilitas bulanan'
+      },
+      {
+        'Kode Akun': '6003',
+        'Nama Akun Akuntansi': 'Beban Sewa Gedung Restoran',
+        'Kelompok Akun': 'Beban Operasional (OPEX)',
+        'Target Laporan': 'Laporan Laba Rugi',
+        'Saldo Normal': 'Debet',
+        'Status': 'Aktif',
+        'Catatan': 'Sewa tempat ruko / outlet'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    worksheet['!cols'] = [
+      { wch: 14 }, // Kode Akun
+      { wch: 44 }, // Nama Akun
+      { wch: 28 }, // Kelompok Akun
+      { wch: 20 }, // Target Laporan
+      { wch: 15 }, // Saldo Normal
+      { wch: 12 }, // Status
+      { wch: 45 }  // Catatan
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Master Data COA');
+    XLSX.writeFile(workbook, 'Template_Chart_of_Accounts_MRIS.xlsx');
+  };
+
+  // Excel / CSV File Process Handler
+  const processUploadedFile = (file) => {
+    if (!file) return;
+    setFileName(file.name);
+    setUploadError('');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawJson = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+        if (!rawJson || rawJson.length === 0) {
+          setUploadError('File Excel/CSV kosong atau format tidak terbaca.');
+          return;
+        }
+
+        // Map and validate rows
+        const parsed = rawJson.map((row, idx) => {
+          const codeVal = String(
+            row['Kode Akun'] || row['Kode'] || row['code'] || row['Kode_Akun'] || row['Account Code'] || ''
+          ).trim();
+
+          const nameVal = String(
+            row['Nama Akun Akuntansi'] || row['Nama Akun'] || row['Nama'] || row['name'] || row['Account Name'] || ''
+          ).trim();
+
+          const groupVal = String(
+            row['Kelompok Akun'] || row['Category Group'] || row['Kelompok'] || row['categoryGroup'] || 'Beban Operasional (OPEX)'
+          ).trim();
+
+          const reportVal = String(
+            row['Target Laporan'] || row['Target Report'] || row['Laporan'] || row['targetReport'] || 'Laporan Laba Rugi'
+          ).trim();
+
+          const balanceVal = String(
+            row['Saldo Normal'] || row['Normal Balance'] || row['normalBalance'] || 'Debet'
+          ).trim();
+
+          const statusVal = String(
+            row['Status'] || row['status'] || 'Aktif'
+          ).trim();
+
+          const notesVal = String(
+            row['Catatan'] || row['Keterangan'] || row['Notes'] || row['notes'] || ''
+          ).trim();
+
+          const existingAcc = accountsList.find(a => String(a.code).trim() === codeVal);
+
+          let isValid = true;
+          let validationMsg = 'Valid';
+
+          if (!codeVal) {
+            isValid = false;
+            validationMsg = 'Kode akun kosong';
+          } else if (!nameVal) {
+            isValid = false;
+            validationMsg = 'Nama akun kosong';
+          } else if (existingAcc) {
+            validationMsg = 'Update (Kode Ada)';
+          }
+
+          return {
+            tempId: idx + 1,
+            code: codeVal,
+            name: nameVal,
+            categoryGroup: groupVal,
+            targetReport: reportVal,
+            normalBalance: balanceVal,
+            status: statusVal,
+            notes: notesVal,
+            isValid,
+            validationMsg,
+            isDuplicate: !!existingAcc
+          };
+        });
+
+        setParsedAccounts(parsed);
+        setUploadStep('preview');
+      } catch (err) {
+        console.error("Error reading Excel:", err);
+        setUploadError('Gagal membaca file Excel/CSV: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Import Execution Handler
+  const handleExecuteImport = () => {
+    const validItems = parsedAccounts.filter(p => p.isValid);
+    if (validItems.length === 0) {
+      alert('Tidak ada data valid yang dapat di-import.');
+      return;
+    }
+
+    let newList = [];
+    if (importMode === 'overwrite') {
+      newList = validItems.map((item, idx) => ({
+        id: Date.now() + idx,
+        code: item.code,
+        name: item.name,
+        categoryGroup: item.categoryGroup,
+        targetReport: item.targetReport,
+        normalBalance: item.normalBalance,
+        status: item.status,
+        notes: item.notes
+      }));
+    } else {
+      const mapExisting = new Map(accountsList.map(a => [String(a.code).trim(), a]));
+      
+      validItems.forEach((item, idx) => {
+        const codeKey = String(item.code).trim();
+        if (mapExisting.has(codeKey)) {
+          const existing = mapExisting.get(codeKey);
+          mapExisting.set(codeKey, {
+            ...existing,
+            name: item.name,
+            categoryGroup: item.categoryGroup,
+            targetReport: item.targetReport,
+            normalBalance: item.normalBalance,
+            status: item.status,
+            notes: item.notes
+          });
+        } else {
+          mapExisting.set(codeKey, {
+            id: Date.now() + idx,
+            code: item.code,
+            name: item.name,
+            categoryGroup: item.categoryGroup,
+            targetReport: item.targetReport,
+            normalBalance: item.normalBalance,
+            status: item.status,
+            notes: item.notes
+          });
+        }
+      });
+
+      newList = Array.from(mapExisting.values());
+    }
+
+    setMasterData({
+      ...masterData,
+      chartOfAccounts: newList,
+      expenseMaster: newList
+    });
+
+    setShowUploadModal(false);
+    setUploadStep('select');
+    setParsedAccounts([]);
+    alert(`Berhasil meng-import ${validItems.length} akun akuntansi ke Master Data!`);
+  };
 
   // Helper to categorize account code into Class Badge Style
   const getAccountClassInfo = (account) => {
@@ -220,26 +532,77 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAddModal}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            background: T.primaryBtn,
-            border: 'none',
-            borderRadius: '8px',
-            color: T.navActiveTxt,
-            fontWeight: '800',
-            fontSize: '0.72rem',
-            cursor: 'pointer',
-            boxShadow: T.primaryBtnShadow
-          }}
-        >
-          <Plus size={15} />
-          <span>Tambah Kode Akun Baru</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleDownloadTemplate}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: T.cardBg,
+              border: `1px solid ${T.successBorder}`,
+              borderRadius: '8px',
+              color: T.success,
+              fontWeight: '800',
+              fontSize: '0.72rem',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Download file template Excel (.xlsx) siap isi"
+          >
+            <Download size={14} />
+            <span>Download Template Excel</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setUploadStep('select');
+              setUploadError('');
+              setParsedAccounts([]);
+              setShowUploadModal(true);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: T.cardBg,
+              border: `1px solid ${T.infoBorder}`,
+              borderRadius: '8px',
+              color: T.info,
+              fontWeight: '800',
+              fontSize: '0.72rem',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Upload data akun dari file Excel (.xlsx) atau CSV"
+          >
+            <Upload size={14} />
+            <span>Upload Excel / CSV</span>
+          </button>
+
+          <button
+            onClick={handleOpenAddModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: T.primaryBtn,
+              border: 'none',
+              borderRadius: '8px',
+              color: T.navActiveTxt,
+              fontWeight: '800',
+              fontSize: '0.72rem',
+              cursor: 'pointer',
+              boxShadow: T.primaryBtnShadow
+            }}
+          >
+            <Plus size={15} />
+            <span>Tambah Kode Akun Baru</span>
+          </button>
+        </div>
       </div>
 
       {/* SUMMARY STATS CARDS BY ACCOUNT CLASS */}
@@ -697,6 +1060,315 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL UPLOAD EXCEL / CSV */}
+      {showUploadModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '16px'
+        }}>
+          <div style={{
+            background: T.cardBg,
+            border: `1px solid ${T.infoBorder}`,
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: uploadStep === 'preview' ? '880px' : '540px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '24px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.6)'
+          }} className="animate-scale-up">
+
+            {/* MODAL HEADER */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FileSpreadsheet size={22} color={T.info} />
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+                    Upload Data Master Akuntansi (COA)
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: T.txtSecondary }}>
+                    Format file: Excel (.xlsx, .xls) atau CSV (.csv)
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                style={{ background: 'transparent', border: 'none', color: T.txtMuted, cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* ERROR BANNER */}
+            {uploadError && (
+              <div style={{ background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, color: T.danger, padding: '10px 14px', borderRadius: '8px', fontSize: '0.78rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                <span>{uploadError}</span>
+              </div>
+            )}
+
+            {/* STEP 1: SELECT FILE */}
+            {uploadStep === 'select' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                {/* DROPZONE */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      processUploadedFile(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  style={{
+                    border: `2px dashed ${isDragging ? T.info : T.border}`,
+                    background: isDragging ? T.infoBg : T.cardBg2,
+                    borderRadius: '12px',
+                    padding: '36px 20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => document.getElementById('excelFileInput').click()}
+                >
+                  <FileUp size={44} color={T.info} style={{ marginBottom: '12px' }} />
+                  <div style={{ fontSize: '0.90rem', fontWeight: '800', color: T.txtPrimary }}>
+                    Pilih atau Drag &amp; Drop File Excel
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '4px' }}>
+                    Mendukung file format <strong>.xlsx</strong>, <strong>.xls</strong>, dan <strong>.csv</strong>
+                  </div>
+
+                  <input
+                    id="excelFileInput"
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        processUploadedFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* GUIDANCE & TEMPLATE DOWNLOAD LINK */}
+                <div style={{ background: T.infoBg, border: `1px solid ${T.infoBorder}`, borderRadius: '10px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.info, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Info size={15} />
+                    <span>Perlu Contoh Format Template?</span>
+                  </div>
+                  <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '0 0 10px 0', lineHeight: 1.4 }}>
+                    Gunakan template standar agar kolom teridentifikasi secara otomatis:
+                    <br />
+                    <code>Kode Akun</code>, <code>Nama Akun Akuntansi</code>, <code>Kelompok Akun</code>, <code>Target Laporan</code>, <code>Saldo Normal</code>, <code>Status</code>.
+                  </p>
+                  <button
+                    onClick={handleDownloadTemplate}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      background: T.info,
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#ffffff',
+                      fontWeight: '800',
+                      fontSize: '0.72rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Download size={14} />
+                    <span>Download Template Spreadsheet (.xlsx)</span>
+                  </button>
+                </div>
+
+              </div>
+            )}
+
+            {/* STEP 2: PREVIEW & CONFIRMATION */}
+            {uploadStep === 'preview' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                {/* STATS & FILE INFO BAR */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: T.cardBg2, padding: '12px 16px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                  <div>
+                    <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary }}>
+                      📄 {fileName}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>
+                      Terbaca <strong>{parsedAccounts.length}</strong> baris akun akuntansi dari file
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <span style={{ padding: '4px 8px', borderRadius: '6px', background: T.successBg, color: T.success, fontSize: '0.70rem', fontWeight: '800', border: `1px solid ${T.successBorder}` }}>
+                      {parsedAccounts.filter(p => p.isValid && !p.isDuplicate).length} Akun Baru
+                    </span>
+                    <span style={{ padding: '4px 8px', borderRadius: '6px', background: T.accentGoldBg, color: T.accentGold, fontSize: '0.70rem', fontWeight: '800', border: `1px solid ${T.accentGoldBorder}` }}>
+                      {parsedAccounts.filter(p => p.isValid && p.isDuplicate).length} Kode Sudah Ada
+                    </span>
+                    {parsedAccounts.some(p => !p.isValid) && (
+                      <span style={{ padding: '4px 8px', borderRadius: '6px', background: T.dangerBg, color: T.danger, fontSize: '0.70rem', fontWeight: '800', border: `1px solid ${T.dangerBorder}` }}>
+                        {parsedAccounts.filter(p => !p.isValid).length} Error / Tidak Valid
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* PREVIEW TABLE */}
+                <div style={{ border: `1px solid ${T.border}`, borderRadius: '10px', overflow: 'hidden', maxHeight: '300px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.74rem' }}>
+                    <thead>
+                      <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', fontWeight: '800' }}>
+                        <th style={{ padding: '8px 10px', width: '90px' }}>Kode</th>
+                        <th style={{ padding: '8px 10px' }}>Nama Akun Akuntansi</th>
+                        <th style={{ padding: '8px 10px', width: '170px' }}>Kelompok Akun</th>
+                        <th style={{ padding: '8px 10px', width: '140px' }}>Target Laporan</th>
+                        <th style={{ padding: '8px 10px', width: '90px' }}>Status Validasi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedAccounts.map((item) => (
+                        <tr
+                          key={item.tempId}
+                          style={{
+                            borderBottom: `1px solid ${T.border}`,
+                            background: !item.isValid ? T.dangerBg : item.isDuplicate ? T.accentGoldBg : 'transparent'
+                          }}
+                        >
+                          <td style={{ padding: '6px 10px', fontWeight: '800', fontFamily: 'monospace', color: T.txtPrimary }}>
+                            [{item.code || '—'}]
+                          </td>
+                          <td style={{ padding: '6px 10px', fontWeight: '700', color: T.txtPrimary }}>
+                            {item.name || '—'}
+                          </td>
+                          <td style={{ padding: '6px 10px', color: T.txtSecondary }}>
+                            {item.categoryGroup}
+                          </td>
+                          <td style={{ padding: '6px 10px', color: T.txtSecondary }}>
+                            {item.targetReport}
+                          </td>
+                          <td style={{ padding: '6px 10px' }}>
+                            {!item.isValid ? (
+                              <span style={{ color: T.danger, fontWeight: '800', fontSize: '0.68rem' }}>❌ {item.validationMsg}</span>
+                            ) : item.isDuplicate ? (
+                              <span style={{ color: T.accentGold, fontWeight: '800', fontSize: '0.68rem' }}>⚠️ {item.validationMsg}</span>
+                            ) : (
+                              <span style={{ color: T.success, fontWeight: '800', fontSize: '0.68rem' }}>✅ Ready</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* STRATEGY TOGGLE */}
+                <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                  <label style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '800', display: 'block', marginBottom: '8px' }}>
+                    ⚙️ Metode Penggabungan Data:
+                  </label>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '600' }}>
+                      <input
+                        type="radio"
+                        name="importStrategy"
+                        value="append"
+                        checked={importMode === 'append'}
+                        onChange={() => setImportMode('append')}
+                      />
+                      <span><strong>Gabungkan &amp; Update</strong> (Tambah akun baru &amp; perbarui jika kode sama)</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: T.danger, fontWeight: '600' }}>
+                      <input
+                        type="radio"
+                        name="importStrategy"
+                        value="overwrite"
+                        checked={importMode === 'overwrite'}
+                        onChange={() => setImportMode('overwrite')}
+                      />
+                      <span><strong>Ganti Semua Data</strong> (Hapus semua akun lama &amp; ganti dengan file ini)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* FOOTER ACTIONS */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadStep('select');
+                      setParsedAccounts([]);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: T.cardBg,
+                      border: `1px solid ${T.border}`,
+                      borderRadius: '8px',
+                      color: T.txtSecondary,
+                      fontSize: '0.78rem',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <RefreshCw size={14} />
+                    <span>Pilih File Lain</span>
+                  </button>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowUploadModal(false)}
+                      style={{ padding: '8px 16px', background: T.borderStrong, border: 'none', borderRadius: '8px', color: T.txtSecondary, fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer' }}
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExecuteImport}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 20px',
+                        background: T.primaryBtn,
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: T.navActiveTxt,
+                        fontSize: '0.82rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        boxShadow: T.primaryBtnShadow
+                      }}
+                    >
+                      <CheckCircle2 size={16} />
+                      <span>Proses Import ({parsedAccounts.filter(p => p.isValid).length} Akun)</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
           </div>
         </div>
       )}
