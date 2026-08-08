@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Scale, ArrowLeftRight, Sparkles, Calendar, ChevronDown, Check, FileSpreadsheet, X, Search, Filter, Download, Building2, ExternalLink } from 'lucide-react';
+import { FileText, Scale, PieChart, ArrowLeftRight, Sparkles, Calendar, ChevronDown, Check, FileSpreadsheet, X, Search, Filter, Download, Building2, ExternalLink } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
 
 export default function FinancialReportsFull({ masterData, selectedBranch, themeMode = 'dark' }) {
