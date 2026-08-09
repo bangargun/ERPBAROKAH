@@ -262,8 +262,10 @@ export default function ManualReportUpdatePage({
   const handleConfirmDeleteReport = () => {
     if (!deletingReport) return;
 
-    const targetId = deletingReport.id;
-    const targetReportNo = deletingReport.report_no;
+    const targetId = String(deletingReport.id || '');
+    const targetReportNo = deletingReport.report_no || '';
+    const targetDate = String(deletingReport.entry_date || deletingReport.date || deletingReport.transaction_date || '').substring(0, 10);
+    const targetOutletId = String(deletingReport.outlet_id || '');
 
     // 1. REVERT STOCK OF RAW MATERIALS (Pengembalian Stok)
     let updatedIngredients = [...(masterData?.ingredients || [])];
@@ -306,14 +308,32 @@ export default function ManualReportUpdatePage({
       }
     });
 
-    // 2. REMOVE RECORD FROM ALL MASTER DATA ARRAYS
-    const updatedManualRecords = (masterData?.manualEntryRecords || []).filter(r => String(r.id) !== String(targetId) && r.report_no !== targetReportNo);
-    const updatedApprovedDaily = (masterData?.approvedFinanceDaily || []).filter(r => String(r.id) !== String(targetId) && r.report_no !== targetReportNo);
-    const updatedShiftReports = (masterData?.shiftReports || []).filter(r => String(r.id) !== String(targetId) && r.report_no !== targetReportNo);
-    
+    // 2. REMOVE RECORD FROM ALL MASTER DATA ARRAYS STRICTLY
+    const isTargetRecord = (r) => {
+      if (!r) return false;
+      const rId = String(r.id || '');
+      const rNo = r.report_no || '';
+      if (rId === targetId || (targetReportNo && rNo === targetReportNo)) return true;
+      if (targetDate) {
+        const rDt = String(r.entry_date || r.date || r.transaction_date || r.timestamp || r.created_at || '').substring(0, 10);
+        const rOtl = String(r.outlet_id || r.branch_id || '');
+        if (rDt === targetDate && (!targetOutletId || !rOtl || rOtl === targetOutletId)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const updatedManualRecords = (masterData?.manualEntryRecords || []).filter(r => !isTargetRecord(r));
+    const updatedApprovedDaily = (masterData?.approvedFinanceDaily || []).filter(r => !isTargetRecord(r));
+    const updatedShiftReports = (masterData?.shiftReports || []).filter(r => !isTargetRecord(r));
+    const updatedDailyReports = (masterData?.dailyReports || []).filter(r => !isTargetRecord(r));
+    const updatedManualReports = (masterData?.manualReports || []).filter(r => !isTargetRecord(r));
+
     // Remove related financial and sales transactions
-    const updatedFinRecords = (masterData?.financialRecords || []).filter(f => String(f.report_no || f.id) !== String(targetReportNo) && String(f.id) !== String(targetId));
-    const updatedSalesTx = (masterData?.salesTransactions || masterData?.outletTransactions || []).filter(t => String(t.report_no || t.id) !== String(targetReportNo) && String(t.id) !== String(targetId));
+    const updatedFinRecords = (masterData?.financialRecords || []).filter(f => !isTargetRecord(f));
+    const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => !isTargetRecord(t));
+    const updatedOutletTx = (masterData?.outletTransactions || []).filter(t => !isTargetRecord(t));
 
     const updatedMovements = [...restorationMovements, ...(masterData?.stockMovement || [])];
 
@@ -324,12 +344,14 @@ export default function ManualReportUpdatePage({
       manualEntryRecords: updatedManualRecords,
       approvedFinanceDaily: updatedApprovedDaily,
       shiftReports: updatedShiftReports,
+      dailyReports: updatedDailyReports,
+      manualReports: updatedManualReports,
       financialRecords: updatedFinRecords,
       salesTransactions: updatedSalesTx,
-      outletTransactions: updatedSalesTx
+      outletTransactions: updatedOutletTx
     });
 
-    alert(`✅ BERHASIL MENGHAPUS LAPORAN!\n\n• No Laporan: ${targetReportNo || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku berhasil dikembalikan ke stok semula.\n• Laporan Keuangan (Laba Rugi, Neraca) telah disesuaikan secara real-time!`);
+    alert(`✅ BERHASIL MENGHAPUS LAPORAN!\n\n• Laporan/Tanggal: ${targetReportNo || targetDate || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku berhasil dikembalikan ke stok semula.\n• Seluruh rekap laporan & transaksi terkait telah dibersihkan!`);
 
     setDeletingReport(null);
   };
