@@ -289,6 +289,7 @@ export default function IngredientPriceTrendPage({
             setDatePreset={setDatePreset}
             showPopover={showCalendarPopover}
             setShowPopover={setShowCalendarPopover}
+            hideOutletFilter={true}
             themeMode={themeMode}
           />
         </div>

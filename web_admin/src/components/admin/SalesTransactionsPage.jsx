@@ -130,8 +130,9 @@ export function DoubleCalendarPicker({
   onToggleAllOutlets,
   showOutletDropdown,
   setShowOutletDropdown,
-  selectedBranch = null
-, themeMode = 'dark' }) {
+  selectedBranch = null,
+  hideOutletFilter = false,
+  themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
   const [baseMonth, setBaseMonth] = useState(new Date(2026, 6, 1)); // Default to July 2026 as in screenshot
   const [tempStart, setTempStart] = useState(startDate);
@@ -468,113 +469,114 @@ export function DoubleCalendarPicker({
       </div>
 
       {/* Outlet Selection Dropdown */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showOutletDropdown ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Outlet</span>
-        <button
-          onClick={() => { setShowOutletDropdown(!showOutletDropdown); setShowPopover(false); }}
-          style={{
-            minWidth: '220px',
-            padding: '10px 14px',
-            borderRadius: '6px',
-            border: `1px solid ${T.border}`,
-            background: T.inputBg,
-            color: T.txtPrimary,
-            fontSize: '0.85rem',
-            textAlign: 'left',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: '40px',
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
-        >
-          <span style={{ textTransform: 'uppercase', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '180px' }}>
-            {selectedOutletLabel()}
-          </span>
-          <ChevronDown size={16} color={T.txtSecondary} />
-        </button>
+      {!hideOutletFilter && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showOutletDropdown ? 999999 : 1 }}>
+          <button
+            onClick={() => { setShowOutletDropdown(!showOutletDropdown); setShowPopover(false); }}
+            style={{
+              minWidth: '220px',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              border: `1px solid ${T.border}`,
+              background: T.inputBg,
+              color: T.txtPrimary,
+              fontSize: '0.85rem',
+              textAlign: 'left',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: '40px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
+          >
+            <span style={{ textTransform: 'uppercase', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+              {selectedOutletLabel()}
+            </span>
+            <ChevronDown size={16} color={T.txtSecondary} />
+          </button>
 
-        {/* Outlet Multi-select Dropdown Popover */}
-        {showOutletDropdown && (
-          <div style={{
-            position: 'absolute',
-            top: '48px',
-            left: 0,
-            width: '280px',
-            background: T.dropdownBg,
-            border: `1.5px solid ${T.dropdownBorder}`,
-            borderRadius: '8px',
-            boxShadow: T.shadowLg,
-            zIndex: 999999,
-            padding: '8px 0',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <button
-              onClick={() => onToggleAllOutlets()}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                textAlign: 'left',
-                border: 'none',
-                background: 'none',
-                fontSize: '0.82rem',
-                color: selectedOutletIds.includes('ALL') ? `${T.info}` : T.txtPrimary,
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'background 0.15s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-            >
-              <input type="checkbox" checked={selectedOutletIds.includes('ALL')} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
-              <span>🏢 SEMUA OUTLET CABANG</span>
-            </button>
+          {/* Outlet Multi-select Dropdown Popover */}
+          {showOutletDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '48px',
+              left: 0,
+              width: '280px',
+              background: T.dropdownBg,
+              border: `1.5px solid ${T.dropdownBorder}`,
+              borderRadius: '8px',
+              boxShadow: T.shadowLg,
+              zIndex: 999999,
+              padding: '8px 0',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <button
+                onClick={() => onToggleAllOutlets()}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  textAlign: 'left',
+                  border: 'none',
+                  background: 'none',
+                  fontSize: '0.82rem',
+                  color: selectedOutletIds.includes('ALL') ? `${T.info}` : T.txtPrimary,
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+              >
+                <input type="checkbox" checked={selectedOutletIds.includes('ALL')} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
+                <span>🏢 SEMUA OUTLET CABANG</span>
+              </button>
 
-            <div style={{ borderTop: `1px solid ${T.border}`, margin: '4px 0' }} />
+              <div style={{ borderTop: `1px solid ${T.border}`, margin: '4px 0' }} />
 
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {outlets.map(o => {
-                const isChecked = selectedOutletIds.includes(o.id);
-                return (
-                  <button
-                    key={o.id}
-                    onClick={() => onToggleOutlet(o.id)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 16px',
-                      textAlign: 'left',
-                      border: 'none',
-                      background: 'none',
-                      fontSize: '0.82rem',
-                      color: isChecked ? `${T.info}` : T.txtPrimary,
-                      fontWeight: isChecked ? '700' : '500',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'background 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                  >
-                    <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
-                    <span>🏢 {o.name}</span>
-                  </button>
-                );
-              })}
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {outlets.map(o => {
+                  const isChecked = selectedOutletIds.includes(o.id);
+                  return (
+                    <button
+                      key={o.id}
+                      onClick={() => onToggleOutlet(o.id)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 16px',
+                        textAlign: 'left',
+                        border: 'none',
+                        background: 'none',
+                        fontSize: '0.82rem',
+                        color: isChecked ? `${T.info}` : T.txtPrimary,
+                        fontWeight: isChecked ? '700' : '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                    >
+                      <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
+                      <span>🏢 {o.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Double Calendar Picker Popover */}
       {showPopover && (
