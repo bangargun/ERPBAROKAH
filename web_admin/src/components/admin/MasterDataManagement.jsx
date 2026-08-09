@@ -125,15 +125,16 @@ export default function MasterDataManagement({ masterData, setMasterData, select
       {/* Sticky Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) */}
       <div style={{
         position: 'sticky',
-        top: '56px',
-        zIndex: 100,
+        top: '-20px',
+        zIndex: 1000,
+        margin: '-20px -20px 12px -20px',
+        padding: '16px 20px 12px 20px',
         background: T.pageBg,
-        paddingTop: '6px',
-        paddingBottom: '10px',
-        borderBottom: `1px solid ${T.border}`,
+        borderBottom: `1.5px solid ${T.border}`,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         display: 'grid',
         gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: '6px',
+        gap: '8px',
         transition: 'background 0.25s ease'
       }}>
         {subTabs.map(tab => {
