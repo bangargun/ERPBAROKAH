@@ -30,24 +30,49 @@ export default function ManualReportUpdateModal({
   masterData, 
   setMasterData, 
   userSession, 
-  themeMode = 'dark' 
+  themeMode = 'dark',
+  editData = null
 }) {
   if (!show) return null;
 
   const T = getThemePalette(themeMode);
+  const isEditMode = !!editData;
 
   // Active Tab ('manual' | 'excel')
   const [activeTab, setActiveTab] = useState('manual');
-  const [entryType, setEntryType] = useState('penjualan'); // 'penjualan' | 'pengeluaran'
+  const [entryType, setEntryType] = useState(() => {
+    if (editData) {
+      const hasSales = (editData.sales_details || []).length > 0;
+      return hasSales ? 'penjualan' : 'pengeluaran';
+    }
+    return 'penjualan';
+  });
 
   // Header Common States
-  const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [selectedOutletId, setSelectedOutletId] = useState(() => masterData?.outlets?.[0]?.id || 1);
+  const [reportDate, setReportDate] = useState(() => {
+    if (editData) return editData.entry_date || editData.date || new Date().toISOString().split('T')[0];
+    return new Date().toISOString().split('T')[0];
+  });
+  const [selectedOutletId, setSelectedOutletId] = useState(() => {
+    if (editData) return editData.outlet_id || masterData?.outlets?.[0]?.id || 1;
+    return masterData?.outlets?.[0]?.id || 1;
+  });
   const [authorName, setAuthorName] = useState(() => userSession?.name || userSession?.username || 'Super Admin');
 
   // Manual Form - Sales Items State
-  const [salesItems, setSalesItems] = useState([
-    {
+  const [salesItems, setSalesItems] = useState(() => {
+    if (editData && (editData.sales_details || []).length > 0) {
+      return editData.sales_details.map((s, i) => ({
+        id: i + 1,
+        productId: s.product_id || '',
+        productName: s.product_name || s.name || '',
+        qty: s.qty || 1,
+        price: s.price || 0,
+        subtotal: s.subtotal || s.amount || 0,
+        paymentMethod: 'Kas Kasir (Tunai)'
+      }));
+    }
+    return [{
       id: 1,
       productId: masterData?.products?.[0]?.id || '',
       productName: masterData?.products?.[0]?.name || '',
@@ -55,20 +80,31 @@ export default function ManualReportUpdateModal({
       price: masterData?.products?.[0]?.price || 25000,
       subtotal: masterData?.products?.[0]?.price || 25000,
       paymentMethod: 'Kas Kasir (Tunai)'
-    }
-  ]);
+    }];
+  });
 
   // Manual Form - Expense Items State
-  const [expenseItems, setExpenseItems] = useState([
-    {
+  const [expenseItems, setExpenseItems] = useState(() => {
+    if (editData && (editData.expense_details || editData.expenses_breakdown || []).length > 0) {
+      const srcList = editData.expense_details || editData.expenses_breakdown || [];
+      return srcList.map((e, i) => ({
+        id: i + 1,
+        accountCode: e.code || e.accountCode || '6001',
+        categoryName: e.name || e.categoryName || e.category || '',
+        notes: e.notes || '',
+        amount: e.amount || e.subtotal || 0,
+        paymentSource: 'Kas Kasir (Tunai)'
+      }));
+    }
+    return [{
       id: 1,
       accountCode: '6001',
       categoryName: 'Beban Gaji & Operasional',
       notes: 'Pembelian Biaya Operasional Dapur',
       amount: 50000,
       paymentSource: 'Kas Kasir (Tunai)'
-    }
-  ]);
+    }];
+  });
 
   // Excel Upload States
   const [uploadStep, setUploadStep] = useState('select'); // 'select' | 'preview'
@@ -781,12 +817,16 @@ export default function ManualReportUpdateModal({
     const netCashFlowAll = totalSalesOmsetAll - totalExpenseAmountAll;
 
     // 4. SAVE TO MASTER DATA STATE LOCALLY
-    const updatedManualRecords = [...allNewReportRecords, ...(masterData?.manualEntryRecords || [])];
-    const updatedApprovedDaily = [...allNewReportRecords, ...(masterData?.approvedFinanceDaily || [])];
-    const updatedShiftReports = [...allNewReportRecords, ...(masterData?.shiftReports || [])];
-    const updatedMovements = [...newStockMovements, ...(masterData?.stockMovement || [])];
-    const updatedFinRecords = [...allNewFinancialRecords, ...(masterData?.financialRecords || [])];
-    const updatedSalesTx = [...allNewSalesTxRecords, ...(masterData?.salesTransactions || []), ...(masterData?.outletTransactions || [])];
+    // Jika mode Edit: hapus laporan lama (by editData.id) sebelum tambah yang baru
+    const oldId = isEditMode ? String(editData.id) : null;
+    const filterOld = (arr) => oldId ? (arr || []).filter(r => String(r.id) !== oldId) : (arr || []);
+
+    const updatedManualRecords = [...allNewReportRecords, ...filterOld(masterData?.manualEntryRecords)];
+    const updatedApprovedDaily = [...allNewReportRecords, ...filterOld(masterData?.approvedFinanceDaily)];
+    const updatedShiftReports  = [...allNewReportRecords, ...filterOld(masterData?.shiftReports)];
+    const updatedMovements     = [...newStockMovements,   ...(masterData?.stockMovement || [])];
+    const updatedFinRecords    = [...allNewFinancialRecords, ...(masterData?.financialRecords || [])];
+    const updatedSalesTx       = [...allNewSalesTxRecords, ...(masterData?.salesTransactions || []), ...(masterData?.outletTransactions || [])];
 
     setMasterData({
       ...masterData,
@@ -807,7 +847,9 @@ export default function ManualReportUpdateModal({
     if (newAccountsCreatedCount > 0) autoMsg += `\n• Auto-Generate Kode Biaya Baru: ${newAccountsCreatedCount} Akun terdaftar.`;
     if (newProductsCreatedCount > 0) autoMsg += `\n• Auto-Register Produk Baru: ${newProductsCreatedCount} Produk terdaftar.`;
 
-    alert(`✅ BERHASIL UPDATE LAPORAN!\n\n• Total Laporan Dibuat: ${allNewReportRecords.length} laporan (${groupMap.size} tanggal berbeda)\n• Total Penjualan: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
+    alert(isEditMode
+      ? `✅ LAPORAN BERHASIL DIUPDATE!\n\n• Laporan Lama: ${editData?.report_no || ''} telah digantikan\n• Total Penjualan: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}${autoMsg}`
+      : `✅ BERHASIL UPDATE LAPORAN!\n\n• Total Laporan Dibuat: ${allNewReportRecords.length} laporan (${groupMap.size} tanggal berbeda)\n• Total Penjualan: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
 
     onClose();
   };
@@ -847,10 +889,12 @@ export default function ManualReportUpdateModal({
             </div>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>+ Update Laporan Penjualan &amp; Pengeluaran</span>
+                <span>{isEditMode ? `✏️ Edit Laporan: ${editData?.report_no || ''}` : '+ Update Laporan Penjualan & Pengeluaran'}</span>
               </h2>
               <p style={{ fontSize: '0.74rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
-                Update transaksi manual / Excel yang secara otomatis memotong stok bahan baku dan memperbarui Laba Rugi, Neraca &amp; Arus Kas.
+                {isEditMode
+                  ? 'Ubah data laporan yang sudah ada. Laporan lama akan digantikan setelah disimpan.'
+                  : 'Update transaksi manual / Excel yang secara otomatis memotong stok bahan baku dan memperbarui Laba Rugi, Neraca & Arus Kas.'}
               </p>
             </div>
           </div>

@@ -504,7 +504,6 @@ export default function ManualReportUpdatePage({
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>Outlet / Cabang</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Penjualan</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Pengeluaran</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Net Cashflow</th>
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>Aksi</th>
               </tr>
@@ -512,7 +511,7 @@ export default function ManualReportUpdatePage({
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px 20px', textAlign: 'center', color: T.txtMuted, fontSize: '0.84rem' }}>
+                  <td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', color: T.txtMuted, fontSize: '0.84rem' }}>
                     <Info size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
                     <br />
                     Belum ada data laporan transaksi yang tersimpan. Klik <strong>"+ Buat Update Laporan Baru"</strong> untuk memasukkan data.
@@ -562,11 +561,6 @@ export default function ManualReportUpdatePage({
                         Rp {expenseVal.toLocaleString('id-ID')}
                       </td>
 
-                      {/* Net Cashflow */}
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '900', color: netVal >= 0 ? T.accentGold : T.danger }}>
-                        Rp {netVal.toLocaleString('id-ID')}
-                      </td>
-
                       {/* Status */}
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <span style={{ padding: '3px 8px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800' }}>
@@ -584,6 +578,15 @@ export default function ManualReportUpdatePage({
                             title="Preview Detail Laporan"
                           >
                             <Eye size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingReport(row)}
+                            style={{ padding: '5px 8px', background: T.warningBg || 'rgba(251,191,36,0.15)', border: `1px solid ${T.warningBorder || 'rgba(251,191,36,0.4)'}`, borderRadius: '6px', color: T.accentGold, cursor: 'pointer' }}
+                            title="Edit Laporan"
+                          >
+                            <Edit3 size={15} />
                           </button>
 
                           <button
@@ -756,7 +759,7 @@ export default function ManualReportUpdatePage({
         </div>
       )}
 
-      {/* --- CREATE / EDIT REPORT MODAL --- */}
+      {/* --- CREATE REPORT MODAL --- */}
       <ManualReportUpdateModal
         show={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -764,6 +767,17 @@ export default function ManualReportUpdatePage({
         setMasterData={setMasterData}
         userSession={userSession}
         themeMode={themeMode}
+      />
+
+      {/* --- EDIT REPORT MODAL --- */}
+      <ManualReportUpdateModal
+        show={!!editingReport}
+        onClose={() => setEditingReport(null)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        userSession={userSession}
+        themeMode={themeMode}
+        editData={editingReport}
       />
 
     </div>
