@@ -459,22 +459,36 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
   const isProductAvailableAtOutlet = (product, targetOutletId) => {
     if (!targetOutletId || targetOutletId === 'Semua' || targetOutletId === 'ALL' || targetOutletId === 'Semua Restoran (Konsolidasi)') return true;
+    if (!product) return false;
+
     const strId = String(targetOutletId);
     const numId = Number(targetOutletId);
 
-    // Check 1: Direct outlet_id
-    if (product.outlet_id !== undefined && product.outlet_id !== null && (String(product.outlet_id) === strId || Number(product.outlet_id) === numId)) {
-      return true;
+    // Check APK Status per outlet override
+    if (product.apkStatus && typeof product.apkStatus === 'object') {
+      const statusForOutlet = product.apkStatus[strId] || product.apkStatus[numId];
+      if (statusForOutlet === 'Hide' || statusForOutlet === 'Inaktif') return false;
     }
 
-    // Check 2: selectedOutletIds array
-    if (product.selectedOutletIds && Array.isArray(product.selectedOutletIds)) {
-      const match = product.selectedOutletIds.some(id => String(id) === strId || Number(id) === numId);
-      if (match) return true;
+    // Check 1: Direct outlet_id ('ALL', 'Semua', or exact match)
+    if (product.outlet_id !== undefined && product.outlet_id !== null) {
+      const outIdStr = String(product.outlet_id).toUpperCase();
+      if (outIdStr === 'ALL' || outIdStr === 'SEMUA' || outIdStr === strId || Number(product.outlet_id) === numId) {
+        return true;
+      }
+    }
+
+    // Check 2: selectedOutletIds array ('ALL', 'Semua', or exact match)
+    if (product.selectedOutletIds && Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0) {
+      const hasMatch = product.selectedOutletIds.some(id => {
+        const s = String(id).toUpperCase();
+        return s === 'ALL' || s === 'SEMUA' || s === strId || Number(id) === numId;
+      });
+      if (hasMatch) return true;
     }
 
     // Check 3: standardPrices map for targetOutletId
-    if (product.standardPrices) {
+    if (product.standardPrices && typeof product.standardPrices === 'object') {
       const stdPrice = product.standardPrices[strId] !== undefined 
         ? Number(product.standardPrices[strId]) 
         : Number(product.standardPrices[numId] || 0);
@@ -482,7 +496,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     }
 
     // Check 4: variantPrices map
-    if (product.variantPrices) {
+    if (product.variantPrices && typeof product.variantPrices === 'object') {
       for (const vName of Object.keys(product.variantPrices)) {
         const vMap = product.variantPrices[vName] || {};
         const vPrice = vMap[strId] !== undefined ? Number(vMap[strId]) : Number(vMap[numId] || 0);
@@ -494,7 +508,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     if (product.priceCombinations && Array.isArray(product.priceCombinations)) {
       for (const combo of product.priceCombinations) {
         if (combo.selectedOutletIds && Array.isArray(combo.selectedOutletIds)) {
-          if (combo.selectedOutletIds.some(id => String(id) === strId || Number(id) === numId)) {
+          if (combo.selectedOutletIds.some(id => {
+            const s = String(id).toUpperCase();
+            return s === 'ALL' || s === 'SEMUA' || s === strId || Number(id) === numId;
+          })) {
             return true;
           }
         }
@@ -505,6 +522,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           if (comboPrice > 0) return true;
         }
       }
+    }
+
+    // Default Fallback: If no restrictive selectedOutletIds array is set (or empty), the product is global (available at all outlets)
+    if (!product.selectedOutletIds || !Array.isArray(product.selectedOutletIds) || product.selectedOutletIds.length === 0) {
+      return true;
     }
 
     return false;
