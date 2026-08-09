@@ -2170,7 +2170,7 @@ export default function AndroidPosRegister({
       const matchPrev = existingReport?.items?.find(i => (i.item_name || i.nama_barang || '').toLowerCase() === name.toLowerCase())
         || (existingReport && (existingReport.item_name || '').toLowerCase() === name.toLowerCase() ? existingReport : null);
 
-      const stokAwal = matchPrev?.stok_awal !== undefined ? matchPrev.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0));
+      const stokAwal = matchPrev?.stok_awal !== undefined ? matchPrev.stok_awal : 0;
       const stokFisik = matchPrev?.stok_fisik !== undefined ? matchPrev.stok_fisik : '';
 
       return {
@@ -11574,7 +11574,7 @@ export default function AndroidPosRegister({
                     id: targetId,
                     item_name: ing.name || ing.item_name,
                     unit: ing.unit || 'kg',
-                    stok_awal: ing.stock !== undefined ? ing.stock : (ing.stok || 0),
+                    stok_awal: 0,
                     stok_fisik: val
                   }];
                 });
@@ -11591,7 +11591,7 @@ export default function AndroidPosRegister({
 
                   const newRecords = ingredientsList.map((ing, idx) => {
                     const r = opnameBatchRows.find(item => (item.item_name || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim()) || {};
-                    const sAwal = Number(r.stok_awal !== undefined && r.stok_awal !== '' ? r.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0)));
+                    const sAwal = Number(r.stok_awal !== undefined && r.stok_awal !== '' ? r.stok_awal : 0);
                     const sMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                     const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                     const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
@@ -11705,7 +11705,7 @@ export default function AndroidPosRegister({
                                 id: ing.id || `ing-opname-${idx}`,
                                 item_name: ing.name,
                                 unit: ing.unit || 'kg',
-                                stok_awal: ing.stock !== undefined ? ing.stock : (ing.stok || 0),
+                                stok_awal: 0,
                                 stok_fisik: ''
                               };
 
