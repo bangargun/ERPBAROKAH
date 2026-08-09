@@ -693,13 +693,13 @@ export default function IngredientPriceComparisonPage({
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.04em' }}>
-                <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '110px' }}>Tanggal</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '180px' }}>Nama Bahan Baku</th>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '110px', borderRight: `1px solid ${T.border}` }}>Tanggal</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '180px', borderRight: `1px solid ${T.border}` }}>Nama Bahan Baku</th>
                 
                 {/* DYNAMIC OUTLET COLUMN HEADERS */}
                 {activeOutletColumns.map(otl => (
-                  <th key={otl.id} style={{ padding: '12px 14px', textAlign: 'right', minWidth: '150px' }}>
+                  <th key={otl.id} style={{ padding: '12px 14px', textAlign: 'right', minWidth: '150px', borderRight: `1px solid ${T.border}` }}>
                     {otl.name}
                   </th>
                 ))}
@@ -724,12 +724,12 @@ export default function IngredientPriceComparisonPage({
                     <tr key={row.key} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
                       
                       {/* 1. Tanggal */}
-                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700' }}>
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700', borderRight: `1px solid ${T.border}` }}>
                         {formattedDate}
                       </td>
 
                       {/* 2. Nama Bahan Baku (beserta Satuan) */}
-                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '800' }}>
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '800', borderRight: `1px solid ${T.border}` }}>
                         <div>{row.ingredient_name}</div>
                         <span style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '600' }}>Satuan: {row.unit}</span>
                       </td>
@@ -739,14 +739,14 @@ export default function IngredientPriceComparisonPage({
                         const priceObj = row.outletPrices[String(otl.id)];
                         if (!priceObj || !priceObj.unit_price) {
                           return (
-                            <td key={otl.id} style={{ padding: '10px 14px', textAlign: 'right', color: T.txtMuted }}>
+                            <td key={otl.id} style={{ padding: '10px 14px', textAlign: 'right', color: T.txtMuted, borderRight: `1px solid ${T.border}` }}>
                               -
                             </td>
                           );
                         }
 
                         return (
-                          <td key={otl.id} style={{ padding: '10px 14px', textAlign: 'right' }}>
+                          <td key={otl.id} style={{ padding: '10px 14px', textAlign: 'right', borderRight: `1px solid ${T.border}` }}>
                             <div style={{ fontWeight: '900', color: T.txtPrimary }}>
                               Rp {priceObj.unit_price.toLocaleString('id-ID')}
                             </div>

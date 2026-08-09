@@ -577,7 +577,7 @@ body {
 
 /* ═══════════════════════════════════════════
    GLOBAL TABLE STYLING
-   Ultra-thin borders, plain text & micro font scale
+   Ultra-thin grid separator borders & crisp typography
    ═══════════════════════════════════════════ */
 table {
   width: 100%;
@@ -590,7 +590,11 @@ table th {
   letter-spacing: 0.04em;
   line-height: 1.4;
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 2px solid var(--border-strong, rgba(255, 255, 255, 0.15));
+  border-right: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+table th:last-child {
+  border-right: none;
 }
 table td {
   white-space: nowrap;
@@ -598,10 +602,14 @@ table td {
   line-height: 1.4;
   padding: 9px 12px;
   vertical-align: middle;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-right: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+table td:last-child {
+  border-right: none;
 }
 table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--hover-bg, rgba(255, 255, 255, 0.04));
 }
 table td span, table td div {
   white-space: nowrap;
