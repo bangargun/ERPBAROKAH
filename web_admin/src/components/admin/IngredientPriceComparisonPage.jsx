@@ -34,45 +34,10 @@ export default function IngredientPriceComparisonPage({
   const [showIngDropdown, setShowIngDropdown] = useState(false);
   const [ingDropdownSearch, setIngDropdownSearch] = useState('');
   
-  // Standard System Date Period Selector ('7days' | 'today' | '30days' | 'this_month' | 'last_month' | 'all' | 'custom')
-  const [datePeriod, setDatePeriod] = useState('7days');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  // Direct Calendar Widget Date Filter States (Dari Tanggal & Sampai Tanggal)
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [showColumnFilter, setShowColumnFilter] = useState(false);
-
-  // Compute Effective Start & End Date based on datePeriod preset
-  const { effectiveStartDate, effectiveEndDate } = useMemo(() => {
-    const today = new Date();
-    const formatDate = (d) => d.toISOString().split('T')[0];
-
-    if (datePeriod === 'today') {
-      const dt = formatDate(today);
-      return { effectiveStartDate: dt, effectiveEndDate: dt };
-    }
-    if (datePeriod === '7days') {
-      const past7 = new Date();
-      past7.setDate(today.getDate() - 6);
-      return { effectiveStartDate: formatDate(past7), effectiveEndDate: formatDate(today) };
-    }
-    if (datePeriod === '30days') {
-      const past30 = new Date();
-      past30.setDate(today.getDate() - 29);
-      return { effectiveStartDate: formatDate(past30), effectiveEndDate: formatDate(today) };
-    }
-    if (datePeriod === 'this_month') {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      return { effectiveStartDate: formatDate(firstDay), effectiveEndDate: formatDate(today) };
-    }
-    if (datePeriod === 'last_month') {
-      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
-      return { effectiveStartDate: formatDate(firstDay), effectiveEndDate: formatDate(lastDay) };
-    }
-    if (datePeriod === 'custom') {
-      return { effectiveStartDate: customStartDate, effectiveEndDate: customEndDate };
-    }
-    return { effectiveStartDate: '', effectiveEndDate: '' };
-  }, [datePeriod, customStartDate, customEndDate]);
 
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -230,9 +195,9 @@ export default function IngredientPriceComparisonPage({
         if (r.ingredient_name.toLowerCase().trim() !== selectedIngredientFilter.toLowerCase().trim()) return false;
       }
 
-      // Date Range Filter (Effective Start & End Date)
-      if (effectiveStartDate && r.date < effectiveStartDate) return false;
-      if (effectiveEndDate && r.date > effectiveEndDate) return false;
+      // Date Range Filter (Direct Calendar Picker)
+      if (startDate && r.date < startDate) return false;
+      if (endDate && r.date > endDate) return false;
 
       // Ingredient Search Filter
       if (searchTerm.trim()) {
@@ -245,7 +210,7 @@ export default function IngredientPriceComparisonPage({
 
       return true;
     });
-  }, [allPurchaseRecords, selectedBranch, selectedIngredientFilter, effectiveStartDate, effectiveEndDate, searchTerm]);
+  }, [allPurchaseRecords, selectedBranch, selectedIngredientFilter, startDate, endDate, searchTerm]);
 
   // TOP SUMMARY CARDS STATS (Lowest, Highest, Average, Max Variance)
   const summaryStats = useMemo(() => {
@@ -391,7 +356,7 @@ export default function IngredientPriceComparisonPage({
           </div>
           <div>
             <h1 style={{ fontSize: '1.30rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Perbandingan Harga Bahan Baku</span>
+              <span>Perbandingan Harga</span>
             </h1>
             <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
               Komparasi harga satuan Rp per unit antar cabang dari gabungan data Logistik, Laporan Harian, dan Update Laporan.
@@ -695,43 +660,31 @@ export default function IngredientPriceComparisonPage({
           )}
         </div>
 
-        {/* Dropdown Filter: Rentang Waktu Standar Sistem */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <select
-            value={datePeriod}
-            onChange={e => { setDatePeriod(e.target.value); setCurrentPage(1); }}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer' }}
-          >
-            <option value="7days">🗓 7 Hari Terakhir</option>
-            <option value="today">📅 Hari Ini</option>
-            <option value="30days">📆 30 Hari Terakhir</option>
-            <option value="this_month">🗓 Bulan Ini</option>
-            <option value="last_month">🗓 Bulan Lalu</option>
-            <option value="all">♾️ Semua Periode</option>
-            <option value="custom">📅 Custom Rentang Tanggal...</option>
-          </select>
+        {/* Calendar Widget: Dari Tanggal */}
+        <div style={{ position: 'relative' }}>
+          <Calendar size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
+            placeholder="Dari Tanggal"
+            title="Filter Dari Tanggal"
+            style={{ width: '100%', padding: '8px 12px 8px 34px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+          />
         </div>
 
-        {/* Custom Range Picker (Tampil hanya saat memilih Custom Rentang Tanggal) */}
-        {datePeriod === 'custom' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '6px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={e => { setCustomStartDate(e.target.value); setCurrentPage(1); }}
-              placeholder="Dari Tanggal"
-              style={{ padding: '4px 8px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.76rem' }}
-            />
-            <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>s/d</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={e => { setCustomEndDate(e.target.value); setCurrentPage(1); }}
-              placeholder="Sampai Tanggal"
-              style={{ padding: '4px 8px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.76rem' }}
-            />
-          </div>
-        )}
+        {/* Calendar Widget: Sampai Tanggal */}
+        <div style={{ position: 'relative' }}>
+          <Calendar size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
+            placeholder="Sampai Tanggal"
+            title="Filter Sampai Tanggal"
+            style={{ width: '100%', padding: '8px 12px 8px 34px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+          />
+        </div>
       </div>
 
       {/* MAIN DATA TABLE MATRIX */}
