@@ -51,8 +51,8 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
     setIngName('');
     setIngStatus('Aktif');
     setIngUnit(masterData.units?.[0]?.symbol || 'Gram');
-    setIngStock('1000');
-    setIngMinStock('500');
+    setIngStock('0');
+    setIngMinStock('0');
     setShowAddFormModal(true);
   };
 
@@ -63,8 +63,8 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
     setIngName(item.name || '');
     setIngStatus(item.status || 'Aktif');
     setIngUnit(item.unit || (masterData.units?.[0]?.symbol || 'Gram'));
-    setIngStock(item.stock !== undefined && item.stock !== null ? String(item.stock) : '1000');
-    setIngMinStock(item.min_stock !== undefined && item.min_stock !== null ? String(item.min_stock) : '500');
+    setIngStock(item.stock !== undefined && item.stock !== null ? String(item.stock) : '0');
+    setIngMinStock(item.min_stock !== undefined && item.min_stock !== null ? String(item.min_stock) : '0');
     setShowAddFormModal(true);
   };
 
@@ -497,7 +497,7 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                     onChange={e => setIngStock(e.target.value)}
                     className="form-input"
                     style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
-                    placeholder="1000"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -514,7 +514,7 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                     onChange={e => setIngMinStock(e.target.value)}
                     className="form-input"
                     style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
-                    placeholder="500"
+                    placeholder="0"
                   />
                 </div>
 
