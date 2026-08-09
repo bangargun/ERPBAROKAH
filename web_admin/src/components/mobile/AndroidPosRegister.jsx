@@ -11796,69 +11796,78 @@ export default function AndroidPosRegister({
       )}
 
       {/* 16. MODAL PREVIEW AUDIT STOK OPNAME LOGISTIK */}
-      {previewLogisticsReport && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
-                Pratinjau Audit Opname {previewLogisticsReport.report_no || previewLogisticsReport.id}
-              </h3>
-              <button onClick={() => setPreviewLogisticsReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
-                <X size={20} />
+      {previewLogisticsReport && (() => {
+        const relatedOpnameItems = (previewLogisticsReport.report_no
+          ? (masterData?.stockOpname || []).filter(s => s.report_no === previewLogisticsReport.report_no || s.id === previewLogisticsReport.id)
+          : [previewLogisticsReport]).filter(Boolean);
+        const displayItems = relatedOpnameItems.length > 0 ? relatedOpnameItems : [previewLogisticsReport];
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
+          }}>
+            <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                    Pratinjau Audit Opname #{previewLogisticsReport.report_no || previewLogisticsReport.id}
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
+                    {previewLogisticsReport.date} • Diisi oleh: {previewLogisticsReport.submitted_by || previewLogisticsReport.created_by}
+                  </p>
+                </div>
+                <button onClick={() => setPreviewLogisticsReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
+                  <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
+                  <span style={{ fontWeight: '900', color: (previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
+                    {(previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
+                  </span>
+                </div>
+
+                <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
+                        <th style={{ padding: '8px 10px' }}>#</th>
+                        <th style={{ padding: '8px 10px' }}>Nama Item</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Awal</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Masuk</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Trf Out/In</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Rusak</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Sisa Fisik</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayItems.map((it, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                          <td style={{ padding: '8px 10px', color: 'var(--pos-txt-secondary)' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: '800', color: '#34d399' }}>📦 {it.item_name}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>{it.stok_awal || 0} {it.unit}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#34d399' }}>+{it.stok_masuk || 0}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#a78bfa' }}>-{it.transfer_keluar || 0} / +{it.transfer_masuk || 0}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#fb7185' }}>-{it.stok_rusak || 0}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>{it.stok_fisik} {it.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <button onClick={() => setPreviewLogisticsReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', marginTop: '8px' }}>
+                Tutup Pratinjau
               </button>
             </div>
-
-            <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Audit:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewLogisticsReport.date}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Diisi Oleh:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewLogisticsReport.submitted_by || previewLogisticsReport.created_by}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Stok Item:</span>
-                <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewLogisticsReport.item_name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Awal:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>{previewLogisticsReport.stok_awal || 0} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Masuk:</span>
-                <span style={{ fontWeight: '800', color: '#34d399' }}>+{previewLogisticsReport.stok_masuk || 0} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Transfer Out / In:</span>
-                <span style={{ fontWeight: '800', color: '#a78bfa' }}>-{previewLogisticsReport.transfer_keluar || 0} / +{previewLogisticsReport.transfer_masuk || 0} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Rusak:</span>
-                <span style={{ fontWeight: '800', color: '#fb7185' }}>-{previewLogisticsReport.stok_rusak || 0} {previewLogisticsReport.unit} ({previewLogisticsReport.damage_reason || 'N/A'})</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>⚖️ Sisa Stok Fisik:</span>
-                <span style={{ fontWeight: '900', color: '#38bdf8', fontSize: '1rem' }}>{previewLogisticsReport.stok_fisik} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                <span style={{ fontWeight: '900', color: (previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
-                  {(previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
-                </span>
-              </div>
-            </div>
-
-            <button onClick={() => setPreviewLogisticsReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
-              Tutup Pratinjau
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* 16. MODAL FORM "+ BUAT LAPORAN TRANSFER PRODUK" (FULL SCREEN MODAL) */}
       {showAddTransferModal && (
         <div style={{
@@ -11945,7 +11954,8 @@ export default function AndroidPosRegister({
                   const newRecords = [];
                   let hasInvalidIngredient = false;
 
-                  transferBatchRows.forEach((row, idx) => {
+                  for (let idx = 0; idx < transferBatchRows.length; idx++) {
+                    const row = transferBatchRows[idx];
                     const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Baru') : row.item_name;
                     
                     // ── VALIDASI MASTER DATA BAHAN BAKU ────────────────────────
@@ -11976,17 +11986,29 @@ export default function AndroidPosRegister({
                       status: 'ditunda',
                       is_approved: false
                     });
+                  }
+
+                  if (hasInvalidIngredient || newRecords.length === 0) return;
+
+                  // DIRECT SAVE & CLOSE MODAL INSTANTLY
+                  setShowAddTransferModal(false);
+                  setPendingTransferDraft(null);
+
+                  setMasterData(prev => {
+                    const now = Date.now();
+                    const filterOld = list => (list || []).filter(r => r.report_no !== transferNo);
+                    const updatedTransfers = [...newRecords, ...filterOld(prev.stockTransfer)];
+                    const newMaster = {
+                      ...prev,
+                      _lastUpdated: now,
+                      clientUpdated: now,
+                      stockTransfer: updatedTransfers
+                    };
+                    saveToServerWithGuard(newMaster);
+                    return newMaster;
                   });
 
-                  setPendingTransferDraft({
-                    report_no: transferNo,
-                    date: transferDate,
-                    submitted_by: transferSubmittedBy,
-                    from_outlet_name: fromOutletObj.name || currentOutlet.name || 'Restoran Utama',
-                    to_outlet_name: toOutletObj.name || 'Outlet Tujuan',
-                    items: newRecords,
-                    notes: transferNotes || 'Transfer stok antarcabang'
-                  });
+                  alert(`✅ Laporan Transfer Bahan Baku ${transferNo} berisi ${newRecords.length} item berhasil disimpan & dikirim ke Logistik Pusat!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
                   {/* KARTU 1: Tanggal & Nomor Laporan */}
@@ -12430,68 +12452,86 @@ export default function AndroidPosRegister({
       )}
 
       {/* PREVIEW TRANSFER PRODUK */}
-      {previewTransferReport && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '540px', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #a78bfa', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+      {previewTransferReport && (() => {
+        const relatedTransfers = (previewTransferReport.report_no
+          ? (masterData?.stockTransfer || []).filter(t => t.report_no === previewTransferReport.report_no || t.id === previewTransferReport.id)
+          : [previewTransferReport]).filter(Boolean);
+        const displayTransfers = relatedTransfers.length > 0 ? relatedTransfers : [previewTransferReport];
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Truck size={22} color="#a78bfa" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
-                  Pratinjau Laporan Transfer Produk
-                </h3>
+            <div className="glass-card animate-fade-in" style={{
+              width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #a78bfa', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Truck size={22} color="#a78bfa" />
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                      Pratinjau Transfer Produk #{previewTransferReport.report_no || previewTransferReport.id}
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
+                      {previewTransferReport.date} • Pengaju: {previewTransferReport.submitted_by || previewTransferReport.created_by}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setPreviewTransferReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900' }}>✕</button>
               </div>
-              <button onClick={() => setPreviewTransferReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900' }}>✕</button>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nomor Laporan:</span>
-                <span style={{ fontWeight: '900', color: '#a78bfa' }}>{previewTransferReport.report_no || previewTransferReport.id}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Transfer:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewTransferReport.date}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Pengaju:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewTransferReport.submitted_by || previewTransferReport.created_by}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Asal:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>🏢 {previewTransferReport.from_outlet_name || currentOutlet.name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Tujuan:</span>
-                <span style={{ fontWeight: '800', color: '#a78bfa' }}>➡️ {previewTransferReport.to_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(previewTransferReport.to_outlet_id || previewTransferReport.toOutletId))?.name || 'Outlet Tujuan'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Produk Item:</span>
-                <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewTransferReport.item_name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Jumlah Transfer:</span>
-                <span style={{ fontWeight: '900', color: '#a78bfa', fontSize: '1rem' }}>{previewTransferReport.qty} {previewTransferReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                <span style={{ fontWeight: '900', color: (previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
-                  {(previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
-                </span>
-              </div>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.84rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--pos-border-card)' }}>
+                  <div>
+                    <span style={{ color: 'var(--pos-txt-secondary)', display: 'block', fontSize: '0.75rem' }}>Outlet Asal:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🏢 {previewTransferReport.from_outlet_name || currentOutlet?.name || 'Outlet Asal'}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: 'var(--pos-txt-secondary)', display: 'block', fontSize: '0.75rem' }}>Outlet Tujuan:</span>
+                    <span style={{ fontWeight: '800', color: '#a78bfa' }}>➡️ {previewTransferReport.to_outlet_name || (masterData?.outlets || []).find(o => Number(o.id) === Number(previewTransferReport.to_outlet_id || previewTransferReport.toOutletId))?.name || 'Outlet Tujuan'}</span>
+                  </div>
+                </div>
 
-            <button onClick={() => setPreviewTransferReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
-              Tutup Pratinjau
-            </button>
+                <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
+                        <th style={{ padding: '8px 10px' }}>#</th>
+                        <th style={{ padding: '8px 10px' }}>Nama Produk / Bahan</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Jumlah Transfer</th>
+                        <th style={{ padding: '8px 10px' }}>Satuan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayTransfers.map((trf, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                          <td style={{ padding: '8px 10px', color: 'var(--pos-txt-secondary)' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: '800', color: '#34d399' }}>📦 {trf.item_name}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '900', color: '#a78bfa' }}>{trf.qty}</td>
+                          <td style={{ padding: '8px 10px', color: 'var(--pos-txt-secondary)' }}>{trf.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
+                  <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
+                  <span style={{ fontWeight: '900', color: (previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
+                    {(previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
+                  </span>
+                </div>
+              </div>
+
+              <button onClick={() => setPreviewTransferReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+                Tutup Pratinjau
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 17. MODAL FORM "LAPORKAN STOK RUSAK / WASTE" (FULL SCREEN MODAL) */}
       {showAddWasteModal && (

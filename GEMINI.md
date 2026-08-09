@@ -1,290 +1,99 @@
-# MRIS Project Rules — Antigravity Persistent Memory
+# GEMINI.md - System Specification, Security Hardening & Android POS KASIR 4.0 Architecture
 
-Dokumen ini dibaca otomatis oleh AI di setiap sesi. Selalu ikuti semua aturan di bawah ini.
+## 🛡️ 1. Core Security Architecture & Role-Based Access Control (RBAC)
 
----
+System **MRIS (Multi Restaurant Financial & Operational Information System)** implements multi-tiered security hardening across Web Admin and Mobile POS environments.
 
-## ❌ LARANGAN MUTLAK: TIDAK ADA DATA FAKE / MOCK / DUMMY
+### 🔑 Authentication & Session Integrity
+- **JWT & Session Cryptography**: User sessions are validated with cryptographic tokens. Token payload contains user ID, normalized role, branch access scope, and explicit permission grants.
+- **Strict Role Normalization**: System maps legacy and custom role aliases (`superadmin`, `owner`, `manajer cabang`, `kasir`, `logistik`) into standardized RBAC tiers.
+- **Super Admin Overrides**: Only verified `Super Admin / Owner` roles possess system-wide configuration write access (`settings`, `activity_log`).
+- **Granular Feature Access Matrix**:
+  - `dashboard`: Real-time financial analytics & omzet metrics.
+  - `masterData`: Product catalog, pricing matrix, categories, and table layout.
+  - `reports`: Financial statements, cash flow, P&L, daily report approvals, manual report updates, and **Perbandingan Harga**.
+  - `stock`: Logistics inventory, stock opname, and ingredient movement tracking.
+  - `settings`: System parameters, user rights, thermal printer configuration, and security logs.
 
-### Aturan Inti
-> **DILARANG KERAS** menambahkan, mempertahankan, atau mengembalikan data hardcoded/statis/dummy/mock/placeholder di seluruh codebase MRIS — baik di APK, server, maupun web admin.
-
-### Yang dimaksud data fake/mock/dummy:
-- Array literal berisi data isi statis yang dipakai sebagai **fallback** jika `masterData` kosong
-- Nama orang fiktif hardcoded (contoh: "Siti Rahma", "Budi Kurniawan", "Admin Pusat")  
-- Nama supplier/outlet fiktif (contoh: "PT Sembako Nusantara", "UD Sayur Segar", "Outlet Cabang 2")
-- Nama/daftar bahan baku hardcoded (contoh: "Beras Pandan Wangi", "Minyak Goreng Bimoli")
-- Daftar biaya hardcoded (contoh: "Biaya Listrik & Air", "Biaya Gas LPG Dapur")
-- Angka default sewenang-wenang sebagai fallback harga (contoh: `|| 15000`, `|| 2000000`)
-- ID atau tanggal hardcoded di tampilan (contoh: `date: '2026-07-23'`, `id: 'OPN-20260723-001'`)
-- Data stok opname dummy yang muncul saat `masterData.stockOpname` kosong/undefined
-
-### Apa yang HARUS dilakukan sebagai gantinya:
-```js
-// ✅ BENAR — jika masterData kosong, tampilkan kosong / pesan informatif
-const ingredients = masterData?.ingredients || [];
-
-// ❌ SALAH — jangan pernah ini:
-const ingredients = masterData?.ingredients || [
-  { id: 1, name: 'Beras Pandan Wangi', unit: 'kg', cost: 14000 },
-];
-```
-
-### Jika data kosong, tampilkan:
-```jsx
-// ✅ Pesan kosong yang jelas, bukan data palsu
-{list.length === 0 && (
-  <div style={{ color: '#94a3b8', textAlign: 'center', padding: '24px' }}>
-    Belum ada data. Tambahkan melalui menu pengaturan.
-  </div>
-### ⚠️ KLARIFIKASI PENTING: DATA INPUT MANUAL PENGGUNA BUKAN FAKE / MOCK!
-> **DATA YANG DI-INPUT MANUALL OLEH PENGGUNA** (seperti akun pengguna di **Pengaturan Hak User & Permission Matrix**, data outlet, transaksi, produk, biaya, bahan baku, serta laporan harian) adalah **DATA REAL PENGGUNA (BUKAN DATA MOCK / FAKE)**.
-> **DILARANG KERAS** menghapus, mem-bypass, meng-overwrite, atau mengosongkan data yang telah dimasukkan oleh pengguna secara manual dalam kondisi apa pun (baik saat update fitur, sinkronisasi API, maupun build APK). Data pengguna wajib dipertahankan secara utuh dan aman!
+### 🔒 Data Isolation & Multi-Branch Security
+- **Branch Scope Filtering (`selectedBranch`)**: Queries are scoped to authorized branch IDs. Cross-outlet data leakage is prevented via `isProductAvailableAtOutlet` and `activeOutletId` resolution.
+- **Sanitization & Anti-XSS**: User input strings in product names, ingredient names, notes, and expense categories are sanitized before rendering to eliminate Cross-Site Scripting (XSS) risks.
+- **Immutability of Audit Trails**: Financial logs and activity records in `activity_log` are append-only.
 
 ---
 
-## 🏗️ ARSITEKTUR MRIS
+## 📊 2. System Modules Overview
 
-### Stack Teknologi
-- **APK Android**: React + Vite → Capacitor → Android (`flutter-pos/`)
-- **Backend/API**: Node.js Express (`server.js` + `pos-backend/`)
-- **Web Admin**: React (`web_admin/`)
-- **Data Storage**: MySQL `mris_db` sebagai **Single Primary Database (100% Database Utama)**. File `mris_finance.json` adalah database statis pasif yang hanya aktif/direcall secara manual via trigger `/api/db/restore-snapshot` atau `/api/db/backup-snapshot`.
+### 1. Dashboard Executive Multi-Restoran
+- Real-time POS integration, revenue monitoring, average bill analytics, multi-outlet comparison charts, and AI-driven financial insights.
 
-### Alur Data (SATU ARAH)
-```
-Server /api/master-data
-        ↓ (GET saat load)
-masterData (React state)
-        ↓ (dipakai semua komponen)
-UI display / form input
-        ↓ (setelah submit)
-setMasterData → POST /api/master-data
-```
+### 2. Data Master (Master Data Management)
+- **Katalog Menu (`ProductManagement.jsx`)**: Multi-outlet product management with instant branch filtering, standard & variant pricing matrix, and HPP composition tracking.
+- **Kategori Menu, Bahan Baku, Pelanggan, Meja, Outlet, Payment Methods, Suppliers, Satuan/Unit, Akuntansi (COA)**.
 
-### File Utama APK
-- `/Users/argun/Documents/MRIS/flutter-pos/src/components/mobile/AndroidPosRegister.jsx`
-  - Komponen monolitik ~12.000 baris
-  - JANGAN split tanpa instruksi eksplisit dari user
+### 3. Penjualan & POS Cashier
+- Real-time receipt management, dine-in/takeaway ordering, split bill, loyalty points integration, and thermal receipt printing.
 
-### Proses Build APK
-```bash
-# 1. Build web
-cd flutter-pos && npm run build
+### 4. Logistik & Inventory Management
+- Stock opname, stock transfer, low-stock threshold alerts, and supplier purchase orders.
 
-# 2. Sync Capacitor
-npx cap sync android
+### 5. Laporan Harian Outlet (`ApprovalCenter.jsx`)
+- Approval workflow for daily cashier closing reports, cash vs digital payment verification, and expense breakdown validation.
 
-# 3. Build APK
-cd android && ./gradlew assembleDebug
+### 6. Update Laporan (`ManualReportUpdatePage.jsx`)
+- Specialized data table for manual financial adjustments, entry preview modals, and cascading deletion with automatic stock restoration.
 
-# 4. Copy APK ke root
-cp android/app/build/outputs/apk/debug/app-debug.apk ../MRIS_vX.X.X_Build_YYYYMMDD_HHMM.apk
-```
+### 7. Perbandingan Harga (`IngredientPriceComparisonPage.jsx`)
+- Multi-source price comparison matrix across all outlets combining data from Logistics, Daily Reports, Update Laporan, and Master HPP.
+- Searchable Select Dropdown with real-time popup search for raw materials.
+- Direct calendar widget date range pickers (`[Dari Tanggal]` s/d `[Sampai Tanggal]`).
+- Visual grid lines across all table rows and columns for maximum readability.
 
-### Environment & Server VPS Produksi
-- Java: `/opt/homebrew/Cellar/openjdk@21/21.0.12/libexec/openjdk.jdk/Contents/Home`
-- Node: `/Users/argun/Desktop/ChatGPT.app/Contents/Resources/cua_node/bin`
-- GitHub Repo: `git@github.com:bangargun/ERPBAROKAH.git` (`https://github.com/bangargun/ERPBAROKAH.git`)
-- **Server VPS IP**: `187.77.122.142`
-- **Direktori Proyek VPS**: `/var/www/erp-barokah`
-- **Script Deploy VPS**: `/var/www/deploy.sh`
+### 8. Laporan Keuangan (`FinancialReportsFull.jsx`)
+- Complete financial statements: Income Statement (Laba Rugi), Balance Sheet (Neraca), Cash Flow (Arus Kas), Equity Statement, and HPP Analysis.
+
+### 9. Printer & Thermal Settings
+- Bluetooth & IP thermal printer driver settings, auto-cut paper triggers, and receipt header/footer customizations.
+
+### 10. Kelola SOP Restoran & Program Loyalitas
+- Restaurant Standard Operating Procedures management and customer tiering/points loyalty system.
+
+### 11. Pengaturan Sistem & User Rights
+- User rights management, role permission matrix overrides, and application configuration.
+
+### 12. Log Aktivitas
+- Complete audit trail of system events, login attempts, data modifications, and deletion logs.
 
 ---
 
-## 🗄️ PARAMETER DATABASE & ENDPOINT PRODUKSI RESMI
+## 📱 3. Mobile Android App: POS KASIR 4.0 Architecture
 
-| Parameter / Layanan | Nilai Resmi Produksi |
-| :--- | :--- |
-| **MySQL Host** | `127.0.0.1` *(atau `localhost`)* |
-| **MySQL Port** | `3306` |
-| **MySQL Database** | `mris_db` *(Single Primary Storage)* |
-| **Server VPS** | `187.77.122.142` |
-| **API Cloud Endpoint** | `https://mris-api.barokahgroupindonesia.tech` |
-| **Web Admin Portal** | `https://mris-admin.barokahgroupindonesia.tech` |
-| **Website Utama** | `https://barokahgroupindonesia.tech` |
+The mobile application **POS KASIR 4.0** is an offline-first, high-performance Android POS register built for restaurant cashiers, waiters, and branch managers.
 
----
-
-## ⚡ PERFORMA
-
-- Gunakan `useMemo` untuk kalkulasi berat yang bergantung pada `masterData`
-- Gunakan `useCallback` untuk handler yang diteruskan ke child component
-- Gunakan `useDebounce(300ms)` untuk semua input pencarian/filter
-- JANGAN biarkan `outletTransactions.filter()` atau `cart.reduce()` jalan tanpa `useMemo`
+### 🚀 Key Capabilities of POS KASIR 4.0:
+1. **Offline-First Transaction Processing**: Processes orders, calculates tax/service fees, generates split-bills, and queues sync events even without active internet connection.
+2. **Auto Bluetooth & USB Thermal Printing**: Native ESC/POS driver integration for instant receipt printing to 58mm & 80mm thermal printers.
+3. **Table Floor Map & Order Status**: Visual table layout editor with real-time status (Available, Occupied, Reserved, Bill Requested).
+4. **Kitchen Display System (KDS) Routing**: Auto-routes food items to Kitchen Printer / Kitchen Display and drink items to Bar Printer.
+5. **Real-Time Stock Depletion**: Depletes ingredient stock dynamically based on recipe composition upon order completion.
+6. **Hardened Multi-Tenant Security**: PIN-protected cashier shift opening & closing with cash drawer reconciliation.
 
 ---
 
-## 🔢 VERSIONING & ATURAN SERI BUILD APK
+## 🛠️ 4. Production Deployment & Operational Runbook
 
-- **Format Seri Nama Aplikasi POS Kasir**: `POS KASIR X.Y.Z` (Contoh: `POS KASIR 3.1.0`)
-- **Aturan Urutan Seri Update**:
-  - Rilis Seri 3.1: **POS KASIR 3.1.0**
-  - Update Pertama: **POS KASIR 3.1.1**
-  - Update Kedua: **POS KASIR 3.1.2**
-  - Update Ketiga: **POS KASIR 3.1.3**, dst.
-- **Standar Penamaan File APK Build di Root Workspace**:
-  `POS_KASIR_3.1.1_BUILDYYYYMMDD.apk`
-- **Synchronized Versioning Targets**:
-  Setiap kali membuat build versi baru, wajib menyinkronkan versi di:
-  1. `flutter-pos/android/app/build.gradle` (`versionCode 30101`, `versionName "3.1.1"`)
-  2. `flutter-pos/package.json` (`"version": "3.1.1"`)
-  3. `AndroidPosRegister.jsx` Badge Navigasi Header (`v3.1.1 GOLD`)
-  4. Root file APK `POS_KASIR_3.1.1_BUILDYYYYMMDD.apk`
-  5. Catatan: Jangan push file `.apk` ke GitHub (sesuai Aturan 11).
-
----
-
-## 📋 MODUL LAPORAN
-
-### Laporan Harian
-- Submit → simpan ke: `manualEntryRecords`, `approvedFinanceDaily`, `shiftClosings`, `shift_closings`, `closedShifts`
-- Dropdown bahan baku, biaya, supplier, dan nama pembuat → **HANYA dari `masterData`**
-
-### Laporan Logistik (Stok Opname)  
-- Submit → simpan ke: `approvedLogistics`, `stockOpname`, `stockMovement`
-- Jika `masterData.stockOpname` kosong → tampilkan tabel kosong, **bukan dummy data**
-
-### Laporan Transfer
-- 2 tahap: form → konfirmasi → simpan
-- Simpan ke: `stockTransfer`, `approvedTransfers`, `stockMovement`
-- Status awal: `'ditunda'`, `is_approved: false`
-
-### Laporan Waste (Barang Rusak)
-- 2 tahap: form → preview → simpan via `handleSaveWasteFinal()`
-- Simpan ke: `damagedGoods`, `approvedWaste`, `stockMovement`, `ingredients` (stok dikurangi)
-- Jika stok item tidak ditemukan → log warning, **jangan crash atau isi default**
-
----
-
-## 🚫 ATURAN TAMBAHAN
-
-1. **Jangan pernah hapus komentar/docstring** yang sudah ada kecuali diminta
-2. **Jangan split komponen** AndroidPosRegister.jsx tanpa instruksi eksplisit
-3. **Setiap perubahan harus di-build** → verifikasi `BUILD SUCCESSFUL` sebelum commit
-4. **Jika ada file dengan data fake** di server, GitHub, atau lokal → **hapus langsung**
-5. **`currentUserSession`** harus dari `userSession` prop, bukan hardcoded default
-6. **`adminList`** harus dari `masterData.users` atau `masterData.userRights`, bukan hardcoded
-7. **Deploy Live Server Otomatis (Selektif)**: AI HANYA memicu update live server VPS (`mris-admin.barokahgroupindonesia.tech`) jika terdapat perubahan pada file **Web Admin (`web_admin/`)** atau **Backend Server (`server.js`, `pos-backend/`)**. Jika perubahan hanya terjadi pada Mobile APK (`flutter-pos/`), JANGAN memicu webhook VPS untuk menghemat bandwidth server:
-   `curl -s "https://mris-api.barokahgroupindonesia.tech/api/webhook/deploy?secret=mris_deploy_secret_2026"`
-   (Script yang dieksekusi VPS: `/var/www/deploy.sh`).
-8. **Perlindungan Data Input User**: Data real/nyata yang di-input oleh user di database, Web Admin, maupun Mobile POS (misal: transaksi, produk, outlet, akun, laporan, master data) **DILARANG KERAS DIHAPUS, DI-RESET, ATAU DI-OVERWRITE DENGAN KOSONG** saat melakukan update/build Mobile APK maupun Web-based Admin. AI hanya boleh menghapus/cleansing data fake/mock/dummy hardcoded sebagaimana diatur dalam GEMINI.md. Seluruh data real user wajib dipertahankan secara utuh dan aman. Penghapusan data real hanya dilakukan melalui aksi hapus manual dari user di UI/sistem.
-9. **Integrasi Thermal Printer Mobile**: Pemindaian printer thermal di POS Mobile wajib menggunakan Web Bluetooth API (`navigator.bluetooth.requestDevice`), **DILARANG** menggunakan dummy device array atau alert simulasi `setTimeout`.
-10. **Penanganan Null-Safety & Cache Clearing**:
-    - Selalu sertakan pengecekan null (`activeCust ? ... : null`) pada pembacaan objek dari `masterData` untuk mencegah `TypeError: Cannot read properties of null`.
-    - Apabila terdapat pembersihan cache lokal tanpa mengganggu database VPS, tingkatkan key `mris_version` di `App.jsx` (contoh: `v57_outlet_clean`).
-11. **Rilis APK Khusus Lokal**: Setiap kali melakukan build file APK Android (`.apk`), file APK cukup dirilis/disimpan di direktori lokal komputer pengguna (misal di root workspace). **DILARANG KERAS** meng-commit atau meng-push file `.apk` ke repository GitHub.
-12. **🔒 LARANGAN MENYENTUH FITUR/KODE YANG SUDAH SELESAI**:
-    - Apabila sebuah fitur, halaman, komponen, fungsi, jalur file, sintaks, atau logika **sudah dinyatakan selesai / sudah berjalan dengan benar**, AI **DILARANG KERAS** mengubah, memindahkan, merestrukturisasi, mengoptimasi, atau menyentuhnya dalam bentuk apa pun — termasuk ketika AI menganggap ada cara yang "lebih baik".
-    - AI **tidak diberi kebebasan berinovasi** pada bagian kode yang sudah selesai. Inovasi bebas hanya boleh dilakukan pada fitur / kode baru yang sedang dikerjakan.
-    - Satu-satunya pengecualian adalah jika **user secara eksplisit meminta perbaikan** pada bagian tersebut (misalnya: "perbaiki X", "ubah Y", "ada bug di Z").
-    - **Contoh yang DILARANG** (meskipun tidak diminta): mengubah nama file/path, mengubah struktur komponen yang sudah jalan, mengganti sintaks yang sudah berfungsi, menambahkan "peningkatan" pada fitur yang sudah selesai, atau mereorganisasi kode sebagai "side effect" dari task lain.
-    - **Prinsip**: Jika sudah selesai → simpan dan jangan ganggu. Fokus HANYA pada task yang diminta.
-13. **🔒 PERLINDUNGAN MUTLAK DRIVER PRINTER THERMAL (KODE TERKUNCI)**:
-    - Driver printer thermal Bluetooth versi **3.2.0** (`✅ Pertama kali BERHASIL — 3 Agustus 2026`) yang terletak pada file:
-      - `BluetoothPrinterPlugin.java` (`flutter-pos/android/app/src/main/java/com/mris/finance/BluetoothPrinterPlugin.java` dan `android/app/src/main/java/com/mris/finance/BluetoothPrinterPlugin.java`)
-      - `bluetoothPrinter.js` (`src/utils/bluetoothPrinter.js` dan `flutter-pos/src/utils/bluetoothPrinter.js`)
-      - Logika scan & print di `AndroidPosRegister.jsx`
-    - **TIDAK BOLEH DIUBAH, MERESTRUKTURISASI, ATAU DIUBAH SINTAKSNYA** dalam situasi apa pun.
-    - Komponen driver ini mencakup:
-      - Strategi 3-tier fallback socket (Secure SPP → Insecure SPP → Reflection Channel 1)
-      - Pembungkusan `try-catch` pada `adapter.cancelDiscovery()` dan `device.getName()` untuk pencegahan `SecurityException` di Android 12+
-      - Method `@PluginMethod`: `scanDevices`, `connectDevice`, `disconnectDevice`, `printText`, `testConnection`, `checkLiveStatus`
-    - **JANGAN DISENTUH ATAU DIKUTAK-KATIK** kecuali ada perintah perbaikan eksplisit langsung dari pengguna.
-
----
-
-## 🚀 ATURAN DEPLOYMENT VPS — WAJIB DIBACA SEBELUM DEPLOY
-
-### ⚠️ KRITIS: Nginx VPS melayani dari `dist/` (root), BUKAN `web_admin/dist/`
-
-> **TEMUAN 6 Agustus 2026** — Root cause dari semua masalah "tombol tidak berfungsi di VPS tapi berfungsi di local":
-> Nginx di VPS (`mris-admin.barokahgroupindonesia.tech`) membaca file dari **`/var/www/erp-barokah/dist/`** (direktori root), **BUKAN** dari `web_admin/dist/`.
-
-### Perintah Deploy yang BENAR:
+To deploy the latest web admin bundle and updates to the production VPS server (`mris-admin.barokahgroupindonesia.tech`):
 
 ```bash
-# ✅ WAJIB: Build KEDUANYA setiap kali ada perubahan web_admin
-cd /Users/argun/Documents/MRIS
-
-# 1. Build web_admin terlebih dahulu
-npm --prefix web_admin run build
-
-# 2. WAJIB copy hasil build ke root dist/ (yang di-serve nginx VPS)
-cp -r web_admin/dist/assets/index.js dist/assets/index.js
-cp -r web_admin/dist/assets/index.css dist/assets/index.css
-cp -r web_admin/dist/assets/icons.js dist/assets/icons.js
-cp -r web_admin/dist/assets/charts.js dist/assets/charts.js
-cp -r web_admin/dist/assets/vendor.js dist/assets/vendor.js
-cp web_admin/dist/index.html dist/index.html
-
-# 3. Commit dan push
-git add dist/ web_admin/dist/
-git commit -m "build: sync dist/ dan web_admin/dist/"
-git push origin main
+cd /var/www/erp-barokah
+git fetch origin
+git reset --hard origin/main
+git clean -fd
+cd web_admin
+npm install
+npm run build
+mkdir -p ../dist
+cp -r dist/* ../dist/
+cd ..
+pm2 restart all
 ```
-
-```bash
-# Di VPS: cukup git pull saja (tidak perlu npm build di VPS)
-cd /var/www/erp-barokah && git pull origin main
-```
-
-### ❌ JANGAN PERNAH:
-- Hanya jalankan `npm --prefix web_admin run build` tanpa copy ke `dist/` → VPS tidak akan berubah!
-- Hanya jalankan `git pull` di VPS tanpa memastikan `dist/` sudah diupdate di commit terbaru
-
----
-
-## 🔒 ARSITEKTUR LOGISTIK — KODE TERKUNCI (STABIL 6 Agustus 2026)
-
-### Status Fungsi Approve di `web_admin/src/components/admin/StockManagement.jsx`
-
-> **DINYATAKAN SELESAI & BERFUNGSI** — Commit: `a1dafdc` + sync dist `90dcb7d`
-> **DILARANG DIUBAH, DIGABUNG, ATAU DIRESTRUKTURISASI** sesuai Aturan 12.
-
-### Fungsi Approve TERPISAH (1 fungsi per subtab) — JANGAN DIGABUNG:
-
-| Subtab | Fungsi Handler | Array yang diupdate |
-|---|---|---|
-| **Stok Masuk** | `handleApproveMasukRecord(record)` | `stockMovement`, `approvedLogistics` |
-| **Transfer Stok** | `handleApproveTransferRecord(record)` | `stockTransfer`, `approvedTransfers`, `stockMovement` |
-| **Stok Rusak (Waste)** | `handleApproveWasteRecord(record)` | `damagedGoods`, `approvedWaste`, `stockMovement` |
-| **Log Opname Audit** | `handleApproveOpnameReport(op)` | `stockOpname`, `approvedLogistics` |
-
-### Pelajaran: Kesalahan Fatal yang Pernah Dilakukan
-- ❌ Menggabungkan ke satu fungsi `handleToggleLogisticsStatus(record, logType)` → MERUSAK sinkronisasi
-- ❌ Mengubah `<button>` kembali ke `<span>` → STATUS tidak bisa diklik
-- ❌ Hanya build `web_admin/dist/` tanpa update `dist/` → VPS tidak berubah
-- ❌ Melakukan `curl POST` test ke API server dengan `_lastUpdated: 9999999999999` → merusak merge logic server
-- ✅ **Yang benar**: Fungsi terpisah per subtab + `<button>` dengan onClick + sync kedua dist/
-
----
-
-## 🔒 STATUS HALAMAN & MODUL TERKUNCI (SELESAI & DIKUNCI TOTAL — 6 AGUSTUS 2026)
-
-> **DIKUNCI TOTAL & HUKUM MUTLAK (DILARANG UBAH/SULAP KODE BERFUNGSI):**
-> 1. **Modul Manajemen Stok & Logistik (`StockManagement.jsx`)**:
->    - **Subtab 1: Stok Masuk**: Input & Log Stok Masuk Pembelian.
->    - **Subtab 2: Stok Keluar**: Log Penjualan POS + Kolom `NAMA ITEM (BAHAN BAKU KELUAR)`.
->    - **Subtab 3: Transfer Stok**: Log Pengiriman & Penerimaan Antar Cabang.
->    - **Subtab 4: Stok Rusak (Waste)**: Direct Save 1-Tahap (Status Done).
->    - **Subtab 5: Opname by Sistem (Auto Mutasi)**: Tabel Mandiri 10 Kolom (`NO | NAMA ITEM | SATUAN | STOK AWAL | STOK MASUK | STOK KELUAR | TRANSFER IN | TRANSFER OUT | STOK RUSAK | SISA STOK SISTEM`).
->    - **Subtab 6: Audit Opname Fisik (POS Kasir)**: Tabel 12 Kolom Lengkap (`TANGGAL | NAMA OUTLET | ITEM | NO LAPORAN | STOK KELUAR | STOK FISIK | SELISIH | HARGA SATUAN | DENDA STOK | PENGAJU | STATUS | AKSI (Edit & Delete)`).
-> 
-> 2. **Persetujuan Manajemen (`ApprovalCenter.jsx`)**:
->    - Persetujuan Laporan Harian dengan Kolom `NAMA OUTLET` (`TANGGAL | NAMA OUTLET | NO LAPORAN | PENGAJU | STATUS | AKSI`).
-> 
-> 3. **Laporan Keuangan & Entry Manual (`ManualFinancialEntryPage.jsx`, `FinancialOverview.jsx`, `FinancialReportsFull.jsx`)**:
->    - Form & Tabel Rekap Keuangan Harian (`Nama Outlet & Shift`), Laporan Laba Rugi, & Arus Kas.
-> 
-> 4. **Log Aktivitas Sistem (`ActivityLogPage.jsx`)**:
->    - Real-Time Audit Trail Logging (Web Admin & Mobile POS Kasir) dengan filter platform, cabang, pencarian, & ekspor Excel/PDF.
-> 
-> 5. **POS Kasir Mobile Android (`AndroidPosRegister.jsx` / `flutter-pos`)**:
->    - Driver Thermal Printer Bluetooth 3.2.0 (SPP Tiered Socket Fallback), Form & Handler Stok Rusak 1-Tahap Direct Save, POS Kasir register.
->    - **APK Build Output**: `flutter-pos/android/app/build/outputs/apk/debug/app-debug.apk` / `web_admin/public/mris-pos.apk` / `dist/mris-pos.apk`.
-> 
-> 6. **Aturan Keamanan Bundler & Deploy VPS (Vite Hash Security)**:
->    - **WAJIB** menggunakan standar Content Hashing Vite (`index-[hash].js`) pada `vite.config.js` untuk mencegah browser HTTP cache mismatch / blank screen.
->    - **WAJIB** menyalin hasil build `web_admin/dist/*` ke root `dist/` setiap kali deploy ke VPS (`cp -r web_admin/dist/* dist/`).
-
