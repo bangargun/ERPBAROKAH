@@ -3719,7 +3719,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* TOP BAR WITH MONTH FILTER & EXPORT BUTTONS */}
-          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={omzetStartDate}
               endDate={omzetEndDate}
@@ -4586,7 +4586,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'daily' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER & ACTION BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={dailyStartDate}
               endDate={dailyEndDate}
@@ -4725,7 +4725,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'hourly' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={hourStartDate}
               endDate={hourEndDate}
@@ -4967,7 +4967,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             return (
               <>
                 {/* FILTER BAR SECTION (RENTANG WAKTU & SELEKSI OUTLET) */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 30 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1000 }}>
                   <DoubleCalendarPicker themeMode={themeMode}
                     startDate={rcptStartDate}
                     endDate={rcptEndDate}
@@ -5267,7 +5267,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'customers' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={custStartDate}
               endDate={custEndDate}
@@ -5453,7 +5453,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* FILTER BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1000 }}>
             
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={momStartDate}
