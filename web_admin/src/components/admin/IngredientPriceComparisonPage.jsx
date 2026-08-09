@@ -15,7 +15,8 @@ import {
   Layers, 
   ShoppingBag, 
   AlertTriangle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronDown
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
@@ -30,6 +31,8 @@ export default function IngredientPriceComparisonPage({
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIngredientFilter, setSelectedIngredientFilter] = useState('ALL');
+  const [showIngDropdown, setShowIngDropdown] = useState(false);
+  const [ingDropdownSearch, setIngDropdownSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showColumnFilter, setShowColumnFilter] = useState(false);
@@ -168,6 +171,14 @@ export default function IngredientPriceComparisonPage({
     (allPurchaseRecords || []).forEach(r => r.ingredient_name && set.add(r.ingredient_name.trim()));
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [masterData, allPurchaseRecords]);
+
+  // Filtered Dropdown Items based on internal search input
+  const filteredDropdownIngredients = useMemo(() => {
+    if (!ingDropdownSearch.trim()) return uniqueIngredientNames;
+    return uniqueIngredientNames.filter(name =>
+      name.toLowerCase().includes(ingDropdownSearch.toLowerCase().trim())
+    );
+  }, [uniqueIngredientNames, ingDropdownSearch]);
 
   // Filtered Purchase Records
   const filteredPurchaseRecords = useMemo(() => {
@@ -509,18 +520,142 @@ export default function IngredientPriceComparisonPage({
           />
         </div>
 
-        {/* Dropdown Filter: Pilihan Spesifik Nama Bahan Baku */}
-        <div>
-          <select
-            value={selectedIngredientFilter}
-            onChange={e => { setSelectedIngredientFilter(e.target.value); setCurrentPage(1); }}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+        {/* Custom Searchable Dropdown Filter: Pilihan Spesifik Nama Bahan Baku */}
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setShowIngDropdown(!showIngDropdown)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${showIngDropdown ? T.accentGold : T.border}`,
+              background: T.inputBg,
+              color: T.txtPrimary,
+              fontSize: '0.80rem',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              textAlign: 'left'
+            }}
           >
-            <option value="ALL">🥬 Semua Bahan Baku ({uniqueIngredientNames.length} Item)</option>
-            {uniqueIngredientNames.map((ingName, idx) => (
-              <option key={idx} value={ingName}>{ingName}</option>
-            ))}
-          </select>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {selectedIngredientFilter === 'ALL'
+                ? `🥬 Semua Bahan Baku (${uniqueIngredientNames.length} Item)`
+                : selectedIngredientFilter}
+            </span>
+            <ChevronDown size={16} color={T.txtMuted} />
+          </button>
+
+          {showIngDropdown && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                background: T.cardBg,
+                border: `1px solid ${T.accentGoldBorder}`,
+                borderRadius: '10px',
+                boxShadow: '0 14px 35px rgba(0,0,0,0.65)',
+                zIndex: 9999,
+                padding: '10px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                minWidth: '220px'
+              }}
+            >
+              {/* Search Input Box Inside Dropdown */}
+              <div style={{ position: 'relative' }}>
+                <Search size={14} color={T.txtMuted} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  value={ingDropdownSearch}
+                  onChange={e => setIngDropdownSearch(e.target.value)}
+                  placeholder="🔍 Cari nama bahan..."
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '6px 10px 6px 30px',
+                    borderRadius: '6px',
+                    border: `1px solid ${T.border}`,
+                    background: T.inputBg,
+                    color: T.txtPrimary,
+                    fontSize: '0.76rem'
+                  }}
+                />
+              </div>
+
+              {/* Options List */}
+              <div style={{ overflowY: 'auto', maxHeight: '200px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedIngredientFilter('ALL');
+                    setShowIngDropdown(false);
+                    setIngDropdownSearch('');
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: selectedIngredientFilter === 'ALL' ? T.accentGoldBg : 'transparent',
+                    color: selectedIngredientFilter === 'ALL' ? T.accentGold : T.txtPrimary,
+                    fontSize: '0.78rem',
+                    fontWeight: '800',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span>🥬 Semua Bahan Baku ({uniqueIngredientNames.length} Item)</span>
+                  {selectedIngredientFilter === 'ALL' && <Check size={14} color={T.accentGold} />}
+                </button>
+
+                {filteredDropdownIngredients.length === 0 ? (
+                  <div style={{ padding: '12px 10px', fontSize: '0.74rem', color: T.txtMuted, textAlign: 'center' }}>
+                    Tidak ada nama bahan baku cocok
+                  </div>
+                ) : (
+                  filteredDropdownIngredients.map((name, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSelectedIngredientFilter(name);
+                        setShowIngDropdown(false);
+                        setIngDropdownSearch('');
+                        setCurrentPage(1);
+                      }}
+                      style={{
+                        padding: '7px 10px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: selectedIngredientFilter === name ? T.accentGoldBg : 'transparent',
+                        color: selectedIngredientFilter === name ? T.accentGold : T.txtPrimary,
+                        fontSize: '0.76rem',
+                        fontWeight: selectedIngredientFilter === name ? '900' : '600',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <span>{name}</span>
+                      {selectedIngredientFilter === name && <Check size={14} color={T.accentGold} />}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Date Range Start */}
