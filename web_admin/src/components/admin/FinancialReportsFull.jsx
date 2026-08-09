@@ -324,11 +324,12 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         const catType = String(r.category_type || r.category || '').toLowerCase();
         const accountCode = String(r.code || r.accountCode || r.account_code || '');
 
-        // Exclude OPEX items (kode 6xxx, 7xxx, 8xxx) — mereka adalah Beban, bukan HPP
-        // HPP hanya items yang kode akunnya 5xxx atau eksplisit ber-tipe bahan baku/HPP
-        const isOpex = accountCode.startsWith('6') || accountCode.startsWith('7') || accountCode.startsWith('8');
+        // HPP jika: tidak punya category_type DAN tidak punya kode akun (item bahan baku)
+        // ATAU secara eksplisit bertipe hpp/bahan/produksi ATAU kode 5xxx
+        // Exclude jika kode 6xxx/7xxx/8xxx (OPEX/Beban) — KECUALI tidak ada kode akun
+        const isExplicitOpex = (accountCode.startsWith('6') || accountCode.startsWith('7') || accountCode.startsWith('8')) && accountCode.length >= 4;
         const isExplicitHpp = catType.includes('hpp') || catType.includes('bahan') || catType.includes('mentah') || catType.includes('produksi') || accountCode.startsWith('5');
-        const isHpp = !isOpex && (isExplicitHpp || (!r.category_type && !accountCode));
+        const isHpp = !isExplicitOpex && (isExplicitHpp || (!r.category_type));
 
         if (isHpp && (r.item_name || r.name)) {
           reportHasHppRow = true;
@@ -398,6 +399,9 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     const extraMap = {};
 
     approvedReports.forEach(f => {
+      // Kumpulkan nama item yang sudah masuk HPP (cogsItemsMap) agar tidak double-count di Beban
+      const hppItemNames = new Set(Object.keys(cogsItemsMap).map(n => n.toLowerCase()));
+
       const breakdown = (f.expenses_breakdown && f.expenses_breakdown.length > 0) 
         ? f.expenses_breakdown 
         : ((f.expense_details && f.expense_details.length > 0) ? f.expense_details : (f.expense_rows || []));
@@ -407,6 +411,10 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
           const code = ex.code || ex.accountCode || `69${String(idx + 1).padStart(2, '0')}`;
           const name = ex.name || ex.categoryName || ex.category || ex.notes || 'Beban Operasional Restoran';
           const amt = Number(ex.amount || ex.subtotal || ex.total || 0);
+
+          // Skip item yang sudah masuk HPP (misal: Gas, Bahan Baku, dll)
+          if (hppItemNames.has(name.toLowerCase())) return;
+
           if (stdMap[code]) {
             stdMap[code].amount += amt;
           } else {
@@ -432,7 +440,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         let matched = false;
         if (cat.includes('gaji') || cat.includes('payroll') || cat.includes('upah')) { stdMap['6001'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('sewa') || cat.includes('rent')) { stdMap['6002'].amount += Number(f.amount || 0); matched = true; }
-        else if (cat.includes('listrik') || cat.includes('air') || cat.includes('utility') || cat.includes('wifi') || cat.includes('internet') || cat.includes('gas')) { stdMap['6003'].amount += Number(f.amount || 0); matched = true; }
+        else if (cat.includes('listrik') || cat.includes('air') || cat.includes('utility') || cat.includes('wifi') || cat.includes('internet')) { stdMap['6003'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('maintenance') || cat.includes('servis') || cat.includes('peralatan') || cat.includes('dapur')) { stdMap['6004'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('iklan') || cat.includes('promosi') || cat.includes('marketing') || cat.includes('diskon')) { stdMap['6005'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('kemasan') || cat.includes('packaging') || cat.includes('plastik') || cat.includes('box')) { stdMap['6006'].amount += Number(f.amount || 0); matched = true; }
@@ -440,6 +448,10 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         else if (cat.includes('admin') || cat.includes('bank') || cat.includes('fee') || cat.includes('qris')) { stdMap['6008'].amount += Number(f.amount || 0); matched = true; }
 
         if (!matched) {
+          // Juga skip dari Beban jika item ini sudah ada di HPP (cogsItemsMap)
+          const hppNames = new Set(Object.keys(cogsItemsMap).map(n => n.toLowerCase()));
+          if (hppNames.has((f.category || f.notes || '').toLowerCase())) return;
+
           const code = f.code || `69${String(idx + 50).padStart(2, '0')}`;
           const key = `[${code}] ${f.category || f.notes || 'Beban Kas Operasional'}`;
           extraMap[key] = (extraMap[key] || 0) + Number(f.amount || 0);
