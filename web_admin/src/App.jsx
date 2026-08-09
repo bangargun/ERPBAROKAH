@@ -270,6 +270,17 @@ export default function App() {
                 ...(serverData.deletedOutflowIds || [])
               ].map(x => String(x)));
 
+              const getCombinedArray = (a, b) => {
+                const arrA = Array.isArray(a) ? a : [];
+                const arrB = Array.isArray(b) ? b : [];
+                const map = new Map();
+                [...arrA, ...arrB].forEach(item => {
+                  const k = getItemKey(item);
+                  if (k && !deletedSet.has(k)) map.set(k, item);
+                });
+                return Array.from(map.values());
+              };
+
               const mergeReportsById = (prevList = [], serverList = []) => {
                 const map = new Map();
                 (serverList || []).forEach(item => {
@@ -290,13 +301,29 @@ export default function App() {
                 return Array.from(map.values());
               };
 
-              const mergedApprovedFinance = mergeReportsById(prev.approvedFinanceDaily, serverData.approvedFinanceDaily);
-              const mergedManualEntry = mergeReportsById(prev.manualEntryRecords, serverData.manualEntryRecords);
-              const mergedShiftClosings = mergeReportsById(prev.shiftClosings || prev.closedShifts, serverData.shiftClosings || serverData.closedShifts);
-              const mergedSalesTx = mergeReportsById(prev.salesTransactions || prev.transactions, serverData.salesTransactions || serverData.transactions);
-              const mergedOpname = mergeReportsById(prev.stockOpname || prev.approvedLogistics, serverData.stockOpname || serverData.approvedLogistics);
-              const mergedTransfer = mergeReportsById(prev.approvedTransfers || prev.stockTransfer, serverData.approvedTransfers || serverData.stockTransfer);
-              const mergedWaste = mergeReportsById(prev.approvedWaste || prev.damagedGoods, serverData.approvedWaste || serverData.damagedGoods);
+              const prevFinance = getCombinedArray(prev.approvedFinanceDaily, prev.manualEntryRecords);
+              const serverFinance = getCombinedArray(serverData.approvedFinanceDaily, serverData.manualEntryRecords);
+              const mergedApprovedFinance = mergeReportsById(prevFinance, serverFinance);
+
+              const prevShifts = getCombinedArray(prev.shiftClosings, prev.closedShifts);
+              const serverShifts = getCombinedArray(serverData.shiftClosings, serverData.closedShifts);
+              const mergedShiftClosings = mergeReportsById(prevShifts, serverShifts);
+
+              const prevSales = getCombinedArray(prev.salesTransactions, prev.transactions);
+              const serverSales = getCombinedArray(serverData.salesTransactions, serverData.transactions);
+              const mergedSalesTx = mergeReportsById(prevSales, serverSales);
+
+              const prevOpname = getCombinedArray(prev.stockOpname, prev.approvedLogistics);
+              const serverOpname = getCombinedArray(serverData.stockOpname, serverData.approvedLogistics);
+              const mergedOpname = mergeReportsById(prevOpname, serverOpname);
+
+              const prevTransfers = getCombinedArray(prev.stockTransfer, prev.approvedTransfers);
+              const serverTransfers = getCombinedArray(serverData.stockTransfer, serverData.approvedTransfers);
+              const mergedTransfer = mergeReportsById(prevTransfers, serverTransfers);
+
+              const prevWaste = getCombinedArray(prev.approvedWaste, prev.damagedGoods);
+              const serverWaste = getCombinedArray(serverData.approvedWaste, serverData.damagedGoods);
+              const mergedWaste = mergeReportsById(prevWaste, serverWaste);
 
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
@@ -308,9 +335,11 @@ export default function App() {
                 ...prev,
                 ...serverData,
                 approvedFinanceDaily: mergedApprovedFinance,
-                manualEntryRecords: mergedManualEntry,
+                manualEntryRecords: mergedApprovedFinance,
                 shiftClosings: mergedShiftClosings,
+                closedShifts: mergedShiftClosings,
                 salesTransactions: mergedSalesTx,
+                transactions: mergedSalesTx,
                 stockOpname: mergedOpname,
                 approvedLogistics: mergedOpname,
                 approvedTransfers: mergedTransfer,

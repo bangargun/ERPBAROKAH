@@ -953,9 +953,7 @@ export default function AndroidPosRegister({
               const sArr = Array.isArray(serverArr) ? serverArr : [];
               const lArr = Array.isArray(localArr) ? localArr : [];
 
-              if (sArr.length === 0 && LOGISTICS_ARRAY_KEYS.has(keyName)) {
-                return [];
-              }
+              if (sArr.length === 0 && lArr.length === 0) return [];
               if (sArr.length === 0) return lArr;
               if (lArr.length === 0) return sArr;
 
@@ -971,10 +969,7 @@ export default function AndroidPosRegister({
                 if (k) {
                   const existing = map.get(k);
                   if (!existing) {
-                    // Untuk array logistik & laporan, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
-                    if (!LOGISTICS_ARRAY_KEYS.has(keyName)) {
-                      map.set(k, item);
-                    }
+                    map.set(k, item);
                   } else {
                     map.set(k, { ...item, ...existing });
                   }
