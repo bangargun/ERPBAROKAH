@@ -56,15 +56,6 @@ export default function IngredientPriceComparisonPage({
   // Selected Item for Price History Modal
   const [priceHistoryItem, setPriceHistoryItem] = useState(null);
 
-  // ─── TAB: 'matrix' | 'trend' ───────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('matrix');
-
-  // ─── TREND TAB: Filter Outlet & Bahan Baku ─────────────────────────────────
-  const [trendOutletId, setTrendOutletId]             = useState('');
-  const [trendIngredient, setTrendIngredient]         = useState('');
-  const [trendIngSearch, setTrendIngSearch]           = useState('');
-  const [showTrendIngDropdown, setShowTrendIngDropdown] = useState(false);
-
   // Helper: Get Outlet Name by ID
   const getOutletName = (id) => {
     const otl = outletsList.find(o => String(o.id) === String(id));
@@ -187,54 +178,6 @@ export default function IngredientPriceComparisonPage({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [masterData, allPurchaseRecords]);
 
-  // ─── TREND TAB: Data Tren Harga Per Outlet + Bahan Baku ────────────────────
-  const trendRows = useMemo(() => {
-    if (!trendOutletId || !trendIngredient) return [];
-    // Filter semua record: outlet sama, bahan baku sama
-    const rows = allPurchaseRecords.filter(r =>
-      String(r.outlet_id) === String(trendOutletId) &&
-      r.ingredient_name.toLowerCase().trim() === trendIngredient.toLowerCase().trim()
-    );
-    // Sort by date ascending (terlama → terbaru)
-    const sorted = [...rows].sort((a, b) => new Date(a.date) - new Date(b.date));
-    // Tambah kolom selisih harga vs pembelian sebelumnya
-    return sorted.map((r, idx) => {
-      const prev = idx > 0 ? sorted[idx - 1] : null;
-      const diff = prev ? r.unit_price - prev.unit_price : null;
-      const pct  = (prev && prev.unit_price > 0) ? ((diff / prev.unit_price) * 100) : null;
-      return { ...r, diff, pct };
-    }).reverse(); // tampilkan terbaru di atas
-  }, [allPurchaseRecords, trendOutletId, trendIngredient]);
-
-  // Trend summary stats
-  const trendStats = useMemo(() => {
-    if (trendRows.length === 0) return null;
-    const prices = trendRows.map(r => r.unit_price);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
-    // Harga terbaru vs tertua
-    const newest = trendRows[0]?.unit_price || 0;
-    const oldest = trendRows[trendRows.length - 1]?.unit_price || 0;
-    const totalChange = newest - oldest;
-    const totalPct = oldest > 0 ? ((totalChange / oldest) * 100).toFixed(1) : null;
-    return { min, max, avg, newest, oldest, totalChange, totalPct };
-  }, [trendRows]);
-
-  // Trend: bahan baku unik untuk outlet terpilih
-  const trendIngredientOptions = useMemo(() => {
-    if (!trendOutletId) return uniqueIngredientNames;
-    const set = new Set();
-    allPurchaseRecords
-      .filter(r => String(r.outlet_id) === String(trendOutletId))
-      .forEach(r => r.ingredient_name && set.add(r.ingredient_name.trim()));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [allPurchaseRecords, trendOutletId, uniqueIngredientNames]);
-
-  const filteredTrendIngOptions = useMemo(() => {
-    if (!trendIngSearch.trim()) return trendIngredientOptions;
-    return trendIngredientOptions.filter(n => n.toLowerCase().includes(trendIngSearch.toLowerCase()));
-  }, [trendIngredientOptions, trendIngSearch]);
 
   // Filtered Dropdown Items based on internal search input
   const filteredDropdownIngredients = useMemo(() => {
@@ -426,53 +369,26 @@ export default function IngredientPriceComparisonPage({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* TAB TOGGLE */}
-          <div style={{ display: 'flex', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '3px', gap: '3px' }}>
-            <button
-              onClick={() => setActiveTab('matrix')}
-              style={{
-                padding: '7px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                fontWeight: '800', fontSize: '0.78rem',
-                background: activeTab === 'matrix' ? T.accentGoldBg : 'transparent',
-                color: activeTab === 'matrix' ? T.accentGold : T.txtSecondary,
-                transition: 'all 0.2s'
-              }}
-            >
-              <span>📊 Matrix Antar Outlet</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('trend')}
-              style={{
-                padding: '7px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                fontWeight: '800', fontSize: '0.78rem',
-                background: activeTab === 'trend' ? 'rgba(56,189,248,0.15)' : 'transparent',
-                color: activeTab === 'trend' ? T.info : T.txtSecondary,
-                transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', gap: '5px'
-              }}
-            >
-              <History size={14} />
-              <span>Tren Harga Per Outlet</span>
-            </button>
-          </div>
-
-          {/* COLUMN VISIBILITY FILTER BUTTON — hanya tampil di tab matrix */}
-          {activeTab === 'matrix' && (
-            <button
-              onClick={() => setShowColumnFilter(!showColumnFilter)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '10px 18px', background: T.cardBg2,
-                border: `1px solid ${T.borderStrong}`, borderRadius: '10px',
-                color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer'
-              }}
-            >
-              <Filter size={16} color={T.accentGold} />
-              <span>👁️ Filter Kolom Outlet ({activeOutletColumns.length}/{outletsList.length})</span>
-            </button>
-          )}
-        </div>
+        {/* COLUMN VISIBILITY FILTER BUTTON */}
+        <button
+          onClick={() => setShowColumnFilter(!showColumnFilter)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            background: T.cardBg2,
+            border: `1px solid ${T.borderStrong}`,
+            borderRadius: '10px',
+            color: T.txtPrimary,
+            fontWeight: '800',
+            fontSize: '0.82rem',
+            cursor: 'pointer'
+          }}
+        >
+          <Filter size={16} color={T.accentGold} />
+          <span>👁️ Filter Kolom Outlet ({activeOutletColumns.length}/{outletsList.length})</span>
+        </button>
       </div>
 
       {/* COLUMN VISIBILITY FILTER DROPDOWN MODAL */}
@@ -890,312 +806,7 @@ export default function IngredientPriceComparisonPage({
         )}
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════ */}
-      {/* TAB: TREN HARGA PER OUTLET (BARU)                               */}
-      {/* ════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'trend' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* ── FILTER BAR ────────────────────────────────────────────── */}
-          <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'flex-end' }}>
-            
-            {/* Pilih Outlet */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '200px' }}>
-              <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>🏬 Pilih Outlet</label>
-              <select
-                value={trendOutletId}
-                onChange={e => { setTrendOutletId(e.target.value); setTrendIngredient(''); }}
-                style={{ padding: '8px 12px', borderRadius: '8px', border: `1px solid ${trendOutletId ? T.info : T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
-              >
-                <option value=''>-- Pilih Outlet --</option>
-                {outletsList.map(o => (
-                  <option key={o.id} value={String(o.id)}>{o.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Pilih Bahan Baku (searchable dropdown) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '220px', position: 'relative' }}>
-              <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>🥬 Pilih Bahan Baku</label>
-              <button
-                type='button'
-                onClick={() => { if (trendOutletId) setShowTrendIngDropdown(!showTrendIngDropdown); }}
-                style={{
-                  padding: '8px 12px', borderRadius: '8px', cursor: trendOutletId ? 'pointer' : 'not-allowed',
-                  border: `1px solid ${trendIngredient ? T.accentGold : T.border}`,
-                  background: trendOutletId ? T.inputBg : T.cardBg2,
-                  color: trendIngredient ? T.accentGold : T.txtSecondary,
-                  fontSize: '0.82rem', fontWeight: '700',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px'
-                }}
-              >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {trendIngredient || (trendOutletId ? 'Pilih bahan baku...' : 'Pilih outlet dulu')}
-                </span>
-                <ChevronDown size={14} color={T.txtMuted} />
-              </button>
-
-              {showTrendIngDropdown && trendOutletId && (
-                <div style={{
-                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-                  background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`,
-                  borderRadius: '10px', boxShadow: '0 14px 35px rgba(0,0,0,0.65)',
-                  zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px'
-                }}>
-                  <div style={{ position: 'relative' }}>
-                    <Search size={13} color={T.txtMuted} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
-                      type='text'
-                      value={trendIngSearch}
-                      onChange={e => setTrendIngSearch(e.target.value)}
-                      placeholder='Cari bahan baku...'
-                      autoFocus
-                      style={{ width: '100%', padding: '6px 10px 6px 28px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.76rem' }}
-                    />
-                  </div>
-                  <div style={{ overflowY: 'auto', maxHeight: '200px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    {filteredTrendIngOptions.length === 0 ? (
-                      <div style={{ padding: '10px', fontSize: '0.74rem', color: T.txtMuted, textAlign: 'center' }}>Tidak ada data</div>
-                    ) : filteredTrendIngOptions.map((name, i) => (
-                      <button
-                        key={i} type='button'
-                        onClick={() => { setTrendIngredient(name); setShowTrendIngDropdown(false); setTrendIngSearch(''); }}
-                        style={{
-                          padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer',
-                          background: trendIngredient === name ? T.accentGoldBg : 'transparent',
-                          color: trendIngredient === name ? T.accentGold : T.txtPrimary,
-                          fontSize: '0.78rem', fontWeight: trendIngredient === name ? '900' : '600',
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                        }}
-                      >
-                        <span>{name}</span>
-                        {trendIngredient === name && <Check size={13} color={T.accentGold} />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Reset */}
-            {(trendOutletId || trendIngredient) && (
-              <button
-                onClick={() => { setTrendOutletId(''); setTrendIngredient(''); setTrendIngSearch(''); }}
-                style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end' }}
-              >
-                ✕ Reset
-              </button>
-            )}
-          </div>
-
-          {/* ── PLACEHOLDER JIKA BELUM PILIH ──────────────────────────── */}
-          {(!trendOutletId || !trendIngredient) && (
-            <div style={{ background: T.cardBg, border: `1px dashed ${T.border}`, borderRadius: '14px', padding: '48px 20px', textAlign: 'center' }}>
-              <History size={42} color={T.txtMuted} style={{ opacity: 0.4, marginBottom: '12px' }} />
-              <div style={{ fontSize: '0.90rem', color: T.txtMuted, fontWeight: '700' }}>Pilih Outlet dan Bahan Baku</div>
-              <div style={{ fontSize: '0.76rem', color: T.txtMuted, marginTop: '6px' }}>untuk melihat tren harga dari waktu ke waktu pada outlet tersebut</div>
-            </div>
-          )}
-
-          {/* ── SUMMARY MINI CARDS ────────────────────────────────────── */}
-          {trendOutletId && trendIngredient && trendStats && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-              
-              <div style={{ background: T.cardBg, border: `1px solid ${T.infoBorder}`, borderRadius: '12px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', marginBottom: '6px' }}>📋 Total Pembelian</div>
-                <div style={{ fontSize: '1.30rem', fontWeight: '900', color: T.info }}>{trendRows.length}×</div>
-                <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>transaksi tercatat</div>
-              </div>
-
-              <div style={{ background: T.cardBg, border: `1px solid ${T.successBorder}`, borderRadius: '12px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', marginBottom: '6px' }}>🟢 Harga Terendah</div>
-                <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.success }}>Rp {trendStats.min.toLocaleString('id-ID')}</div>
-                <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>per unit terbaik</div>
-              </div>
-
-              <div style={{ background: T.cardBg, border: `1px solid ${T.dangerBorder}`, borderRadius: '12px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', marginBottom: '6px' }}>🔴 Harga Tertinggi</div>
-                <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.danger }}>Rp {trendStats.max.toLocaleString('id-ID')}</div>
-                <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>per unit termahal</div>
-              </div>
-
-              <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '12px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', marginBottom: '6px' }}>💵 Rata-Rata Harga</div>
-                <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.txtPrimary }}>Rp {trendStats.avg.toLocaleString('id-ID')}</div>
-                <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>rata-rata semua pembelian</div>
-              </div>
-
-              <div style={{ background: T.cardBg, border: `1px solid ${trendStats.totalChange > 0 ? T.dangerBorder : trendStats.totalChange < 0 ? T.successBorder : T.border}`, borderRadius: '12px', padding: '14px 16px' }}>
-                <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', marginBottom: '6px' }}>📈 Total Perubahan Harga</div>
-                <div style={{ fontSize: '1.10rem', fontWeight: '900', color: trendStats.totalChange > 0 ? T.danger : trendStats.totalChange < 0 ? T.success : T.txtMuted }}>
-                  {trendStats.totalChange > 0 ? '+' : ''}{trendStats.totalChange.toLocaleString('id-ID')}
-                  {trendStats.totalPct && <span style={{ fontSize: '0.74rem', marginLeft: '5px' }}>({trendStats.totalChange > 0 ? '+' : ''}{trendStats.totalPct}%)</span>}
-                </div>
-                <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>dari pembelian pertama → terbaru</div>
-              </div>
-
-            </div>
-          )}
-
-          {/* ── TABEL TREN HARGA ──────────────────────────────────────── */}
-          {trendOutletId && trendIngredient && (
-            <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', overflow: 'hidden' }}>
-              
-              {/* Header Tabel */}
-              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '10px', background: T.cardBg2 }}>
-                <History size={16} color={T.info} />
-                <span style={{ fontWeight: '800', fontSize: '0.88rem', color: T.txtPrimary }}>
-                  Tren Harga: <span style={{ color: T.accentGold }}>{trendIngredient}</span>
-                  <span style={{ color: T.txtSecondary, fontWeight: '600' }}> — {outletsList.find(o => String(o.id) === String(trendOutletId))?.name || 'Outlet'}</span>
-                </span>
-                <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700' }}>
-                  {trendRows.length} transaksi
-                </span>
-              </div>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                  <thead>
-                    <tr style={{ background: T.cardBg2, color: T.txtSecondary, textTransform: 'uppercase', fontSize: '0.68rem', borderBottom: `2px solid ${T.border}` }}>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: '800' }}>No</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: '800' }}>Tanggal</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: '800' }}>Sumber Data</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: '800' }}>Supplier / Catatan</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '800' }}>Qty</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'right', fontWeight: '800', color: T.accentGold }}>Harga Satuan</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'right', fontWeight: '800' }}>Total Rp</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '800' }}>Perubahan Harga</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '800' }}>% Naik/Turun</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trendRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: T.txtMuted }}>
-                          <History size={32} style={{ opacity: 0.3, marginBottom: '8px' }} />
-                          <br />
-                          Belum ada data pembelian untuk bahan baku ini di outlet tersebut.
-                        </td>
-                      </tr>
-                    ) : trendRows.map((r, idx) => {
-                      const rowNo = trendRows.length - idx;
-                      const hasDiff = r.diff !== null;
-                      const isUp    = hasDiff && r.diff > 0;
-                      const isDown  = hasDiff && r.diff < 0;
-                      const isFlat  = hasDiff && r.diff === 0;
-                      const formattedDate = new Date(r.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-
-                      return (
-                        <tr
-                          key={idx}
-                          style={{
-                            borderBottom: `1px solid ${T.border}`,
-                            background: idx === 0 ? 'rgba(56,189,248,0.04)' : 'transparent',
-                            transition: 'background 0.15s'
-                          }}
-                          className='hover:bg-slate-800/40'
-                        >
-                          {/* No */}
-                          <td style={{ padding: '10px 14px', color: T.txtMuted, fontWeight: '700', fontSize: '0.72rem' }}>
-                            {rowNo}
-                            {idx === 0 && <span style={{ display: 'block', fontSize: '0.60rem', color: T.info, fontWeight: '800' }}>TERBARU</span>}
-                          </td>
-
-                          {/* Tanggal */}
-                          <td style={{ padding: '10px 14px', fontWeight: '700', color: T.txtPrimary, whiteSpace: 'nowrap' }}>
-                            {formattedDate}
-                          </td>
-
-                          {/* Sumber */}
-                          <td style={{ padding: '10px 14px' }}>
-                            <span style={{
-                              padding: '3px 8px', borderRadius: '5px', fontSize: '0.68rem', fontWeight: '800',
-                              background: r.source === 'Logistik' ? 'rgba(56,189,248,0.12)'
-                                : r.source === 'Laporan Harian' ? 'rgba(251,191,36,0.12)'
-                                : r.source === 'Master HPP' ? 'rgba(139,92,246,0.12)'
-                                : 'rgba(52,211,153,0.12)',
-                              color: r.source === 'Logistik' ? T.info
-                                : r.source === 'Laporan Harian' ? T.accentGold
-                                : r.source === 'Master HPP' ? '#a78bfa'
-                                : T.success
-                            }}>
-                              {r.source}
-                            </span>
-                          </td>
-
-                          {/* Supplier */}
-                          <td style={{ padding: '10px 14px', color: T.txtSecondary, fontSize: '0.76rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {r.supplier_name || '-'}
-                          </td>
-
-                          {/* Qty */}
-                          <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '700', color: T.txtPrimary }}>
-                            {r.qty} <span style={{ fontSize: '0.68rem', color: T.txtMuted }}>{r.unit}</span>
-                          </td>
-
-                          {/* Harga Satuan */}
-                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '900', fontSize: '0.90rem', color: T.accentGold, whiteSpace: 'nowrap' }}>
-                            Rp {r.unit_price.toLocaleString('id-ID')}
-                          </td>
-
-                          {/* Total Rp */}
-                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtPrimary, whiteSpace: 'nowrap' }}>
-                            Rp {(r.total_price || 0).toLocaleString('id-ID')}
-                          </td>
-
-                          {/* Selisih Harga */}
-                          <td style={{ padding: '10px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            {!hasDiff ? (
-                              <span style={{ fontSize: '0.68rem', color: T.txtMuted }}>—</span>
-                            ) : (
-                              <span style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800',
-                                background: isUp ? 'rgba(244,63,94,0.12)' : isDown ? 'rgba(52,211,153,0.12)' : 'rgba(148,163,184,0.10)',
-                                color: isUp ? T.danger : isDown ? T.success : T.txtMuted,
-                                border: `1px solid ${isUp ? 'rgba(244,63,94,0.25)' : isDown ? 'rgba(52,211,153,0.25)' : T.border}`
-                              }}>
-                                {isUp && <ArrowUpRight size={11} />}
-                                {isDown && <ArrowDownRight size={11} />}
-                                {isFlat && <Minus size={11} />}
-                                {isUp ? '+' : ''}{r.diff.toLocaleString('id-ID')}
-                              </span>
-                            )}
-                          </td>
-
-                          {/* % */}
-                          <td style={{ padding: '10px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            {r.pct === null ? (
-                              <span style={{ fontSize: '0.68rem', color: T.txtMuted }}>—</span>
-                            ) : (
-                              <span style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '2px',
-                                padding: '3px 9px', borderRadius: '20px', fontSize: '0.70rem', fontWeight: '900',
-                                background: r.pct > 5 ? 'rgba(244,63,94,0.15)' : r.pct < -5 ? 'rgba(52,211,153,0.15)' : 'rgba(148,163,184,0.10)',
-                                color: r.pct > 5 ? T.danger : r.pct < -5 ? T.success : T.txtSecondary
-                              }}>
-                                {r.pct > 0 ? '↑' : r.pct < 0 ? '↓' : '='} {Math.abs(r.pct).toFixed(1)}%
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Footer info */}
-              {trendRows.length > 0 && (
-                <div style={{ padding: '10px 20px', borderTop: `1px solid ${T.border}`, background: T.cardBg2, fontSize: '0.70rem', color: T.txtMuted, fontWeight: '600' }}>
-                  📌 Data diurutkan dari transaksi terbaru → terlama. Kolom &ldquo;Perubahan Harga&rdquo; menunjukkan selisih harga satuan dibandingkan pembelian sebelumnya.
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
-      )}
 
     </div>
   );
