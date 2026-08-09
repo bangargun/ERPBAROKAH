@@ -322,7 +322,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
       rows.forEach(r => {
         const catType = String(r.category_type || r.category || '').toLowerCase();
-        const isHpp = !r.category_type || catType.includes('hpp') || catType.includes('bahan') || catType.includes('mentah');
+        const accountCode = String(r.code || r.accountCode || r.account_code || '');
+
+        // Exclude OPEX items (kode 6xxx, 7xxx, 8xxx) — mereka adalah Beban, bukan HPP
+        // HPP hanya items yang kode akunnya 5xxx atau eksplisit ber-tipe bahan baku/HPP
+        const isOpex = accountCode.startsWith('6') || accountCode.startsWith('7') || accountCode.startsWith('8');
+        const isExplicitHpp = catType.includes('hpp') || catType.includes('bahan') || catType.includes('mentah') || catType.includes('produksi') || accountCode.startsWith('5');
+        const isHpp = !isOpex && (isExplicitHpp || (!r.category_type && !accountCode));
+
         if (isHpp && (r.item_name || r.name)) {
           reportHasHppRow = true;
           const rawName = (r.item_name || r.name || 'Bahan Baku Utama').trim();
