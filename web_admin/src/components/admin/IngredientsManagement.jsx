@@ -472,7 +472,7 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                 />
               </div>
 
-              {/* Field 3 & 4: Satuan Unit & Batas Minimal Stok */}
+              {/* Field 3 & 4: Satuan Unit & Stok Awal */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
@@ -489,6 +489,23 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
 
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                    Stok Awal (Awal Mula Stok)
+                  </label>
+                  <input
+                    type="number"
+                    value={ingStock}
+                    onChange={e => setIngStock(e.target.value)}
+                    className="form-input"
+                    style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
+                    placeholder="1000"
+                  />
+                </div>
+              </div>
+
+              {/* Field 5 & 6: Batas Minimal Stok & Tampilkan di APK */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                     Batas Minimal Stok (Alert)
                   </label>
                   <input
@@ -500,17 +517,16 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                     placeholder="500"
                   />
                 </div>
-              </div>
 
-              {/* Field 5: Tampilkan di APK */}
-              <div>
-                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
-                  Tampilkan di APK
-                </label>
-                <select value={ingStatus} onChange={e => setIngStatus(e.target.value)} className="form-select" style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}>
-                  <option value="Aktif">Aktif</option>
-                  <option value="Inaktif">Inaktif</option>
-                </select>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                    Tampilkan di APK
+                  </label>
+                  <select value={ingStatus} onChange={e => setIngStatus(e.target.value)} className="form-select" style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Inaktif">Inaktif</option>
+                  </select>
+                </div>
               </div>
 
               {/* Field 6: Keterangan Akun HPP */}
