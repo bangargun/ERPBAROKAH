@@ -724,18 +724,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         </div>
 
         {/* TABLE CONTENT */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
+        <div style={{ width: '100%', overflowX: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', background: T.tableHeaderBg }}>
-                <th style={{ padding: '10px 10px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '9%' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '25%' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '12%' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '13%' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '18%' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '10%' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '7%' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '6%', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
               </tr>
             </thead>
             <tbody>
@@ -814,12 +814,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   return (
                     <tr key={p.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. SKU */}
-                      <td style={{ padding: '8px 10px', color: T.txtSecondary, fontFamily: 'monospace', fontSize: '0.70rem', fontWeight: '600' }}>
+                      <td style={{ padding: '8px 10px', color: T.txtSecondary, fontFamily: 'monospace', fontSize: '0.70rem', fontWeight: '600', wordBreak: 'break-all' }}>
                         {p.sku || p.code || `MNM-00${p.id}`}
                       </td>
 
                       {/* 2. MENU */}
-                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', letterSpacing: '0.2px' }}>
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', letterSpacing: '0.2px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.35' }}>
                         <button
                           type="button"
                           onClick={() => setSelectedMenuDetail(p)}
@@ -832,7 +832,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             padding: 0,
                             textAlign: 'left',
                             fontSize: '0.76rem',
-                            textDecoration: 'underline'
+                            textDecoration: 'underline',
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                            lineHeight: '1.35'
                           }}
                           title="Klik untuk melihat papan informasi detail kuantitas terjual & riwayat penjualan menu ini"
                         >
