@@ -217,6 +217,23 @@ export default function IngredientPriceTrendPage({
     return { min, max, avg, totalSpend, totalQty, unit, newest, oldest, totalChange, totalPct, volatilityPct, upCount, downCount, flatCount, statusText, statusColor };
   }, [trendRows, T]);
 
+  // Auto-select outlet and ingredient if available so resume cards are immediately visible!
+  React.useEffect(() => {
+    if (!trendOutletId && outletsList.length > 0) {
+      if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
+        setTrendOutletId(String(selectedBranch));
+      } else {
+        setTrendOutletId(String(outletsList[0].id));
+      }
+    }
+  }, [outletsList, selectedBranch, trendOutletId]);
+
+  React.useEffect(() => {
+    if (trendOutletId && !trendIngredient && masterIngredientsList.length > 0) {
+      setTrendIngredient(masterIngredientsList[0]);
+    }
+  }, [trendOutletId, masterIngredientsList, trendIngredient]);
+
   const selectedOutletName = outletsList.find(o => String(o.id) === String(trendOutletId))?.name || '';
 
   return (
@@ -237,18 +254,18 @@ export default function IngredientPriceTrendPage({
         </div>
       </div>
 
-      {/* FILTER BAR & KALENDER WIDGET */}
-      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+      {/* FILTER BAR 1 BARIS TAMPILAN */}
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
 
         {/* 1. Pilih Outlet */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '200px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 180px', minWidth: '170px' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <Building2 size={13} /> Pilih Outlet
           </label>
           <select
             value={trendOutletId}
             onChange={e => { setTrendOutletId(e.target.value); setTrendIngredient(''); setTrendIngSearch(''); }}
-            style={{ padding: '9px 12px', borderRadius: '8px', border: `1px solid ${trendOutletId ? T.info : T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
+            style={{ height: '40px', padding: '0 12px', borderRadius: '6px', border: `1px solid ${trendOutletId ? T.info : T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
           >
             <option value="">-- Pilih Outlet --</option>
             {outletsList.map(o => (
@@ -257,15 +274,15 @@ export default function IngredientPriceTrendPage({
           </select>
         </div>
 
-        {/* 2. Pilih Bahan Baku (Diambil dari Data Master Bahan Baku) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px', position: 'relative' }}>
+        {/* 2. Pilih Bahan Baku (Searchable Dropdown) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 200px', minWidth: '180px', position: 'relative' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            🥬 Pilih Bahan Baku (Master Data)
+            🥬 Pilih Bahan Baku
           </label>
           <button
             type="button"
             onClick={() => { if (trendOutletId) setShowTrendIngDropdown(v => !v); }}
-            style={{ padding: '9px 12px', borderRadius: '8px', cursor: trendOutletId ? 'pointer' : 'not-allowed', border: `1px solid ${trendIngredient ? T.accentGold : T.border}`, background: trendOutletId ? T.inputBg : T.cardBg2, color: trendIngredient ? T.accentGold : T.txtSecondary, fontSize: '0.84rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
+            style={{ height: '40px', padding: '0 12px', borderRadius: '6px', cursor: trendOutletId ? 'pointer' : 'not-allowed', border: `1px solid ${trendIngredient ? T.accentGold : T.border}`, background: trendOutletId ? T.inputBg : T.cardBg2, color: trendIngredient ? T.accentGold : T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {trendIngredient || (trendOutletId ? 'Pilih bahan baku...' : 'Pilih outlet dulu')}
@@ -274,10 +291,10 @@ export default function IngredientPriceTrendPage({
           </button>
 
           {showTrendIngDropdown && trendOutletId && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '10px', boxShadow: '0 16px 40px rgba(0,0,0,0.6)', zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '10px', boxShadow: '0 16px 40px rgba(0,0,0,0.6)', zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '230px' }}>
               <div style={{ position: 'relative' }}>
                 <Search size={13} color={T.txtMuted} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input type="text" value={trendIngSearch} onChange={e => setTrendIngSearch(e.target.value)} placeholder="Cari nama bahan master..." autoFocus style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }} />
+                <input type="text" value={trendIngSearch} onChange={e => setTrendIngSearch(e.target.value)} placeholder="Cari nama bahan..." autoFocus style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }} />
               </div>
               <div style={{ overflowY: 'auto', maxHeight: '220px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {filteredTrendIngOptions.length === 0 ? (
@@ -293,28 +310,24 @@ export default function IngredientPriceTrendPage({
           )}
         </div>
 
-        {/* 3. WIDGET KALENDER RENTANG WAKTU (DoubleCalendarPicker) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Calendar size={13} color={T.info} /> Rentang Waktu Tanggal
-          </label>
-          <DoubleCalendarPicker
-            startDate={startDate}
-            endDate={endDate}
-            datePreset={datePreset}
-            setStartDate={setStartDate}
-            setEndDate={setEndDate}
-            setDatePreset={setDatePreset}
-            showPopover={showCalendarPopover}
-            setShowPopover={setShowCalendarPopover}
-            hideOutletFilter={true}
-            themeMode={themeMode}
-          />
-        </div>
+        {/* 3. Rentang Waktu Tanggal (Inline DoubleCalendarPicker) */}
+        <DoubleCalendarPicker
+          startDate={startDate}
+          endDate={endDate}
+          datePreset={datePreset}
+          setStartDate={setStartDate}
+          setEndDate={setEndDate}
+          setDatePreset={setDatePreset}
+          showPopover={showCalendarPopover}
+          setShowPopover={setShowCalendarPopover}
+          hideOutletFilter={true}
+          noWrapper={true}
+          themeMode={themeMode}
+        />
 
         {/* 4. Reset Button */}
         {(trendOutletId || trendIngredient || startDate || endDate) && (
-          <button onClick={() => { setTrendOutletId(''); setTrendIngredient(''); setTrendIngSearch(''); setStartDate(''); setEndDate(''); setDatePreset('all'); setShowTrendIngDropdown(false); }} style={{ padding: '9px 16px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.80rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button onClick={() => { setTrendOutletId(''); setTrendIngredient(''); setTrendIngSearch(''); setStartDate(''); setEndDate(''); setDatePreset('all'); setShowTrendIngDropdown(false); }} style={{ height: '40px', padding: '0 14px', borderRadius: '6px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.80rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <RotateCcw size={13} /> Reset Filter
           </button>
         )}
