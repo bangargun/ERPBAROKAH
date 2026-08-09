@@ -122,8 +122,20 @@ export default function MasterDataManagement({ masterData, setMasterData, select
         </p>
       </div>
 
-      {/* Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+      {/* Sticky Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) */}
+      <div style={{
+        position: 'sticky',
+        top: '56px',
+        zIndex: 100,
+        background: T.pageBg,
+        paddingTop: '6px',
+        paddingBottom: '10px',
+        borderBottom: `1px solid ${T.border}`,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(5, 1fr)',
+        gap: '6px',
+        transition: 'background 0.25s ease'
+      }}>
         {subTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
