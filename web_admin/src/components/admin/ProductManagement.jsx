@@ -624,7 +624,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* MAIN CONTAINER CARD */}
       <div className="glass-card" style={{ padding: '0', overflow: 'hidden', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px' }}>
         

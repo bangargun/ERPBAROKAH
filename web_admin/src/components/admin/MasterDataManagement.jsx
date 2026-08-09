@@ -112,7 +112,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }}>
       <div>
         <h2 style={{ fontSize: '0.98rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '-0.01em' }}>
           Sumber Data Master (Master Data Center)
