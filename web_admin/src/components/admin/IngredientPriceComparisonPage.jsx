@@ -44,17 +44,6 @@ export default function IngredientPriceComparisonPage({
     return (masterData?.outlets || []).map(o => String(o.id));
   });
 
-  // Unique Ingredient Names List for Dropdown Filter
-  const uniqueIngredientNames = useMemo(() => {
-    const set = new Set();
-    (masterData?.ingredients || []).forEach(i => i.name && set.add(i.name.trim()));
-    (allPurchaseRecords || []).forEach(r => r.ingredient_name && set.add(r.ingredient_name.trim()));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [masterData, allPurchaseRecords]);
-
-  // Selected Item for Price History Modal
-  const [priceHistoryItem, setPriceHistoryItem] = useState(null);
-
   // Helper: Get Outlet Name by ID
   const getOutletName = (id) => {
     const otl = outletsList.find(o => String(o.id) === String(id));
@@ -168,6 +157,14 @@ export default function IngredientPriceComparisonPage({
 
     return records;
   }, [masterData, outletsList]);
+
+  // Unique Ingredient Names List for Dropdown Filter
+  const uniqueIngredientNames = useMemo(() => {
+    const set = new Set();
+    (masterData?.ingredients || []).forEach(i => i.name && set.add(i.name.trim()));
+    (allPurchaseRecords || []).forEach(r => r.ingredient_name && set.add(r.ingredient_name.trim()));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [masterData, allPurchaseRecords]);
 
   // Filtered Purchase Records
   const filteredPurchaseRecords = useMemo(() => {
