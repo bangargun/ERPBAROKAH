@@ -20,7 +20,8 @@ import {
   History,
   ArrowUpRight,
   ArrowDownRight,
-  Minus
+  Minus,
+  RotateCcw
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
@@ -515,34 +516,59 @@ export default function IngredientPriceComparisonPage({
 
       </div>
 
-      {/* FILTER & SEARCH BAR */}
-      <div style={{ background: T.cardBg, padding: '16px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'center' }}>
+      {/* FILTER & SEARCH BAR (RAPI & SEJAJAR) */}
+      <div style={{
+        background: T.cardBg,
+        padding: '18px 20px',
+        borderRadius: '14px',
+        border: `1px solid ${T.border}`,
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '16px',
+        alignItems: 'flex-end'
+      }}>
         
-        {/* Search Input: Nama Bahan Baku */}
-        <div style={{ position: 'relative' }}>
-          <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            placeholder="Cari Kata Kunci Bahan Baku / Supplier..."
-            style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
-          />
+        {/* 1. Search Input: Kata Kunci Bahan / Supplier */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 200px', minWidth: '200px' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Search size={13} color={T.txtMuted} /> Cari Bahan / Supplier
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              placeholder="Ketik kata kunci..."
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                background: T.inputBg,
+                color: T.txtPrimary,
+                fontSize: '0.84rem',
+                fontWeight: '600'
+              }}
+            />
+          </div>
         </div>
 
-        {/* Custom Searchable Dropdown Filter: Pilihan Spesifik Nama Bahan Baku */}
-        <div style={{ position: 'relative' }}>
+        {/* 2. Custom Searchable Dropdown Filter: Pilih Bahan Baku */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: '1 1 220px', minWidth: '220px', position: 'relative' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
+            🥬 Filter Bahan Baku
+          </label>
           <button
             type="button"
             onClick={() => setShowIngDropdown(!showIngDropdown)}
             style={{
               width: '100%',
-              padding: '8px 12px',
+              padding: '9px 12px',
               borderRadius: '8px',
               border: `1px solid ${showIngDropdown ? T.accentGold : T.border}`,
               background: T.inputBg,
-              color: T.txtPrimary,
-              fontSize: '0.80rem',
+              color: selectedIngredientFilter !== 'ALL' ? T.accentGold : T.txtPrimary,
+              fontSize: '0.84rem',
               fontWeight: '700',
               display: 'flex',
               alignItems: 'center',
@@ -553,10 +579,10 @@ export default function IngredientPriceComparisonPage({
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selectedIngredientFilter === 'ALL'
-                ? `🥬 Semua Bahan Baku (${uniqueIngredientNames.length} Item)`
+                ? `Semua Bahan Baku (${uniqueIngredientNames.length})`
                 : selectedIngredientFilter}
             </span>
-            <ChevronDown size={16} color={T.txtMuted} />
+            <ChevronDown size={14} color={T.txtMuted} />
           </button>
 
           {showIngDropdown && (
@@ -575,17 +601,17 @@ export default function IngredientPriceComparisonPage({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
-                minWidth: '220px'
+                minWidth: '240px'
               }}
             >
               {/* Search Input Box Inside Dropdown */}
               <div style={{ position: 'relative' }}>
-                <Search size={14} color={T.txtMuted} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <Search size={13} color={T.txtMuted} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="text"
                   value={ingDropdownSearch}
                   onChange={e => setIngDropdownSearch(e.target.value)}
-                  placeholder="🔍 Cari nama bahan..."
+                  placeholder="Cari nama bahan..."
                   autoFocus
                   style={{
                     width: '100%',
@@ -594,7 +620,7 @@ export default function IngredientPriceComparisonPage({
                     border: `1px solid ${T.border}`,
                     background: T.inputBg,
                     color: T.txtPrimary,
-                    fontSize: '0.76rem'
+                    fontSize: '0.78rem'
                   }}
                 />
               </div>
@@ -624,8 +650,8 @@ export default function IngredientPriceComparisonPage({
                     justifyContent: 'space-between'
                   }}
                 >
-                  <span>🥬 Semua Bahan Baku ({uniqueIngredientNames.length} Item)</span>
-                  {selectedIngredientFilter === 'ALL' && <Check size={14} color={T.accentGold} />}
+                  <span>🥬 Semua Bahan Baku ({uniqueIngredientNames.length})</span>
+                  {selectedIngredientFilter === 'ALL' && <Check size={13} color={T.accentGold} />}
                 </button>
 
                 {filteredDropdownIngredients.length === 0 ? (
@@ -649,7 +675,7 @@ export default function IngredientPriceComparisonPage({
                         border: 'none',
                         background: selectedIngredientFilter === name ? T.accentGoldBg : 'transparent',
                         color: selectedIngredientFilter === name ? T.accentGold : T.txtPrimary,
-                        fontSize: '0.76rem',
+                        fontSize: '0.78rem',
                         fontWeight: selectedIngredientFilter === name ? '900' : '600',
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -659,7 +685,7 @@ export default function IngredientPriceComparisonPage({
                       }}
                     >
                       <span>{name}</span>
-                      {selectedIngredientFilter === name && <Check size={14} color={T.accentGold} />}
+                      {selectedIngredientFilter === name && <Check size={13} color={T.accentGold} />}
                     </button>
                   ))
                 )}
@@ -668,8 +694,8 @@ export default function IngredientPriceComparisonPage({
           )}
         </div>
 
-        {/* WIDGET KALENDER RENTANG WAKTU (DoubleCalendarPicker) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: 'span 2' }}>
+        {/* 3. WIDGET KALENDER RENTANG WAKTU (DoubleCalendarPicker) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <Calendar size={13} color={T.info} /> Rentang Waktu Tanggal
           </label>
@@ -686,6 +712,37 @@ export default function IngredientPriceComparisonPage({
             themeMode={themeMode}
           />
         </div>
+
+        {/* 4. Reset Filter Button */}
+        {(searchTerm || selectedIngredientFilter !== 'ALL' || startDate || endDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm('');
+              setSelectedIngredientFilter('ALL');
+              setStartDate('');
+              setEndDate('');
+              setDatePreset('all');
+              setCurrentPage(1);
+            }}
+            style={{
+              padding: '9px 16px',
+              borderRadius: '8px',
+              border: `1px solid ${T.border}`,
+              background: 'transparent',
+              color: T.txtMuted,
+              fontSize: '0.80rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              alignSelf: 'flex-end',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <RotateCcw size={13} /> Reset Filter
+          </button>
+        )}
       </div>
 
       {/* MAIN DATA TABLE MATRIX */}
