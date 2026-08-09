@@ -305,62 +305,86 @@ export default function ManualReportUpdateModal({
   const handleDownloadTemplate = () => {
     const sampleRows = [
       {
-        'Tipe Laporan': 'Penjualan',
-        'Tanggal': reportDate,
-        'Nama Outlet': getOutletName(selectedOutletId),
-        'Nama Produk / Kode Biaya': masterData?.products?.[0]?.name || 'BEBEK PENYET',
-        'Qty': 5,
-        'Harga Satuan / Jumlah Rp': masterData?.products?.[0]?.price || 32000,
-        'Metode Pembayaran': 'Kas Kasir (Tunai)',
-        'Catatan': 'Penjualan Makan di Tempat (Dine-in)'
-      },
-      {
-        'Tipe Laporan': 'Penjualan',
-        'Tanggal': reportDate,
-        'Nama Outlet': getOutletName(selectedOutletId),
-        'Nama Produk / Kode Biaya': masterData?.products?.[1]?.name || 'AYAM GORENG',
+        'Tanggal': '10 April 2026',
+        'Nama Outlet': 'Ayam Bakar Surabaya Tebing Tinggi',
+        'Nama Item': 'Gas',
         'Qty': 10,
-        'Harga Satuan / Jumlah Rp': masterData?.products?.[1]?.price || 18000,
-        'Metode Pembayaran': 'Bank BCA / EDC',
-        'Catatan': 'Pesanan Takeaway'
+        'Harga Satuan': 20000,
+        'Total Harga': 200000
       },
       {
-        'Tipe Laporan': 'Pengeluaran',
-        'Tanggal': reportDate,
-        'Nama Outlet': getOutletName(selectedOutletId),
-        'Nama Produk / Kode Biaya': '6003 - Beban Sewa Gedung Restoran',
-        'Qty': 1,
-        'Harga Satuan / Jumlah Rp': 250000,
-        'Metode Pembayaran': 'Bank BCA / EDC',
-        'Catatan': 'Pembayaran Sewa Tempat Harian'
+        'Tanggal': '11 April 2026',
+        'Nama Outlet': 'Ayam Pecak 2001 Seafood Tebing Tinggi',
+        'Nama Item': 'Gas',
+        'Qty': 15,
+        'Harga Satuan': 20000,
+        'Total Harga': 300000
       },
       {
-        'Tipe Laporan': 'Pengeluaran',
-        'Tanggal': reportDate,
-        'Nama Outlet': getOutletName(selectedOutletId),
-        'Nama Produk / Kode Biaya': '6002 - Beban Listrik, Air PLN & LPG',
-        'Qty': 2,
-        'Harga Satuan / Jumlah Rp': 45000,
-        'Metode Pembayaran': 'Kas Kasir (Tunai)',
-        'Catatan': 'Pembelian 2 Tabung Gas LPG 3kg'
+        'Tanggal': '12 April 2026',
+        'Nama Outlet': 'Ayam Bakar Surabaya Tebing Tinggi',
+        'Nama Item': 'Gas',
+        'Qty': 10,
+        'Harga Satuan': 20000,
+        'Total Harga': 200000
       }
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(sampleRows);
     worksheet['!cols'] = [
-      { wch: 15 }, // Tipe Laporan
-      { wch: 14 }, // Tanggal
-      { wch: 32 }, // Nama Outlet
-      { wch: 38 }, // Nama Produk / Kode Biaya
+      { wch: 18 }, // Tanggal
+      { wch: 42 }, // Nama Outlet
+      { wch: 30 }, // Nama Item
       { wch: 10 }, // Qty
-      { wch: 22 }, // Harga Satuan / Jumlah Rp
-      { wch: 22 }, // Metode Pembayaran
-      { wch: 40 }  // Catatan
+      { wch: 16 }, // Harga Satuan
+      { wch: 18 }  // Total Harga
     ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Update Laporan Transaksi');
     XLSX.writeFile(workbook, `Template_Update_Laporan_MRIS_${reportDate}.xlsx`);
+  };
+
+  // Helper: Parse Indonesian Text Date (e.g. "10 april 2026", "11 april 2026") into YYYY-MM-DD
+  const parseIndonesianDate = (strVal, fallbackDate) => {
+    if (!strVal || String(strVal).trim() === '') return fallbackDate;
+    const s = String(strVal).trim().toLowerCase();
+
+    const monthMap = {
+      jan: '01', januari: '01', january: '01',
+      feb: '02', februari: '02', february: '02',
+      mar: '03', maret: '03', march: '03',
+      apr: '04', april: '04',
+      mei: '05', may: '05',
+      jun: '06', juni: '06', june: '06',
+      jul: '07', juli: '07', july: '07',
+      agu: '08', agustus: '08', august: '08', ags: '08',
+      sep: '09', september: '09',
+      okt: '10', oktober: '10', october: '10',
+      nov: '11', november: '11',
+      des: '12', desember: '12', december: '12'
+    };
+
+    const spaceParts = s.split(/\s+/);
+    if (spaceParts.length === 3) {
+      const day = spaceParts[0].padStart(2, '0');
+      const mStr = monthMap[spaceParts[1]];
+      const year = spaceParts[2];
+      if (mStr && !isNaN(Number(day)) && !isNaN(Number(year))) {
+        return `${year}-${mStr}-${day}`;
+      }
+    }
+
+    const parts = s.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      } else if (parts[2].length === 4) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    }
+
+    return s;
   };
 
   // --- EXCEL FILE PARSER ---
@@ -383,44 +407,56 @@ export default function ManualReportUpdateModal({
         }
 
         const parsed = rawJson.map((row, idx) => {
-          const typeVal = String(row['Tipe Laporan'] || row['Tipe'] || row['type'] || 'Penjualan').trim();
-          const isSales = typeVal.toLowerCase().includes('jual') || typeVal.toLowerCase().includes('sales');
-
-          let formattedParsedDate = reportDate;
           const rawDateStr = String(row['Tanggal'] || row['date'] || '').trim();
+          let dateVal = reportDate;
           if (rawDateStr) {
             if (!isNaN(Number(rawDateStr)) && Number(rawDateStr) > 30000) {
               const excelDate = new Date(Math.round((Number(rawDateStr) - 25569) * 86400 * 1000));
-              formattedParsedDate = excelDate.toISOString().split('T')[0];
+              dateVal = excelDate.toISOString().split('T')[0];
             } else {
-              const parts = rawDateStr.split(/[\/\-\.]/);
-              if (parts.length === 3) {
-                if (parts[0].length === 4) {
-                  formattedParsedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                } else if (parts[2].length === 4) {
-                  formattedParsedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                  formattedParsedDate = rawDateStr;
-                }
-              } else {
-                formattedParsedDate = rawDateStr;
-              }
+              dateVal = parseIndonesianDate(rawDateStr, reportDate);
             }
           }
 
-          const dateVal = formattedParsedDate;
-          const outletVal = String(row['Nama Outlet'] || row['Outlet'] || getOutletName(selectedOutletId)).trim();
+          const outletVal = String(row['Nama Outlet'] || row['Outlet'] || row['Restoran'] || getOutletName(selectedOutletId)).trim();
+          
+          // Match outletVal against masterData.outlets to assign exact outlet_id
+          const matchedOutletObj = (masterData?.outlets || []).find(o => 
+            String(o.name).toLowerCase().trim() === outletVal.toLowerCase().trim() ||
+            outletVal.toLowerCase().includes(String(o.name).toLowerCase().trim()) ||
+            String(o.id) === outletVal
+          );
+          const matchedOutletId = matchedOutletObj ? matchedOutletObj.id : selectedOutletId;
+          const matchedOutletName = matchedOutletObj ? matchedOutletObj.name : outletVal;
 
           const nameOrCode = String(
-            row['Nama Produk / Kode Biaya'] || row['Nama Produk'] || row['Kode Biaya'] || row['Item'] || ''
+            row['Nama Item'] || row['Item'] || row['Nama Produk / Kode Biaya'] || row['Nama Produk'] || row['Kode Biaya'] || ''
           ).trim();
 
-          const qtyVal = parseFloat(row['Qty'] || row['qty'] || 1);
-          const amountVal = parseFloat(row['Harga Satuan / Jumlah Rp'] || row['Jumlah'] || row['Harga'] || 0);
+          const qtyVal = parseFloat(row['Qty'] || row['qty'] || row['Jumlah Qty'] || 1);
+          const unitPriceVal = parseFloat(row['Harga Satuan'] || row['Harga'] || row['Harga Satuan / Jumlah Rp'] || 0);
+          const rawTotalVal = parseFloat(row['Total Harga'] || row['Total'] || row['Subtotal'] || 0);
+          const totalVal = rawTotalVal > 0 ? rawTotalVal : (qtyVal * unitPriceVal);
+
           const paymentVal = String(row['Metode Pembayaran'] || row['Metode'] || 'Kas Kasir (Tunai)').trim();
           const notesVal = String(row['Catatan'] || row['Keterangan'] || '').trim();
 
-          // Validation & Matching with Strict Deduplication & Auto Registration
+          // Type Auto Detection:
+          // Check if row has explicit Tipe Laporan. If not, auto detect based on item name matching products vs expenses.
+          let typeVal = String(row['Tipe Laporan'] || row['Tipe'] || row['type'] || '').trim().toLowerCase();
+          let isSales = false;
+          if (typeVal) {
+            isSales = typeVal.includes('jual') || typeVal.includes('sales');
+          } else {
+            // Auto detect: If nameOrCode matches a product in masterData.products, treat as Sales (Penjualan). Otherwise Expense (Pengeluaran).
+            const foundProduct = findMatchingProduct(nameOrCode);
+            if (foundProduct) {
+              isSales = true;
+            } else {
+              isSales = false;
+            }
+          }
+
           let isValid = true;
           let validationMsg = 'Valid';
           let matchedProduct = null;
@@ -428,7 +464,7 @@ export default function ManualReportUpdateModal({
 
           if (!nameOrCode) {
             isValid = false;
-            validationMsg = isSales ? 'Nama produk kosong' : 'Nama biaya kosong';
+            validationMsg = isSales ? 'Nama item produk kosong' : 'Nama item biaya kosong';
           } else if (isSales) {
             matchedProduct = findMatchingProduct(nameOrCode);
             if (matchedProduct) {
