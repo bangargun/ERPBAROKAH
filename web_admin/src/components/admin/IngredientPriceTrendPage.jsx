@@ -139,20 +139,23 @@ export default function IngredientPriceTrendPage({
       });
     });
 
-    // Master HPP Standar (sebagai baseline awal jika belum ada transaksi)
+    // Master HPP Standar (sebagai baseline awal untuk semua outlet)
     (masterData?.ingredients || []).forEach(ing => {
-      if (!ing.name || !ing.cost) return;
-      records.push({
-        date: new Date().toISOString().substring(0, 10),
-        ingredient_name: ing.name.trim(),
-        unit: ing.unit || ing.satuan || 'kg',
-        qty: 1,
-        unit_price: Number(ing.cost || ing.harga || 0),
-        total_price: Number(ing.cost || ing.harga || 0),
-        outlet_id: String(outletsList[0]?.id || 1),
-        outlet_name: outletsList[0]?.name || 'Outlet Utama',
-        supplier_name: 'Master Data HPP Standard',
-        source: 'Master HPP'
+      if (!ing.name) return;
+      const cost = Number(ing.cost || ing.harga || 0);
+      outletsList.forEach(otl => {
+        records.push({
+          date: new Date().toISOString().substring(0, 10),
+          ingredient_name: ing.name.trim(),
+          unit: ing.unit || ing.satuan || 'kg',
+          qty: 1,
+          unit_price: cost,
+          total_price: cost,
+          outlet_id: String(otl.id),
+          outlet_name: otl.name,
+          supplier_name: 'Master Data HPP Standard',
+          source: 'Master HPP'
+        });
       });
     });
 
@@ -187,7 +190,32 @@ export default function IngredientPriceTrendPage({
   }, [allPurchaseRecords, trendOutletId, trendIngredient, startDate, endDate]);
 
   const trendStats = useMemo(() => {
-    if (trendRows.length === 0) return null;
+    if (!trendIngredient) return null;
+
+    if (trendRows.length === 0) {
+      const masterIng = (masterData?.ingredients || []).find(i => i.name && i.name.trim().toLowerCase() === trendIngredient.toLowerCase().trim());
+      const baseCost = Number(masterIng?.cost || masterIng?.harga || 0);
+      const unit = masterIng?.unit || masterIng?.satuan || 'Kg';
+      return {
+        min: baseCost,
+        max: baseCost,
+        avg: baseCost,
+        totalSpend: 0,
+        totalQty: 0,
+        unit: unit,
+        newest: baseCost,
+        oldest: baseCost,
+        totalChange: 0,
+        totalPct: '0.0',
+        volatilityPct: '0.0',
+        upCount: 0,
+        downCount: 0,
+        flatCount: 0,
+        statusText: 'Baseline Master Data HPP',
+        statusColor: T.info
+      };
+    }
+
     const prices = trendRows.map(r => r.unit_price);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
@@ -215,7 +243,7 @@ export default function IngredientPriceTrendPage({
     }
 
     return { min, max, avg, totalSpend, totalQty, unit, newest, oldest, totalChange, totalPct, volatilityPct, upCount, downCount, flatCount, statusText, statusColor };
-  }, [trendRows, T]);
+  }, [trendRows, trendIngredient, masterData, T]);
 
   // Auto-select outlet and ingredient if available so resume cards are immediately visible!
   React.useEffect(() => {
