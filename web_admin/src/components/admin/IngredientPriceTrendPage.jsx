@@ -12,9 +12,12 @@ import {
   DollarSign,
   AlertTriangle,
   RotateCcw,
-  Building2
+  Building2,
+  Calendar,
+  Filter
 } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
+import { DoubleCalendarPicker } from './SalesTransactionsPage';
 
 export default function IngredientPriceTrendPage({
   masterData,
@@ -23,10 +26,17 @@ export default function IngredientPriceTrendPage({
 }) {
   const T = getThemePalette(themeMode);
 
+  // ─── Filter States ───────────────────────────────────────────────────────
   const [trendOutletId,        setTrendOutletId]        = useState('');
   const [trendIngredient,      setTrendIngredient]      = useState('');
   const [trendIngSearch,       setTrendIngSearch]       = useState('');
   const [showTrendIngDropdown, setShowTrendIngDropdown] = useState(false);
+
+  // Date Range Filter States
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [datePreset, setDatePreset] = useState('all');
+  const [showCalendarPopover, setShowCalendarPopover] = useState(false);
 
   const outletsList = useMemo(() => masterData?.outlets || [], [masterData]);
 
@@ -35,29 +45,35 @@ export default function IngredientPriceTrendPage({
     return o ? o.name : 'Outlet';
   };
 
+  // ─── 1. Opsi Bahan Baku: DIAMPIL DARI DATA MASTER BAHAN BAKU ─────────────
+  const masterIngredientsList = useMemo(() => {
+    const set = new Set();
+    // Prioritas Utama: Data Master Bahan Baku
+    (masterData?.ingredients || []).forEach(ing => {
+      if (ing?.name) set.add(ing.name.trim());
+    });
+    // Tambahkan juga jika ada transaksi laporan harian yang pakai nama bahan baku lain
+    (masterData?.dailyReports || []).forEach(rep => {
+      (rep.expenses || rep.pengeluaran || []).forEach(ex => {
+        const name = ex.ingredient_name || ex.item_name || ex.name;
+        if (name) set.add(name.trim());
+      });
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [masterData]);
+
+  const filteredTrendIngOptions = useMemo(() => {
+    if (!trendIngSearch.trim()) return masterIngredientsList;
+    return masterIngredientsList.filter(n =>
+      n.toLowerCase().includes(trendIngSearch.toLowerCase())
+    );
+  }, [masterIngredientsList, trendIngSearch]);
+
+  // ─── 2. Data Pembelian: DIAMPIL DARI LAPORAN HARIAN (DAN LOGISTIK) ───────
   const allPurchaseRecords = useMemo(() => {
     const records = [];
 
-    (masterData?.stokMasuk || masterData?.logistics || []).forEach(log => {
-      const date = String(log.date || log.created_at || '').substring(0, 10);
-      (log.items || log.ingredients || []).forEach(item => {
-        const ingName = item.ingredient_name || item.name || item.item_name;
-        if (!ingName) return;
-        records.push({
-          date: date || new Date().toISOString().substring(0, 10),
-          ingredient_name: ingName.trim(),
-          unit: item.unit || item.satuan || 'kg',
-          qty: Number(item.qty || item.quantity || 0),
-          unit_price: Number(item.unit_price || item.harga_satuan || item.price || 0),
-          total_price: Number(item.total_price || item.total || 0),
-          outlet_id: String(log.outlet_id || log.branch_id || outletsList[0]?.id || 1),
-          outlet_name: log.outlet_name || getOutletName(log.outlet_id),
-          supplier_name: log.supplier_name || log.supplier || item.supplier || 'Logistik',
-          source: 'Logistik'
-        });
-      });
-    });
-
+    // Prioritas Utama: Laporan Harian (dailyReports)
     (masterData?.dailyReports || []).forEach(rep => {
       const date = String(rep.entry_date || rep.date || rep.created_at || '').substring(0, 10);
       (rep.expenses || rep.pengeluaran || []).forEach(ex => {
@@ -78,6 +94,28 @@ export default function IngredientPriceTrendPage({
       });
     });
 
+    // Tambahan: Logistik (stokMasuk)
+    (masterData?.stokMasuk || masterData?.logistics || []).forEach(log => {
+      const date = String(log.date || log.created_at || '').substring(0, 10);
+      (log.items || log.ingredients || []).forEach(item => {
+        const ingName = item.ingredient_name || item.name || item.item_name;
+        if (!ingName) return;
+        records.push({
+          date: date || new Date().toISOString().substring(0, 10),
+          ingredient_name: ingName.trim(),
+          unit: item.unit || item.satuan || 'kg',
+          qty: Number(item.qty || item.quantity || 0),
+          unit_price: Number(item.unit_price || item.harga_satuan || item.price || 0),
+          total_price: Number(item.total_price || item.total || 0),
+          outlet_id: String(log.outlet_id || log.branch_id || outletsList[0]?.id || 1),
+          outlet_name: log.outlet_name || getOutletName(log.outlet_id),
+          supplier_name: log.supplier_name || log.supplier || item.supplier || 'Logistik',
+          source: 'Logistik'
+        });
+      });
+    });
+
+    // Tambahan: Update Laporan / Manual
     (masterData?.manualReports || masterData?.updateLaporan || []).forEach(man => {
       const date = String(man.entry_date || man.date || man.created_at || '').substring(0, 10);
       (man.expenses || man.pengeluaran || []).forEach(ex => {
@@ -98,6 +136,7 @@ export default function IngredientPriceTrendPage({
       });
     });
 
+    // Master HPP Standar (sebagai baseline awal jika belum ada transaksi)
     (masterData?.ingredients || []).forEach(ing => {
       if (!ing.name || !ing.cost) return;
       records.push({
@@ -117,35 +156,32 @@ export default function IngredientPriceTrendPage({
     return records;
   }, [masterData, outletsList]);
 
-  const trendIngredientOptions = useMemo(() => {
-    const set = new Set();
-    const src = trendOutletId
-      ? allPurchaseRecords.filter(r => String(r.outlet_id) === String(trendOutletId))
-      : allPurchaseRecords;
-    src.forEach(r => r.ingredient_name && set.add(r.ingredient_name.trim()));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [allPurchaseRecords, trendOutletId]);
-
-  const filteredTrendIngOptions = useMemo(() => {
-    if (!trendIngSearch.trim()) return trendIngredientOptions;
-    return trendIngredientOptions.filter(n => n.toLowerCase().includes(trendIngSearch.toLowerCase()));
-  }, [trendIngredientOptions, trendIngSearch]);
-
+  // ─── 3. Filter Tren dengan Rentang Waktu Tanggal ────────────────────────
   const trendRows = useMemo(() => {
     if (!trendOutletId || !trendIngredient) return [];
-    const rows = allPurchaseRecords.filter(r =>
-      String(r.outlet_id) === String(trendOutletId) &&
-      r.ingredient_name.toLowerCase().trim() === trendIngredient.toLowerCase().trim() &&
-      r.unit_price > 0
-    );
+    
+    // Filter outlet, nama bahan baku, dan rentang tanggal
+    const rows = allPurchaseRecords.filter(r => {
+      if (String(r.outlet_id) !== String(trendOutletId)) return false;
+      if (r.ingredient_name.toLowerCase().trim() !== trendIngredient.toLowerCase().trim()) return false;
+      if (r.unit_price <= 0) return false;
+      
+      // Rentang Tanggal Kalender
+      if (startDate && r.date < startDate) return false;
+      if (endDate && r.date > endDate) return false;
+
+      return true;
+    });
+
+    // Urutkan terlama -> terbaru untuk menghitung selisih & %
     const sorted = [...rows].sort((a, b) => new Date(a.date) - new Date(b.date));
     return sorted.map((r, idx) => {
       const prev = idx > 0 ? sorted[idx - 1] : null;
       const diff = prev ? r.unit_price - prev.unit_price : null;
       const pct  = (prev && prev.unit_price > 0) ? ((diff / prev.unit_price) * 100) : null;
       return { ...r, diff, pct };
-    }).reverse();
-  }, [allPurchaseRecords, trendOutletId, trendIngredient]);
+    }).reverse(); // Tampilkan terbaru di atas pada tabel
+  }, [allPurchaseRecords, trendOutletId, trendIngredient, startDate, endDate]);
 
   const trendStats = useMemo(() => {
     if (trendRows.length === 0) return null;
@@ -166,7 +202,7 @@ export default function IngredientPriceTrendPage({
   const selectedOutletName = outletsList.find(o => String(o.id) === String(trendOutletId))?.name || '';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} className="animate-fade-in">
 
       {/* PAGE HEADER */}
       <div style={{ background: T.cardBg, padding: '20px 24px', borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
@@ -178,15 +214,16 @@ export default function IngredientPriceTrendPage({
             Tren Harga Per Outlet
           </h1>
           <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
-            Lacak perubahan harga satu bahan baku dari waktu ke waktu dalam satu outlet — dari data Logistik, Laporan Harian, Update Laporan, dan Master HPP.
+            Lacak perubahan harga bahan baku (Data Master Bahan Baku) dari Laporan Harian Outlet dalam rentang waktu tanggal tertentu.
           </p>
         </div>
       </div>
 
-      {/* FILTER BAR */}
+      {/* FILTER BAR & KALENDER WIDGET */}
       <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '220px' }}>
+        {/* 1. Pilih Outlet */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '200px' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <Building2 size={13} /> Pilih Outlet
           </label>
@@ -202,9 +239,10 @@ export default function IngredientPriceTrendPage({
           </select>
         </div>
 
+        {/* 2. Pilih Bahan Baku (Diambil dari Data Master Bahan Baku) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px', position: 'relative' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            🥬 Pilih Bahan Baku
+            🥬 Pilih Bahan Baku (Master Data)
           </label>
           <button
             type="button"
@@ -221,11 +259,11 @@ export default function IngredientPriceTrendPage({
             <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '10px', boxShadow: '0 16px 40px rgba(0,0,0,0.6)', zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ position: 'relative' }}>
                 <Search size={13} color={T.txtMuted} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input type="text" value={trendIngSearch} onChange={e => setTrendIngSearch(e.target.value)} placeholder="Cari nama bahan baku..." autoFocus style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }} />
+                <input type="text" value={trendIngSearch} onChange={e => setTrendIngSearch(e.target.value)} placeholder="Cari nama bahan master..." autoFocus style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }} />
               </div>
               <div style={{ overflowY: 'auto', maxHeight: '220px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {filteredTrendIngOptions.length === 0 ? (
-                  <div style={{ padding: '12px', fontSize: '0.74rem', color: T.txtMuted, textAlign: 'center' }}>Tidak ada data</div>
+                  <div style={{ padding: '12px', fontSize: '0.74rem', color: T.txtMuted, textAlign: 'center' }}>Tidak ada data bahan baku master</div>
                 ) : filteredTrendIngOptions.map((name, i) => (
                   <button key={i} type="button" onClick={() => { setTrendIngredient(name); setShowTrendIngDropdown(false); setTrendIngSearch(''); }} style={{ padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer', background: trendIngredient === name ? T.accentGoldBg : 'transparent', color: trendIngredient === name ? T.accentGold : T.txtPrimary, fontSize: '0.80rem', fontWeight: trendIngredient === name ? '900' : '600', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{name}</span>
@@ -237,22 +275,41 @@ export default function IngredientPriceTrendPage({
           )}
         </div>
 
-        {(trendOutletId || trendIngredient) && (
-          <button onClick={() => { setTrendOutletId(''); setTrendIngredient(''); setTrendIngSearch(''); setShowTrendIngDropdown(false); }} style={{ padding: '9px 16px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.80rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <RotateCcw size={13} /> Reset
+        {/* 3. WIDGET KALENDER RENTANG WAKTU (DoubleCalendarPicker) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Calendar size={13} color={T.info} /> Rentang Waktu Tanggal
+          </label>
+          <DoubleCalendarPicker
+            startDate={startDate}
+            endDate={endDate}
+            datePreset={datePreset}
+            setStartDate={setStartDate}
+            setEndDate={setEndDate}
+            setDatePreset={setDatePreset}
+            showPopover={showCalendarPopover}
+            setShowPopover={setShowCalendarPopover}
+            themeMode={themeMode}
+          />
+        </div>
+
+        {/* 4. Reset Button */}
+        {(trendOutletId || trendIngredient || startDate || endDate) && (
+          <button onClick={() => { setTrendOutletId(''); setTrendIngredient(''); setTrendIngSearch(''); setStartDate(''); setEndDate(''); setDatePreset('all'); setShowTrendIngDropdown(false); }} style={{ padding: '9px 16px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.80rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <RotateCcw size={13} /> Reset Filter
           </button>
         )}
       </div>
 
-      {/* PLACEHOLDER */}
+      {/* PLACEHOLDER JIKA BELUM MEMILIH */}
       {(!trendOutletId || !trendIngredient) && (
         <div style={{ background: T.cardBg, border: `1px dashed ${T.border}`, borderRadius: '14px', padding: '64px 20px', textAlign: 'center' }}>
           <History size={48} color={T.txtMuted} style={{ opacity: 0.3, marginBottom: '14px' }} />
           <div style={{ fontSize: '1.0rem', color: T.txtMuted, fontWeight: '700' }}>
-            {!trendOutletId ? 'Pilih Outlet terlebih dahulu' : 'Pilih Bahan Baku untuk melihat tren harga'}
+            {!trendOutletId ? 'Pilih Outlet terlebih dahulu' : 'Pilih Bahan Baku (Master Data) untuk melihat tren harga'}
           </div>
           <div style={{ fontSize: '0.76rem', color: T.txtMuted, marginTop: '8px' }}>
-            Setelah memilih keduanya, histori harga dari waktu ke waktu akan ditampilkan di sini.
+            Data pembelian akan difilter berdasarkan Laporan Harian Outlet dan rentang tanggal yang dipilih.
           </div>
         </div>
       )}
@@ -263,9 +320,9 @@ export default function IngredientPriceTrendPage({
           <div style={{ background: T.cardBg, border: `1px solid ${T.infoBorder}`, borderRadius: '13px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ padding: '9px', background: T.infoBg, borderRadius: '10px' }}><History size={20} color={T.info} /></div>
             <div>
-              <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Total Pembelian</div>
+              <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Total Transaksi</div>
               <div style={{ fontSize: '1.40rem', fontWeight: '900', color: T.info, lineHeight: 1.1 }}>{trendRows.length}×</div>
-              <div style={{ fontSize: '0.64rem', color: T.txtMuted }}>transaksi tercatat</div>
+              <div style={{ fontSize: '0.64rem', color: T.txtMuted }}>di Laporan Harian</div>
             </div>
           </div>
           <div style={{ background: T.cardBg, border: `1px solid ${T.successBorder}`, borderRadius: '13px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -289,7 +346,7 @@ export default function IngredientPriceTrendPage({
             <div>
               <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Rata-Rata Harga</div>
               <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.accentGold }}>Rp {trendStats.avg.toLocaleString('id-ID')}</div>
-              <div style={{ fontSize: '0.64rem', color: T.txtMuted }}>rata-rata semua pembelian</div>
+              <div style={{ fontSize: '0.64rem', color: T.txtMuted }}>rata-rata periode terpilih</div>
             </div>
           </div>
           <div style={{ background: T.cardBg, border: `1px solid ${trendStats.totalChange > 0 ? T.dangerBorder : trendStats.totalChange < 0 ? T.successBorder : T.border}`, borderRadius: '13px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -334,6 +391,11 @@ export default function IngredientPriceTrendPage({
               Tren Harga: <span style={{ color: T.accentGold }}>{trendIngredient}</span>
               <span style={{ color: T.txtSecondary, fontWeight: '600' }}> — {selectedOutletName}</span>
             </span>
+            {(startDate || endDate) && (
+              <span style={{ fontSize: '0.70rem', color: T.info, background: T.infoBg, padding: '3px 9px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontWeight: '700' }}>
+                📅 Periode: {startDate || 'Awal'} s/d {endDate || 'Sekarang'}
+              </span>
+            )}
             <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', background: T.cardBg, padding: '3px 10px', borderRadius: '20px', border: `1px solid ${T.border}` }}>
               {trendRows.length} transaksi
             </span>
@@ -359,7 +421,7 @@ export default function IngredientPriceTrendPage({
                   <tr>
                     <td colSpan={9} style={{ padding: '48px', textAlign: 'center', color: T.txtMuted }}>
                       <History size={36} style={{ opacity: 0.25, marginBottom: '10px' }} /><br />
-                      Belum ada data pembelian untuk bahan baku ini di outlet tersebut.
+                      Tidak ada data transaksi pembelian pada rentang tanggal/outlet yang dipilih.
                     </td>
                   </tr>
                 ) : trendRows.map((r, idx) => {
@@ -369,8 +431,9 @@ export default function IngredientPriceTrendPage({
                   const isDown  = hasDiff && r.diff < 0;
                   const isFlat  = hasDiff && r.diff === 0;
                   const formattedDate = new Date(r.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-                  const sourceBg    = r.source === 'Logistik' ? 'rgba(56,189,248,0.12)' : r.source === 'Laporan Harian' ? 'rgba(251,191,36,0.12)' : r.source === 'Master HPP' ? 'rgba(139,92,246,0.12)' : 'rgba(52,211,153,0.12)';
-                  const sourceColor = r.source === 'Logistik' ? T.info : r.source === 'Laporan Harian' ? T.accentGold : r.source === 'Master HPP' ? '#a78bfa' : T.success;
+                  const sourceBg    = r.source === 'Laporan Harian' ? 'rgba(251,191,36,0.12)' : r.source === 'Logistik' ? 'rgba(56,189,248,0.12)' : r.source === 'Master HPP' ? 'rgba(139,92,246,0.12)' : 'rgba(52,211,153,0.12)';
+                  const sourceColor = r.source === 'Laporan Harian' ? T.accentGold : r.source === 'Logistik' ? T.info : r.source === 'Master HPP' ? '#a78bfa' : T.success;
+
                   return (
                     <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, background: idx === 0 ? 'rgba(56,189,248,0.035)' : 'transparent', transition: 'background 0.15s' }}>
                       <td style={{ padding: '10px 14px', color: T.txtMuted, fontWeight: '700', fontSize: '0.72rem' }}>
@@ -409,7 +472,7 @@ export default function IngredientPriceTrendPage({
 
           {trendRows.length > 0 && (
             <div style={{ padding: '10px 20px', borderTop: `1px solid ${T.border}`, background: T.cardBg2, fontSize: '0.70rem', color: T.txtMuted, fontWeight: '600' }}>
-              📌 Diurutkan dari transaksi <strong>terbaru → terlama</strong>. Kolom "Perubahan Harga" menunjukkan selisih harga satuan vs pembelian sebelumnya.
+              📌 Diurutkan dari transaksi <strong>terbaru → terlama</strong>. Kolom &ldquo;Perubahan Harga&rdquo; menunjukkan selisih harga satuan vs pembelian sebelumnya.
             </div>
           )}
         </div>
