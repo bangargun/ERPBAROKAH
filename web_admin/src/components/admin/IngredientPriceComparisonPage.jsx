@@ -44,6 +44,9 @@ export default function IngredientPriceComparisonPage({
     return (masterData?.outlets || []).map(o => String(o.id));
   });
 
+  // Selected Item for Price History Modal
+  const [priceHistoryItem, setPriceHistoryItem] = useState(null);
+
   // Helper: Get Outlet Name by ID
   const getOutletName = (id) => {
     const otl = outletsList.find(o => String(o.id) === String(id));
