@@ -776,6 +776,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     return pr > 0;
                   });
 
+                  const firstOutletObj = validPriceOutlets[0] || null;
                   const activeOutletObj = (activeOutletId !== 'Semua' && activeOutletId !== 'ALL')
                     ? (masterData.outlets || []).find(o => String(o.id) === String(activeOutletId))
                     : null;
