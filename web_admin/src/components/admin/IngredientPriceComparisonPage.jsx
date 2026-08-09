@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { DoubleCalendarPicker } from './SalesTransactionsPage';
 
 export default function IngredientPriceComparisonPage({ 
   masterData, 
@@ -38,9 +39,11 @@ export default function IngredientPriceComparisonPage({
   const [showIngDropdown, setShowIngDropdown] = useState(false);
   const [ingDropdownSearch, setIngDropdownSearch] = useState('');
   
-  // Direct Calendar Widget Date Filter States (Dari Tanggal & Sampai Tanggal)
+  // Direct Calendar Widget Date Filter States (DoubleCalendarPicker)
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [datePreset, setDatePreset] = useState('all');
+  const [showCalendarPopover, setShowCalendarPopover] = useState(false);
   const [showColumnFilter, setShowColumnFilter] = useState(false);
 
   // Pagination States
@@ -665,29 +668,22 @@ export default function IngredientPriceComparisonPage({
           )}
         </div>
 
-        {/* Calendar Widget: Dari Tanggal */}
-        <div style={{ position: 'relative' }}>
-          <Calendar size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input
-            type="date"
-            value={startDate}
-            onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
-            placeholder="Dari Tanggal"
-            title="Filter Dari Tanggal"
-            style={{ width: '100%', padding: '8px 12px 8px 34px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
-          />
-        </div>
-
-        {/* Calendar Widget: Sampai Tanggal */}
-        <div style={{ position: 'relative' }}>
-          <Calendar size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input
-            type="date"
-            value={endDate}
-            onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
-            placeholder="Sampai Tanggal"
-            title="Filter Sampai Tanggal"
-            style={{ width: '100%', padding: '8px 12px 8px 34px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+        {/* WIDGET KALENDER RENTANG WAKTU (DoubleCalendarPicker) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: 'span 2' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Calendar size={13} color={T.info} /> Rentang Waktu Tanggal
+          </label>
+          <DoubleCalendarPicker
+            startDate={startDate}
+            endDate={endDate}
+            datePreset={datePreset}
+            setStartDate={setStartDate}
+            setEndDate={setEndDate}
+            setDatePreset={setDatePreset}
+            showPopover={showCalendarPopover}
+            setShowPopover={setShowCalendarPopover}
+            hideOutletFilter={true}
+            themeMode={themeMode}
           />
         </div>
       </div>
