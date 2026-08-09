@@ -631,19 +631,11 @@ export default function ManualReportUpdateModal({
       }
     });
 
-    // 1. Calculate Aggregates
-    const salesRows = rowsToProcess.filter(r => r.type === 'penjualan');
-    const expenseRows = rowsToProcess.filter(r => r.type === 'pengeluaran');
-
-    const totalSalesOmset = salesRows.reduce((sum, r) => sum + r.subtotal, 0);
-    const totalExpenseAmount = expenseRows.reduce((sum, r) => sum + r.subtotal, 0);
-    const netCashFlow = totalSalesOmset - totalExpenseAmount;
-
-    // 2. STOCK DEDUCTION ENGINE (Resep HPP & Stok)
+    // 1. STOCK DEDUCTION ENGINE (Resep HPP & Stok) - per row pakai tanggal masing-masing
     let updatedIngredients = [...(masterData?.ingredients || [])];
     const newStockMovements = [];
 
-    salesRows.forEach(sRow => {
+    rowsToProcess.filter(r => r.type === 'penjualan').forEach(sRow => {
       const prod = currentProducts.find(p => String(p.id) === String(sRow.productId) || p.name.toLowerCase().trim() === sRow.productName.toLowerCase().trim());
       if (prod && prod.compositions && prod.compositions.length > 0) {
         prod.compositions.forEach(comp => {
@@ -652,18 +644,12 @@ export default function ManualReportUpdateModal({
             const deductQty = (parseFloat(comp.qty) || 0) * (parseFloat(sRow.qty) || 1);
             const currentStock = parseFloat(updatedIngredients[ingIndex].stock || updatedIngredients[ingIndex].qty || 0);
             const newStock = Math.max(0, currentStock - deductQty);
-
-            updatedIngredients[ingIndex] = {
-              ...updatedIngredients[ingIndex],
-              stock: newStock,
-              qty: newStock
-            };
-
+            updatedIngredients[ingIndex] = { ...updatedIngredients[ingIndex], stock: newStock, qty: newStock };
             newStockMovements.push({
               id: Date.now() + Math.random(),
-              entry_date: sRow.date || reportDate,
-              date: sRow.date || reportDate,
-              transaction_date: sRow.date || reportDate,
+              entry_date: sRow.date,
+              date: sRow.date,
+              transaction_date: sRow.date,
               time: new Date().toLocaleTimeString('id-ID'),
               outlet_id: sRow.outletId,
               outlet_name: sRow.outletName,
@@ -673,7 +659,7 @@ export default function ManualReportUpdateModal({
               qty_change: -deductQty,
               final_stock: newStock,
               unit: comp.unit || updatedIngredients[ingIndex].unit || 'Gram',
-              notes: `Auto Pemotongan Stok dari Update Laporan Penjualan (${sRow.productName} x${sRow.qty})`,
+              notes: `Auto Pemotongan Stok dari Update Laporan (${sRow.productName} x${sRow.qty})`,
               author: authorName
             });
           }
@@ -681,101 +667,126 @@ export default function ManualReportUpdateModal({
       }
     });
 
-    // 3. CONSTRUCT FINANCIAL REPORT RECORD
-    const reportNo = `UPD-${reportDate.replace(/-/g, '')}-${String(Math.floor(Math.random() * 900) + 100)}`;
+    // 2. GROUP ROWS BY TANGGAL + OUTLET → Buat 1 laporan per tanggal+outlet unik
+    const groupMap = new Map();
+    rowsToProcess.forEach(row => {
+      const gKey = `${row.date}__${row.outletId || selectedOutletId}`;
+      if (!groupMap.has(gKey)) {
+        groupMap.set(gKey, {
+          date: row.date,
+          outletId: row.outletId || selectedOutletId,
+          outletName: row.outletName || getOutletName(row.outletId || selectedOutletId),
+          salesRows: [],
+          expenseRows: []
+        });
+      }
+      const grp = groupMap.get(gKey);
+      if (row.type === 'penjualan') grp.salesRows.push(row);
+      else grp.expenseRows.push(row);
+    });
 
-    const formattedExpenseBreakdown = expenseRows.map(e => ({
-      code: e.accountCode,
-      name: e.categoryName,
-      category: e.categoryName,
-      categoryName: e.categoryName,
-      amount: e.subtotal,
-      subtotal: e.subtotal,
-      notes: e.notes || 'Update Laporan Pengeluaran'
-    }));
+    // 3. CONSTRUCT REPORT RECORDS, FINANCIAL RECORDS & SALES TX PER GRUP TANGGAL+OUTLET
+    const allNewReportRecords = [];
+    const allNewFinancialRecords = [];
+    const allNewSalesTxRecords = [];
+    let totalSalesOmsetAll = 0;
+    let totalExpenseAmountAll = 0;
 
-    const formattedSalesBreakdown = salesRows.map(s => ({
-      product_id: s.productId,
-      product_name: s.productName,
-      name: s.productName,
-      qty: s.qty,
-      price: s.price,
-      subtotal: s.subtotal,
-      amount: s.subtotal
-    }));
+    groupMap.forEach((grp) => {
+      const grpSalesTotal = grp.salesRows.reduce((s, r) => s + r.subtotal, 0);
+      const grpExpenseTotal = grp.expenseRows.reduce((s, r) => s + r.subtotal, 0);
+      const grpNet = grpSalesTotal - grpExpenseTotal;
+      totalSalesOmsetAll += grpSalesTotal;
+      totalExpenseAmountAll += grpExpenseTotal;
 
-    const currentTimeStr = new Date().toTimeString().split(' ')[0];
-    const reportTimestamp = `${reportDate}T${currentTimeStr}`;
+      const grpReportNo = `UPD-${grp.date.replace(/-/g, '')}-${String(grp.outletId)}-${String(Math.floor(Math.random() * 900) + 100)}`;
+      const grpTimestamp = `${grp.date}T${new Date().toTimeString().split(' ')[0]}`;
 
-    const newReportRecord = {
-      id: Date.now(),
-      report_no: reportNo,
-      entry_date: reportDate,
-      date: reportDate,
-      transaction_date: reportDate,
-      outlet_id: selectedOutletId,
-      outlet_name: getOutletName(selectedOutletId),
-      net_sales: totalSalesOmset,
-      gross_sales: totalSalesOmset,
-      total_omset: totalSalesOmset,
-      total_sales: totalSalesOmset,
-      cash_sales: totalSalesOmset,
-      non_cash_sales: 0,
-      total_expense: totalExpenseAmount,
-      total_pengeluaran: totalExpenseAmount,
-      net_cash: netCashFlow,
-      laba_bersih: netCashFlow,
-      status: 'Disetujui',
-      is_approved: true,
-      author: authorName,
-      created_by: authorName,
-      source: 'Update Laporan Manual',
-      sales_details: formattedSalesBreakdown,
-      expense_details: formattedExpenseBreakdown,
-      expenses_breakdown: formattedExpenseBreakdown,
-      expense_rows: formattedExpenseBreakdown,
-      created_at: new Date().toISOString()
-    };
+      const grpSalesBreakdown = grp.salesRows.map(s => ({
+        product_id: s.productId, product_name: s.productName, name: s.productName,
+        qty: s.qty, price: s.price, subtotal: s.subtotal, amount: s.subtotal
+      }));
+      const grpExpenseBreakdown = grp.expenseRows.map(e => ({
+        code: e.accountCode, name: e.categoryName, category: e.categoryName,
+        categoryName: e.categoryName, amount: e.subtotal, subtotal: e.subtotal,
+        notes: e.notes || 'Update Laporan Pengeluaran'
+      }));
 
-    // 4. ALSO CREATE FINANCIAL & SALES TRANSACTION RECORDS FOR DETAILED LOGS
-    const newFinancialRecords = expenseRows.map(e => ({
-      id: Date.now() + Math.random(),
-      type: 'expense',
-      code: e.accountCode,
-      category: e.categoryName,
-      notes: e.notes || 'Update Laporan Pengeluaran',
-      amount: e.subtotal,
-      outlet_id: selectedOutletId,
-      outlet_name: getOutletName(selectedOutletId),
-      entry_date: reportDate,
-      date: reportDate,
-      transaction_date: reportDate,
-      created_at: new Date().toISOString()
-    }));
+      allNewReportRecords.push({
+        id: Date.now() + Math.random(),
+        report_no: grpReportNo,
+        entry_date: grp.date,
+        date: grp.date,
+        transaction_date: grp.date,
+        outlet_id: grp.outletId,
+        outlet_name: grp.outletName,
+        net_sales: grpSalesTotal,
+        gross_sales: grpSalesTotal,
+        total_omset: grpSalesTotal,
+        total_sales: grpSalesTotal,
+        cash_sales: grpSalesTotal,
+        non_cash_sales: 0,
+        total_expense: grpExpenseTotal,
+        total_pengeluaran: grpExpenseTotal,
+        net_cash: grpNet,
+        laba_bersih: grpNet,
+        status: 'Disetujui',
+        is_approved: true,
+        author: authorName,
+        created_by: authorName,
+        source: activeTab === 'excel' ? 'Batch Upload Excel' : 'Update Laporan Manual',
+        sales_details: grpSalesBreakdown,
+        expense_details: grpExpenseBreakdown,
+        expenses_breakdown: grpExpenseBreakdown,
+        expense_rows: grpExpenseBreakdown,
+        created_at: new Date().toISOString()
+      });
 
-    const newSalesTxRecords = salesRows.map(s => ({
-      id: Date.now() + Math.random(),
-      type: 'sale',
-      amount: s.subtotal,
-      total: s.subtotal,
-      items: [{ name: s.productName, qty: s.qty, price: s.price, subtotal: s.subtotal }],
-      outlet_id: selectedOutletId,
-      outlet_name: getOutletName(selectedOutletId),
-      entry_date: reportDate,
-      date: reportDate,
-      transaction_date: reportDate,
-      timestamp: reportTimestamp,
-      created_at: new Date().toISOString(),
-      payment_method: s.paymentMethod || 'Kas Kasir (Tunai)'
-    }));
+      grp.expenseRows.forEach(e => {
+        allNewFinancialRecords.push({
+          id: Date.now() + Math.random(),
+          type: 'expense',
+          code: e.accountCode,
+          category: e.categoryName,
+          notes: e.notes || 'Update Laporan Pengeluaran',
+          amount: e.subtotal,
+          outlet_id: grp.outletId,
+          outlet_name: grp.outletName,
+          entry_date: grp.date,
+          date: grp.date,
+          transaction_date: grp.date,
+          created_at: new Date().toISOString()
+        });
+      });
 
-    // 5. SAVE TO MASTER DATA STATE LOCALLY
-    const updatedManualRecords = [newReportRecord, ...(masterData?.manualEntryRecords || [])];
-    const updatedApprovedDaily = [newReportRecord, ...(masterData?.approvedFinanceDaily || [])];
-    const updatedShiftReports = [newReportRecord, ...(masterData?.shiftReports || [])];
+      grp.salesRows.forEach(s => {
+        allNewSalesTxRecords.push({
+          id: Date.now() + Math.random(),
+          type: 'sale',
+          amount: s.subtotal,
+          total: s.subtotal,
+          items: [{ name: s.productName, qty: s.qty, price: s.price, subtotal: s.subtotal }],
+          outlet_id: grp.outletId,
+          outlet_name: grp.outletName,
+          entry_date: grp.date,
+          date: grp.date,
+          transaction_date: grp.date,
+          timestamp: grpTimestamp,
+          created_at: new Date().toISOString(),
+          payment_method: s.paymentMethod || 'Kas Kasir (Tunai)'
+        });
+      });
+    });
+
+    const netCashFlowAll = totalSalesOmsetAll - totalExpenseAmountAll;
+
+    // 4. SAVE TO MASTER DATA STATE LOCALLY
+    const updatedManualRecords = [...allNewReportRecords, ...(masterData?.manualEntryRecords || [])];
+    const updatedApprovedDaily = [...allNewReportRecords, ...(masterData?.approvedFinanceDaily || [])];
+    const updatedShiftReports = [...allNewReportRecords, ...(masterData?.shiftReports || [])];
     const updatedMovements = [...newStockMovements, ...(masterData?.stockMovement || [])];
-    const updatedFinRecords = [...newFinancialRecords, ...(masterData?.financialRecords || [])];
-    const updatedSalesTx = [...newSalesTxRecords, ...(masterData?.salesTransactions || []), ...(masterData?.outletTransactions || [])];
+    const updatedFinRecords = [...allNewFinancialRecords, ...(masterData?.financialRecords || [])];
+    const updatedSalesTx = [...allNewSalesTxRecords, ...(masterData?.salesTransactions || []), ...(masterData?.outletTransactions || [])];
 
     setMasterData({
       ...masterData,
@@ -793,14 +804,10 @@ export default function ManualReportUpdateModal({
     });
 
     let autoMsg = '';
-    if (newAccountsCreatedCount > 0) {
-      autoMsg += `\n• Auto-Generate Kode Biaya Baru: ${newAccountsCreatedCount} Akun terdaftar di Master Akuntansi.`;
-    }
-    if (newProductsCreatedCount > 0) {
-      autoMsg += `\n• Auto-Register Produk Baru: ${newProductsCreatedCount} Produk terdaftar di Katalog Menu.`;
-    }
+    if (newAccountsCreatedCount > 0) autoMsg += `\n• Auto-Generate Kode Biaya Baru: ${newAccountsCreatedCount} Akun terdaftar.`;
+    if (newProductsCreatedCount > 0) autoMsg += `\n• Auto-Register Produk Baru: ${newProductsCreatedCount} Produk terdaftar.`;
 
-    alert(`✅ BERHASIL UPDATE LAPORAN!\n\n• Laporan No: ${reportNo}\n• Total Penjualan: Rp ${totalSalesOmset.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmount.toLocaleString('id-ID')}${autoMsg}\n• Stok Bahan Baku Terpotong: ${newStockMovements.length} item mutasi.\n• Laporan Laba/Rugi, Neraca & Stok telah diperbarui secara lokal!`);
+    alert(`✅ BERHASIL UPDATE LAPORAN!\n\n• Total Laporan Dibuat: ${allNewReportRecords.length} laporan (${groupMap.size} tanggal berbeda)\n• Total Penjualan: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
 
     onClose();
   };
@@ -1227,9 +1234,11 @@ export default function ManualReportUpdateModal({
                 </div>
 
                 <div style={{ border: `1px solid ${T.border}`, borderRadius: '10px', overflow: 'hidden', maxHeight: '280px', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', minWidth: '700px' }}>
                     <thead>
                       <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.66rem' }}>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>📅 Tanggal</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>🏪 Outlet</th>
                         <th style={{ padding: '8px 10px' }}>Tipe</th>
                         <th style={{ padding: '8px 10px' }}>Item / Akun Biaya</th>
                         <th style={{ padding: '8px 10px', textAlign: 'center' }}>Qty</th>
@@ -1241,8 +1250,14 @@ export default function ManualReportUpdateModal({
                     <tbody>
                       {parsedRows.map((r) => (
                         <tr key={r.tempId} style={{ borderBottom: `1px solid ${T.border}` }}>
-                          <td style={{ padding: '6px 10px', fontWeight: '800', color: r.type === 'penjualan' ? T.success : T.danger }}>
-                            {r.type === 'penjualan' ? '🟢 Penjualan' : '🔴 Pengeluaran'}
+                          <td style={{ padding: '6px 10px', fontWeight: '800', color: T.accentGold, whiteSpace: 'nowrap' }}>
+                            {r.date || reportDate}
+                          </td>
+                          <td style={{ padding: '6px 10px', color: T.txtSecondary, fontSize: '0.70rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.outletName}>
+                            {r.outletName || getOutletName(r.outletId || selectedOutletId)}
+                          </td>
+                          <td style={{ padding: '6px 10px', fontWeight: '800', color: r.type === 'penjualan' ? T.success : T.danger, whiteSpace: 'nowrap' }}>
+                            {r.type === 'penjualan' ? '🟢 Jual' : '🔴 Keluar'}
                           </td>
                           <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>
                             {r.nameOrCode}
