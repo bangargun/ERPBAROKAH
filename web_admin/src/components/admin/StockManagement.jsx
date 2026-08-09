@@ -3423,18 +3423,19 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '110px' }}>TANGGAL</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '130px' }}>NAMA OUTLET</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '150px' }}>ITEM / BAHAN BAKU</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '120px' }}>NO LAPORAN</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, width: '110px' }}>STOK KELUAR</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: '#fbbf24', width: '110px' }}>STOK FISIK</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'center', width: '130px' }}>SELISIH</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', width: '120px' }}>HARGA SATUAN</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, width: '120px' }}>DENDA STOK</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', width: '110px' }}>PENGAJU</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'center', width: '110px' }}>STATUS</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', width: '130px' }}>AKSI</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', whiteSpace: 'nowrap' }}>TANGGAL</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', whiteSpace: 'nowrap' }}>NAMA OUTLET</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', whiteSpace: 'nowrap' }}>ITEM / BAHAN BAKU</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', whiteSpace: 'nowrap' }}>NO LAPORAN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, whiteSpace: 'nowrap' }}>STOK KELUAR</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: '#fb7185', background: 'rgba(251,113,133,0.08)', whiteSpace: 'nowrap' }}>🗑️ STOK RUSAK (-)</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: '#fbbf24', whiteSpace: 'nowrap' }}>STOK FISIK</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'center', whiteSpace: 'nowrap' }}>SELISIH</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', whiteSpace: 'nowrap' }}>HARGA SATUAN</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, whiteSpace: 'nowrap' }}>DENDA STOK</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', whiteSpace: 'nowrap' }}>PENGAJU</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'center', whiteSpace: 'nowrap' }}>STATUS</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', whiteSpace: 'nowrap' }}>AKSI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3444,7 +3445,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                     if (filteredOpname.length === 0) return (
                       <tr>
-                        <td colSpan={12} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
+                        <td colSpan={13} style={{ padding: '30px', textAlign: 'center', color: T.txtMuted }}>
                           Tidak ada log stock opname fisik untuk filter terpilih.
                         </td>
                       </tr>
@@ -3524,12 +3525,20 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           </td>
 
                           {/* 5. STOK KELUAR */}
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: currentStokKeluar > 0 ? T.danger : T.txtMuted }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: currentStokKeluar > 0 ? T.danger : T.txtMuted, whiteSpace: 'nowrap' }}>
                             {currentStokKeluar} {op.unit || 'kg'}
                           </td>
 
-                          {/* 6. STOK FISIK */}
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#fbbf24' }}>
+                          {/* 6. 🗑️ STOK RUSAK — otomatis dari sub-tab Stok Rusak outlet */}
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: currentStokRusak > 0 ? '#fb7185' : T.txtMuted, background: currentStokRusak > 0 ? 'rgba(251,113,133,0.06)' : 'transparent', whiteSpace: 'nowrap' }}>
+                            {currentStokRusak > 0 ? `-${currentStokRusak} ${op.unit || 'kg'}` : `0 ${op.unit || 'kg'}`}
+                            {currentStokRusak > 0 && (
+                              <div style={{ fontSize: '0.60rem', color: '#94a3b8', marginTop: '2px' }}>auto dari laporan rusak</div>
+                            )}
+                          </td>
+
+                          {/* 7. STOK FISIK */}
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#fbbf24', whiteSpace: 'nowrap' }}>
                             {stokFisikVal} {op.unit || 'kg'}
                           </td>
 
