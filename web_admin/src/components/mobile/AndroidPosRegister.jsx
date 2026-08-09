@@ -2150,6 +2150,38 @@ export default function AndroidPosRegister({
     return totalOut;
   }, [masterData]);
 
+  const getStokRusakFromWaste = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalWaste = 0;
+    const l1 = masterData?.damagedGoods || [];
+    const l2 = masterData?.approvedWaste || [];
+    const l3 = (masterData?.stockMovement || []).filter(m => m.type === 'WASTE');
+
+    const combinedList = [...l1, ...l2, ...l3];
+
+    combinedList.forEach(w => {
+      const wDate = w.date || w.tanggal || w.tanggal_waktu;
+      const wOutlet = w.outlet_id || w.branch_id || w.outletId;
+
+      const dateMatch = !targetDate || !wDate || String(wDate).startsWith(targetDate);
+      const outletMatch = !targetOutletId || !wOutlet || String(wOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = w.items || w.waste_items || [w];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.item_name || item.nama_barang || item.name || w.item_name || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalWaste += Number(item.qty || item.quantity || item.stok_rusak || item.jumlah || w.qty || w.stok_rusak || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalWaste;
+  }, [masterData]);
+
   const handleOpenStokOpnameModal = useCallback((existingReport = null) => {
     const todayStr = new Date().toISOString().split('T')[0];
     const targetDate = existingReport?.date || todayStr;
@@ -11595,8 +11627,9 @@ export default function AndroidPosRegister({
                     const sMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                     const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                     const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
+                    const stokRusak = getStokRusakFromWaste(ing.name, logDate, logOutletId);
                     const sFisik = (r.stok_fisik !== undefined && r.stok_fisik !== '') ? Number(r.stok_fisik) : sAwal;
-                    const sSistem = sAwal + sMasuk + trfIn - trfOut;
+                    const sSistem = sAwal + sMasuk + trfIn - trfOut - stokRusak;
                     const selisih = sFisik - sSistem;
 
                     return {
@@ -11615,7 +11648,7 @@ export default function AndroidPosRegister({
                       transfer_masuk: trfIn,
                       transfer_keluar: trfOut,
                       stok_keluar: 0,
-                      stok_rusak: 0,
+                      stok_rusak: stokRusak,
                       stok_sistem: sSistem,
                       stok_fisik: sFisik,
                       selisih: selisih,
@@ -11674,7 +11707,7 @@ export default function AndroidPosRegister({
                   {/* KETERANGAN PENJELAS FORMULIR STOK OPNAME */}
                   <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px 18px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700' }}>
                     <span>📦 Menampilkan {ingredientsList.length} Bahan Baku Aktif dari Master Data</span>
-                    <span>💡 Stok Masuk otomatis terisi dari Laporan Harian (Default 0 jika tidak ada) & Sub Transfer Stok</span>
+                    <span>💡 Stok Masuk, Transfer, & Stok Rusak otomatis terisi dari Laporan Harian & Subtab Logistik</span>
                   </div>
 
                   {/* TABEL MULTI-ITEM AUDIT BAHAN BAKU AKTIF MASTER DATA */}
@@ -11685,17 +11718,18 @@ export default function AndroidPosRegister({
                           <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
                             <th style={{ padding: '12px 10px', width: '40px' }}>No</th>
                             <th style={{ padding: '12px 14px' }}>📦 Nama Bahan Baku</th>
-                            <th style={{ padding: '12px 12px', width: '140px', textAlign: 'right' }}>📊 Stok Awal (Manual)</th>
+                            <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right' }}>📊 Stok Awal (Manual)</th>
                             <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Stok Masuk (Laporan Harian)</th>
-                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
-                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Keluar</th>
+                            <th style={{ padding: '12px 12px', width: '110px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
+                            <th style={{ padding: '12px 12px', width: '110px', textAlign: 'right', color: '#a78bfa' }}>📤 Transfer Keluar</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>🗑️ Stok Rusak (Waste)</th>
                             <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#fbbf24' }}>⚖️ Sisa Stok Fisik (Manual) *</th>
                           </tr>
                         </thead>
                         <tbody>
                           {ingredientsList.length === 0 ? (
                             <tr>
-                              <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
+                              <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                                 Tidak ada Bahan Baku dengan status Aktif di Master Data.
                               </td>
                             </tr>
@@ -11712,6 +11746,7 @@ export default function AndroidPosRegister({
                               const stokMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                               const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                               const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
+                              const stokRusak = getStokRusakFromWaste(ing.name, logDate, logOutletId);
 
                               return (
                                 <tr key={ing.id || idx} style={{ borderBottom: '1px solid var(--pos-border-card)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
@@ -11744,8 +11779,13 @@ export default function AndroidPosRegister({
                                   </td>
 
                                   {/* TRANSFER STOK KELUAR (OTOMATIS SUB TRANSFER STOK) */}
-                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfOut > 0 ? '#fb7185' : 'var(--pos-txt-secondary)' }}>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfOut > 0 ? '#a78bfa' : 'var(--pos-txt-secondary)' }}>
                                     {trfOut} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* STOK RUSAK (OTOMATIS LAPORAN STOK RUSAK / SUBTAB WASTE) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: stokRusak > 0 ? '#fb7185' : 'var(--pos-txt-secondary)' }}>
+                                    {stokRusak} {ing.unit || 'kg'}
                                   </td>
 
                                   {/* SISA STOK FISIK (DIISI MANUAL) */}
