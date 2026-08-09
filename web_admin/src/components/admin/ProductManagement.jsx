@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Package, 
   Plus, 
@@ -33,6 +33,17 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('Semua');
   const [selectedOutletFilter, setSelectedOutletFilter] = useState('Semua');
+
+  // Auto-sync selectedOutletFilter with top header selectedBranch
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
+      setSelectedOutletFilter(String(selectedBranch));
+      setCurrentPage(1);
+    } else if (selectedBranch === 'ALL' || selectedBranch === 'Semua Restoran (Konsolidasi)') {
+      setSelectedOutletFilter('Semua');
+      setCurrentPage(1);
+    }
+  }, [selectedBranch]);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
@@ -446,6 +457,59 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
+  const isProductAvailableAtOutlet = (product, targetOutletId) => {
+    if (!targetOutletId || targetOutletId === 'Semua' || targetOutletId === 'ALL' || targetOutletId === 'Semua Restoran (Konsolidasi)') return true;
+    const strId = String(targetOutletId);
+    const numId = Number(targetOutletId);
+
+    // Check 1: Direct outlet_id
+    if (product.outlet_id !== undefined && product.outlet_id !== null && (String(product.outlet_id) === strId || Number(product.outlet_id) === numId)) {
+      return true;
+    }
+
+    // Check 2: selectedOutletIds array
+    if (product.selectedOutletIds && Array.isArray(product.selectedOutletIds)) {
+      const match = product.selectedOutletIds.some(id => String(id) === strId || Number(id) === numId);
+      if (match) return true;
+    }
+
+    // Check 3: standardPrices map for targetOutletId
+    if (product.standardPrices) {
+      const stdPrice = product.standardPrices[strId] !== undefined 
+        ? Number(product.standardPrices[strId]) 
+        : Number(product.standardPrices[numId] || 0);
+      if (stdPrice > 0) return true;
+    }
+
+    // Check 4: variantPrices map
+    if (product.variantPrices) {
+      for (const vName of Object.keys(product.variantPrices)) {
+        const vMap = product.variantPrices[vName] || {};
+        const vPrice = vMap[strId] !== undefined ? Number(vMap[strId]) : Number(vMap[numId] || 0);
+        if (vPrice > 0) return true;
+      }
+    }
+
+    // Check 5: priceCombinations
+    if (product.priceCombinations && Array.isArray(product.priceCombinations)) {
+      for (const combo of product.priceCombinations) {
+        if (combo.selectedOutletIds && Array.isArray(combo.selectedOutletIds)) {
+          if (combo.selectedOutletIds.some(id => String(id) === strId || Number(id) === numId)) {
+            return true;
+          }
+        }
+        if (combo.outletPrices) {
+          const comboPrice = combo.outletPrices[strId] !== undefined 
+            ? Number(combo.outletPrices[strId]) 
+            : Number(combo.outletPrices[numId] || 0);
+          if (comboPrice > 0) return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
   const getEffectiveProductPrice = (p) => {
     if (p.price && Number(p.price) > 0) return Number(p.price);
     if (p.priceCombinations && p.priceCombinations.length > 0) {
@@ -463,20 +527,60 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     return 0;
   };
 
-  const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
+  const getEffectiveProductPriceForOutlet = (p, targetOutletId) => {
+    if (targetOutletId && targetOutletId !== 'Semua' && targetOutletId !== 'ALL' && targetOutletId !== 'Semua Restoran (Konsolidasi)') {
+      const strId = String(targetOutletId);
+      const numId = Number(targetOutletId);
 
-  const filteredProducts = masterData.products.filter(p => {
-    if (selectedBranch) {
-      const matchOutlet = p.outlet_id === selectedBranch || Number(p.outlet_id) === Number(selectedBranch) ||
-        (p.selectedOutletIds && (p.selectedOutletIds.includes(selectedBranch) || p.selectedOutletIds.includes(String(selectedBranch)) || p.selectedOutletIds.includes(Number(selectedBranch))));
-      if (!matchOutlet) return false;
+      // Check standardPrices
+      if (p.standardPrices) {
+        const stdPrice = p.standardPrices[strId] !== undefined ? Number(p.standardPrices[strId]) : Number(p.standardPrices[numId] || 0);
+        if (stdPrice > 0) return stdPrice;
+      }
+
+      // Check variantPrices
+      if (p.variantPrices) {
+        for (const vName of Object.keys(p.variantPrices)) {
+          const vMap = p.variantPrices[vName] || {};
+          const vPrice = vMap[strId] !== undefined ? Number(vMap[strId]) : Number(vMap[numId] || 0);
+          if (vPrice > 0) return vPrice;
+        }
+      }
+
+      // Check priceCombinations
+      if (p.priceCombinations && Array.isArray(p.priceCombinations)) {
+        for (const combo of p.priceCombinations) {
+          if (combo.outletPrices) {
+            const comboPrice = combo.outletPrices[strId] !== undefined ? Number(combo.outletPrices[strId]) : Number(combo.outletPrices[numId] || 0);
+            if (comboPrice > 0) return comboPrice;
+          }
+        }
+      }
     }
 
+    return getEffectiveProductPrice(p);
+  };
+
+  const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
+
+  // Active Outlet Filter ID Priority
+  const activeOutletId = (selectedOutletFilter && selectedOutletFilter !== 'Semua')
+    ? selectedOutletFilter
+    : ((selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') ? String(selectedBranch) : 'Semua');
+
+  const filteredProducts = (masterData.products || []).filter(p => {
+    // 1. Outlet Filter Check
+    if (activeOutletId !== 'Semua' && activeOutletId !== 'ALL') {
+      if (!isProductAvailableAtOutlet(p, activeOutletId)) return false;
+    }
+
+    // 2. Status Filter Check
     const pStatus = p.status || 'Aktif';
     if (selectedStatusFilter !== 'Semua' && pStatus !== selectedStatusFilter) {
       return false;
     }
 
+    // 3. Search & Category Filter Check
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
     
@@ -672,11 +776,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     return pr > 0;
                   });
 
-                  const firstOutletObj = validPriceOutlets[0] || null;
+                  const activeOutletObj = (activeOutletId !== 'Semua' && activeOutletId !== 'ALL')
+                    ? (masterData.outlets || []).find(o => String(o.id) === String(activeOutletId))
+                    : null;
+
+                  const displayOutletObj = activeOutletObj || firstOutletObj;
 
                   let primaryPrice = 0;
-                  if (firstOutletObj) {
-                    const oid = String(firstOutletObj.id);
+                  if (displayOutletObj) {
+                    const oid = String(displayOutletObj.id);
                     if (p.standardPrices) {
                       const stdKey = Object.keys(p.standardPrices).find(k => String(k) === oid);
                       if (stdKey) primaryPrice = Number(p.standardPrices[stdKey]);
@@ -690,13 +798,17 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     }
                     if (primaryPrice <= 0 && p.priceCombinations && p.priceCombinations.length > 0) {
                       const combo = p.priceCombinations.find(c => c.outletPrices && (
-                        Number(c.outletPrices[firstOutletObj.id]) > 0 || Number(c.outletPrices[oid]) > 0
+                        Number(c.outletPrices[displayOutletObj.id]) > 0 || Number(c.outletPrices[oid]) > 0
                       ));
-                      if (combo) primaryPrice = Number(combo.outletPrices[firstOutletObj.id] || combo.outletPrices[oid] || 0);
+                      if (combo) primaryPrice = Number(combo.outletPrices[displayOutletObj.id] || combo.outletPrices[oid] || 0);
                     }
                   }
 
-                  const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
+                  if (primaryPrice <= 0) {
+                    primaryPrice = getEffectiveProductPrice(p);
+                  }
+
+                  const outletNameHeader = (displayOutletObj) ? (displayOutletObj.name || '').toUpperCase() : '';
 
                   return (
                     <tr key={p.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
