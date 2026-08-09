@@ -9,6 +9,7 @@ import CostsManagement from './components/admin/CostsManagement';
 import StockManagement from './components/admin/StockManagement';
 import ApprovalCenter from './components/admin/ApprovalCenter';
 import ManualReportUpdatePage from './components/admin/ManualReportUpdatePage';
+import IngredientPriceComparisonPage from './components/admin/IngredientPriceComparisonPage';
 import FinancialReportsFull from './components/admin/FinancialReportsFull';
 import TermsAndPolicies from './components/admin/TermsAndPolicies';
 import SystemSettings from './components/admin/SystemSettings';
@@ -536,6 +537,14 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               userSession={userSession}
+              selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          )}
+
+          {adminTab === 'ingredient_prices' && (
+            <IngredientPriceComparisonPage
+              masterData={masterData}
               selectedBranch={selectedBranch}
               themeMode={themeMode}
             />
