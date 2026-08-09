@@ -25,6 +25,8 @@ import LoginPage from './components/admin/LoginPage';
 import AndroidPosRegister from './components/mobile/AndroidPosRegister';
 import CustomerSelfRegistrationPage from './components/mobile/CustomerSelfRegistrationPage';
 
+import ServerLoadingOverlay from './components/common/ServerLoadingOverlay';
+
 import { initialMasterData } from './data/initialMasterData';
 import { checkWebPermission } from './utils/permissionUtils';
 import { Lock } from 'lucide-react';
@@ -51,6 +53,39 @@ export default function App() {
     }
     return null;
   });
+
+  // Global Server Loading Overlay State ("mohon tunggu sebentar ya")
+  const [isServerLoading, setIsServerLoading] = useState(false);
+  const [serverLoadingMessage, setServerLoadingMessage] = useState("mohon tunggu sebentar ya");
+  const [serverLoadingSubMessage, setServerLoadingSubMessage] = useState("Sedang menghubungkan & memuat data ke server...");
+
+  useEffect(() => {
+    // Expose global window helper methods
+    window.showServerLoading = (msg = "mohon tunggu sebentar ya", subMsg = "Sedang menghubungkan & memuat data ke server...") => {
+      setServerLoadingMessage(msg);
+      setServerLoadingSubMessage(subMsg);
+      setIsServerLoading(true);
+    };
+    window.hideServerLoading = () => {
+      setIsServerLoading(false);
+    };
+
+    const handleShowLoading = (e) => {
+      const { message, subMessage } = e.detail || {};
+      setServerLoadingMessage(message || "mohon tunggu sebentar ya");
+      setServerLoadingSubMessage(subMessage || "Sedang menghubungkan & memuat data ke server...");
+      setIsServerLoading(true);
+    };
+    const handleHideLoading = () => setIsServerLoading(false);
+
+    window.addEventListener('show-server-loading', handleShowLoading);
+    window.addEventListener('hide-server-loading', handleHideLoading);
+
+    return () => {
+      window.removeEventListener('show-server-loading', handleShowLoading);
+      window.removeEventListener('hide-server-loading', handleHideLoading);
+    };
+  }, []);
 
   // App View Mode State: 'admin' for Web Browser, 'mobile' for Capacitor Android APK
   const [viewMode, setViewMode] = useState(() => {
@@ -213,11 +248,20 @@ export default function App() {
       }
     } catch (e) {}
 
+    if (typeof window !== 'undefined' && window.showServerLoading) {
+      window.showServerLoading("mohon tunggu sebentar ya", "Sedang mengirim & menyimpan data ke server...");
+    }
+
     fetch(getApiUrl('/api/master-data'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedWithTs)
-    }).catch(() => {});
+    }).catch(() => {})
+      .finally(() => {
+        if (typeof window !== 'undefined' && window.hideServerLoading) {
+          setTimeout(() => window.hideServerLoading(), 400);
+        }
+      });
   };
 
   // Live polling dari server VPS
@@ -639,6 +683,12 @@ export default function App() {
           )}
         </>
       )}
+      <ServerLoadingOverlay 
+        show={isServerLoading} 
+        message={serverLoadingMessage} 
+        subMessage={serverLoadingSubMessage} 
+        themeMode={themeMode} 
+      />
     </AdminLayout>
   );
 }
