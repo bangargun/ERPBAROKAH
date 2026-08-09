@@ -27,7 +27,8 @@ import {
   CheckSquare,
   PlusCircle,
   FileSpreadsheet,
-  Scale
+  Scale,
+  TrendingUp
 } from 'lucide-react';
 
 import { checkWebPermission } from '../../utils/permissionUtils';
@@ -96,19 +97,20 @@ export default function AdminLayout({
   };
 
   const menuItems = [
-    { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard, permKey: 'dashboard' },
-    { id: 'data', label: '2. Data Master', icon: Database, permKey: 'masterData' },
-    { id: 'sales', label: '3. Penjualan', icon: ShoppingBag, permKey: 'reports' },
-    { id: 'stock', label: '4. Logistik', icon: Package, permKey: 'stock' },
-    { id: 'daily_approval', label: '5. Laporan Harian Outlet', icon: ClipboardCheck, permKey: 'reports' },
-    { id: 'update_laporan', label: '6. Update Laporan', icon: FileSpreadsheet, permKey: 'reports' },
-    { id: 'ingredient_prices', label: '7. Perbandingan Harga', icon: Scale, permKey: 'reports' },
-    { id: 'reports', label: '8. Laporan Keuangan', icon: FileText, permKey: 'reports' },
-    { id: 'printer_settings', label: '9. Printer & Thermal', icon: Printer, permKey: 'settings' },
-    { id: 'sop', label: '10. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
-    { id: 'loyalty', label: '11. Program Loyalitas', icon: Award, permKey: 'masterData' },
-    { id: 'settings', label: '12. Pengaturan', icon: Settings, permKey: 'settings' },
-    { id: 'activity_log', label: '13. Log Aktivitas', icon: History, permKey: 'settings' }
+    { id: 'dashboard',           label: '1. Dashboard',               icon: LayoutDashboard, permKey: 'dashboard' },
+    { id: 'data',                label: '2. Data Master',             icon: Database,        permKey: 'masterData' },
+    { id: 'sales',               label: '3. Penjualan',               icon: ShoppingBag,     permKey: 'reports' },
+    { id: 'stock',               label: '4. Logistik',                icon: Package,         permKey: 'stock' },
+    { id: 'daily_approval',      label: '5. Laporan Harian Outlet',   icon: ClipboardCheck,  permKey: 'reports' },
+    { id: 'update_laporan',      label: '6. Update Laporan',          icon: FileSpreadsheet, permKey: 'reports' },
+    { id: 'ingredient_prices',   label: '7. Perbandingan Harga',      icon: Scale,           permKey: 'reports' },
+    { id: 'tren_harga_outlet',   label: '8. Tren Harga Per Outlet',   icon: TrendingUp,      permKey: 'reports' },
+    { id: 'reports',             label: '9. Laporan Keuangan',        icon: FileText,        permKey: 'reports' },
+    { id: 'printer_settings',    label: '10. Printer & Thermal',      icon: Printer,         permKey: 'settings' },
+    { id: 'sop',                 label: '11. Kelola SOP Restoran',    icon: BookOpen,        permKey: 'policies' },
+    { id: 'loyalty',             label: '12. Program Loyalitas',      icon: Award,           permKey: 'masterData' },
+    { id: 'settings',            label: '13. Pengaturan',             icon: Settings,        permKey: 'settings' },
+    { id: 'activity_log',        label: '14. Log Aktivitas',          icon: History,         permKey: 'settings' }
   ];
 
   const userName = userSession?.name || 'Super Admin Restoran';
