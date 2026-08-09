@@ -374,11 +374,11 @@ export default function IngredientPriceTrendPage({
         </div>
       )}
 
-      {/* SUMMARY KPI CARDS (SUSUNAN 1 BARIS TAMPILAN) */}
+      {/* SUMMARY KPI CARDS (SUSUNAN 1 BARIS TAMPILAN - 4 CARD UTAMA) */}
       {trendOutletId && trendIngredient && trendStats && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '12px',
           alignItems: 'stretch'
         }}>
@@ -420,31 +420,6 @@ export default function IngredientPriceTrendPage({
               <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Harga Tertinggi</div>
               <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.danger, lineHeight: 1.1 }}>Rp {trendStats.max.toLocaleString('id-ID')}</div>
               <div style={{ fontSize: '0.64rem', color: T.txtMuted }}>harga puncak per {trendStats.unit}</div>
-            </div>
-          </div>
-
-          {/* Card 5: Rata-Rata Harga */}
-          <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '13px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ padding: '9px', background: T.cardBg2, borderRadius: '10px' }}><History size={20} color={T.txtPrimary} /></div>
-            <div>
-              <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Rata-Rata Harga</div>
-              <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, lineHeight: 1.1 }}>Rp {trendStats.avg.toLocaleString('id-ID')}</div>
-              <div style={{ fontSize: '0.64rem', color: T.txtMuted }}>rata-rata per {trendStats.unit}</div>
-            </div>
-          </div>
-
-          {/* Card 6: Fluktuasi & Perubahan */}
-          <div style={{ background: T.cardBg, border: `1px solid ${trendStats.totalChange > 0 ? T.dangerBorder : trendStats.totalChange < 0 ? T.successBorder : T.border}`, borderRadius: '13px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ padding: '9px', background: trendStats.totalChange > 0 ? T.dangerBg : trendStats.totalChange < 0 ? T.successBg : T.cardBg2, borderRadius: '10px' }}>
-              <Activity size={20} color={trendStats.totalChange > 0 ? T.danger : trendStats.totalChange < 0 ? T.success : T.txtMuted} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Perubahan & Fluktuasi</div>
-              <div style={{ fontSize: '1.05rem', fontWeight: '900', color: trendStats.totalChange > 0 ? T.danger : trendStats.totalChange < 0 ? T.success : T.txtMuted, lineHeight: 1.1 }}>
-                {trendStats.totalChange > 0 ? '+' : ''}{trendStats.totalChange.toLocaleString('id-ID')}
-                {trendStats.totalPct && <span style={{ fontSize: '0.70rem', marginLeft: '3px' }}>({trendStats.totalChange > 0 ? '+' : ''}{trendStats.totalPct}%)</span>}
-              </div>
-              <div style={{ fontSize: '0.64rem', color: T.txtMuted }}>Fluktuasi Min-Max: {trendStats.volatilityPct}%</div>
             </div>
           </div>
 
