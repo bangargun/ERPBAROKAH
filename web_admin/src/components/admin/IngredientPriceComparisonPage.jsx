@@ -29,6 +29,7 @@ export default function IngredientPriceComparisonPage({
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIngredientFilter, setSelectedIngredientFilter] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showColumnFilter, setShowColumnFilter] = useState(false);
@@ -42,6 +43,14 @@ export default function IngredientPriceComparisonPage({
   const [visibleOutletIds, setVisibleOutletIds] = useState(() => {
     return (masterData?.outlets || []).map(o => String(o.id));
   });
+
+  // Unique Ingredient Names List for Dropdown Filter
+  const uniqueIngredientNames = useMemo(() => {
+    const set = new Set();
+    (masterData?.ingredients || []).forEach(i => i.name && set.add(i.name.trim()));
+    (allPurchaseRecords || []).forEach(r => r.ingredient_name && set.add(r.ingredient_name.trim()));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [masterData, allPurchaseRecords]);
 
   // Selected Item for Price History Modal
   const [priceHistoryItem, setPriceHistoryItem] = useState(null);
@@ -166,6 +175,11 @@ export default function IngredientPriceComparisonPage({
       // Branch / Outlet Filter
       if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
         if (String(r.outlet_id) !== String(selectedBranch)) return false;
+      }
+
+      // Ingredient Dropdown Filter
+      if (selectedIngredientFilter !== 'ALL') {
+        if (r.ingredient_name.toLowerCase().trim() !== selectedIngredientFilter.toLowerCase().trim()) return false;
       }
 
       // Date Range Filter
@@ -490,9 +504,23 @@ export default function IngredientPriceComparisonPage({
             type="text"
             value={searchTerm}
             onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            placeholder="Filter Nama Bahan Baku / Supplier..."
+            placeholder="Cari Kata Kunci Bahan Baku / Supplier..."
             style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
           />
+        </div>
+
+        {/* Dropdown Filter: Pilihan Spesifik Nama Bahan Baku */}
+        <div>
+          <select
+            value={selectedIngredientFilter}
+            onChange={e => { setSelectedIngredientFilter(e.target.value); setCurrentPage(1); }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+          >
+            <option value="ALL">🥬 Semua Bahan Baku ({uniqueIngredientNames.length} Item)</option>
+            {uniqueIngredientNames.map((ingName, idx) => (
+              <option key={idx} value={ingName}>{ingName}</option>
+            ))}
+          </select>
         </div>
 
         {/* Date Range Start */}
