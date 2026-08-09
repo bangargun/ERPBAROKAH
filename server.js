@@ -435,10 +435,11 @@ const initMySQLPool = async () => {
 };
 initMySQLPool();
 
-// Auto-create tabel mris_master_data jika belum ada
+// Auto-create semua tabel MySQL yang dibutuhkan jika belum ada
 const ensureMasterDataTable = async () => {
   if (!mysqlPool) return;
   try {
+    // 1. Tabel master data utama (JSON blob)
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS mris_master_data (
         id INT PRIMARY KEY DEFAULT 1,
@@ -447,10 +448,120 @@ const ensureMasterDataTable = async () => {
       )
     `);
     console.log('✅ Tabel mris_master_data siap');
+
+    // 2. Outlets
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS outlets (
+        id INT PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        address TEXT,
+        location TEXT,
+        manager_name VARCHAR(255),
+        phone VARCHAR(50),
+        target_omzet BIGINT DEFAULT 0,
+        employee_count INT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'Aktif',
+        color VARCHAR(50) DEFAULT '#3b82f6'
+      )
+    `);
+
+    // 3. Web Admin Users
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS web_admin_users (
+        id INT PRIMARY KEY,
+        name VARCHAR(255),
+        username VARCHAR(255),
+        password VARCHAR(255),
+        role VARCHAR(100),
+        outlet VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 4. Mobile POS Users
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS mobile_pos_users (
+        id INT PRIMARY KEY,
+        name VARCHAR(255),
+        username VARCHAR(255),
+        password VARCHAR(255),
+        role VARCHAR(100),
+        outlet VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'Aktif',
+        can_access_reports TINYINT(1) DEFAULT 0,
+        report_password VARCHAR(255)
+      )
+    `);
+
+    // 5. Categories
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INT PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        type VARCHAR(50),
+        icon VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 6. Products
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS products (
+        id INT PRIMARY KEY,
+        sku VARCHAR(100),
+        name VARCHAR(255),
+        category_id INT,
+        category_name VARCHAR(255),
+        price BIGINT DEFAULT 0,
+        cost_price BIGINT DEFAULT 0,
+        stock DECIMAL(10,2) DEFAULT 0,
+        unit VARCHAR(50),
+        outlet_id INT,
+        selected_outlet_ids TEXT,
+        image_url TEXT,
+        description TEXT,
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 7. Sales Transactions
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS sales_transactions (
+        id VARCHAR(100) PRIMARY KEY,
+        receipt_no VARCHAR(100),
+        date DATE,
+        time VARCHAR(20),
+        outlet_id INT,
+        branch_id INT,
+        branch_name VARCHAR(255),
+        outlet VARCHAR(255),
+        customer_name VARCHAR(255),
+        table_number VARCHAR(50),
+        order_type VARCHAR(50),
+        subtotal BIGINT DEFAULT 0,
+        discount_amount BIGINT DEFAULT 0,
+        service_charge BIGINT DEFAULT 0,
+        tax_amount BIGINT DEFAULT 0,
+        adjustment_amount BIGINT DEFAULT 0,
+        amount BIGINT DEFAULT 0,
+        paid_amount BIGINT DEFAULT 0,
+        change_amount BIGINT DEFAULT 0,
+        payment_method VARCHAR(100),
+        cashier VARCHAR(255),
+        notes TEXT,
+        status VARCHAR(50) DEFAULT 'approved',
+        type VARCHAR(50) DEFAULT 'income'
+      )
+    `);
+
+    console.log('✅ Semua tabel relasional MySQL siap');
   } catch (err) {
-    console.error('❌ Gagal membuat tabel mris_master_data:', err.message);
+    console.error('❌ Gagal membuat tabel:', err.message);
   }
 };
+
 
 // Baca masterData dari MySQL
 const getMasterDataFromMySQL = async () => {
