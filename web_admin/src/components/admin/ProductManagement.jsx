@@ -464,43 +464,56 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     const strId = String(targetOutletId);
     const numId = Number(targetOutletId);
 
-    // Check APK Status per outlet override
+    // Find the outlet object from masterData.outlets
+    const targetOutletObj = (masterData.outlets || []).find(o => 
+      String(o.id) === strId || 
+      String(o.name).toLowerCase().trim() === strId.toLowerCase().trim()
+    );
+    const targetNameLower = targetOutletObj ? (targetOutletObj.name || '').toLowerCase().trim() : strId.toLowerCase().trim();
+    const targetCodeLower = targetOutletObj && targetOutletObj.code ? String(targetOutletObj.code).toLowerCase().trim() : '';
+
+    // Helper matcher function to check if a value matches the target outlet (by ID, Name, Code, or ALL)
+    const matchesOutlet = (val) => {
+      if (val === undefined || val === null) return false;
+      const s = String(val).toLowerCase().trim();
+      if (s === 'all' || s === 'semua' || s === 'semua outlet' || s === 'central') return true;
+      if (s === strId || Number(val) === numId) return true;
+      if (targetNameLower && s === targetNameLower) return true;
+      if (targetCodeLower && s === targetCodeLower) return true;
+      return false;
+    };
+
+    // Check APK Status per outlet override (if explicitly hidden/inaktif for this outlet)
     if (product.apkStatus && typeof product.apkStatus === 'object') {
-      const statusForOutlet = product.apkStatus[strId] || product.apkStatus[numId];
-      if (statusForOutlet === 'Hide' || statusForOutlet === 'Inaktif') return false;
+      const statusValue = product.apkStatus[strId] || 
+                          product.apkStatus[numId] || 
+                          (targetNameLower && product.apkStatus[targetNameLower]) ||
+                          (targetOutletObj && product.apkStatus[targetOutletObj.name]);
+      if (statusValue === 'Hide' || statusValue === 'Inaktif' || statusValue === false) return false;
     }
 
-    // Check 1: Direct outlet_id ('ALL', 'Semua', or exact match)
-    if (product.outlet_id !== undefined && product.outlet_id !== null) {
-      const outIdStr = String(product.outlet_id).toUpperCase();
-      if (outIdStr === 'ALL' || outIdStr === 'SEMUA' || outIdStr === strId || Number(product.outlet_id) === numId) {
-        return true;
-      }
-    }
+    // Check 1: Direct outlet_id
+    if (matchesOutlet(product.outlet_id)) return true;
 
-    // Check 2: selectedOutletIds array ('ALL', 'Semua', or exact match)
+    // Check 2: selectedOutletIds array
     if (product.selectedOutletIds && Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0) {
-      const hasMatch = product.selectedOutletIds.some(id => {
-        const s = String(id).toUpperCase();
-        return s === 'ALL' || s === 'SEMUA' || s === strId || Number(id) === numId;
-      });
-      if (hasMatch) return true;
+      if (product.selectedOutletIds.some(matchesOutlet)) return true;
     }
 
-    // Check 3: standardPrices map for targetOutletId
+    // Check 3: standardPrices map
     if (product.standardPrices && typeof product.standardPrices === 'object') {
-      const stdPrice = product.standardPrices[strId] !== undefined 
-        ? Number(product.standardPrices[strId]) 
-        : Number(product.standardPrices[numId] || 0);
-      if (stdPrice > 0) return true;
+      for (const k of Object.keys(product.standardPrices)) {
+        if (matchesOutlet(k) && Number(product.standardPrices[k]) > 0) return true;
+      }
     }
 
     // Check 4: variantPrices map
     if (product.variantPrices && typeof product.variantPrices === 'object') {
       for (const vName of Object.keys(product.variantPrices)) {
         const vMap = product.variantPrices[vName] || {};
-        const vPrice = vMap[strId] !== undefined ? Number(vMap[strId]) : Number(vMap[numId] || 0);
-        if (vPrice > 0) return true;
+        for (const k of Object.keys(vMap)) {
+          if (matchesOutlet(k) && Number(vMap[k]) > 0) return true;
+        }
       }
     }
 
@@ -508,18 +521,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     if (product.priceCombinations && Array.isArray(product.priceCombinations)) {
       for (const combo of product.priceCombinations) {
         if (combo.selectedOutletIds && Array.isArray(combo.selectedOutletIds)) {
-          if (combo.selectedOutletIds.some(id => {
-            const s = String(id).toUpperCase();
-            return s === 'ALL' || s === 'SEMUA' || s === strId || Number(id) === numId;
-          })) {
-            return true;
-          }
+          if (combo.selectedOutletIds.some(matchesOutlet)) return true;
         }
-        if (combo.outletPrices) {
-          const comboPrice = combo.outletPrices[strId] !== undefined 
-            ? Number(combo.outletPrices[strId]) 
-            : Number(combo.outletPrices[numId] || 0);
-          if (comboPrice > 0) return true;
+        if (combo.outletPrices && typeof combo.outletPrices === 'object') {
+          for (const k of Object.keys(combo.outletPrices)) {
+            if (matchesOutlet(k) && Number(combo.outletPrices[k]) > 0) return true;
+          }
         }
       }
     }
