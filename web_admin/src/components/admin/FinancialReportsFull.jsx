@@ -190,7 +190,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
   });
   const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
     isOutletMatch(f.outlet_id || f.branch_id) && 
-    isDateMatch(f.date || f.created_at || f.entry_date)
+    isDateMatch(f.entry_date || f.date || f.transaction_date || f.created_at)
   );
 
   // Filtered All Sales Transactions (Real-time from POS Mobile & Web Admin)
@@ -205,13 +205,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
   });
   const salesTransactions = Array.from(salesTxMap.values()).filter(t => 
     isOutletMatch(t.outlet_id || t.branch_id) && 
-    isDateMatch(t.date || t.timestamp || t.created_at)
+    isDateMatch(t.entry_date || t.date || t.transaction_date || t.timestamp || t.created_at)
   );
 
   // Filtered Financial Records
   const financialRecords = (masterData.financialRecords || []).filter(f => 
     isOutletMatch(f.outlet_id) && 
-    isDateMatch(f.date || f.created_at)
+    isDateMatch(f.entry_date || f.date || f.transaction_date || f.created_at)
   );
 
   const calcPercent = (val, base) => {
@@ -257,7 +257,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     });
     const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
       isOutletMatch(f.outlet_id || f.branch_id) && 
-      isMatchedDate(f.date || f.created_at || f.entry_date)
+      isMatchedDate(f.entry_date || f.date || f.transaction_date || f.created_at)
     );
 
     const rawSalesTx = [

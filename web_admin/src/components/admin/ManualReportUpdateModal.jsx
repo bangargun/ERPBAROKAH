@@ -386,7 +386,29 @@ export default function ManualReportUpdateModal({
           const typeVal = String(row['Tipe Laporan'] || row['Tipe'] || row['type'] || 'Penjualan').trim();
           const isSales = typeVal.toLowerCase().includes('jual') || typeVal.toLowerCase().includes('sales');
 
-          const dateVal = String(row['Tanggal'] || row['date'] || reportDate).trim();
+          let formattedParsedDate = reportDate;
+          const rawDateStr = String(row['Tanggal'] || row['date'] || '').trim();
+          if (rawDateStr) {
+            if (!isNaN(Number(rawDateStr)) && Number(rawDateStr) > 30000) {
+              const excelDate = new Date(Math.round((Number(rawDateStr) - 25569) * 86400 * 1000));
+              formattedParsedDate = excelDate.toISOString().split('T')[0];
+            } else {
+              const parts = rawDateStr.split(/[\/\-\.]/);
+              if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                  formattedParsedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                } else if (parts[2].length === 4) {
+                  formattedParsedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                  formattedParsedDate = rawDateStr;
+                }
+              } else {
+                formattedParsedDate = rawDateStr;
+              }
+            }
+          }
+
+          const dateVal = formattedParsedDate;
           const outletVal = String(row['Nama Outlet'] || row['Outlet'] || getOutletName(selectedOutletId)).trim();
 
           const nameOrCode = String(
@@ -601,7 +623,9 @@ export default function ManualReportUpdateModal({
 
             newStockMovements.push({
               id: Date.now() + Math.random(),
-              date: sRow.date,
+              entry_date: sRow.date || reportDate,
+              date: sRow.date || reportDate,
+              transaction_date: sRow.date || reportDate,
               time: new Date().toLocaleTimeString('id-ID'),
               outlet_id: sRow.outletId,
               outlet_name: sRow.outletName,
@@ -642,11 +666,15 @@ export default function ManualReportUpdateModal({
       amount: s.subtotal
     }));
 
+    const currentTimeStr = new Date().toTimeString().split(' ')[0];
+    const reportTimestamp = `${reportDate}T${currentTimeStr}`;
+
     const newReportRecord = {
       id: Date.now(),
       report_no: reportNo,
       entry_date: reportDate,
       date: reportDate,
+      transaction_date: reportDate,
       outlet_id: selectedOutletId,
       outlet_name: getOutletName(selectedOutletId),
       net_sales: totalSalesOmset,
@@ -681,7 +709,9 @@ export default function ManualReportUpdateModal({
       amount: e.subtotal,
       outlet_id: selectedOutletId,
       outlet_name: getOutletName(selectedOutletId),
+      entry_date: reportDate,
       date: reportDate,
+      transaction_date: reportDate,
       created_at: new Date().toISOString()
     }));
 
@@ -693,8 +723,10 @@ export default function ManualReportUpdateModal({
       items: [{ name: s.productName, qty: s.qty, price: s.price, subtotal: s.subtotal }],
       outlet_id: selectedOutletId,
       outlet_name: getOutletName(selectedOutletId),
+      entry_date: reportDate,
       date: reportDate,
-      timestamp: new Date().toISOString(),
+      transaction_date: reportDate,
+      timestamp: reportTimestamp,
       created_at: new Date().toISOString(),
       payment_method: s.paymentMethod || 'Kas Kasir (Tunai)'
     }));

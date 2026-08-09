@@ -78,8 +78,8 @@ export default function ManualReportUpdatePage({
     });
 
     return Array.from(map.values()).sort((a, b) => {
-      const dateA = new Date(a.entry_date || a.date || a.created_at || 0);
-      const dateB = new Date(b.entry_date || b.date || b.created_at || 0);
+      const dateA = new Date(a.entry_date || a.date || a.transaction_date || a.created_at || 0);
+      const dateB = new Date(b.entry_date || b.date || b.transaction_date || b.created_at || 0);
       return dateB - dateA;
     });
   }, [masterData]);
@@ -99,7 +99,7 @@ export default function ManualReportUpdatePage({
       }
 
       // Date Range Filter
-      const rDate = String(r.entry_date || r.date || r.created_at || '').substring(0, 10);
+      const rDate = String(r.entry_date || r.date || r.transaction_date || r.created_at || '').substring(0, 10);
       if (startDate && rDate < startDate) return false;
       if (endDate && rDate > endDate) return false;
 
