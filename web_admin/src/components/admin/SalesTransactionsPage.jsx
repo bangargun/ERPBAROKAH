@@ -132,6 +132,7 @@ export function DoubleCalendarPicker({
   setShowOutletDropdown,
   selectedBranch = null,
   hideOutletFilter = false,
+  noWrapper = false,
   themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
   const [baseMonth, setBaseMonth] = useState(new Date(2026, 6, 1)); // Default to July 2026 as in screenshot
@@ -376,7 +377,24 @@ export function DoubleCalendarPicker({
   };
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: T.cardBg, padding: '12px 16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+    <div ref={containerRef} style={noWrapper ? {
+      display: 'flex',
+      gap: '10px',
+      alignItems: 'flex-end',
+      position: 'relative',
+      zIndex: (showPopover || showOutletDropdown) ? 999999 : 100
+    } : {
+      display: 'flex',
+      gap: '12px',
+      alignItems: 'flex-end',
+      flexWrap: 'wrap',
+      position: 'relative',
+      zIndex: (showPopover || showOutletDropdown) ? 999999 : 100,
+      background: T.cardBg,
+      padding: '12px 16px',
+      borderRadius: '12px',
+      border: `1px solid ${T.border}`
+    }}>
       
       {/* 1. Tahun Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
