@@ -58,44 +58,172 @@ export default function ManualReportUpdatePage({
     return otl ? otl.name : `Outlet #${id}`;
   };
 
-  // Combine All Manual & Approved Reports
+  // Helper: Format Tanggal Indonesia tanpa pergeseran WIB (GMT+7)
+  const formatDateIndonesian = (dateStr) => {
+    if (!dateStr) return '-';
+    const str = String(dateStr).substring(0, 10);
+    const parts = str.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${String(day).padStart(2, '0')} ${months[monthIdx]} ${year}`;
+      }
+    }
+    return str;
+  };
+
+  // Combine All Manual & Approved Reports & Synthesise Standalone Transactions
   const allReportsList = useMemo(() => {
     const map = new Map();
 
     const combineSources = [
       ...(masterData?.manualEntryRecords || []),
       ...(masterData?.approvedFinanceDaily || []),
-      ...(masterData?.shiftReports || [])
+      ...(masterData?.shiftReports || []),
+      ...(masterData?.dailyReports || []),
+      ...(masterData?.manualReports || [])
     ];
 
     combineSources.forEach(r => {
-      if (r && r.id != null) {
-        const key = r.report_no || String(r.id);
+      if (r && (r.id != null || r.report_no)) {
+        const key = String(r.report_no || r.id);
         if (!map.has(key)) {
           map.set(key, r);
         }
       }
     });
 
+    // Synthesise standalone financialRecords and salesTransactions into date+outlet report entries if not present
+    const groupedStandalone = new Map();
+    const allFinancial = masterData?.financialRecords || [];
+    const allSales = masterData?.salesTransactions || [];
+
+    allFinancial.forEach(f => {
+      const dt = String(f.entry_date || f.date || f.transaction_date || f.created_at || '').substring(0, 10);
+      const otl = String(f.outlet_id || '1');
+      if (dt) {
+        const gKey = `GRP-${dt}-${otl}`;
+        if (!groupedStandalone.has(gKey)) {
+          groupedStandalone.set(gKey, {
+            id: `GRP-${dt}-${otl}`,
+            report_no: `EXP-${dt.replace(/-/g, '')}-${otl}`,
+            entry_date: dt,
+            date: dt,
+            outlet_id: f.outlet_id,
+            outlet_name: f.outlet_name || getOutletName(f.outlet_id),
+            total_omset: 0,
+            total_expense: 0,
+            status: 'Disetujui',
+            is_approved: true,
+            author: f.author || 'Staf / Admin',
+            source: 'Update Laporan Excel/Manual',
+            expense_details: [],
+            sales_details: []
+          });
+        }
+        const grp = groupedStandalone.get(gKey);
+        grp.total_expense += Number(f.amount || f.subtotal || 0);
+        grp.expense_details.push({
+          code: f.code || '6000',
+          name: f.category || f.notes || 'Pengeluaran',
+          categoryName: f.category || f.notes || 'Pengeluaran',
+          amount: Number(f.amount || 0),
+          subtotal: Number(f.amount || 0),
+          notes: f.notes || ''
+        });
+      }
+    });
+
+    allSales.forEach(s => {
+      const dt = String(s.entry_date || s.date || s.transaction_date || s.timestamp || s.created_at || '').substring(0, 10);
+      const otl = String(s.outlet_id || '1');
+      if (dt) {
+        const gKey = `GRP-${dt}-${otl}`;
+        if (!groupedStandalone.has(gKey)) {
+          groupedStandalone.set(gKey, {
+            id: `GRP-${dt}-${otl}`,
+            report_no: `SAL-${dt.replace(/-/g, '')}-${otl}`,
+            entry_date: dt,
+            date: dt,
+            outlet_id: s.outlet_id,
+            outlet_name: s.outlet_name || getOutletName(s.outlet_id),
+            total_omset: 0,
+            total_expense: 0,
+            status: 'Disetujui',
+            is_approved: true,
+            author: s.author || 'Kasir / Admin',
+            source: 'Penjualan POS / Update Laporan',
+            expense_details: [],
+            sales_details: []
+          });
+        }
+        const grp = groupedStandalone.get(gKey);
+        grp.total_omset += Number(s.amount || s.total || s.subtotal || 0);
+        if (s.items && Array.isArray(s.items)) {
+          s.items.forEach(it => {
+            grp.sales_details.push({
+              product_name: it.name || it.product_name || 'Produk',
+              name: it.name || it.product_name || 'Produk',
+              qty: it.qty || 1,
+              price: it.price || 0,
+              subtotal: it.subtotal || 0,
+              amount: it.subtotal || 0
+            });
+          });
+        }
+      }
+    });
+
+    groupedStandalone.forEach((grp, gKey) => {
+      const exists = Array.from(map.values()).some(r => {
+        const rDt = String(r.entry_date || r.date || r.transaction_date || '').substring(0, 10);
+        const rOtl = String(r.outlet_id || '');
+        return rDt === grp.entry_date && (rOtl === String(grp.outlet_id) || !rOtl);
+      });
+      if (!exists) {
+        map.set(gKey, grp);
+      }
+    });
+
     return Array.from(map.values()).sort((a, b) => {
-      const dateA = new Date(a.entry_date || a.date || a.transaction_date || a.created_at || 0);
-      const dateB = new Date(b.entry_date || b.date || b.transaction_date || b.created_at || 0);
-      return dateB - dateA;
+      const dateA = String(a.entry_date || a.date || a.transaction_date || a.created_at || '0').substring(0, 10);
+      const dateB = String(b.entry_date || b.date || b.transaction_date || b.created_at || '0').substring(0, 10);
+      return dateB.localeCompare(dateA);
     });
   }, [masterData]);
 
   // Filtered Reports
   const filteredReports = useMemo(() => {
     return allReportsList.filter(r => {
-      // Branch / Outlet Filter
+      // Helper Outlet Matcher
+      const checkOutletMatch = (targetVal) => {
+        if (!targetVal || targetVal === 'ALL' || targetVal === 'Semua Restoran (Konsolidasi)') return true;
+        const strTarget = String(targetVal).toLowerCase().trim();
+        const targetOutletObj = (masterData?.outlets || []).find(o => 
+          String(o.id) === strTarget || 
+          String(o.name).toLowerCase().trim() === strTarget
+        );
+        const targetNameLower = targetOutletObj ? (targetOutletObj.name || '').toLowerCase().trim() : strTarget;
+
+        const rIdStr = String(r.outlet_id || r.branch_id || '').toLowerCase().trim();
+        const rNameStr = String(r.outlet_name || getOutletName(r.outlet_id)).toLowerCase().trim();
+
+        if (rIdStr === strTarget || rIdStr === 'all' || rIdStr === 'semua' || rIdStr === 'central') return true;
+        if (targetNameLower && (rIdStr === targetNameLower || rNameStr === targetNameLower || rNameStr.includes(targetNameLower))) return true;
+        return false;
+      };
+
+      // Branch / Outlet Filter from Top Bar Header
       if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
-        const rOutlet = String(r.outlet_id || r.branch_id || '');
-        if (rOutlet && rOutlet !== String(selectedBranch)) return false;
+        if (!checkOutletMatch(selectedBranch)) return false;
       }
 
+      // Outlet Filter from Table Header Dropdown
       if (selectedOutletFilter !== 'ALL') {
-        const rOutlet = String(r.outlet_id || r.branch_id || '');
-        if (rOutlet !== String(selectedOutletFilter)) return false;
+        if (!checkOutletMatch(selectedOutletFilter)) return false;
       }
 
       // Date Range Filter
@@ -116,7 +244,7 @@ export default function ManualReportUpdatePage({
 
       return true;
     });
-  }, [allReportsList, selectedBranch, selectedOutletFilter, startDate, endDate, searchTerm]);
+  }, [allReportsList, selectedBranch, selectedOutletFilter, startDate, endDate, searchTerm, masterData?.outlets]);
 
   // Aggregates for Filtered Data
   const totalReportsCount = filteredReports.length;
@@ -373,7 +501,7 @@ export default function ManualReportUpdatePage({
                   const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
                   const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
                   const netVal = salesVal - expenseVal;
-                  const formattedDate = new Date(row.entry_date || row.date || row.created_at || Date.now()).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                  const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at);
 
                   return (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
