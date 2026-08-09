@@ -51,9 +51,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [isDragging, setIsDragging] = useState(false);
   const [selectedMenuDetail, setSelectedMenuDetail] = useState(null);
 
-  // Pagination States (Default 25 rows per page)
+  // Pagination States (Default 10 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(10);
 
   const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
@@ -724,18 +724,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         </div>
 
         {/* TABLE CONTENT */}
-        <div style={{ width: '100%', overflowX: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem', tableLayout: 'fixed' }}>
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: '1050px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', background: T.tableHeaderBg }}>
-                <th style={{ padding: '10px 10px', width: '9%' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '25%' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '12%' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '13%' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '18%' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '10%' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '7%' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '6%', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '100px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', minWidth: '220px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '130px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '140px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', minWidth: '200px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '120px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '90px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '80px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
               </tr>
             </thead>
             <tbody>
