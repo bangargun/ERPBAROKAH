@@ -465,6 +465,7 @@ export default function App() {
       onLogout={handleLogout}
       userSession={userSession}
       masterData={masterData}
+      setMasterData={setMasterData}
       themeMode={themeMode}
       toggleThemeMode={toggleThemeMode}
       setThemeMode={setThemeMode}

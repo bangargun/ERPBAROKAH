@@ -164,20 +164,24 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     }
   };
 
-  // Filtered All Shift Closing Reports (Real-time from POS Mobile & Web Admin - ONLY APPROVED)
+  // Filtered All Shift Closing & Manual Update Reports (Real-time from POS Mobile & Web Admin - ONLY APPROVED)
   const rawShiftReports = [
-    ...(masterData.shiftClosings || []),
-    ...(masterData.closedShifts || []),
-    ...(masterData.approvedFinanceDaily || [])
+    ...(masterData?.shiftClosings || []),
+    ...(masterData?.closedShifts || []),
+    ...(masterData?.shiftReports || []),
+    ...(masterData?.approvedFinanceDaily || []),
+    ...(masterData?.manualEntryRecords || []),
+    ...(masterData?.dailyReports || [])
   ];
   const approvedReportsMap = new Map();
   rawShiftReports.forEach(r => {
     if (r && r.id != null) {
+      const statusLower = String(r.status || '').toLowerCase();
       const isApproved = r.is_approved === true || 
-                         r.status === 'approved' || 
-                         r.status === 'Approved' || 
-                         r.status === 'disetujui' || 
-                         r.status === 'ACC' ||
+                         statusLower === 'approved' || 
+                         statusLower === 'disetujui' || 
+                         statusLower === 'selesai' || 
+                         statusLower === 'acc' ||
                          (masterData.approvedFinanceDaily && masterData.approvedFinanceDaily.some(a => String(a.id) === String(r.id)));
       if (isApproved) {
         approvedReportsMap.set(String(r.id), r);
@@ -186,7 +190,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
   });
   const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
     isOutletMatch(f.outlet_id || f.branch_id) && 
-    isDateMatch(f.date || f.created_at)
+    isDateMatch(f.date || f.created_at || f.entry_date)
   );
 
   // Filtered All Sales Transactions (Real-time from POS Mobile & Web Admin)
@@ -228,15 +232,23 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       return true;
     };
 
-    const rawShiftReports = masterData?.shiftReports || masterData?.approvedFinanceDaily || masterData?.dailyReports || [];
+    const rawShiftReports = [
+      ...(masterData?.shiftReports || []),
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.manualEntryRecords || []),
+      ...(masterData?.dailyReports || []),
+      ...(masterData?.shiftClosings || []),
+      ...(masterData?.closedShifts || [])
+    ];
     const approvedReportsMap = new Map();
     rawShiftReports.forEach(r => {
       if (r && r.id != null) {
+        const statusLower = String(r.status || '').toLowerCase();
         const isApproved = r.is_approved === true || 
-                           r.status === 'approved' || 
-                           r.status === 'Approved' || 
-                           r.status === 'disetujui' || 
-                           r.status === 'ACC' ||
+                           statusLower === 'approved' || 
+                           statusLower === 'disetujui' || 
+                           statusLower === 'selesai' || 
+                           statusLower === 'acc' ||
                            (masterData?.approvedFinanceDaily && masterData.approvedFinanceDaily.some(a => String(a.id) === String(r.id)));
         if (isApproved) {
           approvedReportsMap.set(String(r.id), r);
@@ -245,7 +257,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     });
     const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
       isOutletMatch(f.outlet_id || f.branch_id) && 
-      isMatchedDate(f.date || f.created_at)
+      isMatchedDate(f.date || f.created_at || f.entry_date)
     );
 
     const rawSalesTx = [
@@ -267,7 +279,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       isMatchedDate(f.date || f.created_at)
     );
 
-    const cashSalesTotal = approvedReports.reduce((sum, f) => sum + Number(f.cash_sales || (f.net_sales - (f.non_cash_sales || 0))), 0);
+    const cashSalesTotal = approvedReports.reduce((sum, f) => {
+      const netVal = Number(f.net_sales != null ? f.net_sales : (f.total_omset != null ? f.total_omset : (f.gross_sales != null ? f.gross_sales : (f.total_sales || 0))));
+      const nonCashVal = Number(f.non_cash_sales || 0);
+      const cashVal = f.cash_sales != null ? Number(f.cash_sales) : Math.max(0, netVal - nonCashVal);
+      return sum + (isNaN(cashVal) ? 0 : cashVal);
+    }, 0);
+
     const nonCashSalesTotal = approvedReports.reduce((sum, f) => sum + Number(f.non_cash_sales || 0), 0);
     const salesTxTotal = salesTransactions.reduce((s, t) => s + Number(t.amount || 0), 0);
     const rawSalesTotal = salesTxTotal > 0 ? salesTxTotal : (cashSalesTotal + nonCashSalesTotal);
@@ -373,21 +391,29 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     const extraMap = {};
 
     approvedReports.forEach(f => {
-      if (f.expenses_breakdown && f.expenses_breakdown.length > 0) {
-        f.expenses_breakdown.forEach((ex, idx) => {
-          const code = ex.code || `69${String(idx + 1).padStart(2, '0')}`;
-          const name = ex.name || ex.category || 'Beban Operasional Restoran';
+      const breakdown = (f.expenses_breakdown && f.expenses_breakdown.length > 0) 
+        ? f.expenses_breakdown 
+        : ((f.expense_details && f.expense_details.length > 0) ? f.expense_details : (f.expense_rows || []));
+
+      if (breakdown && breakdown.length > 0) {
+        breakdown.forEach((ex, idx) => {
+          const code = ex.code || ex.accountCode || `69${String(idx + 1).padStart(2, '0')}`;
+          const name = ex.name || ex.categoryName || ex.category || ex.notes || 'Beban Operasional Restoran';
+          const amt = Number(ex.amount || ex.subtotal || ex.total || 0);
           if (stdMap[code]) {
-            stdMap[code].amount += Number(ex.amount || 0);
+            stdMap[code].amount += amt;
           } else {
             const key = `[${code}] ${name}`;
-            extraMap[key] = (extraMap[key] || 0) + Number(ex.amount || 0);
+            extraMap[key] = (extraMap[key] || 0) + amt;
           }
         });
-      } else if (f.total_expense && Number(f.total_expense) > 0) {
-        const netOpex = Number(f.total_expense) - Number(f.cogs_expense || 0);
-        if (netOpex > 0) {
-          stdMap['6901'].amount += netOpex;
+      } else {
+        const totalExp = Number(f.total_expense || f.total_pengeluaran || 0);
+        if (totalExp > 0) {
+          const netOpex = totalExp - Number(f.cogs_expense || 0);
+          if (netOpex > 0) {
+            stdMap['6901'].amount += netOpex;
+          }
         }
       }
     });

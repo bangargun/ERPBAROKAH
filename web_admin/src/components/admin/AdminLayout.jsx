@@ -24,11 +24,13 @@ import {
   Sparkles,
   ShoppingCart,
   Clock,
-  CheckSquare
+  CheckSquare,
+  PlusCircle
 } from 'lucide-react';
 
 import { checkWebPermission } from '../../utils/permissionUtils';
 import { getThemePalette } from '../../utils/themeUtils';
+import ManualReportUpdateModal from './ManualReportUpdateModal';
 
 export default function AdminLayout({ 
   activeTab, 
@@ -40,11 +42,13 @@ export default function AdminLayout({
   onLogout,
   userSession,
   masterData,
+  setMasterData,
   themeMode = 'dark',
   toggleThemeMode,
   setThemeMode,
   children
 }) {
+  const [showUpdateLaporanModal, setShowUpdateLaporanModal] = useState(false);
   const [showInboxDropdown, setShowInboxDropdown] = useState(false);
   const [readNotifIds, setReadNotifIds] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -228,6 +232,35 @@ export default function AdminLayout({
 
         {/* Navigation Menu Items */}
         <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
+          
+          {/* BUTTON + UPDATE LAPORAN (RIGHT ABOVE MENU UTAMA SISTEM) */}
+          <div style={{ marginBottom: '6px' }}>
+            <button
+              onClick={() => setShowUpdateLaporanModal(true)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: '#000000',
+                fontWeight: '900',
+                fontSize: '0.86rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 16px rgba(245, 158, 11, 0.45)',
+                transition: 'all 0.18s ease'
+              }}
+              title="Update data penjualan & pengeluaran (Manual & Excel)"
+            >
+              <PlusCircle size={18} color="#000000" />
+              <span>+ Update Laporan</span>
+            </button>
+          </div>
+
           <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: '#facc15', fontWeight: '900', padding: '6px 10px 4px 10px', letterSpacing: '0.06em', opacity: 1 }}>
             MENU UTAMA SISTEM
           </div>
@@ -575,6 +608,16 @@ export default function AdminLayout({
           {children}
         </main>
       </div>
+
+      {/* MANUAL REPORT UPDATE MODAL */}
+      <ManualReportUpdateModal
+        show={showUpdateLaporanModal}
+        onClose={() => setShowUpdateLaporanModal(false)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        userSession={userSession}
+        themeMode={themeMode}
+      />
     </div>
   );
 }
