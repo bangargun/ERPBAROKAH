@@ -289,8 +289,16 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     const ingredients = ingredientsList || [];
 
     // Tentukan apakah filter outlet adalah "Semua Outlet (Central)" / "ALL"
-    const isAllOutlets = !selectedBranch || String(selectedBranch) === 'ALL' || logSelectedOutletIds.includes('ALL');
-    const targetBranchId = selectedBranch && String(selectedBranch) !== 'ALL' ? selectedBranch : (logSelectedOutletIds.includes('ALL') ? null : logSelectedOutletIds[0]);
+    const activeOutletFilterId = (opnameOutletFilter && opnameOutletFilter !== 'ALL')
+      ? String(opnameOutletFilter)
+      : ((selectedBranch && String(selectedBranch) !== 'ALL')
+        ? String(selectedBranch)
+        : (!logSelectedOutletIds.includes('ALL') && logSelectedOutletIds.length > 0
+          ? String(logSelectedOutletIds[0])
+          : null));
+
+    const isAllOutlets = activeOutletFilterId === null;
+    const targetBranchId = activeOutletFilterId;
 
     return ingredients.map((ing, idx) => {
       const ingNameLower = (ing.name || '').toLowerCase().trim();
@@ -590,6 +598,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const [opnameNotes, setOpnameNotes] = useState('');
   const [opnameCreatorFilter, setOpnameCreatorFilter] = useState('ALL'); // 'ALL' | 'by_kasir' | 'by_outlet'
   const [opnameItemFilter, setOpnameItemFilter] = useState('ALL'); // 'ALL' | specific ingredient name
+  const [opnameOutletFilter, setOpnameOutletFilter] = useState('ALL'); // 'ALL' | specific outlet ID
   const [previewOpnameReportModalData, setPreviewOpnameReportModalData] = useState(null);
 
   // Extract all unique ingredient names for Opname Item Filter
@@ -2693,7 +2702,6 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>NAMA OUTLET</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '170px' }}>NO TRANSAKSI</th>
-                    <th style={{ padding: '14px 16px', fontWeight: '800', color: T.danger }}>NAMA ITEM (BAHAN BAKU KELUAR)</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', width: '130px' }}>PENGAJU</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'center', width: '140px' }}>STATUS</th>
                     <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '150px' }}>AKSI</th>
@@ -2707,7 +2715,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     if (paginatedSales.length === 0) {
                       return (
                         <tr>
-                          <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
+                          <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.85rem' }}>
                             📭 Tidak ada log mutasi keluar dari penjualan untuk outlet / tanggal terpilih. Klik "+ Tambahkan Transaksi Penjualan" di atas.
                           </td>
                         </tr>
@@ -2717,14 +2725,6 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     return paginatedSales.map((tx) => {
                       const isWebAdminInput = tx.type_input === 'manual' || tx.sumber_input === 'web_admin';
                       const isPaid = tx.status === 'Paid' || tx.status === 'Lunas' || tx.status === 'Success' || tx.status === 'Selesai' || tx.isPaid;
-
-                      const itemsSummary = tx.items && tx.items.length > 0
-                        ? tx.items.map(i => `${i.name || i.product_name} (x${i.qty || 1})`).join(', ')
-                        : 'Produk Penjualan';
-
-                      const ingredientsSummary = tx.deducted_ingredients && tx.deducted_ingredients.length > 0
-                        ? tx.deducted_ingredients.map(ing => `${ing.ingredient_name || ing.name}: ${ing.qty} ${ing.unit || 'kg'}`).join(', ')
-                        : 'Bahan Baku';
 
                       return (
                         <tr key={tx.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
@@ -2754,17 +2754,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             </button>
                           </td>
 
-                          {/* 4. NAMA ITEM (BAHAN BAKU KELUAR) */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ fontSize: '0.84rem', fontWeight: '900', color: T.danger, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span>📦 {ingredientsSummary}</span>
-                            </div>
-                            <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '3px' }}>
-                              Menu: <strong style={{ color: T.txtPrimary }}>{itemsSummary}</strong>
-                            </div>
-                          </td>
-
-                          {/* 3. PENGAJU */}
+                          {/* 4. PENGAJU */}
                           <td style={{ padding: '14px 16px' }}>
                             <span style={{
                               padding: '4px 10px',
@@ -3219,19 +3209,37 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 </p>
               </div>
 
-              {/* FILTER ITEM BAHAN BAKU */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary }}>Filter Item Bahan Baku:</span>
-                <select
-                  value={opnameItemFilter}
-                  onChange={e => setOpnameItemFilter(e.target.value)}
-                  style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
-                >
-                  <option value="ALL">Semua Bahan Baku (All Items)</option>
-                  {allOpnameIngredientNames.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
+              {/* FILTERS FOR OPNAME BY SYSTEM */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                {/* FILTER OUTLET */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary }}>🏢 Filter Outlet:</span>
+                  <select
+                    value={opnameOutletFilter}
+                    onChange={e => { setOpnameOutletFilter(e.target.value); setCurrentPage(1); }}
+                    style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
+                  >
+                    <option value="ALL">Semua Outlet (Central)</option>
+                    {outlets.map(o => (
+                      <option key={o.id} value={String(o.id)}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* FILTER ITEM BAHAN BAKU */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary }}>Filter Item Bahan Baku:</span>
+                  <select
+                    value={opnameItemFilter}
+                    onChange={e => { setOpnameItemFilter(e.target.value); setCurrentPage(1); }}
+                    style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
+                  >
+                    <option value="ALL">Semua Bahan Baku (All Items)</option>
+                    {allOpnameIngredientNames.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
