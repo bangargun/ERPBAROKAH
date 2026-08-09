@@ -14,7 +14,10 @@ import {
   RotateCcw,
   Building2,
   Calendar,
-  Filter
+  Filter,
+  Sparkles,
+  ShoppingBag,
+  Activity
 } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
 import { DoubleCalendarPicker } from './SalesTransactionsPage';
@@ -189,15 +192,30 @@ export default function IngredientPriceTrendPage({
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+    const totalSpend = trendRows.reduce((sum, r) => sum + (r.total_price || 0), 0);
+    const totalQty = trendRows.reduce((sum, r) => sum + Number(r.qty || 0), 0);
+    const unit = trendRows[0]?.unit || 'Kg';
     const newest = trendRows[0]?.unit_price || 0;
     const oldest = trendRows[trendRows.length - 1]?.unit_price || 0;
     const totalChange = newest - oldest;
     const totalPct = oldest > 0 ? ((totalChange / oldest) * 100).toFixed(1) : null;
+    const volatilityPct = min > 0 ? (((max - min) / min) * 100).toFixed(1) : 0;
     const upCount   = trendRows.filter(r => r.diff !== null && r.diff > 0).length;
     const downCount = trendRows.filter(r => r.diff !== null && r.diff < 0).length;
     const flatCount = trendRows.filter(r => r.diff !== null && r.diff === 0).length;
-    return { min, max, avg, newest, oldest, totalChange, totalPct, upCount, downCount, flatCount };
-  }, [trendRows]);
+
+    let statusText = 'Harga Stabil';
+    let statusColor = T.info;
+    if (totalChange > 0) {
+      statusText = `Mengalami Kenaikan (+${totalPct}%)`;
+      statusColor = T.danger;
+    } else if (totalChange < 0) {
+      statusText = `Mengalami Penurunan (${totalPct}%)`;
+      statusColor = T.success;
+    }
+
+    return { min, max, avg, totalSpend, totalQty, unit, newest, oldest, totalChange, totalPct, volatilityPct, upCount, downCount, flatCount, statusText, statusColor };
+  }, [trendRows, T]);
 
   const selectedOutletName = outletsList.find(o => String(o.id) === String(trendOutletId))?.name || '';
 
@@ -315,7 +333,92 @@ export default function IngredientPriceTrendPage({
         </div>
       )}
 
-      {/* SUMMARY CARDS */}
+      {/* EXECUTIVE RESUME BANNER CARD */}
+      {trendOutletId && trendIngredient && trendStats && (
+        <div style={{
+          background: T.cardBg,
+          border: `1.5px solid ${T.accentGoldBorder}`,
+          borderRadius: '16px',
+          padding: '20px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+          boxShadow: T.cardShadow
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', background: T.accentGoldBg, borderRadius: '12px', border: `1px solid ${T.accentGoldBorder}` }}>
+                <Sparkles size={22} color={T.accentGold} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary }}>
+                  Resume & Analisis Eksekutif Tren Harga
+                </h3>
+                <span style={{ fontSize: '0.74rem', color: T.txtSecondary }}>
+                  Ringkasan historis pembelian bahan baku <strong>{trendIngredient}</strong> untuk cabang <strong>{selectedOutletName}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '0.74rem', fontWeight: '800', background: trendStats.statusColor === T.danger ? T.dangerBg : trendStats.statusColor === T.success ? T.successBg : T.infoBg, color: trendStats.statusColor, border: `1px solid ${trendStats.statusColor}` }}>
+                Status: {trendStats.statusText}
+              </span>
+              <span style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '0.74rem', fontWeight: '800', background: T.cardBg2, color: T.accentGold, border: `1px solid ${T.accentGoldBorder}` }}>
+                {trendRows.length}× Pembelian Recorded
+              </span>
+            </div>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            
+            {/* Resume Item 1: Total Pengeluaran Uang (Spend) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px' }}>
+                <ShoppingBag size={22} color={T.info} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Total Pengeluaran Uang (Spend)</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.info }}>
+                  Rp {trendStats.totalSpend.toLocaleString('id-ID')}
+                </div>
+                <div style={{ fontSize: '0.66rem', color: T.txtMuted }}>Volume Total: {trendStats.totalQty.toLocaleString('id-ID')} {trendStats.unit}</div>
+              </div>
+            </div>
+
+            {/* Resume Item 2: Harga Terbaru (Current Price) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', background: T.accentGoldBg, borderRadius: '10px' }}>
+                <DollarSign size={22} color={T.accentGold} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Harga Pembelian Terbaru</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.accentGold }}>
+                  Rp {trendStats.newest.toLocaleString('id-ID')} <span style={{ fontSize: '0.70rem', color: T.txtSecondary }}>/{trendStats.unit}</span>
+                </div>
+                <div style={{ fontSize: '0.66rem', color: T.txtMuted }}>Pembelian pertama: Rp {trendStats.oldest.toLocaleString('id-ID')}</div>
+              </div>
+            </div>
+
+            {/* Resume Item 3: Fluktuasi / Selisih Rentang Harga */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', background: 'rgba(168,85,247,0.12)', borderRadius: '10px' }}>
+                <Activity size={22} color="#a855f7" />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase' }}>Rentang Fluktuasi Harga</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: '#a855f7' }}>
+                  {trendStats.volatilityPct}% <span style={{ fontSize: '0.70rem', color: T.txtSecondary }}>(Selisih Rp {(trendStats.max - trendStats.min).toLocaleString('id-ID')})</span>
+                </div>
+                <div style={{ fontSize: '0.66rem', color: T.txtMuted }}>Terendah Rp {trendStats.min.toLocaleString('id-ID')} - Tertinggi Rp {trendStats.max.toLocaleString('id-ID')}</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* SUMMARY KPI MINI CARDS */}
       {trendOutletId && trendIngredient && trendStats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
           <div style={{ background: T.cardBg, border: `1px solid ${T.infoBorder}`, borderRadius: '13px', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: '12px' }}>
