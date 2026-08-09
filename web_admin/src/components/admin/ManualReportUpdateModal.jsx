@@ -1286,7 +1286,8 @@ export default function ManualReportUpdateModal({
                         <th style={{ padding: '8px 10px' }}>Tipe</th>
                         <th style={{ padding: '8px 10px' }}>Item / Akun Biaya</th>
                         <th style={{ padding: '8px 10px', textAlign: 'center' }}>Qty</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Jumlah Rp</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Harga Satuan</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Harga</th>
                         <th style={{ padding: '8px 10px' }}>Status</th>
                         <th style={{ padding: '8px 10px', textAlign: 'center' }}>Aksi</th>
                       </tr>
@@ -1306,8 +1307,11 @@ export default function ManualReportUpdateModal({
                           <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>
                             {r.nameOrCode}
                           </td>
-                          <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                            {r.qty}
+                          <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: '700', color: T.info }}>
+                            {r.qty || 1}
+                          </td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>
+                            Rp {(r.price || r.amount || 0).toLocaleString('id-ID')}
                           </td>
                           <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>
                             Rp {r.totalSubtotal?.toLocaleString('id-ID')}

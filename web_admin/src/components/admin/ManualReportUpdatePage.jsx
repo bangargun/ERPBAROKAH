@@ -502,6 +502,8 @@ export default function ManualReportUpdatePage({
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>Tanggal</th>
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>No. Laporan</th>
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>Outlet / Cabang</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Qty</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Harga Satuan</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Penjualan</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Pengeluaran</th>
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
@@ -511,7 +513,7 @@ export default function ManualReportUpdatePage({
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', color: T.txtMuted, fontSize: '0.84rem' }}>
+                  <td colSpan={9} style={{ padding: '40px 20px', textAlign: 'center', color: T.txtMuted, fontSize: '0.84rem' }}>
                     <Info size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
                     <br />
                     Belum ada data laporan transaksi yang tersimpan. Klik <strong>"+ Buat Update Laporan Baru"</strong> untuk memasukkan data.
@@ -521,8 +523,14 @@ export default function ManualReportUpdatePage({
                 paginatedReports.map((row) => {
                   const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
                   const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
-                  const netVal = salesVal - expenseVal;
                   const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at);
+
+                  // Hitung total qty dan harga satuan rata-rata dari sales_details
+                  const salesDetails = row.sales_details || row.cogs_items || [];
+                  const totalQty = salesDetails.reduce((s, d) => s + Number(d.qty || 0), 0);
+                  const avgUnitPrice = salesDetails.length > 0
+                    ? salesDetails.reduce((s, d) => s + Number(d.price || d.amount || 0), 0) / salesDetails.length
+                    : (salesVal > 0 ? salesVal : 0);
 
                   return (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
@@ -549,6 +557,20 @@ export default function ManualReportUpdatePage({
                         <span style={{ padding: '3px 8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700' }}>
                           {row.outlet_name || getOutletName(row.outlet_id)}
                         </span>
+                      </td>
+
+                      {/* Qty */}
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '800', color: T.info }}>
+                        {totalQty > 0 ? totalQty : '-'}
+                      </td>
+
+                      {/* Harga Satuan */}
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary, fontSize: '0.75rem' }}>
+                        {salesDetails.length === 1
+                          ? `Rp ${avgUnitPrice.toLocaleString('id-ID')}`
+                          : salesDetails.length > 1
+                            ? <span title="Rata-rata harga satuan">±Rp {Math.round(avgUnitPrice).toLocaleString('id-ID')}</span>
+                            : '-'}
                       </td>
 
                       {/* Total Penjualan */}
