@@ -5428,26 +5428,7 @@ export default function AndroidPosRegister({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      const rawIngredients = masterData.ingredients || [];
-                      const activeIngs = rawIngredients.filter(ing =>
-                        ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
-                      );
-                      const defaultIng = activeIngs[0] || { name: '', unit: 'kg', stock: 0 };
-                      setOpnameBatchRows([{
-                        id: 'single-opname',
-                        item_name: defaultIng.name || '',
-                        unit: defaultIng.unit || 'kg',
-                        stok_awal: defaultIng.stock !== undefined ? defaultIng.stock : (defaultIng.stok || 0),
-                        stok_fisik: ''
-                      }]);
-                      setLogDate(todayStr);
-                      setLogNo(`SO-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
-                      setLogSubmittedBy(userSession?.name || '');
-                      setLogOutletId(currentOutlet.id || 1);
-                      setShowAddLogisticsModal(true);
-                    }}
+                    onClick={() => handleOpenStokOpnameModal()}
                     style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(56,189,248,0.35)' }}
                   >
                     <PlusCircle size={16} />
