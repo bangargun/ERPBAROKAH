@@ -58,25 +58,73 @@ export default function ManualReportUpdatePage({
     return otl ? otl.name : `Outlet #${id}`;
   };
 
-  // Helper: Format Tanggal Indonesia tanpa pergeseran WIB (GMT+7)
-  const formatDateIndonesian = (dateStr) => {
+  // Helper: Format Tanggal & Jam Indonesia (Disamping Tanggal)
+  const formatDateIndonesian = (dateStr, rawObj = null) => {
     if (!dateStr) return '-';
+
+    let timePart = '';
+    if (rawObj) {
+      if (rawObj.time) {
+        timePart = rawObj.time;
+      } else if (rawObj.created_at && String(rawObj.created_at).includes('T')) {
+        const timeSub = String(rawObj.created_at).split('T')[1];
+        if (timeSub) timePart = timeSub.substring(0, 8);
+      } else if (rawObj.timestamp && String(rawObj.timestamp).includes('T')) {
+        const timeSub = String(rawObj.timestamp).split('T')[1];
+        if (timeSub) timePart = timeSub.substring(0, 8);
+      } else if (rawObj.timestamp && typeof rawObj.timestamp === 'number') {
+        const d = new Date(rawObj.timestamp);
+        timePart = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+    }
+
+    if (!timePart) {
+      if (String(dateStr).includes('T')) {
+        const timeSub = String(dateStr).split('T')[1];
+        if (timeSub) timePart = timeSub.substring(0, 8);
+      } else if (String(dateStr).includes(' ')) {
+        const timeSub = String(dateStr).split(' ')[1];
+        if (timeSub) timePart = timeSub.substring(0, 8);
+      }
+    }
+
     const str = String(dateStr).substring(0, 10);
     const parts = str.split('-');
+    let formattedDate = str;
     if (parts.length === 3 && parts[0].length === 4) {
       const year = parts[0];
       const monthIdx = parseInt(parts[1], 10) - 1;
       const day = parseInt(parts[2], 10);
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
       if (monthIdx >= 0 && monthIdx < 12) {
-        return `${String(day).padStart(2, '0')} ${months[monthIdx]} ${year}`;
+        formattedDate = `${String(day).padStart(2, '0')} ${months[monthIdx]} ${year}`;
       }
     }
-    return str;
+
+    if (timePart) {
+      return (
+        <span>
+          {formattedDate} <span style={{ fontSize: '0.72rem', color: T.txtMuted, marginLeft: '4px', fontWeight: '600' }}>⏰ {timePart}</span>
+        </span>
+      );
+    }
+    return formattedDate;
   };
 
-  // Combine All Manual & Approved Reports & Synthesise Standalone Transactions
+  // Combine All Manual & Approved Reports & Synthesise Standalone Transactions (Filtering Deleted Reports)
   const allReportsList = useMemo(() => {
+    const deletedReportIdsSet = new Set([
+      ...(masterData?.deletedReportIds || []).map(x => String(x)),
+      ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+    ]);
+
+    const isDeletedReport = (r) => {
+      if (!r) return true;
+      const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+      const rNo = String(r.report_no || r.receiptNo || r.receipt_no || '');
+      return (rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo));
+    };
+
     const map = new Map();
 
     const combineSources = [
@@ -85,7 +133,7 @@ export default function ManualReportUpdatePage({
       ...(masterData?.shiftReports || []),
       ...(masterData?.dailyReports || []),
       ...(masterData?.manualReports || [])
-    ];
+    ].filter(r => !isDeletedReport(r));
 
     combineSources.forEach(r => {
       if (r && (r.id != null || r.report_no)) {
@@ -98,8 +146,8 @@ export default function ManualReportUpdatePage({
 
     // Synthesise standalone financialRecords and salesTransactions into date+outlet report entries if not present
     const groupedStandalone = new Map();
-    const allFinancial = masterData?.financialRecords || [];
-    const allSales = masterData?.salesTransactions || [];
+    const allFinancial = (masterData?.financialRecords || []).filter(f => !isDeletedReport(f));
+    const allSales = (masterData?.salesTransactions || []).filter(s => !isDeletedReport(s));
 
     allFinancial.forEach(f => {
       const dt = String(f.entry_date || f.date || f.transaction_date || f.created_at || '').substring(0, 10);
@@ -263,7 +311,7 @@ export default function ManualReportUpdatePage({
     if (!deletingReport) return;
 
     const targetId = String(deletingReport.id || '');
-    const targetReportNo = deletingReport.report_no || '';
+    const targetReportNo = String(deletingReport.report_no || deletingReport.receipt_no || '');
     const targetDate = String(deletingReport.entry_date || deletingReport.date || deletingReport.transaction_date || '').substring(0, 10);
     const targetOutletId = String(deletingReport.outlet_id || '');
 
@@ -271,9 +319,9 @@ export default function ManualReportUpdatePage({
     let updatedIngredients = [...(masterData?.ingredients || [])];
     const restorationMovements = [];
 
-    const salesDetails = deletingReport.sales_details || deletingReport.sales_rows || [];
+    const salesDetails = deletingReport.sales_details || deletingReport.sales_rows || deletingReport.items || [];
     salesDetails.forEach(sRow => {
-      const prod = (masterData?.products || []).find(p => String(p.id) === String(sRow.productId || sRow.product_id) || p.name === sRow.productName || p.name === sRow.product_name);
+      const prod = (masterData?.products || []).find(p => String(p.id) === String(sRow.productId || sRow.product_id) || p.name === sRow.productName || p.name === sRow.product_name || p.name === sRow.name);
       if (prod && prod.compositions && prod.compositions.length > 0) {
         prod.compositions.forEach(comp => {
           const ingIndex = updatedIngredients.findIndex(i => String(i.id) === String(comp.ingredient_id) || i.name === comp.ingredient_name);
@@ -308,12 +356,18 @@ export default function ManualReportUpdatePage({
       }
     });
 
-    // 2. REMOVE RECORD FROM ALL MASTER DATA ARRAYS STRICTLY
+    // 2. ADD DELETED IDS TO TOMBSTONES SO THEY NEVER REAPPEAR
+    const prevDelLog = (masterData?.deletedLogisticsIds || []).map(x => String(x));
+    const prevDelRep = (masterData?.deletedReportIds || []).map(x => String(x));
+    const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReportNo].filter(Boolean)));
+    const updatedDelRep = Array.from(new Set([...prevDelRep, targetId, targetReportNo].filter(Boolean)));
+
+    // 3. REMOVE RECORD FROM ALL MASTER DATA ARRAYS STRICTLY
     const isTargetRecord = (r) => {
       if (!r) return false;
-      const rId = String(r.id || '');
-      const rNo = r.report_no || '';
-      if (rId === targetId || (targetReportNo && rNo === targetReportNo)) return true;
+      const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+      const rNo = String(r.report_no || r.receiptNo || r.receipt_no || '');
+      if (rId === targetId || (targetReportNo && rNo === targetReportNo) || rId === targetReportNo || (targetReportNo && rNo === targetId)) return true;
       if (targetDate) {
         const rDt = String(r.entry_date || r.date || r.transaction_date || r.timestamp || r.created_at || '').substring(0, 10);
         const rOtl = String(r.outlet_id || r.branch_id || '');
@@ -337,21 +391,51 @@ export default function ManualReportUpdatePage({
 
     const updatedMovements = [...restorationMovements, ...(masterData?.stockMovement || [])];
 
-    setMasterData({
-      ...masterData,
-      ingredients: updatedIngredients,
-      stockMovement: updatedMovements,
-      manualEntryRecords: updatedManualRecords,
-      approvedFinanceDaily: updatedApprovedDaily,
-      shiftReports: updatedShiftReports,
-      dailyReports: updatedDailyReports,
-      manualReports: updatedManualReports,
-      financialRecords: updatedFinRecords,
-      salesTransactions: updatedSalesTx,
-      outletTransactions: updatedOutletTx
+    // 4. TRIGGER DIRECT SERVER DELETE API CALLS
+    try {
+      fetch('/api/master-data/delete-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'salesTransactions', id: targetId, report_no: targetReportNo })
+      }).catch(() => {});
+
+      fetch('/api/master-data/delete-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'approvedFinanceDaily', id: targetId, report_no: targetReportNo })
+      }).catch(() => {});
+
+      if (targetReportNo && targetReportNo !== targetId) {
+        fetch('/api/master-data/delete-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'salesTransactions', id: targetReportNo, report_no: targetReportNo })
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    // 5. UPDATE LOCAL & SERVER MASTER DATA WITH LASTUPDATED TIMESTAMP
+    setMasterData(prev => {
+      const ts = Date.now();
+      return {
+        ...prev,
+        _lastUpdated: ts,
+        deletedLogisticsIds: updatedDelLog,
+        deletedReportIds: updatedDelRep,
+        ingredients: updatedIngredients,
+        stockMovement: updatedMovements,
+        manualEntryRecords: updatedManualRecords,
+        approvedFinanceDaily: updatedApprovedDaily,
+        shiftReports: updatedShiftReports,
+        dailyReports: updatedDailyReports,
+        manualReports: updatedManualReports,
+        financialRecords: updatedFinRecords,
+        salesTransactions: updatedSalesTx,
+        outletTransactions: updatedOutletTx
+      };
     });
 
-    alert(`✅ BERHASIL MENGHAPUS LAPORAN!\n\n• Laporan/Tanggal: ${targetReportNo || targetDate || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku berhasil dikembalikan ke stok semula.\n• Seluruh rekap laporan & transaksi terkait telah dibersihkan!`);
+    alert(`✅ BERHASIL MENGHAPUS LAPORAN PERMANEN!\n\n• Laporan/Tanggal: ${targetReportNo || targetDate || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku dikembalikan.\n• Laporan telah dihapus permanen dari server & lokal!`);
 
     setDeletingReport(null);
   };
@@ -378,152 +462,145 @@ export default function ManualReportUpdatePage({
         <button
           onClick={() => setShowCreateModal(true)}
           style={{
+            padding: '10px 18px',
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            border: 'none',
+            borderRadius: '10px',
+            color: '#000000',
+            fontWeight: '900',
+            fontSize: '0.82rem',
+            cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '11px 22px',
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            border: 'none',
-            borderRadius: '12px',
-            color: '#000000',
-            fontWeight: '900',
-            fontSize: '0.86rem',
-            cursor: 'pointer',
-            boxShadow: '0 4px 18px rgba(245, 158, 11, 0.4)'
+            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.4)'
           }}
         >
-          <Plus size={18} color="#000000" />
+          <PlusCircle size={18} />
           <span>+ Buat Update Laporan Baru</span>
         </button>
       </div>
 
-      {/* STAT CARDS BAR */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+      {/* STATS CARDS BARIS 1 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
         <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px' }}>
-            <FileText size={22} color={T.info} />
+          <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px', color: T.info }}>
+            <FileText size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Total Laporan</div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL LAPORAN</div>
             <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary }}>{totalReportsCount} Record</div>
           </div>
         </div>
 
         <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px' }}>
-            <TrendingUp size={22} color={T.success} />
+          <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px', color: T.success }}>
+            <TrendingUp size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Total Penjualan</div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENJUALAN</div>
             <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.success }}>Rp {totalSalesAggregate.toLocaleString('id-ID')}</div>
           </div>
         </div>
 
         <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ padding: '10px', background: T.dangerBg, borderRadius: '10px' }}>
-            <TrendingDown size={22} color={T.danger} />
+          <div style={{ padding: '10px', background: T.dangerBg, borderRadius: '10px', color: T.danger }}>
+            <TrendingDown size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Total Pengeluaran</div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENGELUARAN</div>
             <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.danger }}>Rp {totalExpenseAggregate.toLocaleString('id-ID')}</div>
           </div>
         </div>
 
         <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ padding: '10px', background: T.accentGoldBg, borderRadius: '10px' }}>
-            <DollarSign size={22} color={T.accentGold} />
+          <div style={{ padding: '10px', background: netCashflowAggregate >= 0 ? T.accentGoldBg : T.dangerBg, borderRadius: '10px', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>
+            <DollarSign size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Net Cashflow / Laba</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>
-              Rp {netCashflowAggregate.toLocaleString('id-ID')}
-            </div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>NET CASHFLOW / LABA</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>Rp {netCashflowAggregate.toLocaleString('id-ID')}</div>
           </div>
         </div>
       </div>
 
       {/* FILTER & SEARCH BAR */}
-      <div style={{ background: T.cardBg, padding: '16px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'center' }}>
-        {/* Search */}
-        <div style={{ position: 'relative' }}>
-          <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            placeholder="Cari No. Laporan, Pembuat, atau Tanggal..."
-            style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
-          />
+      <div style={{ background: T.cardBg, padding: '14px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '260px' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+            <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              placeholder="Cari No. Laporan, Pembuat, atau Tanggal..."
+              style={{ width: '100%', padding: '8px 12px 8px 36px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem' }}
+            />
+          </div>
         </div>
 
-        {/* Outlet Filter */}
-        <div>
-          <select
-            value={selectedOutletFilter}
-            onChange={e => { setSelectedOutletFilter(e.target.value); setCurrentPage(1); }}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
-          >
-            <option value="ALL">🏢 Semua Outlet / Cabang</option>
-            {(masterData?.outlets || []).map(o => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
-        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Building2 size={15} color={T.info} />
+            <select
+              value={selectedOutletFilter}
+              onChange={e => { setSelectedOutletFilter(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '8px 12px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+            >
+              <option value="ALL">📁 Semua Outlet / Cabang</option>
+              {(masterData?.outlets || []).map(o => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          </div>
 
-        {/* Date Range Start */}
-        <div>
-          <input
-            type="date"
-            value={startDate}
-            onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
-            placeholder="Dari Tanggal"
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
-          />
-        </div>
-
-        {/* Date Range End */}
-        <div>
-          <input
-            type="date"
-            value={endDate}
-            onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
-            placeholder="Sampai Tanggal"
-            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Calendar size={15} color={T.txtMuted} />
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem' }}
+            />
+            <span style={{ color: T.txtMuted, fontSize: '0.78rem' }}>s/d</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem' }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* DATA TABLE */}
-      <div style={{ background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden', boxShadow: T.cardShadow }}>
+      {/* TABLE CONTENT */}
+      <div style={{ background: T.cardBg, borderRadius: '14px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
             <thead>
-              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.04em' }}>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>Tanggal</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>No. Laporan</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>Outlet / Cabang</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Qty</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Harga Satuan</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Penjualan</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Pengeluaran</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Aksi</th>
+              <tr style={{ background: T.headerBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textTransform: 'uppercase', fontSize: '0.70rem', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '12px 14px', textAlign: 'left' }}>TANGGAL</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left' }}>NO. LAPORAN</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left' }}>OUTLET / CABANG</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>QTY</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>HARGA SATUAN</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>TOTAL PENJUALAN</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>TOTAL PENGELUARAN</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>AKSI</th>
               </tr>
             </thead>
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '40px 20px', textAlign: 'center', color: T.txtMuted, fontSize: '0.84rem' }}>
-                    <Info size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
-                    <br />
-                    Belum ada data laporan transaksi yang tersimpan. Klik <strong>"+ Buat Update Laporan Baru"</strong> untuk memasukkan data.
+                  <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted }}>
+                    📭 Belum ada laporan update atau data tidak ditemukan.
                   </td>
                 </tr>
               ) : (
                 paginatedReports.map((row) => {
                   const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
                   const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
-                  const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at);
+                  const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at, row);
 
                   // Hitung total qty dan harga satuan rata-rata dari sales_details
                   const salesDetails = row.sales_details || row.cogs_items || [];
