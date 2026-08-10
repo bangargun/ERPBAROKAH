@@ -1930,20 +1930,34 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
 });
 
-// ── EMERGENCY ENDPOINT: git pull + rebuild frontend (tidak pakai require()) ──
+// ── DEPLOY ENDPOINT: git pull dari GitHub lalu restart PM2 (TIDAK rebuild sendiri) ──
+// Alur deploy yang benar: local build → git push → VPS git pull (via endpoint ini)
+// Jangan gunakan git reset --hard karena akan menghapus file rsync yang belum di-commit
 app.all('/api/webhook/force-build', (req, res) => {
   const secret = req.query.secret || req.body?.secret;
   if (secret !== (process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026')) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
-  const pullBuildCmd = [
-    'DIR="/var/www/erp-barokah"',
-    'cd "$DIR" && git fetch origin && git reset --hard origin/main',
-    'cd "$DIR/web_admin" && npm run build && cp -r dist/* ../dist/',
-    'echo "FORCE_BUILD_OK"'
+  const DIR = '/var/www/erp-barokah';
+  // Langkah 1: git pull origin main (fast-forward saja, tidak overwrite file lokal)
+  // Langkah 2: install deps jika package.json berubah
+  // Langkah 3: PM2 restart agar server.js terbaru aktif
+  const pullCmd = [
+    `cd "${DIR}"`,
+    'git fetch origin',
+    'git merge --ff-only origin/main',
+    'npm install --omit=dev --silent 2>&1 | tail -3',
+    'pm2 restart erp-barokah --update-env',
+    'echo "DEPLOY_OK"'
   ].join(' && ');
-  exec(pullBuildCmd, { maxBuffer: 1024 * 1024 * 20, timeout: 300000 }, (err, stdout, stderr) => {
-    if (err) return res.status(500).json({ success: false, error: err.message, stderr: stderr?.slice(-1000) });
+  exec(pullCmd, { maxBuffer: 1024 * 1024 * 20, timeout: 300000 }, (err, stdout, stderr) => {
+    if (err) {
+      // Jika ff-only gagal (ada divergence), tampilkan pesan jelas
+      const msg = stderr?.includes('Not possible to fast-forward')
+        ? 'Git divergence: push lokal ke GitHub dulu sebelum deploy!'
+        : err.message;
+      return res.status(500).json({ success: false, error: msg, stderr: stderr?.slice(-1000) });
+    }
     res.json({ success: true, output: stdout?.slice(-500) });
   });
 });
