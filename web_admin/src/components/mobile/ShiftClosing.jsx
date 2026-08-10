@@ -70,6 +70,57 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
   const [previewingRecord, setPreviewingRecord] = useState(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
+  // 1 TANGGAL 1 LAPORAN PER OUTLET LOCK & EDIT LOGIC
+  const [existingReport, setExistingReport] = useState(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isPendingEdit, setIsPendingEdit] = useState(false);
+
+  useEffect(() => {
+    const deletedReportIdsSet = new Set([
+      ...(masterData?.deletedReportIds || []).map(x => String(x)),
+      ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+    ]);
+
+    const allReports = [
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.shiftClosings || []),
+      ...(masterData?.shift_closings || []),
+      ...(masterData?.dailyReports || []),
+      ...(masterData?.manualEntryRecords || [])
+    ];
+
+    const curOutletId = String(currentOutlet?.id || 1);
+    const matched = allReports.find(r => {
+      if (!r) return false;
+      const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+      const rNo = String(r.report_no || r.receiptNo || r.receipt_no || '');
+      if ((rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo))) {
+        return false;
+      }
+
+      const rDate = String(r.entry_date || r.date || r.created_at || '').substring(0, 10);
+      const rOutlet = String(r.outlet_id || r.branch_id || 1);
+
+      return rDate === entryDate && (rOutlet === curOutletId || !r.outlet_id);
+    });
+
+    if (matched) {
+      setExistingReport(matched);
+      const st = String(matched.status || matched.approval_status || '').toLowerCase();
+      if (st === 'done' || st === 'approved' || st === 'disetujui' || st === 'read') {
+        setIsLocked(true);
+        setIsPendingEdit(false);
+      } else {
+        setIsLocked(false);
+        setIsPendingEdit(true);
+      }
+    } else {
+      setExistingReport(null);
+      setIsLocked(false);
+      setIsPendingEdit(false);
+    }
+  }, [entryDate, currentOutlet?.id, masterData?.approvedFinanceDaily, masterData?.shiftClosings, masterData?.shift_closings, masterData?.dailyReports, masterData?.manualEntryRecords, masterData?.deletedReportIds, masterData?.deletedLogisticsIds]);
+
   useEffect(() => {
     if (ingredientsList && ingredientsList.length > 0) {
       const default5Cogs = ingredientsList.slice(0, 5).map((ing, idx) => ({
@@ -241,16 +292,45 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
 
   // FINAL CONFIRM & SAVE FROM PREVIEW MODAL TO PERSATUAN KEUANGAN KASIR
   const handleFinalSubmit = () => {
-    if (!previewingRecord) return;
+    if (!previewingRecord || isLocked) return;
 
     if (setMasterData) {
-      setMasterData(prev => ({
-        ...prev,
-        _lastUpdated: Date.now(),
-        approvedFinanceDaily: [previewingRecord, ...(prev.approvedFinanceDaily || [])],
-        shiftClosings: [previewingRecord, ...(prev.shiftClosings || [])],
-        closedShifts: [previewingRecord, ...(prev.closedShifts || [])]
-      }));
+      setMasterData(prev => {
+        const ts = Date.now();
+        const existingId = existingReport ? (existingReport.id || existingReport.report_no) : null;
+
+        const filterOutDuplicate = (r) => {
+          if (!r) return false;
+          if (existingId) {
+            const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+            const rNo = String(r.report_no || r.receiptNo || r.receipt_no || '');
+            if (rId === String(existingId) || rNo === String(existingId)) return false;
+          }
+          const rDate = String(r.entry_date || r.date || r.created_at || '').substring(0, 10);
+          const rOutlet = String(r.outlet_id || r.branch_id || 1);
+          const curOutletId = String(currentOutlet?.id || 1);
+          if (rDate === entryDate && rOutlet === curOutletId) return false;
+          return true;
+        };
+
+        const targetRecord = {
+          ...previewingRecord,
+          id: existingId || previewingRecord.id,
+          report_no: existingReport?.report_no || previewingRecord.id,
+          status: 'pending',
+          approval_status: 'pending',
+          updated_at: new Date().toISOString()
+        };
+
+        return {
+          ...prev,
+          _lastUpdated: ts,
+          approvedFinanceDaily: [targetRecord, ...(prev.approvedFinanceDaily || []).filter(filterOutDuplicate)],
+          shiftClosings: [targetRecord, ...(prev.shiftClosings || []).filter(filterOutDuplicate)],
+          shift_closings: [targetRecord, ...(prev.shift_closings || []).filter(filterOutDuplicate)],
+          closedShifts: [targetRecord, ...(prev.closedShifts || []).filter(filterOutDuplicate)]
+        };
+      });
     }
 
     setPreviewingRecord(null);
@@ -272,10 +352,11 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
           display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem', fontWeight: '800'
         }}>
           <CheckCircle2 size={20} />
-          <div>Laporan Shift Berhasil Disimpan & Dikirim ke Persetujuan Kasir!</div>
+          <div>Laporan Shift Berhasil Disimpan &amp; Dikirim ke Persetujuan Kasir!</div>
         </div>
       )}
 
+      {/* HEADER & STATUS LOCK BANNERS */}
       <div style={{ background: '#1e293b', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
         <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Clock size={18} color="#6366f1" />
@@ -284,6 +365,20 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
         <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
           Cabang: <strong style={{ color: '#6366f1' }}>{currentOutlet.name}</strong>
         </p>
+
+        {isLocked && (
+          <div style={{ marginTop: '10px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', padding: '10px 14px', borderRadius: '10px', color: '#fca5a5', fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} color="#ef4444" />
+            <span>🔒 LAPORAN TERKUNCI -- Laporan tanggal {entryDate} untuk outlet ini telah DISETUJUI (DONE) oleh Web Admin dan tidak dapat diubah lagi!</span>
+          </div>
+        )}
+
+        {isPendingEdit && (
+          <div style={{ marginTop: '10px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', padding: '10px 14px', borderRadius: '10px', color: '#fcd34d', fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FileEdit size={18} color="#f59e0b" />
+            <span>📝 MENGEDIT LAPORAN PENDING -- Sudah ada laporan berstatus Pending untuk tanggal {entryDate}. Mengirim ulang akan MEMPERBARUI laporan tersebut.</span>
+          </div>
+        )}
       </div>
 
       {/* FORM INPUT LAPORAN KEUANGAN KASIR */}
@@ -463,11 +558,21 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
         <button 
           type="button" 
           onClick={handleOpenPreviewDraft} 
+          disabled={isLocked}
           className="btn-primary" 
-          style={{ padding: '12px', fontSize: '0.85rem', justifyContent: 'center', background: '#6366f1', color: 'white', marginTop: '4px' }}
+          style={{
+            padding: '12px',
+            fontSize: '0.85rem',
+            justifyContent: 'center',
+            background: isLocked ? '#475569' : '#6366f1',
+            color: isLocked ? '#94a3b8' : 'white',
+            marginTop: '4px',
+            cursor: isLocked ? 'not-allowed' : 'pointer',
+            opacity: isLocked ? 0.6 : 1
+          }}
         >
-          <Eye size={16} />
-          <span>Lihat Pratinjau (Preview) & Simpan</span>
+          {isLocked ? <AlertTriangle size={16} /> : <Eye size={16} />}
+          <span>{isLocked ? '🔒 Laporan Terkunci (Approved/Done)' : (isPendingEdit ? '✏️ Perbarui Laporan Pending' : 'Lihat Pratinjau (Preview) & Simpan')}</span>
         </button>
 
       </div>

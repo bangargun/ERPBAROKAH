@@ -932,18 +932,42 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                       {/* 5. AKSI (EDIT & HAPUS) */}
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                          <button
-                            onClick={() => handleOpenEdit(item)}
-                            style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#38bdf8', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            title="Edit Laporan (Wajib Isi Alasan Edit)"
-                          >
-                            <Edit3 size={14} /> Edit
-                          </button>
+                          {(() => {
+                            const isDone = item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done';
+                            return (
+                              <button
+                                onClick={() => {
+                                  if (isDone) {
+                                    alert('🔒 Laporan ini telah DISETUJUI (Done) dan TERKUNCI. Silakan klik tombol status untuk mengubah kembali ke "Pending" terlebih dahulu jika ingin mengedit data laporan.');
+                                    return;
+                                  }
+                                  handleOpenEdit(item);
+                                }}
+                                style={{
+                                  padding: '6px 10px',
+                                  background: '#0f172a',
+                                  border: `1px solid ${isDone ? '#475569' : '#334155'}`,
+                                  borderRadius: '6px',
+                                  color: isDone ? '#64748b' : '#38bdf8',
+                                  fontWeight: '800',
+                                  fontSize: '0.78rem',
+                                  cursor: isDone ? 'not-allowed' : 'pointer',
+                                  opacity: isDone ? 0.6 : 1,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                title={isDone ? "🔒 Laporan disetujui (Done) & terkunci. Ubah status ke Pending untuk mengedit." : "Edit Laporan (Wajib Isi Alasan Edit)"}
+                              >
+                                <Edit3 size={14} /> {isDone ? 'Terkunci' : 'Edit'}
+                              </button>
+                            );
+                          })()}
 
                           <button
                             onClick={() => setDeleteConfirmItem(item)}
                             style={{ padding: '6px 10px', background: '#0f172a', border: '1px solid rgba(244, 63, 94, 0.4)', borderRadius: '6px', color: '#fb7185', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            title="Hapus Laporan Harian"
+                            title="Hapus Laporan Harian (Membuka kembali akses submit tanggal tersebut)"
                           >
                             <Trash2 size={14} /> Hapus
                           </button>
