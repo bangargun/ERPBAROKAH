@@ -5658,7 +5658,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           )}
                           {momVisibleColumns.growth && (
                             <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: growthColor }}>
-                              {isMei ? (
+                              {isFirstMonth ? (
                                 <span style={{ color: T.txtMuted }}>- (Baseline)</span>
                               ) : (
                                 <span>

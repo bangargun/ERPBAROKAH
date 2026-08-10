@@ -79,6 +79,20 @@ function useDebounce(value, delay = 300) {
   return debouncedValue;
 }
 
+// ─────────────────────────────────────────────────────────────
+// RESPONSIVE: useWindowWidth — deteksi lebar layar real-time
+// Layout otomatis menyesuaikan: phone / tab-7 / tab-10 / tab-xl
+// ─────────────────────────────────────────────────────────────
+function useWindowWidth() {
+  const [w, setW] = React.useState(() => window.innerWidth);
+  React.useEffect(() => {
+    const fn = () => setW(window.innerWidth);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return w;
+}
+
 
 export default function AndroidPosRegister({
   userSession,
@@ -3110,6 +3124,27 @@ export default function AndroidPosRegister({
     );
   };
 
+  // ───────────────────────────────────────────────────────────
+  // RESPONSIVE LAYOUT — otomatis berdasarkan lebar layar
+  // ───────────────────────────────────────────────────────────
+  const screenW = useWindowWidth();
+  const DEVICE =
+    screenW >= 1100 ? 'tab-xl'
+    : screenW >= 800 ? 'tab-10'
+    : screenW >= 600 ? 'tab-7'
+    : 'phone';
+
+  const layout = {
+    // phone (< 600px): HP kasir darurat — portrait, cart full-screen modal
+    'phone':  { sidebarW: 60,  cartW: 260,  gridMin: 105, searchW: 150, fontSm: '0.70rem', fontMd: '0.76rem', cardImgH: 75,  btnPad: '5px 10px'  },
+    // tab-7 (600–799px): Tablet 7–8" landscape
+    'tab-7':  { sidebarW: 64,  cartW: 250,  gridMin: 112, searchW: 170, fontSm: '0.74rem', fontMd: '0.80rem', cardImgH: 82,  btnPad: '6px 12px'  },
+    // tab-10 (800–1099px): Tablet 10" landscape — TARGET UTAMA
+    'tab-10': { sidebarW: 70,  cartW: 300,  gridMin: 128, searchW: 210, fontSm: '0.78rem', fontMd: '0.84rem', cardImgH: 90,  btnPad: '6px 14px'  },
+    // tab-xl (≥ 1100px): Tablet 11–12" / desktop
+    'tab-xl': { sidebarW: 78,  cartW: 370,  gridMin: 148, searchW: 250, fontSm: '0.80rem', fontMd: '0.88rem', cardImgH: 100, btnPad: '7px 16px'  },
+  }[DEVICE];
+
   return (
     <div
       data-theme={appTheme}
@@ -3121,7 +3156,7 @@ export default function AndroidPosRegister({
       {/* 1. FAR LEFT VERTICAL NAVIGATION SIDEBAR (DARK SLATE BLUE THEME)     */}
       {/* =================================================================== */}
       <aside style={{
-        width: '78px',
+        width: layout.sidebarW,
         flexShrink: 0,
         background: T.bgSidebar,
         borderRight: `1px solid ${T.borderSidebar}`,
@@ -3131,7 +3166,8 @@ export default function AndroidPosRegister({
         justify: 'space-between',
         padding: '12px 0',
         zIndex: 20,
-        boxShadow: isLight ? '2px 0 12px rgba(0,0,0,0.15)' : 'none'
+        boxShadow: isLight ? '2px 0 12px rgba(0,0,0,0.15)' : 'none',
+        transition: 'width 0.2s ease'
       }}>
         {/* Top Logo / Outlet Badge */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
@@ -3381,7 +3417,7 @@ export default function AndroidPosRegister({
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '250px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: layout.searchW }}>
                     <div style={{ flex: 1, position: 'relative' }}>
                       <input
                         type="text"
@@ -3447,7 +3483,7 @@ export default function AndroidPosRegister({
                           }}
                         >
                           {/* Image Placeholder */}
-                          <div style={{ height: '90px', background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                          <div style={{ height: layout.cardImgH, background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                             <ShoppingBag size={28} color="#60a5fa" style={{ opacity: 0.7 }} />
                             {item.variants && item.variants.length > 0 && (
                               <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(37,99,235,0.9)', color: 'var(--pos-txt-white)', fontSize: '0.58rem', fontWeight: '800', padding: '2px 6px', borderRadius: '4px' }}>
@@ -3458,10 +3494,10 @@ export default function AndroidPosRegister({
 
                           {/* Item Info */}
                           <div style={{ padding: '8px 10px' }}>
-                            <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: layout.fontSm, fontWeight: '800', color: T.txtPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
                               {item.name}
                             </div>
-                            <div style={{ fontSize: '0.80rem', fontWeight: '900', color: isLight ? '#0284c7' : '#38bdf8', marginTop: '4px' }}>
+                            <div style={{ fontSize: layout.fontMd, fontWeight: '900', color: isLight ? '#0284c7' : '#38bdf8', marginTop: '3px' }}>
                               {formatRupiah(displayPrice)}
                             </div>
                           </div>
@@ -3476,7 +3512,7 @@ export default function AndroidPosRegister({
               {/* ----------------------------------------------------------- */}
               {/* RIGHT CHECKOUT PANEL (CART REGISTER & SUMMARY - FIXED 380PX) */}
               {/* ----------------------------------------------------------- */}
-              <div style={{ width: '380px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: T.bgSurface, boxSizing: 'border-box', borderLeft: `1px solid ${T.border}` }}>
+              <div style={{ width: layout.cartW, flexShrink: 0, display: 'flex', flexDirection: 'column', background: T.bgSurface, boxSizing: 'border-box', borderLeft: `1px solid ${T.border}`, transition: 'width 0.2s ease' }}>
 
                 {/* Top 3 Action Tabs: ORDER | TABLE | MORE */}
                 <div style={{ display: 'flex', background: T.bgSidebar, borderBottom: `1px solid ${T.borderSidebar}` }}>

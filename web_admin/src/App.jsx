@@ -315,6 +315,20 @@ export default function App() {
                 ...(serverData.deletedOutflowIds || [])
               ].map(x => String(x)));
 
+              // Track deleted master-data IDs (categories, ingredients, products, etc.)
+              const deletedCatIds = new Set([
+                ...(prev.deletedCategoriesIds || []),
+                ...(serverData.deletedCategoriesIds || [])
+              ].map(x => String(x)));
+              const deletedIngredientIds = new Set([
+                ...(prev.deletedIngredientIds || []),
+                ...(serverData.deletedIngredientIds || [])
+              ].map(x => String(x)));
+              const deletedProductIds = new Set([
+                ...(prev.deletedProductIds || []),
+                ...(serverData.deletedProductIds || [])
+              ].map(x => String(x)));
+
               const getCombinedArray = (a, b) => {
                 const arrA = Array.isArray(a) ? a : [];
                 const arrB = Array.isArray(b) ? b : [];
@@ -370,6 +384,26 @@ export default function App() {
               const serverWaste = getCombinedArray(serverData.approvedWaste, serverData.damagedGoods);
               const mergedWaste = mergeReportsById(prevWaste, serverWaste);
 
+              // Merge master arrays — server wins for additions, local wins for deletions
+              const mergeMasterArray = (prevArr, serverArr, deletedIds) => {
+                const map = new Map();
+                // Server items first (as base)
+                (Array.isArray(serverArr) ? serverArr : []).forEach(item => {
+                  const k = String(item.id ?? item.code ?? item.name ?? '');
+                  if (k && !deletedIds.has(k)) map.set(k, item);
+                });
+                // Local items: add if not in server and not deleted
+                (Array.isArray(prevArr) ? prevArr : []).forEach(item => {
+                  const k = String(item.id ?? item.code ?? item.name ?? '');
+                  if (k && !deletedIds.has(k) && !map.has(k)) map.set(k, item);
+                });
+                return Array.from(map.values());
+              };
+
+              const mergedCategories  = mergeMasterArray(prev.categories,   serverData.categories,   deletedCatIds);
+              const mergedIngredients = mergeMasterArray(prev.ingredients,  serverData.ingredients,  deletedIngredientIds);
+              const mergedProducts    = mergeMasterArray(prev.products,      serverData.products,      deletedProductIds);
+
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
@@ -379,6 +413,15 @@ export default function App() {
                 ...initialMasterData,
                 ...prev,
                 ...serverData,
+                // Explicitly merged arrays (deletion-safe)
+                categories:           mergedCategories,
+                ingredients:          mergedIngredients,
+                products:             mergedProducts,
+                // Deleted ID sets — union of local + server
+                deletedCategoriesIds:  Array.from(deletedCatIds),
+                deletedIngredientIds:  Array.from(deletedIngredientIds),
+                deletedProductIds:     Array.from(deletedProductIds),
+                // Transaction arrays (existing merge logic)
                 approvedFinanceDaily: mergedApprovedFinance,
                 manualEntryRecords: mergedApprovedFinance,
                 shiftClosings: mergedShiftClosings,

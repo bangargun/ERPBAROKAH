@@ -97,3 +97,144 @@ cp -r dist/* ../dist/
 cd ..
 pm2 restart all
 ```
+
+---
+
+## 📦 5. Build APK — Versi per Ukuran Perangkat
+
+Setiap kali membangun APK POS Kasir, **wajib membuat varian untuk setiap kategori ukuran layar** berikut. Ini memastikan layout, font size, grid produk, dan panel order tampil optimal di semua perangkat kasir.
+
+---
+
+### 🎯 Target Perangkat & CSS Breakpoint
+
+| Varian | Ukuran Layar | CSS Viewport (Landscape) | Contoh Perangkat | Priority |
+|---|---|---|---|---|
+| **Phone** | 5–6.7" | 360–480px lebar | Samsung A-series, Redmi | ⬜ Sekunder |
+| **Tablet Kecil** | 7–8" | 600–768px lebar | Samsung Tab A7 Lite, Lenovo Tab M8 | 🟡 Penting |
+| **Tablet Standar 10"** | 9.7–10.5" | 800–1024px lebar | Samsung Tab A8, Lenovo Tab P11 | 🔴 **UTAMA** |
+| **Tablet Besar** | 11–13" | 1100–1366px lebar | Samsung Tab S8, iPad Pro | 🟢 Bonus |
+
+---
+
+### 📐 Aturan Layout per Varian
+
+#### 📱 Phone (360–480px)
+```
+- Grid produk : 2 kolom
+- Panel order : full-screen (modal bawah)
+- Font produk : 11–12px
+- Tombol bayar: full width
+- Orientasi   : PORTRAIT utama
+```
+
+#### 📟 Tablet Kecil 7–8" (600–768px)
+```
+- Grid produk : 3 kolom
+- Panel order : fixed sidebar kanan 220px
+- Font produk : 12–13px
+- Kategori    : horizontal scroll
+- Orientasi   : LANDSCAPE utama
+```
+
+#### 🖥️ Tablet Standar 10" (800–1024px) ← TARGET UTAMA
+```
+- Grid produk : 3–4 kolom
+- Panel order : fixed sidebar kanan 280–320px
+- Font produk : 13–14px
+- Header      : 56px tinggi
+- Tombol bayar: 56px height
+- Orientasi   : LANDSCAPE WAJIB
+```
+
+#### 🖥️ Tablet Besar 11"+ (1100px+)
+```
+- Grid produk : 4–5 kolom
+- Panel order : fixed sidebar kanan 340–380px
+- Font produk : 14–15px
+- Tampilkan   : info shift, nama kasir, jam digital
+- Orientasi   : LANDSCAPE
+```
+
+---
+
+### 🔧 Cara Build APK per Varian (Capacitor + Android)
+
+```bash
+# 1. Masuk ke direktori project
+cd /Users/argun/Documents/MRIS
+
+# 2. Build web bundle (pastikan breakpoint CSS sudah disesuaikan varian)
+npm run build
+
+# 3. Sync ke Android
+npx cap sync android
+
+# 4. Build APK via Gradle
+cd android && ./gradlew assembleRelease
+
+# 5. Output APK:
+# android/app/build/outputs/apk/release/app-release.apk
+
+# 6. Rename dan simpan dengan format standar:
+cp android/app/build/outputs/apk/release/app-release.apk \
+   /Users/argun/Documents/MRIS/POS_KASIR_BAROKAH_v{VERSI}_{VARIAN}_Build_{TANGGAL}.apk
+```
+
+#### Format Nama File APK:
+```
+POS_KASIR_BAROKAH_v{VERSI}_{VARIAN}_Build_{YYYYMMDD}.apk
+
+Contoh:
+POS_KASIR_BAROKAH_v4.1.0_Phone_Build_20260810.apk
+POS_KASIR_BAROKAH_v4.1.0_Tab7in_Build_20260810.apk
+POS_KASIR_BAROKAH_v4.1.0_Tab10in_Build_20260810.apk   ← UTAMA
+POS_KASIR_BAROKAH_v4.1.0_Tab12in_Build_20260810.apk
+```
+
+---
+
+### 🧩 Implementasi Responsif di AndroidPosRegister.jsx
+
+Gunakan deteksi ukuran layar ini di dalam komponen POS:
+
+```js
+const screenW = window.innerWidth;
+
+const DEVICE =
+  screenW >= 1100 ? 'tab-xl'   // 11"+ tablet besar
+  : screenW >= 800 ? 'tab-10'  // 10" tablet standar (UTAMA)
+  : screenW >= 600 ? 'tab-7'   // 7–8" tablet kecil
+  : 'phone';                    // smartphone
+
+const layout = {
+  'phone':  { cols: 2, sidebarW: '100%',  fontSz: 11, btnH: 48, padding: 8  },
+  'tab-7':  { cols: 3, sidebarW: '220px', fontSz: 12, btnH: 52, padding: 10 },
+  'tab-10': { cols: 4, sidebarW: '300px', fontSz: 13, btnH: 56, padding: 12 },
+  'tab-xl': { cols: 5, sidebarW: '360px', fontSz: 14, btnH: 60, padding: 14 },
+}[DEVICE];
+```
+
+---
+
+### ✅ Checklist Sebelum Release APK
+
+- [ ] Test di emulator/device **Tab 10" landscape** (wajib)
+- [ ] Grid produk tidak overflow / terpotong
+- [ ] Panel order cart penuh, tidak ada scroll horizontal
+- [ ] Keyboard virtual tidak menutupi tombol "Bayar"
+- [ ] Tombol kategori bisa diklik (tidak terlalu kecil, min 44px)
+- [ ] Font produk terbaca dari jarak ±50cm
+- [ ] APK diberi nama sesuai format standar + tanggal build
+- [ ] APK disimpan di `/Users/argun/Documents/MRIS/`
+
+---
+
+### 🏪 Distribusi APK ke Outlet
+
+| Perangkat Kasir | Varian APK yang Dipasang |
+|---|---|
+| Samsung Tab A8 10" (kasir utama) | `Tab10in` ← **gunakan ini** |
+| Tablet 7–8" (kasir pendukung) | `Tab7in` |
+| Smartphone Android (darurat) | `Phone` |
+| Tablet besar manager | `Tab12in` |
