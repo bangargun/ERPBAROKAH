@@ -359,17 +359,17 @@ export default function AdminLayout({
           transition: 'background 0.2s ease, border-color 0.2s ease'
         }}>
           {/* Greeting & Date */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ fontSize: '0.94rem', fontWeight: '800', color: T.txtPrimary }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, overflow: 'hidden', flex: 1 }}>
+            <div style={{ fontSize: '0.94rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               Selamat Datang, {userName} 🖐️
             </div>
-            <span style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '600', paddingLeft: '10px', borderLeft: `1px solid ${T.border}` }}>
+            <span style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '600', paddingLeft: '10px', borderLeft: `1px solid ${T.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {todayFormatted}
             </span>
           </div>
 
           {/* Right Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
             
             {/* 1. THEME SWITCHER DROPDOWN (DARK / LIGHT / WARM MINIMALIST) */}
             <div style={{ position: 'relative' }}>
