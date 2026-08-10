@@ -1,6 +1,13 @@
-# GEMINI.md - System Specification, Security Hardening & Android POS KASIR 4.0 Architecture
-
 ## 🛡️ 1. Core Security Architecture & Role-Based Access Control (RBAC)
+
+### 🔄 Build Synchronization & Single Source of Truth Rule
+- **Primary Source**: `web_admin/src/` is the single source of truth for the Web Admin codebase.
+- **Automated Sync**: The root `package.json` `build` script automatically syncs `web_admin/src -> src` and `web_admin/dist -> dist` using `rsync` prior to compiling.
+- **Single Build Execution**: Always run `npm run build` from the root directory. This ensures that root `/dist` (tracked by git for VPS deployment) and `web_admin/dist` are 100% identical and always contain all 14 sidebar menu items.
+
+---
+
+## 📊 2. System Modules Overview
 
 System **MRIS (Multi Restaurant Financial & Operational Information System)** implements multi-tiered security hardening across Web Admin and Mobile POS environments.
 

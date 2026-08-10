@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:pos": "vite build",
-    "build:admin": "cd web_admin && npm run build",
-    "build": "vite build && (cd web_admin && npm run build)",
+    "sync-src": "rsync -av --delete web_admin/src/ src/",
+    "sync-dist": "rsync -av --delete web_admin/dist/ dist/",
+    "build:admin": "npm run sync-src && cd web_admin && npm run build && cd .. && npm run sync-dist",
+    "build:pos": "npm run sync-src && vite build",
+    "build": "npm run sync-src && cd web_admin && npm run build && cd .. && npm run sync-dist",
     "preview": "vite preview",
     "server": "node server.js",
     "start": "node server.js"
