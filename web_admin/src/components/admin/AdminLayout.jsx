@@ -103,7 +103,7 @@ export default function AdminLayout({
     { id: 'stock',               label: '4. Logistik',                icon: Package,         permKey: 'stock' },
     { id: 'daily_approval',      label: '5. Laporan Harian Outlet',   icon: ClipboardCheck,  permKey: 'reports' },
     { id: 'update_laporan',      label: '6. Update Laporan',          icon: FileSpreadsheet, permKey: 'reports' },
-    { id: 'ingredient_prices',   label: '7. Perbandingan Harga',      icon: Scale,           permKey: 'reports' },
+    { id: 'ingredient_prices',   label: '7. Perbandingan',            icon: Scale,           permKey: 'reports' },
     { id: 'tren_harga_outlet',   label: '8. Tren Harga Per Outlet',   icon: TrendingUp,      permKey: 'reports' },
     { id: 'reports',             label: '9. Laporan Keuangan',        icon: FileText,        permKey: 'reports' },
     { id: 'printer_settings',    label: '10. Printer & Thermal',      icon: Printer,         permKey: 'settings' },
