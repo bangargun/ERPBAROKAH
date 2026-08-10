@@ -669,9 +669,7 @@ export default function ManualReportUpdatePage({
                       {/* Harga Satuan */}
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary, fontSize: '0.75rem' }}>
                         {avgUnitPrice > 0
-                          ? (salesDetails.length > 1
-                              ? <span title="Rata-rata harga satuan per item">±Rp {Math.round(avgUnitPrice).toLocaleString('id-ID')}</span>
-                              : `Rp ${Math.round(avgUnitPrice).toLocaleString('id-ID')}`)
+                          ? `Rp ${Math.round(avgUnitPrice).toLocaleString('id-ID')}`
                           : (totalQty > 0 && salesVal > 0
                               ? `Rp ${Math.round(salesVal / totalQty).toLocaleString('id-ID')}`
                               : '-')}
