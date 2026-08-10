@@ -35,6 +35,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACC' | 'Approved' | 'Done'
   const [submitterFilter, setSubmitterFilter] = useState('ALL'); // 'ALL' | 'POS Kasir' | 'Admin'
+  const [sourceFilter, setSourceFilter] = useState('ALL'); // 'ALL' | 'Upload Excel' | 'Update Laporan Admin' | 'Input Manual Admin' | 'POS Kasir'
 
   // DATE RANGE FILTER STATES
   const [startDate, setStartDate] = useState('');
@@ -205,21 +206,30 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     if (r && (r.id != null || r.report_no)) {
       const key = String(r.report_no || r.id);
       
-      // Tentukan Pengaju (Admin / Update Laporan vs POS Kasir)
-      const isFromAdmin = r.submitter_type === 'Admin' || 
-                          r.created_by === 'Admin' || 
-                          r.created_by === 'Super Admin' ||
-                          r.author === 'Super Admin' ||
-                          (r.source && (r.source.includes('Update Laporan') || r.source.includes('Excel') || r.source.includes('Manual'))) ||
-                          String(r.report_no || '').startsWith('LAP-ADM') ||
-                          String(r.report_no || '').startsWith('UPD-');
-      const submitterText = isFromAdmin ? 'Admin' : 'POS Kasir';
+      // Tentukan Sumber Data secara Spesifik (Upload Excel / Update Laporan Admin / Input Manual Admin / POS Kasir)
+      const rawSrc = String(r.source || '').toLowerCase();
+      const rNo = String(r.report_no || r.receiptNo || r.receipt_no || '');
+      const rAuthor = String(r.author || r.created_by || r.cashier_name || r.cashier || '').toLowerCase();
 
-      // Tentukan Status Sesuai Aturan:
-      // - Dari Admin / Update Laporan: Langsung Done / Disetujui
-      // - Dari POS Kasir: ACC saat baru terima -> diklik berubah Approved -> jika sudah dibaca berubah Done
+      let dataSourceLabel = '📱 POS Kasir';
+      let isFromAdminOrExcel = false;
+
+      if (rawSrc.includes('excel') || rawSrc.includes('batch upload') || rNo.includes('EXC')) {
+        dataSourceLabel = '📊 Upload Excel';
+        isFromAdminOrExcel = true;
+      } else if (rawSrc.includes('update laporan') || rNo.startsWith('UPD-')) {
+        dataSourceLabel = '✍️ Update Laporan Admin';
+        isFromAdminOrExcel = true;
+      } else if (r.submitter_type === 'Admin' || rAuthor.includes('admin') || rNo.startsWith('LAP-ADM')) {
+        dataSourceLabel = '👤 Input Manual Admin';
+        isFromAdminOrExcel = true;
+      }
+
+      const submitterText = isFromAdminOrExcel ? 'Admin' : 'POS Kasir';
+
+      // Tentukan Status (Upload Excel / Update Laporan / Admin -> LANGSUNG AUTO-APPROVED / Done)
       let currentStatus = r.status || r.approval_status;
-      if (isFromAdmin) {
+      if (isFromAdminOrExcel) {
         currentStatus = 'Done';
       } else {
         if (!currentStatus || currentStatus === 'pending' || currentStatus === 'acc_pending_send' || currentStatus === 'ACC') {
@@ -237,8 +247,10 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         outlet_id: r.outlet_id || r.branch_id || 1,
         outlet_name: r.branch_name || getOutletName(r.outlet_id || r.branch_id),
         date: r.date || r.created_at || new Date().toISOString(),
-        cashier_name: r.cashier_name || r.cashier || (isFromAdmin ? 'Admin' : 'Kasir'),
+        cashier_name: r.cashier_name || r.cashier || (isFromAdminOrExcel ? (r.author || r.created_by || 'Super Admin') : 'Kasir'),
         submitter_type: submitterText,
+        data_source: dataSourceLabel,
+        is_auto_approved: isFromAdminOrExcel,
         net_sales: Number(r.net_sales || r.total_sales || r.total_income || 0),
         cash_sales: Number(r.cash_sales || (r.net_sales - (r.non_cash_sales || 0)) || 0),
         non_cash_sales: Number(r.non_cash_sales || 0),
@@ -274,6 +286,14 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
     // Submitter Filter
     if (submitterFilter !== 'ALL' && item.submitter_type !== submitterFilter) return false;
+
+    // Source Filter (Upload Excel | Update Laporan Admin | Input Manual Admin | POS Kasir)
+    if (sourceFilter !== 'ALL') {
+      if (sourceFilter === 'Upload Excel' && !item.data_source.includes('Excel')) return false;
+      if (sourceFilter === 'Update Laporan Admin' && !item.data_source.includes('Update')) return false;
+      if (sourceFilter === 'Input Manual Admin' && !item.data_source.includes('Input Manual Admin')) return false;
+      if (sourceFilter === 'POS Kasir' && !item.data_source.includes('POS Kasir')) return false;
+    }
 
     // Date Range Filter (Tanggal Mulai - Tanggal Selesai)
     if (startDate) {
@@ -729,6 +749,25 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               </select>
             </div>
 
+            {/* SUMBER DATA FILTER */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <FileSpreadsheet size={14} color="#34d399" />
+                <span>Sumber Data:</span>
+              </label>
+              <select
+                value={sourceFilter}
+                onChange={e => { setSourceFilter(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #10b981', borderRadius: '8px', color: '#34d399', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                <option value="ALL">Semua Sumber Data</option>
+                <option value="Upload Excel">📊 Upload Excel</option>
+                <option value="Update Laporan Admin">✍️ Update Laporan Admin</option>
+                <option value="Input Manual Admin">👤 Input Manual Admin</option>
+                <option value="POS Kasir">📱 POS Kasir</option>
+              </select>
+            </div>
+
             {/* STATUS FILTER */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <label style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '700' }}>Status:</label>
@@ -818,24 +857,25 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
       </div>
 
-      {/* MAIN TABLE: 5 REQUIRED COLUMNS */}
+      {/* MAIN TABLE: 7 COLUMNS (WITH DEDICATED SUMBER DATA COLUMN) */}
       <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ background: '#0f172a', borderBottom: '2px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '150px' }}>TANGGAL</th>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '170px' }}>NAMA OUTLET</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '130px' }}>TANGGAL</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>NAMA OUTLET</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800' }}>NO LAPORAN</th>
-                <th style={{ padding: '14px 16px', fontWeight: '800', width: '140px' }}>PENGAJU</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '170px' }}>SUMBER DATA</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', width: '120px' }}>PENGAJU</th>
                 <th style={{ padding: '14px 16px', fontWeight: '800', width: '160px' }}>STATUS</th>
-                <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '160px' }}>AKSI</th>
+                <th style={{ padding: '14px 16px', fontWeight: '800', textAlign: 'right', width: '140px' }}>AKSI</th>
               </tr>
             </thead>
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                     📭 Belum ada laporan harian yang sesuai dengan filter.
                   </td>
                 </tr>
@@ -856,7 +896,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                         </span>
                       </td>
 
-                      {/* 2. NO LAPORAN (CLICKABLE) */}
+                      {/* 3. NO LAPORAN (CLICKABLE) */}
                       <td style={{ padding: '14px 16px' }}>
                         <button
                           onClick={() => setDetailModalItem(item)}
@@ -871,7 +911,34 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                         </div>
                       </td>
 
-                      {/* 3. PENGAJU */}
+                      {/* 4. SUMBER DATA (NEW COLUMN) */}
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.76rem',
+                          fontWeight: '800',
+                          background: item.data_source.includes('Excel')
+                            ? 'rgba(16, 185, 129, 0.15)'
+                            : (item.data_source.includes('Update') || item.data_source.includes('Admin')
+                                ? 'rgba(56, 189, 248, 0.15)'
+                                : 'rgba(99, 102, 241, 0.15)'),
+                          color: item.data_source.includes('Excel')
+                            ? '#34d399'
+                            : (item.data_source.includes('Update') || item.data_source.includes('Admin')
+                                ? '#38bdf8'
+                                : '#818cf8'),
+                          border: item.data_source.includes('Excel')
+                            ? '1px solid #10b981'
+                            : (item.data_source.includes('Update') || item.data_source.includes('Admin')
+                                ? '1px solid #38bdf8'
+                                : '1px solid #6366f1')
+                        }}>
+                          {item.data_source}
+                        </span>
+                      </td>
+
+                      {/* 5. PENGAJU */}
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{
                           padding: '4px 10px',
@@ -887,14 +954,14 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                         <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{item.cashier_name}</div>
                       </td>
 
-                      {/* 4. STATUS */}
+                      {/* 6. STATUS */}
                       <td style={{ padding: '14px 16px' }}>
                         <button
                           type="button"
                           onClick={() => {
-                            const isDone = item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done';
+                            const isDone = item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done' || item.is_auto_approved;
                             if (isDone) {
-                              if (window.confirm(`Status laporan (${item.report_no || item.id}) saat ini "Done". Apakah Anda yakin ingin mengubah kembali ke "Pending"?`)) {
+                              if (window.confirm(`Status laporan (${item.report_no || item.id}) saat ini "Done/Approved". Apakah Anda yakin ingin mengubah kembali ke "Pending"?`)) {
                                 handleUpdateStatus(item, 'Pending');
                               }
                             } else {
@@ -904,10 +971,10 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                           style={{
                             padding: '6px 12px',
                             borderRadius: '8px',
-                            background: (item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done')
+                            background: (item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done' || item.is_auto_approved)
                               ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                            border: `1px solid ${(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? '#22c55e' : '#f59e0b'}`,
-                            color: (item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? '#4ade80' : '#fbbf24',
+                            border: `1px solid ${(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done' || item.is_auto_approved) ? '#22c55e' : '#f59e0b'}`,
+                            color: (item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done' || item.is_auto_approved) ? '#4ade80' : '#fbbf24',
                             fontWeight: '900',
                             fontSize: '0.78rem',
                             cursor: 'pointer',
@@ -916,20 +983,20 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                             gap: '6px',
                             transition: 'all 0.2s ease'
                           }}
-                          title={(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done')
-                            ? "Status Done (Disetujui). Klik untuk mengubah kembali ke Pending"
-                            : "Klik untuk menyetujui (Approve) laporan ini menjadi Done"
+                          title={(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done' || item.is_auto_approved)
+                            ? "Status Approved (Done). Klik untuk mengubah"
+                            : "Klik untuk menyetujui (Approve) laporan ini"
                           }
                         >
-                          {(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done') ? (
+                          {(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done' || item.is_auto_approved) ? (
                             <>
                               <CheckSquare size={14} />
-                              <span>Done (Disetujui)</span>
+                              <span>✅ Approved</span>
                             </>
                           ) : (
                             <>
                               <Clock size={14} />
-                              <span>⏳ Pending (Klik Approve)</span>
+                              <span>Pending (Klik Approve)</span>
                             </>
                           )}
                         </button>
