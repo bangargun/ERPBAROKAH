@@ -2,8 +2,9 @@
 
 ### 🔄 Build Synchronization & Single Source of Truth Rule
 - **Primary Source**: `web_admin/src/` is the single source of truth for the Web Admin codebase.
-- **Automated Sync**: The root `package.json` `build` script automatically syncs `web_admin/src -> src` and `web_admin/dist -> dist` using `rsync` prior to compiling.
-- **Single Build Execution**: Always run `npm run build` from the root directory. This ensures that root `/dist` (tracked by git for VPS deployment) and `web_admin/dist` are 100% identical and always contain all 14 sidebar menu items.
+- **Automated Sync**: The root `package.json` `build` script automatically syncs `web_admin/src → src` and `web_admin/dist → dist` using `rsync` prior to compiling.
+- **Single Build Execution**: Always run `npm run build` from the root directory on the **local machine**. This ensures root `/dist` and `web_admin/dist` are 100% identical and always contain all 14 sidebar menu items.
+- **Deploy ke VPS**: Gunakan `npm run deploy` (bukan rsync manual). Script ini build → git push → VPS git pull dengan urutan yang benar agar versi tidak pernah balik ke versi lama.
 
 ---
 
@@ -89,21 +90,57 @@ The mobile application **POS KASIR 4.0** is an offline-first, high-performance A
 
 ## 🛠️ 4. Production Deployment & Operational Runbook
 
-To deploy the latest web admin bundle and updates to the production VPS server (`mris-admin.barokahgroupindonesia.tech`):
+### ⚠️ Aturan Deploy — WAJIB DIIKUTI
+
+> **`npm run deploy` HANYA dijalankan dari laptop lokal, BUKAN dari SSH VPS!**
+
+### ✅ Cara Deploy yang Benar (Satu Perintah)
 
 ```bash
-cd /var/www/erp-barokah
-git fetch origin
-git reset --hard origin/main
-git clean -fd
-cd web_admin
-npm install
-npm run build
-mkdir -p ../dist
-cp -r dist/* ../dist/
-cd ..
-pm2 restart all
+# Jalankan dari laptop, di folder project:
+cd /Users/argun/Documents/MRIS
+npm run deploy
 ```
+
+Script ini otomatis melakukan **urutan yang benar**:
+1. `npm run build` — build web admin (web_admin/src → dist)
+2. `git add -A && git commit && git push` — push ke GitHub **dulu**
+3. SSH ke VPS → `git reset --hard origin/main` → `pm2 restart erp-barokah`
+
+### ❌ Urutan yang SALAH (penyebab 11 menu kembali)
+
+```
+❌ JANGAN: rsync ke VPS dulu → git push belakangan
+   Risiko: jika webhook jalan di antara keduanya, VPS balik ke versi lama GitHub
+
+❌ JANGAN: jalankan npm run deploy dari dalam SSH VPS
+   Akibat: ENOENT — tidak ada package.json di /root/
+```
+
+### 🔧 Jika Perlu Sync Manual VPS (tanpa kode baru)
+
+```bash
+# Dari laptop lokal:
+sshpass -p 'Barokahgrub30@@' ssh -o StrictHostKeyChecking=no root@187.77.122.142 \
+  "cd /var/www/erp-barokah && git fetch origin && git reset --hard origin/main && pm2 restart erp-barokah"
+```
+
+### 📌 Port Mapping Resmi VPS (`187.77.122.142`)
+
+| Port | Service | Domain |
+|------|---------|--------|
+| `5001` | MRIS ERP Backend (PM2: `erp-barokah`) | `mris-api.barokahgroupindonesia.tech`, `mris-admin.tech`, `barokahgroupindonesia.tech` |
+| `4000` | POS Kasir Backend | `pos-api.barokahgroupindonesia.com` |
+| `80/443` | Nginx reverse proxy | Semua domain |
+
+### 📁 Path Penting di VPS
+
+| Path | Fungsi |
+|------|--------|
+| `/var/www/erp-barokah/` | Root project MRIS (git repo) |
+| `/var/www/erp-barokah/dist/` | Static files yang di-serve Nginx |
+| `/var/www/erp-barokah/server.js` | Backend API (PM2 process `erp-barokah`) |
+| `/var/www/erp-barokah/mris_finance.json` | Database JSON persisten |
 
 ---
 
