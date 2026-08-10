@@ -55,6 +55,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Sorting States
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
+
   const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
   // DRAG & DROP PHOTO UPLOAD HANDLERS
@@ -618,10 +622,76 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     return matchesSearch && (catObj?.name === selectedCategoryFilter || p.category_name === selectedCategoryFilter);
   });
 
+  // Sorting calculation
+  const sortedProducts = React.useMemo(() => {
+    const list = [...filteredProducts];
+    list.sort((a, b) => {
+      let comp = 0;
+      switch (sortField) {
+        case 'sku':
+          comp = (a.sku || a.code || '').localeCompare(b.sku || b.code || '');
+          break;
+        case 'name':
+          comp = (a.name || '').localeCompare(b.name || '');
+          break;
+        case 'category_name': {
+          const catA = masterData.categories.find(c => c.id === a.category_id)?.name || a.category_name || '';
+          const catB = masterData.categories.find(c => c.id === b.category_id)?.name || b.category_name || '';
+          comp = catA.localeCompare(catB);
+          break;
+        }
+        case 'price': {
+          const prA = getEffectiveProductPrice(a);
+          const prB = getEffectiveProductPrice(b);
+          comp = prA - prB;
+          break;
+        }
+        case 'status':
+          comp = (a.status || 'Aktif').localeCompare(b.status || 'Aktif');
+          break;
+        default:
+          comp = (a.name || '').localeCompare(b.name || '');
+      }
+      return sortDirection === 'asc' ? comp : -comp;
+    });
+    return list;
+  }, [filteredProducts, sortField, sortDirection, masterData.categories]);
+
   // Pagination calculation
-  const totalItems = filteredProducts.length;
+  const totalItems = sortedProducts.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedProducts = sortedProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleSortHeader = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortableTh = (field, label, extraStyle = {}) => {
+    const isActive = sortField === field;
+    const icon = isActive ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+    return (
+      <th
+        onClick={() => handleSortHeader(field)}
+        style={{
+          padding: '10px 10px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          color: isActive ? T.info : T.txtSecondary,
+          fontWeight: isActive ? '900' : '800',
+          transition: 'color 0.15s ease',
+          ...extraStyle
+        }}
+        title={`Klik untuk mengurutkan berdasarkan ${label}`}
+      >
+        {label} <span style={{ opacity: isActive ? 1 : 0.4, fontSize: '0.70rem' }}>{icon}</span>
+      </th>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -706,6 +776,49 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               ))}
             </select>
 
+            {/* Quick Sort Field */}
+            <select
+              value={sortField}
+              onChange={e => setSortField(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                fontSize: '0.8rem',
+                background: T.inputBg,
+                color: T.txtPrimary,
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+              title="Urutkan berdasarkan"
+            >
+              <option value="name">Sort: Nama</option>
+              <option value="sku">Sort: SKU</option>
+              <option value="category_name">Sort: Kategori</option>
+              <option value="price">Sort: Harga</option>
+              <option value="status">Sort: Status</option>
+            </select>
+
+            {/* Quick Sort Direction */}
+            <select
+              value={sortDirection}
+              onChange={e => setSortDirection(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                fontSize: '0.8rem',
+                background: T.inputBg,
+                color: T.txtPrimary,
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+              title="Arah urutan"
+            >
+              <option value="asc">⬆️ Naik (A-Z / Kecil-Besar)</option>
+              <option value="desc">⬇️ Turun (Z-A / Besar-Kecil)</option>
+            </select>
+
             {/* Excel Download & Upload Button */}
             <button
               onClick={() => setShowExcelImportModal(true)}
@@ -757,14 +870,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           <table style={{ width: '100%', minWidth: '1050px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', background: T.tableHeaderBg }}>
-                <th style={{ padding: '10px 10px', width: '100px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', minWidth: '220px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '130px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '140px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', minWidth: '200px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '120px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '90px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', width: '80px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
+                {renderSortableTh('sku', 'SKU', { width: '100px' })}
+                {renderSortableTh('name', 'Produk', { minWidth: '220px' })}
+                {renderSortableTh('category_name', 'Kategori', { width: '130px' })}
+                {renderSortableTh('price', 'Harga', { width: '140px' })}
+                <th style={{ padding: '10px 10px', minWidth: '200px' }}>Bahan Baku</th>
+                <th style={{ padding: '10px 10px', width: '120px' }}>Variant</th>
+                {renderSortableTh('status', 'Status', { width: '90px' })}
+                <th style={{ padding: '10px 10px', width: '80px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
