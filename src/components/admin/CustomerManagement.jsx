@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Users, Plus, Search, Edit3, Trash2, X, CheckCircle2, MessageSquare, Award, Store, Calendar, DollarSign } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Users, Plus, Search, Edit3, Trash2, X, CheckCircle2, MessageSquare, Award, Store, Calendar, DollarSign, ArrowUpDown } from 'lucide-react';
 import CustomerAnalyticsDetailModal from './CustomerAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
@@ -10,6 +10,10 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [selectedCustomerDetail, setSelectedCustomerDetail] = useState(null);
+
+  // Sorting States
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // Pagination States (Default 25 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,14 +44,11 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
 
   // Helper to calculate Tier Membership based on Total Spend
   const calculateTier = (totalSpend) => {
-    const spend = parseFloat(totalSpend) || 0;
-    if (spend > 5000000) {
-      return { label: 'Customer VIP', color: T.accentGold, bg: T.accentGoldBg, border: T.accentGoldBorder, icon: '👑' };
-    } else if (spend >= 1000000) {
-      return { label: 'Customer Loyal', color: T.success, bg: T.successBg, border: T.successBorder, icon: '🟢' };
-    } else {
-      return { label: 'New Customer', color: T.info, bg: T.infoBg, border: T.infoBorder, icon: '🔹' };
-    }
+    const spend = totalSpend || 0;
+    if (spend >= 10000000) return { label: '👑 PLATINUM', color: T.accentGold, bg: 'rgba(217, 119, 6, 0.15)' };
+    if (spend >= 5000000) return { label: '🥇 GOLD', color: T.warning, bg: 'rgba(234, 179, 8, 0.15)' };
+    if (spend >= 1500000) return { label: '🥈 SILVER', color: T.info, bg: 'rgba(59, 130, 246, 0.15)' };
+    return { label: '🥉 BRONZE', color: T.txtSecondary, bg: T.tableHeaderBg };
   };
 
   const formatRupiah = (val) => {
@@ -55,8 +56,9 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
   };
 
   const getOutletName = (id) => {
-    const found = masterData.outlets.find(o => o.id === parseInt(id));
-    return found ? found.name : 'Utama';
+    if (!id || id === 'ALL' || id === 'all') return '📍 Semua Outlet (Nasional)';
+    const found = (masterData.outlets || []).find(o => String(o.id) === String(id));
+    return found ? found.name : `Outlet #${id}`;
   };
 
   // Format WA phone link
@@ -73,24 +75,24 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
     setEditingCustomer(null);
     setName('');
     setPhone('');
-    setOutletId(masterData.outlets[0]?.id || 1);
+    setOutletId('ALL');
     setShowAddModal(true);
   };
 
   // Open Edit Modal
   const handleOpenEditModal = (cust) => {
     setEditingCustomer(cust);
-    setName(cust.name);
-    setPhone(cust.phone);
-    setOutletId(cust.outlet_id || masterData.outlets[0]?.id || 1);
+    setName(cust.name || '');
+    setPhone(cust.phone || '');
+    setOutletId(cust.outlet_id || 'ALL');
     setShowAddModal(true);
   };
 
   // Handle Submit Form
   const handleSubmitCustomer = (e) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) {
-      alert('Mohon isi Nama Pelanggan dan Nomor WhatsApp');
+    if (!name.trim()) {
+      alert('Nama Pelanggan wajib diisi');
       return;
     }
 
@@ -101,25 +103,25 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
     if (!updated.customers) updated.customers = [];
 
     if (editingCustomer) {
-      const idx = updated.customers.findIndex(c => c.id === editingCustomer.id);
-      if (idx !== -1) {
-        updated.customers[idx] = {
-          ...editingCustomer,
-          name: name.trim(),
-          phone: phone.trim(),
-          outlet_id: parseInt(outletId)
-        };
-      }
+      updated.customers = updated.customers.map(c => {
+        if (c.id === editingCustomer.id) {
+          return {
+            ...c,
+            name: name.trim(),
+            phone: phone.trim(),
+            outlet_id: outletId
+          };
+        }
+        return c;
+      });
     } else {
-      const autoCode = generateNextMembershipCode();
-      const todayDate = new Date().toISOString().split('T')[0];
       const newCustomer = {
         id: Date.now(),
-        code: autoCode,
+        code: generateNextMembershipCode(),
         name: name.trim(),
         phone: phone.trim(),
-        join_date: todayDate,
-        outlet_id: parseInt(outletId),
+        join_date: new Date().toISOString().split('T')[0],
+        outlet_id: outletId,
         total_spend: 0
       };
       updated.customers.unshift(newCustomer);
@@ -143,16 +145,99 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
   };
 
   const customersList = masterData.customers || [];
-  const filtered = customersList.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.phone && c.phone.includes(searchTerm)) ||
-    (c.code && c.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  
+  const filtered = useMemo(() => {
+    return customersList.filter(c => 
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.phone && c.phone.includes(searchTerm)) ||
+      (c.code && c.code.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [customersList, searchTerm]);
+
+  // Sorted Customers
+  const sortedCustomers = useMemo(() => {
+    const list = [...filtered];
+    list.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      switch (sortField) {
+        case 'code':
+          valA = String(a.code || '');
+          valB = String(b.code || '');
+          break;
+        case 'name':
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+          break;
+        case 'phone':
+          valA = String(a.phone || '');
+          valB = String(b.phone || '');
+          break;
+        case 'outlet':
+          valA = String(getOutletName(a.outlet_id));
+          valB = String(getOutletName(b.outlet_id));
+          break;
+        case 'join_date':
+          valA = String(a.join_date || '');
+          valB = String(b.join_date || '');
+          break;
+        case 'spend':
+          return sortDirection === 'asc' 
+            ? (Number(a.total_spend || 0) - Number(b.total_spend || 0))
+            : (Number(b.total_spend || 0) - Number(a.total_spend || 0));
+        case 'tier':
+          valA = String(calculateTier(a.total_spend).label);
+          valB = String(calculateTier(b.total_spend).label);
+          break;
+        default:
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+      }
+
+      const comp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comp : -comp;
+    });
+    return list;
+  }, [filtered, sortField, sortDirection, masterData.outlets]);
 
   // Pagination calculation
-  const totalItems = filtered.length;
+  const totalItems = sortedCustomers.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedCustomers = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedCustomers = sortedCustomers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleHeaderSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortHeader = (field, label, align = 'left') => {
+    const isActive = sortField === field;
+    const icon = isActive ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+    return (
+      <th
+        onClick={() => handleHeaderSort(field)}
+        style={{
+          padding: '10px 10px',
+          textAlign: align,
+          cursor: 'pointer',
+          userSelect: 'none',
+          color: isActive ? T.info : T.txtSecondary,
+          fontWeight: isActive ? '900' : '800'
+        }}
+        title={`Klik untuk mengurutkan berdasarkan ${label}`}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.66rem', opacity: isActive ? 1 : 0.4 }}>{icon}</span>
+        </div>
+      </th>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
@@ -173,42 +258,43 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
         </button>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-        <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: T.cardBg, border: `1px solid ${T.border}` }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: T.infoBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.info }}>
-            <Users size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700' }}>Total Pelanggan</div>
-            <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.txtPrimary }}>{customersList.length} Orang</div>
-          </div>
+      {/* Search & Quick Sort Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '360px' }}>
+          <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            placeholder="Cari nama, no. whatsapp, atau no. membership..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="form-input"
+            style={{ paddingLeft: '34px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border, fontSize: '0.76rem', height: '34px' }}
+          />
         </div>
 
-        <div className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: T.cardBg, border: `1px solid ${T.border}` }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: T.accentGoldBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.accentGold }}>
-            <Award size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700' }}>Customer VIP</div>
-            <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.accentGold }}>
-              {customersList.filter(c => (c.total_spend || 0) > 5000000).length} VIP
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ArrowUpDown size={14} color={T.accentGold} />
+          <select
+            value={sortField}
+            onChange={e => setSortField(e.target.value)}
+            style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
+          >
+            <option value="code">🔢 No. Membership</option>
+            <option value="name">👤 Nama Pelanggan</option>
+            <option value="phone">📱 Nomor WhatsApp</option>
+            <option value="outlet">🏪 Asal Outlet</option>
+            <option value="join_date">📅 Tanggal Bergabung</option>
+            <option value="spend">💵 Total Belanja</option>
+            <option value="tier">👑 Tier Membership</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+            style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+          >
+            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+          </button>
         </div>
-      </div>
-
-      {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '360px' }}>
-        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-        <input
-          type="text"
-          placeholder="Cari nama, no. whatsapp, atau no. membership..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="form-input"
-          style={{ paddingLeft: '34px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border, fontSize: '0.76rem', height: '34px' }}
-        />
       </div>
 
       {/* Table Section */}
@@ -217,13 +303,13 @@ export default function CustomerManagement({ masterData, setMasterData, themeMod
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, background: T.tableHeaderBg, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '800' }}>
-                <th style={{ padding: '10px 10px' }}>No. Membership (Auto)</th>
-                <th style={{ padding: '10px 10px' }}>Nama Pelanggan</th>
-                <th style={{ padding: '10px 10px' }}>Nomor WhatsApp</th>
-                <th style={{ padding: '10px 10px' }}>Asal Outlet</th>
-                <th style={{ padding: '10px 10px' }}>Tanggal Bergabung</th>
-                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Total Belanja</th>
-                <th style={{ padding: '10px 10px' }}>Tier Membership</th>
+                {renderSortHeader('code', 'No. Membership (Auto)', 'left')}
+                {renderSortHeader('name', 'Nama Pelanggan', 'left')}
+                {renderSortHeader('phone', 'Nomor WhatsApp', 'left')}
+                {renderSortHeader('outlet', 'Asal Outlet', 'left')}
+                {renderSortHeader('join_date', 'Tanggal Bergabung', 'left')}
+                {renderSortHeader('spend', 'Total Belanja', 'right')}
+                {renderSortHeader('tier', 'Tier Membership', 'left')}
                 <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>

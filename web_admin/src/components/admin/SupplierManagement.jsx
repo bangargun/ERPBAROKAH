@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Truck, Plus, Search, Edit3, Trash2, X, CheckCircle2, Store, PackageCheck } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Truck, Plus, Search, Edit3, Trash2, X, CheckCircle2, Store, PackageCheck, ArrowUpDown } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 
@@ -8,6 +8,10 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
+
+  // Sorting States
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // Pagination States (Default 25 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,8 +49,9 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
   };
 
   const getOutletName = (id) => {
-    const found = masterData.outlets?.find(o => o.id === parseInt(id));
-    return found ? found.name : 'Outlet Utama';
+    if (!id || id === 'ALL' || id === 'all') return '📍 Semua Outlet (Nasional)';
+    const found = masterData.outlets?.find(o => String(o.id) === String(id));
+    return found ? found.name : `Outlet #${id}`;
   };
 
   // Toggle Checkbox for Supply Type
@@ -63,7 +68,7 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
   const handleOpenAddModal = () => {
     setEditingSupplier(null);
     setName('');
-    setOutletId(masterData.outlets?.[0]?.id || 1);
+    setOutletId('ALL');
     setSupplyTypes(['Bahan Kering']);
     setStatus('Aktif');
     setShowAddModal(true);
@@ -73,7 +78,7 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
   const handleOpenEditModal = (item) => {
     setEditingSupplier(item);
     setName(item.name);
-    setOutletId(item.outlet_id || masterData.outlets?.[0]?.id || 1);
+    setOutletId(item.outlet_id || 'ALL');
     setSupplyTypes(item.supply_types || ['Bahan Kering']);
     setStatus(item.status || 'Aktif');
     setShowAddModal(true);
@@ -90,15 +95,13 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
     const updated = { ...masterData };
     if (!updated.suppliers) updated.suppliers = [];
 
-    const outletIdInt = parseInt(outletId);
-
     if (editingSupplier) {
       const idx = updated.suppliers.findIndex(s => s.id === editingSupplier.id);
       if (idx !== -1) {
         updated.suppliers[idx] = {
           ...editingSupplier,
           name: name.trim(),
-          outlet_id: outletIdInt,
+          outlet_id: outletId,
           supply_types: supplyTypes,
           status: status
         };
@@ -109,7 +112,7 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
         id: Date.now(),
         code: autoCode,
         name: name.trim(),
-        outlet_id: outletIdInt,
+        outlet_id: outletId,
         supply_types: supplyTypes,
         status: status
       };
@@ -131,16 +134,90 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
   };
 
   const suppliersList = masterData.suppliers || [];
-  const filtered = suppliersList.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    getOutletName(s.outlet_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filtered = useMemo(() => {
+    return suppliersList.filter(s => 
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getOutletName(s.outlet_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [suppliersList, searchTerm, masterData.outlets]);
+
+  // Sorted Suppliers
+  const sortedSuppliers = useMemo(() => {
+    const list = [...filtered];
+    list.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      switch (sortField) {
+        case 'code':
+          valA = String(a.code || '');
+          valB = String(b.code || '');
+          break;
+        case 'name':
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+          break;
+        case 'outlet':
+          valA = String(getOutletName(a.outlet_id));
+          valB = String(getOutletName(b.outlet_id));
+          break;
+        case 'type':
+          valA = String(Array.isArray(a.supply_types) ? a.supply_types.join(', ') : a.supply_types || '');
+          valB = String(Array.isArray(b.supply_types) ? b.supply_types.join(', ') : b.supply_types || '');
+          break;
+        case 'status':
+          valA = String(a.status || '');
+          valB = String(b.status || '');
+          break;
+        default:
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+      }
+
+      const comp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comp : -comp;
+    });
+    return list;
+  }, [filtered, sortField, sortDirection, masterData.outlets]);
 
   // Pagination calculation
-  const totalItems = filtered.length;
+  const totalItems = sortedSuppliers.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedSuppliers = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedSuppliers = sortedSuppliers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleHeaderSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortHeader = (field, label, align = 'left') => {
+    const isActive = sortField === field;
+    const icon = isActive ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+    return (
+      <th
+        onClick={() => handleHeaderSort(field)}
+        style={{
+          padding: '10px 10px',
+          textAlign: align,
+          cursor: 'pointer',
+          userSelect: 'none',
+          color: isActive ? T.info : T.txtSecondary,
+          fontWeight: isActive ? '900' : '800'
+        }}
+        title={`Klik untuk mengurutkan berdasarkan ${label}`}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.66rem', opacity: isActive ? 1 : 0.4 }}>{icon}</span>
+        </div>
+      </th>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
@@ -161,17 +238,41 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '360px' }}>
-        <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-        <input
-          type="text"
-          placeholder="Cari berdasarkan nama supplier, outlet, atau kode..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="form-input"
-          style={{ paddingLeft: '34px', fontSize: '0.76rem', height: '34px' }}
-        />
+      {/* Search & Sort Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '360px' }}>
+          <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            placeholder="Cari berdasarkan nama supplier, outlet, atau kode..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="form-input"
+            style={{ paddingLeft: '34px', fontSize: '0.76rem', height: '34px' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ArrowUpDown size={14} color={T.accentGold} />
+          <select
+            value={sortField}
+            onChange={e => setSortField(e.target.value)}
+            style={{ padding: '5px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
+          >
+            <option value="code">🔢 Kode Supplier</option>
+            <option value="name">🏷️ Nama Supplier</option>
+            <option value="outlet">🏪 Outlet Tujuan</option>
+            <option value="type">📦 Jenis Pasokan</option>
+            <option value="status">🟢 Status</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+            style={{ padding: '5px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+          >
+            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -180,11 +281,11 @@ export default function SupplierManagement({ masterData, setMasterData, themeMod
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', background: T.tableHeaderBg, fontWeight: '800' }}>
-                <th style={{ padding: '10px 10px' }}>Kode Supplier (Auto)</th>
-                <th style={{ padding: '10px 10px' }}>Nama Supplier</th>
-                <th style={{ padding: '10px 10px' }}>Outlet Tujuan</th>
-                <th style={{ padding: '10px 10px' }}>Jenis Pasokan</th>
-                <th style={{ padding: '10px 10px' }}>Status</th>
+                {renderSortHeader('code', 'Kode Supplier (Auto)', 'left')}
+                {renderSortHeader('name', 'Nama Supplier', 'left')}
+                {renderSortHeader('outlet', 'Outlet Tujuan', 'left')}
+                {renderSortHeader('type', 'Jenis Pasokan', 'left')}
+                {renderSortHeader('status', 'Status', 'left')}
                 <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>

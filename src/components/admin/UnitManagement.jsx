@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Scale, Plus, Search, Edit3, Trash2, X, CheckCircle2, Box, Droplets, Hash, Package } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Scale, Plus, Search, Edit3, Trash2, X, CheckCircle2, Box, Droplets, Hash, Package, ArrowUpDown } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 
@@ -8,6 +8,10 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
+
+  // Sorting States
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // Pagination States (Default 25 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,16 +48,16 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
     return `UNT-${nextNum.toString().padStart(3, '0')}`;
   };
 
-  const getCategoryBadgeStyle = (cat) => {
-    switch (cat) {
+  const getCategoryBadgeStyle = (catName) => {
+    switch (catName) {
       case 'Berat / Bobot':
-        return { bg: T.infoBg, color: T.info, border: T.infoBorder };
+        return { bg: 'rgba(59, 130, 246, 0.12)', color: T.info, border: 'rgba(59, 130, 246, 0.25)' };
       case 'Volume / Cairan':
-        return { bg: T.successBg, color: T.success, border: T.successBorder };
+        return { bg: 'rgba(16, 185, 129, 0.12)', color: T.success, border: 'rgba(16, 185, 129, 0.25)' };
       case 'Kuantitas / Hitungan':
-        return { bg: T.accentGreenBg, color: T.accentGreen, border: `1px solid ${T.accentGreenBg}` };
+        return { bg: 'rgba(217, 119, 6, 0.12)', color: T.accentGold, border: 'rgba(217, 119, 6, 0.25)' };
       default:
-        return { bg: T.warningBg, color: T.warning, border: T.warningBorder };
+        return { bg: T.tableHeaderBg, color: T.txtSecondary, border: T.border };
     }
   };
 
@@ -70,18 +74,18 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
   // Open Edit Modal
   const handleOpenEditModal = (unit) => {
     setEditingUnit(unit);
-    setName(unit.name);
-    setSymbol(unit.symbol);
+    setName(unit.name || '');
+    setSymbol(unit.symbol || '');
     setCategory(unit.category || 'Berat / Bobot');
     setStatus(unit.status || 'Aktif');
     setShowAddModal(true);
   };
 
   // Submit Form
-  const handleSubmitForm = (e) => {
+  const handleSaveUnit = (e) => {
     e.preventDefault();
     if (!name.trim() || !symbol.trim()) {
-      alert('Mohon isi Nama Satuan dan Simbol');
+      alert('Mohon isi Nama Satuan dan Simbol Unit');
       return;
     }
 
@@ -89,25 +93,27 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
     if (!updated.units) updated.units = [];
 
     if (editingUnit) {
-      const idx = updated.units.findIndex(u => u.id === editingUnit.id);
-      if (idx !== -1) {
-        updated.units[idx] = {
-          ...editingUnit,
-          name: name.trim(),
-          symbol: symbol.trim(),
-          category: category,
-          status: status
-        };
-      }
+      updated.units = updated.units.map(u => {
+        if (u.id === editingUnit.id) {
+          return {
+            ...u,
+            name: name.trim(),
+            symbol: symbol.trim(),
+            category,
+            status
+          };
+        }
+        return u;
+      });
     } else {
-      const autoCode = generateNextUnitCode();
       const newUnit = {
         id: Date.now(),
-        code: autoCode,
+        code: generateNextUnitCode(),
         name: name.trim(),
         symbol: symbol.trim(),
-        category: category,
-        status: status
+        category,
+        status,
+        created_at: new Date().toISOString()
       };
       updated.units.unshift(newUnit);
     }
@@ -127,16 +133,90 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
   };
 
   const unitsList = masterData.units || [];
-  const filtered = unitsList.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.code && u.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filtered = useMemo(() => {
+    return unitsList.filter(u => 
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.code && u.code.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [unitsList, searchTerm]);
+
+  // Sorted Units
+  const sortedUnits = useMemo(() => {
+    const list = [...filtered];
+    list.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      switch (sortField) {
+        case 'code':
+          valA = String(a.code || '');
+          valB = String(b.code || '');
+          break;
+        case 'name':
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+          break;
+        case 'symbol':
+          valA = String(a.symbol || '');
+          valB = String(b.symbol || '');
+          break;
+        case 'category':
+          valA = String(a.category || '');
+          valB = String(b.category || '');
+          break;
+        case 'status':
+          valA = String(a.status || '');
+          valB = String(b.status || '');
+          break;
+        default:
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+      }
+
+      const comp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comp : -comp;
+    });
+    return list;
+  }, [filtered, sortField, sortDirection]);
 
   // Pagination calculation
-  const totalItems = filtered.length;
+  const totalItems = sortedUnits.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedUnits = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedUnits = sortedUnits.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleHeaderSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortHeader = (field, label, align = 'left') => {
+    const isActive = sortField === field;
+    const icon = isActive ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+    return (
+      <th
+        onClick={() => handleHeaderSort(field)}
+        style={{
+          padding: '10px 10px',
+          textAlign: align,
+          cursor: 'pointer',
+          userSelect: 'none',
+          color: isActive ? T.info : T.txtSecondary,
+          fontWeight: isActive ? '900' : '800'
+        }}
+        title={`Klik untuk mengurutkan berdasarkan ${label}`}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.66rem', opacity: isActive ? 1 : 0.4 }}>{icon}</span>
+        </div>
+      </th>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
@@ -157,17 +237,41 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '360px' }}>
-        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-        <input
-          type="text"
-          placeholder="Cari berdasarkan nama, simbol, atau kode unit..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="form-input"
-          style={{ paddingLeft: '34px', fontSize: '0.76rem', height: '34px' }}
-        />
+      {/* Search & Sort Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '360px' }}>
+          <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            placeholder="Cari berdasarkan nama, simbol, atau kode unit..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="form-input"
+            style={{ paddingLeft: '34px', fontSize: '0.76rem', height: '34px' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ArrowUpDown size={14} color={T.accentGold} />
+          <select
+            value={sortField}
+            onChange={e => setSortField(e.target.value)}
+            style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
+          >
+            <option value="code">🔢 Kode Unit</option>
+            <option value="name">🏷️ Nama Satuan</option>
+            <option value="symbol">🔤 Simbol Unit</option>
+            <option value="category">⚖️ Kategori F&B</option>
+            <option value="status">🟢 Status</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+            style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+          >
+            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -176,11 +280,11 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', background: T.tableHeaderBg, fontWeight: '800' }}>
-                <th style={{ padding: '10px 10px' }}>Kode Unit (Auto)</th>
-                <th style={{ padding: '10px 10px' }}>Nama Satuan</th>
-                <th style={{ padding: '10px 10px' }}>Simbol Unit</th>
-                <th style={{ padding: '10px 10px' }}>Kategori Kuliner F&B</th>
-                <th style={{ padding: '10px 10px' }}>Status</th>
+                {renderSortHeader('code', 'Kode Unit (Auto)', 'left')}
+                {renderSortHeader('name', 'Nama Satuan', 'left')}
+                {renderSortHeader('symbol', 'Simbol Unit', 'left')}
+                {renderSortHeader('category', 'Kategori Kuliner F&B', 'left')}
+                {renderSortHeader('status', 'Status', 'left')}
                 <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>

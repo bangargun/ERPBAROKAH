@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CreditCard, Plus, Search, Edit3, Trash2, X, CheckCircle2, Wallet, QrCode, Banknote, Landmark, HelpCircle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { CreditCard, Plus, Search, Edit3, Trash2, X, CheckCircle2, Wallet, QrCode, Banknote, Landmark, HelpCircle, ArrowUpDown } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 
@@ -8,6 +8,10 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+
+  // Sorting States
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // Pagination States (Default 25 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,19 +33,18 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
   const getCodeBadgeStyle = (code) => {
     switch (code) {
       case 'Cash':
-        return { bg: T.successBg, color: T.success, border: T.successBorder };
+        return { bg: T.successBg, color: T.success, icon: Banknote };
       case 'Transfer':
-        return { bg: T.accentGreenBg, color: T.accentGreen, border: T.accentGreenBg };
+        return { bg: T.infoBg, color: T.info, icon: Landmark };
       case 'QRIS':
-        return { bg: T.infoBg, color: T.info, border: T.infoBorder };
+        return { bg: T.accentGoldBg, color: T.accentGold, icon: QrCode };
       case 'E-Wallet':
-        return { bg: T.warningBg, color: T.warning, border: T.warningBorder };
+        return { bg: T.warningBg, color: T.warning, icon: Wallet };
       default:
-        return { bg: T.accentGoldBg, color: T.accentGold, border: T.accentGoldBorder };
+        return { bg: T.tableHeaderBg, color: T.txtSecondary, icon: HelpCircle };
     }
   };
 
-  // Open Add Modal
   const handleOpenAddModal = () => {
     setEditingPayment(null);
     setCodeCategory('Cash');
@@ -50,17 +53,15 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
     setShowAddModal(true);
   };
 
-  // Open Edit Modal
   const handleOpenEditModal = (item) => {
     setEditingPayment(item);
     setCodeCategory(item.code || 'Cash');
-    setName(item.name);
+    setName(item.name || '');
     setStatus(item.status || 'Aktif');
     setShowAddModal(true);
   };
 
-  // Submit Form
-  const handleSubmitForm = (e) => {
+  const handleSavePayment = (e) => {
     e.preventDefault();
     if (!name.trim()) {
       alert('Mohon isi Nama Metode Pembayaran');
@@ -71,21 +72,24 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
     if (!updated.paymentMethods) updated.paymentMethods = [];
 
     if (editingPayment) {
-      const idx = updated.paymentMethods.findIndex(p => p.id === editingPayment.id);
-      if (idx !== -1) {
-        updated.paymentMethods[idx] = {
-          ...editingPayment,
-          code: codeCategory,
-          name: name.trim(),
-          status: status
-        };
-      }
+      updated.paymentMethods = updated.paymentMethods.map(p => {
+        if (p.id === editingPayment.id) {
+          return {
+            ...p,
+            code: codeCategory,
+            name: name.trim(),
+            status
+          };
+        }
+        return p;
+      });
     } else {
       const newPayment = {
         id: Date.now(),
         code: codeCategory,
         name: name.trim(),
-        status: status
+        status,
+        created_at: new Date().toISOString()
       };
       updated.paymentMethods.unshift(newPayment);
     }
@@ -95,44 +99,90 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
     setEditingPayment(null);
   };
 
-  // Delete Payment Method
-  const handleDeletePayment = async (id, payName) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus metode pembayaran "${payName}"?`)) {
-      const nowTs = Date.now();
-      const updated = {
-        ...masterData,
-        _lastUpdated: nowTs,
-        paymentMethods: (masterData.paymentMethods || []).filter(p => String(p.id) !== String(id))
-      };
+  const handleDeletePayment = (id, itemName) => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus metode pembayaran "${itemName}"?`)) {
+      const updated = { ...masterData };
+      updated.paymentMethods = updated.paymentMethods.filter(p => p.id !== id);
       setMasterData(updated);
-
-      const getApiUrl = (pathStr) => {
-        if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
-          return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-        }
-        return `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
-      };
-
-      try {
-        await fetch(getApiUrl('/api/master-data/delete-item'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'paymentMethods', id })
-        });
-      } catch (err) {}
     }
   };
 
   const paymentsList = masterData.paymentMethods || [];
-  const filtered = paymentsList.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filtered = useMemo(() => {
+    return paymentsList.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [paymentsList, searchTerm]);
+
+  // Sorted Payments
+  const sortedPayments = useMemo(() => {
+    const list = [...filtered];
+    list.sort((a, b) => {
+      let valA = '';
+      let valB = '';
+
+      switch (sortField) {
+        case 'code':
+          valA = String(a.code || '');
+          valB = String(b.code || '');
+          break;
+        case 'name':
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+          break;
+        case 'status':
+          valA = String(a.status || '');
+          valB = String(b.status || '');
+          break;
+        default:
+          valA = String(a.name || '');
+          valB = String(b.name || '');
+      }
+
+      const comp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      return sortDirection === 'asc' ? comp : -comp;
+    });
+    return list;
+  }, [filtered, sortField, sortDirection]);
 
   // Pagination calculation
-  const totalItems = filtered.length;
+  const totalItems = sortedPayments.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedPayments = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedPayments = sortedPayments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleHeaderSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortHeader = (field, label, align = 'left') => {
+    const isActive = sortField === field;
+    const icon = isActive ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+    return (
+      <th
+        onClick={() => handleHeaderSort(field)}
+        style={{
+          padding: '10px 10px',
+          textAlign: align,
+          cursor: 'pointer',
+          userSelect: 'none',
+          color: isActive ? T.info : T.txtSecondary,
+          fontWeight: isActive ? '900' : '800'
+        }}
+        title={`Klik untuk mengurutkan berdasarkan ${label}`}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.66rem', opacity: isActive ? 1 : 0.4 }}>{icon}</span>
+        </div>
+      </th>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
@@ -153,17 +203,39 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
         </button>
       </div>
 
-      {/* Search Bar */}
-      <div style={{ position: 'relative', maxWidth: '360px' }}>
-        <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-        <input
-          type="text"
-          placeholder="Cari berdasarkan nama atau kode metode pembayaran..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="form-input"
-          style={{ paddingLeft: '34px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border, fontSize: '0.76rem', height: '34px' }}
-        />
+      {/* Search & Quick Sort Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '360px' }}>
+          <Search size={15} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            placeholder="Cari berdasarkan nama atau kode metode pembayaran..."
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            className="form-input"
+            style={{ paddingLeft: '34px', background: T.inputBg, color: T.txtPrimary, borderColor: T.border, fontSize: '0.76rem', height: '34px' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ArrowUpDown size={14} color={T.accentGold} />
+          <select
+            value={sortField}
+            onChange={e => setSortField(e.target.value)}
+            style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
+          >
+            <option value="code">💳 Jenis Pembayaran</option>
+            <option value="name">🏷️ Nama Metode</option>
+            <option value="status">🟢 Status</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+            style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+          >
+            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+          </button>
+        </div>
       </div>
 
       {/* Table Section */}
@@ -172,9 +244,9 @@ export default function PaymentMethodManagement({ masterData, setMasterData, the
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
               <tr style={{ background: T.tableHeaderBg, borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '800' }}>
-                <th style={{ padding: '10px 10px' }}>Kode (Jenis Pembayaran)</th>
-                <th style={{ padding: '10px 10px' }}>Nama Metode Pembayaran</th>
-                <th style={{ padding: '10px 10px' }}>Status</th>
+                {renderSortHeader('code', 'Kode (Jenis Pembayaran)', 'left')}
+                {renderSortHeader('name', 'Nama Metode Pembayaran', 'left')}
+                {renderSortHeader('status', 'Status', 'left')}
                 <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
               </tr>
             </thead>
