@@ -590,6 +590,7 @@ export default function ManualReportUpdatePage({
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>TANGGAL</th>
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>NO. LAPORAN</th>
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>OUTLET / CABANG</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left' }}>NAMA ITEM</th>
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>QTY</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>HARGA SATUAN</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>TOTAL PENJUALAN</th>
@@ -600,7 +601,7 @@ export default function ManualReportUpdatePage({
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted }}>
+                  <td colSpan={9} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted }}>
                     📭 Belum ada laporan update atau data tidak ditemukan.
                   </td>
                 </tr>
@@ -624,6 +625,25 @@ export default function ManualReportUpdatePage({
                   const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
                   const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
                   const allDetails = [...salesDetails, ...expenseDetails];
+
+                  // Hitung Nama Item Display
+                  const getItemNameDisplay = () => {
+                    if (allDetails.length > 0) {
+                      const first = allDetails[0];
+                      const firstName = first.product_name || first.productName || first.name || first.categoryName || first.category || 'Item';
+                      if (allDetails.length === 1) {
+                        return firstName;
+                      }
+                      return `${firstName} (+${allDetails.length - 1} item)`;
+                    }
+                    if (row.product_name || row.productName) return row.product_name || row.productName;
+                    if (row.categoryName || row.category_name || row.category) return row.categoryName || row.category_name || row.category;
+                    if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') return row.notes;
+                    if (salesVal > 0) return 'Penjualan Produk';
+                    if (expenseVal > 0) return 'Pengeluaran Operational';
+                    return 'Laporan Shift Kasir';
+                  };
+                  const itemNameDisplay = getItemNameDisplay();
 
                   // Hitung Total QTY
                   let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
@@ -669,6 +689,13 @@ export default function ManualReportUpdatePage({
                       <td style={{ padding: '10px 14px', color: T.txtPrimary }}>
                         <span style={{ padding: '3px 8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700' }}>
                           {row.outlet_name || getOutletName(row.outlet_id)}
+                        </span>
+                      </td>
+
+                      {/* Nama Item */}
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700', fontSize: '0.78rem' }}>
+                        <span style={{ display: 'inline-block', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={itemNameDisplay}>
+                          {itemNameDisplay}
                         </span>
                       </td>
 
