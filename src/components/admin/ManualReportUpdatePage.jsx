@@ -22,7 +22,8 @@ import {
   User,
   Info,
   PackageCheck,
-  Check
+  Check,
+  ArrowUpDown
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
@@ -42,6 +43,10 @@ export default function ManualReportUpdatePage({
   const [selectedOutletFilter, setSelectedOutletFilter] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Sorting States
+  const [sortField, setSortField] = useState('date'); // 'date' | 'report_no' | 'outlet' | 'item_name' | 'qty' | 'unit_price' | 'sales' | 'expense'
+  const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -112,12 +117,14 @@ export default function ManualReportUpdatePage({
     return formattedDate;
   };
 
-  // Combine All Manual & Approved Reports & Synthesise Standalone Transactions (Filtering Deleted Reports)
+  // Extract All Unique Reports Combining Manual Entries, POS Shifts, & Daily Approvals
   const allReportsList = useMemo(() => {
     const deletedReportIdsSet = new Set([
-      ...(masterData?.deletedReportIds || []).map(x => String(x)),
-      ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
-    ]);
+      ...(masterData?.deletedReportIds || []),
+      ...(masterData?.deleted_report_nos || []),
+      ...(masterData?.deletedFinancialIds || []),
+      ...(masterData?.deleted_outflow_ids || [])
+    ].map(id => String(id)));
 
     const isDeletedReport = (r) => {
       if (!r) return true;
@@ -244,11 +251,7 @@ export default function ManualReportUpdatePage({
       }
     });
 
-    return Array.from(map.values()).sort((a, b) => {
-      const dateA = String(a.entry_date || a.date || a.transaction_date || a.created_at || '0').substring(0, 10);
-      const dateB = String(b.entry_date || b.date || b.transaction_date || b.created_at || '0').substring(0, 10);
-      return dateB.localeCompare(dateA);
-    });
+    return Array.from(map.values());
   }, [masterData]);
 
   // Filtered Reports
@@ -293,7 +296,13 @@ export default function ManualReportUpdatePage({
         const noLap = String(r.report_no || '').toLowerCase();
         const otlName = String(r.outlet_name || getOutletName(r.outlet_id)).toLowerCase();
         const author = String(r.author || r.created_by || '').toLowerCase();
-        if (!noLap.includes(term) && !otlName.includes(term) && !author.includes(term) && !rDate.includes(term)) {
+
+        const salesDetails = r.sales_details || r.sales_rows || r.items || r.cogs_items || [];
+        const expenseDetails = r.expense_details || r.expense_rows || r.expenses_breakdown || [];
+        const allDetails = [...salesDetails, ...expenseDetails];
+        const itemNamesStr = allDetails.map(d => (d.product_name || d.productName || d.name || d.categoryName || d.category || '')).join(' ').toLowerCase();
+
+        if (!noLap.includes(term) && !otlName.includes(term) && !author.includes(term) && !rDate.includes(term) && !itemNamesStr.includes(term)) {
           return false;
         }
       }
@@ -301,6 +310,109 @@ export default function ManualReportUpdatePage({
       return true;
     });
   }, [allReportsList, selectedBranch, selectedOutletFilter, startDate, endDate, searchTerm, masterData?.outlets]);
+
+  // Dynamic Column & Data Sorting Logic
+  const sortedReports = useMemo(() => {
+    const list = [...filteredReports];
+    list.sort((a, b) => {
+      const getRowMeta = (row) => {
+        const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
+        const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
+        const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
+        const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
+        const allDetails = [...salesDetails, ...expenseDetails];
+
+        let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
+        if (!totalQty && allDetails.length > 0) {
+          totalQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+        }
+
+        const getItemUnitPrice = (d) => {
+          const p = Number(d.price || d.unit_price || d.unitPrice || d.harga_satuan || d.hargaSatuan || d.price_per_unit || 0);
+          if (p > 0) return p;
+          const q = Number(d.qty || d.quantity || 1);
+          const sub = Number(d.subtotal || d.amount || d.total || 0);
+          if (sub > 0 && q > 0) return sub / q;
+          return 0;
+        };
+
+        let unitPriceVal = 0;
+        if (allDetails.length > 0) {
+          const totalPriceSum = allDetails.reduce((s, d) => s + (getItemUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
+          const calcQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+          unitPriceVal = calcQty > 0 ? totalPriceSum / calcQty : 0;
+        }
+        if (!unitPriceVal && totalQty > 0) {
+          if (salesVal > 0) unitPriceVal = salesVal / totalQty;
+          else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
+        }
+
+        let itemNameDisplay = 'Laporan Shift Kasir';
+        if (allDetails.length > 0) {
+          const first = allDetails[0];
+          const firstName = first.product_name || first.productName || first.name || first.categoryName || first.category || 'Item';
+          itemNameDisplay = allDetails.length === 1 ? firstName : `${firstName} (+${allDetails.length - 1} item)`;
+        } else if (row.product_name || row.productName) {
+          itemNameDisplay = row.product_name || row.productName;
+        } else if (row.categoryName || row.category_name || row.category) {
+          itemNameDisplay = row.categoryName || row.category_name || row.category;
+        } else if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') {
+          itemNameDisplay = row.notes;
+        } else if (salesVal > 0) {
+          itemNameDisplay = 'Penjualan Produk';
+        } else if (expenseVal > 0) {
+          itemNameDisplay = 'Pengeluaran Operational';
+        }
+
+        return {
+          date: String(row.entry_date || row.date || row.transaction_date || row.created_at || ''),
+          reportNo: String(row.report_no || `UPD-${row.id}`),
+          outletName: String(row.outlet_name || getOutletName(row.outlet_id)),
+          itemName: itemNameDisplay,
+          totalQty,
+          unitPriceVal,
+          salesVal,
+          expenseVal
+        };
+      };
+
+      const metaA = getRowMeta(a);
+      const metaB = getRowMeta(b);
+
+      let comp = 0;
+      switch (sortField) {
+        case 'date':
+          comp = metaA.date.localeCompare(metaB.date);
+          break;
+        case 'report_no':
+          comp = metaA.reportNo.localeCompare(metaB.reportNo);
+          break;
+        case 'outlet':
+          comp = metaA.outletName.localeCompare(metaB.outletName);
+          break;
+        case 'item_name':
+          comp = metaA.itemName.localeCompare(metaB.itemName);
+          break;
+        case 'qty':
+          comp = metaA.totalQty - metaB.totalQty;
+          break;
+        case 'unit_price':
+          comp = metaA.unitPriceVal - metaB.unitPriceVal;
+          break;
+        case 'sales':
+          comp = metaA.salesVal - metaB.salesVal;
+          break;
+        case 'expense':
+          comp = metaA.expenseVal - metaB.expenseVal;
+          break;
+        default:
+          comp = metaA.date.localeCompare(metaB.date);
+      }
+
+      return sortDirection === 'asc' ? comp : -comp;
+    });
+    return list;
+  }, [filteredReports, sortField, sortDirection, masterData]);
 
   // Aggregates for Filtered Data
   const totalReportsCount = filteredReports.length;
@@ -311,8 +423,44 @@ export default function ManualReportUpdatePage({
   // Pagination Slice
   const paginatedReports = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredReports.slice(start, start + pageSize);
-  }, [filteredReports, currentPage, pageSize]);
+    return sortedReports.slice(start, start + pageSize);
+  }, [sortedReports, currentPage, pageSize]);
+
+  // Sort Header Handler
+  const handleHeaderSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'date' ? 'desc' : 'asc');
+    }
+  };
+
+  // Helper Render Column Header with Sort Indicator
+  const renderSortHeader = (field, label, align = 'left') => {
+    const isActive = sortField === field;
+    const icon = isActive ? (sortDirection === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+    return (
+      <th
+        onClick={() => handleHeaderSort(field)}
+        style={{
+          padding: '12px 14px',
+          textAlign: align,
+          cursor: 'pointer',
+          userSelect: 'none',
+          color: isActive ? T.info : T.txtSecondary,
+          fontWeight: isActive ? '800' : '700',
+          transition: 'color 0.15s ease'
+        }}
+        title={`Klik untuk mengurutkan berdasarkan ${label}`}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
+          <span>{label}</span>
+          <span style={{ fontSize: '0.68rem', opacity: isActive ? 1 : 0.4 }}>{icon}</span>
+        </div>
+      </th>
+    );
+  };
 
   // --- DELETE & REVERT STOCK HANDLER ---
   const handleConfirmDeleteReport = () => {
@@ -548,6 +696,47 @@ export default function ManualReportUpdatePage({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Quick Sort Dropdown Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ArrowUpDown size={15} color={T.accentGold} />
+            <select
+              value={sortField}
+              onChange={e => { setSortField(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700' }}
+              title="Pilih kolom yang ingin diurutkan"
+            >
+              <option value="date">📅 Urut Tanggal Transaksi</option>
+              <option value="report_no">🔢 Urut No. Laporan</option>
+              <option value="outlet">🏪 Urut Outlet / Cabang</option>
+              <option value="item_name">🏷️ Urut Nama Item</option>
+              <option value="qty">🔢 Urut QTY (Jumlah)</option>
+              <option value="unit_price">💵 Urut Harga Satuan</option>
+              <option value="sales">📈 Urut Total Penjualan</option>
+              <option value="expense">📉 Urut Total Pengeluaran</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              style={{
+                padding: '7px 10px',
+                background: T.controlBg,
+                border: `1px solid ${T.border}`,
+                borderRadius: '8px',
+                color: T.txtPrimary,
+                fontSize: '0.78rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              title="Klik untuk memilih arah urutan (Ascending / Descending)"
+            >
+              {sortDirection === 'asc' ? '🔼 Naik (A-Z / 0-9)' : '🔽 Turun (Z-A / 9-0)'}
+            </button>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Building2 size={15} color={T.info} />
             <select
@@ -587,14 +776,14 @@ export default function ManualReportUpdatePage({
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
             <thead>
               <tr style={{ background: T.headerBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textTransform: 'uppercase', fontSize: '0.70rem', letterSpacing: '0.04em' }}>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>TANGGAL</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>NO. LAPORAN</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>OUTLET / CABANG</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left' }}>NAMA ITEM</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center' }}>QTY</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>HARGA SATUAN</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>TOTAL PENJUALAN</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>TOTAL PENGELUARAN</th>
+                {renderSortHeader('date', 'TANGGAL', 'left')}
+                {renderSortHeader('report_no', 'NO. LAPORAN', 'left')}
+                {renderSortHeader('outlet', 'OUTLET / CABANG', 'left')}
+                {renderSortHeader('item_name', 'NAMA ITEM', 'left')}
+                {renderSortHeader('qty', 'QTY', 'center')}
+                {renderSortHeader('unit_price', 'HARGA SATUAN', 'right')}
+                {renderSortHeader('sales', 'TOTAL PENJUALAN', 'right')}
+                {renderSortHeader('expense', 'TOTAL PENGELUARAN', 'right')}
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>AKSI</th>
               </tr>
             </thead>
