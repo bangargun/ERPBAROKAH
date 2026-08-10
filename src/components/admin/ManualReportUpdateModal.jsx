@@ -62,15 +62,20 @@ export default function ManualReportUpdateModal({
   // Manual Form - Sales Items State
   const [salesItems, setSalesItems] = useState(() => {
     if (editData && (editData.sales_details || []).length > 0) {
-      return editData.sales_details.map((s, i) => ({
-        id: i + 1,
-        productId: s.product_id || '',
-        productName: s.product_name || s.name || '',
-        qty: s.qty || 1,
-        price: s.price || 0,
-        subtotal: s.subtotal || s.amount || 0,
-        paymentMethod: 'Kas Kasir (Tunai)'
-      }));
+      return editData.sales_details.map((s, i) => {
+        const q = Number(s.qty || 1);
+        const sub = Number(s.subtotal || s.amount || 0);
+        const p = Number(s.price || s.unit_price || s.harga_satuan || (sub > 0 && q > 0 ? sub / q : 0));
+        return {
+          id: i + 1,
+          productId: s.product_id || '',
+          productName: s.product_name || s.name || '',
+          qty: q,
+          price: p,
+          subtotal: sub || (q * p),
+          paymentMethod: 'Kas Kasir (Tunai)'
+        };
+      });
     }
     return [{
       id: 1,
@@ -469,10 +474,18 @@ export default function ManualReportUpdateModal({
             row['Nama Item'] || row['Item'] || row['Nama Produk / Kode Biaya'] || row['Nama Produk'] || row['Kode Biaya'] || ''
           ).trim();
 
-          const qtyVal = parseFloat(row['Qty'] || row['qty'] || row['Jumlah Qty'] || 1);
-          const unitPriceVal = parseFloat(row['Harga Satuan'] || row['Harga'] || row['Harga Satuan / Jumlah Rp'] || 0);
-          const rawTotalVal = parseFloat(row['Total Harga'] || row['Total'] || row['Subtotal'] || 0);
-          const totalVal = rawTotalVal > 0 ? rawTotalVal : (qtyVal * unitPriceVal);
+          const qtyVal = parseFloat(row['Qty'] || row['qty'] || row['QTY'] || row['Jumlah Qty'] || row['Jumlah'] || 1) || 1;
+          const unitPriceVal = parseFloat(row['Harga Satuan'] || row['harga_satuan'] || row['Harga'] || row['HARGA SATUAN'] || row['Harga Satuan / Jumlah Rp'] || row['Harga Satuan (Rp)'] || row['Harga/Unit'] || row['Unit Price'] || row['price'] || 0) || 0;
+          const rawTotalVal = parseFloat(row['Total Harga'] || row['total_harga'] || row['Total'] || row['Subtotal'] || row['SUBTOTAL'] || row['Total Rp'] || row['Total Penjualan'] || 0) || 0;
+
+          let calculatedPrice = unitPriceVal;
+          let calculatedTotal = rawTotalVal;
+
+          if (calculatedTotal > 0 && calculatedPrice === 0 && qtyVal > 0) {
+            calculatedPrice = calculatedTotal / qtyVal;
+          } else if (calculatedPrice > 0 && calculatedTotal === 0) {
+            calculatedTotal = qtyVal * calculatedPrice;
+          }
 
           const paymentVal = String(row['Metode Pembayaran'] || row['Metode'] || 'Kas Kasir (Tunai)').trim();
           const notesVal = String(row['Catatan'] || row['Keterangan'] || '').trim();
@@ -525,9 +538,10 @@ export default function ManualReportUpdateModal({
             outletName: matchedOutletName,
             nameOrCode,
             qty: qtyVal,
-            amount: unitPriceVal > 0 ? unitPriceVal : (qtyVal > 0 ? totalVal / qtyVal : totalVal),
-            price: unitPriceVal > 0 ? unitPriceVal : (qtyVal > 0 ? totalVal / qtyVal : totalVal),
-            totalSubtotal: totalVal,
+            amount: calculatedPrice,
+            price: calculatedPrice,
+            unit_price: calculatedPrice,
+            totalSubtotal: calculatedTotal,
             paymentMethod: paymentVal,
             notes: notesVal,
             isValid,

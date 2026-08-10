@@ -213,13 +213,20 @@ export default function ManualReportUpdatePage({
         grp.total_omset += Number(s.amount || s.total || s.subtotal || 0);
         if (s.items && Array.isArray(s.items)) {
           s.items.forEach(it => {
+            const itQty = Number(it.qty || it.quantity || 1);
+            const itSubtotal = Number(it.subtotal || it.amount || it.total || 0);
+            let itPrice = Number(it.price || it.unit_price || it.unitPrice || it.harga_satuan || it.hargaSatuan || it.price_per_unit || 0);
+            if (!itPrice && itQty > 0 && itSubtotal > 0) {
+              itPrice = itSubtotal / itQty;
+            }
             grp.sales_details.push({
               product_name: it.name || it.product_name || 'Produk',
               name: it.name || it.product_name || 'Produk',
-              qty: it.qty || 1,
-              price: it.price || 0,
-              subtotal: it.subtotal || 0,
-              amount: it.subtotal || 0
+              qty: itQty,
+              price: itPrice,
+              unit_price: itPrice,
+              subtotal: itSubtotal || (itQty * itPrice),
+              amount: itSubtotal || (itQty * itPrice)
             });
           });
         }
@@ -603,12 +610,29 @@ export default function ManualReportUpdatePage({
                   const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
                   const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at, row);
 
+                  // Helper extract harga satuan per item dengan aman
+                  const getItemUnitPrice = (d) => {
+                    const q = Number(d.qty || d.quantity || 1);
+                    const sub = Number(d.subtotal || d.amount || d.total || 0);
+                    const p = Number(d.price || d.unit_price || d.unitPrice || d.harga_satuan || d.hargaSatuan || d.price_per_unit || 0);
+                    if (p > 0) return p;
+                    if (sub > 0 && q > 0) return sub / q;
+                    return 0;
+                  };
+
                   // Hitung total qty dan harga satuan rata-rata dari sales_details
-                  const salesDetails = row.sales_details || row.cogs_items || [];
-                  const totalQty = salesDetails.reduce((s, d) => s + Number(d.qty || 0), 0);
-                  const avgUnitPrice = salesDetails.length > 0
-                    ? salesDetails.reduce((s, d) => s + Number(d.price || d.amount || 0), 0) / salesDetails.length
-                    : (salesVal > 0 ? salesVal : 0);
+                  const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
+                  const totalQty = salesDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 0), 0);
+                  
+                  let avgUnitPrice = 0;
+                  if (salesDetails.length > 0) {
+                    const totalPriceSum = salesDetails.reduce((s, d) => s + (getItemUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
+                    const calcQty = salesDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+                    avgUnitPrice = calcQty > 0 ? totalPriceSum / calcQty : 0;
+                  }
+                  if (!avgUnitPrice && salesVal > 0 && totalQty > 0) {
+                    avgUnitPrice = salesVal / totalQty;
+                  }
 
                   return (
                     <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
@@ -644,11 +668,13 @@ export default function ManualReportUpdatePage({
 
                       {/* Harga Satuan */}
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary, fontSize: '0.75rem' }}>
-                        {salesDetails.length === 1
-                          ? `Rp ${avgUnitPrice.toLocaleString('id-ID')}`
-                          : salesDetails.length > 1
-                            ? <span title="Rata-rata harga satuan">±Rp {Math.round(avgUnitPrice).toLocaleString('id-ID')}</span>
-                            : '-'}
+                        {avgUnitPrice > 0
+                          ? (salesDetails.length > 1
+                              ? <span title="Rata-rata harga satuan per item">±Rp {Math.round(avgUnitPrice).toLocaleString('id-ID')}</span>
+                              : `Rp ${Math.round(avgUnitPrice).toLocaleString('id-ID')}`)
+                          : (totalQty > 0 && salesVal > 0
+                              ? `Rp ${Math.round(salesVal / totalQty).toLocaleString('id-ID')}`
+                              : '-')}
                       </td>
 
                       {/* Total Penjualan */}
@@ -781,7 +807,9 @@ export default function ManualReportUpdatePage({
                       <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
                         <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>{s.productName || s.name || s.product_name}</td>
                         <td style={{ padding: '6px 10px', textAlign: 'center' }}>{s.qty}</td>
-                        <td style={{ padding: '6px 10px', textAlign: 'right' }}>Rp {(s.price || 0).toLocaleString('id-ID')}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right' }}>
+                          Rp {(Number(s.price || s.unit_price || s.unitPrice || s.harga_satuan || s.hargaSatuan || (s.subtotal && s.qty ? s.subtotal / s.qty : 0))).toLocaleString('id-ID')}
+                        </td>
                         <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.success }}>Rp {(s.subtotal || s.amount || 0).toLocaleString('id-ID')}</td>
                       </tr>
                     ))}
