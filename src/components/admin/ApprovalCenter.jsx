@@ -205,20 +205,26 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     if (r && (r.id != null || r.report_no)) {
       const key = String(r.report_no || r.id);
       
-      // Tentukan Pengaju
-      const isFromAdmin = r.submitter_type === 'Admin' || r.created_by === 'Admin' || String(r.report_no || '').startsWith('LAP-ADM');
+      // Tentukan Pengaju (Admin / Update Laporan vs POS Kasir)
+      const isFromAdmin = r.submitter_type === 'Admin' || 
+                          r.created_by === 'Admin' || 
+                          r.created_by === 'Super Admin' ||
+                          r.author === 'Super Admin' ||
+                          (r.source && (r.source.includes('Update Laporan') || r.source.includes('Excel') || r.source.includes('Manual'))) ||
+                          String(r.report_no || '').startsWith('LAP-ADM') ||
+                          String(r.report_no || '').startsWith('UPD-');
       const submitterText = isFromAdmin ? 'Admin' : 'POS Kasir';
 
-      // Tentukan Status Sesuai Aturan User Request:
+      // Tentukan Status Sesuai Aturan:
+      // - Dari Admin / Update Laporan: Langsung Done / Disetujui
       // - Dari POS Kasir: ACC saat baru terima -> diklik berubah Approved -> jika sudah dibaca berubah Done
-      // - Dari Admin: Langsung Done
       let currentStatus = r.status || r.approval_status;
       if (isFromAdmin) {
         currentStatus = 'Done';
       } else {
         if (!currentStatus || currentStatus === 'pending' || currentStatus === 'acc_pending_send' || currentStatus === 'ACC') {
           currentStatus = 'ACC';
-        } else if (currentStatus === 'approved' || currentStatus === 'Approved' || currentStatus === 'disetujui') {
+        } else if (currentStatus === 'approved' || currentStatus === 'Approved' || currentStatus === 'disetujui' || currentStatus === 'Disetujui') {
           currentStatus = 'Approved';
         } else if (currentStatus === 'done' || currentStatus === 'Done' || currentStatus === 'read') {
           currentStatus = 'Done';
