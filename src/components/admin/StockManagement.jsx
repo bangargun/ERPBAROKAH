@@ -208,61 +208,130 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
     const baseList = [...(masterData.stockMovement || [])];
     const existingIds = new Set(baseList.map(m => m.id));
 
-    // Auto-stream HPP/Bahan Mentah entries from Laporan Keuangan (approvedFinanceDaily) into Stok Masuk ONLY AFTER ACC / APPROVED
-    if (masterData.approvedFinanceDaily && masterData.approvedFinanceDaily.length > 0) {
-      masterData.approvedFinanceDaily.forEach(f => {
-        const isApproved = f.status === 'ok' || f.status === 'approved' || f.status === 'Approved';
-        if (!isApproved) return; // Wait until ACC / Approved by Admin/Owner!
+    // Auto-stream HPP/Bahan Mentah entries from Laporan Keuangan into Stok Masuk ONLY AFTER ACC / APPROVED / DONE
+    const allFinanceReports = [
+      ...(masterData.approvedFinanceDaily || []),
+      ...(masterData.shiftClosings || []),
+      ...(masterData.shift_closings || []),
+      ...(masterData.closedShifts || []),
+      ...(masterData.dailyReports || [])
+    ];
 
-        // 1. From cogs_items array
-        if (f.cogs_items && f.cogs_items.length > 0) {
-          f.cogs_items.forEach((c, idx) => {
-            const autoId = `mov-fin-${f.id}-${idx}`;
+    const seenReportKeys = new Set();
+
+    allFinanceReports.forEach(f => {
+      if (!f) return;
+      const rKey = String(f.id || f.report_no || `${f.date || f.entry_date}_${f.outlet_id || f.branch_id}`);
+      if (seenReportKeys.has(rKey)) return;
+      seenReportKeys.add(rKey);
+
+      const st = String(f.status || f.approval_status || '').toLowerCase();
+      const isApproved = st === 'ok' || st === 'approved' || st === 'done';
+      if (!isApproved) return; // Wait until ACC / Approved / Done by Admin!
+
+      const cogsItems = f.cogs_items || f.cogs_breakdown || f.pembelian_barang || f.items || [];
+      const expenseBreakdown = f.expenses_breakdown || f.expense_rows || f.expense_items || [];
+
+      // 1. From cogs_items array
+      if (cogsItems && cogsItems.length > 0) {
+        cogsItems.forEach((c, idx) => {
+          const autoId = `mov-fin-${f.id || f.report_no}-${idx}`;
+          if (!existingIds.has(autoId)) {
+            baseList.push({
+              id: autoId,
+              type: 'IN',
+              date: f.date || f.entry_date || new Date().toISOString().substring(0, 10),
+              outlet_id: Number(f.outlet_id || f.branch_id || 1),
+              created_by: f.author_name || f.cashier || f.cashier_name || 'Kasir (by Laporan Keuangan)',
+              item_name: c.name || c.item_name || 'Bahan Dapur Mentah',
+              supplier: c.supplier || 'Supplier Dapur HPP',
+              qty: Number(c.qty || 1),
+              unit: c.unit || 'kg',
+              price_unit: Number(c.price_unit || c.price || 0),
+              total_price: Number(c.amount || c.total_price || (c.qty * c.price_unit) || 0),
+              type_input: 'by laporan keuangan (ACC)',
+              report_no: f.report_no || f.id,
+              status: f.status || 'Done'
+            });
+          }
+        });
+      } 
+      // 2. From expenses_breakdown HPP items
+      else if (expenseBreakdown && expenseBreakdown.length > 0) {
+        let foundHpp = false;
+        expenseBreakdown.forEach((ex, idx) => {
+          const cat = String(ex.cost_group || ex.category || ex.category_type || '').toLowerCase();
+          if (cat.includes('cogs') || cat.includes('hpp') || cat.includes('bahan')) {
+            foundHpp = true;
+            const autoId = `mov-fin-ex-${f.id || f.report_no}-${idx}`;
             if (!existingIds.has(autoId)) {
+              const itemName = ex.category?.replace('[HPP Dapur] ', '') || ex.name || 'Bahan Mentah Dapur';
               baseList.push({
                 id: autoId,
                 type: 'IN',
-                date: f.date || '2026-07-24',
-                outlet_id: Number(f.outlet_id || 1),
-                created_by: f.author_name || f.cashier || 'Kasir (by Laporan Keuangan)',
-                item_name: c.name || c.item_name || 'Bahan Dapur Mentah',
-                supplier: c.supplier || 'Supplier Dapur HPP',
-                qty: Number(c.qty || 1),
-                unit: c.unit || 'kg',
-                price_unit: Number(c.price_unit || 0),
-                total_price: Number(c.amount || (c.qty * c.price_unit) || 0),
-                type_input: 'by laporan keuangan (ACC)'
+                date: f.date || f.entry_date || new Date().toISOString().substring(0, 10),
+                outlet_id: Number(f.outlet_id || f.branch_id || 1),
+                created_by: f.author_name || f.cashier || f.cashier_name || 'Kasir (by Laporan Keuangan)',
+                item_name: itemName,
+                supplier: 'Supplier Dapur HPP',
+                qty: 1,
+                unit: 'kg',
+                price_unit: Number(ex.amount || ex.subtotal || 0),
+                total_price: Number(ex.amount || ex.subtotal || 0),
+                type_input: 'by laporan keuangan (ACC)',
+                report_no: f.report_no || f.id,
+                status: f.status || 'Done'
               });
             }
-          });
-        } 
-        // 2. From expenses_breakdown HPP items
-        else if (f.expenses_breakdown && f.expenses_breakdown.length > 0) {
-          f.expenses_breakdown.forEach((ex, idx) => {
-            if ((ex.cost_group || '').toLowerCase().includes('cogs') || (ex.category || '').toLowerCase().includes('hpp')) {
-              const autoId = `mov-fin-ex-${f.id}-${idx}`;
-              if (!existingIds.has(autoId)) {
-                const itemName = ex.category?.replace('[HPP Dapur] ', '') || 'Bahan Mentah Dapur';
-                baseList.push({
-                  id: autoId,
-                  type: 'IN',
-                  date: f.date || '2026-07-24',
-                  outlet_id: Number(f.outlet_id || 1),
-                  created_by: f.author_name || f.cashier || 'Kasir (by Laporan Keuangan)',
-                  item_name: itemName,
-                  supplier: 'Supplier Dapur HPP',
-                  qty: 1,
-                  unit: 'kg',
-                  price_unit: Number(ex.amount || 0),
-                  total_price: Number(ex.amount || 0),
-                  type_input: 'by laporan keuangan (ACC)'
-                });
-              }
-            }
+          }
+        });
+
+        // Fallback if no specific HPP line item matched but cogs_expense > 0
+        if (!foundHpp && Number(f.cogs_expense || 0) > 0) {
+          const autoId = `mov-fin-cogs-${f.id || f.report_no}`;
+          if (!existingIds.has(autoId)) {
+            baseList.push({
+              id: autoId,
+              type: 'IN',
+              date: f.date || f.entry_date || new Date().toISOString().substring(0, 10),
+              outlet_id: Number(f.outlet_id || f.branch_id || 1),
+              created_by: f.author_name || f.cashier || f.cashier_name || 'Kasir (by Laporan Keuangan)',
+              item_name: 'Bahan Mentah / HPP Dapur',
+              supplier: 'Supplier Dapur HPP',
+              qty: 1,
+              unit: 'paket',
+              price_unit: Number(f.cogs_expense || 0),
+              total_price: Number(f.cogs_expense || 0),
+              type_input: 'by laporan keuangan (ACC)',
+              report_no: f.report_no || f.id,
+              status: f.status || 'Done'
+            });
+          }
+        }
+      }
+      // 3. Fallback: Direct cogs_expense > 0
+      else if (Number(f.cogs_expense || 0) > 0) {
+        const autoId = `mov-fin-cogs-${f.id || f.report_no}`;
+        if (!existingIds.has(autoId)) {
+          baseList.push({
+            id: autoId,
+            type: 'IN',
+            date: f.date || f.entry_date || new Date().toISOString().substring(0, 10),
+            outlet_id: Number(f.outlet_id || f.branch_id || 1),
+            created_by: f.author_name || f.cashier || f.cashier_name || 'Kasir (by Laporan Keuangan)',
+            item_name: 'Bahan Mentah / HPP Dapur',
+            supplier: 'Supplier Dapur HPP',
+            qty: 1,
+            unit: 'paket',
+            price_unit: Number(f.cogs_expense || 0),
+            total_price: Number(f.cogs_expense || 0),
+            type_input: 'by laporan keuangan (ACC)',
+            report_no: f.report_no || f.id,
+            status: f.status || 'Done'
           });
         }
-      });
-    }
+      }
+    });
 
     return baseList.filter(m => !isDeletedRecord(m));
   };
