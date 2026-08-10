@@ -79,20 +79,6 @@ function useDebounce(value, delay = 300) {
   return debouncedValue;
 }
 
-// ─────────────────────────────────────────────────────────────
-// RESPONSIVE: useWindowWidth — deteksi lebar layar real-time
-// Layout otomatis menyesuaikan: phone / tab-7 / tab-10 / tab-xl
-// ─────────────────────────────────────────────────────────────
-function useWindowWidth() {
-  const [w, setW] = React.useState(() => window.innerWidth);
-  React.useEffect(() => {
-    const fn = () => setW(window.innerWidth);
-    window.addEventListener('resize', fn);
-    return () => window.removeEventListener('resize', fn);
-  }, []);
-  return w;
-}
-
 
 export default function AndroidPosRegister({
   userSession,
@@ -967,9 +953,7 @@ export default function AndroidPosRegister({
               const sArr = Array.isArray(serverArr) ? serverArr : [];
               const lArr = Array.isArray(localArr) ? localArr : [];
 
-              if (sArr.length === 0 && LOGISTICS_ARRAY_KEYS.has(keyName)) {
-                return [];
-              }
+              if (sArr.length === 0 && lArr.length === 0) return [];
               if (sArr.length === 0) return lArr;
               if (lArr.length === 0) return sArr;
 
@@ -985,10 +969,7 @@ export default function AndroidPosRegister({
                 if (k) {
                   const existing = map.get(k);
                   if (!existing) {
-                    // Untuk array logistik & laporan, jika item tidak ada di server (karena terhapus), jangan tambahkan kembali dari lokal
-                    if (!LOGISTICS_ARRAY_KEYS.has(keyName)) {
-                      map.set(k, item);
-                    }
+                    map.set(k, item);
                   } else {
                     map.set(k, { ...item, ...existing });
                   }
@@ -2169,6 +2150,38 @@ export default function AndroidPosRegister({
     return totalOut;
   }, [masterData]);
 
+  const getStokRusakFromWaste = useCallback((ingName, targetDate, targetOutletId) => {
+    if (!ingName) return 0;
+    let totalWaste = 0;
+    const l1 = masterData?.damagedGoods || [];
+    const l2 = masterData?.approvedWaste || [];
+    const l3 = (masterData?.stockMovement || []).filter(m => m.type === 'WASTE');
+
+    const combinedList = [...l1, ...l2, ...l3];
+
+    combinedList.forEach(w => {
+      const wDate = w.date || w.tanggal || w.tanggal_waktu;
+      const wOutlet = w.outlet_id || w.branch_id || w.outletId;
+
+      const dateMatch = !targetDate || !wDate || String(wDate).startsWith(targetDate);
+      const outletMatch = !targetOutletId || !wOutlet || String(wOutlet) === String(targetOutletId);
+
+      if (dateMatch && outletMatch) {
+        const itemsList = w.items || w.waste_items || [w];
+        if (Array.isArray(itemsList)) {
+          itemsList.forEach(item => {
+            const nameStr = item.item_name || item.nama_barang || item.name || w.item_name || '';
+            if (nameStr.trim().toLowerCase() === ingName.trim().toLowerCase()) {
+              totalWaste += Number(item.qty || item.quantity || item.stok_rusak || item.jumlah || w.qty || w.stok_rusak || 0);
+            }
+          });
+        }
+      }
+    });
+
+    return totalWaste;
+  }, [masterData]);
+
   const handleOpenStokOpnameModal = useCallback((existingReport = null) => {
     const todayStr = new Date().toISOString().split('T')[0];
     const targetDate = existingReport?.date || todayStr;
@@ -2189,7 +2202,7 @@ export default function AndroidPosRegister({
       const matchPrev = existingReport?.items?.find(i => (i.item_name || i.nama_barang || '').toLowerCase() === name.toLowerCase())
         || (existingReport && (existingReport.item_name || '').toLowerCase() === name.toLowerCase() ? existingReport : null);
 
-      const stokAwal = matchPrev?.stok_awal !== undefined ? matchPrev.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0));
+      const stokAwal = matchPrev?.stok_awal !== undefined ? matchPrev.stok_awal : 0;
       const stokFisik = matchPrev?.stok_fisik !== undefined ? matchPrev.stok_fisik : '';
 
       return {
@@ -3124,27 +3137,6 @@ export default function AndroidPosRegister({
     );
   };
 
-  // ───────────────────────────────────────────────────────────
-  // RESPONSIVE LAYOUT — otomatis berdasarkan lebar layar
-  // ───────────────────────────────────────────────────────────
-  const screenW = useWindowWidth();
-  const DEVICE =
-    screenW >= 1100 ? 'tab-xl'
-    : screenW >= 800 ? 'tab-10'
-    : screenW >= 600 ? 'tab-7'
-    : 'phone';
-
-  const layout = {
-    // phone (< 600px): HP kasir darurat — portrait, cart full-screen modal
-    'phone':  { sidebarW: 60,  cartW: 260,  gridMin: 105, searchW: 150, fontSm: '0.70rem', fontMd: '0.76rem', cardImgH: 75,  btnPad: '5px 10px'  },
-    // tab-7 (600–799px): Tablet 7–8" landscape
-    'tab-7':  { sidebarW: 64,  cartW: 250,  gridMin: 112, searchW: 170, fontSm: '0.74rem', fontMd: '0.80rem', cardImgH: 82,  btnPad: '6px 12px'  },
-    // tab-10 (800–1099px): Tablet 10" landscape — TARGET UTAMA
-    'tab-10': { sidebarW: 70,  cartW: 300,  gridMin: 128, searchW: 210, fontSm: '0.78rem', fontMd: '0.84rem', cardImgH: 90,  btnPad: '6px 14px'  },
-    // tab-xl (≥ 1100px): Tablet 11–12" / desktop
-    'tab-xl': { sidebarW: 78,  cartW: 370,  gridMin: 148, searchW: 250, fontSm: '0.80rem', fontMd: '0.88rem', cardImgH: 100, btnPad: '7px 16px'  },
-  }[DEVICE];
-
   return (
     <div
       data-theme={appTheme}
@@ -3156,7 +3148,7 @@ export default function AndroidPosRegister({
       {/* 1. FAR LEFT VERTICAL NAVIGATION SIDEBAR (DARK SLATE BLUE THEME)     */}
       {/* =================================================================== */}
       <aside style={{
-        width: layout.sidebarW,
+        width: '78px',
         flexShrink: 0,
         background: T.bgSidebar,
         borderRight: `1px solid ${T.borderSidebar}`,
@@ -3166,8 +3158,7 @@ export default function AndroidPosRegister({
         justify: 'space-between',
         padding: '12px 0',
         zIndex: 20,
-        boxShadow: isLight ? '2px 0 12px rgba(0,0,0,0.15)' : 'none',
-        transition: 'width 0.2s ease'
+        boxShadow: isLight ? '2px 0 12px rgba(0,0,0,0.15)' : 'none'
       }}>
         {/* Top Logo / Outlet Badge */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
@@ -3417,7 +3408,7 @@ export default function AndroidPosRegister({
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: layout.searchW }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '250px' }}>
                     <div style={{ flex: 1, position: 'relative' }}>
                       <input
                         type="text"
@@ -3483,7 +3474,7 @@ export default function AndroidPosRegister({
                           }}
                         >
                           {/* Image Placeholder */}
-                          <div style={{ height: layout.cardImgH, background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                          <div style={{ height: '90px', background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                             <ShoppingBag size={28} color="#60a5fa" style={{ opacity: 0.7 }} />
                             {item.variants && item.variants.length > 0 && (
                               <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(37,99,235,0.9)', color: 'var(--pos-txt-white)', fontSize: '0.58rem', fontWeight: '800', padding: '2px 6px', borderRadius: '4px' }}>
@@ -3494,10 +3485,10 @@ export default function AndroidPosRegister({
 
                           {/* Item Info */}
                           <div style={{ padding: '8px 10px' }}>
-                            <div style={{ fontSize: layout.fontSm, fontWeight: '800', color: T.txtPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
                               {item.name}
                             </div>
-                            <div style={{ fontSize: layout.fontMd, fontWeight: '900', color: isLight ? '#0284c7' : '#38bdf8', marginTop: '3px' }}>
+                            <div style={{ fontSize: '0.80rem', fontWeight: '900', color: isLight ? '#0284c7' : '#38bdf8', marginTop: '4px' }}>
                               {formatRupiah(displayPrice)}
                             </div>
                           </div>
@@ -3512,7 +3503,7 @@ export default function AndroidPosRegister({
               {/* ----------------------------------------------------------- */}
               {/* RIGHT CHECKOUT PANEL (CART REGISTER & SUMMARY - FIXED 380PX) */}
               {/* ----------------------------------------------------------- */}
-              <div style={{ width: layout.cartW, flexShrink: 0, display: 'flex', flexDirection: 'column', background: T.bgSurface, boxSizing: 'border-box', borderLeft: `1px solid ${T.border}`, transition: 'width 0.2s ease' }}>
+              <div style={{ width: '380px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: T.bgSurface, boxSizing: 'border-box', borderLeft: `1px solid ${T.border}` }}>
 
                 {/* Top 3 Action Tabs: ORDER | TABLE | MORE */}
                 <div style={{ display: 'flex', background: T.bgSidebar, borderBottom: `1px solid ${T.borderSidebar}` }}>
@@ -5437,26 +5428,7 @@ export default function AndroidPosRegister({
 
                   <button
                     type="button"
-                    onClick={() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      const rawIngredients = masterData.ingredients || [];
-                      const activeIngs = rawIngredients.filter(ing =>
-                        ing.tampilkan_di_apk !== 'Inaktif' && ing.tampilkan_di_apk !== 'inaktif'
-                      );
-                      const defaultIng = activeIngs[0] || { name: '', unit: 'kg', stock: 0 };
-                      setOpnameBatchRows([{
-                        id: 'single-opname',
-                        item_name: defaultIng.name || '',
-                        unit: defaultIng.unit || 'kg',
-                        stok_awal: defaultIng.stock !== undefined ? defaultIng.stock : (defaultIng.stok || 0),
-                        stok_fisik: ''
-                      }]);
-                      setLogDate(todayStr);
-                      setLogNo(`SO-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
-                      setLogSubmittedBy(userSession?.name || '');
-                      setLogOutletId(currentOutlet.id || 1);
-                      setShowAddLogisticsModal(true);
-                    }}
+                    onClick={() => handleOpenStokOpnameModal()}
                     style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(56,189,248,0.35)' }}
                   >
                     <PlusCircle size={16} />
@@ -6189,20 +6161,20 @@ export default function AndroidPosRegister({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                       <thead>
-                        <tr style={{ color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textAlign: 'left', textTransform: 'uppercase', fontSize: '0.70rem' }}>
-                          <th style={{ padding: '12px 10px' }}>Tanggal Audit</th>
-                          <th style={{ padding: '12px 10px' }}>No Laporan</th>
-                          <th style={{ padding: '12px 10px' }}>Dibuat Oleh</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Awal</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Masuk (+)</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', background: 'rgba(251, 113, 133, 0.1)' }}>🔴 Stok Keluar (Web Admin)</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399' }}>Transfer Stok In</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>Transfer Stok Out</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right' }}>Stok Rusak (-)</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right' }}>🔢 Stok Sistem</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8' }}>💵 Harga Satuan</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', background: 'rgba(244, 63, 94, 0.1)' }}>⚠️ Denda Per Stok</th>
-                          <th style={{ padding: '12px 10px', textAlign: 'center' }}>Aksi</th>
+                        <tr style={{ color: 'var(--pos-txt-secondary)', borderBottom: '2px solid #334155', textAlign: 'left', textTransform: 'uppercase', fontSize: '0.70rem', fontWeight: '800', background: 'var(--pos-bg-app)' }}>
+                          <th style={{ padding: '12px 10px', whiteSpace: 'nowrap' }}>Tanggal Audit</th>
+                          <th style={{ padding: '12px 10px', whiteSpace: 'nowrap' }}>No Laporan</th>
+                          <th style={{ padding: '12px 10px', whiteSpace: 'nowrap' }}>Dibuat Oleh</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>Stok Awal</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#34d399' }}>Stok Masuk (+)</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#fb7185', background: 'rgba(251, 113, 133, 0.1)' }}>🔴 Stok Keluar [Web Admin]</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#34d399' }}>Transfer Stok In</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#a78bfa' }}>Transfer Stok Out</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#fb7185' }}>Stok Rusak (-)</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#38bdf8' }}>🌐 Stok Sistem</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#fbbf24' }}>🏷️ Harga Satuan</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap', color: '#fb7185', background: 'rgba(244, 63, 94, 0.1)' }}>⚠️ Denda Per Stok</th>
+                          <th style={{ padding: '12px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>Aksi</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -6231,7 +6203,7 @@ export default function AndroidPosRegister({
                           const rows = filteredOpnameList.map((op, idx) => {
                             const sSistem = (op.stok_awal || 0) + (op.stok_masuk || 0) + (op.transfer_masuk || 0) - ((op.stok_keluar || 0) + (op.stok_rusak || 0) + (op.transfer_keluar || 0));
                             const diffVal = (op.stok_fisik || 0) - sSistem;
-                            const isDefisit = diffVal < 0; // Stok fisik kurang dari stok sistem (DEFISIT / Ada stok hilang)
+                            const isDefisit = diffVal < 0;
                             const statusColor = diffVal === 0 ? '#34d399' : diffVal > 0 ? '#38bdf8' : '#fb7185';
                             const statusLabel = diffVal === 0 ? 'PAS (SOP OK)' : diffVal > 0 ? `SURPLUS (+${diffVal})` : `DEFISIT (${diffVal})`;
 
@@ -6254,72 +6226,83 @@ export default function AndroidPosRegister({
                             };
 
                             const hargaSatuanWeb = getHargaSatuanFromStokMasuk(op.item_name);
-
-                            // Denda Per Stok = Hanya dihitung apabila keterangan status DEFISIT! Jika PAS atau SURPLUS, Denda Per Stok = 0
                             const dendaStokRow = isDefisit ? Math.abs(diffVal) * hargaSatuanWeb : 0;
                             sumDendaPerStok += dendaStokRow;
 
                             return (
                               <tr key={op.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
-                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>{op.date}</td>
+                                {/* 1. TANGGAL AUDIT */}
+                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-secondary)', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                  {op.date}
+                                  <div style={{ fontSize: '0.68rem', color: '#475569', marginTop: '2px' }}>📍 {op.branch_name || currentOutlet.name}</div>
+                                </td>
+
+                                {/* 2. NO LAPORAN */}
                                 <td style={{ padding: '12px 10px', fontWeight: '900' }}>
                                   <button
                                     type="button"
                                     onClick={() => setPreviewOpnameSummaryRecord(op)}
-                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.80rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }}
+                                    style={{ background: 'none', border: 'none', padding: 0, color: '#38bdf8', fontWeight: '900', fontSize: '0.80rem', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left', whiteSpace: 'nowrap' }}
                                     title="Klik untuk membuka rincian laporan stok opname"
                                   >
                                     {op.report_no || op.id}
                                   </button>
+                                  <div style={{ fontSize: '0.68rem', color: statusColor, fontWeight: '800', marginTop: '2px' }}>{statusLabel}</div>
                                 </td>
-                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-primary)' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span>👤 {op.created_by || op.submitted_by || 'Admin'}</span>
-                                    <span style={{ fontSize: '0.68rem', color: op.type_input === 'Sent from Web Admin' ? '#34d399' : '#818cf8', fontWeight: '800' }}>
-                                      {op.type_input || 'Mobile Kasir'}
-                                    </span>
+
+                                {/* 3. DIBUAT OLEH */}
+                                <td style={{ padding: '12px 10px', color: 'var(--pos-txt-primary)', whiteSpace: 'nowrap' }}>
+                                  <div>👤 {op.created_by || op.submitted_by || 'Admin'}</div>
+                                  <div style={{ fontSize: '0.68rem', color: op.type_input === 'Sent from Web Admin' ? '#34d399' : '#818cf8', fontWeight: '800' }}>
+                                    {op.type_input || 'Mobile Kasir'}
                                   </div>
                                 </td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--pos-txt-secondary)' }}>{op.stok_awal || 0} {op.unit || 'kg'}</td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#38bdf8', fontWeight: '700' }}>+{op.stok_masuk || 0}</td>
-                                
-                                {/* 🔴 STOK KELUAR DARI WEB ADMIN */}
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#fb7185', background: 'rgba(251, 113, 133, 0.08)' }}>
+
+                                {/* 4. STOK AWAL */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--pos-txt-secondary)', whiteSpace: 'nowrap' }}>{op.stok_awal || 0} {op.unit || 'kg'}</td>
+
+                                {/* 5. STOK MASUK (+) */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399', fontWeight: '700', whiteSpace: 'nowrap' }}>+{op.stok_masuk || 0} {op.unit || 'kg'}</td>
+
+                                {/* 6. 🔴 STOK KELUAR [WEB ADMIN] */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#fb7185', background: 'rgba(251, 113, 133, 0.08)', whiteSpace: 'nowrap' }}>
                                   -{op.stok_keluar || 0} {op.unit || 'kg'}
                                 </td>
 
-                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399', fontWeight: '800' }}>
+                                {/* 7. TRANSFER STOK IN */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#34d399', fontWeight: '800', whiteSpace: 'nowrap' }}>
                                   +{op.transfer_masuk || 0} {op.unit || 'kg'}
                                 </td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '800' }}>
+
+                                {/* 8. TRANSFER STOK OUT */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#a78bfa', fontWeight: '800', whiteSpace: 'nowrap' }}>
                                   -{op.transfer_keluar || 0} {op.unit || 'kg'}
                                 </td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185' }}>-{op.stok_rusak || 0}</td>
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>{sSistem}</td>
-                                <td style={{ padding: '12px 10px', textAlign: 'center' }}>
-                                  <span style={{
-                                    padding: '4px 8px', borderRadius: '8px', fontSize: '0.70rem', fontWeight: '900',
-                                    color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}40`
-                                  }}>
-                                    {statusLabel}
-                                  </span>
+
+                                {/* 9. STOK RUSAK (-) */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', color: '#fb7185', fontWeight: '800', whiteSpace: 'nowrap' }}>
+                                  -{op.stok_rusak || 0} {op.unit || 'kg'}
                                 </td>
 
-                                {/* HARGA SATUAN (WEB BASED STOK MASUK) */}
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: 'var(--pos-txt-secondary)' }}>
+                                {/* 10. 🌐 STOK SISTEM */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8', whiteSpace: 'nowrap' }}>{sSistem} {op.unit || 'kg'}</td>
+
+                                {/* 11. 🏷️ HARGA SATUAN */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '700', color: '#fbbf24', whiteSpace: 'nowrap' }}>
                                   {formatRupiah(hargaSatuanWeb)}
                                 </td>
 
-                                {/* DENDA PER STOK (HANYA APABILA STATUS DEFISIT) */}
-                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: dendaStokRow > 0 ? '#fb7185' : '#64748b', background: dendaStokRow > 0 ? 'rgba(244, 63, 94, 0.08)' : 'transparent' }}>
+                                {/* 12. ⚠️ DENDA PER STOK */}
+                                <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '900', color: dendaStokRow > 0 ? '#fb7185' : '#64748b', background: dendaStokRow > 0 ? 'rgba(244, 63, 94, 0.08)' : 'transparent', whiteSpace: 'nowrap' }}>
                                   {dendaStokRow > 0 ? formatRupiah(dendaStokRow) : '-'}
                                 </td>
 
+                                {/* 13. AKSI */}
                                 <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                                   <button
                                     type="button"
                                     onClick={() => setPreviewOpnameSummaryRecord(op)}
-                                    style={{ padding: '5px 10px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                                    style={{ padding: '5px 10px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '6px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap' }}
                                   >
                                     👁️ Preview
                                   </button>
@@ -11615,7 +11598,7 @@ export default function AndroidPosRegister({
                     id: targetId,
                     item_name: ing.name || ing.item_name,
                     unit: ing.unit || 'kg',
-                    stok_awal: ing.stock !== undefined ? ing.stock : (ing.stok || 0),
+                    stok_awal: 0,
                     stok_fisik: val
                   }];
                 });
@@ -11632,12 +11615,13 @@ export default function AndroidPosRegister({
 
                   const newRecords = ingredientsList.map((ing, idx) => {
                     const r = opnameBatchRows.find(item => (item.item_name || '').toLowerCase().trim() === (ing.name || '').toLowerCase().trim()) || {};
-                    const sAwal = Number(r.stok_awal !== undefined && r.stok_awal !== '' ? r.stok_awal : (ing.stock !== undefined ? ing.stock : (ing.stok || 0)));
+                    const sAwal = Number(r.stok_awal !== undefined && r.stok_awal !== '' ? r.stok_awal : 0);
                     const sMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                     const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                     const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
+                    const stokRusak = getStokRusakFromWaste(ing.name, logDate, logOutletId);
                     const sFisik = (r.stok_fisik !== undefined && r.stok_fisik !== '') ? Number(r.stok_fisik) : sAwal;
-                    const sSistem = sAwal + sMasuk + trfIn - trfOut;
+                    const sSistem = sAwal + sMasuk + trfIn - trfOut - stokRusak;
                     const selisih = sFisik - sSistem;
 
                     return {
@@ -11656,7 +11640,7 @@ export default function AndroidPosRegister({
                       transfer_masuk: trfIn,
                       transfer_keluar: trfOut,
                       stok_keluar: 0,
-                      stok_rusak: 0,
+                      stok_rusak: stokRusak,
                       stok_sistem: sSistem,
                       stok_fisik: sFisik,
                       selisih: selisih,
@@ -11715,7 +11699,7 @@ export default function AndroidPosRegister({
                   {/* KETERANGAN PENJELAS FORMULIR STOK OPNAME */}
                   <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px 18px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: '#38bdf8', fontWeight: '700' }}>
                     <span>📦 Menampilkan {ingredientsList.length} Bahan Baku Aktif dari Master Data</span>
-                    <span>💡 Stok Masuk otomatis terisi dari Laporan Harian (Default 0 jika tidak ada) & Sub Transfer Stok</span>
+                    <span>💡 Stok Masuk, Transfer, & Stok Rusak otomatis terisi dari Laporan Harian & Subtab Logistik</span>
                   </div>
 
                   {/* TABEL MULTI-ITEM AUDIT BAHAN BAKU AKTIF MASTER DATA */}
@@ -11726,17 +11710,18 @@ export default function AndroidPosRegister({
                           <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)', textTransform: 'uppercase', fontSize: '0.72rem', fontWeight: '800' }}>
                             <th style={{ padding: '12px 10px', width: '40px' }}>No</th>
                             <th style={{ padding: '12px 14px' }}>📦 Nama Bahan Baku</th>
-                            <th style={{ padding: '12px 12px', width: '140px', textAlign: 'right' }}>📊 Stok Awal (Manual)</th>
+                            <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right' }}>📊 Stok Awal (Manual)</th>
                             <th style={{ padding: '12px 12px', width: '130px', textAlign: 'right', color: '#34d399' }}>📥 Stok Masuk (Laporan Harian)</th>
-                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
-                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>📤 Transfer Keluar</th>
+                            <th style={{ padding: '12px 12px', width: '110px', textAlign: 'right', color: '#38bdf8' }}>🚚 Transfer Masuk</th>
+                            <th style={{ padding: '12px 12px', width: '110px', textAlign: 'right', color: '#a78bfa' }}>📤 Transfer Keluar</th>
+                            <th style={{ padding: '12px 12px', width: '120px', textAlign: 'right', color: '#fb7185' }}>🗑️ Stok Rusak (Waste)</th>
                             <th style={{ padding: '12px 14px', width: '140px', textAlign: 'right', color: '#fbbf24' }}>⚖️ Sisa Stok Fisik (Manual) *</th>
                           </tr>
                         </thead>
                         <tbody>
                           {ingredientsList.length === 0 ? (
                             <tr>
-                              <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
+                              <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                                 Tidak ada Bahan Baku dengan status Aktif di Master Data.
                               </td>
                             </tr>
@@ -11746,13 +11731,14 @@ export default function AndroidPosRegister({
                                 id: ing.id || `ing-opname-${idx}`,
                                 item_name: ing.name,
                                 unit: ing.unit || 'kg',
-                                stok_awal: ing.stock !== undefined ? ing.stock : (ing.stok || 0),
+                                stok_awal: 0,
                                 stok_fisik: ''
                               };
 
                               const stokMasuk = getStokMasukFromLaporanHarian(ing.name, logDate, logOutletId);
                               const trfIn = getTransferStokMasuk(ing.name, logDate, logOutletId);
                               const trfOut = getTransferStokKeluar(ing.name, logDate, logOutletId);
+                              const stokRusak = getStokRusakFromWaste(ing.name, logDate, logOutletId);
 
                               return (
                                 <tr key={ing.id || idx} style={{ borderBottom: '1px solid var(--pos-border-card)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
@@ -11785,8 +11771,13 @@ export default function AndroidPosRegister({
                                   </td>
 
                                   {/* TRANSFER STOK KELUAR (OTOMATIS SUB TRANSFER STOK) */}
-                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfOut > 0 ? '#fb7185' : 'var(--pos-txt-secondary)' }}>
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: trfOut > 0 ? '#a78bfa' : 'var(--pos-txt-secondary)' }}>
                                     {trfOut} {ing.unit || 'kg'}
+                                  </td>
+
+                                  {/* STOK RUSAK (OTOMATIS LAPORAN STOK RUSAK / SUBTAB WASTE) */}
+                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: stokRusak > 0 ? '#fb7185' : 'var(--pos-txt-secondary)' }}>
+                                    {stokRusak} {ing.unit || 'kg'}
                                   </td>
 
                                   {/* SISA STOK FISIK (DIISI MANUAL) */}
@@ -11832,69 +11823,78 @@ export default function AndroidPosRegister({
       )}
 
       {/* 16. MODAL PREVIEW AUDIT STOK OPNAME LOGISTIK */}
-      {previewLogisticsReport && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
-                Pratinjau Audit Opname {previewLogisticsReport.report_no || previewLogisticsReport.id}
-              </h3>
-              <button onClick={() => setPreviewLogisticsReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
-                <X size={20} />
+      {previewLogisticsReport && (() => {
+        const relatedOpnameItems = (previewLogisticsReport.report_no
+          ? (masterData?.stockOpname || []).filter(s => s.report_no === previewLogisticsReport.report_no || s.id === previewLogisticsReport.id)
+          : [previewLogisticsReport]).filter(Boolean);
+        const displayItems = relatedOpnameItems.length > 0 ? relatedOpnameItems : [previewLogisticsReport];
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
+          }}>
+            <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                    Pratinjau Audit Opname #{previewLogisticsReport.report_no || previewLogisticsReport.id}
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
+                    {previewLogisticsReport.date} • Diisi oleh: {previewLogisticsReport.submitted_by || previewLogisticsReport.created_by}
+                  </p>
+                </div>
+                <button onClick={() => setPreviewLogisticsReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem' }}>
+                  <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
+                  <span style={{ fontWeight: '900', color: (previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
+                    {(previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
+                  </span>
+                </div>
+
+                <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
+                        <th style={{ padding: '8px 10px' }}>#</th>
+                        <th style={{ padding: '8px 10px' }}>Nama Item</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Awal</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Masuk</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Trf Out/In</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Rusak</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Sisa Fisik</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayItems.map((it, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                          <td style={{ padding: '8px 10px', color: 'var(--pos-txt-secondary)' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: '800', color: '#34d399' }}>📦 {it.item_name}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>{it.stok_awal || 0} {it.unit}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#34d399' }}>+{it.stok_masuk || 0}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#a78bfa' }}>-{it.transfer_keluar || 0} / +{it.transfer_masuk || 0}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#fb7185' }}>-{it.stok_rusak || 0}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '900', color: '#38bdf8' }}>{it.stok_fisik} {it.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <button onClick={() => setPreviewLogisticsReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', marginTop: '8px' }}>
+                Tutup Pratinjau
               </button>
             </div>
-
-            <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '12px', border: '1px solid var(--pos-border-card)', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.84rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Audit:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewLogisticsReport.date}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Diisi Oleh:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewLogisticsReport.submitted_by || previewLogisticsReport.created_by}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Stok Item:</span>
-                <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewLogisticsReport.item_name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Awal:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>{previewLogisticsReport.stok_awal || 0} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Masuk:</span>
-                <span style={{ fontWeight: '800', color: '#34d399' }}>+{previewLogisticsReport.stok_masuk || 0} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Transfer Out / In:</span>
-                <span style={{ fontWeight: '800', color: '#a78bfa' }}>-{previewLogisticsReport.transfer_keluar || 0} / +{previewLogisticsReport.transfer_masuk || 0} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Stok Rusak:</span>
-                <span style={{ fontWeight: '800', color: '#fb7185' }}>-{previewLogisticsReport.stok_rusak || 0} {previewLogisticsReport.unit} ({previewLogisticsReport.damage_reason || 'N/A'})</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #334155', paddingTop: '8px' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>⚖️ Sisa Stok Fisik:</span>
-                <span style={{ fontWeight: '900', color: '#38bdf8', fontSize: '1rem' }}>{previewLogisticsReport.stok_fisik} {previewLogisticsReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                <span style={{ fontWeight: '900', color: (previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
-                  {(previewLogisticsReport.status === 'ok' || previewLogisticsReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
-                </span>
-              </div>
-            </div>
-
-            <button onClick={() => setPreviewLogisticsReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
-              Tutup Pratinjau
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* 16. MODAL FORM "+ BUAT LAPORAN TRANSFER PRODUK" (FULL SCREEN MODAL) */}
       {showAddTransferModal && (
         <div style={{
@@ -11981,7 +11981,8 @@ export default function AndroidPosRegister({
                   const newRecords = [];
                   let hasInvalidIngredient = false;
 
-                  transferBatchRows.forEach((row, idx) => {
+                  for (let idx = 0; idx < transferBatchRows.length; idx++) {
+                    const row = transferBatchRows[idx];
                     const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Baru') : row.item_name;
                     
                     // ── VALIDASI MASTER DATA BAHAN BAKU ────────────────────────
@@ -12012,17 +12013,29 @@ export default function AndroidPosRegister({
                       status: 'ditunda',
                       is_approved: false
                     });
+                  }
+
+                  if (hasInvalidIngredient || newRecords.length === 0) return;
+
+                  // DIRECT SAVE & CLOSE MODAL INSTANTLY
+                  setShowAddTransferModal(false);
+                  setPendingTransferDraft(null);
+
+                  setMasterData(prev => {
+                    const now = Date.now();
+                    const filterOld = list => (list || []).filter(r => r.report_no !== transferNo);
+                    const updatedTransfers = [...newRecords, ...filterOld(prev.stockTransfer)];
+                    const newMaster = {
+                      ...prev,
+                      _lastUpdated: now,
+                      clientUpdated: now,
+                      stockTransfer: updatedTransfers
+                    };
+                    saveToServerWithGuard(newMaster);
+                    return newMaster;
                   });
 
-                  setPendingTransferDraft({
-                    report_no: transferNo,
-                    date: transferDate,
-                    submitted_by: transferSubmittedBy,
-                    from_outlet_name: fromOutletObj.name || currentOutlet.name || 'Restoran Utama',
-                    to_outlet_name: toOutletObj.name || 'Outlet Tujuan',
-                    items: newRecords,
-                    notes: transferNotes || 'Transfer stok antarcabang'
-                  });
+                  alert(`✅ Laporan Transfer Bahan Baku ${transferNo} berisi ${newRecords.length} item berhasil disimpan & dikirim ke Logistik Pusat!`);
                 }} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
                   {/* KARTU 1: Tanggal & Nomor Laporan */}
@@ -12466,68 +12479,86 @@ export default function AndroidPosRegister({
       )}
 
       {/* PREVIEW TRANSFER PRODUK */}
-      {previewTransferReport && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-        }}>
-          <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '540px', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #a78bfa', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+      {previewTransferReport && (() => {
+        const relatedTransfers = (previewTransferReport.report_no
+          ? (masterData?.stockTransfer || []).filter(t => t.report_no === previewTransferReport.report_no || t.id === previewTransferReport.id)
+          : [previewTransferReport]).filter(Boolean);
+        const displayTransfers = relatedTransfers.length > 0 ? relatedTransfers : [previewTransferReport];
+
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Truck size={22} color="#a78bfa" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
-                  Pratinjau Laporan Transfer Produk
-                </h3>
+            <div className="glass-card animate-fade-in" style={{
+              width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', border: '1px solid #a78bfa', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '16px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border-card)', paddingBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Truck size={22} color="#a78bfa" />
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                      Pratinjau Transfer Produk #{previewTransferReport.report_no || previewTransferReport.id}
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
+                      {previewTransferReport.date} • Pengaju: {previewTransferReport.submitted_by || previewTransferReport.created_by}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setPreviewTransferReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900' }}>✕</button>
               </div>
-              <button onClick={() => setPreviewTransferReport(null)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', fontWeight: '900' }}>✕</button>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nomor Laporan:</span>
-                <span style={{ fontWeight: '900', color: '#a78bfa' }}>{previewTransferReport.report_no || previewTransferReport.id}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Tanggal Transfer:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewTransferReport.date}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Pengaju:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>{previewTransferReport.submitted_by || previewTransferReport.created_by}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Asal:</span>
-                <span style={{ fontWeight: '800', color: 'var(--pos-txt-secondary)' }}>🏢 {previewTransferReport.from_outlet_name || currentOutlet.name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Outlet Tujuan:</span>
-                <span style={{ fontWeight: '800', color: '#a78bfa' }}>➡️ {previewTransferReport.to_outlet_name || (masterData.outlets || []).find(o => Number(o.id) === Number(previewTransferReport.to_outlet_id || previewTransferReport.toOutletId))?.name || 'Outlet Tujuan'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Nama Produk Item:</span>
-                <span style={{ fontWeight: '900', color: '#34d399' }}>📦 {previewTransferReport.item_name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Jumlah Transfer:</span>
-                <span style={{ fontWeight: '900', color: '#a78bfa', fontSize: '1rem' }}>{previewTransferReport.qty} {previewTransferReport.unit}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
-                <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
-                <span style={{ fontWeight: '900', color: (previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
-                  {(previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
-                </span>
-              </div>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.84rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--pos-border-card)' }}>
+                  <div>
+                    <span style={{ color: 'var(--pos-txt-secondary)', display: 'block', fontSize: '0.75rem' }}>Outlet Asal:</span>
+                    <span style={{ fontWeight: '800', color: 'var(--pos-txt-primary)' }}>🏢 {previewTransferReport.from_outlet_name || currentOutlet?.name || 'Outlet Asal'}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ color: 'var(--pos-txt-secondary)', display: 'block', fontSize: '0.75rem' }}>Outlet Tujuan:</span>
+                    <span style={{ fontWeight: '800', color: '#a78bfa' }}>➡️ {previewTransferReport.to_outlet_name || (masterData?.outlets || []).find(o => Number(o.id) === Number(previewTransferReport.to_outlet_id || previewTransferReport.toOutletId))?.name || 'Outlet Tujuan'}</span>
+                  </div>
+                </div>
 
-            <button onClick={() => setPreviewTransferReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
-              Tutup Pratinjau
-            </button>
+                <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--pos-txt-secondary)', borderBottom: '1px solid var(--pos-border-card)' }}>
+                        <th style={{ padding: '8px 10px' }}>#</th>
+                        <th style={{ padding: '8px 10px' }}>Nama Produk / Bahan</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right' }}>Jumlah Transfer</th>
+                        <th style={{ padding: '8px 10px' }}>Satuan</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayTransfers.map((trf, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--pos-txt-primary)' }}>
+                          <td style={{ padding: '8px 10px', color: 'var(--pos-txt-secondary)' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: '800', color: '#34d399' }}>📦 {trf.item_name}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '900', color: '#a78bfa' }}>{trf.qty}</td>
+                          <td style={{ padding: '8px 10px', color: 'var(--pos-txt-secondary)' }}>{trf.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--pos-border-card)', paddingTop: '8px' }}>
+                  <span style={{ color: 'var(--pos-txt-secondary)' }}>Status Approval:</span>
+                  <span style={{ fontWeight: '900', color: (previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '#34d399' : '#fbbf24' }}>
+                    {(previewTransferReport.status === 'ok' || previewTransferReport.status === 'approved') ? '🟢 APPROVED' : '⏳ PENDING'}
+                  </span>
+                </div>
+              </div>
+
+              <button onClick={() => setPreviewTransferReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+                Tutup Pratinjau
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 17. MODAL FORM "LAPORKAN STOK RUSAK / WASTE" (FULL SCREEN MODAL) */}
       {showAddWasteModal && (

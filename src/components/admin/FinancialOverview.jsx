@@ -255,7 +255,9 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
   const getHppComparisonData = () => {
     return allOutlets.map(o => {
       const oTx = allSalesTx.filter(t => Number(t.outlet_id) === Number(o.id));
-      const revenue = oTx.reduce((s, t) => s + (t.amount || 0), 0);
+      const oDiscounts = oTx.reduce((s, t) => s + (t.discount || t.discount_amount || 0), 0);
+      const grossSales = oTx.reduce((s, t) => s + (t.amount || 0), 0);
+      const revenue = Math.max(0, grossSales - oDiscounts);
 
       const oManualHpp = allApprovedFinance.filter(f => Number(f.outlet_id) === Number(o.id)).reduce((s, f) => s + (f.cogs || 0), 0);
       const hppAmount = oManualHpp;

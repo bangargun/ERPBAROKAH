@@ -24,11 +24,16 @@ import {
   Sparkles,
   ShoppingCart,
   Clock,
-  CheckSquare
+  CheckSquare,
+  PlusCircle,
+  FileSpreadsheet,
+  Scale,
+  TrendingUp
 } from 'lucide-react';
 
 import { checkWebPermission } from '../../utils/permissionUtils';
 import { getThemePalette } from '../../utils/themeUtils';
+import ManualReportUpdateModal from './ManualReportUpdateModal';
 
 export default function AdminLayout({ 
   activeTab, 
@@ -40,11 +45,13 @@ export default function AdminLayout({
   onLogout,
   userSession,
   masterData,
+  setMasterData,
   themeMode = 'dark',
   toggleThemeMode,
   setThemeMode,
   children
 }) {
+  const [showUpdateLaporanModal, setShowUpdateLaporanModal] = useState(false);
   const [showInboxDropdown, setShowInboxDropdown] = useState(false);
   const [readNotifIds, setReadNotifIds] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -90,17 +97,20 @@ export default function AdminLayout({
   };
 
   const menuItems = [
-    { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard, permKey: 'dashboard' },
-    { id: 'data', label: '2. Data Master', icon: Database, permKey: 'masterData' },
-    { id: 'sales', label: '3. Penjualan', icon: ShoppingBag, permKey: 'reports' },
-    { id: 'stock', label: '4. Logistik', icon: Package, permKey: 'stock' },
-    { id: 'daily_approval', label: '5. Laporan Harian Outlet', icon: ClipboardCheck, permKey: 'reports' },
-    { id: 'reports', label: '6. Laporan Keuangan', icon: FileText, permKey: 'reports' },
-    { id: 'printer_settings', label: '7. Printer & Thermal', icon: Printer, permKey: 'settings' },
-    { id: 'sop', label: '8. Kelola SOP Restoran', icon: BookOpen, permKey: 'policies' },
-    { id: 'loyalty', label: '9. Program Loyalitas', icon: Award, permKey: 'masterData' },
-    { id: 'settings', label: '10. Pengaturan', icon: Settings, permKey: 'settings' },
-    { id: 'activity_log', label: '11. Log Aktivitas', icon: History, permKey: 'settings' }
+    { id: 'dashboard',           label: '1. Dashboard',               icon: LayoutDashboard, permKey: 'dashboard' },
+    { id: 'data',                label: '2. Data Master',             icon: Database,        permKey: 'masterData' },
+    { id: 'sales',               label: '3. Penjualan',               icon: ShoppingBag,     permKey: 'reports' },
+    { id: 'stock',               label: '4. Logistik',                icon: Package,         permKey: 'stock' },
+    { id: 'daily_approval',      label: '5. Laporan Harian Outlet',   icon: ClipboardCheck,  permKey: 'reports' },
+    { id: 'update_laporan',      label: '6. Update Laporan',          icon: FileSpreadsheet, permKey: 'reports' },
+    { id: 'ingredient_prices',   label: '7. Perbandingan',            icon: Scale,           permKey: 'reports' },
+    { id: 'tren_harga_outlet',   label: '8. Tren Harga Per Outlet',   icon: TrendingUp,      permKey: 'reports' },
+    { id: 'reports',             label: '9. Laporan Keuangan',        icon: FileText,        permKey: 'reports' },
+    { id: 'printer_settings',    label: '10. Printer & Thermal',      icon: Printer,         permKey: 'settings' },
+    { id: 'sop',                 label: '11. Kelola SOP Restoran',    icon: BookOpen,        permKey: 'policies' },
+    { id: 'loyalty',             label: '12. Program Loyalitas',      icon: Award,           permKey: 'masterData' },
+    { id: 'settings',            label: '13. Pengaturan',             icon: Settings,        permKey: 'settings' },
+    { id: 'activity_log',        label: '14. Log Aktivitas',          icon: History,         permKey: 'settings' }
   ];
 
   const userName = userSession?.name || 'Super Admin Restoran';
@@ -228,6 +238,35 @@ export default function AdminLayout({
 
         {/* Navigation Menu Items */}
         <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
+          
+          {/* BUTTON + UPDATE LAPORAN (RIGHT ABOVE MENU UTAMA SISTEM) */}
+          <div style={{ marginBottom: '6px' }}>
+            <button
+              onClick={() => setShowUpdateLaporanModal(true)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                color: '#000000',
+                fontWeight: '900',
+                fontSize: '0.86rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 16px rgba(245, 158, 11, 0.45)',
+                transition: 'all 0.18s ease'
+              }}
+              title="Update data penjualan & pengeluaran (Manual & Excel)"
+            >
+              <PlusCircle size={18} color="#000000" />
+              <span>+ Update Laporan</span>
+            </button>
+          </div>
+
           <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: '#facc15', fontWeight: '900', padding: '6px 10px 4px 10px', letterSpacing: '0.06em', opacity: 1 }}>
             MENU UTAMA SISTEM
           </div>
@@ -575,6 +614,16 @@ export default function AdminLayout({
           {children}
         </main>
       </div>
+
+      {/* MANUAL REPORT UPDATE MODAL */}
+      <ManualReportUpdateModal
+        show={showUpdateLaporanModal}
+        onClose={() => setShowUpdateLaporanModal(false)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        userSession={userSession}
+        themeMode={themeMode}
+      />
     </div>
   );
 }

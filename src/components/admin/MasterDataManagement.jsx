@@ -112,7 +112,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: T.pageBg, color: T.txtPrimary, transition: 'background 0.25s ease' }}>
       <div>
         <h2 style={{ fontSize: '0.98rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '-0.01em' }}>
           Sumber Data Master (Master Data Center)
@@ -122,8 +122,21 @@ export default function MasterDataManagement({ masterData, setMasterData, select
         </p>
       </div>
 
-      {/* Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+      {/* Sticky Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) */}
+      <div style={{
+        position: 'sticky',
+        top: '-20px',
+        zIndex: 1000,
+        margin: '-20px -20px 12px -20px',
+        padding: '16px 20px 12px 20px',
+        background: T.pageBg,
+        borderBottom: `1.5px solid ${T.border}`,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(5, 1fr)',
+        gap: '8px',
+        transition: 'background 0.25s ease'
+      }}>
         {subTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;

@@ -228,11 +228,15 @@ export function getThemePalette(themeMode) {
     tabInactiveColor:'#94a3b8',
     tabBorder:      '#334155',
 
-    // ── Ultra Minimalist Typography & Borders ──
-    fsTitle:        '0.75rem',  // 12px
-    fsSubtitle:     '0.56rem',  // 9px
-    fsBody:         '0.50rem',  // 8px
-    fsBadge:        '0.46rem',  // 7.5px
-    borderUltraThin:'1px solid rgba(255, 255, 255, 0.05)',
+    // ── Professional Typography Scale ──
+    fsTitle:        'var(--fs-2xl)',    // 22px — page title
+    fsSubtitle:     'var(--fs-sm)',     // 13px — label
+    fsBody:         'var(--fs-base)',   // 14px — body
+    fsBadge:        'var(--fs-xs)',     // 12px — badge / meta
+    fsCaption:      'var(--fs-xs)',     // 12px — caption
+    borderUltraThin:'1px solid rgba(255, 255, 255, 0.06)',
+
+    // ── Card shadow ──
+    cardShadow:     '0 2px 8px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04)',
   };
 }

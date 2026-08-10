@@ -130,8 +130,10 @@ export function DoubleCalendarPicker({
   onToggleAllOutlets,
   showOutletDropdown,
   setShowOutletDropdown,
-  selectedBranch = null
-, themeMode = 'dark' }) {
+  selectedBranch = null,
+  hideOutletFilter = false,
+  noWrapper = false,
+  themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
   const [baseMonth, setBaseMonth] = useState(new Date(2026, 6, 1)); // Default to July 2026 as in screenshot
   const [tempStart, setTempStart] = useState(startDate);
@@ -375,7 +377,24 @@ export function DoubleCalendarPicker({
   };
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', position: 'relative', zIndex: (showPopover || showOutletDropdown) ? 999999 : 100, background: T.cardBg, padding: '12px 16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+    <div ref={containerRef} style={noWrapper ? {
+      display: 'flex',
+      gap: '10px',
+      alignItems: 'flex-end',
+      position: 'relative',
+      zIndex: (showPopover || showOutletDropdown) ? 999999 : 100
+    } : {
+      display: 'flex',
+      gap: '12px',
+      alignItems: 'flex-end',
+      flexWrap: 'wrap',
+      position: 'relative',
+      zIndex: (showPopover || showOutletDropdown) ? 999999 : 100,
+      background: T.cardBg,
+      padding: '12px 16px',
+      borderRadius: '12px',
+      border: `1px solid ${T.border}`
+    }}>
       
       {/* 1. Tahun Dropdown */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -468,113 +487,114 @@ export function DoubleCalendarPicker({
       </div>
 
       {/* Outlet Selection Dropdown */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showOutletDropdown ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Outlet</span>
-        <button
-          onClick={() => { setShowOutletDropdown(!showOutletDropdown); setShowPopover(false); }}
-          style={{
-            minWidth: '220px',
-            padding: '10px 14px',
-            borderRadius: '6px',
-            border: `1px solid ${T.border}`,
-            background: T.inputBg,
-            color: T.txtPrimary,
-            fontSize: '0.85rem',
-            textAlign: 'left',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: '40px',
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
-        >
-          <span style={{ textTransform: 'uppercase', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '180px' }}>
-            {selectedOutletLabel()}
-          </span>
-          <ChevronDown size={16} color={T.txtSecondary} />
-        </button>
+      {!hideOutletFilter && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showOutletDropdown ? 999999 : 1 }}>
+          <button
+            onClick={() => { setShowOutletDropdown(!showOutletDropdown); setShowPopover(false); }}
+            style={{
+              minWidth: '220px',
+              padding: '10px 14px',
+              borderRadius: '6px',
+              border: `1px solid ${T.border}`,
+              background: T.inputBg,
+              color: T.txtPrimary,
+              fontSize: '0.85rem',
+              textAlign: 'left',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: '40px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
+          >
+            <span style={{ textTransform: 'uppercase', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+              {selectedOutletLabel()}
+            </span>
+            <ChevronDown size={16} color={T.txtSecondary} />
+          </button>
 
-        {/* Outlet Multi-select Dropdown Popover */}
-        {showOutletDropdown && (
-          <div style={{
-            position: 'absolute',
-            top: '48px',
-            left: 0,
-            width: '280px',
-            background: T.dropdownBg,
-            border: `1.5px solid ${T.dropdownBorder}`,
-            borderRadius: '8px',
-            boxShadow: T.shadowLg,
-            zIndex: 999999,
-            padding: '8px 0',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <button
-              onClick={() => onToggleAllOutlets()}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                textAlign: 'left',
-                border: 'none',
-                background: 'none',
-                fontSize: '0.82rem',
-                color: selectedOutletIds.includes('ALL') ? `${T.info}` : T.txtPrimary,
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'background 0.15s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-            >
-              <input type="checkbox" checked={selectedOutletIds.includes('ALL')} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
-              <span>🏢 SEMUA OUTLET CABANG</span>
-            </button>
+          {/* Outlet Multi-select Dropdown Popover */}
+          {showOutletDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '48px',
+              left: 0,
+              width: '280px',
+              background: T.dropdownBg,
+              border: `1.5px solid ${T.dropdownBorder}`,
+              borderRadius: '8px',
+              boxShadow: T.shadowLg,
+              zIndex: 999999,
+              padding: '8px 0',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <button
+                onClick={() => onToggleAllOutlets()}
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  textAlign: 'left',
+                  border: 'none',
+                  background: 'none',
+                  fontSize: '0.82rem',
+                  color: selectedOutletIds.includes('ALL') ? `${T.info}` : T.txtPrimary,
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+              >
+                <input type="checkbox" checked={selectedOutletIds.includes('ALL')} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
+                <span>🏢 SEMUA OUTLET CABANG</span>
+              </button>
 
-            <div style={{ borderTop: `1px solid ${T.border}`, margin: '4px 0' }} />
+              <div style={{ borderTop: `1px solid ${T.border}`, margin: '4px 0' }} />
 
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {outlets.map(o => {
-                const isChecked = selectedOutletIds.includes(o.id);
-                return (
-                  <button
-                    key={o.id}
-                    onClick={() => onToggleOutlet(o.id)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 16px',
-                      textAlign: 'left',
-                      border: 'none',
-                      background: 'none',
-                      fontSize: '0.82rem',
-                      color: isChecked ? `${T.info}` : T.txtPrimary,
-                      fontWeight: isChecked ? '700' : '500',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      transition: 'background 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                  >
-                    <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
-                    <span>🏢 {o.name}</span>
-                  </button>
-                );
-              })}
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {outlets.map(o => {
+                  const isChecked = selectedOutletIds.includes(o.id);
+                  return (
+                    <button
+                      key={o.id}
+                      onClick={() => onToggleOutlet(o.id)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 16px',
+                        textAlign: 'left',
+                        border: 'none',
+                        background: 'none',
+                        fontSize: '0.82rem',
+                        color: isChecked ? `${T.info}` : T.txtPrimary,
+                        fontWeight: isChecked ? '700' : '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = T.hoverBg}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                    >
+                      <input type="checkbox" checked={isChecked} onChange={() => {}} style={{ pointerEvents: 'none', accentColor: T.info }} />
+                      <span>🏢 {o.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Double Calendar Picker Popover */}
       {showPopover && (
@@ -3699,7 +3719,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* TOP BAR WITH MONTH FILTER & EXPORT BUTTONS */}
-          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={omzetStartDate}
               endDate={omzetEndDate}
@@ -4566,7 +4586,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'daily' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER & ACTION BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={dailyStartDate}
               endDate={dailyEndDate}
@@ -4705,7 +4725,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'hourly' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={hourStartDate}
               endDate={hourEndDate}
@@ -4947,7 +4967,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             return (
               <>
                 {/* FILTER BAR SECTION (RENTANG WAKTU & SELEKSI OUTLET) */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 30 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1000 }}>
                   <DoubleCalendarPicker themeMode={themeMode}
                     startDate={rcptStartDate}
                     endDate={rcptEndDate}
@@ -5247,7 +5267,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       {activeTab === 'customers' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* FILTER BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '16px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={custStartDate}
               endDate={custEndDate}
@@ -5433,7 +5453,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
           {/* FILTER BAR SECTION */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', position: 'relative', zIndex: 1000 }}>
             
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={momStartDate}

@@ -164,24 +164,20 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     }
   };
 
-  // Filtered All Shift Closing & Manual Update Reports (Real-time from POS Mobile & Web Admin - ONLY APPROVED)
+  // Filtered All Shift Closing Reports (Real-time from POS Mobile & Web Admin - ONLY APPROVED)
   const rawShiftReports = [
-    ...(masterData?.shiftClosings || []),
-    ...(masterData?.closedShifts || []),
-    ...(masterData?.shiftReports || []),
-    ...(masterData?.approvedFinanceDaily || []),
-    ...(masterData?.manualEntryRecords || []),
-    ...(masterData?.dailyReports || [])
+    ...(masterData.shiftClosings || []),
+    ...(masterData.closedShifts || []),
+    ...(masterData.approvedFinanceDaily || [])
   ];
   const approvedReportsMap = new Map();
   rawShiftReports.forEach(r => {
     if (r && r.id != null) {
-      const statusLower = String(r.status || '').toLowerCase();
       const isApproved = r.is_approved === true || 
-                         statusLower === 'approved' || 
-                         statusLower === 'disetujui' || 
-                         statusLower === 'selesai' || 
-                         statusLower === 'acc' ||
+                         r.status === 'approved' || 
+                         r.status === 'Approved' || 
+                         r.status === 'disetujui' || 
+                         r.status === 'ACC' ||
                          (masterData.approvedFinanceDaily && masterData.approvedFinanceDaily.some(a => String(a.id) === String(r.id)));
       if (isApproved) {
         approvedReportsMap.set(String(r.id), r);
@@ -190,7 +186,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
   });
   const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
     isOutletMatch(f.outlet_id || f.branch_id) && 
-    isDateMatch(f.entry_date || f.date || f.transaction_date || f.created_at)
+    isDateMatch(f.date || f.created_at)
   );
 
   // Filtered All Sales Transactions (Real-time from POS Mobile & Web Admin)
@@ -205,13 +201,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
   });
   const salesTransactions = Array.from(salesTxMap.values()).filter(t => 
     isOutletMatch(t.outlet_id || t.branch_id) && 
-    isDateMatch(t.entry_date || t.date || t.transaction_date || t.timestamp || t.created_at)
+    isDateMatch(t.date || t.timestamp || t.created_at)
   );
 
   // Filtered Financial Records
   const financialRecords = (masterData.financialRecords || []).filter(f => 
     isOutletMatch(f.outlet_id) && 
-    isDateMatch(f.entry_date || f.date || f.transaction_date || f.created_at)
+    isDateMatch(f.date || f.created_at)
   );
 
   const calcPercent = (val, base) => {
@@ -232,23 +228,15 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       return true;
     };
 
-    const rawShiftReports = [
-      ...(masterData?.shiftReports || []),
-      ...(masterData?.approvedFinanceDaily || []),
-      ...(masterData?.manualEntryRecords || []),
-      ...(masterData?.dailyReports || []),
-      ...(masterData?.shiftClosings || []),
-      ...(masterData?.closedShifts || [])
-    ];
+    const rawShiftReports = masterData?.shiftReports || masterData?.approvedFinanceDaily || masterData?.dailyReports || [];
     const approvedReportsMap = new Map();
     rawShiftReports.forEach(r => {
       if (r && r.id != null) {
-        const statusLower = String(r.status || '').toLowerCase();
         const isApproved = r.is_approved === true || 
-                           statusLower === 'approved' || 
-                           statusLower === 'disetujui' || 
-                           statusLower === 'selesai' || 
-                           statusLower === 'acc' ||
+                           r.status === 'approved' || 
+                           r.status === 'Approved' || 
+                           r.status === 'disetujui' || 
+                           r.status === 'ACC' ||
                            (masterData?.approvedFinanceDaily && masterData.approvedFinanceDaily.some(a => String(a.id) === String(r.id)));
         if (isApproved) {
           approvedReportsMap.set(String(r.id), r);
@@ -257,7 +245,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     });
     const approvedReports = Array.from(approvedReportsMap.values()).filter(f => 
       isOutletMatch(f.outlet_id || f.branch_id) && 
-      isMatchedDate(f.entry_date || f.date || f.transaction_date || f.created_at)
+      isMatchedDate(f.date || f.created_at)
     );
 
     const rawSalesTx = [
@@ -279,13 +267,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       isMatchedDate(f.date || f.created_at)
     );
 
-    const cashSalesTotal = approvedReports.reduce((sum, f) => {
-      const netVal = Number(f.net_sales != null ? f.net_sales : (f.total_omset != null ? f.total_omset : (f.gross_sales != null ? f.gross_sales : (f.total_sales || 0))));
-      const nonCashVal = Number(f.non_cash_sales || 0);
-      const cashVal = f.cash_sales != null ? Number(f.cash_sales) : Math.max(0, netVal - nonCashVal);
-      return sum + (isNaN(cashVal) ? 0 : cashVal);
-    }, 0);
-
+    const cashSalesTotal = approvedReports.reduce((sum, f) => sum + Number(f.cash_sales || (f.net_sales - (f.non_cash_sales || 0))), 0);
     const nonCashSalesTotal = approvedReports.reduce((sum, f) => sum + Number(f.non_cash_sales || 0), 0);
     const salesTxTotal = salesTransactions.reduce((s, t) => s + Number(t.amount || 0), 0);
     const rawSalesTotal = salesTxTotal > 0 ? salesTxTotal : (cashSalesTotal + nonCashSalesTotal);
@@ -322,15 +304,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
       rows.forEach(r => {
         const catType = String(r.category_type || r.category || '').toLowerCase();
-        const accountCode = String(r.code || r.accountCode || r.account_code || '');
-
-        // HPP jika: tidak punya category_type DAN tidak punya kode akun (item bahan baku)
-        // ATAU secara eksplisit bertipe hpp/bahan/produksi ATAU kode 5xxx
-        // Exclude jika kode 6xxx/7xxx/8xxx (OPEX/Beban) — KECUALI tidak ada kode akun
-        const isExplicitOpex = (accountCode.startsWith('6') || accountCode.startsWith('7') || accountCode.startsWith('8')) && accountCode.length >= 4;
-        const isExplicitHpp = catType.includes('hpp') || catType.includes('bahan') || catType.includes('mentah') || catType.includes('produksi') || accountCode.startsWith('5');
-        const isHpp = !isExplicitOpex && (isExplicitHpp || (!r.category_type));
-
+        const isHpp = !r.category_type || catType.includes('hpp') || catType.includes('bahan') || catType.includes('mentah');
         if (isHpp && (r.item_name || r.name)) {
           reportHasHppRow = true;
           const rawName = (r.item_name || r.name || 'Bahan Baku Utama').trim();
@@ -399,36 +373,21 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     const extraMap = {};
 
     approvedReports.forEach(f => {
-      // Kumpulkan nama item yang sudah masuk HPP (cogsItemsMap) agar tidak double-count di Beban
-      const hppItemNames = new Set(Object.keys(cogsItemsMap).map(n => n.toLowerCase()));
-
-      const breakdown = (f.expenses_breakdown && f.expenses_breakdown.length > 0) 
-        ? f.expenses_breakdown 
-        : ((f.expense_details && f.expense_details.length > 0) ? f.expense_details : (f.expense_rows || []));
-
-      if (breakdown && breakdown.length > 0) {
-        breakdown.forEach((ex, idx) => {
-          const code = ex.code || ex.accountCode || `69${String(idx + 1).padStart(2, '0')}`;
-          const name = ex.name || ex.categoryName || ex.category || ex.notes || 'Beban Operasional Restoran';
-          const amt = Number(ex.amount || ex.subtotal || ex.total || 0);
-
-          // Skip item yang sudah masuk HPP (misal: Gas, Bahan Baku, dll)
-          if (hppItemNames.has(name.toLowerCase())) return;
-
+      if (f.expenses_breakdown && f.expenses_breakdown.length > 0) {
+        f.expenses_breakdown.forEach((ex, idx) => {
+          const code = ex.code || `69${String(idx + 1).padStart(2, '0')}`;
+          const name = ex.name || ex.category || 'Beban Operasional Restoran';
           if (stdMap[code]) {
-            stdMap[code].amount += amt;
+            stdMap[code].amount += Number(ex.amount || 0);
           } else {
             const key = `[${code}] ${name}`;
-            extraMap[key] = (extraMap[key] || 0) + amt;
+            extraMap[key] = (extraMap[key] || 0) + Number(ex.amount || 0);
           }
         });
-      } else {
-        const totalExp = Number(f.total_expense || f.total_pengeluaran || 0);
-        if (totalExp > 0) {
-          const netOpex = totalExp - Number(f.cogs_expense || 0);
-          if (netOpex > 0) {
-            stdMap['6901'].amount += netOpex;
-          }
+      } else if (f.total_expense && Number(f.total_expense) > 0) {
+        const netOpex = Number(f.total_expense) - Number(f.cogs_expense || 0);
+        if (netOpex > 0) {
+          stdMap['6901'].amount += netOpex;
         }
       }
     });
@@ -440,7 +399,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         let matched = false;
         if (cat.includes('gaji') || cat.includes('payroll') || cat.includes('upah')) { stdMap['6001'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('sewa') || cat.includes('rent')) { stdMap['6002'].amount += Number(f.amount || 0); matched = true; }
-        else if (cat.includes('listrik') || cat.includes('air') || cat.includes('utility') || cat.includes('wifi') || cat.includes('internet')) { stdMap['6003'].amount += Number(f.amount || 0); matched = true; }
+        else if (cat.includes('listrik') || cat.includes('air') || cat.includes('utility') || cat.includes('wifi') || cat.includes('internet') || cat.includes('gas')) { stdMap['6003'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('maintenance') || cat.includes('servis') || cat.includes('peralatan') || cat.includes('dapur')) { stdMap['6004'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('iklan') || cat.includes('promosi') || cat.includes('marketing') || cat.includes('diskon')) { stdMap['6005'].amount += Number(f.amount || 0); matched = true; }
         else if (cat.includes('kemasan') || cat.includes('packaging') || cat.includes('plastik') || cat.includes('box')) { stdMap['6006'].amount += Number(f.amount || 0); matched = true; }
@@ -448,10 +407,6 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         else if (cat.includes('admin') || cat.includes('bank') || cat.includes('fee') || cat.includes('qris')) { stdMap['6008'].amount += Number(f.amount || 0); matched = true; }
 
         if (!matched) {
-          // Juga skip dari Beban jika item ini sudah ada di HPP (cogsItemsMap)
-          const hppNames = new Set(Object.keys(cogsItemsMap).map(n => n.toLowerCase()));
-          if (hppNames.has((f.category || f.notes || '').toLowerCase())) return;
-
           const code = f.code || `69${String(idx + 50).padStart(2, '0')}`;
           const key = `[${code}] ${f.category || f.notes || 'Beban Kas Operasional'}`;
           extraMap[key] = (extraMap[key] || 0) + Number(f.amount || 0);
@@ -1134,7 +1089,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       if (isHeader) {
         return (
           <tr key={title}>
-            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: T.info, padding: '20px 10px 10px 10px', fontSize: '15px', background: T.cardBg2 }}>
+            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: T.info, padding: '20px 10px 10px 10px', fontSize: '1.05rem', background: T.cardBg2 }}>
               {title}
             </td>
           </tr>
@@ -1173,10 +1128,10 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               {formatLunaCurrency(v)}
             </td>
           ))}
-          <td style={{ textAlign: 'right', padding: '10px 12px', color: diffColor, fontSize: '14px', fontWeight: '800' }}>
+          <td style={{ textAlign: 'right', padding: '10px 12px', color: diffColor, fontSize: '0.92rem', fontWeight: '800' }}>
             {diffPrefix}{formatLunaCurrency(diff)}
           </td>
-          <td style={{ textAlign: 'right', padding: '10px 12px', color: diffColor, fontSize: '14px', fontWeight: '800' }}>
+          <td style={{ textAlign: 'right', padding: '10px 12px', color: diffColor, fontSize: '0.92rem', fontWeight: '800' }}>
             {pct > 0 ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`}
           </td>
         </tr>
@@ -1208,7 +1163,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         </div>
 
         <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${T.border}` }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary }}>
                 <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: '800', minWidth: '280px' }}>AKUN / KETERANGAN</th>
@@ -1290,7 +1245,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       if (isHeader) {
         return (
           <tr key={title}>
-            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: T.info, padding: '18px 10px 8px 10px', fontSize: '14px', background: T.cardBg2 }}>
+            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: T.info, padding: '18px 10px 8px 10px', fontSize: '0.92rem', background: T.cardBg2 }}>
               {title}
             </td>
           </tr>
@@ -1323,7 +1278,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
             {title}
           </td>
           {vals.map((v, idx) => (
-            <td key={idx} style={{ textAlign: 'right', padding: '8px 12px', color: isBold ? color : T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+            <td key={idx} style={{ textAlign: 'right', padding: '8px 12px', color: isBold ? color : T.txtPrimary, fontSize: '0.86rem', fontWeight: '600' }}>
               {formatLunaCurrency(v)}
             </td>
           ))}
@@ -1362,7 +1317,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         </div>
 
         <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${T.border}` }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary }}>
                 <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: '800', minWidth: '280px' }}>ACCOUNT DESCRIPTION</th>
@@ -1412,7 +1367,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
       if (isHeader) {
         return (
           <tr key={title}>
-            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: T.info, padding: '18px 10px 8px 10px', fontSize: '14px', background: T.cardBg2 }}>
+            <td colSpan={comparedMonths.length + 3} style={{ fontWeight: '900', color: T.info, padding: '18px 10px 8px 10px', fontSize: '0.92rem', background: T.cardBg2 }}>
               {title}
             </td>
           </tr>
@@ -1437,7 +1392,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
             {title}
           </td>
           {vals.map((v, idx) => (
-            <td key={idx} style={{ textAlign: 'right', padding: '8px 12px', color: isBold ? color : T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+            <td key={idx} style={{ textAlign: 'right', padding: '8px 12px', color: isBold ? color : T.txtPrimary, fontSize: '0.86rem', fontWeight: '600' }}>
               {formatLunaCurrency(v)}
             </td>
           ))}
@@ -1476,7 +1431,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         </div>
 
         <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${T.border}` }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
             <thead>
               <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary }}>
                 <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: '800', minWidth: '320px' }}>DESKRIPSI ARUS KAS</th>
@@ -1545,7 +1500,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         {/* HEADER SECTION */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ fontSize: '17px', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.txtPrimary, letterSpacing: '-0.01em', margin: 0 }}>
               Pusat Laporan Keuangan &amp; Analisis AI
             </h2>
             <p style={{ color: T.txtSecondary, fontSize: '0.85rem', marginTop: '3px', margin: 0 }}>
@@ -2066,19 +2021,19 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               </div>
 
               {/* TABLE P&L */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '15px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1.00rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary }}>
-                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: '800', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</th>
-                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '260px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</th>
-                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '150px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>% of Income</th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: '800', fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</th>
+                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '260px', fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</th>
+                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '150px', fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>% of Income</th>
                   </tr>
                 </thead>
                 <tbody>
 
                   {/* 1. INCOME */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Income
                     </td>
                   </tr>
@@ -2089,14 +2044,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[4001] Pendapatan Usaha</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(pendapatanUsaha)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {calcPercent(pendapatanUsaha, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2107,13 +2062,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '0.92rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>↳ [4001.01] Penjualan Kas Tunai (Cash)</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(cashRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '0.92rem' }}>
                       {calcPercent(cashRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2123,13 +2078,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '0.92rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>↳ [4001.02] Penjualan Barcode QRIS &amp; E-Wallet</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(qrisRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '0.92rem' }}>
                       {calcPercent(qrisRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2139,13 +2094,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '0.92rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>↳ [4001.03] Penjualan Kartu Debit/Kredit (EDC)</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(edcRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '0.92rem' }}>
                       {calcPercent(edcRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2155,13 +2110,13 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '0.92rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>↳ [4001.04] Penjualan Transfer Bank</span>
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(transferRevenueVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '0.92rem' }}>
                       {calcPercent(transferRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2172,20 +2127,20 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.danger, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.danger, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[4002] Diskon Penjualan (Potongan Promo)</span>
                       <ExternalLink size={15} color={T.danger} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.danger, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.danger, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(diskonPenjualan)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {calcPercent(diskonPenjualan, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* TOTAL INCOME */}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.success }}>Total Income</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.success }}>
                       {formatLunaCurrency(totalIncomeVal)}
@@ -2197,7 +2152,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* 2. COST OF GOODS SOLD */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Cost of Goods Sold (Harga Pokok Produksi)
                     </td>
                   </tr>
@@ -2208,14 +2163,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[5002] Harga Pokok Produksi / Penjualan (HPP)</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(hppVal)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {calcPercent(hppVal, totalIncomeVal)}
                     </td>
                   </tr>
@@ -2232,18 +2187,18 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: T.txtPrimary, fontSize: '14px' }}>
+                        <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '0.92rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', color: T.txtPrimary, fontSize: '0.92rem' }}>
                             <span>↳ [{subCode}] Bahan Baku: {item.name}{qtyStr}</span>
                           </div>
                           <div style={{ fontSize: '0.80rem', color: T.txtMuted, marginTop: '2px' }}>
                             {item.note ? item.note : `Rincian akumulasi pengeluaran HPP bahan mentah ${item.name}`}
                           </div>
                         </td>
-                        <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '700', verticalAlign: 'top' }}>
+                        <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '700', verticalAlign: 'top' }}>
                           {formatLunaCurrency(item.amount)}
                         </td>
-                        <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px', verticalAlign: 'top' }}>
+                        <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '0.92rem', verticalAlign: 'top' }}>
                           {calcPercent(item.amount, totalIncomeVal)}
                         </td>
                       </tr>
@@ -2256,20 +2211,20 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[5005] Biaya Pengiriman &amp; Expedisi Bahan</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(biayaPengiriman)}
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {calcPercent(biayaPengiriman, totalIncomeVal)}
                     </td>
                   </tr>
 
                   {/* TOTAL COGS */}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.danger }}>Total Cost of Goods Sold</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.danger }}>
                       {formatLunaCurrency(totalCogsVal)}
@@ -2280,7 +2235,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </tr>
 
                   {/* 3. GROSS PROFIT */}
-                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.success, textTransform: 'uppercase' }}>GROSS PROFIT</td>
                     <td style={{ textAlign: 'right', padding: '14px 16px', color: T.success }}>
                       {formatLunaCurrency(grossProfitVal)}
@@ -2292,7 +2247,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* 4. EXPENSE */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Expense
                     </td>
                   </tr>
@@ -2306,20 +2261,20 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                         style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
-                        <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span>{ex.codeName}</span>
                           <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                         </td>
-                        <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                        <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                           {formatLunaCurrency(ex.amount)}
                         </td>
-                        <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                        <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.00rem' }}>
                           {calcPercent(ex.amount, totalIncomeVal)}
                         </td>
                       </tr>
                     );
                   })}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.danger }}>Total Expense</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.danger }}>
                       {formatLunaCurrency(totalExpenseVal)}
@@ -2330,7 +2285,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </tr>
 
                   {/* 5. NET OPERATING INCOME */}
-                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.accentGreenBg, borderTop: `2px solid ${T.accentGreen}`, borderBottom: `2px solid ${T.accentGreen}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.success, textTransform: 'uppercase' }}>NET OPERATING INCOME</td>
                     <td style={{ textAlign: 'right', padding: '14px 16px', color: T.success }}>
                       {formatLunaCurrency(netOperatingIncomeVal)}
@@ -2342,7 +2297,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* 6. OTHER INCOME */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Other Income
                     </td>
                   </tr>
@@ -2353,19 +2308,19 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                       style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>{oi.codeName}</span>
                         <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                       </td>
-                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                         {formatLunaCurrency(oi.amount)}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.00rem' }}>
                         {calcPercent(oi.amount, totalIncomeVal)}
                       </td>
                     </tr>
                   ))}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.success }}>Total Other Income</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.success }}>
                       {formatLunaCurrency(totalOtherIncomeVal)}
@@ -2377,7 +2332,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* 7. OTHER EXPENSE */}
                   <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Other Expense
                     </td>
                   </tr>
@@ -2388,19 +2343,19 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                       style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>{oe.codeName}</span>
                         <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                       </td>
-                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                         {formatLunaCurrency(oe.amount)}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '1.00rem' }}>
                         {calcPercent(oe.amount, totalIncomeVal)}
                       </td>
                     </tr>
                   ))}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.danger }}>Total Other Expense</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.danger }}>
                       {formatLunaCurrency(totalOtherExpenseVal)}
@@ -2411,7 +2366,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </tr>
 
                   {/* 8. NET OTHER INCOME */}
-                  <tr style={{ fontWeight: '900', background: T.dangerBg, borderTop: `2px solid ${T.danger}`, borderBottom: `2px solid ${T.danger}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.dangerBg, borderTop: `2px solid ${T.danger}`, borderBottom: `2px solid ${T.danger}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.danger, textTransform: 'uppercase' }}>NET OTHER INCOME</td>
                     <td style={{ textAlign: 'right', padding: '14px 16px', color: T.danger }}>
                       {formatLunaCurrency(netOtherIncomeVal)}
@@ -2422,7 +2377,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </tr>
 
                   {/* 9. NET INCOME */}
-                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.success, textTransform: 'uppercase' }}>NET INCOME</td>
                     <td style={{ textAlign: 'right', padding: '14px 16px', color: T.success }}>
                       {formatLunaCurrency(netIncomeVal)}
@@ -2530,18 +2485,18 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               </div>
 
               {/* TABLE BALANCE SHEET */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '15px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1.00rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary }}>
-                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: '800', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Description</th>
-                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '260px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total (IDR)</th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: '800', fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Description</th>
+                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '260px', fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total (IDR)</th>
                   </tr>
                 </thead>
                 <tbody>
 
                   {/* 1. ASSET SECTION HEADER */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.info, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.info, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       ASSET
                     </td>
                   </tr>
@@ -2552,15 +2507,15 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[1101] Kas Laci Kasir &amp; Rekening Bank</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(totalCashAndBank)}
                     </td>
                   </tr>
-                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px 12px 24px', color: T.txtPrimary }}>Total Cash and Bank</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary }}>
                       {formatLunaCurrency(totalCashAndBank)}
@@ -2569,7 +2524,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* ACCOUNT RECEIVABLE */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Account Receivable
                     </td>
                   </tr>
@@ -2578,15 +2533,15 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[1201] Piutang Usaha</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(piutangUsaha)}
                     </td>
                   </tr>
-                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px 12px 24px', color: T.txtPrimary }}>Total Account Receivable</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary }}>
                       {formatLunaCurrency(piutangUsaha)}
@@ -2595,7 +2550,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* INVENTORY */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Inventory
                     </td>
                   </tr>
@@ -2604,15 +2559,15 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[1301] Persediaan</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(rawMaterialInventoryValue)}
                     </td>
                   </tr>
-                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px 12px 24px', color: T.txtPrimary }}>Total Inventory</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary }}>
                       {formatLunaCurrency(rawMaterialInventoryValue)}
@@ -2621,7 +2576,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* OTHER CURRENT ASSET */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Other Current Asset
                     </td>
                   </tr>
@@ -2630,11 +2585,11 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[1431] Dana Cadangan Gaji Karyawan</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(cadanganGaji)}
                     </td>
                   </tr>
@@ -2643,11 +2598,11 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[1432] Dana Cadangan Sewa Gedung</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(cadanganSewa)}
                     </td>
                   </tr>
@@ -2656,15 +2611,15 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[1433] Dana Cadangan Tunjangan HariRaya</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(cadanganTHR)}
                     </td>
                   </tr>
-                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px 12px 24px', color: T.txtPrimary }}>Total Other Current Asset</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.txtPrimary }}>
                       {formatLunaCurrency(totalOtherCurrentAsset)}
@@ -2672,7 +2627,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </tr>
 
                   {/* TOTAL ASSET */}
-                  <tr style={{ fontWeight: '900', background: T.infoBg, borderTop: `2px solid ${T.info}`, borderBottom: `2px solid ${T.info}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.infoBg, borderTop: `2px solid ${T.info}`, borderBottom: `2px solid ${T.info}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.info, textTransform: 'uppercase' }}>TOTAL ASSET</td>
                     <td style={{ textAlign: 'right', padding: '14px 16px', color: T.info }}>
                       {formatLunaCurrency(totalAssetsVal)}
@@ -2681,14 +2636,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* 2. LIABILITIES AND EQUITY SECTION */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${T.border}` }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${T.border}` }}>
                       LIABILITIES AND EQUITY
                     </td>
                   </tr>
 
                   {/* LIABILITY */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       LIABILITY
                     </td>
                   </tr>
@@ -2697,15 +2652,15 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.danger, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.danger, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[2101] Hutang Operasional Kasir &amp; Supplier</span>
                       <ExternalLink size={15} color={T.danger} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(totalLiability)}
                     </td>
                   </tr>
-                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.danger }}>Total Liability</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.danger }}>
                       {formatLunaCurrency(totalLiability)}
@@ -2714,7 +2669,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* EQUITY */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       EQUITY
                     </td>
                   </tr>
@@ -2723,11 +2678,11 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>[3101] Modal Disetor Owner / Investor</span>
                       <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(ownerCapital)}
                     </td>
                   </tr>
@@ -2736,15 +2691,15 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.success, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.success, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>Net Income</span>
                       <ExternalLink size={15} color={T.success} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.success, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.success, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(netIncomeVal)}
                     </td>
                   </tr>
-                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', borderBottom: `1px solid ${T.border}`, background: T.tableStripeBg, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.info }}>Total Equity</td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.info }}>
                       {formatLunaCurrency(totalEquity)}
@@ -2752,7 +2707,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </tr>
 
                   {/* TOTAL LIABILITIES AND EQUITY */}
-                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.success, textTransform: 'uppercase' }}>TOTAL LIABILITIES AND EQUITY</td>
                     <td style={{ textAlign: 'right', padding: '14px 16px', color: T.success }}>
                       {formatLunaCurrency(totalLiability + totalEquity)}
@@ -2857,18 +2812,18 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               </div>
 
               {/* TABLE CASH FLOW (EXACT HIERARCHY MATCHING LUNA POS SCREENSHOT) */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '15px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '1.00rem' }}>
                 <thead>
                   <tr style={{ background: T.cardBg2, borderTop: `2px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, color: T.txtPrimary }}>
-                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: '800', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deskripsi</th>
-                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '260px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</th>
+                    <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: '800', fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deskripsi</th>
+                    <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: '800', width: '260px', fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
 
                   {/* 1. ARUS KAS DARI AKTIVITAS OPERASIONAL */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Arus Kas dari Aktivitas Operasional
                     </td>
                   </tr>
@@ -2878,65 +2833,65 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.success, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.success, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>Penerimaan Kas dari Aktivitas Jual Beli</span>
                       <ExternalLink size={15} color={T.success} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.success, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.success, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(penerimaanKasJualBeli)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       Refund atas Penjualan Barang
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(refundPenjualan)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       Pembelian Asset Lancar
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(pembelianAssetLancar)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       Pembayaran ke pemasok
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(pembayaranPemasok)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       Refund atas Pembelian Barang
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(refundPembelian)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       Pembayaran Hutang (Liabilitas)
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(pembayaranHutang)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ padding: '8px 10px 8px 24px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       Pendapatan Lainnya (Diluar Aktivitas Jual Beli)
                     </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '0.92rem', fontWeight: '600' }}>
                       {formatLunaCurrency(pendapatanLainnya)}
                     </td>
                   </tr>
@@ -2946,16 +2901,16 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     style={{ cursor: 'pointer', transition: 'background 0.15s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '10px 12px 10px 24px', color: T.danger, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <td style={{ padding: '10px 12px 10px 24px', color: T.danger, fontWeight: '700', fontSize: '1.02rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span>Pengeluaran Operasional</span>
                       <ExternalLink size={15} color={T.danger} style={{ opacity: 0.6 }} />
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.danger, fontWeight: '700', fontSize: '15px' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 16px', color: T.danger, fontWeight: '700', fontSize: '1.00rem' }}>
                       {formatLunaCurrency(pengeluaranOperasional)}
                     </td>
                   </tr>
 
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: kasBersihOperasional >= 0 ? T.success : T.danger }}>
                       Kas Bersih yang diperoleh dari Aktivitas Operasional
                     </td>
@@ -2966,30 +2921,30 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* 2. ARUS KAS DARI AKTIVITAS INVESTASI */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Arus Kas dari Aktivitas Investasi
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       Perolehan atas Penjualan/Pelepasan Asset
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       {formatLunaCurrency(perolehanPenjualanAsset)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       Aktivitas Investasi Lainnya
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       {formatLunaCurrency(aktivitasInvestasiLainnya)}
                     </td>
                   </tr>
 
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.txtPrimary }}>
                       Kas Bersih yang diperoleh dari Aktivitas Investasi
                     </td>
@@ -3000,30 +2955,30 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                   {/* 3. ARUS KAS DARI AKTIVITAS KEUANGAN */}
                   <tr>
-                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <td colSpan={2} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '1.00rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Arus Kas Dari Aktivitas Keuangan
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       Pembayaran / Penerimaan Pinjaman
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       {formatLunaCurrency(penerimaanPinjaman)}
                     </td>
                   </tr>
 
                   <tr style={{ transition: 'background 0.15s' }}>
-                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ padding: '10px 10px 10px 28px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       Penambahan Modal
                     </td>
-                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '15px', fontWeight: '600' }}>
+                    <td style={{ textAlign: 'right', padding: '10px 14px', color: T.txtPrimary, fontSize: '1.05rem', fontWeight: '600' }}>
                       {formatLunaCurrency(penambahanModal)}
                     </td>
                   </tr>
 
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `2px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.txtPrimary }}>
                       Kas Bersih yang diperoleh dari Aktivitas Keuangan
                     </td>
@@ -3033,7 +2988,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </tr>
 
                   {/* 4. REKAPITULASI KENAIKAN & SALDO KAS */}
-                  <tr style={{ fontWeight: '900', background: T.infoBg, borderTop: `2px solid ${T.info}`, borderBottom: `1px solid ${T.border}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.infoBg, borderTop: `2px solid ${T.info}`, borderBottom: `1px solid ${T.border}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.info, textTransform: 'uppercase' }}>
                       KENAIKAN (PENURUNAN) KAS
                     </td>
@@ -3042,7 +2997,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     </td>
                   </tr>
 
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
+                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderBottom: `1px solid ${T.border}`, fontSize: '1.05rem' }}>
                     <td style={{ padding: '12px 16px', color: T.info, textTransform: 'uppercase' }}>
                       SALDO AWAL KAS
                     </td>
@@ -3051,7 +3006,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     </td>
                   </tr>
 
-                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '17px' }}>
+                  <tr style={{ fontWeight: '900', background: T.successBg, borderTop: `2px solid ${T.success}`, borderBottom: `2px solid ${T.success}`, fontSize: '1.15rem' }}>
                     <td style={{ padding: '14px 16px', color: T.success, textTransform: 'uppercase' }}>
                       SALDO AKHIR KAS
                     </td>
@@ -3086,7 +3041,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               border: '1.5px solid rgba(16, 185, 129, 0.3)'
             }}>
               <div>
-                <h3 style={{ fontSize: '17px', fontWeight: '900', color: T.success, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.success, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Sparkles size={20} color={T.success} />
                   <span>Perbandingan Laba/Rugi Multi-Bulan &amp; Analisis AI</span>
                 </h3>
@@ -3156,7 +3111,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
-                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: T.txtPrimary, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtPrimary, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       📌 Performa &amp; Kenaikan Omzet:
                     </h4>
                     <ul style={{ paddingLeft: '18px', color: T.txtPrimary, fontSize: '0.82rem', margin: 0, lineHeight: '1.5' }}>
@@ -3167,7 +3122,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   </div>
 
                   <div>
-                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: T.success, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <h4 style={{ fontSize: '0.88rem', fontWeight: '800', color: T.success, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       💡 Rekomendasi Efisiensi Profitabilitas:
                     </h4>
                     <ul style={{ paddingLeft: '18px', color: T.success, fontSize: '0.82rem', margin: 0, lineHeight: '1.5' }}>
@@ -3183,7 +3138,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
             {/* MULTI-MONTH SIDE-BY-SIDE P&L COMPARISON TABLE */}
             <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px', padding: '20px', overflowX: 'auto' }}>
               <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: '14px', fontWeight: '800', color: T.txtPrimary }}>
+                <div style={{ fontSize: '0.92rem', fontWeight: '800', color: T.txtPrimary }}>
                   📈 Tabel Perbandingan Laba Rugi Multi-Bulan ({compareMonthsCount} Bulan Berdampingan)
                 </div>
                 <div style={{ fontSize: '0.74rem', color: T.txtSecondary }}>
@@ -3248,7 +3203,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   }}>
                     [{accountDetailModal.code}]
                   </span>
-                  <h3 style={{ fontSize: '17px', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
                     Riwayat Transaksi: {accountDetailModal.name}
                   </h3>
                 </div>
@@ -3281,14 +3236,14 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ background: T.cardBg2, padding: '10px 16px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
                   <div style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>TOTAL AKUN</div>
-                  <div style={{ fontSize: '15px', fontWeight: '900', color: accountDetailModal.totalAmount >= 0 ? T.success : T.danger }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '900', color: accountDetailModal.totalAmount >= 0 ? T.success : T.danger }}>
                     {formatRupiah(accountDetailModal.totalAmount)}
                   </div>
                 </div>
 
                 <div style={{ background: T.cardBg2, padding: '10px 16px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
                   <div style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>JUMLAH TRANSAKSI</div>
-                  <div style={{ fontSize: '15px', fontWeight: '900', color: T.info }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.info }}>
                     {accountDetailModal.transactions.length} Data
                   </div>
                 </div>

@@ -8,6 +8,9 @@ import CostsManagement from './components/admin/CostsManagement';
 
 import StockManagement from './components/admin/StockManagement';
 import ApprovalCenter from './components/admin/ApprovalCenter';
+import ManualReportUpdatePage from './components/admin/ManualReportUpdatePage';
+import IngredientPriceComparisonPage from './components/admin/IngredientPriceComparisonPage';
+import IngredientPriceTrendPage from './components/admin/IngredientPriceTrendPage';
 import FinancialReportsFull from './components/admin/FinancialReportsFull';
 import TermsAndPolicies from './components/admin/TermsAndPolicies';
 import SystemSettings from './components/admin/SystemSettings';
@@ -21,6 +24,8 @@ import LoginPage from './components/admin/LoginPage';
 
 import AndroidPosRegister from './components/mobile/AndroidPosRegister';
 import CustomerSelfRegistrationPage from './components/mobile/CustomerSelfRegistrationPage';
+
+import ServerLoadingOverlay from './components/common/ServerLoadingOverlay';
 
 import { initialMasterData } from './data/initialMasterData';
 import { checkWebPermission } from './utils/permissionUtils';
@@ -48,6 +53,39 @@ export default function App() {
     }
     return null;
   });
+
+  // Global Server Loading Overlay State ("mohon tunggu sebentar ya")
+  const [isServerLoading, setIsServerLoading] = useState(false);
+  const [serverLoadingMessage, setServerLoadingMessage] = useState("mohon tunggu sebentar ya");
+  const [serverLoadingSubMessage, setServerLoadingSubMessage] = useState("Sedang menghubungkan & memuat data ke server...");
+
+  useEffect(() => {
+    // Expose global window helper methods
+    window.showServerLoading = (msg = "mohon tunggu sebentar ya", subMsg = "Sedang menghubungkan & memuat data ke server...") => {
+      setServerLoadingMessage(msg);
+      setServerLoadingSubMessage(subMsg);
+      setIsServerLoading(true);
+    };
+    window.hideServerLoading = () => {
+      setIsServerLoading(false);
+    };
+
+    const handleShowLoading = (e) => {
+      const { message, subMessage } = e.detail || {};
+      setServerLoadingMessage(message || "mohon tunggu sebentar ya");
+      setServerLoadingSubMessage(subMessage || "Sedang menghubungkan & memuat data ke server...");
+      setIsServerLoading(true);
+    };
+    const handleHideLoading = () => setIsServerLoading(false);
+
+    window.addEventListener('show-server-loading', handleShowLoading);
+    window.addEventListener('hide-server-loading', handleHideLoading);
+
+    return () => {
+      window.removeEventListener('show-server-loading', handleShowLoading);
+      window.removeEventListener('hide-server-loading', handleHideLoading);
+    };
+  }, []);
 
   // App View Mode State: 'admin' for Web Browser, 'mobile' for Capacitor Android APK
   const [viewMode, setViewMode] = useState(() => {
@@ -210,11 +248,20 @@ export default function App() {
       }
     } catch (e) {}
 
+    if (typeof window !== 'undefined' && window.showServerLoading) {
+      window.showServerLoading("mohon tunggu sebentar ya", "Sedang mengirim & menyimpan data ke server...");
+    }
+
     fetch(getApiUrl('/api/master-data'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedWithTs)
-    }).catch(() => {});
+    }).catch(() => {})
+      .finally(() => {
+        if (typeof window !== 'undefined' && window.hideServerLoading) {
+          setTimeout(() => window.hideServerLoading(), 400);
+        }
+      });
   };
 
   // Live polling dari server VPS
@@ -268,6 +315,31 @@ export default function App() {
                 ...(serverData.deletedOutflowIds || [])
               ].map(x => String(x)));
 
+              // Track deleted master-data IDs (categories, ingredients, products, etc.)
+              const deletedCatIds = new Set([
+                ...(prev.deletedCategoriesIds || []),
+                ...(serverData.deletedCategoriesIds || [])
+              ].map(x => String(x)));
+              const deletedIngredientIds = new Set([
+                ...(prev.deletedIngredientIds || []),
+                ...(serverData.deletedIngredientIds || [])
+              ].map(x => String(x)));
+              const deletedProductIds = new Set([
+                ...(prev.deletedProductIds || []),
+                ...(serverData.deletedProductIds || [])
+              ].map(x => String(x)));
+
+              const getCombinedArray = (a, b) => {
+                const arrA = Array.isArray(a) ? a : [];
+                const arrB = Array.isArray(b) ? b : [];
+                const map = new Map();
+                [...arrA, ...arrB].forEach(item => {
+                  const k = getItemKey(item);
+                  if (k && !deletedSet.has(k)) map.set(k, item);
+                });
+                return Array.from(map.values());
+              };
+
               const mergeReportsById = (prevList = [], serverList = []) => {
                 const map = new Map();
                 (serverList || []).forEach(item => {
@@ -288,13 +360,49 @@ export default function App() {
                 return Array.from(map.values());
               };
 
-              const mergedApprovedFinance = mergeReportsById(prev.approvedFinanceDaily, serverData.approvedFinanceDaily);
-              const mergedManualEntry = mergeReportsById(prev.manualEntryRecords, serverData.manualEntryRecords);
-              const mergedShiftClosings = mergeReportsById(prev.shiftClosings || prev.closedShifts, serverData.shiftClosings || serverData.closedShifts);
-              const mergedSalesTx = mergeReportsById(prev.salesTransactions || prev.transactions, serverData.salesTransactions || serverData.transactions);
-              const mergedOpname = mergeReportsById(prev.stockOpname || prev.approvedLogistics, serverData.stockOpname || serverData.approvedLogistics);
-              const mergedTransfer = mergeReportsById(prev.approvedTransfers || prev.stockTransfer, serverData.approvedTransfers || serverData.stockTransfer);
-              const mergedWaste = mergeReportsById(prev.approvedWaste || prev.damagedGoods, serverData.approvedWaste || serverData.damagedGoods);
+              const prevFinance = getCombinedArray(prev.approvedFinanceDaily, prev.manualEntryRecords);
+              const serverFinance = getCombinedArray(serverData.approvedFinanceDaily, serverData.manualEntryRecords);
+              const mergedApprovedFinance = mergeReportsById(prevFinance, serverFinance);
+
+              const prevShifts = getCombinedArray(prev.shiftClosings, prev.closedShifts);
+              const serverShifts = getCombinedArray(serverData.shiftClosings, serverData.closedShifts);
+              const mergedShiftClosings = mergeReportsById(prevShifts, serverShifts);
+
+              const prevSales = getCombinedArray(prev.salesTransactions, prev.transactions);
+              const serverSales = getCombinedArray(serverData.salesTransactions, serverData.transactions);
+              const mergedSalesTx = mergeReportsById(prevSales, serverSales);
+
+              const prevOpname = getCombinedArray(prev.stockOpname, prev.approvedLogistics);
+              const serverOpname = getCombinedArray(serverData.stockOpname, serverData.approvedLogistics);
+              const mergedOpname = mergeReportsById(prevOpname, serverOpname);
+
+              const prevTransfers = getCombinedArray(prev.stockTransfer, prev.approvedTransfers);
+              const serverTransfers = getCombinedArray(serverData.stockTransfer, serverData.approvedTransfers);
+              const mergedTransfer = mergeReportsById(prevTransfers, serverTransfers);
+
+              const prevWaste = getCombinedArray(prev.approvedWaste, prev.damagedGoods);
+              const serverWaste = getCombinedArray(serverData.approvedWaste, serverData.damagedGoods);
+              const mergedWaste = mergeReportsById(prevWaste, serverWaste);
+
+              // Merge master arrays — server wins for additions, local wins for deletions
+              const mergeMasterArray = (prevArr, serverArr, deletedIds) => {
+                const map = new Map();
+                // Server items first (as base)
+                (Array.isArray(serverArr) ? serverArr : []).forEach(item => {
+                  const k = String(item.id ?? item.code ?? item.name ?? '');
+                  if (k && !deletedIds.has(k)) map.set(k, item);
+                });
+                // Local items: add if not in server and not deleted
+                (Array.isArray(prevArr) ? prevArr : []).forEach(item => {
+                  const k = String(item.id ?? item.code ?? item.name ?? '');
+                  if (k && !deletedIds.has(k) && !map.has(k)) map.set(k, item);
+                });
+                return Array.from(map.values());
+              };
+
+              const mergedCategories  = mergeMasterArray(prev.categories,   serverData.categories,   deletedCatIds);
+              const mergedIngredients = mergeMasterArray(prev.ingredients,  serverData.ingredients,  deletedIngredientIds);
+              const mergedProducts    = mergeMasterArray(prev.products,      serverData.products,      deletedProductIds);
 
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
@@ -305,10 +413,21 @@ export default function App() {
                 ...initialMasterData,
                 ...prev,
                 ...serverData,
+                // Explicitly merged arrays (deletion-safe)
+                categories:           mergedCategories,
+                ingredients:          mergedIngredients,
+                products:             mergedProducts,
+                // Deleted ID sets — union of local + server
+                deletedCategoriesIds:  Array.from(deletedCatIds),
+                deletedIngredientIds:  Array.from(deletedIngredientIds),
+                deletedProductIds:     Array.from(deletedProductIds),
+                // Transaction arrays (existing merge logic)
                 approvedFinanceDaily: mergedApprovedFinance,
-                manualEntryRecords: mergedManualEntry,
+                manualEntryRecords: mergedApprovedFinance,
                 shiftClosings: mergedShiftClosings,
+                closedShifts: mergedShiftClosings,
                 salesTransactions: mergedSalesTx,
+                transactions: mergedSalesTx,
                 stockOpname: mergedOpname,
                 approvedLogistics: mergedOpname,
                 approvedTransfers: mergedTransfer,
@@ -465,6 +584,7 @@ export default function App() {
       onLogout={handleLogout}
       userSession={userSession}
       masterData={masterData}
+      setMasterData={setMasterData}
       themeMode={themeMode}
       toggleThemeMode={toggleThemeMode}
       setThemeMode={setThemeMode}
@@ -529,6 +649,32 @@ export default function App() {
             />
           )}
 
+          {adminTab === 'update_laporan' && (
+            <ManualReportUpdatePage
+              masterData={masterData}
+              setMasterData={updateMasterData}
+              userSession={userSession}
+              selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          )}
+
+          {adminTab === 'ingredient_prices' && (
+            <IngredientPriceComparisonPage
+              masterData={masterData}
+              selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          )}
+
+          {adminTab === 'tren_harga_outlet' && (
+            <IngredientPriceTrendPage
+              masterData={masterData}
+              selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          )}
+
           {adminTab === 'reports' && (
             <FinancialReportsFull
               masterData={masterData}
@@ -580,6 +726,12 @@ export default function App() {
           )}
         </>
       )}
+      <ServerLoadingOverlay 
+        show={isServerLoading} 
+        message={serverLoadingMessage} 
+        subMessage={serverLoadingSubMessage} 
+        themeMode={themeMode} 
+      />
     </AdminLayout>
   );
 }

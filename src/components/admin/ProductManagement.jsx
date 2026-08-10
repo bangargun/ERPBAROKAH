@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Package, 
   Plus, 
@@ -32,6 +32,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid' | 'table'
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('Semua');
+  const [selectedOutletFilter, setSelectedOutletFilter] = useState('Semua');
+
+  // Auto-sync selectedOutletFilter with top header selectedBranch
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
+      setSelectedOutletFilter(String(selectedBranch));
+      setCurrentPage(1);
+    } else if (selectedBranch === 'ALL' || selectedBranch === 'Semua Restoran (Konsolidasi)') {
+      setSelectedOutletFilter('Semua');
+      setCurrentPage(1);
+    }
+  }, [selectedBranch]);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
@@ -39,9 +51,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [isDragging, setIsDragging] = useState(false);
   const [selectedMenuDetail, setSelectedMenuDetail] = useState(null);
 
-  // Pagination States (Default 25 rows per page)
+  // Pagination States (Default 10 rows per page)
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(10);
 
   const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
@@ -59,16 +71,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
+    const file = e.dataTransfer.files[0];
+    if (file) {
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
-        reader.onload = (uploadEvent) => {
-          setProdImageUrl(uploadEvent.target.result);
+        reader.onloadend = () => {
+          setProdImageUrl(reader.result);
         };
         reader.readAsDataURL(file);
       } else {
-        alert('Mohon unggah file format gambar (JPG, PNG, WEBP).');
+        alert('File harus berupa gambar (JPG, PNG, GIF)');
       }
     }
   };
@@ -82,6 +94,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           setProdImageUrl(uploadEvent.target.result);
         };
         reader.readAsDataURL(file);
+      } else {
+        alert('File harus berupa gambar (JPG, PNG, GIF)');
       }
     }
   };
@@ -186,16 +200,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // 3. Add Composition Row
   const handleAddCompositionRow = () => {
     const defaultIng = masterData.ingredients?.[0] || null;
-    const defaultUnit = masterData.units?.[0]?.symbol || 'Gram';
+    const autoUnit = defaultIng ? (defaultIng.unit || defaultIng.satuan || defaultIng.unit_name || masterData.units?.[0]?.symbol || 'Gram') : 'Gram';
 
     setCompositions([
       ...compositions,
       {
         id: Date.now(),
-        ingredient_id: defaultIng.id,
-        ingredient_name: defaultIng.name,
-        qty: 100,
-        unit: defaultIng.unit || defaultUnit
+        ingredient_id: defaultIng ? defaultIng.id : '',
+        ingredient_name: defaultIng ? defaultIng.name : '',
+        qty: 1,
+        unit: autoUnit
       }
     ]);
   };
@@ -208,12 +222,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setCompositions(compositions.map(c => {
       if (c.id === compId) {
         if (field === 'ingredient_id') {
-          const ing = masterData.ingredients.find(i => i.id === parseInt(val));
+          const ing = (masterData.ingredients || []).find(i => String(i.id) === String(val));
+          const autoUnit = ing ? (ing.unit || ing.satuan || ing.unit_name || c.unit) : c.unit;
           return {
             ...c,
-            ingredient_id: parseInt(val),
+            ingredient_id: val,
             ingredient_name: ing ? ing.name : c.ingredient_name,
-            unit: ing ? ing.unit : c.unit
+            unit: autoUnit
           };
         }
         return { ...c, [field]: val };
@@ -298,7 +313,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setVariantPrices(vP);
     setStandardPrices(stdP);
     setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
-    setCompositions(product.compositions || []);
+    const loadedCompositions = (product.compositions || []).map(comp => {
+      const matchedIng = (masterData.ingredients || []).find(i => String(i.id) === String(comp.ingredient_id) || i.name === comp.ingredient_name);
+      return {
+        ...comp,
+        unit: comp.unit || matchedIng?.unit || matchedIng?.satuan || matchedIng?.unit_name || 'Gram'
+      };
+    });
+    setCompositions(loadedCompositions);
     setShowFormModal(true);
   };
 
@@ -370,10 +392,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       category_name: categoryObj ? categoryObj.name : 'Makanan Utama',
       category: categoryObj ? categoryObj.name : 'Makanan Utama',
       price: parseFloat(firstPriceVal) || 0,
-      cost: (parseFloat(firstPriceVal) || 0) * 0.4,
+      cost: 0,
       unit: 'Pcs',
-      stock: 100,
-      min_stock: 10,
+      stock: 0,
+      min_stock: 0,
       status: prodStatus,
       image_url: prodImageUrl || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400',
       variants,
@@ -435,6 +457,88 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
+  const isProductAvailableAtOutlet = (product, targetOutletId) => {
+    if (!targetOutletId || targetOutletId === 'Semua' || targetOutletId === 'ALL' || targetOutletId === 'Semua Restoran (Konsolidasi)') return true;
+    if (!product) return false;
+
+    const strId = String(targetOutletId);
+    const numId = Number(targetOutletId);
+
+    // Find the outlet object from masterData.outlets
+    const targetOutletObj = (masterData.outlets || []).find(o => 
+      String(o.id) === strId || 
+      String(o.name).toLowerCase().trim() === strId.toLowerCase().trim()
+    );
+    const targetNameLower = targetOutletObj ? (targetOutletObj.name || '').toLowerCase().trim() : strId.toLowerCase().trim();
+    const targetCodeLower = targetOutletObj && targetOutletObj.code ? String(targetOutletObj.code).toLowerCase().trim() : '';
+
+    // Helper matcher function to check if a value matches the target outlet (by ID, Name, Code, or ALL)
+    const matchesOutlet = (val) => {
+      if (val === undefined || val === null) return false;
+      const s = String(val).toLowerCase().trim();
+      if (s === 'all' || s === 'semua' || s === 'semua outlet' || s === 'central') return true;
+      if (s === strId || Number(val) === numId) return true;
+      if (targetNameLower && s === targetNameLower) return true;
+      if (targetCodeLower && s === targetCodeLower) return true;
+      return false;
+    };
+
+    // Check APK Status per outlet override (if explicitly hidden/inaktif for this outlet)
+    if (product.apkStatus && typeof product.apkStatus === 'object') {
+      const statusValue = product.apkStatus[strId] || 
+                          product.apkStatus[numId] || 
+                          (targetNameLower && product.apkStatus[targetNameLower]) ||
+                          (targetOutletObj && product.apkStatus[targetOutletObj.name]);
+      if (statusValue === 'Hide' || statusValue === 'Inaktif' || statusValue === false) return false;
+    }
+
+    // Check 1: Direct outlet_id
+    if (matchesOutlet(product.outlet_id)) return true;
+
+    // Check 2: selectedOutletIds array
+    if (product.selectedOutletIds && Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0) {
+      if (product.selectedOutletIds.some(matchesOutlet)) return true;
+    }
+
+    // Check 3: standardPrices map
+    if (product.standardPrices && typeof product.standardPrices === 'object') {
+      for (const k of Object.keys(product.standardPrices)) {
+        if (matchesOutlet(k) && Number(product.standardPrices[k]) > 0) return true;
+      }
+    }
+
+    // Check 4: variantPrices map
+    if (product.variantPrices && typeof product.variantPrices === 'object') {
+      for (const vName of Object.keys(product.variantPrices)) {
+        const vMap = product.variantPrices[vName] || {};
+        for (const k of Object.keys(vMap)) {
+          if (matchesOutlet(k) && Number(vMap[k]) > 0) return true;
+        }
+      }
+    }
+
+    // Check 5: priceCombinations
+    if (product.priceCombinations && Array.isArray(product.priceCombinations)) {
+      for (const combo of product.priceCombinations) {
+        if (combo.selectedOutletIds && Array.isArray(combo.selectedOutletIds)) {
+          if (combo.selectedOutletIds.some(matchesOutlet)) return true;
+        }
+        if (combo.outletPrices && typeof combo.outletPrices === 'object') {
+          for (const k of Object.keys(combo.outletPrices)) {
+            if (matchesOutlet(k) && Number(combo.outletPrices[k]) > 0) return true;
+          }
+        }
+      }
+    }
+
+    // Default Fallback: If no restrictive selectedOutletIds array is set (or empty), the product is global (available at all outlets)
+    if (!product.selectedOutletIds || !Array.isArray(product.selectedOutletIds) || product.selectedOutletIds.length === 0) {
+      return true;
+    }
+
+    return false;
+  };
+
   const getEffectiveProductPrice = (p) => {
     if (p.price && Number(p.price) > 0) return Number(p.price);
     if (p.priceCombinations && p.priceCombinations.length > 0) {
@@ -452,20 +556,60 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     return 0;
   };
 
-  const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
+  const getEffectiveProductPriceForOutlet = (p, targetOutletId) => {
+    if (targetOutletId && targetOutletId !== 'Semua' && targetOutletId !== 'ALL' && targetOutletId !== 'Semua Restoran (Konsolidasi)') {
+      const strId = String(targetOutletId);
+      const numId = Number(targetOutletId);
 
-  const filteredProducts = masterData.products.filter(p => {
-    if (selectedBranch) {
-      const matchOutlet = p.outlet_id === selectedBranch || Number(p.outlet_id) === Number(selectedBranch) ||
-        (p.selectedOutletIds && (p.selectedOutletIds.includes(selectedBranch) || p.selectedOutletIds.includes(String(selectedBranch)) || p.selectedOutletIds.includes(Number(selectedBranch))));
-      if (!matchOutlet) return false;
+      // Check standardPrices
+      if (p.standardPrices) {
+        const stdPrice = p.standardPrices[strId] !== undefined ? Number(p.standardPrices[strId]) : Number(p.standardPrices[numId] || 0);
+        if (stdPrice > 0) return stdPrice;
+      }
+
+      // Check variantPrices
+      if (p.variantPrices) {
+        for (const vName of Object.keys(p.variantPrices)) {
+          const vMap = p.variantPrices[vName] || {};
+          const vPrice = vMap[strId] !== undefined ? Number(vMap[strId]) : Number(vMap[numId] || 0);
+          if (vPrice > 0) return vPrice;
+        }
+      }
+
+      // Check priceCombinations
+      if (p.priceCombinations && Array.isArray(p.priceCombinations)) {
+        for (const combo of p.priceCombinations) {
+          if (combo.outletPrices) {
+            const comboPrice = combo.outletPrices[strId] !== undefined ? Number(combo.outletPrices[strId]) : Number(combo.outletPrices[numId] || 0);
+            if (comboPrice > 0) return comboPrice;
+          }
+        }
+      }
     }
 
+    return getEffectiveProductPrice(p);
+  };
+
+  const categoryOptions = ['Semua', ...Array.from(new Set(masterData.categories.map(c => c.name)))];
+
+  // Active Outlet Filter ID Priority
+  const activeOutletId = (selectedOutletFilter && selectedOutletFilter !== 'Semua')
+    ? selectedOutletFilter
+    : ((selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') ? String(selectedBranch) : 'Semua');
+
+  const filteredProducts = (masterData.products || []).filter(p => {
+    // 1. Outlet Filter Check
+    if (activeOutletId !== 'Semua' && activeOutletId !== 'ALL') {
+      if (!isProductAvailableAtOutlet(p, activeOutletId)) return false;
+    }
+
+    // 2. Status Filter Check
     const pStatus = p.status || 'Aktif';
     if (selectedStatusFilter !== 'Semua' && pStatus !== selectedStatusFilter) {
       return false;
     }
 
+    // 3. Search & Category Filter Check
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
     
@@ -480,7 +624,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* MAIN CONTAINER CARD */}
       <div className="glass-card" style={{ padding: '0', overflow: 'hidden', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px' }}>
         
@@ -536,6 +680,32 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               <option value="Hide">👁️ Hide (Sembunyi)</option>
             </select>
 
+            {/* Outlet Filter Dropdown */}
+            <select
+              value={selectedOutletFilter}
+              onChange={e => {
+                setSelectedOutletFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                fontSize: '0.8rem',
+                background: T.inputBg,
+                color: selectedOutletFilter !== 'Semua' ? T.info : T.txtPrimary,
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="Semua">🏬 Semua Outlet</option>
+              {(masterData.outlets || []).map(otl => (
+                <option key={otl.id} value={String(otl.id)}>
+                  {otl.name}
+                </option>
+              ))}
+            </select>
+
             {/* Excel Download & Upload Button */}
             <button
               onClick={() => setShowExcelImportModal(true)}
@@ -583,18 +753,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         </div>
 
         {/* TABLE CONTENT */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: '1050px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.76rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', background: T.tableHeaderBg }}>
-                <th style={{ padding: '10px 10px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
-                <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '100px' }}>SKU <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', minWidth: '220px' }}>Produk <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '130px' }}>Kategori <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '140px' }}>Harga <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', minWidth: '200px' }}>Bahan Baku <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '120px' }}>Variant <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '90px' }}>Status <span style={{ opacity: 0.4 }}>↕</span></th>
+                <th style={{ padding: '10px 10px', width: '80px', textAlign: 'right' }}>Aksi <span style={{ opacity: 0.4 }}>↕</span></th>
               </tr>
             </thead>
             <tbody>
@@ -636,10 +806,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   });
 
                   const firstOutletObj = validPriceOutlets[0] || null;
+                  const activeOutletObj = (activeOutletId !== 'Semua' && activeOutletId !== 'ALL')
+                    ? (masterData.outlets || []).find(o => String(o.id) === String(activeOutletId))
+                    : null;
+
+                  const displayOutletObj = activeOutletObj || firstOutletObj;
 
                   let primaryPrice = 0;
-                  if (firstOutletObj) {
-                    const oid = String(firstOutletObj.id);
+                  if (displayOutletObj) {
+                    const oid = String(displayOutletObj.id);
                     if (p.standardPrices) {
                       const stdKey = Object.keys(p.standardPrices).find(k => String(k) === oid);
                       if (stdKey) primaryPrice = Number(p.standardPrices[stdKey]);
@@ -653,23 +828,27 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     }
                     if (primaryPrice <= 0 && p.priceCombinations && p.priceCombinations.length > 0) {
                       const combo = p.priceCombinations.find(c => c.outletPrices && (
-                        Number(c.outletPrices[firstOutletObj.id]) > 0 || Number(c.outletPrices[oid]) > 0
+                        Number(c.outletPrices[displayOutletObj.id]) > 0 || Number(c.outletPrices[oid]) > 0
                       ));
-                      if (combo) primaryPrice = Number(combo.outletPrices[firstOutletObj.id] || combo.outletPrices[oid] || 0);
+                      if (combo) primaryPrice = Number(combo.outletPrices[displayOutletObj.id] || combo.outletPrices[oid] || 0);
                     }
                   }
 
-                  const outletNameHeader = (primaryPrice > 0 && firstOutletObj) ? (firstOutletObj.name || '').toUpperCase() : '';
+                  if (primaryPrice <= 0) {
+                    primaryPrice = getEffectiveProductPrice(p);
+                  }
+
+                  const outletNameHeader = (displayOutletObj) ? (displayOutletObj.name || '').toUpperCase() : '';
 
                   return (
                     <tr key={p.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary }}>
                       {/* 1. SKU */}
-                      <td style={{ padding: '8px 10px', color: T.txtSecondary, fontFamily: 'monospace', fontSize: '0.70rem', fontWeight: '600' }}>
+                      <td style={{ padding: '8px 10px', color: T.txtSecondary, fontFamily: 'monospace', fontSize: '0.70rem', fontWeight: '600', wordBreak: 'break-all' }}>
                         {p.sku || p.code || `MNM-00${p.id}`}
                       </td>
 
                       {/* 2. MENU */}
-                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', letterSpacing: '0.2px' }}>
+                      <td style={{ padding: '8px 10px', fontWeight: '800', fontSize: '0.76rem', letterSpacing: '0.2px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.35' }}>
                         <button
                           type="button"
                           onClick={() => setSelectedMenuDetail(p)}
@@ -682,7 +861,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             padding: 0,
                             textAlign: 'left',
                             fontSize: '0.76rem',
-                            textDecoration: 'underline'
+                            textDecoration: 'underline',
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                            lineHeight: '1.35'
                           }}
                           title="Klik untuk melihat papan informasi detail kuantitas terjual & riwayat penjualan menu ini"
                         >
@@ -1420,7 +1602,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         />
 
                         <select
-                          value={comp.unit || (masterData.units?.[0]?.symbol || masterData.units?.[0]?.name || 'Gram')}
+                          value={comp.unit || 'Gram'}
                           onChange={e => handleUpdateComposition(comp.id, 'unit', e.target.value)}
                           style={{
                             width: '100%',
@@ -1432,22 +1614,34 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             fontSize: '0.8rem'
                           }}
                         >
-                          {(masterData.units && masterData.units.length > 0 ? masterData.units : [
-                            { id: 1, name: 'Kilogram', symbol: 'kg' },
-                            { id: 2, name: 'Gram', symbol: 'Gram' },
-                            { id: 3, name: 'Liter', symbol: 'Liter' },
-                            { id: 4, name: 'Milliliter', symbol: 'ml' },
-                            { id: 5, name: 'Porsi', symbol: 'Porsi' },
-                            { id: 6, name: 'Pcs', symbol: 'pcs' },
-                            { id: 7, name: 'Bungkus', symbol: 'Bungkus' }
-                          ]).map(u => {
-                            const val = u.symbol || u.name;
-                            return (
-                              <option key={u.id} value={val}>
-                                {val} ({u.name})
-                              </option>
-                            );
-                          })}
+                          {(() => {
+                            const baseUnits = masterData.units && masterData.units.length > 0
+                              ? masterData.units.map(u => ({ id: u.id, name: u.name, symbol: u.symbol || u.name }))
+                              : [
+                                { id: 1, name: 'Kilogram', symbol: 'kg' },
+                                { id: 2, name: 'Gram', symbol: 'Gram' },
+                                { id: 3, name: 'Liter', symbol: 'Liter' },
+                                { id: 4, name: 'Milliliter', symbol: 'ml' },
+                                { id: 5, name: 'Porsi', symbol: 'Porsi' },
+                                { id: 6, name: 'Pcs', symbol: 'pcs' },
+                                { id: 7, name: 'Ekor', symbol: 'EKOR' },
+                                { id: 8, name: 'Bungkus', symbol: 'Bungkus' }
+                              ];
+
+                            const unitList = [...baseUnits];
+                            if (comp.unit && !unitList.some(u => (u.symbol || u.name).toLowerCase() === String(comp.unit).toLowerCase())) {
+                              unitList.push({ id: `custom-${comp.unit}`, name: comp.unit, symbol: comp.unit });
+                            }
+
+                            return unitList.map(u => {
+                              const val = u.symbol || u.name;
+                              return (
+                                <option key={u.id} value={val}>
+                                  {val} {u.name && u.name !== val ? `(${u.name})` : ''}
+                                </option>
+                              );
+                            });
+                          })()}
                         </select>
 
                         <button type="button" onClick={() => handleRemoveComposition(comp.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', textAlign: 'center' }}>

@@ -112,7 +112,12 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
-      categories: (masterData.categories || []).filter(c => c.id !== catId)
+      categories: (masterData.categories || []).filter(c => c.id !== catId),
+      // Track deleted IDs so server-sync polling won't restore them
+      deletedCategoriesIds: [
+        ...(masterData.deletedCategoriesIds || []),
+        String(catId)
+      ]
     };
     setMasterData(updated);
   };

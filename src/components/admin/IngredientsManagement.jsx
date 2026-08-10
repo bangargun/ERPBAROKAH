@@ -51,8 +51,8 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
     setIngName('');
     setIngStatus('Aktif');
     setIngUnit(masterData.units?.[0]?.symbol || 'Gram');
-    setIngStock('1000');
-    setIngMinStock('500');
+    setIngStock('0');
+    setIngMinStock('0');
     setShowAddFormModal(true);
   };
 
@@ -63,8 +63,8 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
     setIngName(item.name || '');
     setIngStatus(item.status || 'Aktif');
     setIngUnit(item.unit || (masterData.units?.[0]?.symbol || 'Gram'));
-    setIngStock(item.stock !== undefined && item.stock !== null ? String(item.stock) : '1000');
-    setIngMinStock(item.min_stock !== undefined && item.min_stock !== null ? String(item.min_stock) : '500');
+    setIngStock(item.stock !== undefined && item.stock !== null ? String(item.stock) : '0');
+    setIngMinStock(item.min_stock !== undefined && item.min_stock !== null ? String(item.min_stock) : '0');
     setShowAddFormModal(true);
   };
 
@@ -472,7 +472,7 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                 />
               </div>
 
-              {/* Field 3 & 4: Satuan Unit & Batas Minimal Stok */}
+              {/* Field 3 & 4: Satuan Unit & Stok Awal */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
@@ -489,6 +489,23 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
 
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                    Stok Awal (Awal Mula Stok)
+                  </label>
+                  <input
+                    type="number"
+                    value={ingStock}
+                    onChange={e => setIngStock(e.target.value)}
+                    className="form-input"
+                    style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Field 5 & 6: Batas Minimal Stok & Tampilkan di APK */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
                     Batas Minimal Stok (Alert)
                   </label>
                   <input
@@ -497,20 +514,19 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                     onChange={e => setIngMinStock(e.target.value)}
                     className="form-input"
                     style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
-                    placeholder="500"
+                    placeholder="0"
                   />
                 </div>
-              </div>
 
-              {/* Field 5: Tampilkan di APK */}
-              <div>
-                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
-                  Tampilkan di APK
-                </label>
-                <select value={ingStatus} onChange={e => setIngStatus(e.target.value)} className="form-select" style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}>
-                  <option value="Aktif">Aktif</option>
-                  <option value="Inaktif">Inaktif</option>
-                </select>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                    Tampilkan di APK
+                  </label>
+                  <select value={ingStatus} onChange={e => setIngStatus(e.target.value)} className="form-select" style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Inaktif">Inaktif</option>
+                  </select>
+                </div>
               </div>
 
               {/* Field 6: Keterangan Akun HPP */}

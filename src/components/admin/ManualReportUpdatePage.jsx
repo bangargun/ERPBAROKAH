@@ -1,0 +1,807 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  FileSpreadsheet, 
+  Plus, 
+  Search, 
+  Eye, 
+  Edit3, 
+  Trash2, 
+  X, 
+  Calendar, 
+  Building2, 
+  CheckCircle2, 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  Layers, 
+  Filter, 
+  AlertCircle, 
+  RefreshCw,
+  FileText,
+  User,
+  Info,
+  PackageCheck,
+  Check
+} from 'lucide-react';
+import PaginationControls from './PaginationControls';
+import { getThemePalette } from '../../utils/themeUtils';
+import ManualReportUpdateModal from './ManualReportUpdateModal';
+
+export default function ManualReportUpdatePage({ 
+  masterData, 
+  setMasterData, 
+  userSession, 
+  selectedBranch, 
+  themeMode = 'dark' 
+}) {
+  const T = getThemePalette(themeMode);
+
+  // States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOutletFilter, setSelectedOutletFilter] = useState('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Modal Controls
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [previewReport, setPreviewReport] = useState(null);
+  const [deletingReport, setDeletingReport] = useState(null);
+  const [editingReport, setEditingReport] = useState(null);
+
+  // Helper: Get Outlet Name
+  const getOutletName = (id) => {
+    const otl = (masterData?.outlets || []).find(o => String(o.id) === String(id));
+    return otl ? otl.name : `Outlet #${id}`;
+  };
+
+  // Helper: Format Tanggal Indonesia tanpa pergeseran WIB (GMT+7)
+  const formatDateIndonesian = (dateStr) => {
+    if (!dateStr) return '-';
+    const str = String(dateStr).substring(0, 10);
+    const parts = str.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      const year = parts[0];
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${String(day).padStart(2, '0')} ${months[monthIdx]} ${year}`;
+      }
+    }
+    return str;
+  };
+
+  // Combine All Manual & Approved Reports & Synthesise Standalone Transactions
+  const allReportsList = useMemo(() => {
+    const map = new Map();
+
+    const combineSources = [
+      ...(masterData?.manualEntryRecords || []),
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.shiftReports || []),
+      ...(masterData?.dailyReports || []),
+      ...(masterData?.manualReports || [])
+    ];
+
+    combineSources.forEach(r => {
+      if (r && (r.id != null || r.report_no)) {
+        const key = String(r.report_no || r.id);
+        if (!map.has(key)) {
+          map.set(key, r);
+        }
+      }
+    });
+
+    // Synthesise standalone financialRecords and salesTransactions into date+outlet report entries if not present
+    const groupedStandalone = new Map();
+    const allFinancial = masterData?.financialRecords || [];
+    const allSales = masterData?.salesTransactions || [];
+
+    allFinancial.forEach(f => {
+      const dt = String(f.entry_date || f.date || f.transaction_date || f.created_at || '').substring(0, 10);
+      const otl = String(f.outlet_id || '1');
+      if (dt) {
+        const gKey = `GRP-${dt}-${otl}`;
+        if (!groupedStandalone.has(gKey)) {
+          groupedStandalone.set(gKey, {
+            id: `GRP-${dt}-${otl}`,
+            report_no: `EXP-${dt.replace(/-/g, '')}-${otl}`,
+            entry_date: dt,
+            date: dt,
+            outlet_id: f.outlet_id,
+            outlet_name: f.outlet_name || getOutletName(f.outlet_id),
+            total_omset: 0,
+            total_expense: 0,
+            status: 'Disetujui',
+            is_approved: true,
+            author: f.author || 'Staf / Admin',
+            source: 'Update Laporan Excel/Manual',
+            expense_details: [],
+            sales_details: []
+          });
+        }
+        const grp = groupedStandalone.get(gKey);
+        grp.total_expense += Number(f.amount || f.subtotal || 0);
+        grp.expense_details.push({
+          code: f.code || '6000',
+          name: f.category || f.notes || 'Pengeluaran',
+          categoryName: f.category || f.notes || 'Pengeluaran',
+          amount: Number(f.amount || 0),
+          subtotal: Number(f.amount || 0),
+          notes: f.notes || ''
+        });
+      }
+    });
+
+    allSales.forEach(s => {
+      const dt = String(s.entry_date || s.date || s.transaction_date || s.timestamp || s.created_at || '').substring(0, 10);
+      const otl = String(s.outlet_id || '1');
+      if (dt) {
+        const gKey = `GRP-${dt}-${otl}`;
+        if (!groupedStandalone.has(gKey)) {
+          groupedStandalone.set(gKey, {
+            id: `GRP-${dt}-${otl}`,
+            report_no: `SAL-${dt.replace(/-/g, '')}-${otl}`,
+            entry_date: dt,
+            date: dt,
+            outlet_id: s.outlet_id,
+            outlet_name: s.outlet_name || getOutletName(s.outlet_id),
+            total_omset: 0,
+            total_expense: 0,
+            status: 'Disetujui',
+            is_approved: true,
+            author: s.author || 'Kasir / Admin',
+            source: 'Penjualan POS / Update Laporan',
+            expense_details: [],
+            sales_details: []
+          });
+        }
+        const grp = groupedStandalone.get(gKey);
+        grp.total_omset += Number(s.amount || s.total || s.subtotal || 0);
+        if (s.items && Array.isArray(s.items)) {
+          s.items.forEach(it => {
+            grp.sales_details.push({
+              product_name: it.name || it.product_name || 'Produk',
+              name: it.name || it.product_name || 'Produk',
+              qty: it.qty || 1,
+              price: it.price || 0,
+              subtotal: it.subtotal || 0,
+              amount: it.subtotal || 0
+            });
+          });
+        }
+      }
+    });
+
+    groupedStandalone.forEach((grp, gKey) => {
+      const exists = Array.from(map.values()).some(r => {
+        const rDt = String(r.entry_date || r.date || r.transaction_date || '').substring(0, 10);
+        const rOtl = String(r.outlet_id || '');
+        return rDt === grp.entry_date && (rOtl === String(grp.outlet_id) || !rOtl);
+      });
+      if (!exists) {
+        map.set(gKey, grp);
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => {
+      const dateA = String(a.entry_date || a.date || a.transaction_date || a.created_at || '0').substring(0, 10);
+      const dateB = String(b.entry_date || b.date || b.transaction_date || b.created_at || '0').substring(0, 10);
+      return dateB.localeCompare(dateA);
+    });
+  }, [masterData]);
+
+  // Filtered Reports
+  const filteredReports = useMemo(() => {
+    return allReportsList.filter(r => {
+      // Helper Outlet Matcher
+      const checkOutletMatch = (targetVal) => {
+        if (!targetVal || targetVal === 'ALL' || targetVal === 'Semua Restoran (Konsolidasi)') return true;
+        const strTarget = String(targetVal).toLowerCase().trim();
+        const targetOutletObj = (masterData?.outlets || []).find(o => 
+          String(o.id) === strTarget || 
+          String(o.name).toLowerCase().trim() === strTarget
+        );
+        const targetNameLower = targetOutletObj ? (targetOutletObj.name || '').toLowerCase().trim() : strTarget;
+
+        const rIdStr = String(r.outlet_id || r.branch_id || '').toLowerCase().trim();
+        const rNameStr = String(r.outlet_name || getOutletName(r.outlet_id)).toLowerCase().trim();
+
+        if (rIdStr === strTarget || rIdStr === 'all' || rIdStr === 'semua' || rIdStr === 'central') return true;
+        if (targetNameLower && (rIdStr === targetNameLower || rNameStr === targetNameLower || rNameStr.includes(targetNameLower))) return true;
+        return false;
+      };
+
+      // Branch / Outlet Filter from Top Bar Header
+      if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
+        if (!checkOutletMatch(selectedBranch)) return false;
+      }
+
+      // Outlet Filter from Table Header Dropdown
+      if (selectedOutletFilter !== 'ALL') {
+        if (!checkOutletMatch(selectedOutletFilter)) return false;
+      }
+
+      // Date Range Filter
+      const rDate = String(r.entry_date || r.date || r.transaction_date || r.created_at || '').substring(0, 10);
+      if (startDate && rDate < startDate) return false;
+      if (endDate && rDate > endDate) return false;
+
+      // Search Term Filter
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase().trim();
+        const noLap = String(r.report_no || '').toLowerCase();
+        const otlName = String(r.outlet_name || getOutletName(r.outlet_id)).toLowerCase();
+        const author = String(r.author || r.created_by || '').toLowerCase();
+        if (!noLap.includes(term) && !otlName.includes(term) && !author.includes(term) && !rDate.includes(term)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allReportsList, selectedBranch, selectedOutletFilter, startDate, endDate, searchTerm, masterData?.outlets]);
+
+  // Aggregates for Filtered Data
+  const totalReportsCount = filteredReports.length;
+  const totalSalesAggregate = filteredReports.reduce((sum, r) => sum + Number(r.total_omset || r.gross_sales || r.net_sales || 0), 0);
+  const totalExpenseAggregate = filteredReports.reduce((sum, r) => sum + Number(r.total_expense || r.total_pengeluaran || 0), 0);
+  const netCashflowAggregate = totalSalesAggregate - totalExpenseAggregate;
+
+  // Pagination Slice
+  const paginatedReports = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredReports.slice(start, start + pageSize);
+  }, [filteredReports, currentPage, pageSize]);
+
+  // --- DELETE & REVERT STOCK HANDLER ---
+  const handleConfirmDeleteReport = () => {
+    if (!deletingReport) return;
+
+    const targetId = String(deletingReport.id || '');
+    const targetReportNo = deletingReport.report_no || '';
+    const targetDate = String(deletingReport.entry_date || deletingReport.date || deletingReport.transaction_date || '').substring(0, 10);
+    const targetOutletId = String(deletingReport.outlet_id || '');
+
+    // 1. REVERT STOCK OF RAW MATERIALS (Pengembalian Stok)
+    let updatedIngredients = [...(masterData?.ingredients || [])];
+    const restorationMovements = [];
+
+    const salesDetails = deletingReport.sales_details || deletingReport.sales_rows || [];
+    salesDetails.forEach(sRow => {
+      const prod = (masterData?.products || []).find(p => String(p.id) === String(sRow.productId || sRow.product_id) || p.name === sRow.productName || p.name === sRow.product_name);
+      if (prod && prod.compositions && prod.compositions.length > 0) {
+        prod.compositions.forEach(comp => {
+          const ingIndex = updatedIngredients.findIndex(i => String(i.id) === String(comp.ingredient_id) || i.name === comp.ingredient_name);
+          if (ingIndex !== -1) {
+            const restoreQty = (parseFloat(comp.qty) || 0) * (parseFloat(sRow.qty) || 1);
+            const currentStock = parseFloat(updatedIngredients[ingIndex].stock || updatedIngredients[ingIndex].qty || 0);
+            const restoredStock = currentStock + restoreQty;
+
+            updatedIngredients[ingIndex] = {
+              ...updatedIngredients[ingIndex],
+              stock: restoredStock,
+              qty: restoredStock
+            };
+
+            restorationMovements.push({
+              id: Date.now() + Math.random(),
+              date: new Date().toISOString().split('T')[0],
+              time: new Date().toLocaleTimeString('id-ID'),
+              outlet_id: deletingReport.outlet_id,
+              outlet_name: deletingReport.outlet_name,
+              ingredient_id: updatedIngredients[ingIndex].id,
+              ingredient_name: updatedIngredients[ingIndex].name,
+              movement_type: 'Hapus Laporan (Restok Stok)',
+              qty_change: restoreQty,
+              final_stock: restoredStock,
+              unit: comp.unit || updatedIngredients[ingIndex].unit || 'Gram',
+              notes: `Pengembalian Stok akibat Hapus Laporan (${targetReportNo || targetId})`,
+              author: userSession?.name || 'Super Admin'
+            });
+          }
+        });
+      }
+    });
+
+    // 2. REMOVE RECORD FROM ALL MASTER DATA ARRAYS STRICTLY
+    const isTargetRecord = (r) => {
+      if (!r) return false;
+      const rId = String(r.id || '');
+      const rNo = r.report_no || '';
+      if (rId === targetId || (targetReportNo && rNo === targetReportNo)) return true;
+      if (targetDate) {
+        const rDt = String(r.entry_date || r.date || r.transaction_date || r.timestamp || r.created_at || '').substring(0, 10);
+        const rOtl = String(r.outlet_id || r.branch_id || '');
+        if (rDt === targetDate && (!targetOutletId || !rOtl || rOtl === targetOutletId)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const updatedManualRecords = (masterData?.manualEntryRecords || []).filter(r => !isTargetRecord(r));
+    const updatedApprovedDaily = (masterData?.approvedFinanceDaily || []).filter(r => !isTargetRecord(r));
+    const updatedShiftReports = (masterData?.shiftReports || []).filter(r => !isTargetRecord(r));
+    const updatedDailyReports = (masterData?.dailyReports || []).filter(r => !isTargetRecord(r));
+    const updatedManualReports = (masterData?.manualReports || []).filter(r => !isTargetRecord(r));
+
+    // Remove related financial and sales transactions
+    const updatedFinRecords = (masterData?.financialRecords || []).filter(f => !isTargetRecord(f));
+    const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => !isTargetRecord(t));
+    const updatedOutletTx = (masterData?.outletTransactions || []).filter(t => !isTargetRecord(t));
+
+    const updatedMovements = [...restorationMovements, ...(masterData?.stockMovement || [])];
+
+    setMasterData({
+      ...masterData,
+      ingredients: updatedIngredients,
+      stockMovement: updatedMovements,
+      manualEntryRecords: updatedManualRecords,
+      approvedFinanceDaily: updatedApprovedDaily,
+      shiftReports: updatedShiftReports,
+      dailyReports: updatedDailyReports,
+      manualReports: updatedManualReports,
+      financialRecords: updatedFinRecords,
+      salesTransactions: updatedSalesTx,
+      outletTransactions: updatedOutletTx
+    });
+
+    alert(`✅ BERHASIL MENGHAPUS LAPORAN!\n\n• Laporan/Tanggal: ${targetReportNo || targetDate || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku berhasil dikembalikan ke stok semula.\n• Seluruh rekap laporan & transaksi terkait telah dibersihkan!`);
+
+    setDeletingReport(null);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} className="animate-fade-in">
+      
+      {/* PAGE TITLE & ACTION BAR */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', background: T.cardBg, padding: '20px 24px', borderRadius: '16px', border: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '12px', background: T.accentGoldBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '14px' }}>
+            <FileSpreadsheet size={28} color={T.accentGold} />
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.30rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Update Laporan (Penjualan &amp; Pengeluaran)</span>
+            </h1>
+            <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
+              Kelola, edit, preview, dan hapus laporan harian transaksi manual/Excel yang memengaruhi stok dan laporan keuangan.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '11px 22px',
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            border: 'none',
+            borderRadius: '12px',
+            color: '#000000',
+            fontWeight: '900',
+            fontSize: '0.86rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 18px rgba(245, 158, 11, 0.4)'
+          }}
+        >
+          <Plus size={18} color="#000000" />
+          <span>+ Buat Update Laporan Baru</span>
+        </button>
+      </div>
+
+      {/* STAT CARDS BAR */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px' }}>
+            <FileText size={22} color={T.info} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Total Laporan</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary }}>{totalReportsCount} Record</div>
+          </div>
+        </div>
+
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px' }}>
+            <TrendingUp size={22} color={T.success} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Total Penjualan</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.success }}>Rp {totalSalesAggregate.toLocaleString('id-ID')}</div>
+          </div>
+        </div>
+
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: T.dangerBg, borderRadius: '10px' }}>
+            <TrendingDown size={22} color={T.danger} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Total Pengeluaran</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.danger }}>Rp {totalExpenseAggregate.toLocaleString('id-ID')}</div>
+          </div>
+        </div>
+
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: T.accentGoldBg, borderRadius: '10px' }}>
+            <DollarSign size={22} color={T.accentGold} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Net Cashflow / Laba</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>
+              Rp {netCashflowAggregate.toLocaleString('id-ID')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FILTER & SEARCH BAR */}
+      <div style={{ background: T.cardBg, padding: '16px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'center' }}>
+        {/* Search */}
+        <div style={{ position: 'relative' }}>
+          <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+            placeholder="Cari No. Laporan, Pembuat, atau Tanggal..."
+            style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
+          />
+        </div>
+
+        {/* Outlet Filter */}
+        <div>
+          <select
+            value={selectedOutletFilter}
+            onChange={e => { setSelectedOutletFilter(e.target.value); setCurrentPage(1); }}
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+          >
+            <option value="ALL">🏢 Semua Outlet / Cabang</option>
+            {(masterData?.outlets || []).map(o => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date Range Start */}
+        <div>
+          <input
+            type="date"
+            value={startDate}
+            onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
+            placeholder="Dari Tanggal"
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
+          />
+        </div>
+
+        {/* Date Range End */}
+        <div>
+          <input
+            type="date"
+            value={endDate}
+            onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
+            placeholder="Sampai Tanggal"
+            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.80rem' }}
+          />
+        </div>
+      </div>
+
+      {/* DATA TABLE */}
+      <div style={{ background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden', boxShadow: T.cardShadow }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+            <thead>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '12px 14px', textAlign: 'left' }}>Tanggal</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left' }}>No. Laporan</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left' }}>Outlet / Cabang</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Qty</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Harga Satuan</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Penjualan</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total Pengeluaran</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedReports.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '40px 20px', textAlign: 'center', color: T.txtMuted, fontSize: '0.84rem' }}>
+                    <Info size={32} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                    <br />
+                    Belum ada data laporan transaksi yang tersimpan. Klik <strong>"+ Buat Update Laporan Baru"</strong> untuk memasukkan data.
+                  </td>
+                </tr>
+              ) : (
+                paginatedReports.map((row) => {
+                  const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
+                  const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
+                  const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at);
+
+                  // Hitung total qty dan harga satuan rata-rata dari sales_details
+                  const salesDetails = row.sales_details || row.cogs_items || [];
+                  const totalQty = salesDetails.reduce((s, d) => s + Number(d.qty || 0), 0);
+                  const avgUnitPrice = salesDetails.length > 0
+                    ? salesDetails.reduce((s, d) => s + Number(d.price || d.amount || 0), 0) / salesDetails.length
+                    : (salesVal > 0 ? salesVal : 0);
+
+                  return (
+                    <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
+                      
+                      {/* Tanggal */}
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700' }}>
+                        {formattedDate}
+                      </td>
+
+                      {/* No Laporan (Clickable for Preview) */}
+                      <td style={{ padding: '10px 14px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewReport(row)}
+                          style={{ background: 'none', border: 'none', color: T.info, fontWeight: '800', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '0.78rem' }}
+                          title="Klik untuk membuka preview detail laporan"
+                        >
+                          {row.report_no || `UPD-${row.id}`}
+                        </button>
+                      </td>
+
+                      {/* Outlet */}
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary }}>
+                        <span style={{ padding: '3px 8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700' }}>
+                          {row.outlet_name || getOutletName(row.outlet_id)}
+                        </span>
+                      </td>
+
+                      {/* Qty */}
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '800', color: T.info }}>
+                        {totalQty > 0 ? totalQty : '-'}
+                      </td>
+
+                      {/* Harga Satuan */}
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary, fontSize: '0.75rem' }}>
+                        {salesDetails.length === 1
+                          ? `Rp ${avgUnitPrice.toLocaleString('id-ID')}`
+                          : salesDetails.length > 1
+                            ? <span title="Rata-rata harga satuan">±Rp {Math.round(avgUnitPrice).toLocaleString('id-ID')}</span>
+                            : '-'}
+                      </td>
+
+                      {/* Total Penjualan */}
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.success }}>
+                        Rp {salesVal.toLocaleString('id-ID')}
+                      </td>
+
+                      {/* Total Pengeluaran */}
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.danger }}>
+                        Rp {expenseVal.toLocaleString('id-ID')}
+                      </td>
+
+                      {/* Status */}
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <span style={{ padding: '3px 8px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800' }}>
+                          ✅ Disetujui
+                        </span>
+                      </td>
+
+                      {/* Aksi Buttons */}
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewReport(row)}
+                            style={{ padding: '5px 8px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, borderRadius: '6px', color: T.info, cursor: 'pointer' }}
+                            title="Preview Detail Laporan"
+                          >
+                            <Eye size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingReport(row)}
+                            style={{ padding: '5px 8px', background: T.warningBg || 'rgba(251,191,36,0.15)', border: `1px solid ${T.warningBorder || 'rgba(251,191,36,0.4)'}`, borderRadius: '6px', color: T.accentGold, cursor: 'pointer' }}
+                            title="Edit Laporan"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDeletingReport(row)}
+                            style={{ padding: '5px 8px', background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, borderRadius: '6px', color: T.danger, cursor: 'pointer' }}
+                            title="Hapus Laporan"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINATION CONTROLS */}
+        {filteredReports.length > 0 && (
+          <div style={{ padding: '12px 16px', borderTop: `1px solid ${T.border}` }}>
+            <PaginationControls
+              totalItems={filteredReports.length}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(sz) => { setPageSize(sz); setCurrentPage(1); }}
+              themeMode={themeMode}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* --- MODAL 1: PREVIEW REPORT DETAIL --- */}
+      {previewReport && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '16px', width: '100%', maxWidth: '820px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 25px 60px rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', color: T.accentGold, fontWeight: '800', textTransform: 'uppercase' }}>Preview Detail Laporan</div>
+                <h2 style={{ fontSize: '1.20rem', fontWeight: '900', color: T.txtPrimary, margin: '2px 0 0 0' }}>
+                  {previewReport.report_no || `UPD-${previewReport.id}`}
+                </h2>
+              </div>
+              <button onClick={() => setPreviewReport(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer' }}>
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Info Badges */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', background: T.cardBg2, padding: '12px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Tanggal:</span>
+                <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary }}>{previewReport.entry_date || previewReport.date}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Outlet / Cabang:</span>
+                <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary }}>{previewReport.outlet_name || getOutletName(previewReport.outlet_id)}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Total Penjualan:</span>
+                <div style={{ fontSize: '0.80rem', fontWeight: '900', color: T.success }}>Rp {(previewReport.total_omset || previewReport.gross_sales || 0).toLocaleString('id-ID')}</div>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Total Pengeluaran:</span>
+                <div style={{ fontSize: '0.80rem', fontWeight: '900', color: T.danger }}>Rp {(previewReport.total_expense || previewReport.total_pengeluaran || 0).toLocaleString('id-ID')}</div>
+              </div>
+            </div>
+
+            {/* Tabel Penjualan */}
+            {(previewReport.sales_details || previewReport.sales_rows || []).length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.success, marginBottom: '6px' }}>
+                  🟢 Rincian Produk Penjualan Terjual:
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
+                  <thead>
+                    <tr style={{ background: T.tableHeaderBg, color: T.txtSecondary, textTransform: 'uppercase' }}>
+                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Nama Produk</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'center' }}>Qty</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'right' }}>Harga Satuan</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'right' }}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previewReport.sales_details || previewReport.sales_rows || []).map((s, idx) => (
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                        <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>{s.productName || s.name || s.product_name}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'center' }}>{s.qty}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right' }}>Rp {(s.price || 0).toLocaleString('id-ID')}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.success }}>Rp {(s.subtotal || s.amount || 0).toLocaleString('id-ID')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Tabel Pengeluaran */}
+            {(previewReport.expense_details || previewReport.expenses_breakdown || []).length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.danger, marginBottom: '6px' }}>
+                  🔴 Rincian Pengeluaran / Beban Operasional:
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
+                  <thead>
+                    <tr style={{ background: T.tableHeaderBg, color: T.txtSecondary, textTransform: 'uppercase' }}>
+                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Nama Biaya / Akun</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Catatan</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'right' }}>Jumlah Rp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previewReport.expense_details || previewReport.expenses_breakdown || []).map((e, idx) => (
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                        <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>
+                          [{e.code || e.accountCode || '6000'}] {e.name || e.categoryName || e.category}
+                        </td>
+                        <td style={{ padding: '6px 10px', color: T.txtSecondary }}>{e.notes || '-'}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.danger }}>Rp {(e.subtotal || e.amount || 0).toLocaleString('id-ID')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${T.border}`, paddingTop: '12px' }}>
+              <button onClick={() => setPreviewReport(null)} style={{ padding: '8px 18px', background: T.borderStrong, border: 'none', borderRadius: '8px', color: T.txtSecondary, fontWeight: '700', cursor: 'pointer' }}>
+                Tutup Preview
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: CONFIRM DELETE MODAL --- */}
+      {deletingReport && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ background: T.cardBg, border: `1px solid ${T.dangerBorder}`, borderRadius: '16px', width: '100%', maxWidth: '480px', padding: '24px', boxShadow: '0 25px 60px rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: T.danger }}>
+              <AlertCircle size={28} />
+              <h2 style={{ fontSize: '1.10rem', fontWeight: '900', margin: 0, color: T.txtPrimary }}>Konfirmasi Hapus Laporan</h2>
+            </div>
+
+            <p style={{ fontSize: '0.80rem', color: T.txtSecondary, margin: 0, lineHeight: 1.5 }}>
+              Apakah Anda yakin ingin menghapus laporan <strong>{deletingReport.report_no || `UPD-${deletingReport.id}`}</strong>?
+              <br /><br />
+              • Stok bahan baku yang sebelumnya terpotong akan <strong>otomatis dikembalikan (restored)</strong> ke jumlah semula.
+              <br />
+              • Perhitungan laporan Laba Rugi, Neraca &amp; Arus Kas akan otomatis dikurangi.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: `1px solid ${T.border}`, paddingTop: '14px' }}>
+              <button onClick={() => setDeletingReport(null)} style={{ padding: '8px 16px', background: T.borderStrong, border: 'none', borderRadius: '8px', color: T.txtSecondary, fontWeight: '700', cursor: 'pointer' }}>
+                Batal
+              </button>
+              <button onClick={handleConfirmDeleteReport} style={{ padding: '8px 18px', background: T.danger, border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Trash2 size={16} />
+                <span>Ya, Hapus &amp; Kembalikan Stok</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CREATE REPORT MODAL --- */}
+      <ManualReportUpdateModal
+        show={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        userSession={userSession}
+        themeMode={themeMode}
+      />
+
+      {/* --- EDIT REPORT MODAL --- */}
+      <ManualReportUpdateModal
+        show={!!editingReport}
+        onClose={() => setEditingReport(null)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        userSession={userSession}
+        themeMode={themeMode}
+        editData={editingReport}
+      />
+
+    </div>
+  );
+}

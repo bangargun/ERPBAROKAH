@@ -4,7 +4,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function PaginationControls({
   currentPage = 1,
-  totalPages = 1,
+  totalPages: totalPagesProp,
   pageSize = 25,
   totalItems = 0,
   onPageChange = () => {},
@@ -14,6 +14,9 @@ export default function PaginationControls({
   const T = getThemePalette(themeMode);
 
   if (totalItems === 0) return null;
+
+  // Hitung totalPages dari totalItems & pageSize (bukan dari prop yang sering tidak dikirim)
+  const totalPages = totalPagesProp || Math.max(1, Math.ceil(totalItems / pageSize));
 
   const startItem = (currentPage - 1) * pageSize + 1;
   const endItem = Math.min(currentPage * pageSize, totalItems);
