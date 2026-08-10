@@ -759,6 +759,9 @@ export default function ManualReportUpdateModal({
       const grpExpenseBreakdown = grp.expenseRows.map(e => ({
         code: e.accountCode, name: e.categoryName, category: e.categoryName,
         categoryName: e.categoryName, amount: e.subtotal, subtotal: e.subtotal,
+        qty: e.qty || 1, price: e.price || (e.qty ? e.subtotal / e.qty : e.subtotal),
+        unit_price: e.price || (e.qty ? e.subtotal / e.qty : e.subtotal),
+        price_per_unit: e.price || (e.qty ? e.subtotal / e.qty : e.subtotal),
         notes: e.notes || 'Update Laporan Pengeluaran'
       }));
 

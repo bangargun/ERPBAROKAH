@@ -610,8 +610,8 @@ export default function ManualReportUpdatePage({
                   const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
                   const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at, row);
 
-                  // Helper extract harga satuan item penjualan produk dengan aman
-                  const getSalesUnitPrice = (d) => {
+                  // Helper extract harga satuan item (penjualan maupun pengeluaran) dengan aman
+                  const getItemUnitPrice = (d) => {
                     const p = Number(d.price || d.unit_price || d.unitPrice || d.harga_satuan || d.hargaSatuan || d.price_per_unit || 0);
                     if (p > 0) return p;
                     const q = Number(d.qty || d.quantity || 1);
@@ -620,18 +620,29 @@ export default function ManualReportUpdatePage({
                     return 0;
                   };
 
-                  // Hitung QTY & HARGA SATUAN KHUSUS dari Item Penjualan (Sales Details)
+                  // Ambil rincian item (Sales Details & Expense Details)
                   const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
-                  const totalQty = salesDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 0), 0);
+                  const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
+                  const allDetails = [...salesDetails, ...expenseDetails];
 
+                  // Hitung Total QTY
+                  let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
+                  if (!totalQty && allDetails.length > 0) {
+                    totalQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+                  }
+
+                  // Hitung Harga Satuan Riil Item
                   let unitPriceVal = 0;
-                  if (salesDetails.length > 0) {
-                    const totalPriceSum = salesDetails.reduce((s, d) => s + (getSalesUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
-                    const calcQty = salesDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+                  if (allDetails.length > 0) {
+                    const totalPriceSum = allDetails.reduce((s, d) => s + (getItemUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
+                    const calcQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
                     unitPriceVal = calcQty > 0 ? totalPriceSum / calcQty : 0;
                   }
-                  if (!unitPriceVal && salesVal > 0 && totalQty > 0) {
-                    unitPriceVal = salesVal / totalQty;
+
+                  // Fallback jika tidak ada breakdown item tapi totalQty ada
+                  if (!unitPriceVal && totalQty > 0) {
+                    if (salesVal > 0) unitPriceVal = salesVal / totalQty;
+                    else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
                   }
 
                   return (
@@ -661,12 +672,12 @@ export default function ManualReportUpdatePage({
                         </span>
                       </td>
 
-                      {/* Qty (Khusus Penjualan) */}
+                      {/* Qty */}
                       <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '800', color: T.info }}>
                         {totalQty > 0 ? totalQty : '-'}
                       </td>
 
-                      {/* Harga Satuan (Khusus Penjualan) */}
+                      {/* Harga Satuan */}
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary, fontSize: '0.75rem' }}>
                         {unitPriceVal > 0 && totalQty > 0
                           ? `Rp ${Math.round(unitPriceVal).toLocaleString('id-ID')}`
