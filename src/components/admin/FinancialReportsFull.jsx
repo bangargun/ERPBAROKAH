@@ -466,21 +466,49 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     const totalExpenseVal = expenseList.reduce((s, e) => s + e.amount, 0);
     const netOperatingIncomeVal = grossProfitVal - totalExpenseVal;
 
-    const otherIncomeItems = financialRecords
-      .filter(f => f.type === 'other_income' || f.type === 'income')
-      .map((f, idx) => ({
-        codeName: `[7${String(idx + 1).padStart(3, '0')}] ${f.notes || f.category || 'Pendapatan Lain-lain'}`,
-        amount: Number(f.amount || 0)
-      }));
+    const otherIncomeMap = {};
+    financialRecords
+      .filter(f => f.type === 'other_income' || f.type === 'income' || f.type === 'pendapatan')
+      .forEach(f => {
+        const rawName = (f.category && f.category !== 'Import Batch Excel' && f.category !== 'Update Laporan Manual' ? f.category : null)
+          || (f.categoryName && f.categoryName !== 'Import Batch Excel' && f.categoryName !== 'Update Laporan Manual' ? f.categoryName : null)
+          || (f.name && f.name !== 'Import Batch Excel' && f.name !== 'Update Laporan Manual' ? f.name : null)
+          || (f.notes && f.notes !== 'Import Batch Excel' && f.notes !== 'Update Laporan Manual' ? f.notes : null)
+          || 'Pendapatan Lain-Lain / Non-Sales';
+        
+        if (!otherIncomeMap[rawName]) {
+          otherIncomeMap[rawName] = 0;
+        }
+        otherIncomeMap[rawName] += Number(f.amount || f.subtotal || 0);
+      });
+
+    const otherIncomeItems = Object.keys(otherIncomeMap).map((catName, idx) => ({
+      codeName: `[7${String(idx + 1).padStart(3, '0')}] ${catName}`,
+      amount: otherIncomeMap[catName]
+    }));
 
     const totalOtherIncomeVal = otherIncomeItems.reduce((s, e) => s + e.amount, 0);
 
-    const otherExpenseItems = financialRecords
+    const otherExpenseMap = {};
+    financialRecords
       .filter(f => f.type === 'other_expense')
-      .map((f, idx) => ({
-        codeName: `[8${String(idx + 1).padStart(3, '0')}] ${f.notes || f.category || 'Beban Non-Operasional'}`,
-        amount: Number(f.amount || 0)
-      }));
+      .forEach(f => {
+        const rawName = (f.category && f.category !== 'Import Batch Excel' && f.category !== 'Update Laporan Manual' ? f.category : null)
+          || (f.categoryName && f.categoryName !== 'Import Batch Excel' && f.categoryName !== 'Update Laporan Manual' ? f.categoryName : null)
+          || (f.name && f.name !== 'Import Batch Excel' && f.name !== 'Update Laporan Manual' ? f.name : null)
+          || (f.notes && f.notes !== 'Import Batch Excel' && f.notes !== 'Update Laporan Manual' ? f.notes : null)
+          || 'Beban Non-Operasional';
+        
+        if (!otherExpenseMap[rawName]) {
+          otherExpenseMap[rawName] = 0;
+        }
+        otherExpenseMap[rawName] += Number(f.amount || f.subtotal || 0);
+      });
+
+    const otherExpenseItems = Object.keys(otherExpenseMap).map((catName, idx) => ({
+      codeName: `[8${String(idx + 1).padStart(3, '0')}] ${catName}`,
+      amount: otherExpenseMap[catName]
+    }));
 
     const totalOtherExpenseVal = otherExpenseItems.reduce((s, e) => s + e.amount, 0);
 

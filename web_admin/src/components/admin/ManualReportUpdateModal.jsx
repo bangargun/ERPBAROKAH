@@ -1045,11 +1045,14 @@ export default function ManualReportUpdateModal({
       });
 
       grp.pendapatanRows.forEach(p => {
+        const catTitle = p.categoryName || p.productName || p.name || 'Pendapatan Non-Sales / Kas Masuk';
         allNewFinancialRecords.push({
           id: Date.now() + Math.random(),
           type: 'other_income',
-          category: p.categoryName,
-          notes: p.notes || 'Pendapatan Non-Sales / Kas Masuk',
+          category: catTitle,
+          categoryName: catTitle,
+          name: catTitle,
+          notes: (p.notes && p.notes !== 'Import Batch Excel' && p.notes !== 'Update Laporan Manual') ? p.notes : catTitle,
           amount: p.subtotal,
           payment_method: p.paymentMethod || 'Kas Kasir (Tunai)',
           outlet_id: grp.outletId,
