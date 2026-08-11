@@ -65,6 +65,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
 
   // Account Type Sub-Tab: 'mobile' | 'web' | 'matrix'
   const [activeTab, setActiveTab] = useState('mobile');
+  const [matrixSubTab, setMatrixSubTab] = useState('web');
 
   const [webUsers, setWebUsers] = useState([]);
   const [mobileUsers, setMobileUsers] = useState([]);
