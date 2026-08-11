@@ -698,7 +698,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       {/* MAIN CONTAINER CARD */}
       <div className="glass-card" style={{ padding: '0', overflow: 'hidden', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px' }}>
         
-        {/* CARD TOP HEADER BAR */}
+        {/* CARD TOP HEADER BAR (TITLE & PRIMARY ACTIONS) */}
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
@@ -709,116 +709,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Search Input */}
-            <div style={{ position: 'relative', width: '220px' }}>
-              <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input
-                type="text"
-                placeholder="Cari data..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '7px 12px 7px 32px',
-                  borderRadius: '8px',
-                  border: `1px solid ${T.border}`,
-                  fontSize: '0.8rem',
-                  background: T.inputBg,
-                  color: T.txtPrimary
-                }}
-              />
-            </div>
-
-            {/* Status Filter Dropdown */}
-            <select
-              value={selectedStatusFilter}
-              onChange={e => setSelectedStatusFilter(e.target.value)}
-              style={{
-                padding: '7px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                fontSize: '0.8rem',
-                background: T.inputBg,
-                color: selectedStatusFilter === 'Aktif' ? T.success : selectedStatusFilter === 'Hide' ? T.txtSecondary : selectedStatusFilter === 'Inaktif' ? T.danger : T.txtPrimary,
-                fontWeight: '700'
-              }}
-            >
-              <option value="Semua">Semua Status</option>
-              <option value="Aktif">🟢 Aktif</option>
-              <option value="Inaktif">🔴 Inaktif</option>
-              <option value="Hide">👁️ Hide (Sembunyi)</option>
-            </select>
-
-            {/* Outlet Filter Dropdown */}
-            <select
-              value={selectedOutletFilter}
-              onChange={e => {
-                setSelectedOutletFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={{
-                padding: '7px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                fontSize: '0.8rem',
-                background: T.inputBg,
-                color: selectedOutletFilter !== 'Semua' ? T.info : T.txtPrimary,
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="Semua">🏬 Semua Outlet</option>
-              {(masterData.outlets || []).map(otl => (
-                <option key={otl.id} value={String(otl.id)}>
-                  {otl.name}
-                </option>
-              ))}
-            </select>
-
-            {/* Quick Sort Field */}
-            <select
-              value={sortField}
-              onChange={e => setSortField(e.target.value)}
-              style={{
-                padding: '7px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                fontSize: '0.8rem',
-                background: T.inputBg,
-                color: T.txtPrimary,
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-              title="Urutkan berdasarkan"
-            >
-              <option value="name">Sort: Nama</option>
-              <option value="sku">Sort: SKU</option>
-              <option value="category_name">Sort: Kategori</option>
-              <option value="price">Sort: Harga</option>
-              <option value="status">Sort: Status</option>
-            </select>
-
-            {/* Quick Sort Direction */}
-            <select
-              value={sortDirection}
-              onChange={e => setSortDirection(e.target.value)}
-              style={{
-                padding: '7px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                fontSize: '0.8rem',
-                background: T.inputBg,
-                color: T.txtPrimary,
-                fontWeight: '700',
-                cursor: 'pointer'
-              }}
-              title="Arah urutan"
-            >
-              <option value="asc">⬆️ Naik (A-Z / Kecil-Besar)</option>
-              <option value="desc">⬇️ Turun (Z-A / Besar-Kecil)</option>
-            </select>
-
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {/* Excel Download & Upload Button */}
             <button
               onClick={() => setShowExcelImportModal(true)}
@@ -826,43 +717,158 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 background: T.info,
                 color: '#ffffff',
                 border: 'none',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontWeight: '700',
-                fontSize: '0.78rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                boxShadow: T.shadowSm
-              }}
-            >
-              <FileSpreadsheet size={15} />
-              <span>📥 Template & Upload Excel</span>
-            </button>
-
-            {/* Teal Add Product Button */}
-            <button
-              onClick={handleOpenAddForm}
-              style={{
-                background: T.success,
-                color: '#ffffff',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '8px',
+                padding: '9px 16px',
+                borderRadius: '10px',
                 fontWeight: '700',
                 fontSize: '0.82rem',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 cursor: 'pointer',
-                boxShadow: T.shadowSm
+                boxShadow: T.shadowSm,
+                whiteSpace: 'nowrap'
               }}
             >
-              <Plus size={16} />
-              <span>Tambah Menu</span>
+              <FileSpreadsheet size={16} />
+              <span>📥 Template & Upload Excel</span>
+            </button>
+
+            {/* Teal Add Product Button (PROMINENT & CLEAR) */}
+            <button
+              onClick={handleOpenAddForm}
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '9px 18px',
+                borderRadius: '10px',
+                fontWeight: '800',
+                fontSize: '0.86rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Plus size={18} strokeWidth={2.5} />
+              <span>+ Tambah Produk</span>
             </button>
           </div>
+        </div>
+
+        {/* DEDICATED SECONDARY FILTER & SEARCH BAR */}
+        <div style={{ padding: '14px 24px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', borderBottom: `1px solid ${T.border}`, background: T.isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)' }}>
+          {/* Search Input */}
+          <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
+            <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              type="text"
+              placeholder="Cari nama produk, SKU, kategori..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px 8px 36px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                fontSize: '0.82rem',
+                background: T.inputBg,
+                color: T.txtPrimary
+              }}
+            />
+          </div>
+
+          {/* Status Filter Dropdown */}
+          <select
+            value={selectedStatusFilter}
+            onChange={e => setSelectedStatusFilter(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${T.border}`,
+              fontSize: '0.82rem',
+              background: T.inputBg,
+              color: selectedStatusFilter === 'Aktif' ? T.success : selectedStatusFilter === 'Hide' ? T.txtSecondary : selectedStatusFilter === 'Inaktif' ? T.danger : T.txtPrimary,
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="Semua">Semua Status</option>
+            <option value="Aktif">🟢 Aktif</option>
+            <option value="Inaktif">🔴 Inaktif</option>
+            <option value="Hide">👁️ Hide (Sembunyi)</option>
+          </select>
+
+          {/* Outlet Filter Dropdown */}
+          <select
+            value={selectedOutletFilter}
+            onChange={e => {
+              setSelectedOutletFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${T.border}`,
+              fontSize: '0.82rem',
+              background: T.inputBg,
+              color: selectedOutletFilter !== 'Semua' ? T.info : T.txtPrimary,
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="Semua">🏬 Semua Outlet</option>
+            {(masterData.outlets || []).map(otl => (
+              <option key={otl.id} value={String(otl.id)}>
+                {otl.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Quick Sort Field */}
+          <select
+            value={sortField}
+            onChange={e => setSortField(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${T.border}`,
+              fontSize: '0.82rem',
+              background: T.inputBg,
+              color: T.txtPrimary,
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+            title="Urutkan berdasarkan"
+          >
+            <option value="name">Sort: Nama</option>
+            <option value="sku">Sort: SKU</option>
+            <option value="category_name">Sort: Kategori</option>
+            <option value="price">Sort: Harga</option>
+            <option value="status">Sort: Status</option>
+          </select>
+
+          {/* Quick Sort Direction */}
+          <select
+            value={sortDirection}
+            onChange={e => setSortDirection(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: `1px solid ${T.border}`,
+              fontSize: '0.82rem',
+              background: T.inputBg,
+              color: T.txtPrimary,
+              fontWeight: '700',
+              cursor: 'pointer'
+            }}
+            title="Arah urutan"
+          >
+            <option value="asc">⬆️ Naik (A-Z / Kecil-Besar)</option>
+            <option value="desc">⬇️ Turun (Z-A / Besar-Kecil)</option>
+          </select>
         </div>
 
         {/* TABLE CONTENT */}
