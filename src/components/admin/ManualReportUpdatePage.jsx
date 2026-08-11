@@ -23,7 +23,8 @@ import {
   Info,
   PackageCheck,
   Check,
-  ArrowUpDown
+  ArrowUpDown,
+  Coins
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
@@ -117,7 +118,7 @@ export default function ManualReportUpdatePage({
     return formattedDate;
   };
 
-  // Extract All Unique Reports Combining Manual Entries, POS Shifts, & Daily Approvals
+  // Extract All Unique Reports Combining Manual Entries, POS Shifts, Daily Approvals & Standalone Financial Records
   const allReportsList = useMemo(() => {
     const deletedReportIdsSet = new Set([
       ...(masterData?.deletedReportIds || []),
@@ -165,31 +166,48 @@ export default function ManualReportUpdatePage({
         if (!groupedStandalone.has(gKey)) {
           groupedStandalone.set(gKey, {
             id: `GRP-${dt}-${otl}`,
-            report_no: `EXP-${dt.replace(/-/g, '')}-${otl}`,
+            report_no: `FIN-${dt.replace(/-/g, '')}-${otl}`,
             entry_date: dt,
             date: dt,
             outlet_id: f.outlet_id,
             outlet_name: f.outlet_name || getOutletName(f.outlet_id),
             total_omset: 0,
+            total_pendapatan_lain: 0,
+            total_pemasukan: 0,
             total_expense: 0,
             status: 'Disetujui',
             is_approved: true,
             author: f.author || 'Staf / Admin',
             source: 'Update Laporan Excel/Manual',
             expense_details: [],
+            pendapatan_details: [],
             sales_details: []
           });
         }
         const grp = groupedStandalone.get(gKey);
-        grp.total_expense += Number(f.amount || f.subtotal || 0);
-        grp.expense_details.push({
-          code: f.code || '6000',
-          name: f.category || f.notes || 'Pengeluaran',
-          categoryName: f.category || f.notes || 'Pengeluaran',
-          amount: Number(f.amount || 0),
-          subtotal: Number(f.amount || 0),
-          notes: f.notes || ''
-        });
+        const amt = Number(f.amount || f.subtotal || 0);
+
+        if (f.type === 'income' || f.type === 'other_income' || f.type === 'pendapatan' || String(f.category || '').toLowerCase().includes('pendapatan')) {
+          grp.total_pendapatan_lain += amt;
+          grp.total_pemasukan += amt;
+          grp.pendapatan_details.push({
+            categoryName: f.category || f.notes || 'Pendapatan Non-Sales',
+            amount: amt,
+            subtotal: amt,
+            paymentMethod: f.payment_method || 'Kas Kasir (Tunai)',
+            notes: f.notes || ''
+          });
+        } else {
+          grp.total_expense += amt;
+          grp.expense_details.push({
+            code: f.code || '6000',
+            name: f.category || f.notes || 'Pengeluaran',
+            categoryName: f.category || f.notes || 'Pengeluaran',
+            amount: amt,
+            subtotal: amt,
+            notes: f.notes || ''
+          });
+        }
       }
     });
 
@@ -207,17 +225,23 @@ export default function ManualReportUpdatePage({
             outlet_id: s.outlet_id,
             outlet_name: s.outlet_name || getOutletName(s.outlet_id),
             total_omset: 0,
+            total_pendapatan_lain: 0,
+            total_pemasukan: 0,
             total_expense: 0,
             status: 'Disetujui',
             is_approved: true,
             author: s.author || 'Kasir / Admin',
             source: 'Penjualan POS / Update Laporan',
             expense_details: [],
+            pendapatan_details: [],
             sales_details: []
           });
         }
         const grp = groupedStandalone.get(gKey);
-        grp.total_omset += Number(s.amount || s.total || s.subtotal || 0);
+        const sAmt = Number(s.amount || s.total || s.subtotal || 0);
+        grp.total_omset += sAmt;
+        grp.total_pemasukan += sAmt;
+
         if (s.items && Array.isArray(s.items)) {
           s.items.forEach(it => {
             const itQty = Number(it.qty || it.quantity || 1);
@@ -257,7 +281,6 @@ export default function ManualReportUpdatePage({
   // Filtered Reports
   const filteredReports = useMemo(() => {
     return allReportsList.filter(r => {
-      // Helper Outlet Matcher
       const checkOutletMatch = (targetVal) => {
         if (!targetVal || targetVal === 'ALL' || targetVal === 'Semua Restoran (Konsolidasi)') return true;
         const strTarget = String(targetVal).toLowerCase().trim();
@@ -275,22 +298,18 @@ export default function ManualReportUpdatePage({
         return false;
       };
 
-      // Branch / Outlet Filter from Top Bar Header
       if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
         if (!checkOutletMatch(selectedBranch)) return false;
       }
 
-      // Outlet Filter from Table Header Dropdown
       if (selectedOutletFilter !== 'ALL') {
         if (!checkOutletMatch(selectedOutletFilter)) return false;
       }
 
-      // Date Range Filter
       const rDate = String(r.entry_date || r.date || r.transaction_date || r.created_at || '').substring(0, 10);
       if (startDate && rDate < startDate) return false;
       if (endDate && rDate > endDate) return false;
 
-      // Search Term Filter
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase().trim();
         const noLap = String(r.report_no || '').toLowerCase();
@@ -298,8 +317,9 @@ export default function ManualReportUpdatePage({
         const author = String(r.author || r.created_by || '').toLowerCase();
 
         const salesDetails = r.sales_details || r.sales_rows || r.items || r.cogs_items || [];
+        const pendapatanDetails = r.pendapatan_details || [];
         const expenseDetails = r.expense_details || r.expense_rows || r.expenses_breakdown || [];
-        const allDetails = [...salesDetails, ...expenseDetails];
+        const allDetails = [...salesDetails, ...pendapatanDetails, ...expenseDetails];
         const itemNamesStr = allDetails.map(d => (d.product_name || d.productName || d.name || d.categoryName || d.category || '')).join(' ').toLowerCase();
 
         if (!noLap.includes(term) && !otlName.includes(term) && !author.includes(term) && !rDate.includes(term) && !itemNamesStr.includes(term)) {
@@ -317,10 +337,14 @@ export default function ManualReportUpdatePage({
     list.sort((a, b) => {
       const getRowMeta = (row) => {
         const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
+        const pendLainVal = Number(row.total_pendapatan_lain || 0);
+        const totalPemasukanVal = Number(row.total_pemasukan || (salesVal + pendLainVal));
         const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
+
         const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
+        const pendapatanDetails = row.pendapatan_details || [];
         const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
-        const allDetails = [...salesDetails, ...expenseDetails];
+        const allDetails = [...salesDetails, ...pendapatanDetails, ...expenseDetails];
 
         let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
         if (!totalQty && allDetails.length > 0) {
@@ -343,11 +367,11 @@ export default function ManualReportUpdatePage({
           unitPriceVal = calcQty > 0 ? totalPriceSum / calcQty : 0;
         }
         if (!unitPriceVal && totalQty > 0) {
-          if (salesVal > 0) unitPriceVal = salesVal / totalQty;
+          if (totalPemasukanVal > 0) unitPriceVal = totalPemasukanVal / totalQty;
           else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
         }
 
-        let itemNameDisplay = 'Laporan Shift Kasir';
+        let itemNameDisplay = 'Laporan Transaksi Kas';
         if (allDetails.length > 0) {
           const first = allDetails[0];
           const firstName = first.product_name || first.productName || first.name || first.categoryName || first.category || 'Item';
@@ -358,8 +382,8 @@ export default function ManualReportUpdatePage({
           itemNameDisplay = row.categoryName || row.category_name || row.category;
         } else if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') {
           itemNameDisplay = row.notes;
-        } else if (salesVal > 0) {
-          itemNameDisplay = 'Penjualan Produk';
+        } else if (totalPemasukanVal > 0) {
+          itemNameDisplay = 'Pemasukan Kas';
         } else if (expenseVal > 0) {
           itemNameDisplay = 'Pengeluaran Operational';
         }
@@ -371,7 +395,7 @@ export default function ManualReportUpdatePage({
           itemName: itemNameDisplay,
           totalQty,
           unitPriceVal,
-          salesVal,
+          salesVal: totalPemasukanVal,
           expenseVal
         };
       };
@@ -417,8 +441,14 @@ export default function ManualReportUpdatePage({
   // Aggregates for Filtered Data
   const totalReportsCount = filteredReports.length;
   const totalSalesAggregate = filteredReports.reduce((sum, r) => sum + Number(r.total_omset || r.gross_sales || r.net_sales || 0), 0);
+  const totalPendapatanLainAggregate = filteredReports.reduce((sum, r) => sum + Number(r.total_pendapatan_lain || 0), 0);
+  const totalPemasukanAggregate = filteredReports.reduce((sum, r) => {
+    const s = Number(r.total_omset || r.gross_sales || r.net_sales || 0);
+    const p = Number(r.total_pendapatan_lain || 0);
+    return sum + Number(r.total_pemasukan || (s + p));
+  }, 0);
   const totalExpenseAggregate = filteredReports.reduce((sum, r) => sum + Number(r.total_expense || r.total_pengeluaran || 0), 0);
-  const netCashflowAggregate = totalSalesAggregate - totalExpenseAggregate;
+  const netCashflowAggregate = totalPemasukanAggregate - totalExpenseAggregate;
 
   // Pagination Slice
   const paginatedReports = useMemo(() => {
@@ -540,7 +570,6 @@ export default function ManualReportUpdatePage({
     const updatedDailyReports = (masterData?.dailyReports || []).filter(r => !isTargetRecord(r));
     const updatedManualReports = (masterData?.manualReports || []).filter(r => !isTargetRecord(r));
 
-    // Remove related financial and sales transactions
     const updatedFinRecords = (masterData?.financialRecords || []).filter(f => !isTargetRecord(f));
     const updatedSalesTx = (masterData?.salesTransactions || []).filter(t => !isTargetRecord(t));
     const updatedOutletTx = (masterData?.outletTransactions || []).filter(t => !isTargetRecord(t));
@@ -607,10 +636,10 @@ export default function ManualReportUpdatePage({
           </div>
           <div>
             <h1 style={{ fontSize: '1.30rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Update Laporan (Penjualan &amp; Pengeluaran)</span>
+              <span>Update Laporan (Penjualan, Pendapatan &amp; Pengeluaran)</span>
             </h1>
             <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
-              Kelola, edit, preview, dan hapus laporan harian transaksi manual/Excel yang memengaruhi stok dan laporan keuangan.
+              Kelola, edit, preview, dan upload laporan transaksi Penjualan, Pendapatan Non-Sales (Kas Masuk), Pengeluaran (Kas Keluar) &amp; Stok.
             </p>
           </div>
         </div>
@@ -654,8 +683,15 @@ export default function ManualReportUpdatePage({
             <TrendingUp size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENJUALAN</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.success }}>Rp {totalSalesAggregate.toLocaleString('id-ID')}</div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PEMASUKAN (KAS MASUK)</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.success }}>
+              Rp {totalPemasukanAggregate.toLocaleString('id-ID')}
+              {totalPendapatanLainAggregate > 0 && (
+                <span style={{ fontSize: '0.68rem', display: 'block', color: T.info, fontWeight: '700', marginTop: '2px' }}>
+                  (Sales: Rp {totalSalesAggregate.toLocaleString('id-ID')} + Pendapatan: Rp {totalPendapatanLainAggregate.toLocaleString('id-ID')})
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -664,7 +700,7 @@ export default function ManualReportUpdatePage({
             <TrendingDown size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENGELUARAN</div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENGELUARAN (KAS KELUAR)</div>
             <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.danger }}>Rp {totalExpenseAggregate.toLocaleString('id-ID')}</div>
           </div>
         </div>
@@ -711,7 +747,7 @@ export default function ManualReportUpdatePage({
               <option value="item_name">🏷️ Urut Nama Item</option>
               <option value="qty">🔢 Urut QTY (Jumlah)</option>
               <option value="unit_price">💵 Urut Harga Satuan</option>
-              <option value="sales">📈 Urut Total Penjualan</option>
+              <option value="sales">📈 Urut Total Pemasukan</option>
               <option value="expense">📉 Urut Total Pengeluaran</option>
             </select>
 
@@ -779,11 +815,11 @@ export default function ManualReportUpdatePage({
                 {renderSortHeader('date', 'TANGGAL', 'left')}
                 {renderSortHeader('report_no', 'NO. LAPORAN', 'left')}
                 {renderSortHeader('outlet', 'OUTLET / CABANG', 'left')}
-                {renderSortHeader('item_name', 'NAMA ITEM', 'left')}
+                {renderSortHeader('item_name', 'NAMA ITEM / DESKRIPSI', 'left')}
                 {renderSortHeader('qty', 'QTY', 'center')}
                 {renderSortHeader('unit_price', 'HARGA SATUAN', 'right')}
-                {renderSortHeader('sales', 'TOTAL PENJUALAN', 'right')}
-                {renderSortHeader('expense', 'TOTAL PENGELUARAN', 'right')}
+                {renderSortHeader('sales', 'TOTAL PEMASUKAN (KAS MASUK)', 'right')}
+                {renderSortHeader('expense', 'TOTAL PENGELUARAN (KAS KELUAR)', 'right')}
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>STATUS</th>
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>AKSI</th>
               </tr>
@@ -798,6 +834,8 @@ export default function ManualReportUpdatePage({
               ) : (
                 paginatedReports.map((row) => {
                   const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
+                  const pendLainVal = Number(row.total_pendapatan_lain || 0);
+                  const totalPemasukanVal = Number(row.total_pemasukan || (salesVal + pendLainVal));
                   const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
                   const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at, row);
 
@@ -811,8 +849,9 @@ export default function ManualReportUpdatePage({
                   };
 
                   const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
+                  const pendapatanDetails = row.pendapatan_details || [];
                   const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
-                  const allDetails = [...salesDetails, ...expenseDetails];
+                  const allDetails = [...salesDetails, ...pendapatanDetails, ...expenseDetails];
 
                   const getItemNameDisplay = () => {
                     if (allDetails.length > 0) {
@@ -826,7 +865,7 @@ export default function ManualReportUpdatePage({
                     if (row.product_name || row.productName) return row.product_name || row.productName;
                     if (row.categoryName || row.category_name || row.category) return row.categoryName || row.category_name || row.category;
                     if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') return row.notes;
-                    if (salesVal > 0) return 'Penjualan Produk';
+                    if (totalPemasukanVal > 0) return 'Pemasukan Kas';
                     if (expenseVal > 0) return 'Pengeluaran Operational';
                     return 'Laporan Shift Kasir';
                   };
@@ -845,7 +884,7 @@ export default function ManualReportUpdatePage({
                   }
 
                   if (!unitPriceVal && totalQty > 0) {
-                    if (salesVal > 0) unitPriceVal = salesVal / totalQty;
+                    if (totalPemasukanVal > 0) unitPriceVal = totalPemasukanVal / totalQty;
                     else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
                   }
 
@@ -889,11 +928,11 @@ export default function ManualReportUpdatePage({
                       </td>
 
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.success }}>
-                        Rp {salesVal.toLocaleString('id-ID')}
+                        {totalPemasukanVal > 0 ? `+ Rp ${totalPemasukanVal.toLocaleString('id-ID')}` : 'Rp 0'}
                       </td>
 
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.danger }}>
-                        Rp {expenseVal.toLocaleString('id-ID')}
+                        {expenseVal > 0 ? `- Rp ${expenseVal.toLocaleString('id-ID')}` : 'Rp 0'}
                       </td>
 
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
@@ -985,16 +1024,18 @@ export default function ManualReportUpdatePage({
                 <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary }}>{previewReport.outlet_name || getOutletName(previewReport.outlet_id)}</div>
               </div>
               <div>
-                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Total Penjualan:</span>
-                <div style={{ fontSize: '0.80rem', fontWeight: '900', color: T.success }}>Rp {(previewReport.total_omset || previewReport.gross_sales || 0).toLocaleString('id-ID')}</div>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Total Pemasukan (Kas Masuk):</span>
+                <div style={{ fontSize: '0.80rem', fontWeight: '900', color: T.success }}>
+                  Rp {(previewReport.total_pemasukan || (Number(previewReport.total_omset || previewReport.gross_sales || 0) + Number(previewReport.total_pendapatan_lain || 0))).toLocaleString('id-ID')}
+                </div>
               </div>
               <div>
-                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Total Pengeluaran:</span>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>Total Pengeluaran (Kas Keluar):</span>
                 <div style={{ fontSize: '0.80rem', fontWeight: '900', color: T.danger }}>Rp {(previewReport.total_expense || previewReport.total_pengeluaran || 0).toLocaleString('id-ID')}</div>
               </div>
             </div>
 
-            {/* Tabel Penjualan */}
+            {/* Tabel Penjualan Produk */}
             {(previewReport.sales_details || previewReport.sales_rows || []).length > 0 && (
               <div>
                 <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.success, marginBottom: '6px' }}>
@@ -1018,6 +1059,35 @@ export default function ManualReportUpdatePage({
                           Rp {(Number(s.price || s.unit_price || s.unitPrice || s.harga_satuan || s.hargaSatuan || (s.subtotal && s.qty ? s.subtotal / s.qty : 0))).toLocaleString('id-ID')}
                         </td>
                         <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.success }}>Rp {(s.subtotal || s.amount || 0).toLocaleString('id-ID')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Tabel Pendapatan Non-Sales */}
+            {(previewReport.pendapatan_details || []).length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.info, marginBottom: '6px' }}>
+                  💰 Rincian Pendapatan Non-Sales (Kas Masuk):
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
+                  <thead>
+                    <tr style={{ background: T.tableHeaderBg, color: T.txtSecondary, textTransform: 'uppercase' }}>
+                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Kategori / Judul Pendapatan</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Catatan</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Metode</th>
+                      <th style={{ padding: '6px 10px', textAlign: 'right' }}>Jumlah Rp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewReport.pendapatan_details.map((p, idx) => (
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                        <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>{p.categoryName || p.category || p.name}</td>
+                        <td style={{ padding: '6px 10px', color: T.txtSecondary }}>{p.notes || '-'}</td>
+                        <td style={{ padding: '6px 10px', color: T.info, fontWeight: '700' }}>{p.paymentMethod || p.payment_method || 'Kas Kasir'}</td>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.success }}>Rp {(p.amount || p.subtotal || 0).toLocaleString('id-ID')}</td>
                       </tr>
                     ))}
                   </tbody>

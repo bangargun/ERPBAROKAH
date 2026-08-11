@@ -42,6 +42,7 @@ export default function ManualReportUpdateModal({
   // Active Tab ('manual' | 'excel')
   const [activeTab, setActiveTab] = useState('manual');
   const [entryType, setEntryType] = useState(() => {
+    if (initialEntryType) return initialEntryType;
     if (editData) {
       if ((editData.sales_details || []).length > 0) return 'penjualan';
       if ((editData.pembelian_details || []).length > 0) return 'pembelian';
@@ -148,16 +149,16 @@ export default function ManualReportUpdateModal({
         id: i + 1,
         categoryName: p.categoryName || p.category || p.name || '',
         amount: Number(p.amount || p.subtotal || 0),
-        paymentMethod: p.payment_method || 'Kas Kasir (Tunai)',
+        paymentMethod: p.paymentMethod || p.payment_method || 'Kas Kasir (Tunai)',
         notes: p.notes || ''
       }));
     }
     return [{
       id: 1,
-      categoryName: 'Pendapatan Sewa Lapak',
+      categoryName: 'Pendapatan Sewa Lapak / Non-Sales',
       amount: 1500000,
       paymentMethod: 'Kas Kasir (Tunai)',
-      notes: 'Uang sewa lapak depan outlet bulan ini'
+      notes: 'Pemasukan kas masuk bulan ini'
     }];
   });
 
@@ -246,7 +247,6 @@ export default function ManualReportUpdateModal({
 
   // --- DEDUPLICATION & AUTO-CODE GENERATOR HELPERS ---
 
-  // Generate next sequential Expense Code (6000 series: 6001, 6002, ..., 6016)
   const generateNextExpenseCode = (customAccountsList = null) => {
     const list = customAccountsList || (masterData?.chartOfAccounts || []);
     const codes = list
@@ -259,7 +259,6 @@ export default function ManualReportUpdateModal({
     return String(maxNum + 1);
   };
 
-  // Generate next sequential Product SKU (PRD-001, PRD-002, ..., PRD-008)
   const generateNextProductSku = (customProductsList = null) => {
     const list = customProductsList || (masterData?.products || []);
     const skus = list
@@ -275,7 +274,6 @@ export default function ManualReportUpdateModal({
     return `PRD-${String(maxNum + 1).padStart(3, '0')}`;
   };
 
-  // Smart Normalize text: removes common prefixes (biaya, beban, etc.) and punctuation
   const normalizeText = (text) => {
     if (!text) return '';
     return String(text)
@@ -285,7 +283,6 @@ export default function ManualReportUpdateModal({
       .trim();
   };
 
-  // Token & character set similarity ratio (0 to 1)
   const calculateSimilarity = (str1, str2) => {
     const norm1 = normalizeText(str1);
     const norm2 = normalizeText(str2);
@@ -305,14 +302,12 @@ export default function ManualReportUpdateModal({
     return intersection.size / union.size;
   };
 
-  // Smart Fuzzy Search for Expense Account (Prevents duplicate entries for similar names)
   const findMatchingExpenseAccount = (nameOrCode, customList = null) => {
     if (!nameOrCode) return null;
     const list = customList || (masterData?.chartOfAccounts || []);
     const rawClean = String(nameOrCode).toLowerCase().trim();
     const normInput = normalizeText(nameOrCode);
 
-    // 1. Exact Match on Code or Raw Name
     let match = list.find(c => {
       const cleanCode = String(c.code || '').toLowerCase().trim();
       const cleanName = String(c.name || '').toLowerCase().trim();
@@ -320,14 +315,12 @@ export default function ManualReportUpdateModal({
     });
     if (match) return match;
 
-    // 2. Normalized Text Match (ignoring "Biaya", "Beban", "Pengeluaran", etc.)
     match = list.find(c => {
       const normName = normalizeText(c.name);
       return normName && normInput && normName === normInput;
     });
     if (match) return match;
 
-    // 3. High Fuzzy Similarity Match (>= 0.8)
     let bestMatch = null;
     let highestScore = 0;
     list.forEach(c => {
@@ -341,14 +334,12 @@ export default function ManualReportUpdateModal({
     return bestMatch;
   };
 
-  // Smart Fuzzy Search for Product (Prevents duplicate entries for similar product names)
   const findMatchingProduct = (nameOrSku, customList = null) => {
     if (!nameOrSku) return null;
     const list = customList || (masterData?.products || []);
     const rawClean = String(nameOrSku).toLowerCase().trim();
     const normInput = normalizeText(nameOrSku);
 
-    // 1. Exact Match on SKU or Raw Name
     let match = list.find(p => {
       const cleanSku = String(p.sku || '').toLowerCase().trim();
       const cleanName = String(p.name || '').toLowerCase().trim();
@@ -356,14 +347,12 @@ export default function ManualReportUpdateModal({
     });
     if (match) return match;
 
-    // 2. Normalized Text Match
     match = list.find(p => {
       const normName = normalizeText(p.name);
       return normName && normInput && normName === normInput;
     });
     if (match) return match;
 
-    // 3. High Fuzzy Similarity Match (>= 0.85)
     let bestMatch = null;
     let highestScore = 0;
     list.forEach(p => {
@@ -462,43 +451,66 @@ export default function ManualReportUpdateModal({
     }));
   };
 
-  // --- EXCEL TEMPLATE GENERATOR ---
+  // --- EXCEL TEMPLATE GENERATOR WITH ALL 4 TYPES ---
   const handleDownloadTemplate = () => {
     const sampleRows = [
       {
+        'Tipe Laporan': 'Penjualan',
         'Tanggal': '10 April 2026',
         'Nama Outlet': 'Ayam Bakar Surabaya Tebing Tinggi',
-        'Nama Item': 'Gas',
+        'Nama Produk / Kode Biaya / Pendapatan': 'Ayam Bakar Paket Jumbo',
         'Qty': 10,
-        'Harga Satuan': 20000,
-        'Total Harga': 200000
+        'Harga Satuan': 25000,
+        'Total Harga': 250000,
+        'Metode Pembayaran': 'Kas Kasir (Tunai)',
+        'Catatan': 'Penjualan Makan di Tempat'
       },
       {
+        'Tipe Laporan': 'Pengeluaran',
+        'Tanggal': '10 April 2026',
+        'Nama Outlet': 'Ayam Bakar Surabaya Tebing Tinggi',
+        'Nama Produk / Kode Biaya / Pendapatan': 'Gas LPG 12kg',
+        'Qty': 2,
+        'Harga Satuan': 150000,
+        'Total Harga': 300000,
+        'Metode Pembayaran': 'Kas Kasir (Tunai)',
+        'Catatan': 'Pembelian gas dapur'
+      },
+      {
+        'Tipe Laporan': 'Pemasukan / Pendapatan',
         'Tanggal': '11 April 2026',
         'Nama Outlet': 'Ayam Pecak 2001 Seafood Tebing Tinggi',
-        'Nama Item': 'Gas',
-        'Qty': 15,
-        'Harga Satuan': 20000,
-        'Total Harga': 300000
+        'Nama Produk / Kode Biaya / Pendapatan': 'Pendapatan Sewa Lapak Depan',
+        'Qty': 1,
+        'Harga Satuan': 1500000,
+        'Total Harga': 1500000,
+        'Metode Pembayaran': 'Bank Transfer',
+        'Catatan': 'Uang sewa bulan ini'
       },
       {
+        'Tipe Laporan': 'Pembelian Stok',
         'Tanggal': '12 April 2026',
         'Nama Outlet': 'Ayam Bakar Surabaya Tebing Tinggi',
-        'Nama Item': 'Gas',
-        'Qty': 10,
-        'Harga Satuan': 20000,
-        'Total Harga': 200000
+        'Nama Produk / Kode Biaya / Pendapatan': 'Daging Ayam Fillet',
+        'Qty': 20,
+        'Harga Satuan': 35000,
+        'Total Harga': 700000,
+        'Metode Pembayaran': 'Kas Kasir (Tunai)',
+        'Catatan': 'Stok bahan baku dari pasar'
       }
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(sampleRows);
     worksheet['!cols'] = [
-      { wch: 18 }, // Tanggal
-      { wch: 42 }, // Nama Outlet
-      { wch: 30 }, // Nama Item
-      { wch: 10 }, // Qty
+      { wch: 22 }, // Tipe Laporan
+      { wch: 16 }, // Tanggal
+      { wch: 40 }, // Nama Outlet
+      { wch: 36 }, // Nama Item
+      { wch: 8 },  // Qty
       { wch: 16 }, // Harga Satuan
-      { wch: 18 }  // Total Harga
+      { wch: 18 }, // Total Harga
+      { wch: 22 }, // Metode
+      { wch: 30 }  // Catatan
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -506,7 +518,6 @@ export default function ManualReportUpdateModal({
     XLSX.writeFile(workbook, `Template_Update_Laporan_MRIS_${reportDate}.xlsx`);
   };
 
-  // Helper: Parse Indonesian Text Date (e.g. "10 april 2026", "11 april 2026") into YYYY-MM-DD
   const parseIndonesianDate = (strVal, fallbackDate) => {
     if (!strVal || String(strVal).trim() === '') return fallbackDate;
     const s = String(strVal).trim().toLowerCase();
@@ -548,7 +559,7 @@ export default function ManualReportUpdateModal({
     return s;
   };
 
-  // --- EXCEL FILE PARSER ---
+  // --- ENHANCED EXCEL FILE PARSER WITH FULL MASUK (PENDAPATAN) SUPPORT ---
   const processUploadedFile = (file) => {
     if (!file) return;
     setFileName(file.name);
@@ -581,7 +592,6 @@ export default function ManualReportUpdateModal({
 
           const outletVal = String(row['Nama Outlet'] || row['Outlet'] || row['Restoran'] || getOutletName(selectedOutletId)).trim();
           
-          // Match outletVal against masterData.outlets to assign exact outlet_id
           const matchedOutletObj = (masterData?.outlets || []).find(o => 
             String(o.name).toLowerCase().trim() === outletVal.toLowerCase().trim() ||
             outletVal.toLowerCase().includes(String(o.name).toLowerCase().trim()) ||
@@ -591,7 +601,7 @@ export default function ManualReportUpdateModal({
           const matchedOutletName = matchedOutletObj ? matchedOutletObj.name : outletVal;
 
           const nameOrCode = String(
-            row['Nama Item'] || row['Item'] || row['Nama Produk / Kode Biaya'] || row['Nama Produk'] || row['Kode Biaya'] || ''
+            row['Nama Item'] || row['Item'] || row['Nama Produk / Kode Biaya / Pendapatan'] || row['Nama Produk / Kode Biaya'] || row['Nama Produk'] || row['Kode Biaya'] || row['Kategori Pendapatan'] || ''
           ).trim();
 
           const qtyVal = parseFloat(row['Qty'] || row['qty'] || row['QTY'] || row['Jumlah Qty'] || row['Jumlah'] || 1) || 1;
@@ -610,19 +620,37 @@ export default function ManualReportUpdateModal({
           const paymentVal = String(row['Metode Pembayaran'] || row['Metode'] || 'Kas Kasir (Tunai)').trim();
           const notesVal = String(row['Catatan'] || row['Keterangan'] || '').trim();
 
-          // Type Auto Detection:
-          // Check if row has explicit Tipe Laporan. If not, auto detect based on item name matching products vs expenses.
-          let typeVal = String(row['Tipe Laporan'] || row['Tipe'] || row['type'] || '').trim().toLowerCase();
-          let isSales = false;
-          if (typeVal) {
-            isSales = typeVal.includes('jual') || typeVal.includes('sales');
+          // 4-Way Type Auto Detection:
+          let typeRaw = String(row['Tipe Laporan'] || row['Tipe'] || row['type'] || row['Jenis Transaksi'] || row['Status Kas'] || '').trim().toLowerCase();
+          let itemType = 'pengeluaran'; // default
+
+          if (typeRaw) {
+            if (typeRaw.includes('jual') || typeRaw.includes('sales')) {
+              itemType = 'penjualan';
+            } else if (typeRaw.includes('masuk') || typeRaw.includes('pendapatan') || typeRaw.includes('pemasukan') || typeRaw.includes('income')) {
+              itemType = 'pendapatan';
+            } else if (typeRaw.includes('beli') || typeRaw.includes('pembelian') || typeRaw.includes('stok')) {
+              itemType = 'pembelian';
+            } else {
+              itemType = 'pengeluaran';
+            }
           } else {
-            // Auto detect: If nameOrCode matches a product in masterData.products, treat as Sales (Penjualan). Otherwise Expense (Pengeluaran).
+            // Smart Auto-Detect from nameOrCode:
             const foundProduct = findMatchingProduct(nameOrCode);
             if (foundProduct) {
-              isSales = true;
+              itemType = 'penjualan';
+            } else if (
+              nameOrCode.toLowerCase().includes('pendapatan') ||
+              nameOrCode.toLowerCase().includes('sewa') ||
+              nameOrCode.toLowerCase().includes('catering') ||
+              nameOrCode.toLowerCase().includes('komisi') ||
+              nameOrCode.toLowerCase().includes('pemasukan') ||
+              nameOrCode.toLowerCase().includes('bunga') ||
+              nameOrCode.toLowerCase().includes('cash in')
+            ) {
+              itemType = 'pendapatan';
             } else {
-              isSales = false;
+              itemType = 'pengeluaran';
             }
           }
 
@@ -633,14 +661,18 @@ export default function ManualReportUpdateModal({
 
           if (!nameOrCode) {
             isValid = false;
-            validationMsg = isSales ? 'Nama item produk kosong' : 'Nama item biaya kosong';
-          } else if (isSales) {
+            validationMsg = 'Nama item / kategori kosong';
+          } else if (itemType === 'penjualan') {
             matchedProduct = findMatchingProduct(nameOrCode);
             if (matchedProduct) {
               validationMsg = `✅ Produk Ada (${matchedProduct.sku})`;
             } else {
               validationMsg = `✨ Auto-Register Produk Baru`;
             }
+          } else if (itemType === 'pendapatan') {
+            validationMsg = `💰 Kas Masuk (Pendapatan Non-Sales)`;
+          } else if (itemType === 'pembelian') {
+            validationMsg = `📦 Pembelian Stok (Tambah Restok)`;
           } else {
             matchedCOA = findMatchingExpenseAccount(nameOrCode);
             if (matchedCOA) {
@@ -652,7 +684,7 @@ export default function ManualReportUpdateModal({
 
           return {
             tempId: idx + 1,
-            type: isSales ? 'penjualan' : 'pengeluaran',
+            type: itemType,
             date: dateVal,
             outletId: matchedOutletId,
             outletName: matchedOutletName,
@@ -838,7 +870,7 @@ export default function ManualReportUpdateModal({
       }
     });
 
-    // 1. STOCK DEDUCTION ENGINE (Resep HPP & Stok) - per row pakai tanggal masing-masing
+    // 1. STOCK DEDUCTION ENGINE (Resep HPP & Stok)
     let updatedIngredients = [...(masterData?.ingredients || [])];
     const newStockMovements = [];
 
@@ -912,26 +944,33 @@ export default function ManualReportUpdateModal({
           outletId: row.outletId || selectedOutletId,
           outletName: row.outletName || getOutletName(row.outletId || selectedOutletId),
           salesRows: [],
+          pendapatanRows: [],
           expenseRows: []
         });
       }
       const grp = groupMap.get(gKey);
-      if (row.type === 'penjualan' || row.type === 'pendapatan') grp.salesRows.push(row);
+      if (row.type === 'penjualan') grp.salesRows.push(row);
+      else if (row.type === 'pendapatan') grp.pendapatanRows.push(row);
       else grp.expenseRows.push(row);
     });
 
-    // 3. CONSTRUCT REPORT RECORDS, FINANCIAL RECORDS & SALES TX PER GRUP TANGGAL+OUTLET
+    // 3. CONSTRUCT REPORT RECORDS & FINANCIAL RECORDS PER GRUP TANGGAL+OUTLET
     const allNewReportRecords = [];
     const allNewFinancialRecords = [];
     const allNewSalesTxRecords = [];
     let totalSalesOmsetAll = 0;
+    let totalPendapatanLainAll = 0;
     let totalExpenseAmountAll = 0;
 
     groupMap.forEach((grp) => {
       const grpSalesTotal = grp.salesRows.reduce((s, r) => s + r.subtotal, 0);
+      const grpPendapatanTotal = grp.pendapatanRows.reduce((s, r) => s + r.subtotal, 0);
+      const grpPemasukanTotal = grpSalesTotal + grpPendapatanTotal;
       const grpExpenseTotal = grp.expenseRows.reduce((s, r) => s + r.subtotal, 0);
-      const grpNet = grpSalesTotal - grpExpenseTotal;
+      const grpNet = grpPemasukanTotal - grpExpenseTotal;
+
       totalSalesOmsetAll += grpSalesTotal;
+      totalPendapatanLainAll += grpPendapatanTotal;
       totalExpenseAmountAll += grpExpenseTotal;
 
       const grpReportNo = `UPD-${grp.date.replace(/-/g, '')}-${String(grp.outletId)}-${String(Math.floor(Math.random() * 900) + 100)}`;
@@ -940,6 +979,11 @@ export default function ManualReportUpdateModal({
       const grpSalesBreakdown = grp.salesRows.map(s => ({
         product_id: s.productId, product_name: s.productName, name: s.productName,
         qty: s.qty, price: s.price, subtotal: s.subtotal, amount: s.subtotal
+      }));
+      const grpPendapatanBreakdown = grp.pendapatanRows.map(p => ({
+        categoryName: p.categoryName, category: p.categoryName, name: p.categoryName,
+        subtotal: p.subtotal, amount: p.subtotal, paymentMethod: p.paymentMethod,
+        payment_method: p.paymentMethod, notes: p.notes || 'Kas Masuk Non-Sales'
       }));
       const grpExpenseBreakdown = grp.expenseRows.map(e => ({
         code: e.accountCode, name: e.categoryName, category: e.categoryName,
@@ -962,6 +1006,8 @@ export default function ManualReportUpdateModal({
         gross_sales: grpSalesTotal,
         total_omset: grpSalesTotal,
         total_sales: grpSalesTotal,
+        total_pendapatan_lain: grpPendapatanTotal,
+        total_pemasukan: grpPemasukanTotal,
         cash_sales: grpSalesTotal,
         non_cash_sales: 0,
         total_expense: grpExpenseTotal,
@@ -974,6 +1020,7 @@ export default function ManualReportUpdateModal({
         created_by: authorName,
         source: activeTab === 'excel' ? 'Batch Upload Excel' : 'Update Laporan Manual',
         sales_details: grpSalesBreakdown,
+        pendapatan_details: grpPendapatanBreakdown,
         expense_details: grpExpenseBreakdown,
         expenses_breakdown: grpExpenseBreakdown,
         expense_rows: grpExpenseBreakdown,
@@ -988,6 +1035,23 @@ export default function ManualReportUpdateModal({
           category: e.categoryName,
           notes: e.notes || 'Update Laporan Pengeluaran',
           amount: e.subtotal,
+          outlet_id: grp.outletId,
+          outlet_name: grp.outletName,
+          entry_date: grp.date,
+          date: grp.date,
+          transaction_date: grp.date,
+          created_at: new Date().toISOString()
+        });
+      });
+
+      grp.pendapatanRows.forEach(p => {
+        allNewFinancialRecords.push({
+          id: Date.now() + Math.random(),
+          type: 'other_income',
+          category: p.categoryName,
+          notes: p.notes || 'Pendapatan Non-Sales / Kas Masuk',
+          amount: p.subtotal,
+          payment_method: p.paymentMethod || 'Kas Kasir (Tunai)',
           outlet_id: grp.outletId,
           outlet_name: grp.outletName,
           entry_date: grp.date,
@@ -1016,10 +1080,10 @@ export default function ManualReportUpdateModal({
       });
     });
 
-    const netCashFlowAll = totalSalesOmsetAll - totalExpenseAmountAll;
+    const totalTotalPemasukan = totalSalesOmsetAll + totalPendapatanLainAll;
+    const netCashFlowAll = totalTotalPemasukan - totalExpenseAmountAll;
 
     // 4. SAVE TO MASTER DATA STATE LOCALLY
-    // Jika mode Edit: hapus laporan lama (by editData.id) sebelum tambah yang baru
     const oldId = isEditMode ? String(editData.id) : null;
     const filterOld = (arr) => oldId ? (arr || []).filter(r => String(r.id) !== oldId) : (arr || []);
 
@@ -1050,8 +1114,8 @@ export default function ManualReportUpdateModal({
     if (newProductsCreatedCount > 0) autoMsg += `\n• Auto-Register Produk Baru: ${newProductsCreatedCount} Produk terdaftar.`;
 
     alert(isEditMode
-      ? `✅ LAPORAN BERHASIL DIUPDATE!\n\n• Laporan Lama: ${editData?.report_no || ''} telah digantikan\n• Total Penjualan: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}${autoMsg}`
-      : `✅ BERHASIL UPDATE LAPORAN!\n\n• Total Laporan Dibuat: ${allNewReportRecords.length} laporan (${groupMap.size} tanggal berbeda)\n• Total Penjualan: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
+      ? `✅ LAPORAN BERHASIL DIUPDATE!\n\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}${autoMsg}`
+      : `✅ BERHASIL UPDATE LAPORAN!\n\n• Total Laporan Dibuat: ${allNewReportRecords.length} laporan (${groupMap.size} tanggal/outlet)\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')} (Sales: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}, Pendapatan Lain: Rp ${totalPendapatanLainAll.toLocaleString('id-ID')})\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
 
     onClose();
   };
@@ -1091,12 +1155,12 @@ export default function ManualReportUpdateModal({
             </div>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{isEditMode ? `✏️ Edit Laporan: ${editData?.report_no || ''}` : '+ Update Laporan Penjualan & Pengeluaran'}</span>
+                <span>{isEditMode ? `✏️ Edit Laporan: ${editData?.report_no || ''}` : '+ Update Laporan Transaksi & Kas'}</span>
               </h2>
               <p style={{ fontSize: '0.74rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
                 {isEditMode
                   ? 'Ubah data laporan yang sudah ada. Laporan lama akan digantikan setelah disimpan.'
-                  : 'Update transaksi manual / Excel yang secara otomatis memotong stok bahan baku dan memperbarui Laba Rugi, Neraca & Arus Kas.'}
+                  : 'Update transaksi Penjualan, Pengeluaran, Kas Masuk (Pendapatan Lain-Lain), dan Pembelian Stok yang secara otomatis memperbarui Stok & Laporan Keuangan.'}
               </p>
             </div>
           </div>
@@ -1203,7 +1267,29 @@ export default function ManualReportUpdateModal({
                 }}
               >
                 <TrendingUp size={15} />
-                <span>🟢 Penjualan</span>
+                <span>🟢 Penjualan Produk</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEntryType('pendapatan')}
+                style={{
+                  padding: '9px 6px',
+                  borderRadius: '10px',
+                  border: `1px solid ${entryType === 'pendapatan' ? T.info : T.border}`,
+                  background: entryType === 'pendapatan' ? T.infoBg : T.cardBg2,
+                  color: entryType === 'pendapatan' ? T.info : T.txtSecondary,
+                  fontWeight: '800',
+                  fontSize: '0.76rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <DollarSign size={15} />
+                <span>💰 Pendapatan Non-Sales (Kas Masuk)</span>
               </button>
 
               <button
@@ -1225,7 +1311,7 @@ export default function ManualReportUpdateModal({
                 }}
               >
                 <TrendingDown size={15} />
-                <span>🔴 Pengeluaran</span>
+                <span>🔴 Pengeluaran (Kas Keluar)</span>
               </button>
 
               <button
@@ -1248,28 +1334,6 @@ export default function ManualReportUpdateModal({
               >
                 <ShoppingBag size={15} />
                 <span>📦 Pembelian Stok</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setEntryType('pendapatan')}
-                style={{
-                  padding: '9px 6px',
-                  borderRadius: '10px',
-                  border: `1px solid ${entryType === 'pendapatan' ? T.info : T.border}`,
-                  background: entryType === 'pendapatan' ? T.infoBg : T.cardBg2,
-                  color: entryType === 'pendapatan' ? T.info : T.txtSecondary,
-                  fontWeight: '800',
-                  fontSize: '0.76rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <DollarSign size={15} />
-                <span>💰 Pendapatan Non-Sales</span>
               </button>
             </div>
 
@@ -1364,7 +1428,7 @@ export default function ManualReportUpdateModal({
                 </datalist>
 
                 <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>💸 Rincian Pengeluaran &amp; Beban Operasional:</span>
+                  <span>💸 Rincian Pengeluaran &amp; Beban Operasional (Kas Keluar):</span>
                   <span style={{ fontSize: '0.68rem', color: T.info }}>*Ketik Nama Biaya (Kode biaya ter-generate otomatis di Data Master)</span>
                 </div>
 
@@ -1508,11 +1572,11 @@ export default function ManualReportUpdateModal({
               </div>
             )}
 
-            {/* FORM BODY FOR PENDAPATAN NON-SALES */}
+            {/* FORM BODY FOR PENDAPATAN NON-SALES (KAS MASUK) */}
             {entryType === 'pendapatan' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>💰 Rincian Pendapatan Non-Sales (Sewa, Bagi Hasil, Bunga, Lainnya):</span>
+                  <span>💰 Rincian Pendapatan Non-Sales (Sewa, Bagi Hasil, Catering, Pemasukan Kas Masuk):</span>
                   <span style={{ fontSize: '0.68rem', color: T.info }}>*Menambah Total Kas Masuk Outlet</span>
                 </div>
 
@@ -1606,7 +1670,7 @@ export default function ManualReportUpdateModal({
                     Pilih atau Drag &amp; Drop File Excel Transaksi
                   </div>
                   <div style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '4px' }}>
-                    Mendukung file format <strong>.xlsx</strong>, <strong>.xls</strong>, dan <strong>.csv</strong>
+                    Mendukung file format <strong>.xlsx</strong>, <strong>.xls</strong>, dan <strong>.csv</strong> (Mendukung Penjualan, Pendapatan Non-Sales, Pengeluaran, &amp; Pembelian Stok)
                   </div>
 
                   <input
@@ -1630,7 +1694,7 @@ export default function ManualReportUpdateModal({
                   <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '0 0 10px 0', lineHeight: 1.4 }}>
                     Gunakan template Excel resmi agar kolom teridentifikasi secara otomatis:
                     <br />
-                    <code>Tipe Laporan</code>, <code>Tanggal</code>, <code>Nama Outlet</code>, <code>Shift</code>, <code>Nama Produk / Kode Biaya</code>, <code>Qty</code>, <code>Harga Satuan / Jumlah Rp</code>, <code>Metode Pembayaran</code>.
+                    <code>Tipe Laporan</code> (Penjualan / Pemasukan / Pengeluaran / Pembelian), <code>Tanggal</code>, <code>Nama Outlet</code>, <code>Nama Produk / Kode Biaya / Pendapatan</code>, <code>Qty</code>, <code>Harga Satuan</code>, <code>Total Harga</code>, <code>Metode Pembayaran</code>.
                   </p>
                   <button
                     onClick={handleDownloadTemplate}
@@ -1665,7 +1729,7 @@ export default function ManualReportUpdateModal({
                         <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>📅 Tanggal</th>
                         <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>🏪 Outlet</th>
                         <th style={{ padding: '8px 10px' }}>Tipe</th>
-                        <th style={{ padding: '8px 10px' }}>Item / Akun Biaya</th>
+                        <th style={{ padding: '8px 10px' }}>Item / Akun / Pendapatan</th>
                         <th style={{ padding: '8px 10px', textAlign: 'center' }}>Qty</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right' }}>Harga Satuan</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right' }}>Total Harga</th>
@@ -1674,86 +1738,83 @@ export default function ManualReportUpdateModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {parsedRows.map((r) => (
-                        <tr key={r.tempId} style={{ borderBottom: `1px solid ${T.border}` }}>
-                          <td style={{ padding: '6px 10px', fontWeight: '800', color: T.accentGold, whiteSpace: 'nowrap' }}>
-                            {r.date || reportDate}
-                          </td>
-                          <td style={{ padding: '6px 10px', color: T.txtSecondary, fontSize: '0.70rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.outletName}>
-                            {r.outletName || getOutletName(r.outletId || selectedOutletId)}
-                          </td>
-                          <td style={{ padding: '6px 10px', fontWeight: '800', color: r.type === 'penjualan' ? T.success : T.danger, whiteSpace: 'nowrap' }}>
-                            {r.type === 'penjualan' ? '🟢 Jual' : '🔴 Keluar'}
-                          </td>
-                          <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>
-                            {r.nameOrCode}
-                          </td>
-                          <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: '700', color: T.info }}>
-                            {r.qty || 1}
-                          </td>
-                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>
-                            Rp {(r.price || r.amount || 0).toLocaleString('id-ID')}
-                          </td>
-                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.txtPrimary }}>
-                            Rp {r.totalSubtotal?.toLocaleString('id-ID')}
-                          </td>
-                          <td style={{ padding: '6px 10px' }}>
-                            {r.isValid ? (
-                              <span style={{ color: T.success, fontWeight: '800', fontSize: '0.68rem' }}>{r.validationMsg || '✅ Valid'}</span>
-                            ) : (
-                              <span style={{ color: T.danger, fontWeight: '800', fontSize: '0.68rem' }}>❌ {r.validationMsg}</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveParsedRow(r.tempId)}
-                              style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', padding: '2px' }}
-                              title="Hapus baris ini dari pratinjau"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {parsedRows.map((r) => {
+                        const isInc = r.type === 'penjualan' || r.type === 'pendapatan';
+                        return (
+                          <tr key={r.tempId} style={{ borderBottom: `1px solid ${T.border}` }}>
+                            <td style={{ padding: '6px 10px', fontWeight: '800', color: T.accentGold, whiteSpace: 'nowrap' }}>
+                              {r.date || reportDate}
+                            </td>
+                            <td style={{ padding: '6px 10px', color: T.txtSecondary, fontSize: '0.70rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.outletName}>
+                              {r.outletName || getOutletName(r.outletId || selectedOutletId)}
+                            </td>
+                            <td style={{ padding: '6px 10px', fontWeight: '800', color: isInc ? T.success : T.danger, whiteSpace: 'nowrap' }}>
+                              {r.type === 'penjualan' ? '🟢 Jual' : r.type === 'pendapatan' ? '💰 Masuk' : r.type === 'pembelian' ? '📦 Stok' : '🔴 Keluar'}
+                            </td>
+                            <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>
+                              {r.nameOrCode}
+                            </td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: '700', color: T.info }}>
+                              {r.qty || 1}
+                            </td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary }}>
+                              Rp {(r.price || r.amount || 0).toLocaleString('id-ID')}
+                            </td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: isInc ? T.success : T.danger }}>
+                              Rp {r.totalSubtotal?.toLocaleString('id-ID')}
+                            </td>
+                            <td style={{ padding: '6px 10px' }}>
+                              {r.isValid ? (
+                                <span style={{ color: T.success, fontWeight: '800', fontSize: '0.68rem' }}>{r.validationMsg || '✅ Valid'}</span>
+                              ) : (
+                                <span style={{ color: T.danger, fontWeight: '800', fontSize: '0.68rem' }}>❌ {r.validationMsg}</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveParsedRow(r.tempId)}
+                                style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
-
           </div>
         )}
 
         {/* MODAL FOOTER */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: `1px solid ${T.border}`, paddingTop: '14px', marginTop: '6px' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ padding: '8px 18px', background: T.borderStrong, border: 'none', borderRadius: '8px', color: T.txtSecondary, fontSize: '0.80rem', fontWeight: '700', cursor: 'pointer' }}
-          >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${T.border}`, paddingTop: '14px' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtSecondary, fontWeight: '700', cursor: 'pointer' }}>
             Batal
           </button>
+          
           <button
-            type="button"
             onClick={handleExecuteSaveReport}
             style={{
+              padding: '10px 22px',
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              border: 'none',
+              borderRadius: '10px',
+              color: '#ffffff',
+              fontWeight: '900',
+              fontSize: '0.86rem',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 22px',
-              background: T.primaryBtn,
-              border: 'none',
-              borderRadius: '8px',
-              color: T.navActiveTxt,
-              fontSize: '0.82rem',
-              fontWeight: '900',
-              cursor: 'pointer',
-              boxShadow: T.primaryBtnShadow
+              gap: '8px',
+              boxShadow: '0 4px 16px rgba(34, 197, 94, 0.4)'
             }}
           >
-            <CheckCircle2 size={16} />
-            <span>Proses &amp; Simpan Update Laporan</span>
+            <CheckCircle2 size={18} />
+            <span>Simpan Update Laporan &amp; Potong Stok</span>
           </button>
         </div>
 
