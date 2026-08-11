@@ -498,6 +498,20 @@ const ensureMasterDataTable = async () => {
     try { await mysqlPool.execute(`ALTER TABLE web_admin_users MODIFY id BIGINT`); } catch (e) {}
     try { await mysqlPool.execute(`ALTER TABLE mobile_pos_users MODIFY id BIGINT`); } catch (e) {}
 
+    // Auto-cleanup username ganda (case-insensitive deduplication) di MySQL
+    try {
+      await mysqlPool.execute(`
+        DELETE t1 FROM web_admin_users t1
+        INNER JOIN web_admin_users t2 
+        ON LOWER(TRIM(t1.username)) = LOWER(TRIM(t2.username)) AND t1.id < t2.id
+      `);
+      await mysqlPool.execute(`
+        DELETE t1 FROM mobile_pos_users t1
+        INNER JOIN mobile_pos_users t2 
+        ON LOWER(TRIM(t1.username)) = LOWER(TRIM(t2.username)) AND t1.id < t2.id
+      `);
+    } catch (e) {}
+
     // 5. Categories
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS categories (
@@ -1589,7 +1603,7 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     const extVal = existing[key];
 
     if (Array.isArray(incVal)) {
-      // Proteksi Union Merge khusus untuk user accounts: gabungkan data incoming & existing berdasarkan ID, kecualikan yang terhapus
+      // Proteksi Union Merge khusus untuk user accounts: gabungkan data incoming & existing berdasarkan ID/Username, kecualikan yang terhapus
       if (key === 'webAdminAccounts' || key === 'mobileAccounts') {
         const deletedSet = new Set([
           ...(result.deletedUserIds || []),
@@ -1597,11 +1611,33 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
           ...(existing.deletedUserIds || [])
         ].map(x => String(x)));
 
-        const map = new Map();
-        (extVal || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
-        (incVal || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
+        const deletedUsernameSet = new Set([
+          ...(result.deletedUsernames || []),
+          ...(incoming.deletedUsernames || []),
+          ...(existing.deletedUsernames || [])
+        ].map(x => String(x).toLowerCase().trim()));
 
-        result[key] = Array.from(map.values()).filter(u => u && u.id != null && !deletedSet.has(String(u.id)));
+        const mapByUsername = new Map();
+
+        const addUsers = (list) => {
+          (list || []).forEach(u => {
+            if (!u || u.id == null) return;
+            const uIdStr = String(u.id);
+            const uNameKey = String(u.username || u.name || '').toLowerCase().trim();
+
+            if (deletedSet.has(uIdStr) || (uNameKey && deletedUsernameSet.has(uNameKey))) {
+              return;
+            }
+            if (uNameKey) {
+              mapByUsername.set(uNameKey, u);
+            }
+          });
+        };
+
+        addUsers(extVal);
+        addUsers(incVal);
+
+        result[key] = Array.from(mapByUsername.values());
         return;
       }
 
@@ -1761,8 +1797,10 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     const idStr = String(id);
     const nowTs = Date.now();
 
-    // Catat ID & Receipt No yang dihapus ke tombstone tracking
+    // Catat ID & Receipt No & Username yang dihapus ke tombstone tracking
     const targetRcpt = String(req.body.receipt_no || '');
+    const targetUsername = String(req.body.username || '').toLowerCase().trim();
+
     existing.deletedLogisticsIds = Array.from(new Set([
       ...(existing.deletedLogisticsIds || []),
       idStr,
@@ -1778,6 +1816,34 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       idStr,
       targetRcpt
     ].filter(Boolean)));
+    existing.deletedUserIds = Array.from(new Set([
+      ...(existing.deletedUserIds || []),
+      idStr
+    ].filter(Boolean)));
+
+    if (targetUsername) {
+      existing.deletedUsernames = Array.from(new Set([
+        ...(existing.deletedUsernames || []),
+        targetUsername
+      ].filter(Boolean)));
+    }
+
+    if (key === 'webAdminAccounts' || key === 'mobileAccounts') {
+      const filterOutUser = u => {
+        if (!u) return false;
+        const uId = String(u.id);
+        const uName = String(u.username || u.name || '').toLowerCase().trim();
+        if (uId === idStr) return false;
+        if (targetUsername && uName === targetUsername) return false;
+        return true;
+      };
+
+      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(filterOutUser);
+      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(filterOutUser);
+      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(filterOutUser);
+      if (Array.isArray(existing.users)) existing.users = existing.users.filter(filterOutUser);
+      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(filterOutUser);
+    }
 
     const reportKeys = ['approvedFinanceDaily', 'shiftClosings', 'shift_closings', 'closedShifts', 'dailyReports', 'manualEntryRecords'];
     const logisticsKeys = [
@@ -1861,9 +1927,17 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     if (mysqlPool && idStr) {
       try {
         if (key === 'webAdminAccounts') {
-          await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id = ?`, [idStr]);
+          if (targetUsername) {
+            await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`, [idStr, targetUsername, targetUsername]);
+          } else {
+            await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id = ?`, [idStr]);
+          }
         } else if (key === 'mobileAccounts') {
-          await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
+          if (targetUsername) {
+            await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`, [idStr, targetUsername, targetUsername]);
+          } else {
+            await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
+          }
         } else {
           const relTable = key === 'products' ? 'products' :
                            key === 'categories' ? 'categories' :

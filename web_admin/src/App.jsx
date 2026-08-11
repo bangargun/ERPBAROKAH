@@ -285,12 +285,33 @@ export default function App() {
                 ...(serverData.deletedUserIds || [])
               ].map(x => String(x)));
 
+              const deletedUsernamesSet = new Set([
+                ...(prev.deletedUsernames || []),
+                ...(serverData.deletedUsernames || [])
+              ].map(x => String(x).toLowerCase().trim()));
+
               const mergeUserAccountsList = (serverList = [], prevList = [], fallbackList = []) => {
-                const map = new Map();
-                (fallbackList || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
-                (serverList || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
-                (prevList || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
-                return Array.from(map.values()).filter(u => u && u.id != null && !deletedUserIdsSet.has(String(u.id)));
+                const mapByUsername = new Map();
+
+                const addUsers = (list) => {
+                  (list || []).forEach(u => {
+                    if (!u || u.id == null) return;
+                    const uIdStr = String(u.id);
+                    const uNameKey = String(u.username || u.name || '').toLowerCase().trim();
+                    if (deletedUserIdsSet.has(uIdStr) || (uNameKey && deletedUsernamesSet.has(uNameKey))) {
+                      return;
+                    }
+                    if (uNameKey) {
+                      mapByUsername.set(uNameKey, u);
+                    }
+                  });
+                };
+
+                addUsers(fallbackList);
+                addUsers(serverList);
+                addUsers(prevList);
+
+                return Array.from(mapByUsername.values());
               };
 
               const mergedWeb = mergeUserAccountsList(serverData.webAdminAccounts, prev.webAdminAccounts, initialMasterData.webAdminAccounts);

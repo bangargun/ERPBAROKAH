@@ -202,46 +202,52 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
       setLoading(true);
       const key = type === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
       const targetId = String(user.id);
+      const targetUsername = String(user.username || user.name || '').toLowerCase().trim();
+
       const prevDeletedUsers = masterData?.deletedUserIds || [];
+      const prevDeletedUsernames = masterData?.deletedUsernames || [];
+
       const updatedDeletedUsers = Array.from(new Set([...prevDeletedUsers, targetId]));
+      const updatedDeletedUsernames = targetUsername
+        ? Array.from(new Set([...prevDeletedUsernames, targetUsername]))
+        : prevDeletedUsernames;
 
       fetch('/api/master-data/delete-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, id: user.id })
+        body: JSON.stringify({ key, id: user.id, username: targetUsername })
       }).catch(() => {});
 
-      if (type === 'web') {
-        const updatedList = (masterData?.webAdminAccounts || []).filter(u => String(u.id) !== targetId);
-        setWebUsers(updatedList);
-        const updatedMaster = {
-          ...masterData,
-          _lastUpdated: Date.now(),
-          deletedUserIds: updatedDeletedUsers,
-          webAdminAccounts: updatedList
-        };
-        setMasterData(updatedMaster);
-        fetch('/api/master-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedMaster)
-        }).catch(() => {});
-      } else {
-        const updatedList = (masterData?.mobileAccounts || []).filter(u => String(u.id) !== targetId);
-        setMobileUsers(updatedList);
-        const updatedMaster = {
-          ...masterData,
-          _lastUpdated: Date.now(),
-          deletedUserIds: updatedDeletedUsers,
-          mobileAccounts: updatedList
-        };
-        setMasterData(updatedMaster);
-        fetch('/api/master-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedMaster)
-        }).catch(() => {});
-      }
+      const filterOut = u => {
+        if (!u) return false;
+        const uId = String(u.id);
+        const uName = String(u.username || u.name || '').toLowerCase().trim();
+        if (uId === targetId) return false;
+        if (targetUsername && uName === targetUsername) return false;
+        return true;
+      };
+
+      const updatedWeb = (masterData?.webAdminAccounts || []).filter(filterOut);
+      const updatedMobile = (masterData?.mobileAccounts || []).filter(filterOut);
+
+      if (type === 'web') setWebUsers(updatedWeb);
+      else setMobileUsers(updatedMobile);
+
+      const updatedMaster = {
+        ...masterData,
+        _lastUpdated: Date.now(),
+        deletedUserIds: updatedDeletedUsers,
+        deletedUsernames: updatedDeletedUsernames,
+        webAdminAccounts: updatedWeb,
+        mobileAccounts: updatedMobile
+      };
+
+      setMasterData(updatedMaster);
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(() => {});
     } catch (err) {
       alert('Gagal menghapus: ' + err.message);
     }

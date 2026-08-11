@@ -460,18 +460,33 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
   const handleDeleteUser = (user) => {
     if (!window.confirm(`Hapus akun Web Admin "${user.name || user.username}"?`)) return;
     const targetIdStr = user.id != null ? String(user.id) : null;
+    const targetUsername = String(user.username || user.name || '').toLowerCase().trim();
     if (!targetIdStr) return;
 
     setMasterData(prev => {
       const currentList = getWebAdminList();
-      const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
+      const filterOut = u => {
+        if (!u) return false;
+        const uId = String(u.id);
+        const uName = String(u.username || u.name || '').toLowerCase().trim();
+        if (uId === targetIdStr) return false;
+        if (targetUsername && uName === targetUsername) return false;
+        return true;
+      };
+
+      const updatedList = currentList.filter(filterOut);
       const prevDel = prev.deletedUserIds || [];
+      const prevDelUsernames = prev.deletedUsernames || [];
       const updatedDeleted = Array.from(new Set([...prevDel, targetIdStr]));
+      const updatedDeletedUsernames = targetUsername
+        ? Array.from(new Set([...prevDelUsernames, targetUsername]))
+        : prevDelUsernames;
 
       const updatedMaster = {
         ...prev,
         _lastUpdated: Date.now(),
         deletedUserIds: updatedDeleted,
+        deletedUsernames: updatedDeletedUsernames,
         webAdminAccounts: updatedList,
         _isExplicitClear: updatedList.length === 0
       };
@@ -490,7 +505,8 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         key: 'webAdminAccounts',
-        id: user.id
+        id: user.id,
+        username: targetUsername
       })
     }).catch(() => {});
   };
@@ -600,18 +616,33 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
     const targetName = targetObj?.name || targetObj?.username || 'ini';
     if (!window.confirm(`Hapus akun Mobile APK "${targetName}"?`)) return;
     const targetIdStr = targetObj?.id != null ? String(targetObj.id) : null;
+    const targetUsername = String(targetObj?.username || targetObj?.name || '').toLowerCase().trim();
     if (!targetIdStr) return;
 
     setMasterData(prev => {
       const currentList = getMobileList();
-      const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
+      const filterOut = u => {
+        if (!u) return false;
+        const uId = String(u.id);
+        const uName = String(u.username || u.name || '').toLowerCase().trim();
+        if (uId === targetIdStr) return false;
+        if (targetUsername && uName === targetUsername) return false;
+        return true;
+      };
+
+      const updatedList = currentList.filter(filterOut);
       const prevDel = prev.deletedUserIds || [];
+      const prevDelUsernames = prev.deletedUsernames || [];
       const updatedDeleted = Array.from(new Set([...prevDel, targetIdStr]));
+      const updatedDeletedUsernames = targetUsername
+        ? Array.from(new Set([...prevDelUsernames, targetUsername]))
+        : prevDelUsernames;
 
       const updatedMaster = {
         ...prev,
         _lastUpdated: Date.now(),
         deletedUserIds: updatedDeleted,
+        deletedUsernames: updatedDeletedUsernames,
         mobileAccounts: updatedList,
         _isExplicitClear: updatedList.length === 0
       };
@@ -630,7 +661,8 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         key: 'mobileAccounts',
-        id: targetObj.id
+        id: targetObj.id,
+        username: targetUsername
       })
     }).catch(() => {});
   };
