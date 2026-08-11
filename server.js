@@ -469,7 +469,7 @@ const ensureMasterDataTable = async () => {
     // 3. Web Admin Users
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS web_admin_users (
-        id INT PRIMARY KEY,
+        id BIGINT PRIMARY KEY,
         name VARCHAR(255),
         username VARCHAR(255),
         password VARCHAR(255),
@@ -482,7 +482,7 @@ const ensureMasterDataTable = async () => {
     // 4. Mobile POS Users
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS mobile_pos_users (
-        id INT PRIMARY KEY,
+        id BIGINT PRIMARY KEY,
         name VARCHAR(255),
         username VARCHAR(255),
         password VARCHAR(255),
@@ -493,6 +493,10 @@ const ensureMasterDataTable = async () => {
         report_password VARCHAR(255)
       )
     `);
+
+    // Auto-migrate column id ke BIGINT jika sebelumnya INT untuk mendukung 13-digit Date.now() timestamp ID
+    try { await mysqlPool.execute(`ALTER TABLE web_admin_users MODIFY id BIGINT`); } catch (e) {}
+    try { await mysqlPool.execute(`ALTER TABLE mobile_pos_users MODIFY id BIGINT`); } catch (e) {}
 
     // 5. Categories
     await mysqlPool.execute(`
@@ -1585,6 +1589,22 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     const extVal = existing[key];
 
     if (Array.isArray(incVal)) {
+      // Proteksi Union Merge khusus untuk user accounts: gabungkan data incoming & existing berdasarkan ID, kecualikan yang terhapus
+      if (key === 'webAdminAccounts' || key === 'mobileAccounts') {
+        const deletedSet = new Set([
+          ...(result.deletedUserIds || []),
+          ...(incoming.deletedUserIds || []),
+          ...(existing.deletedUserIds || [])
+        ].map(x => String(x)));
+
+        const map = new Map();
+        (extVal || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
+        (incVal || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
+
+        result[key] = Array.from(map.values()).filter(u => u && u.id != null && !deletedSet.has(String(u.id)));
+        return;
+      }
+
       // Proteksi khusus: field user-kritis tidak boleh di-overwrite dengan [] tanpa _isExplicitClear
       if (USER_CRITICAL_KEYS.has(key) && incVal.length === 0 && Array.isArray(extVal) && extVal.length > 0 && !incoming._isExplicitClear) {
         // Pertahankan data existing yang ada — jangan izinkan array kosong menimpa data user
