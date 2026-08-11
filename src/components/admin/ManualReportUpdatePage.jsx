@@ -23,10 +23,7 @@ import {
   Info,
   PackageCheck,
   Check,
-  ArrowUpDown,
-  CreditCard,
-  Wallet,
-  Coins
+  ArrowUpDown
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
@@ -41,17 +38,14 @@ export default function ManualReportUpdatePage({
 }) {
   const T = getThemePalette(themeMode);
 
-  // Sub-Tab Navigation State ('sales_expense' | 'income')
-  const [activeSubTab, setActiveSubTab] = useState('sales_expense');
-
-  // Filter & Search States
+  // States
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOutletFilter, setSelectedOutletFilter] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   // Sorting States
-  const [sortField, setSortField] = useState('date'); // 'date' | 'report_no' | 'outlet' | 'item_name' | 'qty' | 'unit_price' | 'sales' | 'expense' | 'category' | 'amount'
+  const [sortField, setSortField] = useState('date'); // 'date' | 'report_no' | 'outlet' | 'item_name' | 'qty' | 'unit_price' | 'sales' | 'expense'
   const [sortDirection, setSortDirection] = useState('desc'); // 'asc' | 'desc'
 
   // Pagination
@@ -60,7 +54,6 @@ export default function ManualReportUpdatePage({
 
   // Modal Controls
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createModalType, setCreateModalType] = useState(null);
   const [previewReport, setPreviewReport] = useState(null);
   const [deletingReport, setDeletingReport] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
@@ -124,7 +117,7 @@ export default function ManualReportUpdatePage({
     return formattedDate;
   };
 
-  // Extract All Unique Sales & Expense Reports Combining Manual Entries, POS Shifts, & Daily Approvals
+  // Extract All Unique Reports Combining Manual Entries, POS Shifts, & Daily Approvals
   const allReportsList = useMemo(() => {
     const deletedReportIdsSet = new Set([
       ...(masterData?.deletedReportIds || []),
@@ -161,7 +154,7 @@ export default function ManualReportUpdatePage({
 
     // Synthesise standalone financialRecords and salesTransactions into date+outlet report entries if not present
     const groupedStandalone = new Map();
-    const allFinancial = (masterData?.financialRecords || []).filter(f => !isDeletedReport(f) && f.type !== 'income' && f.type !== 'other_income' && f.type !== 'pendapatan');
+    const allFinancial = (masterData?.financialRecords || []).filter(f => !isDeletedReport(f));
     const allSales = (masterData?.salesTransactions || []).filter(s => !isDeletedReport(s));
 
     allFinancial.forEach(f => {
@@ -261,115 +254,43 @@ export default function ManualReportUpdatePage({
     return Array.from(map.values());
   }, [masterData]);
 
-  // Extract All Income / Pendapatan Reports
-  const allIncomeReportsList = useMemo(() => {
-    const deletedReportIdsSet = new Set([
-      ...(masterData?.deletedReportIds || []),
-      ...(masterData?.deleted_report_nos || []),
-      ...(masterData?.deletedFinancialIds || []),
-      ...(masterData?.deleted_outflow_ids || [])
-    ].map(id => String(id)));
-
-    const isDeletedReport = (r) => {
-      if (!r) return true;
-      const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
-      const rNo = String(r.report_no || r.receiptNo || r.receipt_no || '');
-      return (rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo));
-    };
-
-    const incomeList = [];
-
-    // 1. Extract from report objects with pendapatan_details
-    const combineSources = [
-      ...(masterData?.manualEntryRecords || []),
-      ...(masterData?.approvedFinanceDaily || []),
-      ...(masterData?.shiftReports || []),
-      ...(masterData?.dailyReports || []),
-      ...(masterData?.manualReports || [])
-    ].filter(r => !isDeletedReport(r));
-
-    combineSources.forEach(r => {
-      if (r && r.pendapatan_details && Array.isArray(r.pendapatan_details) && r.pendapatan_details.length > 0) {
-        r.pendapatan_details.forEach((p, pIdx) => {
-          incomeList.push({
-            id: r.id ? `${r.id}-inc-${pIdx}` : `INC-${Date.now()}-${pIdx}`,
-            parent_id: r.id,
-            report_no: r.report_no || `INC-${r.id}`,
-            entry_date: r.entry_date || r.date || r.transaction_date,
-            date: r.entry_date || r.date || r.transaction_date,
-            outlet_id: r.outlet_id,
-            outlet_name: r.outlet_name || getOutletName(r.outlet_id),
-            category_name: p.categoryName || p.category || p.name || 'Pendapatan Non-Sales',
-            notes: p.notes || r.notes || 'Pendapatan Non-Sales / Kas Masuk Lainnya',
-            amount: Number(p.amount || p.subtotal || 0),
-            payment_method: p.paymentMethod || p.payment_method || 'Kas Kasir (Tunai)',
-            author: r.author || r.created_by || 'Admin',
-            status: 'Disetujui',
-            rawReport: r
-          });
-        });
-      }
-    });
-
-    // 2. Extract from masterData.financialRecords (type === 'other_income' or type === 'income' or type === 'pendapatan')
-    const allFinancial = (masterData?.financialRecords || []).filter(f => !isDeletedReport(f));
-    allFinancial.forEach(f => {
-      const isInc = f.type === 'other_income' || f.type === 'income' || f.type === 'pendapatan' || (f.category && String(f.category).toLowerCase().includes('pendapatan'));
-      if (isInc) {
-        const dt = String(f.entry_date || f.date || f.transaction_date || f.created_at || '').substring(0, 10);
-        incomeList.push({
-          id: f.id || `FIN-INC-${Date.now()}`,
-          parent_id: f.id,
-          report_no: f.report_no || f.code || `INC-${dt.replace(/-/g, '')}-${f.outlet_id || '1'}`,
-          entry_date: dt,
-          date: dt,
-          outlet_id: f.outlet_id,
-          outlet_name: f.outlet_name || getOutletName(f.outlet_id),
-          category_name: f.category || f.categoryName || f.name || 'Pendapatan Non-Sales',
-          notes: f.notes || f.description || 'Pemasukan Non-Operasional',
-          amount: Number(f.amount || f.subtotal || 0),
-          payment_method: f.payment_method || f.paymentMethod || 'Kas Kasir (Tunai)',
-          author: f.author || f.created_by || 'Admin',
-          status: 'Disetujui',
-          rawReport: f
-        });
-      }
-    });
-
-    return incomeList;
-  }, [masterData]);
-
-  // Filter Outlet Matcher Helper
-  const checkOutletMatch = (r, targetVal) => {
-    if (!targetVal || targetVal === 'ALL' || targetVal === 'Semua Restoran (Konsolidasi)') return true;
-    const strTarget = String(targetVal).toLowerCase().trim();
-    const targetOutletObj = (masterData?.outlets || []).find(o => 
-      String(o.id) === strTarget || 
-      String(o.name).toLowerCase().trim() === strTarget
-    );
-    const targetNameLower = targetOutletObj ? (targetOutletObj.name || '').toLowerCase().trim() : strTarget;
-
-    const rIdStr = String(r.outlet_id || r.branch_id || '').toLowerCase().trim();
-    const rNameStr = String(r.outlet_name || getOutletName(r.outlet_id)).toLowerCase().trim();
-
-    if (rIdStr === strTarget || rIdStr === 'all' || rIdStr === 'semua' || rIdStr === 'central') return true;
-    if (targetNameLower && (rIdStr === targetNameLower || rNameStr === targetNameLower || rNameStr.includes(targetNameLower))) return true;
-    return false;
-  };
-
-  // Filtered Sales/Expense Reports
-  const filteredSalesExpenseReports = useMemo(() => {
+  // Filtered Reports
+  const filteredReports = useMemo(() => {
     return allReportsList.filter(r => {
+      // Helper Outlet Matcher
+      const checkOutletMatch = (targetVal) => {
+        if (!targetVal || targetVal === 'ALL' || targetVal === 'Semua Restoran (Konsolidasi)') return true;
+        const strTarget = String(targetVal).toLowerCase().trim();
+        const targetOutletObj = (masterData?.outlets || []).find(o => 
+          String(o.id) === strTarget || 
+          String(o.name).toLowerCase().trim() === strTarget
+        );
+        const targetNameLower = targetOutletObj ? (targetOutletObj.name || '').toLowerCase().trim() : strTarget;
+
+        const rIdStr = String(r.outlet_id || r.branch_id || '').toLowerCase().trim();
+        const rNameStr = String(r.outlet_name || getOutletName(r.outlet_id)).toLowerCase().trim();
+
+        if (rIdStr === strTarget || rIdStr === 'all' || rIdStr === 'semua' || rIdStr === 'central') return true;
+        if (targetNameLower && (rIdStr === targetNameLower || rNameStr === targetNameLower || rNameStr.includes(targetNameLower))) return true;
+        return false;
+      };
+
+      // Branch / Outlet Filter from Top Bar Header
       if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
-        if (!checkOutletMatch(r, selectedBranch)) return false;
+        if (!checkOutletMatch(selectedBranch)) return false;
       }
+
+      // Outlet Filter from Table Header Dropdown
       if (selectedOutletFilter !== 'ALL') {
-        if (!checkOutletMatch(r, selectedOutletFilter)) return false;
+        if (!checkOutletMatch(selectedOutletFilter)) return false;
       }
+
+      // Date Range Filter
       const rDate = String(r.entry_date || r.date || r.transaction_date || r.created_at || '').substring(0, 10);
       if (startDate && rDate < startDate) return false;
       if (endDate && rDate > endDate) return false;
 
+      // Search Term Filter
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase().trim();
         const noLap = String(r.report_no || '').toLowerCase();
@@ -385,184 +306,119 @@ export default function ManualReportUpdatePage({
           return false;
         }
       }
+
       return true;
     });
   }, [allReportsList, selectedBranch, selectedOutletFilter, startDate, endDate, searchTerm, masterData?.outlets]);
 
-  // Filtered Income Reports
-  const filteredIncomeReports = useMemo(() => {
-    return allIncomeReportsList.filter(r => {
-      if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
-        if (!checkOutletMatch(r, selectedBranch)) return false;
-      }
-      if (selectedOutletFilter !== 'ALL') {
-        if (!checkOutletMatch(r, selectedOutletFilter)) return false;
-      }
-      const rDate = String(r.entry_date || r.date || r.transaction_date || r.created_at || '').substring(0, 10);
-      if (startDate && rDate < startDate) return false;
-      if (endDate && rDate > endDate) return false;
-
-      if (searchTerm.trim()) {
-        const term = searchTerm.toLowerCase().trim();
-        const noLap = String(r.report_no || '').toLowerCase();
-        const otlName = String(r.outlet_name || getOutletName(r.outlet_id)).toLowerCase();
-        const catName = String(r.category_name || '').toLowerCase();
-        const notes = String(r.notes || '').toLowerCase();
-        const author = String(r.author || '').toLowerCase();
-        const pm = String(r.payment_method || '').toLowerCase();
-
-        if (!noLap.includes(term) && !otlName.includes(term) && !catName.includes(term) && !notes.includes(term) && !author.includes(term) && !rDate.includes(term) && !pm.includes(term)) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [allIncomeReportsList, selectedBranch, selectedOutletFilter, startDate, endDate, searchTerm, masterData?.outlets]);
-
-  // Sorted Reports for active tab
+  // Dynamic Column & Data Sorting Logic
   const sortedReports = useMemo(() => {
-    if (activeSubTab === 'income') {
-      const list = [...filteredIncomeReports];
-      list.sort((a, b) => {
-        let comp = 0;
-        switch (sortField) {
-          case 'date':
-            comp = String(a.entry_date || a.date).localeCompare(String(b.entry_date || b.date));
-            break;
-          case 'report_no':
-            comp = String(a.report_no).localeCompare(String(b.report_no));
-            break;
-          case 'outlet':
-            comp = String(a.outlet_name).localeCompare(String(b.outlet_name));
-            break;
-          case 'category':
-          case 'item_name':
-            comp = String(a.category_name).localeCompare(String(b.category_name));
-            break;
-          case 'amount':
-          case 'sales':
-            comp = Number(a.amount || 0) - Number(b.amount || 0);
-            break;
-          default:
-            comp = String(a.entry_date || a.date).localeCompare(String(b.entry_date || b.date));
+    const list = [...filteredReports];
+    list.sort((a, b) => {
+      const getRowMeta = (row) => {
+        const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
+        const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
+        const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
+        const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
+        const allDetails = [...salesDetails, ...expenseDetails];
+
+        let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
+        if (!totalQty && allDetails.length > 0) {
+          totalQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
         }
-        return sortDirection === 'asc' ? comp : -comp;
-      });
-      return list;
-    } else {
-      const list = [...filteredSalesExpenseReports];
-      list.sort((a, b) => {
-        const getRowMeta = (row) => {
-          const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
-          const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
-          const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
-          const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
-          const allDetails = [...salesDetails, ...expenseDetails];
 
-          let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
-          if (!totalQty && allDetails.length > 0) {
-            totalQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
-          }
-
-          const getItemUnitPrice = (d) => {
-            const p = Number(d.price || d.unit_price || d.unitPrice || d.harga_satuan || d.hargaSatuan || d.price_per_unit || 0);
-            if (p > 0) return p;
-            const q = Number(d.qty || d.quantity || 1);
-            const sub = Number(d.subtotal || d.amount || d.total || 0);
-            if (sub > 0 && q > 0) return sub / q;
-            return 0;
-          };
-
-          let unitPriceVal = 0;
-          if (allDetails.length > 0) {
-            const totalPriceSum = allDetails.reduce((s, d) => s + (getItemUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
-            const calcQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
-            unitPriceVal = calcQty > 0 ? totalPriceSum / calcQty : 0;
-          }
-          if (!unitPriceVal && totalQty > 0) {
-            if (salesVal > 0) unitPriceVal = salesVal / totalQty;
-            else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
-          }
-
-          let itemNameDisplay = 'Laporan Shift Kasir';
-          if (allDetails.length > 0) {
-            const first = allDetails[0];
-            const firstName = first.product_name || first.productName || first.name || first.categoryName || first.category || 'Item';
-            itemNameDisplay = allDetails.length === 1 ? firstName : `${firstName} (+${allDetails.length - 1} item)`;
-          } else if (row.product_name || row.productName) {
-            itemNameDisplay = row.product_name || row.productName;
-          } else if (row.categoryName || row.category_name || row.category) {
-            itemNameDisplay = row.categoryName || row.category_name || row.category;
-          } else if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') {
-            itemNameDisplay = row.notes;
-          } else if (salesVal > 0) {
-            itemNameDisplay = 'Penjualan Produk';
-          } else if (expenseVal > 0) {
-            itemNameDisplay = 'Pengeluaran Operational';
-          }
-
-          return {
-            date: String(row.entry_date || row.date || row.transaction_date || row.created_at || ''),
-            reportNo: String(row.report_no || `UPD-${row.id}`),
-            outletName: String(row.outlet_name || getOutletName(row.outlet_id)),
-            itemName: itemNameDisplay,
-            totalQty,
-            unitPriceVal,
-            salesVal,
-            expenseVal
-          };
+        const getItemUnitPrice = (d) => {
+          const p = Number(d.price || d.unit_price || d.unitPrice || d.harga_satuan || d.hargaSatuan || d.price_per_unit || 0);
+          if (p > 0) return p;
+          const q = Number(d.qty || d.quantity || 1);
+          const sub = Number(d.subtotal || d.amount || d.total || 0);
+          if (sub > 0 && q > 0) return sub / q;
+          return 0;
         };
 
-        const metaA = getRowMeta(a);
-        const metaB = getRowMeta(b);
-
-        let comp = 0;
-        switch (sortField) {
-          case 'date':
-            comp = metaA.date.localeCompare(metaB.date);
-            break;
-          case 'report_no':
-            comp = metaA.reportNo.localeCompare(metaB.reportNo);
-            break;
-          case 'outlet':
-            comp = metaA.outletName.localeCompare(metaB.outletName);
-            break;
-          case 'item_name':
-            comp = metaA.itemName.localeCompare(metaB.itemName);
-            break;
-          case 'qty':
-            comp = metaA.totalQty - metaB.totalQty;
-            break;
-          case 'unit_price':
-            comp = metaA.unitPriceVal - metaB.unitPriceVal;
-            break;
-          case 'sales':
-            comp = metaA.salesVal - metaB.salesVal;
-            break;
-          case 'expense':
-            comp = metaA.expenseVal - metaB.expenseVal;
-            break;
-          default:
-            comp = metaA.date.localeCompare(metaB.date);
+        let unitPriceVal = 0;
+        if (allDetails.length > 0) {
+          const totalPriceSum = allDetails.reduce((s, d) => s + (getItemUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
+          const calcQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+          unitPriceVal = calcQty > 0 ? totalPriceSum / calcQty : 0;
+        }
+        if (!unitPriceVal && totalQty > 0) {
+          if (salesVal > 0) unitPriceVal = salesVal / totalQty;
+          else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
         }
 
-        return sortDirection === 'asc' ? comp : -comp;
-      });
-      return list;
-    }
-  }, [activeSubTab, filteredSalesExpenseReports, filteredIncomeReports, sortField, sortDirection, masterData]);
+        let itemNameDisplay = 'Laporan Shift Kasir';
+        if (allDetails.length > 0) {
+          const first = allDetails[0];
+          const firstName = first.product_name || first.productName || first.name || first.categoryName || first.category || 'Item';
+          itemNameDisplay = allDetails.length === 1 ? firstName : `${firstName} (+${allDetails.length - 1} item)`;
+        } else if (row.product_name || row.productName) {
+          itemNameDisplay = row.product_name || row.productName;
+        } else if (row.categoryName || row.category_name || row.category) {
+          itemNameDisplay = row.categoryName || row.category_name || row.category;
+        } else if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') {
+          itemNameDisplay = row.notes;
+        } else if (salesVal > 0) {
+          itemNameDisplay = 'Penjualan Produk';
+        } else if (expenseVal > 0) {
+          itemNameDisplay = 'Pengeluaran Operational';
+        }
+
+        return {
+          date: String(row.entry_date || row.date || row.transaction_date || row.created_at || ''),
+          reportNo: String(row.report_no || `UPD-${row.id}`),
+          outletName: String(row.outlet_name || getOutletName(row.outlet_id)),
+          itemName: itemNameDisplay,
+          totalQty,
+          unitPriceVal,
+          salesVal,
+          expenseVal
+        };
+      };
+
+      const metaA = getRowMeta(a);
+      const metaB = getRowMeta(b);
+
+      let comp = 0;
+      switch (sortField) {
+        case 'date':
+          comp = metaA.date.localeCompare(metaB.date);
+          break;
+        case 'report_no':
+          comp = metaA.reportNo.localeCompare(metaB.reportNo);
+          break;
+        case 'outlet':
+          comp = metaA.outletName.localeCompare(metaB.outletName);
+          break;
+        case 'item_name':
+          comp = metaA.itemName.localeCompare(metaB.itemName);
+          break;
+        case 'qty':
+          comp = metaA.totalQty - metaB.totalQty;
+          break;
+        case 'unit_price':
+          comp = metaA.unitPriceVal - metaB.unitPriceVal;
+          break;
+        case 'sales':
+          comp = metaA.salesVal - metaB.salesVal;
+          break;
+        case 'expense':
+          comp = metaA.expenseVal - metaB.expenseVal;
+          break;
+        default:
+          comp = metaA.date.localeCompare(metaB.date);
+      }
+
+      return sortDirection === 'asc' ? comp : -comp;
+    });
+    return list;
+  }, [filteredReports, sortField, sortDirection, masterData]);
 
   // Aggregates for Filtered Data
-  const totalSalesReportsCount = filteredSalesExpenseReports.length;
-  const totalSalesAggregate = filteredSalesExpenseReports.reduce((sum, r) => sum + Number(r.total_omset || r.gross_sales || r.net_sales || 0), 0);
-  const totalExpenseAggregate = filteredSalesExpenseReports.reduce((sum, r) => sum + Number(r.total_expense || r.total_pengeluaran || 0), 0);
+  const totalReportsCount = filteredReports.length;
+  const totalSalesAggregate = filteredReports.reduce((sum, r) => sum + Number(r.total_omset || r.gross_sales || r.net_sales || 0), 0);
+  const totalExpenseAggregate = filteredReports.reduce((sum, r) => sum + Number(r.total_expense || r.total_pengeluaran || 0), 0);
   const netCashflowAggregate = totalSalesAggregate - totalExpenseAggregate;
-
-  // Income Tab Aggregates
-  const totalIncomeReportsCount = filteredIncomeReports.length;
-  const totalIncomeAggregate = filteredIncomeReports.reduce((sum, r) => sum + Number(r.amount || 0), 0);
-  const totalCashIncomeAggregate = filteredIncomeReports.filter(r => String(r.payment_method).toLowerCase().includes('kas') || String(r.payment_method).toLowerCase().includes('tunai')).reduce((sum, r) => sum + Number(r.amount || 0), 0);
-  const totalNonCashIncomeAggregate = totalIncomeAggregate - totalCashIncomeAggregate;
 
   // Pagination Slice
   const paginatedReports = useMemo(() => {
@@ -746,195 +602,83 @@ export default function ManualReportUpdatePage({
       {/* PAGE TITLE & ACTION BAR */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', background: T.cardBg, padding: '20px 24px', borderRadius: '16px', border: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ padding: '12px', background: activeSubTab === 'income' ? T.infoBg : T.accentGoldBg, border: `1px solid ${activeSubTab === 'income' ? T.infoBorder : T.accentGoldBorder}`, borderRadius: '14px' }}>
-            {activeSubTab === 'income' ? (
-              <DollarSign size={28} color={T.info} />
-            ) : (
-              <FileSpreadsheet size={28} color={T.accentGold} />
-            )}
+          <div style={{ padding: '12px', background: T.accentGoldBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '14px' }}>
+            <FileSpreadsheet size={28} color={T.accentGold} />
           </div>
           <div>
             <h1 style={{ fontSize: '1.30rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>{activeSubTab === 'income' ? 'Update Laporan Pendapatan' : 'Update Laporan (Penjualan & Pengeluaran)'}</span>
+              <span>Update Laporan (Penjualan &amp; Pengeluaran)</span>
             </h1>
             <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
-              {activeSubTab === 'income'
-                ? 'Kelola, edit, preview, dan hapus rincian update laporan pendapatan non-sales (sewa lapak, catering, komisi, dsb) yang memengaruhi kas masuk.'
-                : 'Kelola, edit, preview, dan hapus laporan harian transaksi manual/Excel yang memengaruhi stok dan laporan keuangan.'}
+              Kelola, edit, preview, dan hapus laporan harian transaksi manual/Excel yang memengaruhi stok dan laporan keuangan.
             </p>
           </div>
         </div>
 
         <button
-          onClick={() => {
-            setCreateModalType(activeSubTab === 'income' ? 'pendapatan' : 'penjualan');
-            setShowCreateModal(true);
-          }}
+          onClick={() => setShowCreateModal(true)}
           style={{
             padding: '10px 18px',
-            background: activeSubTab === 'income'
-              ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
-              : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
             border: 'none',
             borderRadius: '10px',
-            color: '#ffffff',
+            color: '#000000',
             fontWeight: '900',
             fontSize: '0.82rem',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: activeSubTab === 'income'
-              ? '0 4px 16px rgba(2, 132, 199, 0.4)'
-              : '0 4px 16px rgba(245, 158, 11, 0.4)'
+            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.4)'
           }}
         >
           <PlusCircle size={18} />
-          <span>{activeSubTab === 'income' ? '+ Buat Update Laporan Pendapatan Baru' : '+ Buat Update Laporan Baru'}</span>
+          <span>+ Buat Update Laporan Baru</span>
         </button>
       </div>
 
-      {/* SUB-TAB NAVIGATION BAR */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: `2px solid ${T.border}`, paddingBottom: '0' }}>
-        <button
-          type="button"
-          onClick={() => { setActiveSubTab('sales_expense'); setCurrentPage(1); }}
-          style={{
-            padding: '12px 20px',
-            background: activeSubTab === 'sales_expense' ? T.cardBg : 'transparent',
-            border: `1px solid ${activeSubTab === 'sales_expense' ? T.border : 'transparent'}`,
-            borderBottom: activeSubTab === 'sales_expense' ? `3px solid ${T.accentGold}` : '3px solid transparent',
-            borderRadius: '12px 12px 0 0',
-            color: activeSubTab === 'sales_expense' ? T.accentGold : T.txtSecondary,
-            fontWeight: '900',
-            fontSize: '0.86rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <FileSpreadsheet size={18} color={activeSubTab === 'sales_expense' ? T.accentGold : T.txtMuted} />
-          <span>Update Laporan (Penjualan &amp; Pengeluaran)</span>
-          <span style={{ padding: '2px 8px', borderRadius: '10px', background: activeSubTab === 'sales_expense' ? T.accentGoldBg : T.cardBg2, fontSize: '0.72rem', fontWeight: '800' }}>
-            {filteredSalesExpenseReports.length}
-          </span>
-        </button>
+      {/* STATS CARDS BARIS 1 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px', color: T.info }}>
+            <FileText size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL LAPORAN</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary }}>{totalReportsCount} Record</div>
+          </div>
+        </div>
 
-        <button
-          type="button"
-          onClick={() => { setActiveSubTab('income'); setCurrentPage(1); }}
-          style={{
-            padding: '12px 20px',
-            background: activeSubTab === 'income' ? T.cardBg : 'transparent',
-            border: `1px solid ${activeSubTab === 'income' ? T.border : 'transparent'}`,
-            borderBottom: activeSubTab === 'income' ? `3px solid ${T.info}` : '3px solid transparent',
-            borderRadius: '12px 12px 0 0',
-            color: activeSubTab === 'income' ? T.info : T.txtSecondary,
-            fontWeight: '900',
-            fontSize: '0.86rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <DollarSign size={18} color={activeSubTab === 'income' ? T.info : T.txtMuted} />
-          <span>Update Laporan Pendapatan</span>
-          <span style={{ padding: '2px 8px', borderRadius: '10px', background: activeSubTab === 'income' ? T.infoBg : T.cardBg2, fontSize: '0.72rem', fontWeight: '800' }}>
-            {filteredIncomeReports.length}
-          </span>
-        </button>
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px', color: T.success }}>
+            <TrendingUp size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENJUALAN</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.success }}>Rp {totalSalesAggregate.toLocaleString('id-ID')}</div>
+          </div>
+        </div>
+
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: T.dangerBg, borderRadius: '10px', color: T.danger }}>
+            <TrendingDown size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENGELUARAN</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.danger }}>Rp {totalExpenseAggregate.toLocaleString('id-ID')}</div>
+          </div>
+        </div>
+
+        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ padding: '10px', background: netCashflowAggregate >= 0 ? T.accentGoldBg : T.dangerBg, borderRadius: '10px', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>
+            <DollarSign size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>NET CASHFLOW / LABA</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '900', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>Rp {netCashflowAggregate.toLocaleString('id-ID')}</div>
+          </div>
+        </div>
       </div>
-
-      {/* STATS CARDS DEPENDING ON ACTIVE SUB-TAB */}
-      {activeSubTab === 'sales_expense' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px', color: T.info }}>
-              <FileText size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL LAPORAN</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary }}>{totalSalesReportsCount} Record</div>
-            </div>
-          </div>
-
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px', color: T.success }}>
-              <TrendingUp size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENJUALAN</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.success }}>Rp {totalSalesAggregate.toLocaleString('id-ID')}</div>
-            </div>
-          </div>
-
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: T.dangerBg, borderRadius: '10px', color: T.danger }}>
-              <TrendingDown size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL PENGELUARAN</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.danger }}>Rp {totalExpenseAggregate.toLocaleString('id-ID')}</div>
-            </div>
-          </div>
-
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: netCashflowAggregate >= 0 ? T.accentGoldBg : T.dangerBg, borderRadius: '10px', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>
-              <DollarSign size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>NET CASHFLOW / LABA</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: netCashflowAggregate >= 0 ? T.accentGold : T.danger }}>Rp {netCashflowAggregate.toLocaleString('id-ID')}</div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px', color: T.info }}>
-              <FileText size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL RECORD PENDAPATAN</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary }}>{totalIncomeReportsCount} Record</div>
-            </div>
-          </div>
-
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px', color: T.success }}>
-              <DollarSign size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL NOMINAL PENDAPATAN</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.success }}>Rp {totalIncomeAggregate.toLocaleString('id-ID')}</div>
-            </div>
-          </div>
-
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: T.accentGoldBg, borderRadius: '10px', color: T.accentGold }}>
-              <Coins size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>PENDAPATAN TUNAI (KAS)</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.accentGold }}>Rp {totalCashIncomeAggregate.toLocaleString('id-ID')}</div>
-            </div>
-          </div>
-
-          <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px', color: T.info }}>
-              <CreditCard size={22} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>PENDAPATAN NON-TUNAI / BANK</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.info }}>Rp {totalNonCashIncomeAggregate.toLocaleString('id-ID')}</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* FILTER & SEARCH BAR */}
       <div style={{ background: T.cardBg, padding: '14px 20px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
@@ -945,7 +689,7 @@ export default function ManualReportUpdatePage({
               type="text"
               value={searchTerm}
               onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              placeholder={activeSubTab === 'income' ? 'Cari No. Laporan, Kategori, Catatan, atau Tanggal...' : 'Cari No. Laporan, Pembuat, atau Tanggal...'}
+              placeholder="Cari No. Laporan, Pembuat, atau Tanggal..."
               style={{ width: '100%', padding: '8px 12px 8px 36px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem' }}
             />
           </div>
@@ -954,7 +698,7 @@ export default function ManualReportUpdatePage({
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {/* Quick Sort Dropdown Bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <ArrowUpDown size={15} color={activeSubTab === 'income' ? T.info : T.accentGold} />
+            <ArrowUpDown size={15} color={T.accentGold} />
             <select
               value={sortField}
               onChange={e => { setSortField(e.target.value); setCurrentPage(1); }}
@@ -964,20 +708,11 @@ export default function ManualReportUpdatePage({
               <option value="date">📅 Urut Tanggal Transaksi</option>
               <option value="report_no">🔢 Urut No. Laporan</option>
               <option value="outlet">🏪 Urut Outlet / Cabang</option>
-              {activeSubTab === 'income' ? (
-                <>
-                  <option value="category">🏷️ Urut Kategori Pendapatan</option>
-                  <option value="amount">💰 Urut Nominal Pendapatan</option>
-                </>
-              ) : (
-                <>
-                  <option value="item_name">🏷️ Urut Nama Item</option>
-                  <option value="qty">🔢 Urut QTY (Jumlah)</option>
-                  <option value="unit_price">💵 Urut Harga Satuan</option>
-                  <option value="sales">📈 Urut Total Penjualan</option>
-                  <option value="expense">📉 Urut Total Pengeluaran</option>
-                </>
-              )}
+              <option value="item_name">🏷️ Urut Nama Item</option>
+              <option value="qty">🔢 Urut QTY (Jumlah)</option>
+              <option value="unit_price">💵 Urut Harga Satuan</option>
+              <option value="sales">📈 Urut Total Penjualan</option>
+              <option value="expense">📉 Urut Total Pengeluaran</option>
             </select>
 
             <button
@@ -1035,301 +770,182 @@ export default function ManualReportUpdatePage({
         </div>
       </div>
 
-      {/* TABLE CONTENT FOR ACTIVE SUB-TAB */}
+      {/* TABLE CONTENT */}
       <div style={{ background: T.cardBg, borderRadius: '14px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          {activeSubTab === 'sales_expense' ? (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
-              <thead>
-                <tr style={{ background: T.headerBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textTransform: 'uppercase', fontSize: '0.70rem', letterSpacing: '0.04em' }}>
-                  {renderSortHeader('date', 'TANGGAL', 'left')}
-                  {renderSortHeader('report_no', 'NO. LAPORAN', 'left')}
-                  {renderSortHeader('outlet', 'OUTLET / CABANG', 'left')}
-                  {renderSortHeader('item_name', 'NAMA ITEM', 'left')}
-                  {renderSortHeader('qty', 'QTY', 'center')}
-                  {renderSortHeader('unit_price', 'HARGA SATUAN', 'right')}
-                  {renderSortHeader('sales', 'TOTAL PENJUALAN', 'right')}
-                  {renderSortHeader('expense', 'TOTAL PENGELUARAN', 'right')}
-                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>AKSI</th>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+            <thead>
+              <tr style={{ background: T.headerBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textTransform: 'uppercase', fontSize: '0.70rem', letterSpacing: '0.04em' }}>
+                {renderSortHeader('date', 'TANGGAL', 'left')}
+                {renderSortHeader('report_no', 'NO. LAPORAN', 'left')}
+                {renderSortHeader('outlet', 'OUTLET / CABANG', 'left')}
+                {renderSortHeader('item_name', 'NAMA ITEM', 'left')}
+                {renderSortHeader('qty', 'QTY', 'center')}
+                {renderSortHeader('unit_price', 'HARGA SATUAN', 'right')}
+                {renderSortHeader('sales', 'TOTAL PENJUALAN', 'right')}
+                {renderSortHeader('expense', 'TOTAL PENGELUARAN', 'right')}
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>STATUS</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>AKSI</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedReports.length === 0 ? (
+                <tr>
+                  <td colSpan={10} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted }}>
+                    📭 Belum ada laporan update atau data tidak ditemukan.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {paginatedReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted }}>
-                      📭 Belum ada laporan update penjualan &amp; pengeluaran.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedReports.map((row) => {
-                    const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
-                    const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
-                    const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at, row);
+              ) : (
+                paginatedReports.map((row) => {
+                  const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
+                  const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
+                  const formattedDate = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at, row);
 
-                    const getItemUnitPrice = (d) => {
-                      const p = Number(d.price || d.unit_price || d.unitPrice || d.harga_satuan || d.hargaSatuan || d.price_per_unit || 0);
-                      if (p > 0) return p;
-                      const q = Number(d.qty || d.quantity || 1);
-                      const sub = Number(d.subtotal || d.amount || d.total || 0);
-                      if (sub > 0 && q > 0) return sub / q;
-                      return 0;
-                    };
+                  const getItemUnitPrice = (d) => {
+                    const p = Number(d.price || d.unit_price || d.unitPrice || d.harga_satuan || d.hargaSatuan || d.price_per_unit || 0);
+                    if (p > 0) return p;
+                    const q = Number(d.qty || d.quantity || 1);
+                    const sub = Number(d.subtotal || d.amount || d.total || 0);
+                    if (sub > 0 && q > 0) return sub / q;
+                    return 0;
+                  };
 
-                    const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
-                    const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
-                    const allDetails = [...salesDetails, ...expenseDetails];
+                  const salesDetails = row.sales_details || row.sales_rows || row.items || row.cogs_items || [];
+                  const expenseDetails = row.expense_details || row.expense_rows || row.expenses_breakdown || [];
+                  const allDetails = [...salesDetails, ...expenseDetails];
 
-                    const getItemNameDisplay = () => {
-                      if (allDetails.length > 0) {
-                        const first = allDetails[0];
-                        const firstName = first.product_name || first.productName || first.name || first.categoryName || first.category || 'Item';
-                        if (allDetails.length === 1) {
-                          return firstName;
-                        }
-                        return `${firstName} (+${allDetails.length - 1} item)`;
-                      }
-                      if (row.product_name || row.productName) return row.product_name || row.productName;
-                      if (row.categoryName || row.category_name || row.category) return row.categoryName || row.category_name || row.category;
-                      if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') return row.notes;
-                      if (salesVal > 0) return 'Penjualan Produk';
-                      if (expenseVal > 0) return 'Pengeluaran Operational';
-                      return 'Laporan Shift Kasir';
-                    };
-                    const itemNameDisplay = getItemNameDisplay();
-
-                    let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
-                    if (!totalQty && allDetails.length > 0) {
-                      totalQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
-                    }
-
-                    let unitPriceVal = 0;
+                  const getItemNameDisplay = () => {
                     if (allDetails.length > 0) {
-                      const totalPriceSum = allDetails.reduce((s, d) => s + (getItemUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
-                      const calcQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
-                      unitPriceVal = calcQty > 0 ? totalPriceSum / calcQty : 0;
+                      const first = allDetails[0];
+                      const firstName = first.product_name || first.productName || first.name || first.categoryName || first.category || 'Item';
+                      if (allDetails.length === 1) {
+                        return firstName;
+                      }
+                      return `${firstName} (+${allDetails.length - 1} item)`;
                     }
+                    if (row.product_name || row.productName) return row.product_name || row.productName;
+                    if (row.categoryName || row.category_name || row.category) return row.categoryName || row.category_name || row.category;
+                    if (row.notes && row.notes !== 'Update Laporan Manual' && row.notes !== 'Import Batch Excel') return row.notes;
+                    if (salesVal > 0) return 'Penjualan Produk';
+                    if (expenseVal > 0) return 'Pengeluaran Operational';
+                    return 'Laporan Shift Kasir';
+                  };
+                  const itemNameDisplay = getItemNameDisplay();
 
-                    if (!unitPriceVal && totalQty > 0) {
-                      if (salesVal > 0) unitPriceVal = salesVal / totalQty;
-                      else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
-                    }
+                  let totalQty = Number(row.total_qty || row.qty || row.quantity || 0);
+                  if (!totalQty && allDetails.length > 0) {
+                    totalQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+                  }
 
-                    return (
-                      <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
-                        <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700' }}>
-                          {formattedDate}
-                        </td>
+                  let unitPriceVal = 0;
+                  if (allDetails.length > 0) {
+                    const totalPriceSum = allDetails.reduce((s, d) => s + (getItemUnitPrice(d) * Number(d.qty || d.quantity || 1)), 0);
+                    const calcQty = allDetails.reduce((s, d) => s + Number(d.qty || d.quantity || 1), 0);
+                    unitPriceVal = calcQty > 0 ? totalPriceSum / calcQty : 0;
+                  }
 
-                        <td style={{ padding: '10px 14px' }}>
+                  if (!unitPriceVal && totalQty > 0) {
+                    if (salesVal > 0) unitPriceVal = salesVal / totalQty;
+                    else if (expenseVal > 0) unitPriceVal = expenseVal / totalQty;
+                  }
+
+                  return (
+                    <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700' }}>
+                        {formattedDate}
+                      </td>
+
+                      <td style={{ padding: '10px 14px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewReport(row)}
+                          style={{ background: 'none', border: 'none', color: T.info, fontWeight: '800', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '0.78rem' }}
+                          title="Klik untuk membuka preview detail laporan"
+                        >
+                          {row.report_no || `UPD-${row.id}`}
+                        </button>
+                      </td>
+
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary }}>
+                        <span style={{ padding: '3px 8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700' }}>
+                          {row.outlet_name || getOutletName(row.outlet_id)}
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700', fontSize: '0.78rem' }}>
+                        <span style={{ display: 'inline-block', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={itemNameDisplay}>
+                          {itemNameDisplay}
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '800', color: T.info }}>
+                        {totalQty > 0 ? totalQty : '-'}
+                      </td>
+
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary, fontSize: '0.75rem' }}>
+                        {unitPriceVal > 0 && totalQty > 0
+                          ? `Rp ${Math.round(unitPriceVal).toLocaleString('id-ID')}`
+                          : '-'}
+                      </td>
+
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.success }}>
+                        Rp {salesVal.toLocaleString('id-ID')}
+                      </td>
+
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.danger }}>
+                        Rp {expenseVal.toLocaleString('id-ID')}
+                      </td>
+
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <span style={{ padding: '3px 8px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800' }}>
+                          ✅ Disetujui
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                           <button
                             type="button"
                             onClick={() => setPreviewReport(row)}
-                            style={{ background: 'none', border: 'none', color: T.info, fontWeight: '800', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '0.78rem' }}
-                            title="Klik untuk membuka preview detail laporan"
+                            style={{ padding: '5px 8px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, borderRadius: '6px', color: T.info, cursor: 'pointer' }}
+                            title="Preview Detail Laporan"
                           >
-                            {row.report_no || `UPD-${row.id}`}
+                            <Eye size={15} />
                           </button>
-                        </td>
 
-                        <td style={{ padding: '10px 14px', color: T.txtPrimary }}>
-                          <span style={{ padding: '3px 8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700' }}>
-                            {row.outlet_name || getOutletName(row.outlet_id)}
-                          </span>
-                        </td>
-
-                        <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700', fontSize: '0.78rem' }}>
-                          <span style={{ display: 'inline-block', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={itemNameDisplay}>
-                            {itemNameDisplay}
-                          </span>
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '800', color: T.info }}>
-                          {totalQty > 0 ? totalQty : '-'}
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '700', color: T.txtSecondary, fontSize: '0.75rem' }}>
-                          {unitPriceVal > 0 && totalQty > 0
-                            ? `Rp ${Math.round(unitPriceVal).toLocaleString('id-ID')}`
-                            : '-'}
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.success }}>
-                          Rp {salesVal.toLocaleString('id-ID')}
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.danger }}>
-                          Rp {expenseVal.toLocaleString('id-ID')}
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                          <span style={{ padding: '3px 8px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800' }}>
-                            ✅ Disetujui
-                          </span>
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setPreviewReport(row)}
-                              style={{ padding: '5px 8px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, borderRadius: '6px', color: T.info, cursor: 'pointer' }}
-                              title="Preview Detail Laporan"
-                            >
-                              <Eye size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setEditingReport(row)}
-                              style={{ padding: '5px 8px', background: T.warningBg || 'rgba(251,191,36,0.15)', border: `1px solid ${T.warningBorder || 'rgba(251,191,36,0.4)'}`, borderRadius: '6px', color: T.accentGold, cursor: 'pointer' }}
-                              title="Edit Laporan"
-                            >
-                              <Edit3 size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setDeletingReport(row)}
-                              style={{ padding: '5px 8px', background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, borderRadius: '6px', color: T.danger, cursor: 'pointer' }}
-                              title="Hapus Laporan"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
-              <thead>
-                <tr style={{ background: T.headerBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, textTransform: 'uppercase', fontSize: '0.70rem', letterSpacing: '0.04em' }}>
-                  {renderSortHeader('date', 'TANGGAL', 'left')}
-                  {renderSortHeader('report_no', 'NO. LAPORAN / REF', 'left')}
-                  {renderSortHeader('outlet', 'OUTLET / CABANG', 'left')}
-                  {renderSortHeader('category', 'KATEGORI PENDAPATAN', 'left')}
-                  <th style={{ padding: '12px 14px', textAlign: 'left' }}>CATATAN / SUMBER</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'left' }}>METODE PEMBAYARAN</th>
-                  {renderSortHeader('amount', 'NOMINAL PENDAPATAN (RP)', 'right')}
-                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>AKSI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted }}>
-                      📭 Belum ada laporan update pendapatan non-sales.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedReports.map((row) => {
-                    const formattedDate = formatDateIndonesian(row.entry_date || row.date, row);
-                    const isCash = String(row.payment_method).toLowerCase().includes('kas') || String(row.payment_method).toLowerCase().includes('tunai');
-
-                    return (
-                      <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }}>
-                        <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700' }}>
-                          {formattedDate}
-                        </td>
-
-                        <td style={{ padding: '10px 14px' }}>
                           <button
                             type="button"
-                            onClick={() => setPreviewReport(row.rawReport || row)}
-                            style={{ background: 'none', border: 'none', color: T.info, fontWeight: '800', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '0.78rem' }}
-                            title="Klik untuk preview detail pendapatan"
+                            onClick={() => setEditingReport(row)}
+                            style={{ padding: '5px 8px', background: T.warningBg || 'rgba(251,191,36,0.15)', border: `1px solid ${T.warningBorder || 'rgba(251,191,36,0.4)'}`, borderRadius: '6px', color: T.accentGold, cursor: 'pointer' }}
+                            title="Edit Laporan"
                           >
-                            {row.report_no}
+                            <Edit3 size={15} />
                           </button>
-                        </td>
 
-                        <td style={{ padding: '10px 14px', color: T.txtPrimary }}>
-                          <span style={{ padding: '3px 8px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', fontSize: '0.72rem', fontWeight: '700' }}>
-                            {row.outlet_name}
-                          </span>
-                        </td>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingReport(row)}
+                            style={{ padding: '5px 8px', background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, borderRadius: '6px', color: T.danger, cursor: 'pointer' }}
+                            title="Hapus Laporan"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
 
-                        <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.80rem' }}>
-                          {row.category_name}
-                        </td>
-
-                        <td style={{ padding: '10px 14px', color: T.txtSecondary, fontSize: '0.76rem' }}>
-                          {row.notes || '-'}
-                        </td>
-
-                        <td style={{ padding: '10px 14px' }}>
-                          <span style={{
-                            padding: '3px 8px',
-                            background: isCash ? T.accentGoldBg : T.infoBg,
-                            border: `1px solid ${isCash ? T.accentGoldBorder : T.infoBorder}`,
-                            color: isCash ? T.accentGold : T.info,
-                            borderRadius: '6px',
-                            fontSize: '0.70rem',
-                            fontWeight: '800'
-                          }}>
-                            {row.payment_method}
-                          </span>
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.86rem' }}>
-                          + Rp {Number(row.amount || 0).toLocaleString('id-ID')}
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                          <span style={{ padding: '3px 8px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800' }}>
-                            ✅ Disetujui
-                          </span>
-                        </td>
-
-                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setPreviewReport(row.rawReport || row)}
-                              style={{ padding: '5px 8px', background: T.infoBg, border: `1px solid ${T.infoBorder}`, borderRadius: '6px', color: T.info, cursor: 'pointer' }}
-                              title="Preview Detail Pendapatan"
-                            >
-                              <Eye size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setEditingReport(row.rawReport || row)}
-                              style={{ padding: '5px 8px', background: T.warningBg || 'rgba(251,191,36,0.15)', border: `1px solid ${T.warningBorder || 'rgba(251,191,36,0.4)'}`, borderRadius: '6px', color: T.accentGold, cursor: 'pointer' }}
-                              title="Edit Pendapatan"
-                            >
-                              <Edit3 size={15} />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setDeletingReport(row.rawReport || row)}
-                              style={{ padding: '5px 8px', background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, borderRadius: '6px', color: T.danger, cursor: 'pointer' }}
-                              title="Hapus Pendapatan"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* PAGINATION CONTROLS */}
-        {sortedReports.length > 0 && (
+        {filteredReports.length > 0 && (
           <div style={{ padding: '12px 16px', borderTop: `1px solid ${T.border}` }}>
             <PaginationControls
-              totalItems={sortedReports.length}
+              totalItems={filteredReports.length}
               currentPage={currentPage}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
@@ -1409,35 +1025,6 @@ export default function ManualReportUpdatePage({
               </div>
             )}
 
-            {/* Tabel Pendapatan Non-Sales */}
-            {(previewReport.pendapatan_details || []).length > 0 && (
-              <div>
-                <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.info, marginBottom: '6px' }}>
-                  💰 Rincian Pendapatan Non-Sales:
-                </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
-                  <thead>
-                    <tr style={{ background: T.tableHeaderBg, color: T.txtSecondary, textTransform: 'uppercase' }}>
-                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Kategori Pendapatan</th>
-                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Catatan</th>
-                      <th style={{ padding: '6px 10px', textAlign: 'left' }}>Metode</th>
-                      <th style={{ padding: '6px 10px', textAlign: 'right' }}>Jumlah Rp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewReport.pendapatan_details.map((p, idx) => (
-                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
-                        <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>{p.categoryName || p.category || p.name}</td>
-                        <td style={{ padding: '6px 10px', color: T.txtSecondary }}>{p.notes || '-'}</td>
-                        <td style={{ padding: '6px 10px', color: T.info, fontWeight: '700' }}>{p.paymentMethod || 'Kas Kasir'}</td>
-                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '800', color: T.success }}>Rp {(p.amount || p.subtotal || 0).toLocaleString('id-ID')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
             {/* Tabel Pengeluaran */}
             {(previewReport.expense_details || previewReport.expenses_breakdown || []).length > 0 && (
               <div>
@@ -1510,12 +1097,11 @@ export default function ManualReportUpdatePage({
       {/* --- CREATE REPORT MODAL --- */}
       <ManualReportUpdateModal
         show={showCreateModal}
-        onClose={() => { setShowCreateModal(false); setCreateModalType(null); }}
+        onClose={() => setShowCreateModal(false)}
         masterData={masterData}
         setMasterData={setMasterData}
         userSession={userSession}
         themeMode={themeMode}
-        initialEntryType={createModalType || (activeSubTab === 'income' ? 'pendapatan' : 'penjualan')}
       />
 
       {/* --- EDIT REPORT MODAL --- */}
