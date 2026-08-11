@@ -916,12 +916,33 @@ export default function AndroidPosRegister({
           if (isSavingRef.current) return;
 
           setMasterData(prev => {
-            const mergedWeb = (Array.isArray(serverMaster.webAdminAccounts) && serverMaster.webAdminAccounts.length > 0)
-              ? serverMaster.webAdminAccounts
-              : (prev.webAdminAccounts || initialMasterData.webAdminAccounts);
-            const mergedMobile = (Array.isArray(serverMaster.mobileAccounts) && serverMaster.mobileAccounts.length > 0)
-              ? serverMaster.mobileAccounts
-              : (prev.mobileAccounts || initialMasterData.mobileAccounts);
+            const deletedUserIdsSet = new Set([
+              ...(prev.deletedUserIds || []),
+              ...(serverMaster.deletedUserIds || [])
+            ].map(x => String(x)));
+
+            const deletedUsernamesSet = new Set([
+              ...(prev.deletedUsernames || []),
+              ...(serverMaster.deletedUsernames || [])
+            ].map(x => String(x).toLowerCase().trim()));
+
+            const dedupeUsers = (list = []) => {
+              const map = new Map();
+              (list || []).forEach(u => {
+                if (!u || u.id == null) return;
+                const uIdStr = String(u.id);
+                const uNameKey = String(u.username || u.name || '').toLowerCase().trim();
+                if (deletedUserIdsSet.has(uIdStr) || (uNameKey && deletedUsernamesSet.has(uNameKey))) {
+                  return;
+                }
+                if (uNameKey) map.set(uNameKey, u);
+              });
+              return Array.from(map.values());
+            };
+
+            const mergedWeb = dedupeUsers(serverMaster.webAdminAccounts || prev.webAdminAccounts || initialMasterData.webAdminAccounts);
+            const mergedMobile = dedupeUsers(serverMaster.mobileAccounts || prev.mobileAccounts || initialMasterData.mobileAccounts);
+
             const mergedPerm = (Array.isArray(serverMaster.permissionMatrix) && serverMaster.permissionMatrix.length > 0)
               ? serverMaster.permissionMatrix
               : (prev.permissionMatrix || initialMasterData.permissionMatrix);
@@ -2617,13 +2638,27 @@ export default function AndroidPosRegister({
       ...(masterData?.userAccounts || [])
     ];
 
-    // De-duplikasi berdasarkan ID/username/name
+    // De-duplikasi berdasarkan username/name (case-insensitive) & saring yang terhapus
+    const deletedUserIdsSet = new Set([
+      ...(masterData?.deletedUserIds || [])
+    ].map(x => String(x)));
+
+    const deletedUsernamesSet = new Set([
+      ...(masterData?.deletedUsernames || [])
+    ].map(x => String(x).toLowerCase().trim()));
+
     const usersMap = new Map();
     rawUsersList.forEach(u => {
-      if (u && u.name) {
-        const key = String(u.id || u.username || u.name).toLowerCase().trim();
-        if (!usersMap.has(key)) {
-          usersMap.set(key, { ...u, status: u.status || 'Aktif' });
+      if (u && (u.name || u.username)) {
+        const uIdStr = String(u.id || '');
+        const usernameKey = String(u.username || u.name || '').toLowerCase().trim();
+
+        if (deletedUserIdsSet.has(uIdStr) || (usernameKey && deletedUsernamesSet.has(usernameKey))) {
+          return;
+        }
+
+        if (usernameKey && !usersMap.has(usernameKey)) {
+          usersMap.set(usernameKey, { ...u, status: u.status || 'Aktif' });
         }
       }
     });
