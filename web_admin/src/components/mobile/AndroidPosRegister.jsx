@@ -2607,7 +2607,7 @@ export default function AndroidPosRegister({
   };
 
   // PAPAN LOGIN SEDERHANA & RESPONSIF (DATA DINAMIS DARI WEB ADMIN)
-  if (!isAppLoggedIn) {
+  const renderLoginScreen = () => {
     // Kumpulkan semua akun dari masterData (HANYA data real dari Web Admin)
     const rawUsersList = [
       ...(Array.isArray(masterData?.mobileAccounts) && masterData.mobileAccounts.length > 0 ? masterData.mobileAccounts : (initialMasterData.mobileAccounts || [])),
@@ -2963,53 +2963,39 @@ export default function AndroidPosRegister({
                   </button>
                 </div>
               </div>
-
-              {loginErrorText && (
-                <div style={{
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  border: '1.5px solid #ef4444',
-                  color: '#fca5a5',
-                  padding: '10px 12px',
-                  borderRadius: '12px',
-                  fontSize: '0.82rem',
-                  fontWeight: '800',
-                  textAlign: 'center'
-                }}>
-                  {loginErrorText}
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => handleDirectLogin(selectedUserAccount, loginSelectedOutlet)}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  border: 'none',
-                  color: '#ffffff',
-                  borderRadius: '14px',
-                  fontWeight: '900',
-                  fontSize: '1.05rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                <span>MASUK KE KASIR MOBILE 📱</span>
-                <span style={{ fontSize: '1.2rem' }}>→</span>
-              </button>
             </div>
           )}
+
+          {/* MAIN ACTION: MASUK KE MESIN KASIR */}
+          <button
+            type="button"
+            onClick={() => handleDirectLogin(activeSelectedUser, activeOutletObj)}
+            style={{
+              width: '100%',
+              padding: '14px',
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              border: 'none',
+              color: '#ffffff',
+              fontWeight: '900',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'center',
+              gap: '8px',
+              marginTop: '6px'
+            }}
+          >
+            🚀 Masuk Ke Kasir POS ({activeOutletObj?.name || 'Outlet'})
+          </button>
 
           {/* FOOTER STATUS */}
           <div style={{ marginTop: '4px', textAlign: 'center' }}>
             <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <span style={{ color: '#34d399' }}>🟢 Server Connected</span>
-              <span>&bull;</span>
+              <span>•</span>
               <span style={{ color: '#38bdf8' }}>Printer Thermal Ready 🖨️</span>
             </div>
           </div>
@@ -3017,7 +3003,7 @@ export default function AndroidPosRegister({
         </div>
       </div>
     );
-  }
+  };
 
   const filteredItems = menuList.filter(item => {
     if (item.status === 'Inaktif' || item.status === 'Hide') return false;
@@ -3136,6 +3122,10 @@ export default function AndroidPosRegister({
       </div>
     );
   };
+
+  if (!isAppLoggedIn) {
+    return renderLoginScreen();
+  }
 
   return (
     <div
