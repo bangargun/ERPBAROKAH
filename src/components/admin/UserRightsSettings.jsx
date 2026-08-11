@@ -8,7 +8,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 const API = typeof window !== 'undefined' ? window.location.origin : '';
 
 const WEB_ROLES = ['Super Admin', 'Owner', 'Admin', 'Manajer Cabang', 'Kasir'];
-const MOBILE_ROLES = ['Super Admin / Owner', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
+const MOBILE_ROLES = ['Super Admin / Owner', 'Admin', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
 
 const WEB_PERM_FIELDS = [
   { key: 'dashboard', label: '📊 Dashboard & Penjualan' },
