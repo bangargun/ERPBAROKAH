@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
 
-const API = 'https://mris-api.barokahgroupindonesia.tech';
+const API = typeof window !== 'undefined' ? window.location.origin : '';
 
 const WEB_ROLES = ['Super Admin', 'Owner', 'Admin', 'Manajer Cabang', 'Kasir'];
 const MOBILE_ROLES = ['Super Admin / Owner', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
@@ -48,34 +48,39 @@ const DEFAULT_MOBILE_MATRIX = [
 
 const EMPTY_WEB = {
   name: '', username: '', password: '', role: 'Admin', outlet: 'Semua Outlet (Central)', status: 'Aktif',
-  useCustomPermissions: false, permissions: { dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: false }
+  permissions: { dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: false }
 };
 
 const EMPTY_MOBILE = {
   name: '', username: '', mobileLoginPassword: '123', role: 'Kasir', outlet: 'Semua Outlet (Central)', status: 'Aktif',
   canAccessMobileReports: true, mobileReportPassword: '8888',
-  useCustomPermissions: false, permissions: { posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: true }
+  permissions: { posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: true }
 };
 
 export default function UserRightsSettings({ masterData, setMasterData, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const [activeTab, setActiveTab] = useState('mobile'); // 'mobile' | 'web' | 'matrix'
-  const [matrixSubTab, setMatrixSubTab] = useState('web'); // 'web' | 'mobile'
-  const [loading, setLoading] = useState(false);
+
+  // Mode Tab: 'users' | 'webMatrix' | 'mobileMatrix'
+  const [activeSubTab, setActiveSubTab] = useState('users');
+
+  // Account Type Sub-Tab: 'web' | 'mobile'
+  const [activeAccountType, setActiveAccountType] = useState('web');
+
   const [webUsers, setWebUsers] = useState([]);
   const [mobileUsers, setMobileUsers] = useState([]);
   const [webMatrix, setWebMatrix] = useState(DEFAULT_WEB_MATRIX);
   const [mobileMatrix, setMobileMatrix] = useState(DEFAULT_MOBILE_MATRIX);
 
-  // Modal state for user account CRUD
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('mobile'); // 'mobile' | 'web'
+  const [modalType, setModalType] = useState('web'); // 'web' | 'mobile'
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(EMPTY_WEB);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
   const [showPwd, setShowPwd] = useState(false);
   const [showRepPwd, setShowRepPwd] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const outlets = masterData?.outlets || [];
 
@@ -97,7 +102,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/master-data`, { cache: 'no-store' });
+      const res = await fetch(`/api/master-data`, { cache: 'no-store' });
       const data = await res.json();
       if (data) {
         if (data.mobileAccounts) setMobileUsers(data.mobileAccounts);
@@ -149,10 +154,8 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
     setSaving(true);
 
     try {
-      const res = await fetch(`${API}/api/master-data`, { cache: 'no-store' });
-      const latest = await res.json();
       const key = modalType === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
-      let list = Array.isArray(latest[key]) ? [...latest[key]] : [];
+      let list = Array.isArray(masterData?.[key]) ? [...masterData[key]] : [];
 
       if (editingId) {
         list = list.map(u => String(u.id) === String(editingId) ? { ...u, ...form, id: u.id } : u);
@@ -161,14 +164,11 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
         list = [...list, { ...form, id: newId }];
       }
 
-      const updated = { ...latest, [key]: list, _lastUpdated: Date.now() };
-      const saveRes = await fetch(`${API}/api/master-data`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      });
-
-      if (!saveRes.ok) throw new Error('Gagal menyimpan ke server');
+      const updated = {
+        ...masterData,
+        [key]: list,
+        _lastUpdated: Date.now()
+      };
 
       if (modalType === 'web') setWebUsers(list);
       else setMobileUsers(list);
@@ -178,7 +178,15 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
         localStorage.setItem('mris_master_data', JSON.stringify(updated));
       } catch (e) {}
 
+      // Trigger automatic save to server & React state via App.jsx setMasterData
       setMasterData(updated);
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.error('Save user server error:', err));
+
       setShowModal(false);
     } catch (err) {
       alert('Gagal menyimpan: ' + err.message);
@@ -192,25 +200,46 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
     try {
       setLoading(true);
       const key = type === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
+      const targetId = String(user.id);
+      const prevDeletedUsers = masterData?.deletedUserIds || [];
+      const updatedDeletedUsers = Array.from(new Set([...prevDeletedUsers, targetId]));
 
-      await fetch(`${API}/api/master-data/delete-item`, {
+      fetch('/api/master-data/delete-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, id: user.id })
-      });
+      }).catch(() => {});
 
       if (type === 'web') {
-        setWebUsers(prev => prev.filter(u => String(u.id) !== String(user.id)));
-        setMasterData(prev => ({
-          ...prev,
-          webAdminAccounts: (prev.webAdminAccounts || []).filter(u => String(u.id) !== String(user.id))
-        }));
+        const updatedList = (masterData?.webAdminAccounts || []).filter(u => String(u.id) !== targetId);
+        setWebUsers(updatedList);
+        const updatedMaster = {
+          ...masterData,
+          _lastUpdated: Date.now(),
+          deletedUserIds: updatedDeletedUsers,
+          webAdminAccounts: updatedList
+        };
+        setMasterData(updatedMaster);
+        fetch('/api/master-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedMaster)
+        }).catch(() => {});
       } else {
-        setMobileUsers(prev => prev.filter(u => String(u.id) !== String(user.id)));
-        setMasterData(prev => ({
-          ...prev,
-          mobileAccounts: (prev.mobileAccounts || []).filter(u => String(u.id) !== String(user.id))
-        }));
+        const updatedList = (masterData?.mobileAccounts || []).filter(u => String(u.id) !== targetId);
+        setMobileUsers(updatedList);
+        const updatedMaster = {
+          ...masterData,
+          _lastUpdated: Date.now(),
+          deletedUserIds: updatedDeletedUsers,
+          mobileAccounts: updatedList
+        };
+        setMasterData(updatedMaster);
+        fetch('/api/master-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedMaster)
+        }).catch(() => {});
       }
     } catch (err) {
       alert('Gagal menghapus: ' + err.message);

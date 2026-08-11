@@ -280,12 +280,22 @@ export default function App() {
             setMasterData(prev => {
               const localTs = prev._lastUpdated || 0;
 
-              const mergedWeb = (Array.isArray(serverData.webAdminAccounts) && serverData.webAdminAccounts.length > 0)
-                ? serverData.webAdminAccounts
-                : (prev.webAdminAccounts || initialMasterData.webAdminAccounts);
-              const mergedMobile = (Array.isArray(serverData.mobileAccounts) && serverData.mobileAccounts.length > 0)
-                ? serverData.mobileAccounts
-                : (prev.mobileAccounts || initialMasterData.mobileAccounts);
+              const deletedUserIdsSet = new Set([
+                ...(prev.deletedUserIds || []),
+                ...(serverData.deletedUserIds || [])
+              ].map(x => String(x)));
+
+              const mergeUserAccountsList = (serverList = [], prevList = [], fallbackList = []) => {
+                const map = new Map();
+                (fallbackList || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
+                (serverList || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
+                (prevList || []).forEach(u => { if (u && u.id != null) map.set(String(u.id), u); });
+                return Array.from(map.values()).filter(u => u && u.id != null && !deletedUserIdsSet.has(String(u.id)));
+              };
+
+              const mergedWeb = mergeUserAccountsList(serverData.webAdminAccounts, prev.webAdminAccounts, initialMasterData.webAdminAccounts);
+              const mergedMobile = mergeUserAccountsList(serverData.mobileAccounts, prev.mobileAccounts, initialMasterData.mobileAccounts);
+
               const mergedPerm = (Array.isArray(serverData.permissionMatrix) && serverData.permissionMatrix.length > 0)
                 ? serverData.permissionMatrix
                 : (prev.permissionMatrix || initialMasterData.permissionMatrix);

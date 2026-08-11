@@ -415,6 +415,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
       const updatedMaster = {
         ...prev,
+        _lastUpdated: Date.now(),
         webAdminAccounts: updatedList,
         userAccounts: [...updatedList, ...(prev.mobileAccounts || [])]
       };
@@ -422,6 +423,13 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
         localStorage.setItem('MRIS_WEBADMINACCOUNTS', JSON.stringify(updatedList));
         localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
       } catch (e) {}
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(err => console.error('Save webAdminAccounts error:', err));
+
       return updatedMaster;
     });
     setShowAddUserModal(false);
@@ -433,10 +441,19 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
       const updatedList = currentList.map(u =>
         u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
       );
-      return {
+      const updatedMaster = {
         ...prev,
+        _lastUpdated: Date.now(),
         webAdminAccounts: updatedList
       };
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(() => {});
+
+      return updatedMaster;
     });
   };
 
@@ -448,15 +465,27 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
     setMasterData(prev => {
       const currentList = getWebAdminList();
       const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
+      const prevDel = prev.deletedUserIds || [];
+      const updatedDeleted = Array.from(new Set([...prevDel, targetIdStr]));
 
-      return {
+      const updatedMaster = {
         ...prev,
+        _lastUpdated: Date.now(),
+        deletedUserIds: updatedDeleted,
         webAdminAccounts: updatedList,
         _isExplicitClear: updatedList.length === 0
       };
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(() => {});
+
+      return updatedMaster;
     });
 
-    fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
+    fetch('/api/master-data/delete-item', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -524,6 +553,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
       const updatedMaster = {
         ...prev,
+        _lastUpdated: Date.now(),
         mobileAccounts: updatedList,
         userAccounts: [...(prev.webAdminAccounts || []), ...updatedList]
       };
@@ -531,6 +561,13 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
         localStorage.setItem('MRIS_MOBILEACCOUNTS', JSON.stringify(updatedList));
         localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
       } catch (e) {}
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(err => console.error('Save mobileAccounts error:', err));
+
       return updatedMaster;
     });
     setShowAddMobileModal(false);
@@ -542,10 +579,19 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
       const updatedList = currentList.map(u =>
         u.id === id ? { ...u, status: u.status === 'Aktif' ? 'Inaktif' : 'Aktif' } : u
       );
-      return {
+      const updatedMaster = {
         ...prev,
+        _lastUpdated: Date.now(),
         mobileAccounts: updatedList
       };
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(() => {});
+
+      return updatedMaster;
     });
   };
 
@@ -559,15 +605,27 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
     setMasterData(prev => {
       const currentList = getMobileList();
       const updatedList = currentList.filter(u => u && u.id != null && String(u.id) !== targetIdStr);
+      const prevDel = prev.deletedUserIds || [];
+      const updatedDeleted = Array.from(new Set([...prevDel, targetIdStr]));
 
-      return {
+      const updatedMaster = {
         ...prev,
+        _lastUpdated: Date.now(),
+        deletedUserIds: updatedDeleted,
         mobileAccounts: updatedList,
         _isExplicitClear: updatedList.length === 0
       };
+
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(() => {});
+
+      return updatedMaster;
     });
 
-    fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data/delete-item', {
+    fetch('/api/master-data/delete-item', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
