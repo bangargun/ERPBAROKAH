@@ -31,7 +31,8 @@ export default function ManualReportUpdateModal({
   setMasterData, 
   userSession, 
   themeMode = 'dark',
-  editData = null
+  editData = null,
+  initialEntryType = null
 }) {
   if (!show) return null;
 
@@ -42,8 +43,10 @@ export default function ManualReportUpdateModal({
   const [activeTab, setActiveTab] = useState('manual');
   const [entryType, setEntryType] = useState(() => {
     if (editData) {
-      const hasSales = (editData.sales_details || []).length > 0;
-      return hasSales ? 'penjualan' : 'pengeluaran';
+      if ((editData.sales_details || []).length > 0) return 'penjualan';
+      if ((editData.pembelian_details || []).length > 0) return 'pembelian';
+      if ((editData.pendapatan_details || []).length > 0) return 'pendapatan';
+      return 'pengeluaran';
     }
     return 'penjualan';
   });
@@ -110,6 +113,123 @@ export default function ManualReportUpdateModal({
       paymentSource: 'Kas Kasir (Tunai)'
     }];
   });
+
+  // Manual Form - Pembelian (Belanja Stok & Bahan Baku) State
+  const [pembelianItems, setPembelianItems] = useState(() => {
+    if (editData && (editData.pembelian_details || []).length > 0) {
+      return editData.pembelian_details.map((p, i) => ({
+        id: i + 1,
+        ingredientId: p.ingredient_id || '',
+        ingredientName: p.ingredient_name || p.name || '',
+        qty: Number(p.qty || 1),
+        unit: p.unit || 'Kg',
+        unitPrice: Number(p.unit_price || p.price || 0),
+        subtotal: Number(p.subtotal || p.amount || 0),
+        supplierName: p.supplier_name || p.notes || ''
+      }));
+    }
+    const defaultIng = masterData?.ingredients?.[0];
+    return [{
+      id: 1,
+      ingredientId: defaultIng?.id || '',
+      ingredientName: defaultIng?.name || 'Ayam Fillet / Daging',
+      qty: 10,
+      unit: defaultIng?.unit || 'Kg',
+      unitPrice: defaultIng?.unit_price || 35000,
+      subtotal: 10 * (defaultIng?.unit_price || 35000),
+      supplierName: 'Pasar Utama'
+    }];
+  });
+
+  // Manual Form - Pendapatan (Kas Masuk Non-Sales) State
+  const [pendapatanItems, setPendapatanItems] = useState(() => {
+    if (editData && (editData.pendapatan_details || []).length > 0) {
+      return editData.pendapatan_details.map((p, i) => ({
+        id: i + 1,
+        categoryName: p.categoryName || p.category || p.name || '',
+        amount: Number(p.amount || p.subtotal || 0),
+        paymentMethod: p.payment_method || 'Kas Kasir (Tunai)',
+        notes: p.notes || ''
+      }));
+    }
+    return [{
+      id: 1,
+      categoryName: 'Pendapatan Sewa Lapak',
+      amount: 1500000,
+      paymentMethod: 'Kas Kasir (Tunai)',
+      notes: 'Uang sewa lapak depan outlet bulan ini'
+    }];
+  });
+
+  // Handlers for Pembelian Rows
+  const handleAddPembelianRow = () => {
+    const defaultIng = masterData?.ingredients?.[0];
+    setPembelianItems(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        ingredientId: defaultIng?.id || '',
+        ingredientName: defaultIng?.name || '',
+        qty: 1,
+        unit: defaultIng?.unit || 'Kg',
+        unitPrice: defaultIng?.unit_price || 10000,
+        subtotal: 10000,
+        supplierName: ''
+      }
+    ]);
+  };
+
+  const handleUpdatePembelianRow = (id, field, val) => {
+    setPembelianItems(prev => prev.map(row => {
+      if (row.id !== id) return row;
+      const updated = { ...row, [field]: val };
+      if (field === 'ingredientName') {
+        const matchedIng = (masterData?.ingredients || []).find(ing => ing.name.toLowerCase() === String(val).toLowerCase());
+        if (matchedIng) {
+          updated.ingredientId = matchedIng.id;
+          updated.unit = matchedIng.unit || updated.unit;
+          if (matchedIng.unit_price) {
+            updated.unitPrice = matchedIng.unit_price;
+            updated.subtotal = Number(updated.qty || 1) * Number(matchedIng.unit_price);
+          }
+        }
+      }
+      if (field === 'qty' || field === 'unitPrice') {
+        const q = Number(field === 'qty' ? val : updated.qty) || 0;
+        const p = Number(field === 'unitPrice' ? val : updated.unitPrice) || 0;
+        updated.subtotal = q * p;
+      }
+      return updated;
+    }));
+  };
+
+  const handleRemovePembelianRow = (id) => {
+    if (pembelianItems.length <= 1) return;
+    setPembelianItems(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Handlers for Pendapatan Rows
+  const handleAddPendapatanRow = () => {
+    setPendapatanItems(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        categoryName: 'Pendapatan Lain-Lain',
+        amount: 100000,
+        paymentMethod: 'Kas Kasir (Tunai)',
+        notes: ''
+      }
+    ]);
+  };
+
+  const handleUpdatePendapatanRow = (id, field, val) => {
+    setPendapatanItems(prev => prev.map(row => (row.id === id ? { ...row, [field]: val } : row)));
+  };
+
+  const handleRemovePendapatanRow = (id) => {
+    if (pendapatanItems.length <= 1) return;
+    setPendapatanItems(prev => prev.filter(r => r.id !== id));
+  };
 
   // Excel Upload States
   const [uploadStep, setUploadStep] = useState('select'); // 'select' | 'preview'
@@ -589,7 +709,7 @@ export default function ManualReportUpdateModal({
           paymentMethod: s.paymentMethod,
           notes: 'Input Manual Admin'
         }));
-      } else {
+      } else if (entryType === 'pengeluaran') {
         const validExpenses = expenseItems.filter(e => e.categoryName && e.categoryName.trim() && e.amount > 0);
         if (validExpenses.length === 0) {
           alert('Mohon isi minimal 1 rincian pengeluaran yang valid.');
@@ -604,6 +724,43 @@ export default function ManualReportUpdateModal({
           notes: e.notes,
           subtotal: e.amount,
           paymentMethod: e.paymentSource
+        }));
+      } else if (entryType === 'pembelian') {
+        const validPembelian = pembelianItems.filter(p => p.ingredientName && p.ingredientName.trim() && p.subtotal > 0);
+        if (validPembelian.length === 0) {
+          alert('Mohon isi minimal 1 item pembelian bahan baku yang valid.');
+          return;
+        }
+        rowsToProcess = validPembelian.map(p => ({
+          type: 'pembelian',
+          date: reportDate,
+          outletId: selectedOutletId,
+          outletName: getOutletName(selectedOutletId),
+          ingredientId: p.ingredientId,
+          ingredientName: p.ingredientName.trim(),
+          categoryName: `Pembelian Bahan Baku - ${p.ingredientName.trim()}`,
+          qty: p.qty,
+          unit: p.unit,
+          price: p.unitPrice,
+          subtotal: p.subtotal,
+          supplierName: p.supplierName,
+          notes: `Pembelian Bahan Baku: ${p.ingredientName.trim()} (${p.qty} ${p.unit}) ${p.supplierName ? '- ' + p.supplierName : ''}`
+        }));
+      } else if (entryType === 'pendapatan') {
+        const validPendapatan = pendapatanItems.filter(p => p.categoryName && p.categoryName.trim() && p.amount > 0);
+        if (validPendapatan.length === 0) {
+          alert('Mohon isi minimal 1 rincian pendapatan non-sales yang valid.');
+          return;
+        }
+        rowsToProcess = validPendapatan.map(p => ({
+          type: 'pendapatan',
+          date: reportDate,
+          outletId: selectedOutletId,
+          outletName: getOutletName(selectedOutletId),
+          categoryName: p.categoryName.trim(),
+          notes: p.notes || 'Pendapatan Non-Sales / Kas Masuk Lainnya',
+          subtotal: p.amount,
+          paymentMethod: p.paymentMethod
         }));
       }
     } else {
@@ -717,6 +874,34 @@ export default function ManualReportUpdateModal({
       }
     });
 
+    // 1b. STOCK ADDITION ENGINE (Pembelian Bahan Baku)
+    rowsToProcess.filter(r => r.type === 'pembelian').forEach(pRow => {
+      const ingIndex = updatedIngredients.findIndex(i => String(i.id) === String(pRow.ingredientId) || i.name.toLowerCase().trim() === (pRow.ingredientName || '').toLowerCase().trim());
+      if (ingIndex !== -1) {
+        const addQty = parseFloat(pRow.qty) || 0;
+        const currentStock = parseFloat(updatedIngredients[ingIndex].stock || updatedIngredients[ingIndex].qty || 0);
+        const newStock = currentStock + addQty;
+        updatedIngredients[ingIndex] = { ...updatedIngredients[ingIndex], stock: newStock, qty: newStock };
+        newStockMovements.push({
+          id: Date.now() + Math.random(),
+          entry_date: pRow.date,
+          date: pRow.date,
+          transaction_date: pRow.date,
+          time: new Date().toLocaleTimeString('id-ID'),
+          outlet_id: pRow.outletId,
+          outlet_name: pRow.outletName,
+          ingredient_id: updatedIngredients[ingIndex].id,
+          ingredient_name: updatedIngredients[ingIndex].name,
+          movement_type: 'Pembelian Stok (Update Laporan)',
+          qty_change: addQty,
+          final_stock: newStock,
+          unit: pRow.unit || updatedIngredients[ingIndex].unit || 'Kg',
+          notes: `Auto Penambahan Stok dari Update Laporan Pembelian (${pRow.ingredientName} +${addQty} ${pRow.unit || ''})`,
+          author: authorName
+        });
+      }
+    });
+
     // 2. GROUP ROWS BY TANGGAL + OUTLET → Buat 1 laporan per tanggal+outlet unik
     const groupMap = new Map();
     rowsToProcess.forEach(row => {
@@ -731,7 +916,7 @@ export default function ManualReportUpdateModal({
         });
       }
       const grp = groupMap.get(gKey);
-      if (row.type === 'penjualan') grp.salesRows.push(row);
+      if (row.type === 'penjualan' || row.type === 'pendapatan') grp.salesRows.push(row);
       else grp.expenseRows.push(row);
     });
 
@@ -997,52 +1182,94 @@ export default function ManualReportUpdateModal({
         {activeTab === 'manual' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             
-            {/* TYPE TOGGLE (PENJUALAN vs PENGELUARAN) */}
-            <div style={{ display: 'flex', gap: '10px' }}>
+            {/* TYPE TOGGLE (4 PILL BUTTONS) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => setEntryType('penjualan')}
                 style={{
-                  flex: 1,
-                  padding: '10px',
+                  padding: '9px 6px',
                   borderRadius: '10px',
                   border: `1px solid ${entryType === 'penjualan' ? T.success : T.border}`,
                   background: entryType === 'penjualan' ? T.successBg : T.cardBg2,
                   color: entryType === 'penjualan' ? T.success : T.txtSecondary,
                   fontWeight: '800',
-                  fontSize: '0.84rem',
+                  fontSize: '0.76rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px'
+                  gap: '6px'
                 }}
               >
-                <TrendingUp size={18} />
-                <span>🟢 Update Penjualan (Revenue &amp; Potong Stok)</span>
+                <TrendingUp size={15} />
+                <span>🟢 Penjualan</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setEntryType('pengeluaran')}
                 style={{
-                  flex: 1,
-                  padding: '10px',
+                  padding: '9px 6px',
                   borderRadius: '10px',
                   border: `1px solid ${entryType === 'pengeluaran' ? T.danger : T.border}`,
                   background: entryType === 'pengeluaran' ? T.dangerBg : T.cardBg2,
                   color: entryType === 'pengeluaran' ? T.danger : T.txtSecondary,
                   fontWeight: '800',
-                  fontSize: '0.84rem',
+                  fontSize: '0.76rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px'
+                  gap: '6px'
                 }}
               >
-                <TrendingDown size={18} />
-                <span>🔴 Update Pengeluaran (Beban Operasional/OPEX)</span>
+                <TrendingDown size={15} />
+                <span>🔴 Pengeluaran</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEntryType('pembelian')}
+                style={{
+                  padding: '9px 6px',
+                  borderRadius: '10px',
+                  border: `1px solid ${entryType === 'pembelian' ? T.accentGold : T.border}`,
+                  background: entryType === 'pembelian' ? 'rgba(234,179,8,0.12)' : T.cardBg2,
+                  color: entryType === 'pembelian' ? T.accentGold : T.txtSecondary,
+                  fontWeight: '800',
+                  fontSize: '0.76rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <ShoppingBag size={15} />
+                <span>📦 Pembelian Stok</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEntryType('pendapatan')}
+                style={{
+                  padding: '9px 6px',
+                  borderRadius: '10px',
+                  border: `1px solid ${entryType === 'pendapatan' ? T.info : T.border}`,
+                  background: entryType === 'pendapatan' ? T.infoBg : T.cardBg2,
+                  color: entryType === 'pendapatan' ? T.info : T.txtSecondary,
+                  fontWeight: '800',
+                  fontSize: '0.76rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <DollarSign size={15} />
+                <span>💰 Pendapatan Non-Sales</span>
               </button>
             </div>
 
@@ -1197,6 +1424,143 @@ export default function ManualReportUpdateModal({
                 >
                   <Plus size={14} />
                   <span>Tambah Baris Pengeluaran</span>
+                </button>
+              </div>
+            )}
+
+            {/* FORM BODY FOR PEMBELIAN STOK */}
+            {entryType === 'pembelian' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <datalist id="mrisExistingIngredientsList">
+                  {(masterData?.ingredients || []).map(ing => (
+                    <option key={ing.id} value={ing.name}>{`[Stok: ${ing.stock || ing.qty || 0} ${ing.unit || ''}]`}</option>
+                  ))}
+                </datalist>
+
+                <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>📦 Rincian Pembelian Bahan Baku (Otomatis Menambah Stok Master):</span>
+                  <span style={{ fontSize: '0.68rem', color: T.accentGold }}>*Stok bahan baku di master data akan otomatis bertambah</span>
+                </div>
+
+                {pembelianItems.map((item) => (
+                  <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 0.8fr 0.6fr 1fr 1.2fr 40px', gap: '8px', alignItems: 'center', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                    <div>
+                      <input
+                        type="text"
+                        list="mrisExistingIngredientsList"
+                        value={item.ingredientName}
+                        onChange={e => handleUpdatePembelianRow(item.id, 'ingredientName', e.target.value)}
+                        placeholder="Nama Bahan Baku..."
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700' }}
+                      />
+                    </div>
+
+                    <div>
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="any"
+                        value={item.qty}
+                        onChange={e => handleUpdatePembelianRow(item.id, 'qty', e.target.value)}
+                        placeholder="Qty"
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        value={item.unit}
+                        onChange={e => handleUpdatePembelianRow(item.id, 'unit', e.target.value)}
+                        placeholder="Satuan"
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <input
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={e => handleUpdatePembelianRow(item.id, 'unitPrice', e.target.value)}
+                        placeholder="Harga Satuan"
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.accentGold, textAlign: 'right', paddingRight: '4px' }}>
+                      Rp {item.subtotal?.toLocaleString('id-ID')}
+                    </div>
+
+                    <button type="button" onClick={() => handleRemovePembelianRow(item.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', textAlign: 'center' }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleAddPembelianRow}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: T.cardBg, border: `1px solid ${T.accentGold}`, borderRadius: '6px', color: T.accentGold, fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer', width: 'fit-content' }}
+                >
+                  <Plus size={14} />
+                  <span>Tambah Item Pembelian Bahan Baku</span>
+                </button>
+              </div>
+            )}
+
+            {/* FORM BODY FOR PENDAPATAN NON-SALES */}
+            {entryType === 'pendapatan' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>💰 Rincian Pendapatan Non-Sales (Sewa, Bagi Hasil, Bunga, Lainnya):</span>
+                  <span style={{ fontSize: '0.68rem', color: T.info }}>*Menambah Total Kas Masuk Outlet</span>
+                </div>
+
+                {pendapatanItems.map((item) => (
+                  <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.2fr 40px', gap: '8px', alignItems: 'center', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                    <div>
+                      <input
+                        type="text"
+                        value={item.categoryName}
+                        onChange={e => handleUpdatePendapatanRow(item.id, 'categoryName', e.target.value)}
+                        placeholder="Kategori / Judul Pendapatan..."
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700' }}
+                      />
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        value={item.notes}
+                        onChange={e => handleUpdatePendapatanRow(item.id, 'notes', e.target.value)}
+                        placeholder="Catatan rincian..."
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <input
+                        type="number"
+                        value={item.amount}
+                        onChange={e => handleUpdatePendapatanRow(item.id, 'amount', e.target.value)}
+                        placeholder="Jumlah Rp"
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }}
+                      />
+                    </div>
+
+                    <button type="button" onClick={() => handleRemovePendapatanRow(item.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', textAlign: 'center' }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleAddPendapatanRow}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: T.cardBg, border: `1px solid ${T.infoBorder}`, borderRadius: '6px', color: T.info, fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer', width: 'fit-content' }}
+                >
+                  <Plus size={14} />
+                  <span>Tambah Baris Pendapatan Non-Sales</span>
                 </button>
               </div>
             )}

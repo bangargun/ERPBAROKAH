@@ -446,7 +446,7 @@ export default function UnitManagement({ masterData, setMasterData, themeMode = 
               </button>
             </div>
 
-            <form onSubmit={handleSubmitForm} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={handleSaveUnit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Field 1: Kode Unit (Auto) */}
               <div>
                 <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
