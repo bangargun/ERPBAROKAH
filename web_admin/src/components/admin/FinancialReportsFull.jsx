@@ -1,11 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Scale, PieChart, ArrowLeftRight, Sparkles, Calendar, ChevronDown, Check, FileSpreadsheet, X, Search, Filter, Download, Building2, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileText, Scale, PieChart, ArrowLeftRight, Sparkles, Calendar, ChevronDown, Check, FileSpreadsheet, X, Search, Filter, Download, Building2, ExternalLink, Receipt, Plus, ArrowUpRight, ArrowDownRight, DollarSign } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
 
-export default function FinancialReportsFull({ masterData, selectedBranch, themeMode = 'dark' }) {
+export default function FinancialReportsFull({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
 
-  const [activeSubTab, setActiveSubTab] = useState('pnl'); // 'pnl' | 'balance' | 'cashflow' | 'ai'
+  const [activeSubTab, setActiveSubTab] = useState('pnl'); // 'pnl' | 'balance' | 'cashflow' | 'journal' | 'ai'
+  const [journalTypeFilter, setJournalTypeFilter] = useState('all'); // 'all' | 'income' | 'expense'
+  const [journalSearchQuery, setJournalSearchQuery] = useState('');
+  const [journalCurrentPage, setJournalCurrentPage] = useState(1);
+  const [showAddJournalModal, setShowAddJournalModal] = useState(false);
+  const [newJournalForm, setNewJournalForm] = useState({
+    type: 'income',
+    amount: '',
+    category: 'Pendapatan Lain-lain',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    outlet_id: '1'
+  });
   const [pnlSubView, setPnlSubView] = useState('single'); // 'single' | 'multi_month'
   const [compareMonthsCount, setCompareMonthsCount] = useState(2); // 2 | 3 | 6 | 12
 
@@ -213,6 +225,163 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     isOutletMatch(f.outlet_id) && 
     isDateMatch(f.entry_date || f.date || f.transaction_date || f.created_at)
   );
+
+  // ─── UNIFIED JOURNAL TRANSACTIONS LIST (PENDAPATAN & PENGELUARAN) ───
+  const journalEntries = useMemo(() => {
+    const list = [];
+
+    // 1. POS Sales Transactions (Pendapatan / Income)
+    const rawSalesTx = [
+      ...(masterData?.salesTransactions || []),
+      ...(masterData?.transactions || []),
+      ...(masterData?.outletTransactions || [])
+    ];
+    const salesTxMap = new Map();
+    rawSalesTx.forEach(t => { if (t && t.id != null) salesTxMap.set(String(t.id), t); });
+    Array.from(salesTxMap.values()).forEach(t => {
+      const dt = t.entry_date || t.date || t.transaction_date || t.timestamp || t.created_at;
+      if (!isOutletMatch(t.outlet_id || t.branch_id) || !isDateMatch(dt)) return;
+
+      const amt = Number(t.amount || t.total || t.grand_total || 0);
+      list.push({
+        id: `sales-${t.id}`,
+        refNo: t.receipt_no || t.tx_id || `POS-${t.id}`,
+        date: dt,
+        outletId: t.outlet_id || t.branch_id || 1,
+        type: 'income',
+        category: 'Penjualan POS Kasir',
+        description: t.customer_name ? `Penjualan POS - ${t.customer_name}` : 'Transaksi Kasir POS Mobile',
+        amount: amt,
+        status: t.status || 'Selesai'
+      });
+    });
+
+    // 2. Manual Entries & Financial Records (Income / Pendapatan & Expense / Pengeluaran)
+    const rawManuals = [
+      ...(masterData?.manualEntryRecords || []),
+      ...(masterData?.financialRecords || []),
+      ...(masterData?.dailyReports || [])
+    ];
+    const manualMap = new Map();
+    rawManuals.forEach(m => { if (m && m.id != null) manualMap.set(String(m.id), m); });
+    Array.from(manualMap.values()).forEach(m => {
+      const dt = m.entry_date || m.date || m.created_at;
+      if (!isOutletMatch(m.outlet_id || m.branch_id) || !isDateMatch(dt)) return;
+
+      const txType = (m.type === 'expense' || m.expense_amount > 0 || String(m.category_name || '').toLowerCase().includes('biaya')) ? 'expense' : 'income';
+      const amt = Number(m.amount || m.expense_amount || m.income_amount || 0);
+
+      list.push({
+        id: `manual-${m.id}`,
+        refNo: m.receipt_no || m.report_no || `JRN-${m.id}`,
+        date: dt,
+        outletId: m.outlet_id || m.branch_id || 1,
+        type: txType,
+        category: m.category_name || m.account_name || (txType === 'expense' ? 'Biaya Operasional' : 'Pendapatan Lain-lain'),
+        description: m.description || m.note || m.keterangan || (txType === 'expense' ? 'Pengeluaran Kas' : 'Pendapatan Kas'),
+        amount: amt,
+        status: m.status || 'Disetujui'
+      });
+    });
+
+    // 3. Stock Purchases & Logistics (Expense / Pengeluaran Logistik)
+    const rawPurchases = [
+      ...(masterData?.purchases || []),
+      ...(masterData?.stok_masuk || []),
+      ...(masterData?.approvedLogistics || [])
+    ];
+    const purchaseMap = new Map();
+    rawPurchases.forEach(p => { if (p && p.id != null) purchaseMap.set(String(p.id), p); });
+    Array.from(purchaseMap.values()).forEach(p => {
+      const dt = p.entry_date || p.date || p.created_at;
+      if (!isOutletMatch(p.outlet_id || p.branch_id) || !isDateMatch(dt)) return;
+
+      const amt = Number(p.amount || p.total_cost || p.total || 0);
+      list.push({
+        id: `purchase-${p.id}`,
+        refNo: p.receipt_no || p.invoice_no || `STK-${p.id}`,
+        date: dt,
+        outletId: p.outlet_id || p.branch_id || 1,
+        type: 'expense',
+        category: 'Pembelian Bahan Baku & Stok',
+        description: p.supplier_name ? `Pembelian Stok - ${p.supplier_name}` : 'Pengadaan Logistik & Bahan',
+        amount: amt,
+        status: p.status || 'Selesai'
+      });
+    });
+
+    return list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  }, [masterData, startDate, endDate, selectedOutlets, selectedBranch]);
+
+  const filteredJournalEntries = useMemo(() => {
+    return journalEntries.filter(item => {
+      if (journalTypeFilter !== 'all' && item.type !== journalTypeFilter) return false;
+      if (journalSearchQuery) {
+        const q = journalSearchQuery.toLowerCase();
+        const matchRef = String(item.refNo || '').toLowerCase().includes(q);
+        const matchCat = String(item.category || '').toLowerCase().includes(q);
+        const matchDesc = String(item.description || '').toLowerCase().includes(q);
+        const matchAmt = String(item.amount || '').includes(q);
+        return matchRef || matchCat || matchDesc || matchAmt;
+      }
+      return true;
+    });
+  }, [journalEntries, journalTypeFilter, journalSearchQuery]);
+
+  const journalTotalIncome = useMemo(() => {
+    return journalEntries.filter(e => e.type === 'income').reduce((acc, e) => acc + (e.amount || 0), 0);
+  }, [journalEntries]);
+
+  const journalTotalExpense = useMemo(() => {
+    return journalEntries.filter(e => e.type === 'expense').reduce((acc, e) => acc + (e.amount || 0), 0);
+  }, [journalEntries]);
+
+  const journalNetCash = journalTotalIncome - journalTotalExpense;
+
+  const handleSaveNewJournalEntry = (e) => {
+    e.preventDefault();
+    if (!newJournalForm.amount || Number(newJournalForm.amount) <= 0) {
+      alert('Nominal transaksi wajib diisi!');
+      return;
+    }
+
+    const newRecord = {
+      id: Date.now(),
+      type: newJournalForm.type,
+      amount: Number(newJournalForm.amount),
+      category_name: newJournalForm.category,
+      description: newJournalForm.description || (newJournalForm.type === 'income' ? 'Pendapatan Kas' : 'Pengeluaran Kas'),
+      date: newJournalForm.date || new Date().toISOString().split('T')[0],
+      outlet_id: Number(newJournalForm.outlet_id || 1),
+      created_at: new Date().toISOString(),
+      status: 'Disetujui'
+    };
+
+    const updatedManual = [newRecord, ...(masterData?.manualEntryRecords || [])];
+    const updatedMaster = {
+      ...masterData,
+      _lastUpdated: Date.now(),
+      manualEntryRecords: updatedManual
+    };
+
+    if (setMasterData) setMasterData(updatedMaster);
+    fetch('/api/master-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedMaster)
+    }).catch(() => {});
+
+    setShowAddJournalModal(false);
+    setNewJournalForm({
+      type: 'income',
+      amount: '',
+      category: 'Pendapatan Lain-lain',
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+      outlet_id: '1'
+    });
+    alert('✅ Transaksi baru berhasil ditambahkan dan dicatat ke Laporan Keuangan!');
+  };
 
   const calcPercent = (val, base) => {
     if (!base || base === 0) return '0';
@@ -1650,6 +1819,29 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
           </button>
 
           <button
+            onClick={() => setActiveSubTab('journal')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid',
+              borderColor: activeSubTab === 'journal' ? T.accentGold : T.border,
+              background: activeSubTab === 'journal' ? T.navActiveBg : T.cardBg,
+              color: activeSubTab === 'journal' ? T.navActiveTxt : T.txtSecondary,
+              fontWeight: '700',
+              fontSize: '0.90rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Receipt size={16} />
+            <span>Jurnal Transaksi (Pendapatan &amp; Pengeluaran)</span>
+          </button>
+
+          <button
             onClick={() => setActiveSubTab('ai')}
             style={{
               display: 'flex',
@@ -1673,8 +1865,8 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
         </div>
       </div>
 
-      {/* TOP FILTER BAR: SHARED FOR P&L, BALANCE SHEET & CASH FLOW */}
-      {(activeSubTab === 'pnl' || activeSubTab === 'balance' || activeSubTab === 'cashflow') && (
+      {/* TOP FILTER BAR: SHARED FOR P&L, BALANCE SHEET, CASH FLOW & JOURNAL */}
+      {(activeSubTab === 'pnl' || activeSubTab === 'balance' || activeSubTab === 'cashflow' || activeSubTab === 'journal') && (
         <div style={{
           background: T.cardBg2,
           padding: '18px 24px',
@@ -3202,12 +3394,494 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                   🟢 Tanda Hijau = Kenaikan Laba / Penghematan Biaya &bull; 🔴 Tanda Merah = Penurunan Omzet / Pembengkakan
                 </div>
               </div>
-              {renderMultiMonthComparisonTable()}
+            </div>
+          </div>
+        )}
+
+        {/* SUB-TAB: JURNAL TRANSAKSI (PENDAPATAN & PENGELUARAN) */}
+        {activeSubTab === 'journal' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* KPI SUMMARY CARDS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+              {/* CARD 1: PENDAPATAN */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: T.shadowSm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: T.success, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    🟢 Total Pendapatan (Income)
+                  </span>
+                  <div style={{ padding: '6px', borderRadius: '8px', background: `${T.success}20`, color: T.success }}>
+                    <ArrowUpRight size={18} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: T.success }}>
+                  {formatLunaCurrency(journalTotalIncome)}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
+                  Real-time dari POS Kasir &amp; Pendapatan Manual
+                </div>
+              </div>
+
+              {/* CARD 2: PENGELUARAN */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: T.shadowSm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: T.danger, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    🔴 Total Pengeluaran (Expense)
+                  </span>
+                  <div style={{ padding: '6px', borderRadius: '8px', background: `${T.danger}20`, color: T.danger }}>
+                    <ArrowDownRight size={18} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: T.danger }}>
+                  {formatLunaCurrency(journalTotalExpense)}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
+                  Biaya Operasional, Logistik &amp; Gaji Staf
+                </div>
+              </div>
+
+              {/* CARD 3: SALDO BERSIH */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: T.shadowSm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: journalNetCash >= 0 ? T.info : T.warning, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    💵 Arus Kas Bersih (Net Cash)
+                  </span>
+                  <div style={{ padding: '6px', borderRadius: '8px', background: `${T.info}20`, color: T.info }}>
+                    <DollarSign size={18} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: journalNetCash >= 0 ? T.info : T.warning }}>
+                  {formatLunaCurrency(journalNetCash)}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
+                  {journalNetCash >= 0 ? '✅ Cash Flow Positif (Surplus)' : '⚠️ Cash Flow Defisit'}
+                </div>
+              </div>
+
+              {/* CARD 4: TOTAL ENTRI */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: T.shadowSm }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    📊 Total Entri Transaksi
+                  </span>
+                  <div style={{ padding: '6px', borderRadius: '8px', background: `${T.txtSecondary}20`, color: T.txtPrimary }}>
+                    <Receipt size={18} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary }}>
+                  {filteredJournalEntries.length} Transaksi
+                </div>
+                <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
+                  Tercatat &amp; Terverifikasi dalam Sistem
+                </div>
+              </div>
             </div>
 
+            {/* JOURNAL FILTER & TOOLBAR CARD */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', boxShadow: T.shadowSm }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: '1 1 300px' }}>
+                {/* Search Bar */}
+                <div style={{ position: 'relative', minWidth: '220px', flex: '1' }}>
+                  <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    placeholder="Cari no. bukti, akun, keterangan, nominal..."
+                    value={journalSearchQuery}
+                    onChange={e => setJournalSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px 8px 36px',
+                      borderRadius: '8px',
+                      border: `1px solid ${T.border}`,
+                      fontSize: '0.82rem',
+                      background: T.inputBg,
+                      color: T.txtPrimary
+                    }}
+                  />
+                </div>
+
+                {/* Filter Tipe Transaksi */}
+                <select
+                  value={journalTypeFilter}
+                  onChange={e => setJournalTypeFilter(e.target.value)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    fontSize: '0.82rem',
+                    background: T.inputBg,
+                    color: journalTypeFilter === 'income' ? T.success : journalTypeFilter === 'expense' ? T.danger : T.txtPrimary,
+                    fontWeight: '800',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">Semua Tipe Transaksi</option>
+                  <option value="income">🟢 Pendapatan Only (Income)</option>
+                  <option value="expense">🔴 Pengeluaran Only (Expense)</option>
+                </select>
+              </div>
+
+              {/* ACTION BUTTON: TAMBAH TRANSAKSI BARU */}
+              <button
+                onClick={() => setShowAddJournalModal(true)}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '9px 18px',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.86rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Plus size={18} strokeWidth={2.5} />
+                <span>+ Catat Transaksi Pendapatan / Pengeluaran</span>
+              </button>
+            </div>
+
+            {/* MAIN JOURNAL TABLE */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px', overflow: 'hidden', boxShadow: T.shadowSm }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
+                  <thead>
+                    <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      <th style={{ padding: '12px 16px', width: '140px' }}>Tanggal &amp; Waktu</th>
+                      <th style={{ padding: '12px 16px', width: '150px' }}>No. Bukti / Ref</th>
+                      <th style={{ padding: '12px 16px', width: '160px' }}>Outlet / Cabang</th>
+                      <th style={{ padding: '12px 16px', minWidth: '180px' }}>Kategori / Akun Keuangan</th>
+                      <th style={{ padding: '12px 16px', minWidth: '200px' }}>Keterangan Transaksi</th>
+                      <th style={{ padding: '12px 16px', width: '130px', textAlign: 'center' }}>Tipe</th>
+                      <th style={{ padding: '12px 16px', width: '150px', textAlign: 'right' }}>Jumlah Nominal (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredJournalEntries.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '40px 20px', color: T.txtSecondary }}>
+                          <Receipt size={36} color={T.txtSecondary} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                          <div style={{ fontWeight: '700', fontSize: '0.92rem' }}>Tidak ada transaksi yang cocok dengan filter.</div>
+                          <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>Coba ubah kata kunci pencarian atau rentang tanggal.</div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredJournalEntries.map((item, idx) => (
+                        <tr
+                          key={item.id || idx}
+                          style={{
+                            borderBottom: `1px solid ${T.border}`,
+                            background: idx % 2 === 0 ? 'transparent' : T.tableStripeBg,
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'transparent' : T.tableStripeBg}
+                        >
+                          <td style={{ padding: '12px 16px', color: T.txtPrimary, fontWeight: '700', whiteSpace: 'nowrap' }}>
+                            {formatDateIndo(item.date)}
+                          </td>
+                          <td style={{ padding: '12px 16px', color: T.info, fontWeight: '800', fontFamily: 'monospace', fontSize: '0.82rem' }}>
+                            {item.refNo}
+                          </td>
+                          <td style={{ padding: '12px 16px', color: T.txtPrimary, fontWeight: '600' }}>
+                            {getOutletName(item.outletId)}
+                          </td>
+                          <td style={{ padding: '12px 16px', color: T.txtPrimary, fontWeight: '700' }}>
+                            {item.category}
+                          </td>
+                          <td style={{ padding: '12px 16px', color: T.txtSecondary, fontSize: '0.78rem' }}>
+                            {item.description}
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: '900',
+                              letterSpacing: '0.03em',
+                              background: item.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                              color: item.type === 'income' ? T.success : T.danger,
+                              border: `1px solid ${item.type === 'income' ? T.success : T.danger}`
+                            }}>
+                              {item.type === 'income' ? '🟢 PENDAPATAN' : '🔴 PENGELUARAN'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: '900', fontSize: '0.86rem', color: item.type === 'income' ? T.success : T.danger }}>
+                            {item.type === 'income' ? '+' : '-'}{formatLunaCurrency(item.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
       </div>
+
+      {/* MODAL INPUT TRANSAKSI PENDAPATAN & PENGELUARAN BARU */}
+      {showAddJournalModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: T.tooltipBg,
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: T.cardBg,
+            border: `1px solid ${T.txtMuted}`,
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '560px',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+            overflow: 'hidden'
+          }} className="animate-scale-up">
+            
+            <div style={{
+              padding: '18px 24px',
+              background: T.cardBg2,
+              borderBottom: `1px solid ${T.border}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
+                  Catat Transaksi Keuangan Baru
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
+                  Input transaksi pendapatan atau pengeluaran kas langsung ke Laporan Keuangan.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddJournalModal(false)}
+                style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewJournalEntry} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* TIPE TRANSAKSI */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '6px' }}>
+                  Tipe Transaksi:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setNewJournalForm({ ...newJournalForm, type: 'income', category: 'Pendapatan Lain-lain' })}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: `1.5px solid ${newJournalForm.type === 'income' ? T.success : T.border}`,
+                      background: newJournalForm.type === 'income' ? 'rgba(16, 185, 129, 0.15)' : T.inputBg,
+                      color: newJournalForm.type === 'income' ? T.success : T.txtSecondary,
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <ArrowUpRight size={16} />
+                    <span>🟢 Pendapatan (Income)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewJournalForm({ ...newJournalForm, type: 'expense', category: 'Biaya Operasional' })}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: `1.5px solid ${newJournalForm.type === 'expense' ? T.danger : T.border}`,
+                      background: newJournalForm.type === 'expense' ? 'rgba(244, 63, 94, 0.15)' : T.inputBg,
+                      color: newJournalForm.type === 'expense' ? T.danger : T.txtSecondary,
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <ArrowDownRight size={16} />
+                    <span>🔴 Pengeluaran (Expense)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* NOMINAL (RP) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '6px' }}>
+                  Nominal Transaksi (Rp):
+                </label>
+                <input
+                  type="number"
+                  placeholder="Misal: 150000"
+                  required
+                  value={newJournalForm.amount}
+                  onChange={e => setNewJournalForm({ ...newJournalForm, amount: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    background: T.inputBg,
+                    color: T.txtPrimary,
+                    fontWeight: '800',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+
+              {/* OUTLET & TANGGAL */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '6px' }}>
+                    Outlet / Cabang:
+                  </label>
+                  <select
+                    value={newJournalForm.outlet_id}
+                    onChange={e => setNewJournalForm({ ...newJournalForm, outlet_id: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${T.border}`,
+                      background: T.inputBg,
+                      color: T.txtPrimary,
+                      fontWeight: '700',
+                      fontSize: '0.82rem'
+                    }}
+                  >
+                    {(masterData?.outlets || []).map(otl => (
+                      <option key={otl.id} value={otl.id}>{otl.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '6px' }}>
+                    Tanggal Transaksi:
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={newJournalForm.date}
+                    onChange={e => setNewJournalForm({ ...newJournalForm, date: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: `1px solid ${T.border}`,
+                      background: T.inputBg,
+                      color: T.txtPrimary,
+                      fontWeight: '700',
+                      fontSize: '0.82rem'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* KATEGORI AKUN */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '6px' }}>
+                  Kategori / Akun Keuangan:
+                </label>
+                <input
+                  type="text"
+                  placeholder={newJournalForm.type === 'income' ? 'Misal: Pendapatan Catering, Bunga Bank' : 'Misal: Biaya Listrik, Sewa Tempat, Gaji Staf'}
+                  required
+                  value={newJournalForm.category}
+                  onChange={e => setNewJournalForm({ ...newJournalForm, category: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    background: T.inputBg,
+                    color: T.txtPrimary,
+                    fontWeight: '700',
+                    fontSize: '0.82rem'
+                  }}
+                />
+              </div>
+
+              {/* KETERANGAN / CATATAN */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, marginBottom: '6px' }}>
+                  Keterangan / Catatan Transaksi:
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Penjelasan detail transaksi..."
+                  value={newJournalForm.description}
+                  onChange={e => setNewJournalForm({ ...newJournalForm, description: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    background: T.inputBg,
+                    color: T.txtPrimary,
+                    fontSize: '0.82rem'
+                  }}
+                />
+              </div>
+
+              {/* SUBMIT BUTTON */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddJournalModal(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    background: 'transparent',
+                    color: T.txtSecondary,
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: newJournalForm.type === 'income' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: T.shadowSm
+                  }}
+                >
+                  Simpan Transaksi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* RIWAYAT TRANSAKSI AKUN MODAL */}
       {accountDetailModal && (
