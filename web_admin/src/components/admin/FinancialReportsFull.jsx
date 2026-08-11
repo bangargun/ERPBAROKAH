@@ -295,7 +295,30 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
 
     const pendapatanUsaha = rawSalesTotal;
     const diskonPenjualan = realDiscountsTotal > 0 ? -realDiscountsTotal : 0;
-    const totalIncomeVal = pendapatanUsaha + diskonPenjualan;
+
+    const otherIncomeMap = {};
+    financialRecords
+      .filter(f => f.type === 'other_income' || f.type === 'income' || f.type === 'pendapatan')
+      .forEach(f => {
+        const rawName = (f.category && f.category !== 'Import Batch Excel' && f.category !== 'Update Laporan Manual' ? f.category : null)
+          || (f.categoryName && f.categoryName !== 'Import Batch Excel' && f.categoryName !== 'Update Laporan Manual' ? f.categoryName : null)
+          || (f.name && f.name !== 'Import Batch Excel' && f.name !== 'Update Laporan Manual' ? f.name : null)
+          || (f.notes && f.notes !== 'Import Batch Excel' && f.notes !== 'Update Laporan Manual' ? f.notes : null)
+          || 'Pendapatan Lain-Lain / Non-Sales';
+        
+        if (!otherIncomeMap[rawName]) {
+          otherIncomeMap[rawName] = 0;
+        }
+        otherIncomeMap[rawName] += Number(f.amount || f.subtotal || 0);
+      });
+
+    const otherIncomeItems = Object.keys(otherIncomeMap).map((catName, idx) => ({
+      codeName: `[7${String(idx + 1).padStart(3, '0')}] ${catName}`,
+      amount: otherIncomeMap[catName]
+    }));
+
+    const totalOtherIncomeVal = otherIncomeItems.reduce((s, e) => s + e.amount, 0);
+    const totalIncomeVal = pendapatanUsaha + diskonPenjualan + totalOtherIncomeVal;
 
     let cashRevenueVal = cashSalesTotal;
     let qrisRevenueVal = 0;
@@ -466,29 +489,6 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     const totalExpenseVal = expenseList.reduce((s, e) => s + e.amount, 0);
     const netOperatingIncomeVal = grossProfitVal - totalExpenseVal;
 
-    const otherIncomeMap = {};
-    financialRecords
-      .filter(f => f.type === 'other_income' || f.type === 'income' || f.type === 'pendapatan')
-      .forEach(f => {
-        const rawName = (f.category && f.category !== 'Import Batch Excel' && f.category !== 'Update Laporan Manual' ? f.category : null)
-          || (f.categoryName && f.categoryName !== 'Import Batch Excel' && f.categoryName !== 'Update Laporan Manual' ? f.categoryName : null)
-          || (f.name && f.name !== 'Import Batch Excel' && f.name !== 'Update Laporan Manual' ? f.name : null)
-          || (f.notes && f.notes !== 'Import Batch Excel' && f.notes !== 'Update Laporan Manual' ? f.notes : null)
-          || 'Pendapatan Lain-Lain / Non-Sales';
-        
-        if (!otherIncomeMap[rawName]) {
-          otherIncomeMap[rawName] = 0;
-        }
-        otherIncomeMap[rawName] += Number(f.amount || f.subtotal || 0);
-      });
-
-    const otherIncomeItems = Object.keys(otherIncomeMap).map((catName, idx) => ({
-      codeName: `[7${String(idx + 1).padStart(3, '0')}] ${catName}`,
-      amount: otherIncomeMap[catName]
-    }));
-
-    const totalOtherIncomeVal = otherIncomeItems.reduce((s, e) => s + e.amount, 0);
-
     const otherExpenseMap = {};
     financialRecords
       .filter(f => f.type === 'other_expense')
@@ -511,9 +511,8 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     }));
 
     const totalOtherExpenseVal = otherExpenseItems.reduce((s, e) => s + e.amount, 0);
-
-    const netOtherIncomeVal = totalOtherIncomeVal - totalOtherExpenseVal;
-    const netIncomeVal = netOperatingIncomeVal + netOtherIncomeVal;
+    const netOtherIncomeVal = -totalOtherExpenseVal;
+    const netIncomeVal = netOperatingIncomeVal - totalOtherExpenseVal;
 
     return {
       pendapatanUsaha,
@@ -839,6 +838,9 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     csv += `"[4001.03] Penjualan Kartu Debit/Kredit (EDC)",${edcRevenueVal},${calcPercent(edcRevenueVal, totalIncomeVal)}%\n`;
     csv += `"[4001.04] Penjualan Transfer Bank",${transferRevenueVal},${calcPercent(transferRevenueVal, totalIncomeVal)}%\n`;
     csv += `"[4002] Diskon Penjualan (Potongan Promo)",${diskonPenjualan},${calcPercent(diskonPenjualan, totalIncomeVal)}%\n`;
+    otherIncomeItems.forEach(oi => {
+      csv += `"${oi.codeName}",${oi.amount},${calcPercent(oi.amount, totalIncomeVal)}%\n`;
+    });
     csv += `"TOTAL INCOME",${totalIncomeVal},100%\n`;
     csv += `COST OF GOODS SOLD,,\n`;
     csv += `"[5002] Harga Pokok Produksi / Penjualan (HPP)",${hppVal},${calcPercent(hppVal, totalIncomeVal)}%\n`;
@@ -856,17 +858,11 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
     });
     csv += `"TOTAL EXPENSE",${totalExpenseVal},${calcPercent(totalExpenseVal, totalIncomeVal)}%\n`;
     csv += `"NET OPERATING INCOME",${netOperatingIncomeVal},${calcPercent(netOperatingIncomeVal, totalIncomeVal)}%\n`;
-    csv += `OTHER INCOME,,\n`;
-    otherIncomeItems.forEach(oi => {
-      csv += `"${oi.codeName}",${oi.amount},${calcPercent(oi.amount, totalIncomeVal)}%\n`;
-    });
-    csv += `"TOTAL OTHER INCOME",${totalOtherIncomeVal},${calcPercent(totalOtherIncomeVal, totalIncomeVal)}%\n`;
     csv += `OTHER EXPENSE,,\n`;
     otherExpenseItems.forEach(oe => {
       csv += `"${oe.codeName}",${oe.amount},${calcPercent(oe.amount, totalIncomeVal)}%\n`;
     });
     csv += `"TOTAL OTHER EXPENSE",${totalOtherExpenseVal},${calcPercent(totalOtherExpenseVal, totalIncomeVal)}%\n`;
-    csv += `"NET OTHER INCOME",${netOtherIncomeVal},${calcPercent(netOtherIncomeVal, totalIncomeVal)}%\n`;
     csv += `"NET INCOME",${netIncomeVal},${calcPercent(netIncomeVal, totalIncomeVal)}%\n`;
 
     const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
@@ -2212,6 +2208,27 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     </td>
                   </tr>
 
+                  {/* OTHER INCOME (PENDAPATAN LAIN-LAIN / NON-SALES) INSIDE INCOME SECTION */}
+                  {otherIncomeItems.map((oi, idx) => (
+                    <tr
+                      key={idx}
+                      onClick={() => handleOpenAccountDetail(`700${idx+1}`, oi.codeName, oi.amount)}
+                      style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{oi.codeName}</span>
+                        <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
+                        {formatLunaCurrency(oi.amount)}
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
+                        {calcPercent(oi.amount, totalIncomeVal)}
+                      </td>
+                    </tr>
+                  ))}
+
                   {/* TOTAL INCOME */}
                   <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
                     <td style={{ padding: '12px 16px', color: T.success }}>Total Income</td>
@@ -2219,7 +2236,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                       {formatLunaCurrency(totalIncomeVal)}
                     </td>
                     <td style={{ textAlign: 'right', padding: '12px 16px', color: T.success }}>
-                      100
+                      100%
                     </td>
                   </tr>
 
@@ -2368,40 +2385,7 @@ export default function FinancialReportsFull({ masterData, selectedBranch, theme
                     </td>
                   </tr>
 
-                  {/* 6. OTHER INCOME */}
-                  <tr>
-                    <td colSpan={3} style={{ fontWeight: '900', color: T.txtPrimary, padding: '20px 12px 10px 12px', fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Other Income
-                    </td>
-                  </tr>
-                  {otherIncomeItems.map((oi, idx) => (
-                    <tr
-                      key={idx}
-                      onClick={() => handleOpenAccountDetail(`700${idx+1}`, oi.codeName, oi.amount)}
-                      style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <td style={{ padding: '10px 12px 10px 24px', color: T.info, fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>{oi.codeName}</span>
-                        <ExternalLink size={15} color={T.info} style={{ opacity: 0.6 }} />
-                      </td>
-                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtPrimary, fontWeight: '700', fontSize: '15px' }}>
-                        {formatLunaCurrency(oi.amount)}
-                      </td>
-                      <td style={{ textAlign: 'right', padding: '10px 16px', color: T.txtSecondary, fontWeight: '700', fontSize: '15px' }}>
-                        {calcPercent(oi.amount, totalIncomeVal)}
-                      </td>
-                    </tr>
-                  ))}
-                  <tr style={{ fontWeight: '800', background: T.tableStripeBg, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}`, fontSize: '15px' }}>
-                    <td style={{ padding: '12px 16px', color: T.success }}>Total Other Income</td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.success }}>
-                      {formatLunaCurrency(totalOtherIncomeVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '12px 16px', color: T.success }}>
-                      {calcPercent(totalOtherIncomeVal, totalIncomeVal)}
-                    </td>
-                  </tr>
+
 
                   {/* 7. OTHER EXPENSE */}
                   <tr>
