@@ -598,7 +598,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
           </div>
         </div>
 
-        {/* CARD 3: BIAYA BULANAN */}
+        {/* CARD 3: BEBAN BULANAN */}
         <div style={{
           background: T.cardBg,
           padding: '18px 20px',
@@ -612,7 +612,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: '800', color: T.danger, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              🔴 Biaya Bulan Dipilih
+              🔴 Beban Bulan Dipilih
             </span>
             <div style={{ padding: '8px', background: T.dangerBg || 'rgba(239,68,68,0.15)', borderRadius: '10px', color: T.danger }}>
               <TrendingDown size={20} />
@@ -628,7 +628,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
           </div>
         </div>
 
-        {/* CARD 4: BIAYA HARIAN */}
+        {/* CARD 4: BEBAN HARIAN */}
         <div style={{
           background: T.cardBg,
           padding: '18px 20px',
@@ -642,7 +642,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#f43f5e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              🔴 Biaya Hari Dipilih
+              🔴 Beban Hari Dipilih
             </span>
             <div style={{ padding: '8px', background: 'rgba(244,63,94,0.15)', borderRadius: '10px', color: '#f43f5e' }}>
               <AlertTriangle size={20} />
