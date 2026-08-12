@@ -1,3 +1,6 @@
+# 📌 UTAMA: Selalu Cek `ingat.md` & `gemini.md` Sebelum Eksekusi Kode
+> ⛔ **DILARANG DATA MOCK / PALSU**: Jika data kosong, biarkan saja kosong (`ingat.md`).
+
 ## 🛡️ 1. Core Security Architecture & Role-Based Access Control (RBAC)
 
 ### 🔄 Build Synchronization & Single Source of Truth Rule

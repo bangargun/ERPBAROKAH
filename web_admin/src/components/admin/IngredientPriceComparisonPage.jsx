@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   Scale, Search, TrendingUp, TrendingDown, DollarSign, Filter, Info,
-  Check, Layers, AlertTriangle, RotateCcw, ChevronDown, FileSpreadsheet, Printer
+  Check, Layers, AlertTriangle, RotateCcw, ChevronDown, FileSpreadsheet, Printer, Calendar
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PaginationControls from './PaginationControls';
@@ -221,6 +221,136 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
   const isBahanTab      = activeTab.includes('bahan');
   const currentItemList = isBahanTab ? uniqueIngredientNames : uniqueExpenseNames;
 
+  // ─── COMPUTATION FOR OMZET & BIAYA (BULANAN & HARIAN) ───
+  const activeSelectedDate = useMemo(() => {
+    if (endDate) return endDate;
+    if (startDate) return startDate;
+    return new Date().toISOString().substring(0, 10);
+  }, [startDate, endDate]);
+
+  const activeSelectedMonth = useMemo(() => {
+    return activeSelectedDate.substring(0, 7);
+  }, [activeSelectedDate]);
+
+  const isOutletMatchFilter = useCallback((otlId) => {
+    if (!selectedBranch || selectedBranch === 'ALL' || String(selectedBranch).includes('Konsolidasi')) return true;
+    return String(otlId) === String(selectedBranch);
+  }, [selectedBranch]);
+
+  const allSalesEntries = useMemo(() => {
+    const map = new Map();
+    const rawPOS = [
+      ...(masterData?.salesTransactions || []),
+      ...(masterData?.transactions || []),
+      ...(masterData?.outletTransactions || [])
+    ];
+    rawPOS.forEach(t => {
+      if (t && t.id != null) {
+        const dt = String(t.entry_date || t.date || t.transaction_date || t.timestamp || t.created_at || '').substring(0, 10);
+        const otl = String(t.outlet_id || t.branch_id || 1);
+        const amt = Number(t.amount || t.total || t.grand_total || t.total_sales || 0);
+        if (dt && amt > 0 && isOutletMatchFilter(otl)) {
+          map.set(`pos-${t.id}`, { date: dt, amount: amt, outlet_id: otl });
+        }
+      }
+    });
+
+    const rawDaily = [
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.dailyReports || []),
+      ...(masterData?.shiftReports || [])
+    ];
+    rawDaily.forEach(r => {
+      if (r && r.id != null) {
+        const dt = String(r.entry_date || r.date || r.created_at || '').substring(0, 10);
+        const otl = String(r.outlet_id || r.branch_id || 1);
+        const amt = Number(r.income_total || r.total_sales || r.omset || r.grand_total || 0);
+        if (dt && amt > 0 && isOutletMatchFilter(otl) && !map.has(`pos-${r.id}`)) {
+          map.set(`daily-${r.id}`, { date: dt, amount: amt, outlet_id: otl });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [masterData, isOutletMatchFilter]);
+
+  const allExpenseEntries = useMemo(() => {
+    const list = [];
+    const rawExpenses = [
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.manualEntryRecords || []),
+      ...(masterData?.financialRecords || [])
+    ];
+    rawExpenses.forEach(r => {
+      const dt = String(r.entry_date || r.date || r.created_at || '').substring(0, 10);
+      const otl = String(r.outlet_id || r.branch_id || 1);
+      if (dt && isOutletMatchFilter(otl)) {
+        const breakdown = r.expense_details || r.expenses_breakdown || [];
+        if (Array.isArray(breakdown) && breakdown.length > 0) {
+          breakdown.forEach(ex => {
+            const amt = Number(ex.amount || ex.subtotal || 0);
+            if (amt > 0) list.push({ date: dt, amount: amt, outlet_id: otl });
+          });
+        } else {
+          const amt = Number(r.expense_total || r.total_expenses || r.amount || 0);
+          if (amt > 0 && (r.type === 'expense' || r.expense_amount > 0 || String(r.category_name || '').toLowerCase().includes('biaya'))) {
+            list.push({ date: dt, amount: amt, outlet_id: otl });
+          }
+        }
+      }
+    });
+
+    const rawPurchases = [
+      ...(masterData?.approvedLogistics || []),
+      ...(masterData?.purchases || []),
+      ...(masterData?.stok_masuk || [])
+    ];
+    rawPurchases.forEach(p => {
+      const dt = String(p.entry_date || p.date || p.created_at || '').substring(0, 10);
+      const otl = String(p.outlet_id || p.branch_id || 1);
+      const amt = Number(p.total_cost || p.amount || p.total || 0);
+      if (dt && amt > 0 && isOutletMatchFilter(otl)) {
+        list.push({ date: dt, amount: amt, outlet_id: otl });
+      }
+    });
+
+    return list;
+  }, [masterData, isOutletMatchFilter]);
+
+  const totalOmzetBulan = useMemo(() => {
+    return allSalesEntries
+      .filter(s => s.date.substring(0, 7) === activeSelectedMonth)
+      .reduce((sum, item) => sum + item.amount, 0);
+  }, [allSalesEntries, activeSelectedMonth]);
+
+  const totalOmzetHarian = useMemo(() => {
+    return allSalesEntries
+      .filter(s => s.date === activeSelectedDate)
+      .reduce((sum, item) => sum + item.amount, 0);
+  }, [allSalesEntries, activeSelectedDate]);
+
+  const totalBiayaBulan = useMemo(() => {
+    return allExpenseEntries
+      .filter(e => e.date.substring(0, 7) === activeSelectedMonth)
+      .reduce((sum, item) => sum + item.amount, 0);
+  }, [allExpenseEntries, activeSelectedMonth]);
+
+  const totalBiayaHarian = useMemo(() => {
+    return allExpenseEntries
+      .filter(e => e.date === activeSelectedDate)
+      .reduce((sum, item) => sum + item.amount, 0);
+  }, [allExpenseEntries, activeSelectedDate]);
+
+  const formatMonthName = (yearMonthStr) => {
+    try {
+      const [y, m] = yearMonthStr.split('-');
+      const d = new Date(Number(y), Number(m) - 1, 1);
+      return d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    } catch {
+      return yearMonthStr;
+    }
+  };
+
   const handleTabChange = (tabId) => {
     setActiveTab(tabId); setCurrentPage(1); setSelectedItem('ALL');
     setShowItemDropdown(false); setItemDropdownSearch('');
@@ -403,6 +533,129 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
             <Printer size={16} />
             <span>PDF</span>
           </button>
+        </div>
+      </div>
+
+      {/* ─── 4 CARD RINGKASAN OMZET & BIAYA (BULANAN & HARIAN) ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
+        {/* CARD 1: OMZET BULANAN */}
+        <div style={{
+          background: T.cardBg,
+          padding: '18px 20px',
+          borderRadius: '16px',
+          border: '1px solid ' + (T.successBorder || '#10b98140'),
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: T.success, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              🟢 Omzet Bulan Dipilih
+            </span>
+            <div style={{ padding: '8px', background: T.successBg || 'rgba(16,185,129,0.15)', borderRadius: '10px', color: T.success }}>
+              <TrendingUp size={20} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.success }}>
+              Rp {totalOmzetBulan.toLocaleString('id-ID')}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
+              📅 {formatMonthName(activeSelectedMonth)}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 2: OMZET HARIAN */}
+        <div style={{
+          background: T.cardBg,
+          padding: '18px 20px',
+          borderRadius: '16px',
+          border: '1px solid ' + (T.successBorder || '#34d39940'),
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              🟢 Omzet Hari Dipilih
+            </span>
+            <div style={{ padding: '8px', background: 'rgba(52,211,153,0.15)', borderRadius: '10px', color: '#10b981' }}>
+              <DollarSign size={20} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#10b981' }}>
+              Rp {totalOmzetHarian.toLocaleString('id-ID')}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
+              📅 {fmtDate(activeSelectedDate)}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 3: BIAYA BULANAN */}
+        <div style={{
+          background: T.cardBg,
+          padding: '18px 20px',
+          borderRadius: '16px',
+          border: '1px solid ' + (T.dangerBorder || '#ef444440'),
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: T.danger, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              🔴 Biaya Bulan Dipilih
+            </span>
+            <div style={{ padding: '8px', background: T.dangerBg || 'rgba(239,68,68,0.15)', borderRadius: '10px', color: T.danger }}>
+              <TrendingDown size={20} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.danger }}>
+              Rp {totalBiayaBulan.toLocaleString('id-ID')}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
+              📅 {formatMonthName(activeSelectedMonth)}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 4: BIAYA HARIAN */}
+        <div style={{
+          background: T.cardBg,
+          padding: '18px 20px',
+          borderRadius: '16px',
+          border: '1px solid ' + (T.dangerBorder || '#f8717140'),
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#f43f5e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              🔴 Biaya Hari Dipilih
+            </span>
+            <div style={{ padding: '8px', background: 'rgba(244,63,94,0.15)', borderRadius: '10px', color: '#f43f5e' }}>
+              <AlertTriangle size={20} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#f43f5e' }}>
+              Rp {totalBiayaHarian.toLocaleString('id-ID')}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
+              📅 {fmtDate(activeSelectedDate)}
+            </div>
+          </div>
         </div>
       </div>
 
