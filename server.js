@@ -420,10 +420,12 @@ const initMySQLPool = async () => {
       password: process.env.MYSQL_PASSWORD || '',
       database: process.env.MYSQL_DATABASE || 'mris_db',
       port: Number(process.env.MYSQL_PORT) || 3306,
-      waitForConnections: false,
-      connectionLimit: 5,
-      connectTimeout: 2500,
-      queueLimit: 0
+      waitForConnections: true,
+      connectionLimit: 20,
+      connectTimeout: 5000,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0
     });
     mysqlInitError = null;
     console.log('✅ MySQL Pool Initialized for VPS (187.77.122.142) mris_db Storage');
@@ -574,7 +576,13 @@ const ensureMasterDataTable = async () => {
       )
     `);
 
-    console.log('✅ Semua tabel relasional MySQL siap');
+    // Auto-create MySQL Performance Indexes for Ultra-Responsive Queries
+    try { await mysqlPool.execute(`CREATE INDEX idx_web_user_name ON web_admin_users (username)`); } catch (e) {}
+    try { await mysqlPool.execute(`CREATE INDEX idx_mob_user_name ON mobile_pos_users (username)`); } catch (e) {}
+    try { await mysqlPool.execute(`CREATE INDEX idx_sales_date_outlet ON sales_transactions (date, outlet_id)`); } catch (e) {}
+    try { await mysqlPool.execute(`CREATE INDEX idx_products_outlet ON products (outlet_id, category_id)`); } catch (e) {}
+
+    console.log('✅ Semua tabel relasional MySQL & Index Performa siap');
   } catch (err) {
     console.error('❌ Gagal membuat tabel:', err.message);
   }
