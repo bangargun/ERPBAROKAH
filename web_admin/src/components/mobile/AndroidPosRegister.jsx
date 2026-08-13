@@ -5415,7 +5415,11 @@ export default function AndroidPosRegister({
 
                           const isExcelReport = (item) => {
                             if (!item) return false;
-                            const rNo = String(item.report_no || item.id || '');
+                            const str = String(JSON.stringify(item));
+                            if (str.includes('UPD-') || str.includes('Batch Upload Excel') || str.includes('Update Laporan') || str.includes('Excel/Manual')) {
+                              return true;
+                            }
+                            const rNo = String(item.report_no || item.reportNo || item.no_laporan || item.noLaporan || item.id || item.code || '');
                             const src = String(item.source || '');
                             return rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan');
                           };

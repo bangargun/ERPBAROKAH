@@ -427,10 +427,25 @@ const initMySQLPool = async () => {
       enableKeepAlive: true,
       keepAliveInitialDelay: 0
     });
-    mysqlInitError = null;
-    console.log('✅ MySQL Pool Initialized for VPS (187.77.122.142) mris_db Storage');
-    // Auto-create master data table jika belum ada
     await ensureMasterDataTable();
+
+    // Auto-Purge all legacy UPD- records directly from MySQL mris_master_data table on startup
+    try {
+      const [rows] = await mysqlPool.execute('SELECT data FROM mris_master_data WHERE id = 1');
+      if (rows && rows.length > 0 && rows[0].data) {
+        const dbData = JSON.parse(rows[0].data);
+        const cleanedDbData = sanitizeMasterDataPayload(dbData);
+        cleanedDbData._lastUpdated = Date.now();
+        const json = JSON.stringify(cleanedDbData);
+        await mysqlPool.execute(`
+          INSERT INTO mris_master_data (id, data) VALUES (1, ?)
+          ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP
+        `, [json]);
+        console.log('🧹 PERMANENTLY PURGED all legacy UPD- records from MySQL database on startup!');
+      }
+    } catch (purgeErr) {
+      console.error('⚠️ DB Purge warning:', purgeErr.message);
+    }
   } catch (err) {
     mysqlInitError = err.message;
   }
@@ -1732,14 +1747,18 @@ const sanitizeMasterDataPayload = (data) => {
   // Hapus seluruh data UPD- dan Update Laporan Excel dari POS Kasir (shiftReports, approvedFinanceDaily, manualEntryRecords, salesTransactions)
   const isExcelUploadReport = (item) => {
     if (!item) return false;
-    const rNo = String(item.report_no || item.id || '');
+    const str = String(JSON.stringify(item));
+    if (str.includes('UPD-') || str.includes('Batch Upload Excel') || str.includes('Update Laporan') || str.includes('Excel/Manual')) {
+      return true;
+    }
+    const rNo = String(item.report_no || item.reportNo || item.no_laporan || item.noLaporan || item.id || item.code || '');
     const src = String(item.source || '');
     return rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan');
   };
 
   const POS_REPORT_KEYS = [
     'approvedFinanceDaily', 'manualEntryRecords', 'shiftReports',
-    'dailyReports', 'manualReports', 'salesTransactions', 'outletTransactions', 'transactions'
+    'dailyReports', 'manualReports', 'salesTransactions', 'outletTransactions', 'transactions', 'closedShifts', 'shift_closings'
   ];
 
   POS_REPORT_KEYS.forEach(key => {
