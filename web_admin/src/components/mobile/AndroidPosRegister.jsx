@@ -1749,7 +1749,7 @@ export default function AndroidPosRegister({
     setCart(cart.filter(item => item.id !== productId && String(item.id) !== String(productId)));
   };
 
-  const handleClearCart = () => {
+  const handleClearCart = useCallback(() => {
     setCart([]);
     setDiscountValue('');
     setDiscountInputVal('');
@@ -1760,7 +1760,21 @@ export default function AndroidPosRegister({
     setAdjustmentReasonInput('');
     setAdjustmentErrorMsg('');
     setProductNominalDiscount('');
-  };
+    setOpenedOriginalCart(null);
+    setActiveRecallOrderId(null);
+  }, []);
+
+  // BATAL/KOSONGKAN KERANJANG TANPA MENCETAK STRUK APAPUN
+  const handleCancelCartOrder = useCallback(() => {
+    if (cart.length === 0 && !openedOriginalCart && !activeRecallOrderId) {
+      handleClearCart();
+      return;
+    }
+
+    if (window.confirm('Apakah Anda yakin ingin membatalkan & mengosongkan keranjang pesanan ini?')) {
+      handleClearCart();
+    }
+  }, [cart, openedOriginalCart, activeRecallOrderId, handleClearCart]);
 
   const handleUpdateItemDiscount = (itemId, discountVal) => {
     setCart(cart.map(item => {
@@ -3965,9 +3979,34 @@ export default function AndroidPosRegister({
                     </div>
                   </div>
 
-                  {/* Bottom Action Row 1: Cetak Tagihan & Simpan */}
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                  {/* Bottom Action Row 1: Batal, Cetak Tagihan, & Simpan */}
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <button
+                      type="button"
+                      disabled={cart.length === 0 && !activeRecallOrderId}
+                      onClick={handleCancelCartOrder}
+                      style={{
+                        flex: '0 0 76px',
+                        height: '42px',
+                        background: (cart.length > 0 || activeRecallOrderId) ? 'rgba(239,68,68,0.15)' : 'transparent',
+                        border: `1px solid ${(cart.length > 0 || activeRecallOrderId) ? '#ef4444' : T.border}`,
+                        color: (cart.length > 0 || activeRecallOrderId) ? '#ef4444' : T.txtMuted,
+                        borderRadius: '8px',
+                        fontWeight: '800',
+                        fontSize: '0.80rem',
+                        cursor: (cart.length > 0 || activeRecallOrderId) ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                      title="Batalkan & kosongkan keranjang pesanan tanpa mencetak struk"
+                    >
+                      <X size={15} />
+                      <span>Batal</span>
+                    </button>
+                    <button
+                      type="button"
                       disabled={cart.length === 0}
                       onClick={handleGenerateContohTagihan}
                       style={{
@@ -3983,13 +4022,14 @@ export default function AndroidPosRegister({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '6px'
+                        gap: '4px'
                       }}
                     >
                       <FileText size={15} />
-                      <span>Contoh Tagihan</span>
+                      <span>Tagihan</span>
                     </button>
                     <button
+                      type="button"
                       disabled={cart.length === 0}
                       onClick={handleHoldTableOrder}
                       style={{
