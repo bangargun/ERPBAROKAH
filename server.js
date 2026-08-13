@@ -421,8 +421,8 @@ const initMySQLPool = async () => {
       database: process.env.MYSQL_DATABASE || 'mris_db',
       port: Number(process.env.MYSQL_PORT) || 3306,
       waitForConnections: true,
-      connectionLimit: 20,
-      connectTimeout: 5000,
+      connectionLimit: 50,
+      connectTimeout: 10000,
       queueLimit: 0,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0
@@ -1750,11 +1750,16 @@ app.get('/api/master-data', async (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   try {
+    const clientTs = Number(req.query.ts || req.headers['x-mris-ts'] || 0);
     const mysqlData = await getMasterDataFromMySQL();
-    if (mysqlData && typeof mysqlData === 'object') {
-      return res.json(sanitizeMasterDataPayload(mysqlData));
+    const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : masterData;
+    const serverTs = Number(activeData._lastUpdated || 0);
+
+    if (clientTs > 0 && serverTs > 0 && clientTs >= serverTs) {
+      return res.status(304).end();
     }
-    return res.json(sanitizeMasterDataPayload(masterData));
+
+    return res.json(sanitizeMasterDataPayload(activeData));
   } catch (err) {
     return res.json(sanitizeMasterDataPayload(masterData));
   }
@@ -2071,6 +2076,11 @@ const startServer = (portToUse, retries = 5) => {
   const server = app.listen(portToUse, '0.0.0.0', () => {
     console.log(`🚀 MRIS Full-Stack App & API running on http://0.0.0.0:${portToUse}`);
   });
+
+  // Tuned for 25+ simultaneous POS Kasir Android devices & Web Admin clients
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+  server.maxHeadersCount = 3000;
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE' && retries > 0) {
