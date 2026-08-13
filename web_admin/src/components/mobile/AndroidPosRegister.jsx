@@ -1674,6 +1674,8 @@ export default function AndroidPosRegister({
 
     const txList = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
       if (!t) return false;
+      // Filter out transactions created by Excel report uploads from POS Kasir view
+      if (t.source === 'Batch Upload Excel' || t.source === 'Update Laporan Excel/Manual' || t.source === 'Update Laporan Manual') return false;
       const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
       const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
       if (tid && deletedSalesSet.has(tid)) return false;

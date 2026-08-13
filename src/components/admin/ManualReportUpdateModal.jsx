@@ -1086,16 +1086,28 @@ export default function ManualReportUpdateModal({
     const totalTotalPemasukan = totalSalesOmsetAll + totalPendapatanLainAll;
     const netCashFlowAll = totalTotalPemasukan - totalExpenseAmountAll;
 
-    // 4. SAVE TO MASTER DATA STATE LOCALLY
+    // 4. SAVE TO MASTER DATA STATE LOCALLY WITH STRICT POS KASIR ISOLATION
     const oldId = isEditMode ? String(editData.id) : null;
     const filterOld = (arr) => oldId ? (arr || []).filter(r => String(r.id) !== oldId) : (arr || []);
+    const isExcelImport = activeTab === 'excel';
+
+    // Purge any Excel Upload records from POS Kasir salesTransactions & shiftReports
+    const cleanSalesTx = (masterData?.salesTransactions || []).filter(t => 
+      t && t.source !== 'Batch Upload Excel' && t.source !== 'Update Laporan Excel/Manual'
+    );
+    const cleanShiftReports = (masterData?.shiftReports || []).filter(r => 
+      r && r.source !== 'Batch Upload Excel' && r.source !== 'Update Laporan Excel/Manual'
+    );
+    const cleanApprovedDaily = (masterData?.approvedFinanceDaily || []).filter(r => 
+      r && r.source !== 'Batch Upload Excel' && r.source !== 'Update Laporan Excel/Manual'
+    );
 
     const updatedManualRecords = [...allNewReportRecords, ...filterOld(masterData?.manualEntryRecords)];
-    const updatedApprovedDaily = [...allNewReportRecords, ...filterOld(masterData?.approvedFinanceDaily)];
-    const updatedShiftReports  = [...allNewReportRecords, ...filterOld(masterData?.shiftReports)];
-    const updatedMovements     = [...newStockMovements,   ...(masterData?.stockMovement || [])];
+    const updatedApprovedDaily = isExcelImport ? cleanApprovedDaily : [...allNewReportRecords, ...filterOld(cleanApprovedDaily)];
+    const updatedShiftReports  = isExcelImport ? cleanShiftReports : [...allNewReportRecords, ...filterOld(cleanShiftReports)];
+    const updatedMovements     = [...newStockMovements, ...(masterData?.stockMovement || [])];
     const updatedFinRecords    = [...allNewFinancialRecords, ...(masterData?.financialRecords || [])];
-    const updatedSalesTx       = [...allNewSalesTxRecords, ...(masterData?.salesTransactions || []), ...(masterData?.outletTransactions || [])];
+    const updatedSalesTx       = isExcelImport ? cleanSalesTx : [...allNewSalesTxRecords, ...cleanSalesTx];
 
     setMasterData({
       ...masterData,
@@ -1109,7 +1121,8 @@ export default function ManualReportUpdateModal({
       shiftReports: updatedShiftReports,
       financialRecords: updatedFinRecords,
       salesTransactions: updatedSalesTx,
-      outletTransactions: updatedSalesTx
+      outletTransactions: updatedSalesTx,
+      transactions: updatedSalesTx
     });
 
     let autoMsg = '';
