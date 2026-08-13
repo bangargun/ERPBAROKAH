@@ -18,3 +18,13 @@
 - **Single Source of Truth**: `web_admin/src/` adalah sumber utama kode Web Admin.
 - **Deploy Perintah Tunggal**: Selalu gunakan `npm run deploy` dari laptop lokal (`/Users/argun/Documents/MRIS`). Jangan jalankan deploy dari SSH VPS.
 - **APK Naming & Versioning**: Penamaan APK rilis harus selalu menggunakan versi bertambah yang jelas dan universal fleksibel untuk semua layar tablet & phone.
+
+---
+
+## 📱 3. Aturan Alur Transaksi POS Kasir (Non-FIFO & Flexible Cart Access)
+- **Fleksibilitas Transaksi Belum Dibayar**:
+  Setiap transaksi yang belum dibayarkan (Dine In Meja, Take Away, Pesanan Gantung/Hold Order) dapat dimasukkan ke keranjang (Cart) kapan saja.
+- **Bebas Akses Kapan Saja (Tanpa Aturan FIFO)**:
+  Kasir dapat melakukan pembayaran, perubahan (tambah/kurang menu), atau pembatalan untuk pesanan mana pun **kapan saja secara acak/fleksibel TANPA harus mengikuti antrean FIFO (First In First Out)**.
+- **Tombol Batal di Cart**:
+  Menekan tombol Batal/Kosongkan di Cart hanya membatalkan/mengosongkan sesi keranjang aktif tanpa mengubah urutan pesanan gantung lainnya dan TANPA memicu cetak struk otomatis.

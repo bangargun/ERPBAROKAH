@@ -3649,16 +3649,53 @@ export default function AndroidPosRegister({
                   </div>
                 </div>
 
-                {/* Dine In Info Bar */}
+                {/* Dine In Info Bar with Interactive Table Dropdown Selector */}
                 <div style={{ padding: '8px 16px', background: T.bgCard, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtSecondary, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>🪑</span>
-                      <span>Table {selectedTableObj?.number || '01'}</span>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {orderType === 'Dine In' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.bgApp, padding: '3px 8px', borderRadius: '8px', border: `1px solid ${T.borderSubtle}` }}>
+                        <span style={{ fontSize: '0.88rem' }}>🪑</span>
+                        <select
+                          value={selectedTableId}
+                          onChange={(e) => {
+                            const targetId = e.target.value;
+                            const targetTable = tables.find(t => t.id === targetId);
+                            if (targetTable) {
+                              setSelectedTableId(targetId);
+                              if (targetTable.pendingOrder && targetTable.pendingOrder.items) {
+                                handleCheckoutOccupiedTable(targetTable);
+                              }
+                            }
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: isLight ? '#1d4ed8' : '#60a5fa',
+                            fontSize: '0.84rem',
+                            fontWeight: '900',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            paddingRight: '4px'
+                          }}
+                          title="Pilih Nomor Meja Pelanggan (Meja 01, Meja 02, dst.)"
+                        >
+                          {tables.map(tbl => (
+                            <option key={tbl.id} value={tbl.id} style={{ background: T.bgCard, color: T.txtPrimary }}>
+                              {tbl.number} {tbl.status === 'occupied' ? '🔴 (Terisi)' : '🟢 (Kosong)'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>📦</span>
+                        <span>Take Away</span>
+                      </div>
+                    )}
+
                     <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <User size={13} />
-                      <span>{guestCount}</span>
+                      <span>{guestCount} Pax</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '4px', background: T.bgApp, padding: '3px', borderRadius: '8px', border: `1px solid ${T.borderSubtle}` }}>
