@@ -280,14 +280,25 @@ export default function App() {
             setMasterData(prev => {
               const localTs = prev._lastUpdated || 0;
 
+              // Track user accounts currently active in local state so tombstones never purge them
+              const activeUsernamesInPrev = new Set([
+                ...(prev.webAdminAccounts || []),
+                ...(prev.mobileAccounts || [])
+              ].map(u => String(u?.username || u?.name || '').toLowerCase().trim()).filter(Boolean));
+
+              const activeUserIdsInPrev = new Set([
+                ...(prev.webAdminAccounts || []),
+                ...(prev.mobileAccounts || [])
+              ].map(u => String(u?.id)).filter(Boolean));
+
               const deletedUserIdsSet = new Set([
-                ...(prev.deletedUserIds || []),
-                ...(serverData.deletedUserIds || [])
+                ...(prev.deletedUserIds || []).filter(id => !activeUserIdsInPrev.has(String(id))),
+                ...(serverData.deletedUserIds || []).filter(id => !activeUserIdsInPrev.has(String(id)))
               ].map(x => String(x)));
 
               const deletedUsernamesSet = new Set([
-                ...(prev.deletedUsernames || []),
-                ...(serverData.deletedUsernames || [])
+                ...(prev.deletedUsernames || []).filter(u => !activeUsernamesInPrev.has(String(u).toLowerCase().trim())),
+                ...(serverData.deletedUsernames || []).filter(u => !activeUsernamesInPrev.has(String(u).toLowerCase().trim()))
               ].map(x => String(x).toLowerCase().trim()));
 
               const mergeUserAccountsList = (serverList = [], prevList = [], fallbackList = []) => {

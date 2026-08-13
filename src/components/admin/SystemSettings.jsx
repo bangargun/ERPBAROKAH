@@ -413,9 +413,15 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
         updatedList = [...currentList, newAccount];
       }
 
+      const targetUsernameKey = _username.toLowerCase().trim();
+      const updatedDeletedUsernames = (prev.deletedUsernames || []).filter(u => String(u).toLowerCase().trim() !== targetUsernameKey);
+      const updatedDeletedUserIds = (prev.deletedUserIds || []).filter(id => String(id) !== String(_editingUserId));
+
       const updatedMaster = {
         ...prev,
         _lastUpdated: Date.now(),
+        deletedUsernames: updatedDeletedUsernames,
+        deletedUserIds: updatedDeletedUserIds,
         webAdminAccounts: updatedList,
         userAccounts: [...updatedList, ...(prev.mobileAccounts || [])]
       };
@@ -567,9 +573,15 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
         updatedList = [...currentList, newAcc];
       }
 
+      const targetUsernameKey = _username.toLowerCase().trim();
+      const updatedDeletedUsernames = (prev.deletedUsernames || []).filter(u => String(u).toLowerCase().trim() !== targetUsernameKey);
+      const updatedDeletedUserIds = (prev.deletedUserIds || []).filter(id => String(id) !== String(_editingMobileId));
+
       const updatedMaster = {
         ...prev,
         _lastUpdated: Date.now(),
+        deletedUsernames: updatedDeletedUsernames,
+        deletedUserIds: updatedDeletedUserIds,
         mobileAccounts: updatedList,
         userAccounts: [...(prev.webAdminAccounts || []), ...updatedList]
       };

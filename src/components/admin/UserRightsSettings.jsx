@@ -41,6 +41,7 @@ const DEFAULT_WEB_MATRIX = [
 
 const DEFAULT_MOBILE_MATRIX = [
   { role: 'Super Admin / Owner', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, mobileReports: true, shiftClosing: true },
+  { role: 'Admin', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, mobileReports: true, shiftClosing: true },
   { role: 'Kepala Cabang / SPV', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, mobileReports: true, shiftClosing: true },
   { role: 'Kasir', posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: true },
   { role: 'Logistik & Dapur', posCashier: false, voidOrder: false, manualDiscount: false, stockOpname: true, receiveGoods: true, mobileReports: false, shiftClosing: false }
@@ -85,17 +86,31 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
 
   const outlets = masterData?.outlets || [];
 
+  // Helper to ensure 'Admin' role exists in matrix
+  const ensureAdminInMatrix = useCallback((matrix, defaultMatrix) => {
+    const list = Array.isArray(matrix) && matrix.length > 0 ? [...matrix] : [...defaultMatrix];
+    const hasAdmin = list.some(r => r.role === 'Admin');
+    if (!hasAdmin) {
+      const defaultAdminRow = defaultMatrix.find(r => r.role === 'Admin');
+      if (defaultAdminRow) {
+        const insertIdx = list.findIndex(r => r.role === 'Super Admin' || r.role === 'Owner' || r.role === 'Super Admin / Owner');
+        if (insertIdx !== -1) {
+          list.splice(insertIdx + 1, 0, defaultAdminRow);
+        } else {
+          list.push(defaultAdminRow);
+        }
+      }
+    }
+    return list;
+  }, []);
+
   // Load from masterData
   const loadUsers = useCallback(() => {
     setWebUsers(Array.isArray(masterData?.webAdminAccounts) ? masterData.webAdminAccounts : []);
     setMobileUsers(Array.isArray(masterData?.mobileAccounts) ? masterData.mobileAccounts : []);
-    if (Array.isArray(masterData?.permissionMatrix) && masterData.permissionMatrix.length > 0) {
-      setWebMatrix(masterData.permissionMatrix);
-    }
-    if (Array.isArray(masterData?.mobilePermissionMatrix) && masterData.mobilePermissionMatrix.length > 0) {
-      setMobileMatrix(masterData.mobilePermissionMatrix);
-    }
-  }, [masterData]);
+    setWebMatrix(ensureAdminInMatrix(masterData?.permissionMatrix, DEFAULT_WEB_MATRIX));
+    setMobileMatrix(ensureAdminInMatrix(masterData?.mobilePermissionMatrix, DEFAULT_MOBILE_MATRIX));
+  }, [masterData, ensureAdminInMatrix]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
@@ -108,8 +123,8 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
       if (data) {
         if (data.mobileAccounts) setMobileUsers(data.mobileAccounts);
         if (data.webAdminAccounts) setWebUsers(data.webAdminAccounts);
-        if (data.permissionMatrix) setWebMatrix(data.permissionMatrix);
-        if (data.mobilePermissionMatrix) setMobileMatrix(data.mobilePermissionMatrix);
+        setWebMatrix(ensureAdminInMatrix(data.permissionMatrix, DEFAULT_WEB_MATRIX));
+        setMobileMatrix(ensureAdminInMatrix(data.mobilePermissionMatrix, DEFAULT_MOBILE_MATRIX));
         setMasterData(data);
       }
     } catch (e) {
@@ -157,17 +172,30 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
     try {
       const key = modalType === 'web' ? 'webAdminAccounts' : 'mobileAccounts';
       let list = Array.isArray(masterData?.[key]) ? [...masterData[key]] : [];
+      const targetUsername = String(form.username || '').toLowerCase().trim();
 
+      let savedId;
       if (editingId) {
+        savedId = String(editingId);
         list = list.map(u => String(u.id) === String(editingId) ? { ...u, ...form, id: u.id } : u);
       } else {
-        const newId = Date.now();
-        list = [...list, { ...form, id: newId }];
+        savedId = String(Date.now());
+        list = [...list, { ...form, id: Number(savedId) }];
       }
+
+      // Hapus tombstone yang memblokir username/ID baru ini dari deletedUsernames & deletedUserIds
+      const updatedDeletedUsernames = (masterData?.deletedUsernames || []).filter(
+        u => String(u).toLowerCase().trim() !== targetUsername
+      );
+      const updatedDeletedUserIds = (masterData?.deletedUserIds || []).filter(
+        id => String(id) !== savedId
+      );
 
       const updated = {
         ...masterData,
         [key]: list,
+        deletedUsernames: updatedDeletedUsernames,
+        deletedUserIds: updatedDeletedUserIds,
         _lastUpdated: Date.now()
       };
 
@@ -181,12 +209,6 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
 
       // Trigger automatic save to server & React state via App.jsx setMasterData
       setMasterData(updated);
-
-      fetch('/api/master-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      }).catch(err => console.error('Save user server error:', err));
 
       setShowModal(false);
     } catch (err) {
