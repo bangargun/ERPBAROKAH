@@ -5413,9 +5413,16 @@ export default function AndroidPosRegister({
                             return deletedSet.has(itemId) || deletedSet.has(itemRNo);
                           };
 
+                          const isExcelReport = (item) => {
+                            if (!item) return false;
+                            const rNo = String(item.report_no || item.id || '');
+                            const src = String(item.source || '');
+                            return rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan');
+                          };
+
                           const recordsMap = new Map();
-                          const rawApproved = (masterData.approvedFinanceDaily || []).filter(item => !isDeleted(item));
-                          const rawManual = (masterData.manualEntryRecords || []).filter(item => !isDeleted(item));
+                          const rawApproved = (masterData.approvedFinanceDaily || []).filter(item => !isDeleted(item) && !isExcelReport(item));
+                          const rawManual = (masterData.manualEntryRecords || []).filter(item => !isDeleted(item) && !isExcelReport(item));
                           [...rawApproved, ...rawManual].forEach(item => {
                             if (item && (item.id || item.report_no)) {
                               const key = String(item.id || item.report_no);

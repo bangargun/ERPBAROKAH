@@ -1729,13 +1729,24 @@ const sanitizeMasterDataPayload = (data) => {
   if (!data || typeof data !== 'object') return data;
   const clean = { ...data };
 
-  // Hanya bersihkan nama data fiktif legacy jika ada (JANGAN hapus ID numerik milik pengguna)
-  if (Array.isArray(clean.outlets)) {
-    clean.outlets = clean.outlets.filter(o => o && o.name !== 'Outlet Cabang 2' && o.code !== 'RST-DUMMY');
-  }
-  if (Array.isArray(clean.suppliers)) {
-    clean.suppliers = clean.suppliers.filter(s => s && s.name !== 'PT Sembako Nusantara' && s.name !== 'UD Sayur Segar');
-  }
+  // Hapus seluruh data UPD- dan Update Laporan Excel dari POS Kasir (shiftReports, approvedFinanceDaily, manualEntryRecords, salesTransactions)
+  const isExcelUploadReport = (item) => {
+    if (!item) return false;
+    const rNo = String(item.report_no || item.id || '');
+    const src = String(item.source || '');
+    return rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan');
+  };
+
+  const POS_REPORT_KEYS = [
+    'approvedFinanceDaily', 'manualEntryRecords', 'shiftReports',
+    'dailyReports', 'manualReports', 'salesTransactions', 'outletTransactions', 'transactions'
+  ];
+
+  POS_REPORT_KEYS.forEach(key => {
+    if (Array.isArray(clean[key])) {
+      clean[key] = clean[key].filter(item => !isExcelUploadReport(item));
+    }
+  });
 
   return clean;
 };
