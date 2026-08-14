@@ -5494,13 +5494,33 @@ export default function AndroidPosRegister({
                 return dStr === todayStr;
               });
 
-              const omzetGross = filteredOmzetTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+              // ✅ Tambahkan omzet dari manualEntryRecords (UPD- / Update Laporan Web Admin)
+              // agar angka sesuai dengan Web Admin (yang membaca manualEntryRecords)
+              const omzetManualEntries = (masterData?.manualEntryRecords || []).filter(r => {
+                if (!r || !String(r.report_no || '').startsWith('UPD-')) return false;
+                const dStr = (r.entry_date || r.date || '').slice(0, 10);
+                if (!dStr) return false;
+                const outletMatch = !r.outlet_id || Number(r.outlet_id) === Number(currentOutlet?.id);
+                if (!outletMatch) return false;
+                if (omzetFilterMode === 'today')     return dStr === todayStr;
+                if (omzetFilterMode === 'yesterday') return dStr === yesterdayStr;
+                const start = omzetCustomStartDate || todayStr;
+                const end   = omzetCustomEndDate   || todayStr;
+                return dStr >= start && dStr <= end;
+              });
+              const omzetManualGross = omzetManualEntries.reduce((s, r) =>
+                s + Number(r.net_sales || r.total_sales || r.total_omset || r.gross_sales || 0), 0);
+              const omzetManualCash    = omzetManualEntries.reduce((s, r) => s + Number(r.cash_sales    || 0), 0);
+              const omzetManualNonCash = omzetManualEntries.reduce((s, r) => s + Number(r.non_cash_sales || 0), 0);
+
+              const omzetGross = filteredOmzetTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0) + omzetManualGross;
               const omzetCash = filteredOmzetTransactions
                 .filter(tx => String(tx.payment_method || '').toLowerCase().includes('cash') || String(tx.payment_method || '').toLowerCase().includes('tunai'))
-                .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+                .reduce((sum, tx) => sum + (tx.amount || 0), 0) + omzetManualCash;
               const omzetNonCash = filteredOmzetTransactions
                 .filter(tx => !String(tx.payment_method || '').toLowerCase().includes('cash') && !String(tx.payment_method || '').toLowerCase().includes('tunai'))
-                .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+                .reduce((sum, tx) => sum + (tx.amount || 0), 0) + omzetManualNonCash;
+
 
               let activeLabel = `Hari Ini (${todayStr})`;
               if (omzetFilterMode === 'yesterday') activeLabel = `Kemarin (${yesterdayStr})`;
