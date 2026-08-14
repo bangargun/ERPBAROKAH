@@ -4283,7 +4283,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
             {(() => {
               const handleAddTransferRow = () => {
-                const defaultIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                const defaultIng = ingredientsList[0] || { name: '', unit: 'kg' };
                 setTransferBatchRows(prev => [
                   ...prev,
                   {
@@ -4696,7 +4696,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   <button
                     type="button"
                     onClick={() => {
-                      const firstIng = ingredientsList[0] || { name: 'Daging Ayam Fillet', unit: 'kg' };
+                      const firstIng = ingredientsList[0] || { name: '', unit: 'kg' };
                       setRusakBatchRows(prev => [
                         ...prev,
                         { id: Date.now(), item_name: firstIng.name, custom_item_name: '', qty: 1, unit: firstIng.unit || 'kg', reason: 'Terlalu kecil', notes: '' }
