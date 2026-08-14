@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ClipboardCheck, 
   Search, 
@@ -110,9 +110,19 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     notes: ''
   });
 
-  // AUTO CALCULATE POS SALES FOR SELECTED DATE & OUTLET UP TO 23:59:59
+  // AUTO CALCULATE POS SALES FOR SELECTED DATE & OUTLET UP TO 23:59:59 (ONCE PER MODAL OPEN/CHANGE)
+  const lastAutofillKeyRef = useRef('');
+
   useEffect(() => {
-    if (!showAddModal) return;
+    if (!showAddModal) {
+      lastAutofillKeyRef.current = '';
+      return;
+    }
+
+    const currentKey = `${addForm.outlet_id}_${addForm.date}`;
+    // Only auto-fill if date or outlet changed, or first time opening modal
+    if (lastAutofillKeyRef.current === currentKey) return;
+    lastAutofillKeyRef.current = currentKey;
 
     const salesList = masterData?.salesTransactions || [];
     const targetDate = addForm.date;
@@ -146,7 +156,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       non_cash_sales: calcNonCash,
       sales_discount: calcDiscount
     }));
-  }, [addForm.date, addForm.outlet_id, showAddModal, masterData?.salesTransactions]);
+  }, [addForm.date, addForm.outlet_id, showAddModal]);
 
   const getOutletName = (id) => {
     const found = outletsList.find(o => Number(o.id) === Number(id));
@@ -170,8 +180,8 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   
   const computedGrossProfit = computedTotalIncome - computedTotalExpense;
 
-  // Uang di laci = Laba Kotor - Penjualan Non Cash - Diskon Penjualan
-  const computedCashInDrawer = computedGrossProfit - Number(addForm.non_cash_sales || 0) - Number(addForm.sales_discount || 0);
+  // Uang di laci = Penjualan Cash (Tunai) - Total Pengeluaran Kasir
+  const computedCashInDrawer = Math.max(0, Number(addForm.cash_sales || 0) - computedTotalExpense);
 
   // FORMULA PENGAMBILAN MODAL: Modal seharusnya - (Modal saat ini + Total dikembalikan)
   const computedTotalModalReturned = (addForm.modal_refund_rows || []).reduce((sum, r) => sum + (Number(r.amount_returned) || 0), 0);
@@ -1372,7 +1382,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                   <input
                     type="number"
                     value={addForm.cash_sales}
-                    onChange={e => setAddForm({ ...addForm, cash_sales: e.target.value })}
+                    onChange={e => setAddForm(prev => ({ ...prev, cash_sales: e.target.value }))}
                     style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.85rem' }}
                   />
                 </div>
@@ -1382,7 +1392,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                   <input
                     type="number"
                     value={addForm.non_cash_sales}
-                    onChange={e => setAddForm({ ...addForm, non_cash_sales: e.target.value })}
+                    onChange={e => setAddForm(prev => ({ ...prev, non_cash_sales: e.target.value }))}
                     style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc', fontWeight: '800', fontSize: '0.85rem' }}
                   />
                 </div>
@@ -1392,7 +1402,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                   <input
                     type="number"
                     value={addForm.sales_discount}
-                    onChange={e => setAddForm({ ...addForm, sales_discount: e.target.value })}
+                    onChange={e => setAddForm(prev => ({ ...prev, sales_discount: e.target.value }))}
                     style={{ padding: '9px 12px', background: '#1e293b', border: '1px solid rgba(251, 113, 133, 0.4)', borderRadius: '8px', color: '#fb7185', fontWeight: '800', fontSize: '0.85rem' }}
                   />
                 </div>
