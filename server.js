@@ -2073,12 +2073,32 @@ app.post('/api/db/restore-snapshot', async (req, res) => {
 });
 
 // Serve Web Admin UI (web_admin/dist)
-app.use(express.static(path.join(__dirname, 'web_admin', 'dist')));
+// Aset JS/CSS di-cache oleh browser karena nama file berubah setiap build (content hash)
+app.use('/assets', express.static(path.join(__dirname, 'web_admin', 'dist', 'assets'), {
+  maxAge: '1y',
+  immutable: true
+}));
+// File lain (index.html, favicon, dll) TIDAK di-cache agar WebView APK selalu muat versi terbaru
+app.use(express.static(path.join(__dirname, 'web_admin', 'dist'), {
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/phpmyadmin') || req.path.startsWith('/adminer') || req.path.startsWith('/db-explorer')) {
     return next();
   }
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
 });
 
