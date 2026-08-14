@@ -44,6 +44,61 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     const num = Number(val || 0);
     return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
+
+  // FORMAT TANGGAL + JAM, MENIT, DAN DETIK (HH:mm:ss)
+  const formatDateTimeWithSeconds = (item) => {
+    if (!item) return '-';
+
+    let datePart = item.date || item.entry_date || item.transaction_date || '';
+    let timePart = item.time || '';
+
+    if (item.created_at && String(item.created_at).includes('T')) {
+      const sub = String(item.created_at).split('T')[1];
+      if (sub) timePart = sub.substring(0, 8);
+    } else if (item.timestamp) {
+      if (typeof item.timestamp === 'number') {
+        const d = new Date(item.timestamp);
+        timePart = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      } else if (String(item.timestamp).includes('T')) {
+        const sub = String(item.timestamp).split('T')[1];
+        if (sub) timePart = sub.substring(0, 8);
+      }
+    }
+
+    if (datePart && datePart.includes('-')) {
+      const parts = datePart.split('T')[0].split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        const yr = parts[0];
+        const mIdx = parseInt(parts[1], 10) - 1;
+        const dy = parseInt(parts[2], 10);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+        if (mIdx >= 0 && mIdx < 12) {
+          datePart = `${String(dy).padStart(2, '0')} ${months[mIdx]} ${yr}`;
+        }
+      }
+    }
+
+    if (timePart) {
+      const tParts = timePart.split(':');
+      if (tParts.length === 2) {
+        timePart = `${tParts[0].padStart(2, '0')}:${tParts[1].padStart(2, '0')}:00`;
+      } else if (tParts.length >= 3) {
+        timePart = `${tParts[0].padStart(2, '0')}:${tParts[1].padStart(2, '0')}:${tParts[2].substring(0, 2).padStart(2, '0')}`;
+      }
+    } else {
+      timePart = '00:00:00';
+    }
+
+    return (
+      <div>
+        <div style={{ fontWeight: '700', color: T.txtPrimary }}>{datePart || '-'}</div>
+        <div style={{ fontSize: '0.74rem', color: T.accentGold, fontWeight: '700', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <span>⏰</span>
+          <span>{timePart}</span>
+        </div>
+      </div>
+    );
+  };
   
   // MASTER DATA PELANGGAN
   const customerList = (masterData?.customers && masterData.customers.length > 0)
@@ -1033,9 +1088,9 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 paginatedTransactions.map((item, idx) => (
                   <tr key={item.id || idx} style={{ borderBottom: '1px solid ${T.border}', background: T.cardBg }}>
                     
-                    {/* Tanggal */}
-                    <td style={{ padding: '16px', color: T.txtPrimary }}>
-                      {item.date}
+                    {/* Tanggal & Waktu (Jam:Menit:Detik) */}
+                    <td style={{ padding: '14px 16px', color: T.txtPrimary }}>
+                      {formatDateTimeWithSeconds(item)}
                     </td>
 
                     {/* Tipe */}
