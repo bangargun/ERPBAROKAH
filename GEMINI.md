@@ -285,3 +285,51 @@ const layout = {
 | Tablet 7–8" (kasir pendukung) | `Tab7in` |
 | Smartphone Android (darurat) | `Phone` |
 | Tablet besar manager | `Tab12in` |
+
+---
+
+## 🗂️ 11. Pola Filter Tanggal POS Kasir (v3.3.0 — 14 Agustus 2026)
+
+### Pattern Standar Filter `📅 Hari Ini | ⏮️ Kemarin | 📆 Custom`
+
+Semua tabel laporan di POS Kasir (`AndroidPosRegister.jsx`) menggunakan pola filter yang sama:
+
+**State yang dibutuhkan (per tabel):**
+```js
+const [xxxFilterMode,  setXxxFilterMode]  = useState('today'); // 'today' | 'yesterday' | 'custom'
+const [xxxCustomStart, setXxxCustomStart] = useState(() => new Date().toLocaleDateString('en-CA'));
+const [xxxCustomEnd,   setXxxCustomEnd]   = useState(() => new Date().toLocaleDateString('en-CA'));
+```
+
+**Helper `getLogDate(item)`** — normalisasi berbagai format tanggal logistik ke `YYYY-MM-DD`.
+
+**Filter logic:**
+```js
+.filter(item => {
+  const d = getLogDate(item);
+  if (!d) return true;
+  if (filterMode === 'today')     return d === sharedTodayStr;
+  if (filterMode === 'yesterday') return d === sharedYesterdayStr;
+  return d >= customStart && d <= customEnd;
+})
+```
+
+### Tabel yang Sudah Diimplementasi Filter Tanggal
+| Tabel | State Prefix | Default |
+|-------|-------------|---------|
+| Riwayat Transaksi | `riwayat` | today |
+| Laporan Omzet | `omzet` | today |
+| Stok Opname / Logistik | `logistik` | today |
+| Barang Rusak (Waste) | `waste` | today |
+| Stok Transfer | `transfer` | today |
+
+### Form Laporan Harian — Auto-kalkulasi per Tanggal
+- Saat buka form: gunakan `getSalesForDate(todayStr)` → bukan `totalSalesGross`
+- Saat tanggal berubah: `useEffect` → `getSalesForDate(manualRepDate)` → update Cash & NonCash
+- **JANGAN** pakai `totalSalesGross` untuk mengisi field Laporan Harian (itu akumulasi semua hari)
+
+### APK Versi Terbaru
+| Versi | File | Tanggal Build | Perubahan |
+|-------|------|--------------|-----------|
+| v3.3.0 | `POS_KASIR_BAROKAH_v3.3.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Filter tanggal semua laporan logistik + fix auto-kalkulasi omzet harian |
+| v3.2.0 | `POS_KASIR_BAROKAH_v3.2.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Filter riwayat + laporan omzet |

@@ -570,6 +570,96 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     }
   };
 
+  // ─── EXPORT EXCEL (CSV) — RIWAYAT TRANSAKSI ────────────────────────────────
+  const handleDownloadTransactionExcel = () => {
+    const rows = filteredTransactions;
+    if (rows.length === 0) { alert('Tidak ada data transaksi untuk di-export.'); return; }
+
+    const outletStr = outletFilter === 'ALL' ? 'semua_outlet' : (outlets.find(o => String(o.id) === String(outletFilter))?.name || 'outlet').replace(/\s+/g, '_').toLowerCase();
+    const dateStr = startDate && endDate ? `${startDate}_sd_${endDate}` : startDate || endDate || new Date().toLocaleDateString('en-CA');
+    const filename = `riwayat_transaksi_${outletStr}_${dateStr}.csv`;
+
+    const headers = ['No', 'Tanggal', 'Waktu', 'No Transaksi', 'Outlet', 'Kasir', 'Pelanggan', 'Metode Bayar', 'Items', 'Total (Rp)', 'Status'];
+    const csvRows = [headers.join(',')];
+    rows.forEach((t, i) => {
+      const itemNames = (t.items || []).map(it => `${it.name}(x${it.qty || 1})`).join('; ') || t.item_name || '-';
+      csvRows.push([
+        i + 1,
+        `"${t.date || '-'}"`,
+        `"${t.time || '-'}"`,
+        `"${t.id || t.receipt_no || '-'}"`,
+        `"${t.branch_name || '-'}"`,
+        `"${t.cashier || '-'}"`,
+        `"${t.customer_name || '-'}"`,
+        `"${t.payment_method || '-'}"`,
+        `"${itemNames}"`,
+        Number(t.amount || t.total || 0),
+        `"${t.status || 'Lunas'}"`
+      ].join(','));
+    });
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // ─── EXPORT PDF (PRINT VIEW) — RIWAYAT TRANSAKSI ────────────────────────────
+  const handleDownloadTransactionPDF = () => {
+    const rows = filteredTransactions;
+    if (rows.length === 0) { alert('Tidak ada data transaksi untuk di-export PDF.'); return; }
+
+    const outletStr = outletFilter === 'ALL' ? 'Semua Outlet' : (outlets.find(o => String(o.id) === String(outletFilter))?.name || '-');
+    const dateStr = startDate && endDate ? `${startDate} s/d ${endDate}` : startDate || endDate || new Date().toLocaleDateString('en-CA');
+    const totalAmt = rows.reduce((s, t) => s + Number(t.amount || t.total || 0), 0);
+    const pdfFilename = `riwayat_transaksi_${outletStr.replace(/\s+/g,'_').toLowerCase()}_${dateStr.replace(/\s+/g,'')}.pdf`;
+
+    const tableRows = rows.map((t, i) => {
+      const itemNames = (t.items || []).map(it => `${it.name} (x${it.qty||1})`).join('<br>') || t.item_name || '-';
+      const statusColor = t.status === 'Void' ? '#ef4444' : '#22c55e';
+      return `<tr style="border-bottom:1px solid #e2e8f0">
+        <td style="padding:6px 10px;text-align:center;color:#64748b">${i+1}</td>
+        <td style="padding:6px 10px">${t.date||'-'}<br><small style="color:#94a3b8">${t.time||'-'}</small></td>
+        <td style="padding:6px 10px;font-family:monospace;font-size:0.8em">${t.id||t.receipt_no||'-'}</td>
+        <td style="padding:6px 10px">${t.branch_name||'-'}</td>
+        <td style="padding:6px 10px">${t.cashier||'-'}</td>
+        <td style="padding:6px 10px">${t.payment_method||'-'}</td>
+        <td style="padding:6px 10px;font-size:0.82em">${itemNames}</td>
+        <td style="padding:6px 10px;text-align:right;font-weight:700">Rp ${Number(t.amount||t.total||0).toLocaleString('id-ID')}</td>
+        <td style="padding:6px 10px;text-align:center"><span style="padding:3px 8px;border-radius:12px;font-size:0.78em;font-weight:700;background:${statusColor}22;color:${statusColor}">${t.status||'Lunas'}</span></td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${pdfFilename}</title>
+    <style>body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;margin:0;padding:20px}
+    h2{color:#1e40af;margin:0}table{width:100%;border-collapse:collapse;margin-top:16px}
+    th{background:#1e3a5f;color:#fff;padding:10px;text-align:left;font-size:0.82em}
+    tr:nth-child(even){background:#f8fafc}.total-row{background:#1e3a5f!important;color:#fff;font-weight:700}
+    @media print{body{padding:0}}</style></head><body>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div><h2>📋 Riwayat Transaksi POS</h2>
+        <p style="margin:4px 0;color:#64748b">Outlet: <strong>${outletStr}</strong> &nbsp;|&nbsp; Periode: <strong>${dateStr}</strong></p>
+        <p style="margin:4px 0;color:#64748b">Total Transaksi: <strong>${rows.length} transaksi</strong> &nbsp;|&nbsp; Total Omzet: <strong style="color:#1e40af">Rp ${totalAmt.toLocaleString('id-ID')}</strong></p>
+      </div>
+      <div style="text-align:right;color:#94a3b8;font-size:0.8em">Dicetak: ${new Date().toLocaleString('id-ID')}</div>
+    </div>
+    <table><thead><tr>
+      <th style="width:40px">#</th><th>Tanggal</th><th>No Transaksi</th><th>Outlet</th><th>Kasir</th><th>Metode</th><th>Items</th><th style="text-align:right">Total</th><th style="text-align:center">Status</th>
+    </tr></thead><tbody>${tableRows}</tbody>
+    <tfoot><tr class="total-row"><td colspan="7" style="padding:10px;text-align:right">TOTAL OMZET</td><td style="padding:10px;text-align:right">Rp ${totalAmt.toLocaleString('id-ID')}</td><td></td></tr></tfoot>
+    </table></body></html>`;
+
+    const win = window.open('', '_blank');
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => { win.focus(); win.print(); };
+  };
+
   // FILTERING TRANSACTIONS WITH TOMBSTONE DELETION GUARD
   const deletedSalesSet = new Set([
     ...(masterData?.deletedSalesIds || []).map(x => String(x)),
@@ -1049,8 +1139,28 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
           <ChevronDown size={14} />
         </button>
 
-        {/* Control Icons */}
-        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+        {/* Control Icons + Download Buttons */}
+        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
+          <button
+            onClick={handleDownloadTransactionExcel}
+            className="btn-secondary"
+            style={{ padding: '8px 14px', fontSize: '0.82rem', color: T.success, borderColor: 'rgba(52,211,153,0.35)', height: '38px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontWeight: '700', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.35)', cursor: 'pointer' }}
+            title="Export ke Excel (CSV)"
+          >
+            <Download size={15} />
+            <span>Excel</span>
+          </button>
+
+          <button
+            onClick={handleDownloadTransactionPDF}
+            className="btn-secondary"
+            style={{ padding: '8px 14px', fontSize: '0.82rem', color: T.danger, borderColor: 'rgba(251,113,133,0.35)', height: '38px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontWeight: '700', background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.35)', cursor: 'pointer' }}
+            title="Export ke PDF (Print)"
+          >
+            <Printer size={15} />
+            <span>PDF</span>
+          </button>
+
           <button style={{ width: '38px', height: '38px', borderRadius: '8px', border: '1px solid ${T.borderStrong}', background: T.cardBg2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: T.txtMuted }}>
             <RefreshCw size={18} color="${T.txtMuted}" />
           </button>
