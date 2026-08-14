@@ -425,6 +425,8 @@ export default function AndroidPosRegister({
   // Dedicated Pembayaran Modal Screen State (Matching User's Screenshot)
   const [showPaymentScreenModal, setShowPaymentScreenModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Cash');
+  // Tanggal transaksi custom — hanya superadmin yang bisa override (default: hari ini)
+  const [customTxDate, setCustomTxDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [tenderedCash, setTenderedCash] = useState('');
 
   // Diskon Modal & Mode State (% atau Nominal)
@@ -2465,6 +2467,7 @@ export default function AndroidPosRegister({
     if (!row || !row.items) return;
     handleRecallPendingOrder(row);
     setSelectedPaymentMethod('Cash');
+    setCustomTxDate(new Date().toLocaleDateString('en-CA')); // reset ke hari ini saat checkout baru
     setTenderedCash('');
     setShowPaymentScreenModal(true);
   };
@@ -2474,7 +2477,11 @@ export default function AndroidPosRegister({
     if (cart.length === 0) return;
 
     const receiptNo = `TX-POS-${Date.now().toString().substring(6)}`;
-    const currentDate = new Date().toISOString().split('T')[0];
+    const isSuperAdminUser = (() => {
+      const r = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
+      return r.includes('super') || r.includes('admin') || r.includes('owner');
+    })();
+    const currentDate = isSuperAdminUser && customTxDate ? customTxDate : new Date().toISOString().split('T')[0];
     const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const paidVal = customTendered !== null && customTendered !== '' ? Number(customTendered) : cartTotal;
 
@@ -10666,6 +10673,53 @@ export default function AndroidPosRegister({
                   {formatRupiah(cartTotal)}
                 </div>
               </div>
+
+              {/* ── SUPERADMIN: Tanggal Input Override ─────────────────────── */}
+              {(() => {
+                const r = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
+                const isSA = r.includes('super') || r.includes('admin') || r.includes('owner');
+                if (!isSA) return null;
+                return (
+                  <div style={{
+                    background: 'rgba(251,191,36,0.08)',
+                    border: '1px solid rgba(251,191,36,0.4)',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '0 0 auto' }}>
+                      <span style={{ fontSize: '1rem' }}>📅</span>
+                      <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fbbf24', letterSpacing: '0.4px' }}>
+                        TANGGAL TRANSAKSI
+                      </span>
+                    </div>
+                    <input
+                      type="date"
+                      value={customTxDate}
+                      onChange={(e) => setCustomTxDate(e.target.value)}
+                      style={{
+                        flex: '1 1 140px',
+                        background: 'var(--pos-bg-app)',
+                        border: '1.5px solid rgba(251,191,36,0.5)',
+                        borderRadius: '8px',
+                        color: 'var(--pos-txt-primary)',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        fontWeight: '800',
+                        outline: 'none'
+                      }}
+                    />
+                    {customTxDate !== new Date().toLocaleDateString('en-CA') && (
+                      <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: '700', background: 'rgba(251,191,36,0.15)', padding: '3px 8px', borderRadius: '6px' }}>
+                        ⚠️ BUKAN HARI INI
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* PAYMENT METHOD SELECTION GRID */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
