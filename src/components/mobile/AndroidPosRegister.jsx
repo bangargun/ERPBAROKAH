@@ -498,7 +498,9 @@ export default function AndroidPosRegister({
 
   // Laporan Sub View State & Mobile Report Password Protection (Matching User Directive 100%)
   const [activeLaporanSubView, setActiveLaporanSubView] = useState(null); // null (dashboard cards) | 'omzet' | 'harian' | 'logistik'
-  const [omzetTargetDate, setOmzetTargetDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [omzetFilterMode, setOmzetFilterMode] = useState('today'); // 'today' | 'yesterday' | 'custom'
+  const [omzetCustomStartDate, setOmzetCustomStartDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [omzetCustomEndDate, setOmzetCustomEndDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [showAddManualReportModal, setShowAddManualReportModal] = useState(false);
   const [previewManualReport, setPreviewManualReport] = useState(null);
   
@@ -5268,99 +5270,181 @@ export default function AndroidPosRegister({
               </div>
             )}
 
-            {/* DETAILED SUB-VIEW 1: LAPORAN OMZET (HANYA MURNI TRANSAKSI HARI INI SAJA) */}
+            {/* DETAILED SUB-VIEW 1: LAPORAN OMZET (HARI INI | KEMARIN | CUSTOM RENTANG TANGGAL) */}
             {activeLaporanSubView === 'omzet' && (() => {
-              const todayStr = new Date().toLocaleDateString('en-CA');
+              const now = new Date();
+              const todayStr = now.toLocaleDateString('en-CA');
 
-              const isTodayTransaction = (tx) => {
-                if (!tx) return false;
+              const yesterdayObj = new Date(now);
+              yesterdayObj.setDate(now.getDate() - 1);
+              const yesterdayStr = yesterdayObj.toLocaleDateString('en-CA');
+
+              const getTxDateStr = (tx) => {
+                if (!tx) return '';
                 const raw = tx.date || tx.entry_date || tx.transaction_date || tx.created_at || tx.timestamp;
-                if (!raw) return false;
-
-                const now = new Date();
-                const yN = now.getFullYear();
-                const mN = now.getMonth();
-                const dN = now.getDate();
-
-                let dObj = null;
+                if (!raw) return '';
                 if (typeof raw === 'number') {
-                  dObj = new Date(raw);
+                  const d = new Date(raw);
+                  return d.toLocaleDateString('en-CA');
                 } else if (typeof raw === 'string') {
                   const s = raw.trim();
-                  if (s.includes('T')) {
-                    dObj = new Date(s);
-                  } else if (s.includes('-')) {
+                  if (s.includes('T')) return s.split('T')[0];
+                  if (s.includes('-')) {
                     const parts = s.split('-');
-                    if (parts[0].length === 4) {
-                      dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                    } else if (parts[2].length === 4) {
-                      dObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-                    }
-                  } else if (s.includes('/')) {
+                    if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                    if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+                  if (s.includes('/')) {
                     const parts = s.split('/');
-                    if (parts[0].length === 4) {
-                      dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-                    } else if (parts[2].length === 4) {
-                      dObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-                    }
+                    if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                    if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                   }
                 }
-
-                if (!dObj || isNaN(dObj.getTime())) {
-                  return String(raw).includes(todayStr);
-                }
-
-                return dObj.getFullYear() === yN && dObj.getMonth() === mN && dObj.getDate() === dN;
+                return String(raw).substring(0, 10);
               };
 
-              const todayTransactions = (outletTransactions || []).filter(tx => isTodayTransaction(tx));
+              const filteredOmzetTransactions = (outletTransactions || []).filter(tx => {
+                const dStr = getTxDateStr(tx);
+                if (!dStr) return false;
 
-              const todayGross = todayTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
-              const todayCash = todayTransactions
+                if (omzetFilterMode === 'today') {
+                  return dStr === todayStr;
+                } else if (omzetFilterMode === 'yesterday') {
+                  return dStr === yesterdayStr;
+                } else if (omzetFilterMode === 'custom') {
+                  const start = omzetCustomStartDate || todayStr;
+                  const end = omzetCustomEndDate || todayStr;
+                  return dStr >= start && dStr <= end;
+                }
+                return dStr === todayStr;
+              });
+
+              const omzetGross = filteredOmzetTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+              const omzetCash = filteredOmzetTransactions
                 .filter(tx => String(tx.payment_method || '').toLowerCase().includes('cash') || String(tx.payment_method || '').toLowerCase().includes('tunai'))
                 .reduce((sum, tx) => sum + (tx.amount || 0), 0);
-              const todayNonCash = todayTransactions
+              const omzetNonCash = filteredOmzetTransactions
                 .filter(tx => !String(tx.payment_method || '').toLowerCase().includes('cash') && !String(tx.payment_method || '').toLowerCase().includes('tunai'))
                 .reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
+              let activeLabel = `Hari Ini (${todayStr})`;
+              if (omzetFilterMode === 'yesterday') activeLabel = `Kemarin (${yesterdayStr})`;
+              if (omzetFilterMode === 'custom') activeLabel = `${omzetCustomStartDate} s/d ${omzetCustomEndDate}`;
+
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {/* Header Badge Info */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '14px 20px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                  {/* Header Bar with Filter Tabs */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)', flexWrap: 'wrap', gap: '14px' }}>
                     <div>
-                      <div style={{ fontSize: '0.92rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span>📊</span>
-                        <span>Laporan Omzet Performa Operasional Kasir</span>
+                        <span>Laporan Omzet & Penjualan Struk</span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
-                        Murni hanya menampilkan transaksi omzet hari ini ({todayStr}). Transaksi kemarin/sebelumnya disembunyikan.
+                      <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                        Periode Aktif: <strong style={{ color: '#34d399' }}>{activeLabel}</strong>
                       </div>
                     </div>
 
-                    <div style={{ background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', padding: '6px 14px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '800' }}>
-                      📍 Omzet Hari Ini ({todayStr})
+                    {/* Filter Mode Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setOmzetFilterMode('today')}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '10px',
+                          fontWeight: '800',
+                          fontSize: '0.80rem',
+                          cursor: 'pointer',
+                          border: omzetFilterMode === 'today' ? '1px solid #34d399' : '1px solid var(--pos-border)',
+                          background: omzetFilterMode === 'today' ? 'rgba(52, 211, 153, 0.2)' : 'var(--pos-bg-app)',
+                          color: omzetFilterMode === 'today' ? '#34d399' : 'var(--pos-txt-secondary)'
+                        }}
+                      >
+                        📅 Hari Ini
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setOmzetFilterMode('yesterday')}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '10px',
+                          fontWeight: '800',
+                          fontSize: '0.80rem',
+                          cursor: 'pointer',
+                          border: omzetFilterMode === 'yesterday' ? '1px solid #38bdf8' : '1px solid var(--pos-border)',
+                          background: omzetFilterMode === 'yesterday' ? 'rgba(56, 189, 248, 0.2)' : 'var(--pos-bg-app)',
+                          color: omzetFilterMode === 'yesterday' ? '#38bdf8' : 'var(--pos-txt-secondary)'
+                        }}
+                      >
+                        ⏮️ Kemarin
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setOmzetFilterMode('custom')}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '10px',
+                          fontWeight: '800',
+                          fontSize: '0.80rem',
+                          cursor: 'pointer',
+                          border: omzetFilterMode === 'custom' ? '1px solid #fbbf24' : '1px solid var(--pos-border)',
+                          background: omzetFilterMode === 'custom' ? 'rgba(251, 191, 36, 0.2)' : 'var(--pos-bg-app)',
+                          color: omzetFilterMode === 'custom' ? '#fbbf24' : 'var(--pos-txt-secondary)'
+                        }}
+                      >
+                        📆 Custom Tanggal
+                      </button>
                     </div>
                   </div>
 
+                  {/* Custom Date Range Picker inputs (Only when Custom is selected) */}
+                  {omzetFilterMode === 'custom' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'var(--pos-bg-card)', padding: '14px 20px', borderRadius: '14px', border: '1px solid #fbbf24', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fbbf24' }}>📆 Filter Rentang Tanggal:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Dari:</span>
+                        <input
+                          type="date"
+                          value={omzetCustomStartDate}
+                          onChange={(e) => setOmzetCustomStartDate(e.target.value)}
+                          style={{ background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border)', borderRadius: '8px', color: 'var(--pos-txt-primary)', padding: '6px 10px', fontSize: '0.82rem', fontWeight: '800' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Sampai:</span>
+                        <input
+                          type="date"
+                          value={omzetCustomEndDate}
+                          onChange={(e) => setOmzetCustomEndDate(e.target.value)}
+                          style={{ background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border)', borderRadius: '8px', color: 'var(--pos-txt-primary)', padding: '6px 10px', fontSize: '0.82rem', fontWeight: '800' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stat Cards Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
                     <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Gross Omset Sales (Hari Ini)</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(todayGross)}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Gross Omset Sales</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(omzetGross)}</div>
                     </div>
                     <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Total Struk Terjual (Hari Ini)</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '6px' }}>{todayTransactions.length} Struk</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Total Struk Terjual</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '6px' }}>{filteredOmzetTransactions.length} Struk</div>
                     </div>
                     <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Kas Tunai / Cash (Hari Ini)</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Kas Tunai / Cash</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>
-                        {formatRupiah(todayCash)}
+                        {formatRupiah(omzetCash)}
                       </div>
                     </div>
                     <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Non-Tunai (QRIS / EDC Hari Ini)</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Non-Tunai (QRIS / EDC)</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#a78bfa', marginTop: '6px' }}>
-                        {formatRupiah(todayNonCash)}
+                        {formatRupiah(omzetNonCash)}
                       </div>
                     </div>
                   </div>
@@ -5368,7 +5452,7 @@ export default function AndroidPosRegister({
                   {/* Table Breakdown Sales Omzet */}
                   <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '20px', border: '1px solid var(--pos-border)' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '14px' }}>
-                      Rincian Omset Per Transaksi Struk (Khusus Hari Ini: {todayStr})
+                      Rincian Omset Per Transaksi Struk ({activeLabel})
                     </h3>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
@@ -5381,14 +5465,14 @@ export default function AndroidPosRegister({
                           </tr>
                         </thead>
                         <tbody>
-                          {(todayTransactions.length === 0) ? (
+                          {(filteredOmzetTransactions.length === 0) ? (
                             <tr>
                               <td colSpan="4" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                                Belum ada rincian omset transaksi hari ini pada tanggal {todayStr} (Data Kosong).
+                                Belum ada rincian omset transaksi pada periode {activeLabel} (Data Kosong).
                               </td>
                             </tr>
                           ) : (
-                            todayTransactions.map((t, idx) => (
+                            filteredOmzetTransactions.map((t, idx) => (
                               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                 <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.id}</td>
                                 <td style={{ padding: '10px', color: 'var(--pos-txt-primary)' }}>{t.customer_name || 'Pelanggan Umum'}</td>
