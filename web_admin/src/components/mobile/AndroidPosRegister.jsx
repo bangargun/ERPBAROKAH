@@ -10627,7 +10627,7 @@ export default function AndroidPosRegister({
                   <span>{formatRupiah(cartSubtotal)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', color: discountAmount > 0 ? '#ef4444' : '#64748b', fontWeight: discountAmount > 0 ? '800' : '600' }}>
-                  <span>Diskon {discountAmount > 0 ? `(${discountType === 'percent' ? `${discountValue}%` : 'Nominal'})` : ''}</span>
+                  <span>Diskon {discountAmount > 0 ? `(${discountMode === 'percent' && discountInputVal ? `${discountInputVal}%` : 'Nominal'})` : ''}</span>
                   <span>{discountAmount > 0 ? `- ${formatRupiah(discountAmount)}` : 'Rp 0'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', color: '#64748b', fontWeight: '600' }}>
