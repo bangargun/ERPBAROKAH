@@ -501,6 +501,11 @@ export default function AndroidPosRegister({
   const [omzetFilterMode, setOmzetFilterMode] = useState('today'); // 'today' | 'yesterday' | 'custom'
   const [omzetCustomStartDate, setOmzetCustomStartDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [omzetCustomEndDate, setOmzetCustomEndDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+
+  // Filter Riwayat Transaksi
+  const [riwayatFilterMode, setRiwayatFilterMode]   = useState('today'); // 'today' | 'yesterday' | 'custom'
+  const [riwayatCustomStart, setRiwayatCustomStart] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [riwayatCustomEnd,   setRiwayatCustomEnd]   = useState(() => new Date().toLocaleDateString('en-CA'));
   const [showAddManualReportModal, setShowAddManualReportModal] = useState(false);
   const [previewManualReport, setPreviewManualReport] = useState(null);
   
@@ -1729,6 +1734,32 @@ export default function AndroidPosRegister({
       );
     });
   }, [masterData?.salesTransactions, masterData?.transactions, masterData?.deletedSalesIds, masterData?.deletedLogisticsIds, selectedBranch, currentOutlet?.id]);
+
+  // ─── SHARED DATE FILTER HELPER (Riwayat & Omzet) ──────────────────────────────────
+  const sharedGetTxDateStr = (tx) => {
+    if (!tx) return '';
+    const raw = tx.date || tx.entry_date || tx.transaction_date || tx.created_at || tx.timestamp;
+    if (!raw) return '';
+    if (typeof raw === 'number') return new Date(raw).toLocaleDateString('en-CA');
+    const s = String(raw).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (s.includes('T')) return s.slice(0, 10);
+    return '';
+  };
+
+  const sharedTodayStr = new Date().toLocaleDateString('en-CA');
+  const sharedYesterdayStr = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('en-CA'); })();
+
+  // ─── FILTERED RIWAYAT TRANSACTIONS (default: hari ini) ───────────────────────
+  const filteredRiwayatTransactions = useMemo(() => {
+    return outletTransactions.filter(tx => {
+      const d = sharedGetTxDateStr(tx);
+      if (!d) return false;
+      if (riwayatFilterMode === 'today')     return d === sharedTodayStr;
+      if (riwayatFilterMode === 'yesterday') return d === sharedYesterdayStr;
+      return d >= riwayatCustomStart && d <= riwayatCustomEnd;
+    });
+  }, [outletTransactions, riwayatFilterMode, riwayatCustomStart, riwayatCustomEnd]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derived Financials — useMemo: tidak dihitung ulang saat ketikan input
   const totalSalesGross = useMemo(() =>
@@ -4363,12 +4394,34 @@ export default function AndroidPosRegister({
         {/* TAB 3: RIWAYAT TRANSAKSI */}
         {(activeNavTab === 'riwayat' || activeNavTab === 'riwayat_transaksi') && (
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            {/* Header + Filter Tabs */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
               <div>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>📜 Riwayat Struk Transaksi Kasir</h2>
-                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)' }}>Outlet: {currentOutlet.name} • Total {outletTransactions.length} Transaksi Selesai</p>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>📜 Riwayat Struk Transaksi Kasir</h2>
+                <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', margin: '3px 0 0 0' }}>
+                  Outlet: {currentOutlet.name} •{' '}
+                  <strong style={{ color: '#34d399' }}>{filteredRiwayatTransactions.length}</strong> Transaksi •{' '}
+                  <span style={{ color: riwayatFilterMode === 'today' ? '#34d399' : riwayatFilterMode === 'yesterday' ? '#38bdf8' : '#fbbf24' }}>
+                    {riwayatFilterMode === 'today' ? 'Hari Ini' : riwayatFilterMode === 'yesterday' ? 'Kemarin' : `${riwayatCustomStart} s/d ${riwayatCustomEnd}`}
+                  </span>
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => setRiwayatFilterMode('today')} style={{ padding: '9px 16px', borderRadius: '10px', fontWeight: '900', fontSize: '0.8rem', cursor: 'pointer', border: riwayatFilterMode === 'today' ? '2px solid #34d399' : '1px solid rgba(255,255,255,0.15)', background: riwayatFilterMode === 'today' ? '#34d399' : 'rgba(255,255,255,0.07)', color: riwayatFilterMode === 'today' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📅 Hari Ini</button>
+                <button type="button" onClick={() => setRiwayatFilterMode('yesterday')} style={{ padding: '9px 16px', borderRadius: '10px', fontWeight: '900', fontSize: '0.8rem', cursor: 'pointer', border: riwayatFilterMode === 'yesterday' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)', background: riwayatFilterMode === 'yesterday' ? '#38bdf8' : 'rgba(255,255,255,0.07)', color: riwayatFilterMode === 'yesterday' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>⏮️ Kemarin</button>
+                <button type="button" onClick={() => setRiwayatFilterMode('custom')} style={{ padding: '9px 16px', borderRadius: '10px', fontWeight: '900', fontSize: '0.8rem', cursor: 'pointer', border: riwayatFilterMode === 'custom' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)', background: riwayatFilterMode === 'custom' ? '#fbbf24' : 'rgba(255,255,255,0.07)', color: riwayatFilterMode === 'custom' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📆 Custom</button>
               </div>
             </div>
+
+            {/* Custom Date Range Picker */}
+            {riwayatFilterMode === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '12px', padding: '10px 14px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: '700', color: '#fbbf24' }}>📆 Rentang Tanggal:</span>
+                <input type="date" value={riwayatCustomStart} onChange={e => setRiwayatCustomStart(e.target.value)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.82rem' }} />
+                <span style={{ color: '#fbbf24', fontWeight: '700' }}>s/d</span>
+                <input type="date" value={riwayatCustomEnd} onChange={e => setRiwayatCustomEnd(e.target.value)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.82rem' }} />
+              </div>
+            )}
 
             {/* KETERANGAN SYNC MOBILE APK DENGAN SERVER & DATABASE */}
             <div style={{ background: 'var(--pos-bg-app)', padding: '12px 16px', borderRadius: '14px', border: '1px solid rgba(56,189,248,0.25)', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
@@ -4414,15 +4467,17 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
-            {outletTransactions.length === 0 ? (
+            {filteredRiwayatTransactions.length === 0 ? (
               <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '40px', textAlign: 'center', color: 'var(--pos-txt-secondary)' }}>
                 <History size={48} strokeWidth={1} style={{ marginBottom: '12px', color: '#818cf8' }} />
                 <div style={{ fontSize: '1rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>Belum Ada Riwayat Transaksi</div>
-                <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>Lakukan transaksi pertama Anda di Tab Kasir.</div>
+                <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>
+                  {riwayatFilterMode === 'today' ? 'Belum ada transaksi hari ini.' : riwayatFilterMode === 'yesterday' ? 'Tidak ada transaksi kemarin.' : 'Tidak ada transaksi di rentang tanggal ini.'}
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {outletTransactions.map(tx => (
+                {filteredRiwayatTransactions.map(tx => (
                   <div key={tx.id} style={{ background: 'var(--pos-bg-card)', padding: '14px 18px', borderRadius: '14px', border: '1px solid var(--pos-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
