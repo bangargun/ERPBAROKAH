@@ -323,17 +323,46 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
     let cashRevenueVal = cashSalesTotal;
     let qrisRevenueVal = 0;
     let edcRevenueVal = 0;
-    let transferRevenueVal = nonCashSalesTotal;
+    let transferRevenueVal = 0;
+    let onlineDeliveryRevenueVal = 0;
 
     if (salesTxTotal > 0) {
-      cashRevenueVal = salesTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('cash') || (t.payment_type || '').toLowerCase().includes('cash')).reduce((s, t) => s + Number(t.amount || 0), 0);
-      qrisRevenueVal = salesTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('qris') || (t.payment_type || '').toLowerCase().includes('qris')).reduce((s, t) => s + Number(t.amount || 0), 0);
-      edcRevenueVal = salesTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('edc') || (t.payment_method || '').toLowerCase().includes('card') || (t.payment_type || '').toLowerCase().includes('card')).reduce((s, t) => s + Number(t.amount || 0), 0);
-      transferRevenueVal = salesTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('transfer') || (t.payment_type || '').toLowerCase().includes('transfer')).reduce((s, t) => s + Number(t.amount || 0), 0);
+      cashRevenueVal = salesTransactions.filter(t => {
+        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
+        return m.includes('cash') || m.includes('tunai');
+      }).reduce((s, t) => s + Number(t.amount || 0), 0);
 
-      if (cashRevenueVal === 0 && qrisRevenueVal === 0 && edcRevenueVal === 0 && transferRevenueVal === 0 && pendapatanUsaha > 0) {
+      onlineDeliveryRevenueVal = salesTransactions.filter(t => {
+        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
+        return m.includes('grab') || m.includes('gofood') || m.includes('go-food') || m.includes('shopee') || m.includes('delivery') || m.includes('online');
+      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+
+      qrisRevenueVal = salesTransactions.filter(t => {
+        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
+        return (m.includes('qris') || m.includes('dana') || m.includes('ovo') || m.includes('gopay') || m.includes('linkaja') || m.includes('wallet')) && !m.includes('grab') && !m.includes('shopee') && !m.includes('gofood');
+      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+
+      edcRevenueVal = salesTransactions.filter(t => {
+        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
+        return (m.includes('edc') || m.includes('card') || m.includes('kartu') || m.includes('debit') || m.includes('kredit') || m.includes('credit')) && !m.includes('grab');
+      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+
+      transferRevenueVal = salesTransactions.filter(t => {
+        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
+        return (m.includes('transfer') || m.includes('bank') || m.includes('bca') || m.includes('bri') || m.includes('mandiri') || m.includes('bni')) && !m.includes('grab');
+      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+
+      // Catch-all remainder for any other non-cash payment method so nothing is lost:
+      const classifiedTotal = cashRevenueVal + onlineDeliveryRevenueVal + qrisRevenueVal + edcRevenueVal + transferRevenueVal;
+      if (classifiedTotal < salesTxTotal) {
+        onlineDeliveryRevenueVal += (salesTxTotal - classifiedTotal);
+      }
+
+      if (cashRevenueVal === 0 && qrisRevenueVal === 0 && edcRevenueVal === 0 && transferRevenueVal === 0 && onlineDeliveryRevenueVal === 0 && pendapatanUsaha > 0) {
         cashRevenueVal = pendapatanUsaha;
       }
+    } else {
+      transferRevenueVal = nonCashSalesTotal;
     }
 
     // COST OF GOODS SOLD (HPP) BREAKDOWN & INGREDIENT ITEMIZATION
@@ -520,6 +549,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
       qrisRevenueVal,
       edcRevenueVal,
       transferRevenueVal,
+      onlineDeliveryRevenueVal,
       diskonPenjualan,
       totalIncomeVal,
       cogsItemList,
@@ -545,7 +575,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
   // ─── PERHITUNGAN SINGLE PERIODE AKTIF ───
   const currentPnl = computePnlDataForDateRange(startDate, endDate);
   const {
-    pendapatanUsaha, cashRevenueVal, qrisRevenueVal, edcRevenueVal, transferRevenueVal,
+    pendapatanUsaha, cashRevenueVal, qrisRevenueVal, edcRevenueVal, transferRevenueVal, onlineDeliveryRevenueVal = 0,
     diskonPenjualan, totalIncomeVal, cogsItemList = [], hppVal, hppUtamaVal, hppBumbuVal, hppMinumanVal,
     biayaPengiriman, totalCogsVal, grossProfitVal, expenseList, totalExpenseVal,
     netOperatingIncomeVal, otherIncomeItems, totalOtherIncomeVal, otherExpenseItems,
@@ -837,6 +867,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
     csv += `"[4001.02] Penjualan Barcode QRIS & E-Wallet",${qrisRevenueVal},${calcPercent(qrisRevenueVal, totalIncomeVal)}%\n`;
     csv += `"[4001.03] Penjualan Kartu Debit/Kredit (EDC)",${edcRevenueVal},${calcPercent(edcRevenueVal, totalIncomeVal)}%\n`;
     csv += `"[4001.04] Penjualan Transfer Bank",${transferRevenueVal},${calcPercent(transferRevenueVal, totalIncomeVal)}%\n`;
+    csv += `"[4001.05] Penjualan Online & Delivery (Grab/GoFood/Shopee)",${onlineDeliveryRevenueVal},${calcPercent(onlineDeliveryRevenueVal, totalIncomeVal)}%\n`;
     csv += `"[4002] Diskon Penjualan (Potongan Promo)",${diskonPenjualan},${calcPercent(diskonPenjualan, totalIncomeVal)}%\n`;
     otherIncomeItems.forEach(oi => {
       csv += `"${oi.codeName}",${oi.amount},${calcPercent(oi.amount, totalIncomeVal)}%\n`;
@@ -988,10 +1019,20 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
       else if (accountCode === '4001.02') filterMethod = 'qris';
       else if (accountCode === '4001.03') filterMethod = 'edc';
       else if (accountCode === '4001.04') filterMethod = 'transfer';
+      else if (accountCode === '4001.05') filterMethod = 'online';
 
       if (salesTransactions.length > 0) {
         transactionsList = salesTransactions
-          .filter(t => !filterMethod || (t.payment_method || t.payment_type || 'cash').toLowerCase().includes(filterMethod))
+          .filter(t => {
+            if (!filterMethod) return true;
+            const m = String(t.payment_method || t.payment_type || 'cash').toLowerCase();
+            if (filterMethod === 'cash') return m.includes('cash') || m.includes('tunai');
+            if (filterMethod === 'online') return m.includes('grab') || m.includes('gofood') || m.includes('go-food') || m.includes('shopee') || m.includes('delivery') || m.includes('online');
+            if (filterMethod === 'qris') return (m.includes('qris') || m.includes('dana') || m.includes('ovo') || m.includes('gopay') || m.includes('linkaja') || m.includes('wallet')) && !m.includes('grab') && !m.includes('shopee');
+            if (filterMethod === 'edc') return m.includes('edc') || m.includes('card') || m.includes('kartu') || m.includes('debit') || m.includes('kredit');
+            if (filterMethod === 'transfer') return m.includes('transfer') || m.includes('bank') || m.includes('bca') || m.includes('bri') || m.includes('mandiri');
+            return m.includes(filterMethod);
+          })
           .map((t, idx) => ({
             id: t.id || `TX-SALES-${idx + 1}`,
             date: t.date || t.timestamp || t.created_at || '2026-07-23',
@@ -1253,6 +1294,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
               {renderRow('↳ [4001.02] Penjualan Barcode QRIS & E-Wallet', p => p.qrisRevenueVal, false, false, 2, T.txtSecondary, 'transparent', '4001.02')}
               {renderRow('↳ [4001.03] Penjualan Kartu Debit/Kredit (EDC)', p => p.edcRevenueVal, false, false, 2, T.txtSecondary, 'transparent', '4001.03')}
               {renderRow('↳ [4001.04] Penjualan Transfer Bank', p => p.transferRevenueVal, false, false, 2, T.txtSecondary, 'transparent', '4001.04')}
+              {renderRow('↳ [4001.05] Penjualan Online & Delivery (Grab/GoFood/Shopee)', p => p.onlineDeliveryRevenueVal, false, false, 2, T.txtSecondary, 'transparent', '4001.05')}
               {renderRow('[4002] Diskon Penjualan (Potongan Promo)', p => p.diskonPenjualan, false, false, 1, T.danger, 'transparent', '4002')}
               {renderRow('Total Income', p => p.totalIncomeVal, false, true, 0, T.success, T.tableStripeBg)}
 
@@ -2187,6 +2229,22 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                     </td>
                     <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
                       {calcPercent(transferRevenueVal, totalIncomeVal)}
+                    </td>
+                  </tr>
+
+                  <tr
+                    onClick={() => handleOpenAccountDetail('4001.05', 'Penjualan Online & Delivery (GrabFood, GoFood, ShopeeFood)', onlineDeliveryRevenueVal)}
+                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>↳ [4001.05] Penjualan Online &amp; Delivery (Grab/GoFood/Shopee)</span>
+                    </td>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                      {formatLunaCurrency(onlineDeliveryRevenueVal)}
+                    </td>
+                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
+                      {calcPercent(onlineDeliveryRevenueVal, totalIncomeVal)}
                     </td>
                   </tr>
 
