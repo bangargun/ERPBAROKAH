@@ -506,6 +506,22 @@ export default function AndroidPosRegister({
   const [riwayatFilterMode, setRiwayatFilterMode]   = useState('today'); // 'today' | 'yesterday' | 'custom'
   const [riwayatCustomStart, setRiwayatCustomStart] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [riwayatCustomEnd,   setRiwayatCustomEnd]   = useState(() => new Date().toLocaleDateString('en-CA'));
+
+  // Filter Laporan Logistik (Stok Opname)
+  const [logistikFilterMode,  setLogistikFilterMode]  = useState('today');
+  const [logistikCustomStart, setLogistikCustomStart] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [logistikCustomEnd,   setLogistikCustomEnd]   = useState(() => new Date().toLocaleDateString('en-CA'));
+
+  // Filter Laporan Barang Rusak (Waste)
+  const [wasteFilterMode,  setWasteFilterMode]  = useState('today');
+  const [wasteCustomStart, setWasteCustomStart] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [wasteCustomEnd,   setWasteCustomEnd]   = useState(() => new Date().toLocaleDateString('en-CA'));
+
+  // Filter Laporan Stok Transfer
+  const [transferFilterMode,  setTransferFilterMode]  = useState('today');
+  const [transferCustomStart, setTransferCustomStart] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [transferCustomEnd,   setTransferCustomEnd]   = useState(() => new Date().toLocaleDateString('en-CA'));
+
   const [showAddManualReportModal, setShowAddManualReportModal] = useState(false);
   const [previewManualReport, setPreviewManualReport] = useState(null);
   
@@ -1760,6 +1776,36 @@ export default function AndroidPosRegister({
       return d >= riwayatCustomStart && d <= riwayatCustomEnd;
     });
   }, [outletTransactions, riwayatFilterMode, riwayatCustomStart, riwayatCustomEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── HELPER: Hitung penjualan cash & non-cash untuk tanggal tertentu ───────────
+  const getSalesForDate = useCallback((dateStr) => {
+    const txsOnDate = outletTransactions.filter(tx => sharedGetTxDateStr(tx) === dateStr);
+    const cash = txsOnDate
+      .filter(tx => { const pm = String(tx.payment_method || '').toLowerCase(); return pm.includes('cash') || pm.includes('tunai'); })
+      .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    const nonCash = txsOnDate
+      .filter(tx => { const pm = String(tx.payment_method || '').toLowerCase(); return !pm.includes('cash') && !pm.includes('tunai'); })
+      .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+    return { cash, nonCash, total: cash + nonCash };
+  }, [outletTransactions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── HELPER: Normalisasi tanggal logistik ─────────────────────────────────────
+  const getLogDate = useCallback((item) => {
+    const raw = item?.date || item?.created_at || item?.tanggal_waktu || '';
+    const s = String(raw).trim();
+    if (!s) return '';
+    if (s.includes('T')) return s.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    return '';
+  }, []);
+
+  // ─── useEffect: Re-kalkulasi Cash & Non-Cash saat tanggal pelaporan diubah ────
+  useEffect(() => {
+    if (!showAddManualReportModal || !manualRepDate) return;
+    const { cash, nonCash } = getSalesForDate(manualRepDate);
+    setManualRepNetSales(cash);
+    setManualRepNonCash(nonCash);
+  }, [manualRepDate, showAddManualReportModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derived Financials — useMemo: tidak dihitung ulang saat ketikan input
   const totalSalesGross = useMemo(() =>
@@ -5597,8 +5643,11 @@ export default function AndroidPosRegister({
                       setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
                       setManualRepOutletId(currentOutlet.id || 1);
                       setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || userSession?.name || '');
-                      setManualRepNetSales(totalSalesGross || 0);
-                      setManualRepNonCash(0);
+                      // ✅ Hitung hanya dari transaksi tanggal hari ini (bukan total akumulatif)
+                      const initSales = getSalesForDate(todayStr);
+                      setManualRepNetSales(initSales.cash);
+                      setManualRepNonCash(initSales.nonCash);
+
                       setManualRepDebtPayment(0);
                       setManualCogsRows([]);
                       setManualExpenseRows([]);
@@ -5788,12 +5837,26 @@ export default function AndroidPosRegister({
 
                 {/* TABEL HISTORI AUDIT STOCK OPNAME LOGISTIK */}
                 <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Package size={16} color="#38bdf8" />
                       <span>Daftar Log Audit Stock Opname & Laporan Logistik</span>
                     </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button type="button" onClick={() => setLogistikFilterMode('today')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: logistikFilterMode === 'today' ? '2px solid #34d399' : '1px solid rgba(255,255,255,0.15)', background: logistikFilterMode === 'today' ? '#34d399' : 'rgba(255,255,255,0.07)', color: logistikFilterMode === 'today' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📅 Hari Ini</button>
+                      <button type="button" onClick={() => setLogistikFilterMode('yesterday')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: logistikFilterMode === 'yesterday' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)', background: logistikFilterMode === 'yesterday' ? '#38bdf8' : 'rgba(255,255,255,0.07)', color: logistikFilterMode === 'yesterday' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>⏮️ Kemarin</button>
+                      <button type="button" onClick={() => setLogistikFilterMode('custom')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: logistikFilterMode === 'custom' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)', background: logistikFilterMode === 'custom' ? '#fbbf24' : 'rgba(255,255,255,0.07)', color: logistikFilterMode === 'custom' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📆 Custom</button>
+                    </div>
                   </div>
+                  {logistikFilterMode === 'custom' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px', background: 'rgba(251,191,36,0.06)', borderBottom: '1px solid rgba(251,191,36,0.2)', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#fbbf24' }}>📆 Dari:</span>
+                      <input type="date" value={logistikCustomStart} onChange={e => setLogistikCustomStart(e.target.value)} style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.8rem' }} />
+                      <span style={{ color: '#fbbf24', fontWeight: '700' }}>s/d</span>
+                      <input type="date" value={logistikCustomEnd} onChange={e => setLogistikCustomEnd(e.target.value)} style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.8rem' }} />
+                    </div>
+                  )}
+
 
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
@@ -5819,9 +5882,15 @@ export default function AndroidPosRegister({
 
                           const combinedOpname = Array.from(combinedOpnameMap.values());
 
-                          const filteredOpname = combinedOpname.filter(op => 
-                            !op.outlet_id || Number(op.outlet_id) === Number(currentOutlet.id) || op.branch_name === currentOutlet.name
-                          );
+                          const filteredOpname = combinedOpname.filter(op => {
+                            const outletOk = !op.outlet_id || Number(op.outlet_id) === Number(currentOutlet.id) || op.branch_name === currentOutlet.name;
+                            if (!outletOk) return false;
+                            const d = getLogDate(op);
+                            if (!d) return true;
+                            if (logistikFilterMode === 'today')     return d === sharedTodayStr;
+                            if (logistikFilterMode === 'yesterday') return d === sharedYesterdayStr;
+                            return d >= logistikCustomStart && d <= logistikCustomEnd;
+                          });
 
                           if (filteredOpname.length === 0) {
                             return (
@@ -5989,12 +6058,25 @@ export default function AndroidPosRegister({
                 </div>
 
                 <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Truck size={16} color="#a78bfa" />
                       <span>Daftar Log Transfer Bahan Baku & Mutasi Stok Antarcabang</span>
                     </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button type="button" onClick={() => setTransferFilterMode('today')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: transferFilterMode === 'today' ? '2px solid #34d399' : '1px solid rgba(255,255,255,0.15)', background: transferFilterMode === 'today' ? '#34d399' : 'rgba(255,255,255,0.07)', color: transferFilterMode === 'today' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📅 Hari Ini</button>
+                      <button type="button" onClick={() => setTransferFilterMode('yesterday')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: transferFilterMode === 'yesterday' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)', background: transferFilterMode === 'yesterday' ? '#38bdf8' : 'rgba(255,255,255,0.07)', color: transferFilterMode === 'yesterday' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>⏮️ Kemarin</button>
+                      <button type="button" onClick={() => setTransferFilterMode('custom')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: transferFilterMode === 'custom' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)', background: transferFilterMode === 'custom' ? '#fbbf24' : 'rgba(255,255,255,0.07)', color: transferFilterMode === 'custom' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📆 Custom</button>
+                    </div>
                   </div>
+                  {transferFilterMode === 'custom' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px', background: 'rgba(251,191,36,0.06)', borderBottom: '1px solid rgba(251,191,36,0.2)', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#fbbf24' }}>📆 Dari:</span>
+                      <input type="date" value={transferCustomStart} onChange={e => setTransferCustomStart(e.target.value)} style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.8rem' }} />
+                      <span style={{ color: '#fbbf24', fontWeight: '700' }}>s/d</span>
+                      <input type="date" value={transferCustomEnd} onChange={e => setTransferCustomEnd(e.target.value)} style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.8rem' }} />
+                    </div>
+                  )}
 
                   <div style={{ width: '100%', overflowX: 'auto', borderRadius: '12px', border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
@@ -6019,7 +6101,13 @@ export default function AndroidPosRegister({
                               if (key && !ids.has(key)) res.push(x);
                             });
                             return res;
-                          })();
+                          })().filter(item => {
+                            const d = getLogDate(item);
+                            if (!d) return true;
+                            if (transferFilterMode === 'today')     return d === sharedTodayStr;
+                            if (transferFilterMode === 'yesterday') return d === sharedYesterdayStr;
+                            return d >= transferCustomStart && d <= transferCustomEnd;
+                          });
 
                           if (list.length === 0) {
                             return (
@@ -6153,12 +6241,25 @@ export default function AndroidPosRegister({
                 </div>
 
                 <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border)', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '14px 20px', background: 'var(--pos-bg-app)', borderBottom: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div style={{ fontSize: '0.88rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Trash2 size={16} color="#fb7185" />
                       <span>Daftar Log Laporan Barang Rusak (Waste & Retur Bahan Baku)</span>
                     </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button type="button" onClick={() => setWasteFilterMode('today')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: wasteFilterMode === 'today' ? '2px solid #34d399' : '1px solid rgba(255,255,255,0.15)', background: wasteFilterMode === 'today' ? '#34d399' : 'rgba(255,255,255,0.07)', color: wasteFilterMode === 'today' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📅 Hari Ini</button>
+                      <button type="button" onClick={() => setWasteFilterMode('yesterday')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: wasteFilterMode === 'yesterday' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)', background: wasteFilterMode === 'yesterday' ? '#38bdf8' : 'rgba(255,255,255,0.07)', color: wasteFilterMode === 'yesterday' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>⏮️ Kemarin</button>
+                      <button type="button" onClick={() => setWasteFilterMode('custom')} style={{ padding: '6px 12px', borderRadius: '8px', fontWeight: '900', fontSize: '0.75rem', cursor: 'pointer', border: wasteFilterMode === 'custom' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)', background: wasteFilterMode === 'custom' ? '#fbbf24' : 'rgba(255,255,255,0.07)', color: wasteFilterMode === 'custom' ? '#0f172a' : 'rgba(255,255,255,0.6)' }}>📆 Custom</button>
+                    </div>
                   </div>
+                  {wasteFilterMode === 'custom' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px', background: 'rgba(251,191,36,0.06)', borderBottom: '1px solid rgba(251,191,36,0.2)', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#fbbf24' }}>📆 Dari:</span>
+                      <input type="date" value={wasteCustomStart} onChange={e => setWasteCustomStart(e.target.value)} style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.8rem' }} />
+                      <span style={{ color: '#fbbf24', fontWeight: '700' }}>s/d</span>
+                      <input type="date" value={wasteCustomEnd} onChange={e => setWasteCustomEnd(e.target.value)} style={{ padding: '5px 8px', borderRadius: '7px', border: '1px solid rgba(251,191,36,0.4)', background: 'var(--pos-bg-card)', color: 'var(--pos-txt-primary)', fontSize: '0.8rem' }} />
+                    </div>
+                  )}
 
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
@@ -6204,6 +6305,13 @@ export default function AndroidPosRegister({
                               const tA = new Date(a.tanggal_waktu || a.created_at || a.date || 0).getTime();
                               const tB = new Date(b.tanggal_waktu || b.created_at || b.date || 0).getTime();
                               return tB - tA;
+                            })
+                            .filter(item => {
+                              const d = getLogDate(item);
+                              if (!d) return true;
+                              if (wasteFilterMode === 'today')     return d === sharedTodayStr;
+                              if (wasteFilterMode === 'yesterday') return d === sharedYesterdayStr;
+                              return d >= wasteCustomStart && d <= wasteCustomEnd;
                             });
 
                           if (list.length === 0) {
