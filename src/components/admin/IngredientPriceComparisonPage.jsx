@@ -55,7 +55,15 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
 
   const allIngredientRecords = useMemo(() => {
     const records = [];
+    const deletedLogSet = new Set([
+      ...(masterData?.deletedLogisticsIds || []),
+      ...(masterData?.deletedReportIds || []),
+      ...(masterData?.deletedIngredientIds || [])
+    ].map(x => String(x)));
+
+    // 1. From approvedLogistics
     (masterData?.approvedLogistics || []).forEach(log => {
+      if (deletedLogSet.has(String(log.id)) || deletedLogSet.has(String(log.report_no || ''))) return;
       const date = String(log.date || log.created_at || '').substring(0, 10);
       const items = log.items || log.ingredients || [];
       items.forEach(item => {
@@ -73,44 +81,81 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         }
       });
     });
-    if (records.length === 0) {
-      (masterData?.ingredients || []).forEach(ing => {
-        const cost = Number(ing.cost || ing.price || 0);
-        if (ing.name && cost > 0) {
+
+    // 2. From stockMovement (real stock in / purchases)
+    (masterData?.stockMovement || []).forEach(mov => {
+      if (deletedLogSet.has(String(mov.id))) return;
+      const date = String(mov.date || mov.created_at || '').substring(0, 10);
+      const name = (mov.item_name || mov.name || mov.ingredient_name || '').trim();
+      const unitPrice = Number(mov.price || mov.cost || mov.unit_price || 0);
+      const qty = Number(mov.qty || 1);
+      const type = String(mov.type || mov.movement_type || '').toLowerCase();
+      if (name && (type.includes('in') || type.includes('masuk') || type.includes('beli') || type.includes('purchase')) && unitPrice > 0) {
+        records.push({
+          date: date || new Date().toISOString().substring(0, 10),
+          name, unit: mov.unit || 'Kg',
+          outlet_id: String(mov.outlet_id || mov.branch_id || outletsList[0]?.id || 1),
+          outlet_name: mov.outlet_name || getOutletName(mov.outlet_id),
+          unit_price: unitPrice, qty,
+        });
+      }
+    });
+
+    // 3. From approved daily reports & manual report update expense_rows (where category is HPP/Bahan Baku)
+    const reportSources = [
+      ...(masterData?.approvedFinanceDaily || []),
+      ...(masterData?.manualEntryRecords || [])
+    ];
+    reportSources.forEach(rep => {
+      if (deletedLogSet.has(String(rep.id)) || deletedLogSet.has(String(rep.report_no || ''))) return;
+      const date = String(rep.entry_date || rep.date || rep.created_at || '').substring(0, 10);
+      const rows = rep.expense_rows || rep.cogs_items || rep.cogs_breakdown || [];
+      rows.forEach(r => {
+        const cat = String(r.category_type || r.category || '').toLowerCase();
+        const name = (r.item_name || r.name || '').trim();
+        const price = Number(r.price_per_unit || r.price_unit || r.cost || 0);
+        const qty = Number(r.qty || 1);
+        if (name && price > 0 && (cat.includes('hpp') || cat.includes('bahan'))) {
           records.push({
-            date: new Date().toISOString().substring(0, 10),
-            name: ing.name.trim(), unit: ing.unit || 'Kg',
-            outlet_id: String(outletsList[0]?.id || 1),
-            outlet_name: outletsList[0]?.name || 'Outlet Utama',
-            unit_price: cost, qty: 1,
+            date: date || new Date().toISOString().substring(0, 10),
+            name, unit: r.unit || 'Kg',
+            outlet_id: String(rep.outlet_id || rep.branch_id || outletsList[0]?.id || 1),
+            outlet_name: rep.branch_name || rep.outlet_name || getOutletName(rep.outlet_id),
+            unit_price: price, qty,
           });
         }
       });
-    }
+    });
+
     return records;
   }, [masterData, outletsList]);
 
   const allExpenseRecords = useMemo(() => {
     const records = [];
-    const ingNames = new Set(
-      (masterData?.ingredients || []).map(i => i.name?.toLowerCase().trim()).filter(Boolean)
-    );
+    const deletedLogSet = new Set([
+      ...(masterData?.deletedLogisticsIds || []),
+      ...(masterData?.deletedReportIds || [])
+    ].map(x => String(x)));
+
     const addExpenses = (list) => {
       list.forEach(rep => {
+        if (deletedLogSet.has(String(rep.id)) || deletedLogSet.has(String(rep.report_no || ''))) return;
         const date = String(rep.entry_date || rep.date || rep.created_at || '').substring(0, 10);
-        const breakdown = rep.expense_details || rep.expenses_breakdown || [];
+        const breakdown = rep.expense_details || rep.expenses_breakdown || rep.expense_rows || [];
         breakdown.forEach(ex => {
-          const name = (ex.name || ex.categoryName || ex.category || '').trim();
+          const cat = String(ex.category_type || ex.category || '').toLowerCase();
+          if (cat.includes('hpp') || cat.includes('bahan')) return;
+          const name = (ex.item_name || ex.name || ex.categoryName || ex.category || '').trim();
           const amt  = Number(ex.amount || ex.subtotal || 0);
           const qty  = Number(ex.qty || 1);
-          const unitPrice = qty > 0 ? amt / qty : amt;
-          if (name && amt > 0 && !ingNames.has(name.toLowerCase())) {
+          const unitPrice = Number(ex.price_per_unit || (qty > 0 ? amt / qty : amt));
+          if (name && (amt > 0 || unitPrice > 0)) {
             records.push({
               date: date || new Date().toISOString().substring(0, 10),
               name,
               outlet_id: String(rep.outlet_id || rep.branch_id || outletsList[0]?.id || 1),
-              outlet_name: rep.outlet_name || getOutletName(rep.outlet_id),
-              unit_price: unitPrice, qty, amount: amt,
+              outlet_name: rep.branch_name || rep.outlet_name || getOutletName(rep.outlet_id),
+              unit_price: unitPrice, qty, amount: amt || (unitPrice * qty),
             });
           }
         });
