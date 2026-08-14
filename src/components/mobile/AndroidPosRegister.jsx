@@ -5262,13 +5262,49 @@ export default function AndroidPosRegister({
             {/* DETAILED SUB-VIEW 1: LAPORAN OMZET (HANYA MURNI TRANSAKSI HARI INI SAJA) */}
             {activeLaporanSubView === 'omzet' && (() => {
               const todayStr = new Date().toLocaleDateString('en-CA');
-              const todayTransactions = (outletTransactions || []).filter(tx => {
+
+              const isTodayTransaction = (tx) => {
                 if (!tx) return false;
-                const txDate = tx.date || tx.entry_date || tx.transaction_date || 
-                               (tx.timestamp ? String(tx.timestamp).substring(0, 10) : '') || 
-                               (tx.created_at ? String(tx.created_at).substring(0, 10) : '');
-                return txDate === todayStr;
-              });
+                const raw = tx.date || tx.entry_date || tx.transaction_date || tx.created_at || tx.timestamp;
+                if (!raw) return false;
+
+                const now = new Date();
+                const yN = now.getFullYear();
+                const mN = now.getMonth();
+                const dN = now.getDate();
+
+                let dObj = null;
+                if (typeof raw === 'number') {
+                  dObj = new Date(raw);
+                } else if (typeof raw === 'string') {
+                  const s = raw.trim();
+                  if (s.includes('T')) {
+                    dObj = new Date(s);
+                  } else if (s.includes('-')) {
+                    const parts = s.split('-');
+                    if (parts[0].length === 4) {
+                      dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                    } else if (parts[2].length === 4) {
+                      dObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+                    }
+                  } else if (s.includes('/')) {
+                    const parts = s.split('/');
+                    if (parts[0].length === 4) {
+                      dObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                    } else if (parts[2].length === 4) {
+                      dObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+                    }
+                  }
+                }
+
+                if (!dObj || isNaN(dObj.getTime())) {
+                  return String(raw).includes(todayStr);
+                }
+
+                return dObj.getFullYear() === yN && dObj.getMonth() === mN && dObj.getDate() === dN;
+              };
+
+              const todayTransactions = (outletTransactions || []).filter(tx => isTodayTransaction(tx));
 
               const todayGross = todayTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
               const todayCash = todayTransactions
