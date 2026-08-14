@@ -349,12 +349,16 @@ export default function App() {
               const deletedSet = new Set([
                 ...(prev.deletedLogisticsIds || []),
                 ...(prev.deletedReportIds || []),
+                ...(prev.deleted_report_nos || []),
                 ...(prev.deletedSalesIds || []),
                 ...(prev.deletedOutflowIds || []),
+                ...(prev.deletedFinancialIds || []),
                 ...(serverData.deletedLogisticsIds || []),
                 ...(serverData.deletedReportIds || []),
+                ...(serverData.deleted_report_nos || []),
                 ...(serverData.deletedSalesIds || []),
-                ...(serverData.deletedOutflowIds || [])
+                ...(serverData.deletedOutflowIds || []),
+                ...(serverData.deletedFinancialIds || [])
               ].map(x => String(x)));
 
               // Track deleted master-data IDs (categories, ingredients, products, etc.)
@@ -384,18 +388,19 @@ export default function App() {
 
               const mergeReportsById = (prevList = [], serverList = []) => {
                 const map = new Map();
+                // Server items are authoritative
                 (serverList || []).forEach(item => {
                   const k = getItemKey(item);
                   if (k && !deletedSet.has(k)) map.set(k, item);
                 });
+                // Local items: only keep if explicitly pending local (not already deleted or zombie)
                 (prevList || []).forEach(item => {
                   const k = getItemKey(item);
-                  if (k && !deletedSet.has(k)) {
-                    const serverItem = map.get(k);
-                    if (!serverItem) {
+                  if (k && !deletedSet.has(k) && !map.has(k)) {
+                    // Do not keep legacy purged UPD- or SYN- records that do not exist on server
+                    const isZombie = k.startsWith('UPD-') || k.startsWith('SYN-') || k.startsWith('1786671748151');
+                    if (!isZombie) {
                       map.set(k, item);
-                    } else {
-                      map.set(k, { ...item, ...serverItem });
                     }
                   }
                 });

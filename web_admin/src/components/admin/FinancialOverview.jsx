@@ -51,9 +51,37 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
   const allOutlets = outlets || masterData?.outlets || [];
   const allProducts = masterData?.products || [];
   const allIngredients = masterData?.ingredients || [];
-  const allSalesTx = masterData?.salesTransactions || [];
-  const allApprovedFinance = masterData?.approvedFinanceDaily || [];
-  const allFinancialRecords = masterData?.financialRecords || [];
+  const deletedSalesSet = new Set([
+    ...(masterData?.deletedSalesIds || []),
+    ...(masterData?.deletedReportIds || []),
+    ...(masterData?.deleted_report_nos || [])
+  ].map(x => String(x)));
+
+  const allSalesTx = (masterData?.salesTransactions || []).filter(t => {
+    if (!t) return false;
+    const tid = String(t.id || '');
+    const trcpt = String(t.receipt_no || t.receiptNo || '');
+    if (tid && deletedSalesSet.has(tid)) return false;
+    if (trcpt && deletedSalesSet.has(trcpt)) return false;
+    return true;
+  });
+
+  const allApprovedFinance = (masterData?.approvedFinanceDaily || []).filter(f => {
+    if (!f) return false;
+    const fid = String(f.id || '');
+    const frpt = String(f.report_no || f.reportNo || '');
+    if (fid && deletedSalesSet.has(fid)) return false;
+    if (frpt && deletedSalesSet.has(frpt)) return false;
+    return true;
+  });
+
+  const allFinancialRecords = (masterData?.financialRecords || []).filter(f => {
+    if (!f) return false;
+    const fid = String(f.id || '');
+    if (fid && deletedSalesSet.has(fid)) return false;
+    return true;
+  });
+
 
   // ------------------------------------------------------------------
   // INTERACTIVE STATES
