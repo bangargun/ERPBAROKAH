@@ -1782,60 +1782,7 @@ const sanitizeMasterDataPayload = (data) => {
     }
   });
 
-  // ── INJECT: Synthetic transactions dari manualEntryRecords → salesTransactions ──────
-  // Tujuan: POS Kasir lama (APK embedded) membaca salesTransactions untuk omzet.
-  // manualEntryRecords (UPD-) dibuang dari salesTransactions di atas.
-  // Solusi: konversi ke synthetic tx dengan prefix SYN- agar lolos filter UPD- di APK.
-  const manualRecords = (data.manualEntryRecords || []).filter(r =>
-    r && String(r.report_no || '').startsWith('UPD-')
-  );
-  if (manualRecords.length > 0) {
-    const syntheticTx = [];
-    manualRecords.forEach(r => {
-      const dateStr = (r.entry_date || r.date || '').slice(0, 10);
-      if (!dateStr) return;
-      const baseId = `SYN-${dateStr.replace(/-/g, '')}-${r.outlet_id || '0'}`;
-      const cashAmt    = Number(r.cash_sales    || 0);
-      const nonCashAmt = Number(r.non_cash_sales || 0);
-      const totalAmt   = Number(r.net_sales || r.total_sales || r.total_omset || r.gross_sales || 0);
 
-      const base = {
-        date: dateStr,
-        entry_date: dateStr,
-        transaction_date: dateStr,
-        outlet_id: r.outlet_id,
-        outlet_name: r.outlet_name,
-        branch_id: r.outlet_id,
-        branch_name: r.outlet_name,
-        source: 'Rekap Harian Admin',  // tidak mengandung 'UPD-','Excel','Update Laporan'
-        type: 'sale',
-        cashier: r.author || r.created_by || 'Admin',
-      };
-
-      if (cashAmt > 0 || nonCashAmt > 0) {
-        // Punya breakdown cash vs non-cash → buat 2 tx terpisah
-        if (cashAmt > 0) {
-          syntheticTx.push({ ...base, id: baseId + '-C', receipt_no: baseId + '-C',
-            amount: cashAmt, total: cashAmt, payment_method: 'Kas Kasir (Tunai)' });
-        }
-        if (nonCashAmt > 0) {
-          syntheticTx.push({ ...base, id: baseId + '-NC', receipt_no: baseId + '-NC',
-            amount: nonCashAmt, total: nonCashAmt, payment_method: 'QRIS' });
-        }
-      } else if (totalAmt > 0) {
-        // Tidak ada breakdown → total masuk sebagai cash
-        syntheticTx.push({ ...base, id: baseId + '-T', receipt_no: baseId + '-T',
-          amount: totalAmt, total: totalAmt, payment_method: 'Kas Kasir (Tunai)' });
-      }
-    });
-
-    if (syntheticTx.length > 0) {
-      clean.salesTransactions = [...(clean.salesTransactions || []), ...syntheticTx];
-      clean.transactions      = clean.salesTransactions;
-      clean.outletTransactions = clean.salesTransactions;
-    }
-  }
-  // ─────────────────────────────────────────────────────────────────────────────────────
 
   return clean;
 };
