@@ -1032,6 +1032,26 @@ export default function AndroidPosRegister({
               mergedCollections[k] = smartMergeArray(prev[k], serverMaster[k], k);
             });
 
+            // ─── PURGE Update Laporan records dari salesTransactions/transactions ────
+            // Data TX-POS- dari Update Laporan Web Admin bisa tersimpan di MySQL server
+            // dan dimuat ulang setiap sync. Harus dibersihkan di sini sebelum masuk state.
+            const isULRecord = (t) => {
+              if (!t) return false;
+              const src = String(t.source || '');
+              const rNo = String(t.report_no || t.id || '');
+              const notes = String(t.notes || '');
+              return rNo.startsWith('UPD-') ||
+                src.includes('Excel') ||
+                src.includes('Update Laporan') ||
+                notes.includes('Update Laporan');
+            };
+            if (Array.isArray(mergedCollections.salesTransactions)) {
+              mergedCollections.salesTransactions = mergedCollections.salesTransactions.filter(t => !isULRecord(t));
+            }
+            if (Array.isArray(mergedCollections.transactions)) {
+              mergedCollections.transactions = mergedCollections.transactions.filter(t => !isULRecord(t));
+            }
+
             return {
               ...prev,
               ...serverMaster,

@@ -1745,7 +1745,7 @@ const sanitizeMasterDataPayload = (data) => {
   const clean = { ...data };
 
   // Hapus seluruh data UPD- dan Update Laporan Excel dari POS Kasir (shiftReports, approvedFinanceDaily, manualEntryRecords, salesTransactions)
-  const isExcelUploadReport = (item) => {
+  const isExcelUploadReport = (item, arrayKey = '') => {
     if (!item) return false;
     const str = String(JSON.stringify(item));
     if (str.includes('UPD-') || str.includes('Batch Upload Excel') || str.includes('Update Laporan') || str.includes('Excel/Manual')) {
@@ -1753,7 +1753,22 @@ const sanitizeMasterDataPayload = (data) => {
     }
     const rNo = String(item.report_no || item.reportNo || item.no_laporan || item.noLaporan || item.id || item.code || '');
     const src = String(item.source || '');
-    return rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan');
+    if (rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan')) return true;
+
+    // Deteksi transaksi sintetis dari Update Laporan Manual:
+    // ID berupa angka float besar (Date.now()+Math.random()), type='sale',
+    // tidak punya receipt_no / receiptNo / struk asli POS Kasir
+    if (arrayKey === 'salesTransactions' || arrayKey === 'transactions' || arrayKey === 'outletTransactions') {
+      const idVal = item.id;
+      const idNum = Number(idVal);
+      const hasReceiptNo = !!(item.receipt_no || item.receiptNo || item.invoice_no || item.struk_no);
+      // ID berupa angka float besar (>= 1700000000000, i.e. Unix ms timestamp) tanpa receipt_no
+      if (!hasReceiptNo && !isNaN(idNum) && idNum >= 1700000000000 && idNum !== Math.floor(idNum)) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   const POS_REPORT_KEYS = [
@@ -1763,7 +1778,7 @@ const sanitizeMasterDataPayload = (data) => {
 
   POS_REPORT_KEYS.forEach(key => {
     if (Array.isArray(clean[key])) {
-      clean[key] = clean[key].filter(item => !isExcelUploadReport(item));
+      clean[key] = clean[key].filter(item => !isExcelUploadReport(item, key));
     }
   });
 
