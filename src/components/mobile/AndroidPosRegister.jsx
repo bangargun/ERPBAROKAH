@@ -5025,7 +5025,7 @@ export default function AndroidPosRegister({
           <div style={{ flex: 1, padding: '24px', overflowY: 'auto', width: '100%', background: 'var(--pos-bg-app)', display: 'flex', flexDirection: 'column' }}>
             
             {/* Header Laporan */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {activeLaporanSubView !== null && (
                   <button
@@ -5051,6 +5051,60 @@ export default function AndroidPosRegister({
                   </p>
                 </div>
               </div>
+
+              {/* FILTER TABS OMZET — ditampilkan di header baris atas agar selalu terlihat */}
+              {activeLaporanSubView === 'omzet' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setOmzetFilterMode('today')}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '10px',
+                      fontWeight: '900',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      border: omzetFilterMode === 'today' ? '2px solid #34d399' : '1px solid rgba(255,255,255,0.15)',
+                      background: omzetFilterMode === 'today' ? '#34d399' : 'rgba(255,255,255,0.07)',
+                      color: omzetFilterMode === 'today' ? '#0f172a' : 'rgba(255,255,255,0.6)'
+                    }}
+                  >
+                    📅 Hari Ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOmzetFilterMode('yesterday')}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '10px',
+                      fontWeight: '900',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      border: omzetFilterMode === 'yesterday' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.15)',
+                      background: omzetFilterMode === 'yesterday' ? '#38bdf8' : 'rgba(255,255,255,0.07)',
+                      color: omzetFilterMode === 'yesterday' ? '#0f172a' : 'rgba(255,255,255,0.6)'
+                    }}
+                  >
+                    ⏮️ Kemarin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOmzetFilterMode('custom')}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: '10px',
+                      fontWeight: '900',
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      border: omzetFilterMode === 'custom' ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.15)',
+                      background: omzetFilterMode === 'custom' ? '#fbbf24' : 'rgba(255,255,255,0.07)',
+                      color: omzetFilterMode === 'custom' ? '#0f172a' : 'rgba(255,255,255,0.6)'
+                    }}
+                  >
+                    📆 Custom
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* KETERANGAN SYNC MOBILE APK DENGAN DATABASE SERVER & WEB ADMIN (UNTUK SELURUH LAPORAN) */}
@@ -5353,71 +5407,9 @@ export default function AndroidPosRegister({
 
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {/* Header Bar with Filter Tabs */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--pos-border)', flexWrap: 'wrap', gap: '14px' }}>
-                    <div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>📊</span>
-                        <span>Laporan Omzet & Penjualan Struk</span>
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
-                        Periode Aktif: <strong style={{ color: '#34d399' }}>{activeLabel}</strong>
-                      </div>
-                    </div>
-
-                    {/* Filter Mode Buttons */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={() => setOmzetFilterMode('today')}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: '10px',
-                          fontWeight: '800',
-                          fontSize: '0.80rem',
-                          cursor: 'pointer',
-                          border: omzetFilterMode === 'today' ? '1px solid #34d399' : '1px solid var(--pos-border)',
-                          background: omzetFilterMode === 'today' ? 'rgba(52, 211, 153, 0.2)' : 'var(--pos-bg-app)',
-                          color: omzetFilterMode === 'today' ? '#34d399' : 'var(--pos-txt-secondary)'
-                        }}
-                      >
-                        📅 Hari Ini
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setOmzetFilterMode('yesterday')}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: '10px',
-                          fontWeight: '800',
-                          fontSize: '0.80rem',
-                          cursor: 'pointer',
-                          border: omzetFilterMode === 'yesterday' ? '1px solid #38bdf8' : '1px solid var(--pos-border)',
-                          background: omzetFilterMode === 'yesterday' ? 'rgba(56, 189, 248, 0.2)' : 'var(--pos-bg-app)',
-                          color: omzetFilterMode === 'yesterday' ? '#38bdf8' : 'var(--pos-txt-secondary)'
-                        }}
-                      >
-                        ⏮️ Kemarin
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setOmzetFilterMode('custom')}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: '10px',
-                          fontWeight: '800',
-                          fontSize: '0.80rem',
-                          cursor: 'pointer',
-                          border: omzetFilterMode === 'custom' ? '1px solid #fbbf24' : '1px solid var(--pos-border)',
-                          background: omzetFilterMode === 'custom' ? 'rgba(251, 191, 36, 0.2)' : 'var(--pos-bg-app)',
-                          color: omzetFilterMode === 'custom' ? '#fbbf24' : 'var(--pos-txt-secondary)'
-                        }}
-                      >
-                        📆 Custom Tanggal
-                      </button>
-                    </div>
+                  {/* Periode Label */}
+                  <div style={{ fontSize: '0.82rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>
+                    Menampilkan data periode: <strong style={{ color: '#34d399' }}>{activeLabel}</strong>
                   </div>
 
                   {/* Custom Date Range Picker inputs (Only when Custom is selected) */}
