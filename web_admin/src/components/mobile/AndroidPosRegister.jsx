@@ -1673,10 +1673,19 @@ export default function AndroidPosRegister({
       ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
     ]);
 
+    const isUpdateLaporanRecord = (t) => {
+      if (!t) return false;
+      const str = String(JSON.stringify(t));
+      if (str.includes('UPD-') || str.includes('Batch Upload Excel') || str.includes('Update Laporan') || str.includes('Excel/Manual')) return true;
+      const src = String(t.source || '');
+      const rNo = String(t.report_no || t.receipt_no || t.id || '');
+      const notes = String(t.notes || '');
+      return rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan') || notes.includes('Update Laporan');
+    };
+
     const txList = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
       if (!t) return false;
-      // Filter out transactions created by Excel report uploads from POS Kasir view
-      if (t.source === 'Batch Upload Excel' || t.source === 'Update Laporan Excel/Manual' || t.source === 'Update Laporan Manual') return false;
+      if (isUpdateLaporanRecord(t)) return false;
       const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
       const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
       if (tid && deletedSalesSet.has(tid)) return false;
