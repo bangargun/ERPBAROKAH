@@ -1743,6 +1743,7 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
 const sanitizeMasterDataPayload = (data) => {
   if (!data || typeof data !== 'object') return data;
   const clean = { ...data };
+  if (clean.masterData) delete clean.masterData;
 
   // Hapus seluruh data UPD- dan Update Laporan Excel dari POS Kasir (shiftReports, approvedFinanceDaily, manualEntryRecords, salesTransactions)
   const isExcelUploadReport = (item, arrayKey = '') => {
