@@ -498,6 +498,7 @@ export default function AndroidPosRegister({
 
   // Laporan Sub View State & Mobile Report Password Protection (Matching User Directive 100%)
   const [activeLaporanSubView, setActiveLaporanSubView] = useState(null); // null (dashboard cards) | 'omzet' | 'harian' | 'logistik'
+  const [omzetTargetDate, setOmzetTargetDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [showAddManualReportModal, setShowAddManualReportModal] = useState(false);
   const [previewManualReport, setPreviewManualReport] = useState(null);
   
@@ -5258,68 +5259,130 @@ export default function AndroidPosRegister({
               </div>
             )}
 
-            {/* DETAILED SUB-VIEW 1: LAPORAN OMZET */}
-            {activeLaporanSubView === 'omzet' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
-                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Gross Omset Sales</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(totalSalesGross)}</div>
-                  </div>
-                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Total Struk Terjual</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '6px' }}>{(outletTransactions || []).length} Struk</div>
-                  </div>
-                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Kas Tunai / Cash</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>
-                      {formatRupiah((outletTransactions || []).filter(tx => String(tx.payment_method || '').toLowerCase().includes('cash') || String(tx.payment_method || '').toLowerCase().includes('tunai')).reduce((sum, tx) => sum + (tx.amount || 0), 0))}
-                    </div>
-                  </div>
-                  <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Non-Tunai (QRIS / EDC)</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#a78bfa', marginTop: '6px' }}>
-                      {formatRupiah((outletTransactions || []).filter(tx => !String(tx.payment_method || '').toLowerCase().includes('cash') && !String(tx.payment_method || '').toLowerCase().includes('tunai')).reduce((sum, tx) => sum + (tx.amount || 0), 0))}
-                    </div>
-                  </div>
-                </div>
+            {/* DETAILED SUB-VIEW 1: LAPORAN OMZET (HARI YANG BERSANGKUTAN / HARI INI) */}
+            {activeLaporanSubView === 'omzet' && (() => {
+              const targetDayStr = omzetTargetDate || new Date().toLocaleDateString('en-CA');
+              const targetDayTransactions = (outletTransactions || []).filter(tx => {
+                if (!tx) return false;
+                const txDate = tx.date || tx.entry_date || tx.transaction_date || 
+                               (tx.timestamp ? String(tx.timestamp).substring(0, 10) : '') || 
+                               (tx.created_at ? String(tx.created_at).substring(0, 10) : '');
+                return txDate === targetDayStr;
+              });
 
-                {/* Table Breakdown Sales Omzet */}
-                <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '20px', border: '1px solid var(--pos-border)' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '14px' }}>Rincian Omset Per Transaksi Struk</h3>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
-                      <thead>
-                        <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)' }}>
-                          <th style={{ padding: '10px' }}>No. Struk</th>
-                          <th style={{ padding: '10px' }}>Pelanggan</th>
-                          <th style={{ padding: '10px' }}>Metode Bayar</th>
-                          <th style={{ padding: '10px', textAlign: 'right' }}>Total Nominal</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(!outletTransactions || outletTransactions.length === 0) ? (
-                          <tr>
-                            <td colSpan="4" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                              Belum ada rincian omset per transaksi struk (Data Kosong).
-                            </td>
+              const targetDayGross = targetDayTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+              const targetDayCash = targetDayTransactions
+                .filter(tx => String(tx.payment_method || '').toLowerCase().includes('cash') || String(tx.payment_method || '').toLowerCase().includes('tunai'))
+                .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+              const targetDayNonCash = targetDayTransactions
+                .filter(tx => !String(tx.payment_method || '').toLowerCase().includes('cash') && !String(tx.payment_method || '').toLowerCase().includes('tunai'))
+                .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Date Filter & Header Info Bar */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--pos-bg-card)', padding: '14px 20px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                    <div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '900', color: 'var(--pos-txt-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>📊</span>
+                        <span>Laporan Omzet Performa Operasional</span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', marginTop: '2px' }}>
+                        Menampilkan khusus omzet transaksi pada hari yang bersangkutan ({targetDayStr})
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '800' }}>📆 Tanggal Omzet:</span>
+                      <input
+                        type="date"
+                        value={targetDayStr}
+                        onChange={(e) => setOmzetTargetDate(e.target.value)}
+                        style={{
+                          background: 'var(--pos-bg-app)',
+                          border: '1px solid var(--pos-border)',
+                          borderRadius: '8px',
+                          color: 'var(--pos-txt-primary)',
+                          padding: '6px 10px',
+                          fontSize: '0.82rem',
+                          fontWeight: '800',
+                          outline: 'none'
+                        }}
+                      />
+                      {targetDayStr !== new Date().toLocaleDateString('en-CA') && (
+                        <button
+                          type="button"
+                          onClick={() => setOmzetTargetDate(new Date().toLocaleDateString('en-CA'))}
+                          style={{ background: '#2563eb', border: 'none', color: '#fff', padding: '6px 10px', borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}
+                        >
+                          Hari Ini
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Gross Omset Sales ({targetDayStr})</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(targetDayGross)}</div>
+                    </div>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Total Struk Terjual</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginTop: '6px' }}>{targetDayTransactions.length} Struk</div>
+                    </div>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Kas Tunai / Cash</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>
+                        {formatRupiah(targetDayCash)}
+                      </div>
+                    </div>
+                    <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Non-Tunai (QRIS / EDC)</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#a78bfa', marginTop: '6px' }}>
+                        {formatRupiah(targetDayNonCash)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Table Breakdown Sales Omzet */}
+                  <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '20px', border: '1px solid var(--pos-border)' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '14px' }}>
+                      Rincian Omset Per Transaksi Struk ({targetDayStr})
+                    </h3>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)' }}>
+                            <th style={{ padding: '10px' }}>No. Struk</th>
+                            <th style={{ padding: '10px' }}>Pelanggan</th>
+                            <th style={{ padding: '10px' }}>Metode Bayar</th>
+                            <th style={{ padding: '10px', textAlign: 'right' }}>Total Nominal</th>
                           </tr>
-                        ) : (
-                          (outletTransactions || []).map((t, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                              <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.id}</td>
-                              <td style={{ padding: '10px', color: 'var(--pos-txt-primary)' }}>{t.customer_name || 'Pelanggan Umum'}</td>
-                              <td style={{ padding: '10px', color: '#34d399', fontWeight: '800' }}>{t.payment_method || 'Cash'}</td>
-                              <td style={{ padding: '10px', textAlign: 'right', color: 'var(--pos-txt-primary)', fontWeight: '900' }}>{formatRupiah(t.amount)}</td>
+                        </thead>
+                        <tbody>
+                          {(targetDayTransactions.length === 0) ? (
+                            <tr>
+                              <td colSpan="4" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                Belum ada rincian omset transaksi pada tanggal {targetDayStr} (Data Kosong).
+                              </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            targetDayTransactions.map((t, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.id}</td>
+                                <td style={{ padding: '10px', color: 'var(--pos-txt-primary)' }}>{t.customer_name || 'Pelanggan Umum'}</td>
+                                <td style={{ padding: '10px', color: '#34d399', fontWeight: '800' }}>{t.payment_method || 'Cash'}</td>
+                                <td style={{ padding: '10px', textAlign: 'right', color: 'var(--pos-txt-primary)', fontWeight: '900' }}>{formatRupiah(t.amount)}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* DETAILED SUB-VIEW 2: BUAT LAPORAN HARIAN (INPUT MANUAL LAPORAN & TABEL HISTORI) */}
             {activeLaporanSubView === 'harian' && (
