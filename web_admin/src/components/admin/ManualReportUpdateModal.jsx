@@ -954,26 +954,56 @@ export default function ManualReportUpdateModal({
       else grp.expenseRows.push(row);
     });
 
-    // 3. CONSTRUCT REPORT RECORDS & FINANCIAL RECORDS PER GRUP TANGGAL+OUTLET
+    // 3. HELPER: Cari laporan UPD- yang sudah ada untuk tanggal + outlet yang sama
+    const findExistingUPDReport = (date, outletId) => {
+      return (masterData?.manualEntryRecords || []).find(r =>
+        (r.entry_date === date || r.date === date) &&
+        (String(r.outlet_id) === String(outletId) || String(r.outletId) === String(outletId)) &&
+        String(r.report_no || '').startsWith('UPD-')
+      ) || null;
+    };
+
+    // Helper: merge array of breakdown items, consolidate same name → sum qty & amount (Opsi B)
+    const mergeBreakdownByName = (existing = [], incoming = [], nameKey = 'name') => {
+      const map = new Map();
+      [...existing, ...incoming].forEach(item => {
+        const key = String(item[nameKey] || item.product_name || item.categoryName || item.name || '').trim().toLowerCase();
+        if (!key) return;
+        if (map.has(key)) {
+          const prev = map.get(key);
+          const newQty = (Number(prev.qty) || 1) + (Number(item.qty) || 1);
+          const newSubtotal = (Number(prev.subtotal) || Number(prev.amount) || 0) + (Number(item.subtotal) || Number(item.amount) || 0);
+          const newAmount  = newSubtotal;
+          map.set(key, { ...prev, qty: newQty, subtotal: newSubtotal, amount: newAmount });
+        } else {
+          map.set(key, { ...item });
+        }
+      });
+      return Array.from(map.values());
+    };
+
+    // 4. CONSTRUCT REPORT RECORDS & FINANCIAL RECORDS PER GRUP TANGGAL+OUTLET
     const allNewReportRecords = [];
     const allNewFinancialRecords = [];
     const allNewSalesTxRecords = [];
     let totalSalesOmsetAll = 0;
     let totalPendapatanLainAll = 0;
     let totalExpenseAmountAll = 0;
+    let mergedCount = 0;
+    let createdCount = 0;
+    // Track report_no of existing records that are being replaced by merged version
+    const mergedReportNos = new Set();
 
     groupMap.forEach((grp) => {
       const grpSalesTotal = grp.salesRows.reduce((s, r) => s + r.subtotal, 0);
       const grpPendapatanTotal = grp.pendapatanRows.reduce((s, r) => s + r.subtotal, 0);
       const grpPemasukanTotal = grpSalesTotal + grpPendapatanTotal;
       const grpExpenseTotal = grp.expenseRows.reduce((s, r) => s + r.subtotal, 0);
-      const grpNet = grpPemasukanTotal - grpExpenseTotal;
 
       totalSalesOmsetAll += grpSalesTotal;
       totalPendapatanLainAll += grpPendapatanTotal;
       totalExpenseAmountAll += grpExpenseTotal;
 
-      const grpReportNo = `UPD-${grp.date.replace(/-/g, '')}-${String(grp.outletId)}-${String(Math.floor(Math.random() * 900) + 100)}`;
       const grpTimestamp = `${grp.date}T${new Date().toTimeString().split(' ')[0]}`;
 
       const grpSalesBreakdown = grp.salesRows.map(s => ({
@@ -994,39 +1024,87 @@ export default function ManualReportUpdateModal({
         notes: e.notes || 'Update Laporan Pengeluaran'
       }));
 
-      allNewReportRecords.push({
-        id: Date.now() + Math.random(),
-        report_no: grpReportNo,
-        entry_date: grp.date,
-        date: grp.date,
-        transaction_date: grp.date,
-        outlet_id: grp.outletId,
-        outlet_name: grp.outletName,
-        net_sales: grpSalesTotal,
-        gross_sales: grpSalesTotal,
-        total_omset: grpSalesTotal,
-        total_sales: grpSalesTotal,
-        total_pendapatan_lain: grpPendapatanTotal,
-        total_pemasukan: grpPemasukanTotal,
-        cash_sales: grpSalesTotal,
-        non_cash_sales: 0,
-        total_expense: grpExpenseTotal,
-        total_pengeluaran: grpExpenseTotal,
-        net_cash: grpNet,
-        laba_bersih: grpNet,
-        status: 'Disetujui',
-        is_approved: true,
-        author: authorName,
-        created_by: authorName,
-        source: activeTab === 'excel' ? 'Batch Upload Excel' : 'Update Laporan Manual',
-        sales_details: grpSalesBreakdown,
-        pendapatan_details: grpPendapatanBreakdown,
-        expense_details: grpExpenseBreakdown,
-        expenses_breakdown: grpExpenseBreakdown,
-        expense_rows: grpExpenseBreakdown,
-        created_at: new Date().toISOString()
-      });
+      // ── CEK: Apakah sudah ada laporan UPD- untuk tanggal+outlet ini? ──────────
+      const existingReport = findExistingUPDReport(grp.date, grp.outletId);
 
+      if (existingReport) {
+        // ── MERGE: gabungkan & konsolidasi item yang sama (Opsi B) ────────────
+        mergedReportNos.add(String(existingReport.report_no || existingReport.id));
+        mergedCount++;
+
+        const mergedSales      = mergeBreakdownByName(existingReport.sales_details      || [], grpSalesBreakdown,      'name');
+        const mergedPendapatan = mergeBreakdownByName(existingReport.pendapatan_details  || [], grpPendapatanBreakdown, 'name');
+        const mergedExpenses   = mergeBreakdownByName(existingReport.expenses_breakdown  || [], grpExpenseBreakdown,    'name');
+
+        const newSalesTotal    = mergedSales.reduce((s, r)      => s + (Number(r.subtotal) || Number(r.amount) || 0), 0);
+        const newPendapatanTotal = mergedPendapatan.reduce((s, r) => s + (Number(r.subtotal) || Number(r.amount) || 0), 0);
+        const newExpensesTotal = mergedExpenses.reduce((s, r)   => s + (Number(r.amount)   || Number(r.subtotal) || 0), 0);
+        const newPemasukanTotal = newSalesTotal + newPendapatanTotal;
+        const newNet = newPemasukanTotal - newExpensesTotal;
+
+        allNewReportRecords.push({
+          ...existingReport,                              // pertahankan semua field lama
+          sales_details:      mergedSales,
+          pendapatan_details: mergedPendapatan,
+          expense_details:    mergedExpenses,
+          expenses_breakdown: mergedExpenses,
+          expense_rows:       mergedExpenses,
+          net_sales:          newSalesTotal,
+          gross_sales:        newSalesTotal,
+          total_omset:        newSalesTotal,
+          total_sales:        newSalesTotal,
+          total_pendapatan_lain: newPendapatanTotal,
+          total_pemasukan:    newPemasukanTotal,
+          cash_sales:         newSalesTotal,
+          total_expense:      newExpensesTotal,
+          total_pengeluaran:  newExpensesTotal,
+          net_cash:           newNet,
+          laba_bersih:        newNet,
+          updated_at:         new Date().toISOString(),
+          source: activeTab === 'excel' ? 'Batch Upload Excel' : 'Update Laporan Manual',
+        });
+
+      } else {
+        // ── CREATE: buat laporan baru ─────────────────────────────────────────
+        createdCount++;
+        const grpReportNo = `UPD-${grp.date.replace(/-/g, '')}-${String(grp.outletId)}-${String(Math.floor(Math.random() * 900) + 100)}`;
+        const grpNet = grpPemasukanTotal - grpExpenseTotal;
+
+        allNewReportRecords.push({
+          id: Date.now() + Math.random(),
+          report_no: grpReportNo,
+          entry_date: grp.date,
+          date: grp.date,
+          transaction_date: grp.date,
+          outlet_id: grp.outletId,
+          outlet_name: grp.outletName,
+          net_sales: grpSalesTotal,
+          gross_sales: grpSalesTotal,
+          total_omset: grpSalesTotal,
+          total_sales: grpSalesTotal,
+          total_pendapatan_lain: grpPendapatanTotal,
+          total_pemasukan: grpPemasukanTotal,
+          cash_sales: grpSalesTotal,
+          non_cash_sales: 0,
+          total_expense: grpExpenseTotal,
+          total_pengeluaran: grpExpenseTotal,
+          net_cash: grpNet,
+          laba_bersih: grpNet,
+          status: 'Disetujui',
+          is_approved: true,
+          author: authorName,
+          created_by: authorName,
+          source: activeTab === 'excel' ? 'Batch Upload Excel' : 'Update Laporan Manual',
+          sales_details: grpSalesBreakdown,
+          pendapatan_details: grpPendapatanBreakdown,
+          expense_details: grpExpenseBreakdown,
+          expenses_breakdown: grpExpenseBreakdown,
+          expense_rows: grpExpenseBreakdown,
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // Financial records & sales tx tetap ditambahkan (untuk analytics)
       grp.expenseRows.forEach(e => {
         allNewFinancialRecords.push({
           id: Date.now() + Math.random(),
@@ -1086,9 +1164,8 @@ export default function ManualReportUpdateModal({
     const totalTotalPemasukan = totalSalesOmsetAll + totalPendapatanLainAll;
     const netCashFlowAll = totalTotalPemasukan - totalExpenseAmountAll;
 
-    // 4. SAVE TO MASTER DATA STATE LOCALLY WITH STRICT POS KASIR ISOLATION
+    // 5. SAVE TO MASTER DATA STATE LOCALLY WITH STRICT POS KASIR ISOLATION
     const oldId = isEditMode ? String(editData.id) : null;
-    const filterOld = (arr) => oldId ? (arr || []).filter(r => String(r.id) !== oldId) : (arr || []);
     const isExcelImport = activeTab === 'excel';
 
     // Purge any Update Laporan / Excel Upload records from POS Kasir salesTransactions & shiftReports
@@ -1103,6 +1180,13 @@ export default function ManualReportUpdateModal({
     const cleanSalesTx = (masterData?.salesTransactions || []).filter(t => !isUpdateLaporanRecord(t));
     const cleanShiftReports = (masterData?.shiftReports || []).filter(r => !isUpdateLaporanRecord(r));
     const cleanApprovedDaily = (masterData?.approvedFinanceDaily || []).filter(r => !isUpdateLaporanRecord(r));
+
+    // Filter manualEntryRecords: buang yang lama jika sedang di-edit ATAU yang sudah di-merge
+    const filterOld = (arr) => (arr || []).filter(r => {
+      if (oldId && String(r.id) === oldId) return false;
+      if (mergedReportNos.has(String(r.report_no || r.id))) return false;
+      return true;
+    });
 
     const updatedManualRecords = [...allNewReportRecords, ...filterOld(masterData?.manualEntryRecords)];
     const updatedMovements     = [...newStockMovements, ...(masterData?.stockMovement || [])];
@@ -1128,12 +1212,17 @@ export default function ManualReportUpdateModal({
     if (newAccountsCreatedCount > 0) autoMsg += `\n• Auto-Generate Kode Biaya Baru: ${newAccountsCreatedCount} Akun terdaftar.`;
     if (newProductsCreatedCount > 0) autoMsg += `\n• Auto-Register Produk Baru: ${newProductsCreatedCount} Produk terdaftar.`;
 
+    const mergeInfo = mergedCount > 0 ? `\n• 🔄 Di-merge ke tanggal sudah ada: ${mergedCount} tanggal/outlet` : '';
+    const createInfo = createdCount > 0 ? `\n• ✨ Laporan baru dibuat: ${createdCount} tanggal/outlet` : '';
+
     alert(isEditMode
       ? `✅ LAPORAN BERHASIL DIUPDATE!\n\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}${autoMsg}`
-      : `✅ BERHASIL UPDATE LAPORAN!\n\n• Total Laporan Dibuat: ${allNewReportRecords.length} laporan (${groupMap.size} tanggal/outlet)\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')} (Sales: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}, Pendapatan Lain: Rp ${totalPendapatanLainAll.toLocaleString('id-ID')})\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
+      : `✅ BERHASIL UPDATE LAPORAN!${createInfo}${mergeInfo}\n\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')} (Sales: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}, Pendapatan Lain: Rp ${totalPendapatanLainAll.toLocaleString('id-ID')})\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
 
     onClose();
   };
+
+
 
   return (
     <div style={{
