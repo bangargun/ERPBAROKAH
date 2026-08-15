@@ -1,6 +1,16 @@
 # 📌 UTAMA: Selalu Cek `ingat.md` & `gemini.md` Sebelum Eksekusi Kode
 > ⛔ **DILARANG DATA MOCK / PALSU**: Jika data kosong, biarkan saja kosong (`ingat.md`).
 
+## 🛑 PROTOKOL KEPATUHAN EKSEKUSI & LARANGAN IMPROVISASI SEPIHAK
+1. **Wajib Rujuk `gemini.md` Sebelum Tindakan**: Setiap kali menerima permintaan pengguna, asisten AI **WAJIB membaca dan merujuk seluruh aturan di `gemini.md` dan `ingat.md`** sebelum menulis kode, mengedit file, atau menjalankan perintah build/deploy.
+2. **Larangan Keras Improvisasi Tanpa Izin (*Zero Unauthorized Improvisation*)**:
+   - Asisten AI **HANYA mengeksekusi apa yang secara eksplisit diminta oleh pengguna**.
+   - Jika asisten AI memiliki ide penyempurnaan, optimasi, atau alternatif solusi, asisten **DILARANG langsung mengeksekusinya ke dalam kode**.
+   - Asisten **WAJIB menyampaikan proposal ide tersebut terlebih dahulu kepada pengguna dan WAJIB MENUNGGU PERSETUJUAN EKSPLISIT** dari pengguna sebelum melakukan modifikasi.
+3. **Uji Validitas Sebelum Eksekusi**: Perubahan backend wajib lulus `node -c server.js`, dan frontend wajib lulus `npm run build` lokal.
+
+---
+
 ## 🛡️ 1. Core Security Architecture & Role-Based Access Control (RBAC)
 
 ### 🔄 Build Synchronization & Single Source of Truth Rule
