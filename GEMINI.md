@@ -331,6 +331,8 @@ const [xxxCustomEnd,   setXxxCustomEnd]   = useState(() => new Date().toLocaleDa
 ### APK Versi Terbaru
 | Versi | File | Tanggal Build | Perubahan |
 |-------|------|--------------|-----------| 
+| v4.1.3 | `POS_KASIR_BAROKAH_v4.1.3_Tab10in_Build_20260815.apk` / `POS KASIR.apk` | 15-08-2026 | Perubahan nama aplikasi jadi **POS KASIR**, Icon baru Emerald Green Barokah Grup, fix ReferenceError discountType, dan optimasi sync |
+| v3.4.1 | `POS_KASIR_BAROKAH_v3.4.1_Tab10in_Build_20260815.apk` | 15-08-2026 | Fix ReferenceError discountType di layar kasir checkout |
 | v3.4.0 | `POS_KASIR_BAROKAH_v3.4.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Tanggal input custom untuk Superadmin di payment modal + fix omzet sync dari Web Admin (server-side synthetic tx) |
 | v3.3.0 | `POS_KASIR_BAROKAH_v3.3.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Filter tanggal semua laporan logistik + fix auto-kalkulasi omzet harian |
 | v3.2.0 | `POS_KASIR_BAROKAH_v3.2.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Filter riwayat + laporan omzet |
