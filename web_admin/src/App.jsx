@@ -441,18 +441,32 @@ export default function App() {
               const serverWaste = getCombinedArray(serverData.approvedWaste, serverData.damagedGoods);
               const mergedWaste = mergeReportsById(prevWaste, serverWaste);
 
-              // Merge master arrays — server wins for additions, local wins for deletions
+              // Merge master arrays — newer timestamp wins for updates, local wins for deletions
               const mergeMasterArray = (prevArr, serverArr, deletedIds) => {
                 const map = new Map();
-                // Server items first (as base)
+                // Add server items first as base
                 (Array.isArray(serverArr) ? serverArr : []).forEach(item => {
                   const k = String(item.id ?? item.code ?? item.name ?? '');
                   if (k && !deletedIds.has(k)) map.set(k, item);
                 });
-                // Local items: add if not in server and not deleted
+                // Local items: if same id exists, winner = newer _updatedAt / _lastMutated timestamp
+                // If local item is newer → replace server version (e.g. user just edited category)
+                // If local item is not in server → add it (new local addition)
                 (Array.isArray(prevArr) ? prevArr : []).forEach(item => {
                   const k = String(item.id ?? item.code ?? item.name ?? '');
-                  if (k && !deletedIds.has(k) && !map.has(k)) map.set(k, item);
+                  if (!k || deletedIds.has(k)) return;
+                  if (map.has(k)) {
+                    // Both exist — compare timestamps, newer wins
+                    const serverItem = map.get(k);
+                    const localTs  = Number(item._updatedAt  || item._lastMutated  || 0);
+                    const serverTs = Number(serverItem._updatedAt || serverItem._lastMutated || 0);
+                    if (localTs > serverTs) {
+                      map.set(k, item); // local is newer → local wins
+                    }
+                    // else: server is newer or equal → keep server (already in map)
+                  } else {
+                    map.set(k, item); // only in local → add it
+                  }
                 });
                 return Array.from(map.values());
               };

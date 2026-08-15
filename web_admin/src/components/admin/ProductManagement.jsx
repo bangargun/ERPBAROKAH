@@ -362,7 +362,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           status: 'Aktif'
         }
       ],
-      compositions
+      compositions,
+      _updatedAt: Date.now(),
     };
 
     const updated = {
