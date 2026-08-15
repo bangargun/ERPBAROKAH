@@ -26,6 +26,10 @@
 System **MRIS (Multi Restaurant Financial & Operational Information System)** implements multi-tiered security hardening across Web Admin and Mobile POS environments.
 
 ### 🔑 Authentication & Session Integrity
+- **Pemisahan Total Akun POS Mobile vs Web Admin**:
+  - `mobileAccounts` (Akun POS Mobile APK) dan `webAdminAccounts` (Akun Web Admin) adalah **2 domain entitas yang terpisah secara independen**.
+  - Menambah, mengubah (*edit*), memperbarui password, atau menghapus user pada `POS Mobile Accounts` **DILARANG OTOMATIS MERUBAH / MENYINKRONKAN KE `Web Admin Accounts`**, dan begitu juga sebaliknya.
+  - Setiap perubahan akun harus diisolasi strictly pada data store masing-masing.
 - **JWT & Session Cryptography**: User sessions are validated with cryptographic tokens. Token payload contains user ID, normalized role, branch access scope, and explicit permission grants.
 - **Strict Role Normalization**: System maps legacy and custom role aliases (`superadmin`, `owner`, `manajer cabang`, `kasir`, `logistik`) into standardized RBAC tiers.
 - **Super Admin Overrides**: Only verified `Super Admin / Owner` roles possess system-wide configuration write access (`settings`, `activity_log`).
