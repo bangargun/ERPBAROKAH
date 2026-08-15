@@ -2930,35 +2930,13 @@ export default function AndroidPosRegister({
         }
       }
     });
-    const DEFAULT_BAROKAH_OUTLETS = [
-      { id: 1785307180576, name: 'AYAM BAKAR SURABAYA TEBING TINGGI', code: 'SBY-TT' },
-      { id: 1785369561430, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', code: 'PCK-TT' },
-      { id: 1785537689430, name: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', code: 'PCK-RP' },
-      { id: 1785369617361, name: 'AYAM PECAK 2001 SEAFOOD KISARAN', code: 'PCK-KIS' },
-      { id: 1785564003169, name: 'PECEL LELE PAK HAJI KISARAN', code: 'PLP-KIS' }
-    ];
+    const registeredUsers = Array.from(usersMap.values());
 
-    const DEFAULT_BAROKAH_USERS = [
-      { id: 1, name: 'Super Admin Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '888', canAccessMobileReports: true },
-      { id: 2, name: 'Owner Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '999', canAccessMobileReports: true },
-      { id: 3, name: 'Kasir Surabaya TT', role: 'Kasir', outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI', outlet_id: 1785307180576, mobileLoginPassword: '', canAccessMobileReports: false },
-      { id: 4, name: 'Kasir Pecak TT', role: 'Kasir', outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', outlet_id: 1785369561430, mobileLoginPassword: '', canAccessMobileReports: false },
-      { id: 5, name: 'Kasir Pecak RP', role: 'Kasir', outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', outlet_id: 1785537689430, mobileLoginPassword: '', canAccessMobileReports: false },
-      { id: 6, name: 'Kasir Pecak Kisaran', role: 'Kasir', outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN', outlet_id: 1785369617361, mobileLoginPassword: '', canAccessMobileReports: false },
-      { id: 7, name: 'Kasir Pak Haji', role: 'Kasir', outlet: 'PECEL LELE PAK HAJI KISARAN', outlet_id: 1785564003169, mobileLoginPassword: '', canAccessMobileReports: false }
-    ];
-
-    const registeredUsers = usersMap.size > 0 ? Array.from(usersMap.values()) : DEFAULT_BAROKAH_USERS;
-
-    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin dengan garansi tidak pernah kosong
+    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin (Data Asli MySQL)
     const availableOutlets = (() => {
       const map = new Map();
 
-      const sourceList = (masterData?.outlets && masterData.outlets.length > 0)
-        ? masterData.outlets
-        : DEFAULT_BAROKAH_OUTLETS;
-
-      sourceList.forEach(o => {
+      (masterData?.outlets || []).forEach(o => {
         if (o && (o.name || o.branch_name)) {
           const id = String(o.id || o.outlet_id || Date.now());
           map.set(id, { id: o.id || id, name: o.name || o.branch_name, code: o.code || 'OUTLET' });
@@ -2976,11 +2954,10 @@ export default function AndroidPosRegister({
         }
       });
 
-      const res = Array.from(map.values());
-      return res.length > 0 ? res : DEFAULT_BAROKAH_OUTLETS;
+      return Array.from(map.values());
     })();
 
-    const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || DEFAULT_BAROKAH_OUTLETS[0];
+    const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
     const activeOutletName = String(activeOutletObj?.name || '').toLowerCase().trim();
     const activeOutletId = String(activeOutletObj?.id || '').toLowerCase().trim();
 
@@ -2995,7 +2972,7 @@ export default function AndroidPosRegister({
     }) : registeredUsers;
 
     const displayUsers = filteredUsersForOutlet.length > 0 ? filteredUsersForOutlet : registeredUsers;
-    const activeSelectedUser = selectedUserAccount || displayUsers[0] || DEFAULT_BAROKAH_USERS[0];
+    const activeSelectedUser = selectedUserAccount || displayUsers[0] || null;
 
     const handleDirectLogin = (userObj, outletObj) => {
       setLoginErrorText('');
@@ -3114,43 +3091,63 @@ export default function AndroidPosRegister({
                 <span>🏢 LANGKAH 1: Pilih Outlet Cabang</span>
               </label>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
-                {availableOutlets.map(o => {
-                  const isSel = (loginSelectedOutlet?.id || activeOutletObj?.id) === o.id;
-                  return (
-                    <div
-                      key={o.id}
-                      onClick={() => {
-                        setLoginSelectedOutlet(o);
-                        setLoginErrorText('');
-                        setLoginStep(2);
-                      }}
-                      style={{
-                        background: isSel ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.25) 100%)' : '#0f172a',
-                        border: isSel ? '2px solid #10b981' : '1.5px solid #334155',
-                        borderRadius: '16px',
-                        padding: '16px 12px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: isSel ? '0 0 15px rgba(16, 185, 129, 0.35)' : 'none'
-                      }}
-                    >
-                      <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>
-                        🏪
+              {availableOutlets.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', background: '#0f172a', borderRadius: '16px', border: '1px dashed #334155' }}>
+                  <p style={{ fontSize: '0.84rem', color: '#94a3b8', margin: '0 0 10px 0' }}>
+                    Sedang memuat daftar outlet dari server...
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+                        .then(r => r.json())
+                        .then(d => { if (d && d.outlets) setMasterData(d); })
+                        .catch(() => {});
+                    }}
+                    style={{ background: '#1e293b', border: '1px solid #10b981', color: '#10b981', padding: '6px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    🔄 Muat Ulang Outlet
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {availableOutlets.map(o => {
+                    const isSel = (loginSelectedOutlet?.id || activeOutletObj?.id) === o.id;
+                    return (
+                      <div
+                        key={o.id}
+                        onClick={() => {
+                          setLoginSelectedOutlet(o);
+                          setLoginErrorText('');
+                          setLoginStep(2);
+                        }}
+                        style={{
+                          background: isSel ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.25) 100%)' : '#0f172a',
+                          border: isSel ? '2px solid #10b981' : '1.5px solid #334155',
+                          borderRadius: '16px',
+                          padding: '16px 12px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isSel ? '0 0 15px rgba(16, 185, 129, 0.35)' : 'none'
+                        }}
+                      >
+                        <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>
+                          🏪
+                        </div>
+                        <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#ffffff', lineHeight: '1.25' }}>
+                          {o.name}
+                        </div>
+                        {o.code && (
+                          <span style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: '800', marginTop: '6px', display: 'inline-block', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px' }}>
+                            {o.code}
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#ffffff', lineHeight: '1.25' }}>
-                        {o.name}
-                      </div>
-                      {o.code && (
-                        <span style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: '800', marginTop: '6px', display: 'inline-block', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px' }}>
-                          {o.code}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
