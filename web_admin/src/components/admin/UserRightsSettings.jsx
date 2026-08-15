@@ -619,22 +619,18 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
                               onClick={() => toggleWebMatrixActionPerm(row.role, col.key, 'view')}
                               title={`Hak Lihat ${col.label}: ${permObj.view ? 'Aktif' : 'Non-Aktif'}`}
                               style={{
-                                padding: '3px 6px',
+                                padding: '3px 7px',
                                 borderRadius: '5px',
-                                border: 'none',
-                                fontSize: '0.66rem',
+                                border: `1px solid ${permObj.view ? T.successBorder : T.dangerBorder}`,
+                                fontSize: '0.68rem',
                                 fontWeight: '800',
                                 cursor: isSuperAdminOrOwner ? 'not-allowed' : 'pointer',
                                 background: permObj.view ? T.successBg : T.dangerBg,
                                 color: permObj.view ? T.success : T.danger,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '2px',
                                 transition: 'all 0.15s'
                               }}
                             >
-                              <span>👁️</span>
-                              <span>View</span>
+                              View
                             </button>
 
                             {/* EDIT */}
@@ -643,22 +639,18 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
                               onClick={() => toggleWebMatrixActionPerm(row.role, col.key, 'edit')}
                               title={`Hak Edit & Tambah ${col.label}: ${permObj.edit ? 'Aktif' : 'Non-Aktif'}`}
                               style={{
-                                padding: '3px 6px',
+                                padding: '3px 7px',
                                 borderRadius: '5px',
-                                border: 'none',
-                                fontSize: '0.66rem',
+                                border: `1px solid ${permObj.edit ? T.successBorder : T.dangerBorder}`,
+                                fontSize: '0.68rem',
                                 fontWeight: '800',
                                 cursor: isSuperAdminOrOwner ? 'not-allowed' : 'pointer',
-                                background: permObj.edit ? 'rgba(234, 179, 8, 0.15)' : T.dangerBg,
-                                color: permObj.edit ? '#eab308' : T.danger,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '2px',
+                                background: permObj.edit ? T.successBg : T.dangerBg,
+                                color: permObj.edit ? T.success : T.danger,
                                 transition: 'all 0.15s'
                               }}
                             >
-                              <span>✏️</span>
-                              <span>Edit</span>
+                              Edit
                             </button>
 
                             {/* DELETE */}
@@ -667,22 +659,18 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
                               onClick={() => toggleWebMatrixActionPerm(row.role, col.key, 'delete')}
                               title={`Hak Hapus ${col.label}: ${permObj.delete ? 'Aktif' : 'Non-Aktif'}`}
                               style={{
-                                padding: '3px 6px',
+                                padding: '3px 7px',
                                 borderRadius: '5px',
-                                border: 'none',
-                                fontSize: '0.66rem',
+                                border: `1px solid ${permObj.delete ? T.successBorder : T.dangerBorder}`,
+                                fontSize: '0.68rem',
                                 fontWeight: '800',
                                 cursor: isSuperAdminOrOwner ? 'not-allowed' : 'pointer',
-                                background: permObj.delete ? 'rgba(239, 68, 68, 0.18)' : T.dangerBg,
-                                color: permObj.delete ? '#ef4444' : T.danger,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '2px',
+                                background: permObj.delete ? T.successBg : T.dangerBg,
+                                color: permObj.delete ? T.success : T.danger,
                                 transition: 'all 0.15s'
                               }}
                             >
-                              <span>🗑️</span>
-                              <span>Delete</span>
+                              Delete
                             </button>
                           </div>
                         </td>
