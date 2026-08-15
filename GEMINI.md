@@ -335,7 +335,8 @@ const layout = {
 ## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
 |-------|------|--------------|-----------|
-| **v4.2.8** | **`POS_KASIR_BAROKAH_v4.2.8_Universal_Build_20260815.apk`** / **`POS KASIR.APK`** | 15-08-2026 | **Sinkronisasi Otentik Akun Kasir Sesuai Pengaturan Web Admin**: Menampilkan akun real (`RATIH`, `DIANA`, `PENTI`, `WIDIA`, `OLIV`, `SELLY`, `PUTRI`, `MEMEY`, dll) per cabang di Langkah 2 login. |
+| **v4.2.9** | **`POS_KASIR_BAROKAH_v4.2.9_Universal_Build_20260816.apk`** / **`POS KASIR.APK`** | 16-08-2026 | **Fitur Pindah Meja (Move Table)**: Tombol & modal interaktif untuk memindahkan pesanan konsumen dari satu meja ke meja lain secara otomatis dan memperbarui status meja kosong/terisi. |
+| v4.2.8 | `POS_KASIR_BAROKAH_v4.2.8_Universal_Build_20260815.apk` | 15-08-2026 | **Sinkronisasi Otentik Akun Kasir Sesuai Pengaturan Web Admin**: Menampilkan akun real (`RATIH`, `DIANA`, `PENTI`, `WIDIA`, `OLIV`, `SELLY`, `PUTRI`, `MEMEY`, dll) per cabang di Langkah 2 login. |
 | v4.2.7 | `POS_KASIR_BAROKAH_v4.2.7_Universal_Build_20260815.apk` | 15-08-2026 | Perbaikan TDZ Sesi Login Kasir |
 | v4.2.5 | `POS_KASIR_BAROKAH_v4.2.5_Universal_Build_20260815.apk` | 15-08-2026 | Single Universal APK (Fluid Responsive Semua Layar) + Struk kembalian akurat + Pembersihan master data penyet khusus Surabaya |
 | v4.2.4 | `POS_KASIR_BAROKAH_v4.2.4_Universal_Build_20260815.apk` | 15-08-2026 | Perbaikan cetak kembalian struk kasir Bluetooth ESC/POS + Modal preview struk |
