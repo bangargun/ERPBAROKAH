@@ -249,16 +249,19 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setProdStatus('Aktif');
     setProdImageUrl('');
     setVariants([]);
-    setSelectedOutletIds([]);
-    setTempOutletSelectId('');
+    const defaultOutId = (selectedBranch && selectedBranch !== 'all') 
+      ? (isNaN(selectedBranch) ? selectedBranch : Number(selectedBranch))
+      : (masterData.outlets[0]?.id ? (isNaN(masterData.outlets[0].id) ? masterData.outlets[0].id : Number(masterData.outlets[0].id)) : 1785307180576);
+    setSelectedOutletIds([defaultOutId]);
+    setTempOutletSelectId(String(defaultOutId));
     setVariantPrices({});
-    setStandardPrices({});
-    setOutletApkStatus({});
+    setStandardPrices({ [defaultOutId]: 0 });
+    setOutletApkStatus({ [defaultOutId]: 'Aktif' });
     setCompositions([]);
     setShowFormModal(true);
   };
 
-  // 5. Open Edit Form Modal
+  // 5. Open Edit Form Modal (1 Menu = 1 Outlet Khusus)
   const handleOpenEditForm = (product) => {
     setEditingProductId(product.id);
     setProdName(product.name);
@@ -267,46 +270,26 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setProdImageUrl(product.image_url || '');
     setVariants(product.variants || []);
 
-    const comboOutlets = new Set();
-    const vPrices = {};
-    const stdPrices = {};
+    const stdP = product.standardPrices || {};
+    const vP = product.variantPrices || {};
 
-    if (product.priceCombinations && product.priceCombinations.length > 0) {
-      product.priceCombinations.forEach(combo => {
-        (combo.selectedOutletIds || []).forEach(id => comboOutlets.add(id));
-        if (product.variants && product.variants.length > 0) {
-          const vName = combo.combinationName.replace(product.name, '').replace(/[()]/g, '').trim() || combo.combinationName;
-          vPrices[vName] = combo.outletPrices || {};
-        } else {
-          Object.assign(stdPrices, combo.outletPrices || {});
-        }
-      });
+    let singleOutId = null;
+    if (Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0) {
+      singleOutId = product.selectedOutletIds[0];
+    } else if (product.outlet_id && product.outlet_id !== 'Semua Outlet') {
+      singleOutId = product.outlet_id;
+    } else {
+      singleOutId = masterData.outlets[0]?.id || 1785307180576;
     }
+    const cleanOutId = isNaN(singleOutId) ? singleOutId : Number(singleOutId);
+    setSelectedOutletIds([cleanOutId]);
+    setTempOutletSelectId(String(cleanOutId));
 
-    const stdP = product.standardPrices || (Object.keys(stdPrices).length > 0 ? stdPrices : {});
-    const vP = product.variantPrices || vPrices;
-
-    // Ensure variant prices inherit standard outlet price if 0 or missing
-    if (product.variants && product.variants.length > 0) {
-      product.variants.forEach(vName => {
-        if (!vP[vName]) vP[vName] = {};
-        Object.keys(stdP).forEach(outId => {
-          if (!vP[vName][outId] || Number(vP[vName][outId]) === 0) {
-            vP[vName][outId] = stdP[outId];
-          }
-        });
-      });
-    }
-
-    const rawOutletIds = Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0
-      ? product.selectedOutletIds 
-      : (comboOutlets.size > 0 ? Array.from(comboOutlets) : (Object.keys(stdP).map(id => isNaN(id) ? id : Number(id))));
-
-    // Selalu pertahankan semua outlet yang terdaftar di produk tanpa memotong outlet tambahan
-    setSelectedOutletIds(rawOutletIds);
+    const prodP = Number(product.price || stdP[cleanOutId] || stdP[String(cleanOutId)] || Object.values(stdP)[0] || 0);
+    setStandardPrices({ [cleanOutId]: prodP });
     setVariantPrices(vP);
-    setStandardPrices(stdP);
-    setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
+    setOutletApkStatus({ [cleanOutId]: (product.apkStatus?.[cleanOutId] || product.outletApkStatus?.[cleanOutId] || 'Aktif') });
+
     const loadedCompositions = (product.compositions || []).map(comp => {
       const matchedIng = (masterData.ingredients || []).find(i => String(i.id) === String(comp.ingredient_id) || i.name === comp.ingredient_name);
       return {
@@ -329,7 +312,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setShowPreviewModal(true);
   };
 
-  // 7. Final Save Product
+  // 7. Final Save Product (1 Menu = 1 Outlet Khusus)
   const handleFinalSaveProduct = () => {
     const code = editingProductId 
       ? masterData.products.find(p => p.id === editingProductId)?.sku || generateNextProductCode()
@@ -337,45 +320,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
     const categoryObj = masterData.categories.find(c => c.id === parseInt(prodCategoryId));
     
-    // Auto-generate priceCombinations for 100% backward compatibility & multi-outlet reporting
-    const generatedPriceCombinations = [];
-    const syncedVariantPrices = {};
+    const targetOutId = (selectedOutletIds && selectedOutletIds.length > 0)
+      ? (isNaN(selectedOutletIds[0]) ? selectedOutletIds[0] : Number(selectedOutletIds[0]))
+      : (masterData.outlets[0]?.id ? (isNaN(masterData.outlets[0].id) ? masterData.outlets[0].id : Number(masterData.outlets[0].id)) : 1785307180576);
 
-    if (variants.length === 0) {
-      generatedPriceCombinations.push({
-        id: Date.now(),
-        combinationName: prodName.trim(),
-        selectedOutletIds: selectedOutletIds,
-        outletPrices: standardPrices,
-        apkStatus: outletApkStatus,
-        status: 'Aktif'
-      });
-    } else {
-      variants.forEach((vName, idx) => {
-        const pMap = variantPrices[vName] ? { ...variantPrices[vName] } : {};
-        syncedVariantPrices[vName] = {};
-
-        selectedOutletIds.forEach(outId => {
-          const stdVal = Number(standardPrices[outId] !== undefined ? standardPrices[outId] : (standardPrices[String(outId)] || 0));
-          const varVal = Number(pMap[outId] !== undefined ? pMap[outId] : (pMap[String(outId)] || 0));
-          const effectiveVal = varVal > 0 ? varVal : stdVal;
-
-          pMap[outId] = effectiveVal;
-          syncedVariantPrices[vName][outId] = effectiveVal;
-        });
-
-        generatedPriceCombinations.push({
-          id: Date.now() + idx,
-          combinationName: `${prodName.trim()} (${vName})`,
-          selectedOutletIds: selectedOutletIds,
-          outletPrices: pMap,
-          apkStatus: outletApkStatus,
-          status: 'Aktif'
-        });
-      });
-    }
-
-    const firstPriceVal = Object.values(standardPrices)[0] || Object.values(syncedVariantPrices[variants[0]] || {})[0] || 0;
+    const priceVal = Number(standardPrices[targetOutId] !== undefined ? standardPrices[targetOutId] : (standardPrices[String(targetOutId)] || Object.values(standardPrices)[0] || 0));
 
     const productPayload = {
       id: editingProductId || Date.now(),
@@ -385,7 +334,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       category_id: parseInt(prodCategoryId),
       category_name: categoryObj ? categoryObj.name : 'Makanan Utama',
       category: categoryObj ? categoryObj.name : 'Makanan Utama',
-      price: parseFloat(firstPriceVal) || 0,
+      price: priceVal,
       cost: 0,
       unit: 'Pcs',
       stock: 0,
@@ -393,12 +342,23 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       status: prodStatus,
       image_url: prodImageUrl || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400',
       variants,
-      selectedOutletIds,
-      variantPrices: syncedVariantPrices,
-      standardPrices,
-      apkStatus: outletApkStatus,
-      outletApkStatus: outletApkStatus,
-      priceCombinations: generatedPriceCombinations,
+      outlet_id: targetOutId,
+      selectedOutletIds: [targetOutId],
+      selected_outlet_ids: [targetOutId],
+      variantPrices,
+      standardPrices: { [targetOutId]: priceVal },
+      apkStatus: { [targetOutId]: outletApkStatus[targetOutId] || 'Aktif' },
+      outletApkStatus: { [targetOutId]: outletApkStatus[targetOutId] || 'Aktif' },
+      priceCombinations: [
+        {
+          id: Date.now(),
+          combinationName: prodName.trim(),
+          selectedOutletIds: [targetOutId],
+          outletPrices: { [targetOutId]: priceVal },
+          apkStatus: { [targetOutId]: outletApkStatus[targetOutId] || 'Aktif' },
+          status: 'Aktif'
+        }
+      ],
       compositions
     };
 
@@ -408,7 +368,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     };
 
     if (editingProductId) {
-      const idx = updated.products.findIndex(p => p.id === editingProductId);
+      const idx = (updated.products || []).findIndex(p => p.id === editingProductId);
       if (idx !== -1) updated.products[idx] = productPayload;
     } else {
       updated.products.unshift(productPayload);
@@ -973,12 +933,20 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             textDecoration: 'underline',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
-                            lineHeight: '1.35'
+                            lineHeight: '1.35',
+                            display: 'block'
                           }}
                           title="Klik untuk melihat papan informasi detail kuantitas terjual & riwayat penjualan menu ini"
                         >
                           {cleanMenuName}
                         </button>
+                        {outletNameHeader && (
+                          <div style={{ marginTop: '3px' }}>
+                            <span style={{ background: T.cardBg2, color: T.txtSecondary, border: `1px solid ${T.border}`, padding: '1px 6px', borderRadius: '4px', fontSize: '0.62rem', fontWeight: '700' }}>
+                              🏢 {outletNameHeader}
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* 3. KATEGORI */}
@@ -1472,162 +1440,104 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 </div>
               </div>
 
-              {/* SECTION 5: HARGA OUTLET MANUAL */}
+              {/* SECTION 5: OUTLET CABANG & HARGA MENU (1 MENU = 1 OUTLET) */}
               <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', padding: '16px', background: T.cardBg2 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
-                  <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
-                      Harga Outlet Manual
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
-                      Pilih dan tambahkan outlet yang menjual menu ini secara manual.
-                    </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
+                    🏢 Outlet Cabang & Harga Menu
                   </div>
-
-                  {/* Dropdown Select Outlet + Button Tambah */}
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <select
-                      value={tempOutletSelectId}
-                      onChange={e => setTempOutletSelectId(e.target.value)}
-                      style={{
-                        background: T.inputBg,
-                        border: `1px solid ${T.border}`,
-                        color: T.txtPrimary,
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.78rem',
-                        fontWeight: '700'
-                      }}
-                    >
-                      <option value="">-- Pilih Outlet --</option>
-                      {(masterData.outlets || [])
-                        .filter(o => !selectedOutletIds.map(String).includes(String(o.id)))
-                        .map(o => (
-                          <option key={o.id} value={o.id}>{o.name}</option>
-                        ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!tempOutletSelectId) return;
-                        const targetId = isNaN(tempOutletSelectId) ? tempOutletSelectId : Number(tempOutletSelectId);
-                        const alreadyExists = selectedOutletIds.some(id => String(id) === String(targetId));
-                        if (!alreadyExists) {
-                          setSelectedOutletIds([...selectedOutletIds, targetId]);
-                          const existingPrice = Object.values(standardPrices).find(v => Number(v) > 0) || 0;
-                          setStandardPrices(prev => ({
-                            ...prev,
-                            [targetId]: prev[targetId] !== undefined ? prev[targetId] : existingPrice
-                          }));
-                          setOutletApkStatus(prev => ({ ...prev, [targetId]: 'Aktif' }));
-                        }
-                        setTempOutletSelectId('');
-                      }}
-                      style={{
-                        background: T.info,
-                        border: 'none',
-                        color: '#ffffff',
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        fontSize: '0.78rem',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      <Plus size={14} />
-                      <span>+ Tambah Outlet Ini</span>
-                    </button>
+                  <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
+                    Pilih 1 outlet cabang tempat menu ini dijual (1 Menu Khusus 1 Outlet).
                   </div>
                 </div>
 
-                {selectedOutletIds.length === 0 ? (
-                  <div style={{ padding: '16px', background: T.cardBg, borderRadius: '8px', border: `1px dashed ${T.border}`, color: T.info, fontSize: '0.78rem', textAlign: 'center' }}>
-                    Belum ada outlet ditambahkan. Pilih outlet di atas lalu klik "+ Tambah Outlet Ini" untuk menjual menu ini di outlet tersebut.
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                  {/* Dropdown Outlet */}
+                  <div>
+                    <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      Outlet Cabang Penjualan:
+                    </label>
+                    <select
+                      value={selectedOutletIds[0] || ''}
+                      onChange={e => {
+                        const outId = isNaN(e.target.value) ? e.target.value : Number(e.target.value);
+                        setSelectedOutletIds([outId]);
+                        const currentP = Number(standardPrices[selectedOutletIds[0]] || Object.values(standardPrices)[0] || 0);
+                        setStandardPrices({ [outId]: currentP });
+                        setOutletApkStatus({ [outId]: 'Aktif' });
+                      }}
+                      style={{
+                        width: '100%',
+                        background: T.inputBg,
+                        border: `1px solid ${T.border}`,
+                        color: T.txtPrimary,
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.82rem',
+                        fontWeight: '700'
+                      }}
+                    >
+                      {(masterData.outlets || []).map(o => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
                   </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px', marginTop: '10px' }}>
-                    {selectedOutletIds.map(outId => {
-                      const outObj = masterData.outlets.find(o => String(o.id) === String(outId)) || { name: `Outlet #${outId}` };
-                      const currentVal = standardPrices[outId] !== undefined ? standardPrices[outId] : 0;
-                      const currentApkStat = outletApkStatus[outId] || 'Aktif';
-                      return (
-                        <div key={outId} style={{ background: T.cardBg, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <div style={{ fontSize: '0.75rem', color: T.info, fontWeight: '800' }}>
-                              🏢 {outObj.name}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedOutletIds(selectedOutletIds.filter(id => String(id) !== String(outId)));
-                                const updatedStd = { ...standardPrices };
-                                delete updatedStd[outId];
-                                setStandardPrices(updatedStd);
-                                const updatedApk = { ...outletApkStatus };
-                                delete updatedApk[outId];
-                                setOutletApkStatus(updatedApk);
-                              }}
-                              title="Hapus outlet ini dari menu"
-                              style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', padding: '2px' }}
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ fontSize: '0.8rem', color: T.success, fontWeight: '800' }}>Rp</span>
-                            <input
-                              type="number"
-                              placeholder="Nominal harga..."
-                              value={currentVal}
-                              onChange={e => handleUpdateStandardPrice(outId, e.target.value)}
-                              style={{
-                                width: '100%',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: `1px solid ${T.border}`,
-                                background: T.inputBg,
-                                color: T.success,
-                                fontWeight: '800',
-                                fontSize: '0.85rem'
-                              }}
-                            />
-                          </div>
 
-                          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px dashed ${T.border}` }}>
-                            <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                              📱 Tampilkan di POS APK:
-                            </label>
-                            <select
-                              value={currentApkStat}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setOutletApkStatus(prev => ({ ...prev, [outId]: val }));
-                              }}
-                              style={{
-                                width: '100%',
-                                background: (currentApkStat === 'Inaktif') ? T.dangerBg : T.successBg,
-                                border: `1px solid ${(currentApkStat === 'Inaktif') ? T.dangerBorder : T.successBorder}`,
-                                color: (currentApkStat === 'Inaktif') ? T.danger : T.success,
-                                padding: '6px 8px',
-                                borderRadius: '6px',
-                                fontSize: '0.78rem',
-                                fontWeight: '800',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <option value="Aktif" style={{ background: T.dropdownBg, color: T.success }}>🟢 Aktif (Tampil di POS)</option>
-                              <option value="Inaktif" style={{ background: T.dropdownBg, color: T.danger }}>🔴 Inaktif (Sembunyikan dari POS)</option>
-                            </select>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {/* Harga Menu */}
+                  <div>
+                    <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      Harga Jual Menu (Rp):
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Nominal harga..."
+                      value={standardPrices[selectedOutletIds[0]] !== undefined ? standardPrices[selectedOutletIds[0]] : ''}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const outId = selectedOutletIds[0];
+                        setStandardPrices({ [outId]: val });
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        border: `1px solid ${T.border}`,
+                        background: T.inputBg,
+                        color: T.success,
+                        fontWeight: '800',
+                        fontSize: '0.85rem'
+                      }}
+                    />
                   </div>
-                )}
+
+                  {/* Status di POS Kasir APK */}
+                  <div>
+                    <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                      📱 Status di POS Kasir APK:
+                    </label>
+                    <select
+                      value={outletApkStatus[selectedOutletIds[0]] || 'Aktif'}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const outId = selectedOutletIds[0];
+                        setOutletApkStatus({ [outId]: val });
+                      }}
+                      style={{
+                        width: '100%',
+                        background: T.inputBg,
+                        border: `1px solid ${T.border}`,
+                        color: (outletApkStatus[selectedOutletIds[0]] === 'Inaktif' || outletApkStatus[selectedOutletIds[0]] === 'Hide') ? T.danger : T.success,
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.82rem',
+                        fontWeight: '800'
+                      }}
+                    >
+                      <option value="Aktif">🟢 Aktif (Tampil di POS Kasir)</option>
+                      <option value="Inaktif">🔴 Inaktif (Sembunyikan dari POS Kasir)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {/* SECTION 6: BAHAN BAKU HARGA POKOK PRODUKSI (HPP & STOK) */}
