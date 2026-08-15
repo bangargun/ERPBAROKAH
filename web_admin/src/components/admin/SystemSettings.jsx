@@ -1371,11 +1371,9 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
         {activeSubTab === 'print' && (() => {
           const outletsList = (masterData?.outlets && masterData.outlets.length > 0)
             ? masterData.outlets
-            : [
-                { id: 1, name: 'Restoran Utama (Pusat)', address: 'Jl. Sudirman No. 45, Jakarta' }
-              ];
+            : [];
 
-          const currentOutlet = outletsList.find(o => Number(o.id) === Number(selectedOutletIdForPrint)) || outletsList[0] || { id: 1, name: 'Restoran Utama (Pusat)', address: 'Jl. Sudirman No. 45, Jakarta' };
+          const currentOutlet = outletsList.find(o => Number(o.id) === Number(selectedOutletIdForPrint)) || outletsList[0] || { id: 0, name: 'BAROKAH GROUP', address: 'Tebing Tinggi' };
 
           const toTitleCase = (str) => {
             if (!str) return '';
@@ -1386,8 +1384,8 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
               .join(' ');
           };
 
-          const headerLine1 = (currentOutlet?.name || 'RESTORAN UTAMA').toUpperCase();
-          const headerLine2 = toTitleCase(currentOutlet?.address || 'Jl. Sudirman No. 45, Jakarta');
+          const headerLine1 = (currentOutlet?.name || 'BAROKAH GROUP').toUpperCase();
+          const headerLine2 = toTitleCase(currentOutlet?.address || '');
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

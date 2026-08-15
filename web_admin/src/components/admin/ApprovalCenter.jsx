@@ -187,17 +187,26 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const computedTotalModalReturned = (addForm.modal_refund_rows || []).reduce((sum, r) => sum + (Number(r.amount_returned) || 0), 0);
   const computedModalDebtRemaining = Number(addForm.modal_seharusnya || addForm.modal_ideal || 0) - (Number(addForm.modal_saat_ini || 0) + computedTotalModalReturned);
 
-  // HELPER UNTUK FILTER DELETED REPORT TOMBSTONES
+  // HELPER UNTUK FILTER DELETED REPORT TOMBSTONES & DATA MOCK
   const deletedReportIdsSet = new Set([
     ...(masterData?.deletedReportIds || []).map(x => String(x)),
     ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
   ]);
 
-  const isDeletedReport = (r) => {
+  const isDeletedOrMockReport = (r) => {
     if (!r) return true;
     const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
     const rNo = String(r.report_no || r.receiptNo || '');
-    return (rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo));
+    if ((rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo))) return true;
+
+    // Purge mock "Restoran Utama" / dummy reports
+    const bName = String(r.branch_name || r.outlet_name || '').toLowerCase();
+    if (bName.includes('restoran utama')) return true;
+    const rNoLower = rNo.toLowerCase();
+    if (rNoLower.startsWith('lap-shift-kasir') && (bName.includes('restoran utama') || !r.outlet_id || r.outlet_id === 1)) {
+      return true;
+    }
+    return false;
   };
 
   // KONSOLIDASI SELURUH LAPORAN HARIAN DARI POS KASIR & WEB ADMIN
@@ -208,7 +217,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     ...(masterData?.closedShifts || []),
     ...(masterData?.dailyReports || []),
     ...(masterData?.manualEntryRecords || [])
-  ].filter(r => !isDeletedReport(r));
+  ].filter(r => !isDeletedOrMockReport(r));
 
   // Map deduplikasi berdasarkan ID / Report No
   const reportsMap = new Map();
@@ -902,7 +911,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                       {/* 2. NAMA OUTLET */}
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          🏢 {item.outlet_name || 'Restoran Utama'}
+                          🏢 {item.outlet_name || (outletsList[0]?.name) || 'Outlet Barokah'}
                         </span>
                       </td>
 

@@ -96,16 +96,16 @@ export default function AndroidPosRegister({
   const [activeNavTab, setActiveNavTab] = useState('kasir');
 
   const outlets = masterData?.outlets || [];
-  const userOutletName = userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
+  const userOutletName = currentUserSession?.outlet || userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
+  const userOutletId = currentUserSession?.outlet_id || userSession?.outlet_id || '';
 
   const matchedOutlet = outlets.find(o => 
-    o.id === selectedBranch || 
-    String(o.id) === String(selectedBranch) || 
-    o.name === selectedBranch || 
-    (userOutletName && o.name === userOutletName)
+    (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)' && (o.id === selectedBranch || String(o.id) === String(selectedBranch) || o.name === selectedBranch)) ||
+    (userOutletId && (String(o.id) === String(userOutletId))) ||
+    (userOutletName && (o.name.toLowerCase().trim() === userOutletName.toLowerCase().trim() || o.name.toLowerCase().includes(userOutletName.toLowerCase()) || userOutletName.toLowerCase().includes(o.name.toLowerCase())))
   );
 
-  const currentOutlet = matchedOutlet || outlets[0] || { id: 1, name: 'Outlet Central' };
+  const currentOutlet = matchedOutlet || outlets[0] || { id: outlets[0]?.id || 1, name: outlets[0]?.name || 'Ayam Bakar Surabaya Tebing Tinggi' };
 
   // Helper for extracting category name from product (Single Source of Truth: masterData.categories)
   const getProductCategoryName = (item) => {
@@ -138,13 +138,14 @@ export default function AndroidPosRegister({
     if (!item) return 0;
     const outId = outletId || currentOutlet?.id || 1;
     const outIdStr = String(outId);
+    const outIdNum = Number(outId);
 
-    // 1. Check standardPrices for outId (STRICT: only this outlet's key)
+    // 1. Check standardPrices for outId
     const stdPrices = item.standardPrices || {};
-    let stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : stdPrices[outIdStr];
+    let stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : (stdPrices[outIdStr] !== undefined ? stdPrices[outIdStr] : stdPrices[outIdNum]);
     if (stdVal === undefined) {
       for (const k of Object.keys(stdPrices)) {
-        if (String(k) === outIdStr) {
+        if (String(k) === outIdStr || Number(k) === outIdNum) {
           stdVal = stdPrices[k];
           break;
         }
@@ -154,11 +155,11 @@ export default function AndroidPosRegister({
       return Number(stdVal);
     }
 
-    // 2. Check priceCombinations for outId (STRICT: only this outlet's key)
+    // 2. Check priceCombinations for outId
     if (item.priceCombinations && item.priceCombinations.length > 0) {
       for (const combo of item.priceCombinations) {
         if (combo.outletPrices) {
-          const cVal = combo.outletPrices[outId] !== undefined ? combo.outletPrices[outId] : combo.outletPrices[outIdStr];
+          const cVal = combo.outletPrices[outId] !== undefined ? combo.outletPrices[outId] : (combo.outletPrices[outIdStr] !== undefined ? combo.outletPrices[outIdStr] : combo.outletPrices[outIdNum]);
           if (cVal !== undefined && Number(cVal) > 0) {
             return Number(cVal);
           }
@@ -166,12 +167,12 @@ export default function AndroidPosRegister({
       }
     }
 
-    // 3. Check variantPrices for outId (STRICT: only this outlet's key)
+    // 3. Check variantPrices for outId
     if (item.variantPrices && typeof item.variantPrices === 'object') {
       for (const vName in item.variantPrices) {
         const vMap = item.variantPrices[vName];
         if (vMap) {
-          const vVal = vMap[outId] !== undefined ? vMap[outId] : vMap[outIdStr];
+          const vVal = vMap[outId] !== undefined ? vMap[outId] : (vMap[outIdStr] !== undefined ? vMap[outIdStr] : vMap[outIdNum]);
           if (vVal !== undefined && Number(vVal) > 0) {
             return Number(vVal);
           }
@@ -179,31 +180,34 @@ export default function AndroidPosRegister({
       }
     }
 
-    // STRICT: Do NOT fall back to item.price — that would show products from other outlets.
-    // Only return a price if this outlet explicitly has one.
+    // 4. If product has base price
+    if (Number(item.price || 0) > 0) {
+      return Number(item.price);
+    }
+
     return 0;
   };
 
-  // Filter products for this outlet — strictly by outlet_id only, no fuzzy fallback
+  // Filter products for this outlet
   const rawProducts = (masterData?.products || []);
   const products = rawProducts.filter(p => {
     if (!p || !p.id) return false;
     // 1. Skip if general status is Inaktif
     if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
 
-    // 2. STRICT outlet check: product must belong to this exact outlet
-    const productOutletId = String(p.outlet_id || '');
-    const currentOutletId = String(currentOutlet?.id || '');
+    // 2. Outlet check
+    const currentOutletIdStr = String(currentOutlet?.id || '');
+    const currentOutletNameStr = String(currentOutlet?.name || '').toLowerCase().trim();
+    const productOutletIdStr = String(p.outlet_id || '');
+    const productOutletNameStr = String(p.outlet_name || p.branch_name || '').toLowerCase().trim();
 
-    // Check outlet_id directly
-    if (productOutletId && productOutletId !== 'Semua Outlet' && productOutletId !== 'Semua Outlet (Central)') {
-      if (productOutletId !== currentOutletId) return false;
-    }
+    const isGlobal = !productOutletIdStr || productOutletIdStr === 'Semua Outlet' || productOutletIdStr === 'Semua Outlet (Central)';
+    const isDirectMatch = productOutletIdStr === currentOutletIdStr;
+    const isArrayMatch = Array.isArray(p.selectedOutletIds) && (p.selectedOutletIds.length === 0 || p.selectedOutletIds.some(id => String(id) === currentOutletIdStr));
+    const isNameMatch = productOutletNameStr && currentOutletNameStr && (productOutletNameStr === currentOutletNameStr || productOutletNameStr.includes(currentOutletNameStr) || currentOutletNameStr.includes(productOutletNameStr));
 
-    // Also verify via selectedOutletIds if present
-    if (Array.isArray(p.selectedOutletIds) && p.selectedOutletIds.length > 0) {
-      const isSelected = p.selectedOutletIds.some(id => String(id) === currentOutletId);
-      if (!isSelected) return false;
+    if (!isGlobal && !isDirectMatch && !isArrayMatch && !isNameMatch) {
+      return false;
     }
 
     // 3. "Tampilkan di APK" status check per outlet
@@ -213,9 +217,9 @@ export default function AndroidPosRegister({
       return false;
     }
 
-    // 4. Effective price check — STRICT, must have price for THIS outlet
+    // 4. Effective price check
     const effectivePrice = getProductPriceForOutlet(p, currentOutlet?.id);
-    if (effectivePrice <= 0) return false;
+    if (effectivePrice <= 0 && (!p.price || Number(p.price) <= 0)) return false;
 
     return true;
   });
@@ -747,12 +751,12 @@ export default function AndroidPosRegister({
   const [loginPasswordInput, setLoginPasswordInput] = useState('');
   const [loginErrorText, setLoginErrorText] = useState('');
   const [showLoginPasswordEye, setShowLoginPasswordEye] = useState(false);
-  const [currentUserSession, setCurrentUserSession] = useState({
-    name: 'Kasir Utama',
-    role: 'Kasir',
-    outlet: 'Restoran Utama',
-    username: 'kasir'
-  });
+  const [currentUserSession, setCurrentUserSession] = useState(() => ({
+    name: userSession?.name || 'Kasir Barokah',
+    role: userSession?.role || 'Kasir',
+    outlet: userSession?.outlet || (outlets[0]?.name) || 'Ayam Bakar Surabaya Tebing Tinggi',
+    username: userSession?.username || 'kasir'
+  }));
 
   // Settings Page Sub-Tab & Preferences States (Matching User Screenshot 100%)
   const [settingSubTab, setSettingSubTab] = useState('umum'); // 'umum' | 'printer' | 'sistem' | 'akun' | 'scanner' | 'dual_display'
@@ -3581,9 +3585,44 @@ export default function AndroidPosRegister({
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
-              <span style={{ fontSize: '0.65rem', background: 'linear-gradient(135deg, #d97706 0%, #059669 100%)', color: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.3)', fontWeight: '900', boxShadow: '0 2px 8px rgba(217,119,6,0.4)' }}>v3.2.0 GOLD</span>
             </h1>
-            <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>|</span>
+              <select
+                value={currentOutlet?.id}
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  const chosen = outlets.find(o => String(o.id) === String(targetId) || Number(o.id) === Number(targetId));
+                  if (chosen) {
+                    setCurrentUserSession(prev => ({
+                      ...prev,
+                      outlet: chosen.name,
+                      outlet_id: chosen.id
+                    }));
+                    if (typeof setSelectedBranch === 'function') {
+                      setSelectedBranch(chosen.id);
+                    }
+                  }
+                }}
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#38bdf8',
+                  fontWeight: '800',
+                  background: 'rgba(15, 23, 42, 0.7)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  borderRadius: '8px',
+                  padding: '3px 8px',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                {outlets.map(o => (
+                  <option key={o.id} value={o.id} style={{ background: '#0f172a', color: '#f8fafc' }}>
+                    🏢 {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -4746,7 +4785,7 @@ export default function AndroidPosRegister({
                   }).map(c => {
                     const isSelected = selectedCustomerIdForDetail === c.id;
                     const custCode = c.code || `000${c.id} - BMJ`;
-                    const custOutletName = c.outlet_name || currentOutlet.name || 'Restoran Utama';
+                    const custOutletName = c.outlet_name || currentOutlet.name || outlets[0]?.name || 'Outlet Barokah';
 
                     return (
                       <div
@@ -4824,7 +4863,7 @@ export default function AndroidPosRegister({
                 );
               }
               const custCode = activeCust.code || `000${activeCust.id} - BMJ`;
-              const custOutletName = activeCust.outlet_name || (masterData.outlets || []).find(o => o.id === activeCust.outlet_id)?.name || currentOutlet.name || 'Restoran Utama';
+              const custOutletName = activeCust.outlet_name || (masterData.outlets || []).find(o => o.id === activeCust.outlet_id)?.name || currentOutlet.name || outlets[0]?.name || 'Outlet Barokah';
 
               return (
                 <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', background: 'var(--pos-bg-app)', padding: '24px', overflowY: 'auto' }}>
@@ -10552,12 +10591,12 @@ export default function AndroidPosRegister({
             <div style={{ textAlign: 'center', borderBottom: '2px dashed #000', paddingBottom: '12px', marginBottom: '12px' }}>
               {/* BARIS 1: NAMA OUTLET (HURUF BESAR SEMUA, RATA TENGAH, UKURAN FONT LEBIH BESAR 1 LEVEL) */}
               <div style={{ fontSize: '1.15rem', fontWeight: '900', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                {currentOutlet.name?.toUpperCase() || 'RESTORAN UTAMA'}
+                {currentOutlet.name?.toUpperCase() || (outlets[0]?.name || 'BAROKAH GROUP').toUpperCase()}
               </div>
 
               {/* BARIS 2: ALAMAT LOKASI (HURUF BESAR DI SETIAP KATA, RATA TENGAH, UKURAN FONT 1 LEVEL LEBIH KECIL) */}
               <div style={{ fontSize: '0.88rem', fontWeight: '600', textAlign: 'center', color: '#222222', marginTop: '4px' }}>
-                {(currentOutlet.address || 'Jl. Sudirman No. 45, Jakarta')
+                {(currentOutlet.address || outlets[0]?.address || 'Tebing Tinggi')
                   .toLowerCase()
                   .split(' ')
                   .map(w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '')
@@ -11348,8 +11387,8 @@ export default function AndroidPosRegister({
                         code: `000${(masterData.customers?.length || 0) + 37} - BMJ`,
                         name: namePrompt,
                         phone: phonePrompt || '-',
-                        outlet_id: currentOutlet.id || 1,
-                        outlet_name: currentOutlet.name || 'Restoran Utama',
+                        outlet_id: currentOutlet.id || (outlets[0]?.id) || 1,
+                        outlet_name: currentOutlet.name || outlets[0]?.name || 'Outlet Barokah',
                         customer_type: 'Self-Reg Member',
                         points: 10
                       };
@@ -11593,7 +11632,7 @@ export default function AndroidPosRegister({
                     report_no: manualRepNo,
                     date: manualRepDate,
                     outlet_id: manualRepOutletId,
-                    branch_name: (masterData.outlets || []).find(o => o.id === manualRepOutletId)?.name || currentOutlet.name || 'Restoran Utama',
+                    branch_name: (masterData.outlets || []).find(o => o.id === manualRepOutletId)?.name || currentOutlet.name || outlets[0]?.name || 'Outlet Barokah',
                     author_name: manualRepAuthor || userSession?.name || 'Kasir',
                     submitted_by: manualRepAuthor || userSession?.name || 'Kasir',
                     cashier_name: manualRepAuthor || userSession?.name || 'Kasir',
@@ -11633,7 +11672,7 @@ export default function AndroidPosRegister({
                         report_no: manualRepNo,
                         date: manualRepDate,
                         outlet_id: manualRepOutletId,
-                        branch_name: (masterData.outlets || []).find(o => o.id === manualRepOutletId)?.name || currentOutlet.name || 'Restoran Utama',
+                        branch_name: (masterData.outlets || []).find(o => o.id === manualRepOutletId)?.name || currentOutlet.name || outlets[0]?.name || 'Outlet Barokah',
                         submitted_by: manualRepAuthor || userSession?.name || 'Kasir',
                         created_by: manualRepAuthor || userSession?.name || 'Kasir',
                         item_name: r.item_name,
@@ -11692,7 +11731,7 @@ export default function AndroidPosRegister({
                       <input
                         type="text"
                         readOnly
-                        value={currentOutlet?.name || 'Restoran Utama'}
+                        value={currentOutlet?.name || outlets[0]?.name || 'Outlet Barokah'}
                         style={{ width: '100%', padding: '9px 12px', background: 'var(--pos-bg-card)', color: '#38bdf8', fontWeight: '800', border: '1px solid #38bdf8', borderRadius: '8px', fontSize: '0.82rem' }}
                       />
                     </div>
@@ -12327,7 +12366,7 @@ export default function AndroidPosRegister({
                       report_no: logNo,
                       date: logDate,
                       outlet_id: logOutletId,
-                      branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || 'Restoran Utama',
+                      branch_name: (masterData.outlets || []).find(o => Number(o.id) === Number(logOutletId))?.name || currentOutlet.name || outlets[0]?.name || 'Outlet Barokah',
                       submitted_by: logSubmittedBy,
                       created_by: logSubmittedBy,
                       author_name: logSubmittedBy,
@@ -12388,7 +12427,7 @@ export default function AndroidPosRegister({
                     <div>
                       <label style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '6px' }}>🏢 Cabang Outlet</label>
                       <div style={{ width: '100%', height: '42px', background: 'var(--pos-bg-card)', border: '1px solid #34d399', borderRadius: '8px', padding: '0 12px', color: '#34d399', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🏢 {currentOutlet.name || 'Restoran Utama'}</span>
+                        <span>🏢 {currentOutlet.name || outlets[0]?.name || 'Outlet Barokah'}</span>
                         <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)', background: 'rgba(52, 211, 153, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>Akun Aktif</span>
                       </div>
                     </div>
@@ -12697,8 +12736,8 @@ export default function AndroidPosRegister({
                       id: recId,
                       report_no: transferNo,
                       date: transferDate,
-                      from_outlet_id: currentOutlet.id || 1,
-                      from_outlet_name: fromOutletObj.name || currentOutlet.name || 'Restoran Utama',
+                      from_outlet_id: currentOutlet.id || (outlets[0]?.id) || 1,
+                      from_outlet_name: fromOutletObj.name || currentOutlet.name || outlets[0]?.name || 'Outlet Barokah',
                       to_outlet_id: Number(transferToOutletId),
                       to_outlet_name: toOutletObj.name || 'Outlet Tujuan',
                       submitted_by: transferSubmittedBy,
@@ -12762,7 +12801,7 @@ export default function AndroidPosRegister({
                     <div>
                       <label style={{ fontSize: '0.78rem', color: '#fb7185', fontWeight: '800', display: 'block', marginBottom: '6px' }}>🔴 Outlet Asal (Pengirim)</label>
                       <div style={{ width: '100%', height: '40px', background: 'var(--pos-bg-card)', border: '1px solid #fb7185', borderRadius: '8px', padding: '0 12px', color: '#fb7185', fontWeight: '800', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🔴 {currentOutlet.name || 'Restoran Utama'}</span>
+                        <span>🔴 {currentOutlet.name || outlets[0]?.name || 'Outlet Barokah'}</span>
                         <span style={{ fontSize: '0.68rem', color: 'var(--pos-txt-secondary)' }}>(Akun Login)</span>
                       </div>
                     </div>

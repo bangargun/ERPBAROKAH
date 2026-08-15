@@ -1780,10 +1780,12 @@ const sanitizeMasterDataPayload = (data) => {
       const idVal = item.id;
       const idNum = Number(idVal);
       const hasReceiptNo = !!(item.receipt_no || item.receiptNo || item.invoice_no || item.struk_no);
-      // ID berupa angka float besar (>= 1700000000000, i.e. Unix ms timestamp) tanpa receipt_no
-      if (!hasReceiptNo && !isNaN(idNum) && idNum >= 1700000000000 && idNum !== Math.floor(idNum)) {
-        return true;
-      }
+    // Hapus data mock "Restoran Utama" / dummy shift closings
+    const bName = String(item.branch_name || item.outlet_name || '').toLowerCase();
+    if (bName.includes('restoran utama')) return true;
+    const rNoLower = rNo.toLowerCase();
+    if (rNoLower.includes('kasir-20260814') || rNoLower.includes('kasir-20260815') || rNoLower.startsWith('lap-shift-kasir')) {
+      if (bName.includes('restoran utama') || !item.outlet_id || item.outlet_id === 1) return true;
     }
 
     return false;

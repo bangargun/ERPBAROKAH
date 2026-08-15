@@ -2,14 +2,11 @@ import React, { useState } from 'react';
 import { User, Phone, Mail, MapPin, CheckCircle2, QrCode, ArrowLeft, Sparkles, Store } from 'lucide-react';
 
 export default function CustomerSelfRegistrationPage({ masterData, setMasterData, onBackToPos }) {
-  const outlets = masterData?.outlets || [
-    { id: 1, name: 'Restoran Utama (Pusat)' },
-    { id: 2, name: 'Cabang Bali Beach' }
-  ];
+  const outlets = masterData?.outlets || [];
 
   // Extract query params if any (e.g. ?outlet=1)
   const queryParams = new URLSearchParams(window.location.search);
-  const defaultOutletId = queryParams.get('outlet') ? Number(queryParams.get('outlet')) : outlets[0].id;
+  const defaultOutletId = queryParams.get('outlet') ? Number(queryParams.get('outlet')) : (outlets[0]?.id || 0);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');

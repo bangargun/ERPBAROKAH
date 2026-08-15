@@ -1929,7 +1929,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
   const handleSaveRusakFinal = () => {
     const reportNo = rusakNo || `WST-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
     const ingredientsList = masterData.ingredients || [];
-    const outletTarget = outlets.find(o => String(o.id) === String(rusakOutletId) || Number(o.id) === Number(rusakOutletId)) || outlets[0] || { id: 1, name: 'Restoran Utama' };
+    const outletTarget = outlets.find(o => String(o.id) === String(rusakOutletId) || Number(o.id) === Number(rusakOutletId)) || outlets[0] || { id: outlets[0]?.id || 1, name: outlets[0]?.name || 'Outlet Barokah' };
 
     const createdRecords = rusakBatchRows.map((row, idx) => {
       const finalItemName = row.item_name === '__OTHER__' ? (row.custom_item_name || 'Bahan Baku Kustom') : row.item_name;
@@ -1954,7 +1954,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         date: rusakDate,
         tanggal_waktu: new Date().toISOString(),
         outlet_id: rusakOutletId || (outlets[0]?.id) || 1,
-        branch_name: outletTarget.name || (outlets[0]?.name) || 'Restoran Utama',
+        branch_name: outletTarget.name || (outlets[0]?.name) || 'Outlet Barokah',
         type: 'WASTE',
         nama_barang: finalItemName,
         item_name: finalItemName,
@@ -4313,7 +4313,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     return;
                   }
 
-                  const fromOutletObj = outlets.find(o => Number(o.id) === Number(transferFromOutletId)) || outlets[0] || { name: 'Restoran Utama' };
+                  const fromOutletObj = outlets.find(o => Number(o.id) === Number(transferFromOutletId)) || outlets[0] || { name: outlets[0]?.name || 'Outlet Asal' };
                   const toOutletObj = outlets.find(o => Number(o.id) === Number(transferToOutletId)) || outlets.find(o => Number(o.id) !== Number(transferFromOutletId)) || { name: 'Outlet Tujuan' };
 
                   const newRecords = [];

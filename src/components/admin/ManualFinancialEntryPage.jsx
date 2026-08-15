@@ -296,7 +296,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
   const handleSaveDailyReportModal = (e) => {
     e.preventDefault();
     const repNo = `LAP-${dailyRepDate.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
-    const selectedOutletObj = outlets.find(o => Number(o.id) === Number(dailyRepOutletId)) || { name: 'Restoran Utama' };
+    const selectedOutletObj = outlets.find(o => Number(o.id) === Number(dailyRepOutletId)) || outlets[0] || { name: outlets[0]?.name || 'Outlet Barokah' };
 
     const cogsItems = dailyExpenseRows
       .filter(r => r.itemType === 'Bahan Baku')
@@ -2223,7 +2223,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                   <input
                     type="text"
                     readOnly
-                    value={outlets.find(o => o.id === dailyRepOutletId)?.name || outlets[0]?.name || 'Restoran Utama'}
+                    value={outlets.find(o => o.id === dailyRepOutletId)?.name || outlets[0]?.name || 'Outlet Barokah'}
                     className="form-input"
                     style={{ width: '100%', height: '40px', background: T.cardBg2, color: T.info, fontWeight: '800', border: `1px solid ${T.border}`, cursor: 'not-allowed' }}
                   />
