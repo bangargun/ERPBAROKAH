@@ -188,36 +188,30 @@ export default function AndroidPosRegister({
     return 0;
   };
 
-  // Filter products for this outlet
+  // Filter products for POS Kasir — izinkan semua produk aktif termasuk menu baru
   const rawProducts = (masterData?.products || []);
   const products = rawProducts.filter(p => {
     if (!p || !p.id) return false;
     // 1. Skip if general status is Inaktif
     if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
 
-    // 2. Outlet check
-    const currentOutletIdStr = String(currentOutlet?.id || '');
-    const currentOutletNameStr = String(currentOutlet?.name || '').toLowerCase().trim();
-    const productOutletIdStr = String(p.outlet_id || '');
-    const productOutletNameStr = String(p.outlet_name || p.branch_name || '').toLowerCase().trim();
-
-    const isGlobal = !productOutletIdStr || productOutletIdStr === 'Semua Outlet' || productOutletIdStr === 'Semua Outlet (Central)';
-    const isDirectMatch = productOutletIdStr === currentOutletIdStr;
-    const isArrayMatch = Array.isArray(p.selectedOutletIds) && (p.selectedOutletIds.length === 0 || p.selectedOutletIds.some(id => String(id) === currentOutletIdStr));
-    const isNameMatch = productOutletNameStr && currentOutletNameStr && (productOutletNameStr === currentOutletNameStr || productOutletNameStr.includes(currentOutletNameStr) || currentOutletNameStr.includes(productOutletNameStr));
-
-    if (!isGlobal && !isDirectMatch && !isArrayMatch && !isNameMatch) {
-      return false;
+    // 2. Jika menu khusus Surabaya (PRD-004 / PRD-007) dan outlet bukan Surabaya, lewati
+    const pSku = String(p.sku || p.code || '').toUpperCase().trim();
+    const isSurabayaOnlyPenyet = pSku === 'PRD-004' || pSku === 'PRD-007';
+    if (isSurabayaOnlyPenyet) {
+      const isSurabayaOutlet = String(currentOutlet?.id) === '1785307180576' || 
+                               String(currentOutlet?.name || '').toLowerCase().includes('surabaya');
+      if (!isSurabayaOutlet) return false;
     }
 
-    // 3. "Tampilkan di APK" status check per outlet
+    // 3. Status per-outlet check jika ada
     const apkStatusMap = p.apkStatus || p.outletApkStatus || {};
     const statusForThisOutlet = apkStatusMap[currentOutlet?.id] || apkStatusMap[String(currentOutlet?.id)];
     if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif' || statusForThisOutlet === 'Hide') {
       return false;
     }
 
-    // 4. Effective price check
+    // 4. Pastikan produk memiliki harga yang valid (bisa dari standardPrices, priceCombinations, variantPrices, atau p.price)
     const effectivePrice = getProductPriceForOutlet(p, currentOutlet?.id);
     if (effectivePrice <= 0 && (!p.price || Number(p.price) <= 0)) return false;
 
@@ -3586,43 +3580,7 @@ export default function AndroidPosRegister({
             <h1 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span>POS KASIR</span>
             </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>|</span>
-              <select
-                value={currentOutlet?.id}
-                onChange={(e) => {
-                  const targetId = e.target.value;
-                  const chosen = outlets.find(o => String(o.id) === String(targetId) || Number(o.id) === Number(targetId));
-                  if (chosen) {
-                    setCurrentUserSession(prev => ({
-                      ...prev,
-                      outlet: chosen.name,
-                      outlet_id: chosen.id
-                    }));
-                    if (typeof setSelectedBranch === 'function') {
-                      setSelectedBranch(chosen.id);
-                    }
-                  }
-                }}
-                style={{
-                  fontSize: '0.75rem',
-                  color: '#38bdf8',
-                  fontWeight: '800',
-                  background: 'rgba(15, 23, 42, 0.7)',
-                  border: '1px solid rgba(56, 189, 248, 0.4)',
-                  borderRadius: '8px',
-                  padding: '3px 8px',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
-                {outlets.map(o => (
-                  <option key={o.id} value={o.id} style={{ background: '#0f172a', color: '#f8fafc' }}>
-                    🏢 {o.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <span style={{ fontSize: '0.75rem', color: T.txtHeaderAccent, fontWeight: '700' }}>| {currentOutlet.name}</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
