@@ -4,9 +4,12 @@ import IngredientAnalyticsDetailModal from './IngredientAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
+import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
-export default function IngredientsManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+export default function IngredientsManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
+  const allowEdit = canEditModule(userSession, 'masterData', masterData?.permissionMatrix);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddFormModal, setShowAddFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -195,31 +198,35 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={() => setShowExcelImportModal(true)}
-            style={{
-              background: T.info,
-              color: T.txtInverse,
-              border: 'none',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontWeight: '700',
-              fontSize: '0.72rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: T.shadowSm
-            }}
-          >
-            <FileSpreadsheet size={14} />
-            <span>Template & Upload Excel</span>
-          </button>
+          {allowEdit && (
+            <>
+              <button
+                onClick={() => setShowExcelImportModal(true)}
+                style={{
+                  background: T.info,
+                  color: T.txtInverse,
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '0.72rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  boxShadow: T.shadowSm
+                }}
+              >
+                <FileSpreadsheet size={14} />
+                <span>Template & Upload Excel</span>
+              </button>
 
-          <button onClick={handleOpenAddForm} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
-            <Plus size={15} />
-            <span>Tambahkan Bahan Baku</span>
-          </button>
+              <button onClick={handleOpenAddForm} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+                <Plus size={15} />
+                <span>Tambahkan Bahan Baku</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -347,43 +354,47 @@ export default function IngredientsManagement({ masterData, setMasterData, theme
                             <span>Preview</span>
                           </button>
 
-                          <button
-                            onClick={() => handleOpenEditForm(ing)}
-                            style={{
-                              background: T.cardBg2,
-                              color: T.txtPrimary,
-                              border: `1px solid ${T.border}`,
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.68rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Edit3 size={12} />
-                            <span>Edit</span>
-                          </button>
+                          {allowEdit && (
+                            <button
+                              onClick={() => handleOpenEditForm(ing)}
+                              style={{
+                                background: T.cardBg2,
+                                color: T.txtPrimary,
+                                border: `1px solid ${T.border}`,
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.68rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Edit3 size={12} />
+                              <span>Edit</span>
+                            </button>
+                          )}
 
-                          <button
-                            onClick={() => handleDeleteIngredient(ing.id)}
-                            style={{
-                              background: T.dangerBg,
-                              color: T.danger,
-                              border: `1px solid ${T.dangerBorder}`,
-                              padding: '3px 6px',
-                              borderRadius: '6px',
-                              fontSize: '0.68rem',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center'
-                            }}
-                            title="Hapus Bahan Baku Ini"
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                          {allowDelete && (
+                            <button
+                              onClick={() => handleDeleteIngredient(ing.id, ing.name)}
+                              style={{
+                                background: T.dangerBg,
+                                color: T.danger,
+                                border: `1px solid ${T.dangerBorder}`,
+                                padding: '3px 6px',
+                                borderRadius: '6px',
+                                fontSize: '0.68rem',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}
+                              title="Hapus Bahan Baku Ini"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

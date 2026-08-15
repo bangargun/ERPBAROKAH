@@ -43,54 +43,54 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
   const [customHeaderLine2, setCustomHeaderLine2] = useState(masterData?.printSettings?.headerLine2 || '');
   const [customFooterText, setCustomFooterText] = useState(masterData?.printSettings?.footerText || 'Terima Kasih Atas Kunjungan Anda!\nSelamat Menikmati Hidangan Kami.');
 
-  // PERMISSION MATRIX MODAL & HANDLER STATES
+  // PERMISSION MATRIX MODAL & HANDLER STATES (Granular: View, Edit, Delete)
   const [showAddPermissionModal, setShowAddPermissionModal] = useState(false);
   const [editingPermissionIndex, setEditingPermissionIndex] = useState(null);
   const [newPermissionRole, setNewPermissionRole] = useState('');
-  const [newPermissionDashboard, setNewPermissionDashboard] = useState(true);
-  const [newPermissionMasterData, setNewPermissionMasterData] = useState(false);
-  const [newPermissionCosts, setNewPermissionCosts] = useState(false);
-  const [newPermissionStock, setNewPermissionStock] = useState(false);
-  const [newPermissionApproved, setNewPermissionApproved] = useState(false);
-  const [newPermissionReports, setNewPermissionReports] = useState(false);
-  const [newPermissionPolicies, setNewPermissionPolicies] = useState(true);
-  const [newPermissionSettings, setNewPermissionSettings] = useState(false);
+  
+  // Modul States dengan granular View, Edit, Delete
+  const [permDashboard, setPermDashboard] = useState({ view: true, edit: false, delete: false });
+  const [permMasterData, setPermMasterData] = useState({ view: true, edit: true, delete: false });
+  const [permCosts, setPermCosts] = useState({ view: true, edit: false, delete: false });
+  const [permStock, setPermStock] = useState({ view: true, edit: true, delete: false });
+  const [permApproved, setPermApproved] = useState({ view: true, edit: false, delete: false });
+  const [permReports, setPermReports] = useState({ view: true, edit: false, delete: false });
+  const [permPolicies, setPermPolicies] = useState({ view: true, edit: false, delete: false });
+  const [permSettings, setPermSettings] = useState({ view: false, edit: false, delete: false });
 
-  const toggleAllPasswords = () => {
-    const nextState = !showAllPasswords;
-    setShowAllPasswords(nextState);
-    const updated = {};
-    getUserRightsList().forEach(u => {
-      updated[u.id] = nextState;
-    });
-    setShowPasswordVisibility(updated);
+  const normalizePermObj = (val, defaultVal = false) => {
+    if (typeof val === 'object' && val !== null) {
+      return { view: !!val.view, edit: !!val.edit, delete: !!val.delete };
+    }
+    const b = val !== undefined ? !!val : defaultVal;
+    return { view: b, edit: b, delete: false };
   };
 
   const handleOpenAddPermissionModal = () => {
     setEditingPermissionIndex(null);
     setNewPermissionRole('');
-    setNewPermissionDashboard(true);
-    setNewPermissionMasterData(false);
-    setNewPermissionCosts(false);
-    setNewPermissionStock(false);
-    setNewPermissionApproved(false);
-    setNewPermissionReports(false);
-    setNewPermissionPolicies(true);
-    setNewPermissionSettings(false);
+    setPermDashboard({ view: true, edit: false, delete: false });
+    setPermMasterData({ view: true, edit: false, delete: false });
+    setPermCosts({ view: true, edit: false, delete: false });
+    setPermStock({ view: true, edit: false, delete: false });
+    setPermApproved({ view: true, edit: false, delete: false });
+    setPermReports({ view: true, edit: false, delete: false });
+    setPermPolicies({ view: true, edit: false, delete: false });
+    setPermSettings({ view: false, edit: false, delete: false });
     setShowAddPermissionModal(true);
   };
 
   const handleOpenEditPermissionModal = (idx, pm) => {
     setEditingPermissionIndex(idx);
     setNewPermissionRole(pm.role || '');
-    setNewPermissionDashboard(!!pm.dashboard);
-    setNewPermissionMasterData(!!pm.masterData);
-    setNewPermissionCosts(!!pm.costs);
-    setNewPermissionStock(!!pm.stock);
-    setNewPermissionApproved(!!pm.approved);
-    setNewPermissionReports(!!pm.reports);
-    setNewPermissionPolicies(pm.policies !== false);
-    setNewPermissionSettings(!!pm.settings);
+    setPermDashboard(normalizePermObj(pm.dashboard, true));
+    setPermMasterData(normalizePermObj(pm.masterData, false));
+    setPermCosts(normalizePermObj(pm.costs, false));
+    setPermStock(normalizePermObj(pm.stock, false));
+    setPermApproved(normalizePermObj(pm.approved, false));
+    setPermReports(normalizePermObj(pm.reports, false));
+    setPermPolicies(normalizePermObj(pm.policies, true));
+    setPermSettings(normalizePermObj(pm.settings, false));
     setShowAddPermissionModal(true);
   };
 
@@ -103,14 +103,14 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
     const newRow = {
       role: newPermissionRole.trim(),
-      dashboard: newPermissionDashboard,
-      masterData: newPermissionMasterData,
-      costs: newPermissionCosts,
-      stock: newPermissionStock,
-      approved: newPermissionApproved,
-      reports: newPermissionReports,
-      policies: newPermissionPolicies,
-      settings: newPermissionSettings
+      dashboard: permDashboard,
+      masterData: permMasterData,
+      costs: permCosts,
+      stock: permStock,
+      approved: permApproved,
+      reports: permReports,
+      policies: permPolicies,
+      settings: permSettings
     };
 
     let updated;
@@ -121,22 +121,80 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
       updated = [...permissionMatrix, newRow];
     }
 
-    setMasterData(prev => ({
-      ...prev,
+    const updatedMaster = {
+      ...masterData,
+      _lastUpdated: Date.now(),
       permissionMatrix: updated
-    }));
+    };
+
+    setMasterData(updatedMaster);
+    fetch('/api/master-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedMaster)
+    }).catch(() => {});
 
     setShowAddPermissionModal(false);
   };
 
   const handleDeletePermission = (idx) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus matriks hak akses untuk peran "${permissionMatrix[idx]?.role}"?`)) {
-      const updated = permissionMatrix.filter((_, i) => i !== idx);
-      setMasterData(prev => ({
-        ...prev,
-        permissionMatrix: updated
-      }));
+    const roleTarget = permissionMatrix[idx]?.role;
+    if (roleTarget === 'Super Admin' || roleTarget === 'Owner' || roleTarget === 'Super Admin / Owner') {
+      alert('⚠️ Peran Super Admin dan Owner tidak boleh dihapus demi keamanan sistem!');
+      return;
     }
+    if (window.confirm(`Apakah Anda yakin ingin menghapus matriks hak akses untuk peran "${roleTarget}"?`)) {
+      const updated = permissionMatrix.filter((_, i) => i !== idx);
+      const updatedMaster = {
+        ...masterData,
+        _lastUpdated: Date.now(),
+        permissionMatrix: updated
+      };
+      setMasterData(updatedMaster);
+      fetch('/api/master-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedMaster)
+      }).catch(() => {});
+    }
+  };
+
+  const handleTogglePermissionAction = (idx, moduleKey, actionType) => {
+    const targetRole = permissionMatrix[idx]?.role;
+    if (targetRole === 'Super Admin' || targetRole === 'Owner' || targetRole === 'Super Admin / Owner') {
+      alert('🔒 Peran Super Admin / Owner dikunci dengan hak akses penuh 100% (View, Edit, Delete).');
+      return;
+    }
+
+    const updated = permissionMatrix.map((pm, i) => {
+      if (i === idx) {
+        const currentMod = normalizePermObj(pm[moduleKey]);
+        const nextVal = !currentMod[actionType];
+        return {
+          ...pm,
+          [moduleKey]: {
+            ...currentMod,
+            [actionType]: nextVal,
+            // Jika edit/delete diaktifkan, otomatis view harus aktif
+            view: (actionType !== 'view' && nextVal) ? true : (actionType === 'view' ? nextVal : currentMod.view)
+          }
+        };
+      }
+      return pm;
+    });
+
+    const updatedMaster = {
+      ...masterData,
+      _lastUpdated: Date.now(),
+      permissionMatrix: updated
+    };
+
+    setMasterData(updatedMaster);
+    fetch('/api/master-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedMaster)
+    }).catch(() => {});
   };
 
   // MOBILE APK PERMISSION MATRIX MODAL & HANDLER STATES
@@ -818,143 +876,125 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
             </div>
 
             <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg2, width: '100%' }}>
-              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.74rem' }}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
                 <thead>
-                  <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtLabel, fontWeight: '800', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                    <th style={{ padding: '8px 6px', width: '19%' }}>Peran (User Role)</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Dashboard</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Master Data</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Akuntansi</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Stok</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Approved</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Laporan</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Kebijakan</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '9%' }}>Pengaturan</th>
-                    <th style={{ padding: '8px 4px', textAlign: 'center', width: '9%' }}>Aksi</th>
+                  <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtLabel, fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                    <th style={{ padding: '10px 8px', width: '17%' }}>Peran (User Role)</th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📊 Dashboard<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '11%' }}>🗂️ Master Data<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📖 Biaya<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📦 Stok<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>✅ Approval<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📈 Laporan<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📜 Kebijakan<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>⚙️ Setting<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 4px', textAlign: 'center', width: '8%' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {permissionMatrix.map((pm, idx) => (
-                    <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
-                      <td style={{ padding: '6px 10px', fontWeight: '800', color: T.info, fontSize: '0.78rem' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: T.infoBg, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontSize: '0.72rem' }}>
-                          👑 {pm.role}
-                        </span>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'dashboard')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Dashboard"
-                        >
-                          {pm.dashboard ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'masterData')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Master Data"
-                        >
-                          {pm.masterData ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'costs')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Akuntansi / Biaya"
-                        >
-                          {pm.costs ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'stock')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Stok Opname"
-                        >
-                          {pm.stock ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'approved')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Approval Transaksi"
-                        >
-                          {pm.approved ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'reports')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Laporan Keuangan"
-                        >
-                          {pm.reports ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'policies')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Kebijakan SOP"
-                        >
-                          {pm.policies !== false ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 6px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePermissionField(idx, 'settings')}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
-                          title="Klik untuk ubah akses Pengaturan Sistem"
-                        >
-                          {pm.settings ? '✅' : '❌'}
-                        </button>
-                      </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  {permissionMatrix.map((pm, idx) => {
+                    const isSuper = pm.role === 'Super Admin' || pm.role === 'Owner' || pm.role === 'Super Admin / Owner';
+
+                    const renderActionButtons = (moduleKey, defaultView = false) => {
+                      const mObj = normalizePermObj(pm[moduleKey], defaultView);
+                      if (isSuper) {
+                        return (
+                          <span style={{ fontSize: '0.68rem', fontWeight: '900', color: T.success, background: T.successBg, padding: '2px 5px', borderRadius: '4px', border: `1px solid ${T.successBorder}` }}>
+                            FULL
+                          </span>
+                        );
+                      }
+                      return (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', background: T.cardBg, padding: '2px 4px', borderRadius: '6px', border: `1px solid ${T.borderStrong}` }}>
                           <button
                             type="button"
-                            onClick={() => handleOpenEditPermissionModal(idx, pm)}
-                            style={{ padding: '4px 6px', background: T.infoBg, border: `1px solid ${T.info}`, color: T.info, borderRadius: '6px', cursor: 'pointer' }}
-                            title="Edit Peran Matriks Ini"
+                            onClick={() => handleTogglePermissionAction(idx, moduleKey, 'view')}
+                            style={{ border: 'none', background: mObj.view ? T.infoBg : 'transparent', color: mObj.view ? T.info : T.txtSecondary, cursor: 'pointer', padding: '1px 3px', borderRadius: '3px', fontSize: '0.68rem', fontWeight: '800' }}
+                            title="Akses Lihat / View"
                           >
-                            <Edit3 size={13} />
+                            👁️
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeletePermission(idx)}
-                            style={{ padding: '4px 6px', background: T.dangerBg, border: `1px solid ${T.danger}`, color: T.danger, borderRadius: '6px', cursor: 'pointer' }}
-                            title="Hapus Peran Matriks Ini"
+                            onClick={() => handleTogglePermissionAction(idx, moduleKey, 'edit')}
+                            style={{ border: 'none', background: mObj.edit ? T.warningBg : 'transparent', color: mObj.edit ? T.warning : T.txtSecondary, cursor: 'pointer', padding: '1px 3px', borderRadius: '3px', fontSize: '0.68rem', fontWeight: '800' }}
+                            title="Akses Tambah & Ubah / Edit"
                           >
-                            <Trash2 size={13} />
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePermissionAction(idx, moduleKey, 'delete')}
+                            style={{ border: 'none', background: mObj.delete ? T.dangerBg : 'transparent', color: mObj.delete ? T.danger : T.txtSecondary, cursor: 'pointer', padding: '1px 3px', borderRadius: '3px', fontSize: '0.68rem', fontWeight: '800' }}
+                            title="Akses Hapus / Delete"
+                          >
+                            🗑️
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
+                      );
+                    };
+
+                    return (
+                      <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                        <td style={{ padding: '8px 8px', fontWeight: '800', color: T.info, fontSize: '0.76rem' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: T.infoBg, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontSize: '0.72rem' }}>
+                            {isSuper ? '👑' : '👤'} {pm.role}
+                          </span>
+                        </td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('dashboard', true)}</td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('masterData', false)}</td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('costs', false)}</td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('stock', false)}</td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('approved', false)}</td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('reports', false)}</td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('policies', true)}</td>
+                        <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('settings', false)}</td>
+                        <td style={{ padding: '6px 6px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditPermissionModal(idx, pm)}
+                              style={{ padding: '4px 6px', background: T.infoBg, border: `1px solid ${T.info}`, color: T.info, borderRadius: '5px', cursor: 'pointer' }}
+                              title="Edit Matriks Peran Ini"
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                            {!isSuper && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePermission(idx)}
+                                style={{ padding: '4px 6px', background: T.dangerBg, border: `1px solid ${T.danger}`, color: T.danger, borderRadius: '5px', cursor: 'pointer' }}
+                                title="Hapus Matriks Peran Ini"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+            </div>
+
+            {/* KETERANGAN LEGENDA MATRIKS */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '0.72rem', color: T.txtSecondary, background: T.cardBg2, padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}` }}>
+              <span style={{ fontWeight: '800', color: T.txtPrimary }}>💡 Legenda Hak Akses:</span>
+              <span><strong>👁️ View</strong>: Hanya Buka &amp; Lihat Halaman</span>
+              <span><strong>✏️ Edit</strong>: Tambah &amp; Edit Data</span>
+              <span><strong>🗑️ Delete</strong>: Munculkan Tombol Hapus Data</span>
+              <span style={{ marginLeft: 'auto', color: T.info, fontWeight: '700' }}>* Super Admin dapat mengklik ikon langsung di tabel untuk mengubah izin</span>
             </div>
 
             {/* MODAL TAMBAH / EDIT PERMISSION MATRIX */}
             {showAddPermissionModal && (
               <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
-                <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', width: '100%', maxWidth: '520px', padding: '18px', boxShadow: T.shadowLg, display: 'flex', flexDirection: 'column', gap: '14px' }} className="animate-scale-up">
+                <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '16px', width: '100%', maxWidth: '640px', padding: '20px', boxShadow: T.shadowLg, display: 'flex', flexDirection: 'column', gap: '14px' }} className="animate-scale-up">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '10px' }}>
                     <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
                       <Shield size={18} color={T.info} />
-                      <span>{editingPermissionIndex !== null ? 'Edit Permission Matrix Peran' : 'Tambah Permission Matrix Baru'}</span>
+                      <span>{editingPermissionIndex !== null ? 'Edit Matriks Wewenang Peran' : 'Tambah Peran & Matriks Wewenang Baru'}</span>
                     </h3>
                     <button
                       type="button"
@@ -973,7 +1013,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                       <input
                         type="text"
                         required
-                        placeholder="Contoh: Manager Bar / Kasir Senior / Auditor"
+                        placeholder="Contoh: Manajer Operasional / Auditor Keuangan"
                         value={newPermissionRole}
                         onChange={e => setNewPermissionRole(e.target.value)}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '700' }}
@@ -982,48 +1022,90 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
                     <div>
                       <label style={{ fontSize: '0.78rem', fontWeight: '800', color: T.info, display: 'block', marginBottom: '8px' }}>
-                        Pilih Modul Akses Yang Diizinkan:
+                        Atur Rincian Wewenang per Modul (Lihat, Edit, Hapus):
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionDashboard} onChange={e => setNewPermissionDashboard(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>📊 Dashboard Utama</span>
-                        </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
+                        
+                        {/* 1. DASHBOARD */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📊 Dashboard Utama</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.view} onChange={e => setPermDashboard(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.edit} onChange={e => setPermDashboard(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.delete} onChange={e => setPermDashboard(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionMasterData} onChange={e => setNewPermissionMasterData(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>🗂️ Data Master</span>
-                        </label>
+                        {/* 2. MASTER DATA */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>🗂️ Data Master (Menu/Harga)</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.view} onChange={e => setPermMasterData(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.edit} onChange={e => setPermMasterData(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.delete} onChange={e => setPermMasterData(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionCosts} onChange={e => setNewPermissionCosts(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>📖 Biaya / Akuntansi</span>
-                        </label>
+                        {/* 3. BIAYA / AKUNTANSI */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📖 Biaya &amp; Akuntansi</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.view} onChange={e => setPermCosts(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.edit} onChange={e => setPermCosts(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.delete} onChange={e => setPermCosts(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionStock} onChange={e => setNewPermissionStock(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>📦 Stok Opname &amp; Bahan</span>
-                        </label>
+                        {/* 4. STOK OPNAME */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📦 Stok Opname &amp; Bahan</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.view} onChange={e => setPermStock(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.edit} onChange={e => setPermStock(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.delete} onChange={e => setPermStock(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionApproved} onChange={e => setNewPermissionApproved(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>✅ Approval Transaksi</span>
-                        </label>
+                        {/* 5. APPROVAL TRANSAKSI */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>✅ Approval Transaksi</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.view} onChange={e => setPermApproved(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.edit} onChange={e => setPermApproved(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.delete} onChange={e => setPermApproved(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionReports} onChange={e => setNewPermissionReports(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>📈 Laporan Keuangan</span>
-                        </label>
+                        {/* 6. LAPORAN KEUANGAN */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📈 Laporan Keuangan</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.view} onChange={e => setPermReports(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.edit} onChange={e => setPermReports(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.delete} onChange={e => setPermReports(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionPolicies} onChange={e => setNewPermissionPolicies(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>📜 Kebijakan (Policies)</span>
-                        </label>
+                        {/* 7. KEBIJAKAN SOP */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📜 Kebijakan SOP</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.view} onChange={e => setPermPolicies(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.edit} onChange={e => setPermPolicies(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.delete} onChange={e => setPermPolicies(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
 
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.78rem', color: T.txtLabel }}>
-                          <input type="checkbox" checked={newPermissionSettings} onChange={e => setNewPermissionSettings(e.target.checked)} style={{ accentColor: T.info, width: '15px', height: '15px' }} />
-                          <span>⚙️ Pengaturan Sistem</span>
-                        </label>
+                        {/* 8. PENGATURAN SISTEM */}
+                        <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>⚙️ Pengaturan Sistem</span>
+                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.view} onChange={e => setPermSettings(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.edit} onChange={e => setPermSettings(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.delete} onChange={e => setPermSettings(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                          </div>
+                        </div>
+
                       </div>
                     </div>
 
@@ -1040,7 +1122,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                         className="btn-primary"
                         style={{ padding: '8px 18px', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}
                       >
-                        💾 Simpan Permission Matrix
+                        💾 Simpan Matriks Wewenang
                       </button>
                     </div>
                   </form>
@@ -1048,7 +1130,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
               </div>
             )}
 
-            {/* SECTION DEDIKASI: PERMISSION MATRIX MOBILE APK (TABLET POS)  */}
+            {/* SECTION DEDIKASI: PERMISSION MATRIX MOBILE APK (TABLET POS) */}
             <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: `2px dashed ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '12px' }}>
                 <div>

@@ -707,6 +707,7 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              userSession={userSession}
               themeMode={themeMode}
             />
           )}

@@ -88,8 +88,91 @@ export function checkWebPermission(userRoleOrUser, moduleKey, permissionMatrix) 
 
   // If moduleKey explicitly defined in rolePerm, return its boolean value
   if (rolePerm[moduleKey] !== undefined) {
-    return !!rolePerm[moduleKey];
+    const val = rolePerm[moduleKey];
+    if (typeof val === 'object' && val !== null) {
+      return !!val.view;
+    }
+    return !!val;
   }
 
   return false;
 }
+
+/**
+ * Checks granular action permission ('view' | 'edit' | 'delete') on a specific module.
+ * @param {object|string} user - Current user object or role string
+ * @param {string} moduleKey - Module name (e.g. 'masterData', 'stock', 'reports')
+ * @param {string} actionType - 'view' | 'edit' | 'delete'
+ * @param {Array} permissionMatrix - Master permission matrix
+ * @returns {boolean}
+ */
+export function checkPermissionAction(user, moduleKey, actionType = 'view', permissionMatrix) {
+  if (!user) return false;
+  const userRole = typeof user === 'object' ? user.role : user;
+  if (!userRole) return false;
+  const lowerRole = userRole.trim().toLowerCase();
+
+  // Super Admin & Owner always have 100% full access to view, edit, and delete
+  if (
+    lowerRole === 'super admin' ||
+    lowerRole === 'superadmin' ||
+    lowerRole === 'owner' ||
+    lowerRole === 'super admin restoran' ||
+    lowerRole === 'owner restoran'
+  ) {
+    return true;
+  }
+
+  // Check individual custom user override if present
+  const userPerms = typeof user === 'object' ? (user.permissions || user.customPermissions) : null;
+  if (userPerms && userPerms[moduleKey] !== undefined) {
+    const pVal = userPerms[moduleKey];
+    if (typeof pVal === 'object' && pVal !== null) {
+      return !!pVal[actionType];
+    }
+    if (actionType === 'view') return !!pVal;
+    if (actionType === 'edit') return !!pVal;
+    if (actionType === 'delete') return false; // Default safe: no delete for non-superadmin unless explicitly granted
+  }
+
+  const matrix = Array.isArray(permissionMatrix) && permissionMatrix.length > 0
+    ? permissionMatrix
+    : [];
+
+  let rolePerm = matrix.find(p => p && p.role && p.role.trim().toLowerCase() === lowerRole);
+  if (!rolePerm && NORMALIZE_ROLE_MAP[lowerRole]) {
+    const norm = NORMALIZE_ROLE_MAP[lowerRole].toLowerCase();
+    rolePerm = matrix.find(p => p && p.role && p.role.trim().toLowerCase() === norm);
+  }
+  if (!rolePerm) {
+    rolePerm = matrix.find(p => {
+      if (!p || !p.role) return false;
+      const pLower = p.role.trim().toLowerCase();
+      if (lowerRole === 'admin' && pLower.includes('super admin')) return false;
+      return pLower.includes(lowerRole) || lowerRole.includes(pLower);
+    });
+  }
+
+  if (!rolePerm || rolePerm[moduleKey] === undefined) {
+    return false;
+  }
+
+  const modPerm = rolePerm[moduleKey];
+  if (typeof modPerm === 'object' && modPerm !== null) {
+    return !!modPerm[actionType];
+  }
+
+  // Legacy boolean mapping
+  if (actionType === 'view') return !!modPerm;
+  if (actionType === 'edit') return !!modPerm;
+  if (actionType === 'delete') {
+    // Only allow delete if explicitly role is Admin with true, otherwise false
+    return lowerRole.includes('admin') ? !!modPerm : false;
+  }
+
+  return false;
+}
+
+export const canViewModule = (user, moduleKey, matrix) => checkPermissionAction(user, moduleKey, 'view', matrix);
+export const canEditModule = (user, moduleKey, matrix) => checkPermissionAction(user, moduleKey, 'edit', matrix);
+export const canDeleteModule = (user, moduleKey, matrix) => checkPermissionAction(user, moduleKey, 'delete', matrix);

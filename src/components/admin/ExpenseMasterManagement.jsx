@@ -5,9 +5,12 @@ import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 import DeleteGuardModal from './DeleteGuardModal';
 import { requestDelete } from '../../utils/deleteGuard';
+import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
-export default function ExpenseMasterManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+export default function ExpenseMasterManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
+  const allowEdit = canEditModule(userSession, 'masterData', masterData?.permissionMatrix);
   const [deleteGuardState, setDeleteGuardState] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -566,54 +569,57 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
             <Download size={14} />
             <span>Download Template Excel</span>
           </button>
+        {allowEdit && (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              onClick={() => {
+                setUploadStep('select');
+                setUploadError('');
+                setParsedAccounts([]);
+                setShowUploadModal(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                background: T.cardBg,
+                border: `1px solid ${T.infoBorder}`,
+                borderRadius: '8px',
+                color: T.info,
+                fontWeight: '800',
+                fontSize: '0.72rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Upload data akun dari file Excel (.xlsx) atau CSV"
+            >
+              <Upload size={14} />
+              <span>Upload Excel / CSV</span>
+            </button>
 
-          <button
-            onClick={() => {
-              setUploadStep('select');
-              setUploadError('');
-              setParsedAccounts([]);
-              setShowUploadModal(true);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: T.cardBg,
-              border: `1px solid ${T.infoBorder}`,
-              borderRadius: '8px',
-              color: T.info,
-              fontWeight: '800',
-              fontSize: '0.72rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-            title="Upload data akun dari file Excel (.xlsx) atau CSV"
-          >
-            <Upload size={14} />
-            <span>Upload Excel / CSV</span>
-          </button>
-
-          <button
-            onClick={handleOpenAddModal}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: T.primaryBtn,
-              border: 'none',
-              borderRadius: '8px',
-              color: T.navActiveTxt,
-              fontWeight: '800',
-              fontSize: '0.72rem',
-              cursor: 'pointer',
-              boxShadow: T.primaryBtnShadow
-            }}
-          >
-            <Plus size={15} />
-            <span>Tambah Kode Akun Baru</span>
-          </button>
+            <button
+              onClick={handleOpenAddModal}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                background: T.primaryBtn,
+                border: 'none',
+                borderRadius: '8px',
+                color: T.navActiveTxt,
+                fontWeight: '800',
+                fontSize: '0.72rem',
+                cursor: 'pointer',
+                boxShadow: T.primaryBtnShadow
+              }}
+            >
+              <Plus size={15} />
+              <span>Tambah Kode Akun Baru</span>
+            </button>
+          </div>
+        )}
         </div>
       </div>
 
@@ -828,20 +834,24 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
                     {/* AKSI EDIT / DELETE */}
                     <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                        <button
-                          onClick={() => handleOpenEditModal(acc)}
-                          title="Edit Akun"
-                          style={{ background: 'transparent', border: 'none', color: T.info, cursor: 'pointer', padding: '4px' }}
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAccount(acc.id)}
-                          title="Hapus Akun"
-                          style={{ background: 'transparent', border: 'none', color: T.danger, cursor: 'pointer', padding: '4px' }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {allowEdit && (
+                          <button
+                            onClick={() => handleOpenEditModal(acc)}
+                            title="Edit Akun"
+                            style={{ background: 'transparent', border: 'none', color: T.info, cursor: 'pointer', padding: '4px' }}
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                        )}
+                        {allowDelete && (
+                          <button
+                            onClick={() => handleDeleteAccount(acc.id)}
+                            title="Hapus Akun"
+                            style={{ background: 'transparent', border: 'none', color: T.danger, cursor: 'pointer', padding: '4px' }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -502,7 +502,8 @@ export default function AndroidPosRegister({
   const [adjustmentErrorMsg, setAdjustmentErrorMsg] = useState('');
   const [productNominalDiscount, setProductNominalDiscount] = useState(''); // Diskon per produk (Rp)
 
-  // More Sub-Tab Options Modals: Split Bill, Merge Bill, Tukar Poin, Kupon
+  // More Sub-Tab Options Modals: Move Table, Split Bill, Merge Bill, Tukar Poin, Kupon
+  const [showMoveTableModal, setShowMoveTableModal] = useState(false);
   const [showSplitBillModal, setShowSplitBillModal] = useState(false);
   const [showMergeBillModal, setShowMergeBillModal] = useState(false);
   const [showTukarPoinModal, setShowTukarPoinModal] = useState(false);
@@ -4024,6 +4025,38 @@ export default function AndroidPosRegister({
                   <div style={{ flex: 1, padding: '16px', overflowY: 'auto', background: T.bgApp, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ fontSize: '0.82rem', fontWeight: '900', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>
                       Fitur Tambahan POS (More Options)
+                    </div>
+
+                    {/* 1. SPLIT BILL */}
+                    {/* 0. PINDAH MEJA (MOVE TABLE) */}
+                    <div
+                      onClick={() => {
+                        if (orderType !== 'Dine In') {
+                          alert('Fitur Pindah Meja hanya berlaku untuk pesanan Dine In (Makan di Tempat).');
+                          return;
+                        }
+                        if (cart.length === 0) {
+                          alert('Keranjang pesanan masih kosong. Pilih pesanan terlebih dahulu sebelum pindah meja.');
+                          return;
+                        }
+                        setShowMoveTableModal(true);
+                      }}
+                      style={{
+                        background: T.bgCard, border: `1px solid ${T.borderCard}`, borderRadius: '12px', padding: '14px 16px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
+                          🔄
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '900', color: T.txtPrimary }}>Pindah Meja (Move Table)</div>
+                          <div style={{ fontSize: '0.74rem', color: T.txtMuted, marginTop: '1px' }}>Pindahkan pesanan tamu dari {selectedTableObj?.number || 'Meja Ini'} ke meja lain</div>
+                        </div>
+                      </div>
+                      <ChevronRight size={18} color={T.txtMuted} />
                     </div>
 
                     {/* 1. SPLIT BILL */}
@@ -10388,6 +10421,110 @@ export default function AndroidPosRegister({
               style={{ width: '100%', padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
             >
               Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 8.4B MODAL PINDAH MEJA (MOVE TABLE) */}
+      {showMoveTableModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9995
+        }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '16px', border: '1px solid var(--pos-border-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.3rem' }}>🔄</span>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>Pindah Meja (Move Table)</h3>
+                  <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: '800', marginTop: '2px' }}>
+                    Dari: {selectedTableObj?.number || 'Meja Asal'} ➔ Pilih Meja Tujuan
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowMoveTableModal(false)} style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: '0.8rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', marginBottom: '12px' }}>
+              Pilih meja tujuan yang ingin ditempati konsumen:
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', maxHeight: '280px', overflowY: 'auto', marginBottom: '20px', padding: '4px' }}>
+              {tables.filter(t => t.id !== selectedTableId).map(t => {
+                const tStatus = tableStatusMap[t.id]?.status || (t.status === 'Terisi' || t.status === 'occupied' ? 'occupied' : 'available');
+                const isOccupied = tStatus === 'occupied' || tStatus === 'Terisi';
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => {
+                      if (isOccupied) {
+                        const confirmMerge = window.confirm(`Meja ${t.number || t.name} saat ini sedang TERISI. Apakah Anda ingin menggabungkan pesanan ke meja ini?`);
+                        if (!confirmMerge) return;
+                        // Gabungkan pesanan ke meja target
+                        const existingTargetItems = tableStatusMap[t.id]?.pendingOrder?.items || [];
+                        const mergedItems = [...existingTargetItems, ...cart];
+                        setTableStatusMap(prev => ({
+                          ...prev,
+                          [t.id]: {
+                            status: 'occupied',
+                            pendingOrder: {
+                              customerName: customerName || 'Pelanggan Gabungan',
+                              items: mergedItems,
+                              totalAmount: mergedItems.reduce((acc, it) => acc + (Number(it.price || 0) * Number(it.qty || 1)), 0)
+                            }
+                          },
+                          [selectedTableId]: { status: 'available', pendingOrder: null }
+                        }));
+                      } else {
+                        // Pindah ke meja kosong
+                        setTableStatusMap(prev => ({
+                          ...prev,
+                          [t.id]: {
+                            status: 'occupied',
+                            pendingOrder: {
+                              customerName: customerName || 'Pelanggan Pindah',
+                              items: cart,
+                              totalAmount: subtotal
+                            }
+                          },
+                          [selectedTableId]: { status: 'available', pendingOrder: null }
+                        }));
+                      }
+                      // Update active table selection
+                      setSelectedTableId(t.id);
+                      alert(`✅ Berhasil memindahkan pesanan dari ${selectedTableObj?.number || 'Meja Asal'} ke ${t.number || t.name}!`);
+                      setShowMoveTableModal(false);
+                    }}
+                    style={{
+                      padding: '14px 10px',
+                      background: isOccupied ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
+                      border: `1.5px solid ${isOccupied ? '#ef4444' : '#10b981'}`,
+                      borderRadius: '12px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ fontSize: '1rem', fontWeight: '900', color: isOccupied ? '#f87171' : '#34d399' }}>
+                      {t.number || t.name}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', fontWeight: '800', color: isOccupied ? '#fca5a5' : '#6ee7b7', marginTop: '4px' }}>
+                      {isOccupied ? '🔴 Terisi' : '🟢 Kosong'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setShowMoveTableModal(false)}
+              style={{ width: '100%', padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}
+            >
+              Batal
             </button>
           </div>
         </div>

@@ -3,9 +3,12 @@ import { Store, Plus, Search, Edit3, Trash2, X, CheckCircle2, MapPin, Target, Us
 import OutletAnalyticsDetailModal from './OutletAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
-export default function OutletManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+export default function OutletManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
+  const allowEdit = canEditModule(userSession, 'masterData', masterData?.permissionMatrix);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingOutlet, setEditingOutlet] = useState(null);
@@ -153,10 +156,12 @@ export default function OutletManagement({ masterData, setMasterData, themeMode 
           </p>
         </div>
 
-        <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
-          <Plus size={15} />
-          <span>Tambahkan Outlet</span>
-        </button>
+        {allowEdit && (
+          <button onClick={handleOpenAddModal} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+            <Plus size={15} />
+            <span>Tambahkan Outlet</span>
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -295,41 +300,45 @@ export default function OutletManagement({ masterData, setMasterData, themeMode 
                       {/* 5. AKSI */}
                       <td style={{ padding: '14px 12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                          <button
-                            onClick={() => handleOpenEditModal(outlet)}
-                            style={{
-                              background: T.cardBg2,
-                              color: T.txtPrimary,
-                              border: `1px solid ${T.border}`,
-                              padding: '5px 10px',
-                              borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Edit3 size={14} color={T.info} />
-                            <span>Edit</span>
-                          </button>
+                          {allowEdit && (
+                            <button
+                              onClick={() => handleOpenEditModal(outlet)}
+                              style={{
+                                background: T.cardBg2,
+                                color: T.txtPrimary,
+                                border: `1px solid ${T.border}`,
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Edit3 size={14} color={T.info} />
+                              <span>Edit</span>
+                            </button>
+                          )}
 
-                          <button
-                            onClick={() => handleDeleteOutlet(outlet.id, outlet.name)}
-                            style={{
-                              background: T.dangerBg,
-                              color: T.danger,
-                              border: `1px solid ${T.dangerBorder}`,
-                              padding: '5px 10px',
-                              borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {allowDelete && (
+                            <button
+                              onClick={() => handleDeleteOutlet(outlet.id, outlet.name)}
+                              style={{
+                                background: T.dangerBg,
+                                color: T.danger,
+                                border: `1px solid ${T.dangerBorder}`,
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

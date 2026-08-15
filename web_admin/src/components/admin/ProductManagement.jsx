@@ -27,9 +27,12 @@ import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
 import DeleteGuardModal from './DeleteGuardModal';
 import { requestDelete, countRelatedTransactions } from '../../utils/deleteGuard';
+import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
-export default function ProductManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+export default function ProductManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
+  const allowEdit = canEditModule(userSession, 'masterData', masterData?.permissionMatrix);
   const [deleteGuardState, setDeleteGuardState] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid' | 'table'
@@ -1097,43 +1100,47 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             <span>Detail</span>
                           </button>
 
-                          <button
-                            onClick={() => handleOpenEditForm(p)}
-                            style={{
-                              background: T.cardBg2,
-                              color: T.txtPrimary,
-                              border: `1px solid ${T.border}`,
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.68rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <Edit3 size={12} color={T.info} />
-                            <span>Edit</span>
-                          </button>
+                          {allowEdit && (
+                            <button
+                              onClick={() => handleOpenEditForm(p)}
+                              style={{
+                                background: T.cardBg2,
+                                color: T.txtPrimary,
+                                border: `1px solid ${T.border}`,
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.68rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Edit3 size={12} color={T.info} />
+                              <span>Edit</span>
+                            </button>
+                          )}
 
-                          <button
-                            onClick={() => handleDeleteProduct(p.id, p.name)}
-                            style={{
-                              background: T.dangerBg,
-                              color: T.danger,
-                              border: `1px solid ${T.dangerBorder}`,
-                              padding: '3px 6px',
-                              borderRadius: '6px',
-                              fontSize: '0.68rem',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center'
-                            }}
-                            title="Hapus Menu"
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                          {allowDelete && (
+                            <button
+                              onClick={() => handleDeleteProduct(p.id, p.name)}
+                              style={{
+                                background: T.dangerBg,
+                                color: T.danger,
+                                border: `1px solid ${T.dangerBorder}`,
+                                padding: '3px 6px',
+                                borderRadius: '6px',
+                                fontSize: '0.68rem',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center'
+                              }}
+                              title="Hapus Menu"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

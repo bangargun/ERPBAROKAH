@@ -5,9 +5,12 @@ import CategoryAnalyticsDetailModal from './CategoryAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
+import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
-export default function ProductCategoryManagement({ masterData, setMasterData, themeMode = 'dark' }) {
+export default function ProductCategoryManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
+  const allowEdit = canEditModule(userSession, 'masterData', masterData?.permissionMatrix);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -173,31 +176,35 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            onClick={() => setShowExcelImportModal(true)}
-            style={{
-              background: T.info,
-              color: '#ffffff',
-              border: 'none',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontWeight: '700',
-              fontSize: '0.72rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              boxShadow: T.shadowSm
-            }}
-          >
-            <FileSpreadsheet size={14} />
-            <span>Template & Upload Excel</span>
-          </button>
+          {allowEdit && (
+            <>
+              <button
+                onClick={() => setShowExcelImportModal(true)}
+                style={{
+                  background: T.info,
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '0.72rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  boxShadow: T.shadowSm
+                }}
+              >
+                <FileSpreadsheet size={14} />
+                <span>Template & Upload Excel</span>
+              </button>
 
-          <button onClick={() => setShowAddModal(true)} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
-            <Plus size={15} />
-            <span>Tambahkan Kategori Menu</span>
-          </button>
+              <button onClick={() => setShowAddModal(true)} className="btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }}>
+                <Plus size={15} />
+                <span>Tambahkan Kategori Menu</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -364,47 +371,54 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
                       {/* 5. AKSI (Tombol Edit & Delete) */}
                       <td style={{ padding: '14px 12px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                          <button
-                            onClick={() => openEditModal(cat)}
-                            style={{
-                              background: T.cardBg2,
-                              color: T.txtPrimary,
-                              border: `1px solid ${T.border}`,
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              transition: 'all 0.2s ease'
-                            }}
-                          >
-                            <Edit3 size={14} color={T.info} />
-                            <span>Edit</span>
-                          </button>
+                          {allowEdit && (
+                            <button
+                              onClick={() => {
+                                setEditingCategory({ ...cat });
+                                setShowEditModal(true);
+                              }}
+                              style={{
+                                background: T.infoBg,
+                                color: T.info,
+                                border: `1px solid ${T.border}`,
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <Edit3 size={14} color={T.info} />
+                              <span>Edit</span>
+                            </button>
+                          )}
 
-                          <button
-                            onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                            style={{
-                              background: T.dangerBg,
-                              color: T.danger,
-                              border: `1px solid ${T.dangerBorder}`,
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              transition: 'all 0.2s ease'
-                            }}
-                          >
-                            <Trash2 size={14} />
-                            <span>Delete</span>
-                          </button>
+                          {allowDelete && (
+                            <button
+                              onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                              style={{
+                                background: T.dangerBg,
+                                color: T.danger,
+                                border: `1px solid ${T.dangerBorder}`,
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                              <span>Delete</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

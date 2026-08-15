@@ -32,7 +32,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 import DeleteGuardModal from './DeleteGuardModal';
 import { requestDelete } from '../../utils/deleteGuard';
 
-export default function MasterDataManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+export default function MasterDataManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
   const [deleteGuardState, setDeleteGuardState] = useState(null);
 
@@ -236,6 +236,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -247,6 +248,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -257,6 +259,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -269,6 +272,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -280,6 +284,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -289,6 +294,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <OutletManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -299,6 +305,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <PaymentMethodManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -308,6 +315,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <SupplierManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -317,6 +325,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <UnitManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
@@ -326,6 +335,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           <ExpenseMasterManagement
             masterData={masterData}
             setMasterData={setMasterData}
+            userSession={userSession}
             themeMode={themeMode}
           />
         )}
