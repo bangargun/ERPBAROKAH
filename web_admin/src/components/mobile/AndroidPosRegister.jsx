@@ -2588,11 +2588,16 @@ export default function AndroidPosRegister({
       }
     }
 
-    // GENERATE STOCK OUTFLOW LOGISTIC MOVEMENTS & PRODUCT/INGREDIENT STOCK DEDUCTION
+    // GENERATE STOCK OUTFLOW LOGISTIC MOVEMENTS & PRODUCT/INGREDIENT (BAHAN BAKU) STOCK DEDUCTION
     const newStockMovements = [];
     let updatedProducts = [...(masterData?.products || [])];
+    let updatedIngredients = [...(masterData?.ingredients || [])];
+    const masterIngredientsList = masterData?.ingredients || [];
 
     cart.forEach(cartItem => {
+      const itemLower = (cartItem.name || '').toLowerCase().trim();
+      const qtySold = Number(cartItem.qty || 1);
+
       // 1. Log product outflow
       newStockMovements.push({
         id: `move-${receiptNo}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
@@ -2601,12 +2606,12 @@ export default function AndroidPosRegister({
         outlet_id: Number(currentOutlet.id),
         type: 'OUT',
         item_name: cartItem.name,
-        qty: cartItem.qty,
+        qty: qtySold,
         unit: 'porsi',
         supplier: 'POS Sales (Penjualan Kasir Mobile)',
         created_by: 'Kasir Mobile APK',
         price_unit: cartItem.price,
-        total_price: cartItem.price * cartItem.qty,
+        total_price: cartItem.price * qtySold,
         type_input: 'auto_pos'
       });
 
@@ -2615,13 +2620,94 @@ export default function AndroidPosRegister({
         const isMatch = (cartItem.id && String(p.id) === String(cartItem.id)) ||
                         (cartItem.product_id && String(p.id) === String(cartItem.product_id)) ||
                         (cartItem.sku && p.sku && cartItem.sku === p.sku) ||
-                        (p.name?.toLowerCase().trim() === cartItem.name?.toLowerCase().trim());
+                        (p.name?.toLowerCase().trim() === itemLower);
         if (isMatch) {
           const currentStk = Number(p.stock || p.stok || 0);
-          return { ...p, stock: Math.max(0, currentStk - cartItem.qty), stok: Math.max(0, currentStk - cartItem.qty) };
+          return { ...p, stock: Math.max(0, currentStk - qtySold), stok: Math.max(0, currentStk - qtySold) };
         }
         return p;
       });
+
+      // 3. Deduct Bahan Baku (Ingredients) based on recipe compositions or auto-matching
+      const matchedProd = (masterData?.products || []).find(p => 
+        (cartItem.id && String(p.id) === String(cartItem.id)) ||
+        (cartItem.product_id && String(p.id) === String(cartItem.product_id)) ||
+        (cartItem.sku && p.sku && cartItem.sku === p.sku) ||
+        (p.name?.toLowerCase().trim() === itemLower)
+      );
+
+      if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
+        matchedProd.compositions.forEach((comp, cIdx) => {
+          const ingQty = Number(comp.qty || comp.amount || 1) * qtySold;
+          const ingName = comp.ingredient_name || comp.name || 'Bahan Baku';
+
+          newStockMovements.push({
+            id: `move-ing-${receiptNo}-${Date.now()}-${cIdx}`,
+            date: currentDate,
+            time: currentTime,
+            outlet_id: Number(currentOutlet.id),
+            type: 'OUT',
+            item_name: ingName,
+            item_type: 'Bahan Baku',
+            qty: ingQty,
+            unit: comp.unit || 'Gram',
+            supplier: `Pemakaian Menu POS: ${cartItem.name}`,
+            created_by: 'Kasir Mobile APK',
+            price_unit: comp.cogs || 0,
+            total_price: Math.round((comp.cogs || 0) * ingQty),
+            type_input: 'auto_pos'
+          });
+
+          updatedIngredients = updatedIngredients.map(ing => {
+            const matchIng = (comp.ingredient_id && String(ing.id) === String(comp.ingredient_id)) ||
+                             (ing.name?.toLowerCase().trim() === ingName.toLowerCase().trim());
+            if (matchIng) {
+              const currentStk = Number(ing.stock || ing.stok || 0);
+              return { ...ing, stock: Math.max(0, currentStk - ingQty), stok: Math.max(0, currentStk - ingQty) };
+            }
+            return ing;
+          });
+        });
+      } else {
+        // Fallback: match ingredient by name in masterIngredientsList
+        const matchedIng = masterIngredientsList.find(ing => {
+          const ingLower = (ing.name || '').toLowerCase();
+          if (itemLower.includes('ayam') || itemLower.includes('chicken')) return ingLower.includes('ayam');
+          if (itemLower.includes('sapi') || itemLower.includes('beef') || itemLower.includes('steak')) return ingLower.includes('daging') || ingLower.includes('sapi');
+          if (itemLower.includes('nasi') || itemLower.includes('rice')) return ingLower.includes('beras');
+          if (itemLower.includes('teh') || itemLower.includes('tea')) return ingLower.includes('teh');
+          if (itemLower.includes('kopi') || itemLower.includes('espresso')) return ingLower.includes('kopi');
+          return ingLower.includes(itemLower) || itemLower.includes(ingLower);
+        });
+
+        if (matchedIng) {
+          const ingQty = qtySold;
+          newStockMovements.push({
+            id: `move-ing-${receiptNo}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+            date: currentDate,
+            time: currentTime,
+            outlet_id: Number(currentOutlet.id),
+            type: 'OUT',
+            item_name: matchedIng.name,
+            item_type: 'Bahan Baku',
+            qty: ingQty,
+            unit: matchedIng.unit || 'porsi',
+            supplier: `Pemakaian Menu POS: ${cartItem.name}`,
+            created_by: 'Kasir Mobile APK',
+            price_unit: matchedIng.cost || matchedIng.price_per_unit || 0,
+            total_price: Math.round((matchedIng.cost || matchedIng.price_per_unit || 0) * ingQty),
+            type_input: 'auto_pos'
+          });
+
+          updatedIngredients = updatedIngredients.map(ing => {
+            if (String(ing.id) === String(matchedIng.id)) {
+              const currentStk = Number(ing.stock || ing.stok || 0);
+              return { ...ing, stock: Math.max(0, currentStk - ingQty), stok: Math.max(0, currentStk - ingQty) };
+            }
+            return ing;
+          });
+        }
+      }
     });
 
     const isOnlineNow = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -2631,13 +2717,14 @@ export default function AndroidPosRegister({
       is_offline_pending: !isOnlineNow
     };
 
-    // Save transaction, stock movements, updated products & customers directly into Web Master Data
+    // Save transaction, stock movements, updated products, ingredients & customers directly into Web Master Data
     setMasterData(prev => {
       const updated = {
         ...prev,
         _lastUpdated: Date.now(),
         customers: updatedCustomersList,
         products: updatedProducts,
+        ingredients: updatedIngredients,
         stockMovement: [...(prev?.stockMovement || []), ...newStockMovements],
         salesTransactions: [finalTx, ...(prev?.salesTransactions || [])],
         transactions: [finalTx, ...(prev?.transactions || [])]
@@ -5581,7 +5668,7 @@ export default function AndroidPosRegister({
                   {/* Stat Cards Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
                     <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Gross Omset Sales</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Total Omzet (Setelah Diskon)</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(omzetGross)}</div>
                     </div>
                     <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
@@ -5595,7 +5682,7 @@ export default function AndroidPosRegister({
                       </div>
                     </div>
                     <div style={{ background: 'var(--pos-bg-card)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border)' }}>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Non-Tunai (QRIS / EDC)</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>Non-Tunai (QRIS / EDC / Transfer)</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: '900', color: '#a78bfa', marginTop: '6px' }}>
                         {formatRupiah(omzetNonCash)}
                       </div>
@@ -5605,32 +5692,38 @@ export default function AndroidPosRegister({
                   {/* Table Breakdown Sales Omzet */}
                   <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '20px', border: '1px solid var(--pos-border)' }}>
                     <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '14px' }}>
-                      Rincian Omset Per Transaksi Struk ({activeLabel})
+                      Rincian Omzet Per Transaksi Struk ({activeLabel})
                     </h3>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.80rem' }}>
                         <thead>
                           <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)' }}>
                             <th style={{ padding: '10px' }}>No. Struk</th>
+                            <th style={{ padding: '10px' }}>Waktu</th>
                             <th style={{ padding: '10px' }}>Pelanggan</th>
+                            <th style={{ padding: '10px' }}>Menu / Produk</th>
                             <th style={{ padding: '10px' }}>Metode Bayar</th>
-                            <th style={{ padding: '10px', textAlign: 'right' }}>Total Nominal</th>
+                            <th style={{ padding: '10px', textAlign: 'right' }}>Total (Setelah Diskon)</th>
                           </tr>
                         </thead>
                         <tbody>
                           {(filteredOmzetTransactions.length === 0) ? (
                             <tr>
-                              <td colSpan="4" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                              <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
                                 Belum ada rincian omset transaksi pada periode {activeLabel} (Data Kosong).
                               </td>
                             </tr>
                           ) : (
                             filteredOmzetTransactions.map((t, idx) => (
                               <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.id}</td>
+                                <td style={{ padding: '10px', color: '#38bdf8', fontWeight: '800' }}>{t.receipt_no || t.receiptNo || t.id}</td>
+                                <td style={{ padding: '10px', color: 'var(--pos-txt-secondary)', fontWeight: '600' }}>{t.time || (t.timestamp ? new Date(t.timestamp).toTimeString().substring(0, 5) : '-')}</td>
                                 <td style={{ padding: '10px', color: 'var(--pos-txt-primary)' }}>{t.customer_name || 'Pelanggan Umum'}</td>
+                                <td style={{ padding: '10px', color: 'var(--pos-txt-secondary)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {(t.items && t.items.length > 0) ? t.items.map(it => `${it.name} (${it.qty || 1})`).join(', ') : (t.item_name || '-')}
+                                </td>
                                 <td style={{ padding: '10px', color: '#34d399', fontWeight: '800' }}>{t.payment_method || 'Cash'}</td>
-                                <td style={{ padding: '10px', textAlign: 'right', color: 'var(--pos-txt-primary)', fontWeight: '900' }}>{formatRupiah(t.amount)}</td>
+                                <td style={{ padding: '10px', textAlign: 'right', color: '#34d399', fontWeight: '900' }}>{formatRupiah(t.amount || t.grandTotal || t.total || 0)}</td>
                               </tr>
                             ))
                           )}
