@@ -1803,9 +1803,6 @@ const sanitizeMasterDataPayload = (data) => {
       const nameKey = (p.name || '').trim().toUpperCase();
       const mapKey = outId + '||' + nameKey;
 
-      // Keep first occurrence of each outlet+name combination
-      if (winnerMap.has(mapKey)) continue;
-
       // Resolve price strictly for this outlet
       let price = 0;
       const sp = p.standardPrices || {};
@@ -1818,16 +1815,35 @@ const sanitizeMasterDataPayload = (data) => {
       }
       if (!price) price = Number(p.price || 5000);
 
-      // Clean variantPrices to only include this outlet
-      const cleanVP = {};
-      for (const v of (p.variants || [])) {
-        cleanVP[v] = { [outId]: Number((p.variantPrices?.[v] || {})[outId] || price) };
+      // Score this candidate — higher = better (prefer clean server-side records over browser-local broken ones)
+      // Scoring criteria:
+      //   +3: SKU has proper format PRD-NNN (all numeric digits after dash)
+      //   +2: Has valid standardPrices for this outlet
+      //   +1: Has proper numeric outlet_id matching
+      const skuNum = String(p.sku || '').replace(/^PRD-/, '');
+      const isProperSku = /^\d+$/.test(skuNum); // PRD-067 = proper, PRD-B67 = broken
+      const hasValidPrice = price > 0;
+      const hasMatchingOutlet = String(p.outlet_id) === outId;
+      const score = (isProperSku ? 3 : 0) + (hasValidPrice ? 2 : 0) + (hasMatchingOutlet ? 1 : 0);
+
+      if (winnerMap.has(mapKey)) {
+        // Only replace existing winner if this candidate scores higher
+        const existing = winnerMap.get(mapKey);
+        if (score <= existing._score) continue;
+        // New winner — remove old ID from set so we can reuse
+        idSet.delete(String(existing.id));
       }
 
       // Ensure unique numeric ID
       let uid = Number(p.id);
       while (idSet.has(String(uid))) uid = Date.now() + Math.floor(Math.random() * 999999);
       idSet.add(String(uid));
+
+      // Clean variantPrices to only include this outlet
+      const cleanVP = {};
+      for (const v of (p.variants || [])) {
+        cleanVP[v] = { [outId]: Number((p.variantPrices?.[v] || {})[outId] || price) };
+      }
 
       winnerMap.set(mapKey, {
         ...p,
@@ -1841,6 +1857,7 @@ const sanitizeMasterDataPayload = (data) => {
         apkStatus: { [outId]: 'Aktif' },
         outletApkStatus: { [outId]: 'Aktif' },
         status: p.status || 'Aktif',
+        _score: score, // internal scoring, stripped later
         priceCombinations: [{
           id: uid,
           combinationName: p.name,
@@ -1852,7 +1869,11 @@ const sanitizeMasterDataPayload = (data) => {
       });
     }
 
-    clean.products = Array.from(winnerMap.values());
+    // Strip internal _score field before returning
+    clean.products = Array.from(winnerMap.values()).map(p => {
+      const { _score, ...rest } = p;
+      return rest;
+    });
   }
   // ===== END AUTO DEDUPLICATION =====
 
