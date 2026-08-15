@@ -793,7 +793,7 @@ const syncToMySQL = async (masterData) => {
         Number(p.stock || 0),
         String(p.unit || 'Porsi'),
         p.outlet_id ? Number(p.outlet_id) : null,
-        Array.isArray(p.selected_outlet_ids) ? JSON.stringify(p.selected_outlet_ids) : String(p.selected_outlet_ids || ''),
+        Array.isArray(p.selectedOutletIds || p.selected_outlet_ids) ? JSON.stringify(p.selectedOutletIds || p.selected_outlet_ids) : String(p.selectedOutletIds || p.selected_outlet_ids || ''),
         String(p.image_url || p.image || ''),
         String(p.description || ''),
         String(p.status || 'Aktif')

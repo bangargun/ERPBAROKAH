@@ -302,18 +302,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       ? product.selectedOutletIds 
       : (comboOutlets.size > 0 ? Array.from(comboOutlets) : (Object.keys(stdP).map(id => isNaN(id) ? id : Number(id))));
 
-    const activeOutletIds = rawOutletIds.filter(outId => {
-      const stdVal = Number(stdP[outId] || 0);
-      let varVal = 0;
-      if (product.variants && product.variants.length > 0) {
-        product.variants.forEach(v => {
-          if (vP[v] && Number(vP[v][outId]) > 0) varVal = Number(vP[v][outId]);
-        });
-      }
-      return stdVal > 0 || varVal > 0;
-    });
-
-    setSelectedOutletIds(activeOutletIds.length > 0 ? activeOutletIds : rawOutletIds);
+    // Selalu pertahankan semua outlet yang terdaftar di produk tanpa memotong outlet tambahan
+    setSelectedOutletIds(rawOutletIds);
     setVariantPrices(vP);
     setStandardPrices(stdP);
     setOutletApkStatus(product.apkStatus || product.outletApkStatus || {});
@@ -1521,9 +1511,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       onClick={() => {
                         if (!tempOutletSelectId) return;
                         const targetId = isNaN(tempOutletSelectId) ? tempOutletSelectId : Number(tempOutletSelectId);
-                        if (!selectedOutletIds.includes(targetId)) {
+                        const alreadyExists = selectedOutletIds.some(id => String(id) === String(targetId));
+                        if (!alreadyExists) {
                           setSelectedOutletIds([...selectedOutletIds, targetId]);
-                          setStandardPrices(prev => ({ ...prev, [targetId]: 0 }));
+                          const existingPrice = Object.values(standardPrices).find(v => Number(v) > 0) || 0;
+                          setStandardPrices(prev => ({
+                            ...prev,
+                            [targetId]: prev[targetId] !== undefined ? prev[targetId] : existingPrice
+                          }));
                           setOutletApkStatus(prev => ({ ...prev, [targetId]: 'Aktif' }));
                         }
                         setTempOutletSelectId('');

@@ -508,9 +508,14 @@ export default function App() {
     return () => clearInterval(livePollTimer);
   }, []);
 
-  // Compute Performa Key Metrics
   const filteredProducts = selectedBranch
-    ? (masterData.products || []).filter(p => p.outlet_id === selectedBranch)
+    ? (masterData.products || []).filter(p => {
+        if (String(p.outlet_id) === String(selectedBranch)) return true;
+        if (Array.isArray(p.selectedOutletIds) && p.selectedOutletIds.some(id => String(id) === String(selectedBranch))) return true;
+        if (p.standardPrices && (p.standardPrices[selectedBranch] !== undefined || p.standardPrices[String(selectedBranch)] !== undefined)) return true;
+        if (!p.selectedOutletIds || p.selectedOutletIds.length === 0) return true;
+        return false;
+      })
     : (masterData.products || []);
 
   const branchSalesTx = selectedBranch
