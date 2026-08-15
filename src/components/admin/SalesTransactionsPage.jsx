@@ -3812,16 +3812,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             })()}
           </div>
 
-          {/* 2. TABEL PERBANDINGAN PENDAPATAN SEBELUM DISKON & SETELAH DISKON ANTAR OUTLET */}
+          {/* 2. TABEL PERBANDINGAN PENDAPATAN SETELAH DISKON ANTAR OUTLET */}
           <div className="glass-card animate-fade-in" style={{ padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <DollarSign size={22} color={T.success} />
-                  <span>Tabel Perbandingan Omzet Antar Outlet (Sebelum & Setelah Diskon)</span>
+                  <span>Tabel Perbandingan Omzet Antar Outlet (Setelah Diskon)</span>
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
-                  Rincian komparasi omzet kotor (Sebelum Diskon) dan omzet bersih (Setelah Diskon) tiap outlet per hari
+                  Rincian omzet bersih (Setelah Diskon) tiap outlet per hari
                 </p>
               </div>
 
@@ -3829,10 +3829,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <ColumnVisibilityDropdown themeMode={themeMode}
                   columns={[
                     { key: 'date', label: 'Tanggal' },
-                    { key: 'gross', label: 'Sebelum Diskon (Gross)' },
-                    { key: 'net', label: 'Setelah Diskon (Net)' },
-                    { key: 'totalGross', label: 'Total Gross Akumulasi' },
-                    { key: 'totalNet', label: 'Total Net Akumulasi' }
+                    { key: 'net', label: 'Omzet (Setelah Diskon)' },
+                    { key: 'totalNet', label: 'Total Akumulasi' }
                   ]}
                   visibleColumns={visibleColumns}
                   onToggleColumn={handleToggleColumn}
@@ -3853,13 +3851,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             {/* MATRIX COMPARISON TABLE */}
             {(() => {
               const { activeOutlets, rows } = getOmzetOutletComparisonData();
-              const grandTotalGrossAll = rows.reduce((s, r) => s + r.totalGross, 0);
               const grandTotalNetAll = rows.reduce((s, r) => s + r.totalNet, 0);
 
               const showDate = visibleColumns.date !== false;
-              const showGross = visibleColumns.gross !== false;
               const showNet = visibleColumns.net !== false;
-              const showTotalGross = visibleColumns.totalGross !== false;
               const showTotalNet = visibleColumns.totalNet !== false;
 
               return (
@@ -3869,17 +3864,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       {/* HEADER ROW 1 */}
                       <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
                         {showDate && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: `1px solid ${T.border}`, textAlign: 'center', width: '110px' }}>Tanggal</th>}
-                        {activeOutlets.map(otl => {
-                          const colSpanVal = (showGross ? 1 : 0) + (showNet ? 1 : 0);
-                          if (colSpanVal === 0) return null;
-                          return (
-                            <th key={otl.id} colSpan={colSpanVal} style={{ padding: '10px', textAlign: 'center', borderRight: `1px solid ${T.border}`, background: 'rgba(56, 189, 248, 0.1)', color: T.info }}>
-                              🏢 {otl.name}
-                            </th>
-                          );
-                        })}
-                        {(showTotalGross || showTotalNet) && (
-                          <th colSpan={(showTotalGross ? 1 : 0) + (showTotalNet ? 1 : 0)} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: T.success }}>
+                        {activeOutlets.map(otl => (
+                          <th key={otl.id} colSpan={1} style={{ padding: '10px', textAlign: 'center', borderRight: `1px solid ${T.border}`, background: 'rgba(56, 189, 248, 0.1)', color: T.info }}>
+                            🏢 {otl.name}
+                          </th>
+                        ))}
+                        {showTotalNet && (
+                          <th colSpan={1} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: T.success }}>
                             📊 Total Akumulasi Seluruh Outlet
                           </th>
                         )}
@@ -3887,12 +3878,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       {/* HEADER ROW 2 */}
                       <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
                         {activeOutlets.map(otl => (
-                          <React.Fragment key={otl.id}>
-                            {showGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
-                            {showNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>Setelah Diskon</th>}
-                          </React.Fragment>
+                          <th key={otl.id} style={{ padding: '8px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>Setelah Diskon</th>
                         ))}
-                        {showTotalGross && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.txtPrimary }}>Sebelum Diskon</th>}
                         {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.success }}>Setelah Diskon</th>}
                       </tr>
                     </thead>
@@ -3905,27 +3892,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                             </td>
                           )}
                           {activeOutlets.map(otl => {
-                            const d = row.outlets[otl.id] || { gross: 0, net: 0 };
+                            const d = row.outlets[otl.id] || { net: 0 };
                             return (
-                              <React.Fragment key={otl.id}>
-                                {showGross && (
-                                  <td style={{ padding: '10px', textAlign: 'right', color: T.txtSecondary }}>
-                                    {formatRupiah(d.gross)}
-                                  </td>
-                                )}
-                                {showNet && (
-                                  <td style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}` }}>
-                                    {formatRupiah(d.net)}
-                                  </td>
-                                )}
-                              </React.Fragment>
+                              <td key={otl.id} style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}` }}>
+                                {showNet ? formatRupiah(d.net) : '-'}
+                              </td>
                             );
                           })}
-                          {showTotalGross && (
-                            <td style={{ padding: '10px', textAlign: 'right', color: T.txtPrimary, fontWeight: '700' }}>
-                              {formatRupiah(row.totalGross)}
-                            </td>
-                          )}
                           {showTotalNet && (
                             <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.9rem' }}>
                               {formatRupiah(row.totalNet)}
@@ -3939,16 +3912,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.info}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.85rem' }}>
                         {showDate && <td style={{ padding: '14px', borderRight: `1px solid ${T.border}`, textAlign: 'center' }}>TOTAL AKUMULASI</td>}
                         {activeOutlets.map(otl => {
-                          const sumGross = rows.reduce((s, r) => s + (r.outlets[otl.id]?.gross || 0), 0);
                           const sumNet = rows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
                           return (
-                            <React.Fragment key={otl.id}>
-                              {showGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(sumGross)}</td>}
-                              {showNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>{formatRupiah(sumNet)}</td>}
-                            </React.Fragment>
+                            <td key={otl.id} style={{ padding: '14px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>{formatRupiah(sumNet)}</td>
                           );
                         })}
-                        {showTotalGross && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(grandTotalGrossAll)}</td>}
                         {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.success, fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
                       </tr>
                     </tfoot>
