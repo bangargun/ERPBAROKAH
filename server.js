@@ -1783,7 +1783,78 @@ const sanitizeMasterDataPayload = (data) => {
     }
   });
 
+  // ===== AUTO DEDUPLICATION: 1 PRODUK = 1 OUTLET =====
+  // Setiap kali data dibaca/ditulis via API, produk otomatis dibersihkan dari duplikat
+  if (Array.isArray(clean.products) && clean.products.length > 0) {
+    const VALID_OUTLETS = new Set(['1785307180576','1785369561430','1785537689430','1785564003169','1785369617361']);
+    const winnerMap = new Map();
+    const idSet = new Set();
 
+    for (const p of clean.products) {
+      if (!p || !p.id) continue;
+
+      // Resolve canonical outlet_id (must be a valid outlet)
+      let outId = String(p.outlet_id || '');
+      if (!VALID_OUTLETS.has(outId)) {
+        const firstValid = (p.selectedOutletIds || []).map(String).find(x => VALID_OUTLETS.has(x));
+        outId = firstValid || '1785307180576';
+      }
+
+      const nameKey = (p.name || '').trim().toUpperCase();
+      const mapKey = outId + '||' + nameKey;
+
+      // Keep first occurrence of each outlet+name combination
+      if (winnerMap.has(mapKey)) continue;
+
+      // Resolve price strictly for this outlet
+      let price = 0;
+      const sp = p.standardPrices || {};
+      price = Number(sp[outId] || sp[Number(outId)] || 0);
+      if (!price && p.variantPrices) {
+        for (const v of Object.keys(p.variantPrices)) {
+          const vp = Number((p.variantPrices[v] || {})[outId] || 0);
+          if (vp > 0) { price = vp; break; }
+        }
+      }
+      if (!price) price = Number(p.price || 5000);
+
+      // Clean variantPrices to only include this outlet
+      const cleanVP = {};
+      for (const v of (p.variants || [])) {
+        cleanVP[v] = { [outId]: Number((p.variantPrices?.[v] || {})[outId] || price) };
+      }
+
+      // Ensure unique numeric ID
+      let uid = Number(p.id);
+      while (idSet.has(String(uid))) uid = Date.now() + Math.floor(Math.random() * 999999);
+      idSet.add(String(uid));
+
+      winnerMap.set(mapKey, {
+        ...p,
+        id: uid,
+        outlet_id: Number(outId),
+        selectedOutletIds: [Number(outId)],
+        selected_outlet_ids: [Number(outId)],
+        price,
+        standardPrices: { [outId]: price },
+        variantPrices: cleanVP,
+        apkStatus: { [outId]: 'Aktif' },
+        outletApkStatus: { [outId]: 'Aktif' },
+        status: p.status || 'Aktif',
+        priceCombinations: [{
+          id: uid,
+          combinationName: p.name,
+          selectedOutletIds: [Number(outId)],
+          outletPrices: { [outId]: price },
+          apkStatus: { [outId]: 'Aktif' },
+          status: 'Aktif'
+        }]
+      });
+    }
+
+    clean.products = Array.from(winnerMap.values());
+  }
+  // ===== END AUTO DEDUPLICATION =====
 
   return clean;
 };
