@@ -1,8 +1,14 @@
 // Master Initial Data for Multi-Restaurant System (MRIS) - Clean Slate (Super Admin Only)
 
 export const initialMasterData = {
-  // 1. DATA MASTER (KOSONG - DIREKAM OLEH PENGGUNA)
-  outlets: [],
+  // 1. DATA MASTER
+  outlets: [
+    { id: 1785307180576, name: 'AYAM BAKAR SURABAYA TEBING TINGGI', code: 'SBY-TT', address: 'Tebing Tinggi', status: 'Aktif' },
+    { id: 1785369561430, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', code: 'PCK-TT', address: 'Tebing Tinggi', status: 'Aktif' },
+    { id: 1785537689430, name: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', code: 'PCK-RP', address: 'Rantau Prapat', status: 'Aktif' },
+    { id: 1785369617361, name: 'AYAM PECAK 2001 SEAFOOD KISARAN', code: 'PCK-KIS', address: 'Kisaran', status: 'Aktif' },
+    { id: 1785564003169, name: 'PECEL LELE PAK HAJI KISARAN', code: 'PLP-KIS', address: 'Kisaran', status: 'Aktif' }
+  ],
   categories: [],
   products: [],
   customers: [],
@@ -80,7 +86,7 @@ export const initialMasterData = {
     lastSecurityScan: '2026-07-25 08:00:00 WIB'
   },
 
-  // HAK USER & AKUN PENGGUNA - WEB BASED ADMIN (terpisah dari POS Mobile)
+  // HAK USER & AKUN PENGGUNA - WEB BASED ADMIN
   webAdminAccounts: [
     {
       id: 1,
@@ -102,12 +108,13 @@ export const initialMasterData = {
     }
   ],
 
-  // OTENTIKASI AKSES AKUN - POS MOBILE APK (terpisah dari Web Admin)
+  // OTENTIKASI AKSES AKUN - POS MOBILE APK
   mobileAccounts: [
     {
       id: 1,
       name: 'Super Admin Restoran',
       outlet: 'Semua Outlet (Central)',
+      outlet_id: 'central',
       username: 'superadmin',
       mobileLoginPassword: '888',
       role: 'Super Admin / Owner',
@@ -119,12 +126,68 @@ export const initialMasterData = {
       id: 2,
       name: 'Owner Restoran',
       outlet: 'Semua Outlet (Central)',
+      outlet_id: 'central',
       username: 'owner',
       mobileLoginPassword: '999',
       role: 'Super Admin / Owner',
       status: 'Aktif',
       canAccessMobileReports: true,
       mobileReportPassword: '9999'
+    },
+    {
+      id: 3,
+      name: 'Kasir Surabaya TT',
+      outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI',
+      outlet_id: 1785307180576,
+      username: 'kasir_sby',
+      mobileLoginPassword: '',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 4,
+      name: 'Kasir Pecak TT',
+      outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI',
+      outlet_id: 1785369561430,
+      username: 'kasir_pecak_tt',
+      mobileLoginPassword: '',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 5,
+      name: 'Kasir Pecak RP',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'kasir_pecak_rp',
+      mobileLoginPassword: '',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 6,
+      name: 'Kasir Pecak Kisaran',
+      outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN',
+      outlet_id: 1785369617361,
+      username: 'kasir_pecak_kis',
+      mobileLoginPassword: '',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 7,
+      name: 'Kasir Pak Haji',
+      outlet: 'PECEL LELE PAK HAJI KISARAN',
+      outlet_id: 1785564003169,
+      username: 'kasir_pakhaji',
+      mobileLoginPassword: '',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
     }
   ],
 

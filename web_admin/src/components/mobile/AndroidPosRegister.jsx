@@ -2930,13 +2930,35 @@ export default function AndroidPosRegister({
         }
       }
     });
-    const registeredUsers = Array.from(usersMap.values());
+    const DEFAULT_BAROKAH_OUTLETS = [
+      { id: 1785307180576, name: 'AYAM BAKAR SURABAYA TEBING TINGGI', code: 'SBY-TT' },
+      { id: 1785369561430, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', code: 'PCK-TT' },
+      { id: 1785537689430, name: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', code: 'PCK-RP' },
+      { id: 1785369617361, name: 'AYAM PECAK 2001 SEAFOOD KISARAN', code: 'PCK-KIS' },
+      { id: 1785564003169, name: 'PECEL LELE PAK HAJI KISARAN', code: 'PLP-KIS' }
+    ];
 
-    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin
+    const DEFAULT_BAROKAH_USERS = [
+      { id: 1, name: 'Super Admin Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '888', canAccessMobileReports: true },
+      { id: 2, name: 'Owner Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '999', canAccessMobileReports: true },
+      { id: 3, name: 'Kasir Surabaya TT', role: 'Kasir', outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI', outlet_id: 1785307180576, mobileLoginPassword: '', canAccessMobileReports: false },
+      { id: 4, name: 'Kasir Pecak TT', role: 'Kasir', outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', outlet_id: 1785369561430, mobileLoginPassword: '', canAccessMobileReports: false },
+      { id: 5, name: 'Kasir Pecak RP', role: 'Kasir', outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', outlet_id: 1785537689430, mobileLoginPassword: '', canAccessMobileReports: false },
+      { id: 6, name: 'Kasir Pecak Kisaran', role: 'Kasir', outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN', outlet_id: 1785369617361, mobileLoginPassword: '', canAccessMobileReports: false },
+      { id: 7, name: 'Kasir Pak Haji', role: 'Kasir', outlet: 'PECEL LELE PAK HAJI KISARAN', outlet_id: 1785564003169, mobileLoginPassword: '', canAccessMobileReports: false }
+    ];
+
+    const registeredUsers = usersMap.size > 0 ? Array.from(usersMap.values()) : DEFAULT_BAROKAH_USERS;
+
+    // Daftar outlet MURNI dari masterData / Pengaturan Web Admin dengan garansi tidak pernah kosong
     const availableOutlets = (() => {
       const map = new Map();
 
-      (masterData?.outlets || []).forEach(o => {
+      const sourceList = (masterData?.outlets && masterData.outlets.length > 0)
+        ? masterData.outlets
+        : DEFAULT_BAROKAH_OUTLETS;
+
+      sourceList.forEach(o => {
         if (o && (o.name || o.branch_name)) {
           const id = String(o.id || o.outlet_id || Date.now());
           map.set(id, { id: o.id || id, name: o.name || o.branch_name, code: o.code || 'OUTLET' });
@@ -2954,10 +2976,11 @@ export default function AndroidPosRegister({
         }
       });
 
-      return Array.from(map.values());
+      const res = Array.from(map.values());
+      return res.length > 0 ? res : DEFAULT_BAROKAH_OUTLETS;
     })();
 
-    const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
+    const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || DEFAULT_BAROKAH_OUTLETS[0];
     const activeOutletName = String(activeOutletObj?.name || '').toLowerCase().trim();
     const activeOutletId = String(activeOutletObj?.id || '').toLowerCase().trim();
 
@@ -2972,7 +2995,7 @@ export default function AndroidPosRegister({
     }) : registeredUsers;
 
     const displayUsers = filteredUsersForOutlet.length > 0 ? filteredUsersForOutlet : registeredUsers;
-    const activeSelectedUser = selectedUserAccount || displayUsers[0] || null;
+    const activeSelectedUser = selectedUserAccount || displayUsers[0] || DEFAULT_BAROKAH_USERS[0];
 
     const handleDirectLogin = (userObj, outletObj) => {
       setLoginErrorText('');
@@ -3040,23 +3063,23 @@ export default function AndroidPosRegister({
       <div style={{ minHeight: '100vh', width: '100vw', background: 'radial-gradient(circle at top, #1e293b 0%, #090d16 100%)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div style={{
           width: '100%',
-          maxWidth: '540px',
-          background: 'rgba(15, 23, 42, 0.95)',
+          maxWidth: '620px',
+          background: 'rgba(15, 23, 42, 0.96)',
           border: '2px solid #10b981',
           borderRadius: '24px',
-          padding: '28px 24px',
+          padding: '26px 22px',
           boxShadow: '0 0 35px rgba(16, 185, 129, 0.35)',
           backdropFilter: 'blur(20px)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '18px'
+          gap: '16px'
         }}>
 
           {/* APP TITLE HEADER */}
           <div style={{ textAlign: 'center' }}>
             <div style={{
-              width: '56px',
-              height: '56px',
+              width: '52px',
+              height: '52px',
               borderRadius: '50%',
               background: 'rgba(16, 185, 129, 0.15)',
               border: '2px solid #10b981',
@@ -3066,14 +3089,14 @@ export default function AndroidPosRegister({
               justifyContent: 'center',
               margin: '0 auto 8px'
             }}>
-              <Smartphone size={28} color="#10b981" />
+              <Smartphone size={26} color="#10b981" />
             </div>
 
-            <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
-              POS Kasir
+            <h2 style={{ fontSize: '1.35rem', fontWeight: '900', color: '#ffffff', margin: 0 }}>
+              POS Kasir Barokah
             </h2>
-            <p style={{ fontSize: '0.80rem', color: '#94a3b8', marginTop: '4px', fontWeight: '600' }}>
-              Pilih Outlet &bull; Pilih User &bull; Masukkan Password
+            <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '3px', fontWeight: '600' }}>
+              Pilih Outlet &bull; Pilih User &bull; Masukkan PIN
             </p>
           </div>
 
@@ -3091,9 +3114,9 @@ export default function AndroidPosRegister({
                 <span>🏢 LANGKAH 1: Pilih Outlet Cabang</span>
               </label>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
                 {availableOutlets.map(o => {
-                  const isSel = loginSelectedOutlet?.id === o.id;
+                  const isSel = (loginSelectedOutlet?.id || activeOutletObj?.id) === o.id;
                   return (
                     <div
                       key={o.id}
@@ -3110,17 +3133,17 @@ export default function AndroidPosRegister({
                         textAlign: 'center',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
-                        boxShadow: isSel ? '0 0 15px rgba(16, 185, 129, 0.3)' : 'none'
+                        boxShadow: isSel ? '0 0 15px rgba(16, 185, 129, 0.35)' : 'none'
                       }}
                     >
                       <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>
-                        {o.id === 'ALL' ? '🌐' : '📍'}
+                        🏪
                       </div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: '900', color: '#ffffff', lineHeight: '1.2' }}>
+                      <div style={{ fontSize: '0.86rem', fontWeight: '900', color: '#ffffff', lineHeight: '1.25' }}>
                         {o.name}
                       </div>
-                      {o.code && o.id !== 'ALL' && (
-                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: '700', marginTop: '4px', display: 'block' }}>
+                      {o.code && (
+                        <span style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: '800', marginTop: '6px', display: 'inline-block', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px' }}>
                           {o.code}
                         </span>
                       )}
