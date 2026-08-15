@@ -299,6 +299,12 @@ const layout = {
 | **`1785369617361`** | **AYAM PECAK 2001 SEAFOOD KISARAN** | `PCK-KIS` |
 | **`1785564003169`** | **PECEL LELE PAK HAJI KISARAN** | `PLP-KIS` |
 
+#### 🛡️ Aturan Anti-Lupa & Hierarki Pencocokan Outlet (3-Layer Protection):
+1. **Prioritas 1 (`outlet_id`)**: Kunci utama mutlak (*Primary Key*). Seluruh query filter, relasi produk, harga cabang, stok, dan akun kasir WAJIB dicocokkan via `String(outlet_id)`.
+2. **Prioritas 2 (`code`)**: Pencocokan via Kode Outlet (misal `SBY-TT`, `PCK-TT`) untuk penomoran struk kasir dan SKU produk.
+3. **Prioritas 3 (`name`)**: Fallback darurat menggunakan Nama Cabang jika ada data historis lama tanpa ID.
+- **Status ID**: 5 ID di atas bersifat *immutable* (tidak boleh diganti atau di-generate ulang dengan angka acak baru).
+
 ### Kebijakan Menu Penyet (Ayam Bakar Surabaya)
 - **`PRD-004` — `AYAM PENYET`**: Khusus aktif **hanya** untuk outlet **`AYAM BAKAR SURABAYA TEBING TINGGI`** (`1785307180576`).
   - Varian Resmi: `sambal merah` & `sambal ijo`.
