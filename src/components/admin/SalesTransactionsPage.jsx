@@ -3858,66 +3858,72 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const showTotalNet = visibleColumns.totalNet !== false;
 
               return (
-                <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '12px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <div style={{ overflowX: 'auto', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'auto' }}>
                     <thead>
-                      {/* HEADER ROW 1 */}
-                      <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, fontWeight: '800', fontSize: '0.8rem' }}>
-                        {showDate && <th rowSpan={2} style={{ padding: '12px 14px', borderRight: `1px solid ${T.border}`, textAlign: 'center', width: '110px' }}>Tanggal</th>}
+                      <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}` }}>
+                        {showDate && (
+                          <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.txtSecondary, textAlign: 'left', letterSpacing: '0.05em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap', width: '110px' }}>
+                            Tanggal
+                          </th>
+                        )}
                         {activeOutlets.map(otl => (
-                          <th key={otl.id} colSpan={1} style={{ padding: '10px', textAlign: 'center', borderRight: `1px solid ${T.border}`, background: 'rgba(56, 189, 248, 0.1)', color: T.info }}>
-                            🏢 {otl.name}
+                          <th key={otl.id} style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.info, textAlign: 'right', letterSpacing: '0.03em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                            {otl.name}
                           </th>
                         ))}
                         {showTotalNet && (
-                          <th colSpan={1} style={{ padding: '10px', textAlign: 'center', background: 'rgba(52, 211, 153, 0.1)', color: T.success }}>
-                            📊 Total Akumulasi Seluruh Outlet
+                          <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.success, textAlign: 'right', letterSpacing: '0.03em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                            Total
                           </th>
                         )}
-                      </tr>
-                      {/* HEADER ROW 2 */}
-                      <tr style={{ background: T.cardBg2, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                        {activeOutlets.map(otl => (
-                          <th key={otl.id} style={{ padding: '8px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>Setelah Diskon</th>
-                        ))}
-                        {showTotalNet && <th style={{ padding: '8px 10px', textAlign: 'right', color: T.success }}>Setelah Diskon</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((row, idx) => (
-                        <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, background: T.cardBg }}>
+                        <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, background: idx % 2 === 0 ? T.cardBg : T.cardBg2 }}>
                           {showDate && (
-                            <td style={{ padding: '10px 14px', fontWeight: '700', color: T.txtPrimary, borderRight: `1px solid ${T.border}`, textAlign: 'center' }}>
+                            <td style={{ padding: '9px 14px', fontWeight: '600', color: T.txtSecondary, borderRight: `1px solid ${T.border}`, textAlign: 'left', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               {row.formattedDate}
                             </td>
                           )}
                           {activeOutlets.map(otl => {
                             const d = row.outlets[otl.id] || { net: 0 };
+                            const isZero = d.net === 0;
                             return (
-                              <td key={otl.id} style={{ padding: '10px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}` }}>
-                                {showNet ? formatRupiah(d.net) : '-'}
+                              <td key={otl.id} style={{ padding: '9px 14px', textAlign: 'right', fontWeight: isZero ? '400' : '700', color: isZero ? T.txtMuted : T.txtPrimary, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                {showNet ? (isZero ? <span style={{ color: T.txtMuted, fontSize: '0.75rem' }}>—</span> : formatRupiah(d.net)) : '—'}
                               </td>
                             );
                           })}
                           {showTotalNet && (
-                            <td style={{ padding: '10px', textAlign: 'right', fontWeight: '900', color: T.success, fontSize: '0.9rem' }}>
+                            <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: '800', color: T.success, whiteSpace: 'nowrap' }}>
                               {formatRupiah(row.totalNet)}
                             </td>
                           )}
                         </tr>
                       ))}
                     </tbody>
-                    {/* FOOTER TOTAL ROW */}
                     <tfoot>
-                      <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.info}`, fontWeight: '900', color: T.txtPrimary, fontSize: '0.85rem' }}>
-                        {showDate && <td style={{ padding: '14px', borderRight: `1px solid ${T.border}`, textAlign: 'center' }}>TOTAL AKUMULASI</td>}
+                      <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.border}` }}>
+                        {showDate && (
+                          <td style={{ padding: '11px 14px', fontWeight: '800', color: T.txtPrimary, borderRight: `1px solid ${T.border}`, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Total
+                          </td>
+                        )}
                         {activeOutlets.map(otl => {
                           const sumNet = rows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
                           return (
-                            <td key={otl.id} style={{ padding: '14px 10px', textAlign: 'right', color: T.info, borderRight: `1px solid ${T.border}` }}>{formatRupiah(sumNet)}</td>
+                            <td key={otl.id} style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                              {formatRupiah(sumNet)}
+                            </td>
                           );
                         })}
-                        {showTotalNet && <td style={{ padding: '14px 10px', textAlign: 'right', color: T.success, fontSize: '0.95rem' }}>{formatRupiah(grandTotalNetAll)}</td>}
+                        {showTotalNet && (
+                          <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '900', color: T.success, whiteSpace: 'nowrap', fontSize: '0.88rem' }}>
+                            {formatRupiah(grandTotalNetAll)}
+                          </td>
+                        )}
                       </tr>
                     </tfoot>
                   </table>
@@ -3928,6 +3934,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
         </div>
       )}
+
 
       {/* 2. PENJUALAN BY MENU (TOP 5 CARDS, GRAFIK GARIS & 2 TABEL RINCIAN PER MENU) */}
       {activeTab === 'categories' && (
