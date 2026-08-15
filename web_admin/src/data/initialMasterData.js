@@ -105,6 +105,56 @@ export const initialMasterData = {
       password: '999',
       role: 'Owner',
       status: 'Aktif'
+    },
+    {
+      id: 11,
+      name: 'Admin Surabaya Tebing Tinggi',
+      outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI',
+      outlet_id: 1785307180576,
+      username: 'admin_sby_tt',
+      password: '123',
+      role: 'Admin',
+      status: 'Aktif'
+    },
+    {
+      id: 12,
+      name: 'Admin Pecak 2001 Tebing Tinggi',
+      outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI',
+      outlet_id: 1785369561430,
+      username: 'admin_pck_tt',
+      password: '123',
+      role: 'Admin',
+      status: 'Aktif'
+    },
+    {
+      id: 13,
+      name: 'Admin Pecak 2001 Rantau Prapat',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'admin_pck_rp',
+      password: '123',
+      role: 'Admin',
+      status: 'Aktif'
+    },
+    {
+      id: 14,
+      name: 'Admin Pecak 2001 Kisaran',
+      outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN',
+      outlet_id: 1785369617361,
+      username: 'admin_pck_kis',
+      password: '123',
+      role: 'Admin',
+      status: 'Aktif'
+    },
+    {
+      id: 15,
+      name: 'Admin Pecel Lele Pak Haji Kisaran',
+      outlet: 'PECEL LELE PAK HAJI KISARAN',
+      outlet_id: 1785564003169,
+      username: 'admin_plp_kis',
+      password: '123',
+      role: 'Admin',
+      status: 'Aktif'
     }
   ],
 
@@ -131,6 +181,126 @@ export const initialMasterData = {
       status: 'Aktif',
       canAccessMobileReports: true,
       mobileReportPassword: '9999'
+    },
+    // 1. AYAM BAKAR SURABAYA TEBING TINGGI
+    {
+      id: 101,
+      name: 'Kasir Surabaya Tebing Tinggi',
+      outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI',
+      outlet_id: 1785307180576,
+      username: 'kasir_sby_tt',
+      mobileLoginPassword: '1234',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 102,
+      name: 'SPV Surabaya Tebing Tinggi',
+      outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI',
+      outlet_id: 1785307180576,
+      username: 'spv_sby_tt',
+      mobileLoginPassword: '1234',
+      role: 'Kepala Cabang / SPV',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '1234'
+    },
+    // 2. AYAM PECAK 2001 SEAFOOD TEBING TINGGI
+    {
+      id: 103,
+      name: 'Kasir Ayam Pecak Tebing Tinggi',
+      outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI',
+      outlet_id: 1785369561430,
+      username: 'kasir_pck_tt',
+      mobileLoginPassword: '1234',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 104,
+      name: 'SPV Ayam Pecak Tebing Tinggi',
+      outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI',
+      outlet_id: 1785369561430,
+      username: 'spv_pck_tt',
+      mobileLoginPassword: '1234',
+      role: 'Kepala Cabang / SPV',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '1234'
+    },
+    // 3. AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT
+    {
+      id: 105,
+      name: 'Kasir Ayam Pecak Rantau Prapat',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'kasir_pck_rp',
+      mobileLoginPassword: '1234',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 106,
+      name: 'SPV Ayam Pecak Rantau Prapat',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'spv_pck_rp',
+      mobileLoginPassword: '1234',
+      role: 'Kepala Cabang / SPV',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '1234'
+    },
+    // 4. AYAM PECAK 2001 SEAFOOD KISARAN
+    {
+      id: 107,
+      name: 'Kasir Ayam Pecak Kisaran',
+      outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN',
+      outlet_id: 1785369617361,
+      username: 'kasir_pck_kis',
+      mobileLoginPassword: '1234',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 108,
+      name: 'SPV Ayam Pecak Kisaran',
+      outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN',
+      outlet_id: 1785369617361,
+      username: 'spv_pck_kis',
+      mobileLoginPassword: '1234',
+      role: 'Kepala Cabang / SPV',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '1234'
+    },
+    // 5. PECEL LELE PAK HAJI KISARAN
+    {
+      id: 109,
+      name: 'Kasir Pecel Lele Pak Haji Kisaran',
+      outlet: 'PECEL LELE PAK HAJI KISARAN',
+      outlet_id: 1785564003169,
+      username: 'kasir_plp_kis',
+      mobileLoginPassword: '1234',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 110,
+      name: 'SPV Pecel Lele Pak Haji Kisaran',
+      outlet: 'PECEL LELE PAK HAJI KISARAN',
+      outlet_id: 1785564003169,
+      username: 'spv_plp_kis',
+      mobileLoginPassword: '1234',
+      role: 'Kepala Cabang / SPV',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '1234'
     }
   ],
 

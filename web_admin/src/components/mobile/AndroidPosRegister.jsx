@@ -2949,23 +2949,48 @@ export default function AndroidPosRegister({
     })();
 
     const registeredUsers = (() => {
-      if (usersMap.size > 0) return Array.from(usersMap.values());
-      const fallbackList = [
-        { id: 1, name: 'Super Admin Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '888', canAccessMobileReports: true },
-        { id: 2, name: 'Owner Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '999', canAccessMobileReports: true }
-      ];
+      const list = Array.from(usersMap.values());
+
+      // Pastikan setiap outlet di availableOutlets memiliki akun Kasir & SPV jika belum didaftarkan di Web Admin
       availableOutlets.forEach((o, idx) => {
-        fallbackList.push({
-          id: 100 + idx,
-          name: `Kasir ${o.name.replace(/^(AYAM BAKAR|AYAM PECAK 2001 SEAFOOD|PECEL LELE)\s*/i, '')}`,
-          role: 'Kasir',
-          outlet: o.name,
-          outlet_id: o.id,
-          mobileLoginPassword: '',
-          canAccessMobileReports: false
+        const oIdStr = String(o.id || '');
+        const oNameStr = String(o.name || '').toLowerCase().trim();
+
+        const hasOutletUser = list.some(u => {
+          const uOutlet = String(u.outlet || u.assignedOutlet || u.outlet_name || u.branch || '').toLowerCase().trim();
+          const uOutletId = String(u.outlet_id || u.outletId || '').toLowerCase().trim();
+          return (uOutletId && uOutletId === oIdStr) || (uOutlet && (uOutlet === oNameStr || uOutlet.includes(oNameStr) || oNameStr.includes(uOutlet)));
         });
+
+        if (!hasOutletUser) {
+          const cleanBranchName = o.name.replace(/^(AYAM BAKAR|AYAM PECAK 2001 SEAFOOD|PECEL LELE)\s*/i, '');
+          list.push({
+            id: `kasir-${o.id}`,
+            name: `Kasir ${cleanBranchName}`,
+            username: `kasir_${o.code?.toLowerCase() || idx}`,
+            role: 'Kasir',
+            outlet: o.name,
+            outlet_id: o.id,
+            mobileLoginPassword: '1234',
+            canAccessMobileReports: false,
+            status: 'Aktif'
+          });
+          list.push({
+            id: `spv-${o.id}`,
+            name: `SPV ${cleanBranchName}`,
+            username: `spv_${o.code?.toLowerCase() || idx}`,
+            role: 'Kepala Cabang / SPV',
+            outlet: o.name,
+            outlet_id: o.id,
+            mobileLoginPassword: '1234',
+            canAccessMobileReports: true,
+            mobileReportPassword: '1234',
+            status: 'Aktif'
+          });
+        }
       });
-      return fallbackList;
+
+      return list;
     })();
 
     const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
@@ -2978,7 +3003,7 @@ export default function AndroidPosRegister({
       const uRole = String(u.role || '').toLowerCase();
 
       const isCentral = !uOutlet || uOutlet.includes('semua outlet') || uOutlet.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
-      const isMatch = isCentral || uOutlet.includes(activeOutletName) || activeOutletName.includes(uOutlet) || (uOutletId && uOutletId === activeOutletId);
+      const isMatch = isCentral || (uOutletId && uOutletId === activeOutletId) || (uOutlet && activeOutletName && (uOutlet.includes(activeOutletName) || activeOutletName.includes(uOutlet)));
       return isMatch;
     }) : registeredUsers;
 
