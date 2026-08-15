@@ -3,9 +3,12 @@ import { BookOpen, Plus, Search, Edit3, Trash2, X, CheckCircle2, Tag, Layers, Fo
 import * as XLSX from 'xlsx';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import DeleteGuardModal from './DeleteGuardModal';
+import { requestDelete } from '../../utils/deleteGuard';
 
 export default function ExpenseMasterManagement({ masterData, setMasterData, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const [deleteGuardState, setDeleteGuardState] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('ALL');
@@ -469,16 +472,25 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
     setShowAddModal(false);
   };
 
-  // Delete Account Handler
-  const handleDeleteAccount = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus akun akuntansi ini dari Data Master?')) {
-      const updatedList = accountsList.filter(a => a.id !== id);
-      setMasterData({
-        ...masterData,
-        chartOfAccounts: updatedList,
-        expenseMaster: updatedList
-      });
-    }
+  // Delete Account Handler (dengan perlindungan lock jika ada transaksi terkait)
+  const handleDeleteAccount = (id, name) => {
+    const acc = accountsList.find(a => a.id === id);
+    const accName = name || acc?.name || String(id);
+    requestDelete({
+      masterData,
+      type: 'expense',
+      id,
+      name: accName,
+      setDeleteGuardState,
+      onConfirmed: () => {
+        const updatedList = accountsList.filter(a => a.id !== id);
+        setMasterData({
+          ...masterData,
+          chartOfAccounts: updatedList,
+          expenseMaster: updatedList
+        });
+      }
+    });
   };
 
   // Filtering Logic
@@ -1372,6 +1384,12 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, the
           </div>
         </div>
       )}
+      {/* DELETE GUARD MODAL — perlindungan hapus akun beban yang punya transaksi */}
+      <DeleteGuardModal
+        guardState={deleteGuardState}
+        onClose={() => setDeleteGuardState(null)}
+        theme={themeMode}
+      />
 
     </div>
   );

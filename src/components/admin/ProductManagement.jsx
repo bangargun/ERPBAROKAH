@@ -25,9 +25,12 @@ import PaginationControls from './PaginationControls';
 import { FileSpreadsheet } from 'lucide-react';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
+import DeleteGuardModal from './DeleteGuardModal';
+import { requestDelete, countRelatedTransactions } from '../../utils/deleteGuard';
 
 export default function ProductManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const [deleteGuardState, setDeleteGuardState] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [displayMode, setDisplayMode] = useState('grid'); // 'grid' | 'table'
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Semua');
@@ -398,32 +401,36 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setEditingProductId(null);
   };
 
-  // 8. Delete Product
-  const handleDeleteProduct = async (id, name) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus produk "${name}"?`)) {
-      const updated = {
-        ...masterData,
-        _lastUpdated: Date.now(),
-        products: (masterData.products || []).filter(p => String(p.id) !== String(id))
-      };
-      setMasterData(updated);
-
-      try {
-        const res = await fetch(getApiUrl('/api/master-data/delete-item'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'products', id })
-        });
-        if (res.ok) {
-          const resData = await res.json();
-          if (resData && resData.masterData) {
-            setMasterData(resData.masterData);
+  // 8. Delete Product (dengan perlindungan lock jika ada transaksi)
+  const handleDeleteProduct = (id, name) => {
+    requestDelete({
+      masterData,
+      type: 'product',
+      id,
+      name,
+      setDeleteGuardState,
+      onConfirmed: async () => {
+        const updated = {
+          ...masterData,
+          _lastUpdated: Date.now(),
+          products: (masterData.products || []).filter(p => String(p.id) !== String(id))
+        };
+        setMasterData(updated);
+        try {
+          const res = await fetch(getApiUrl('/api/master-data/delete-item'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'products', id })
+          });
+          if (res.ok) {
+            const resData = await res.json();
+            if (resData && resData.masterData) setMasterData(resData.masterData);
           }
+        } catch (err) {
+          console.error('Delete product API error:', err);
         }
-      } catch (err) {
-        console.error('Delete product API error:', err);
       }
-    }
+    });
   };
 
   const formatRupiah = (val) => {
@@ -1884,6 +1891,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         moduleType="products"
         masterData={masterData}
         setMasterData={setMasterData}
+      />
+
+      {/* DELETE GUARD MODAL — perlindungan hapus data yang punya transaksi */}
+      <DeleteGuardModal
+        guardState={deleteGuardState}
+        onClose={() => setDeleteGuardState(null)}
+        theme={themeMode}
       />
     </div>
   );

@@ -28,18 +28,13 @@ import {
   CheckCircle2, 
   AlertCircle 
 } from 'lucide-react';
-
-
-
-
-
-
-
-
 import { getThemePalette } from '../../utils/themeUtils';
+import DeleteGuardModal from './DeleteGuardModal';
+import { requestDelete } from '../../utils/deleteGuard';
 
 export default function MasterDataManagement({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const [deleteGuardState, setDeleteGuardState] = useState(null);
 
   const [activeSubTab, setActiveSubTab] = useState('products');
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,10 +100,31 @@ export default function MasterDataManagement({ masterData, setMasterData, select
     setNewItemPrice('');
   };
 
-  const handleDeleteItem = (listKey, id) => {
-    const updated = { ...masterData };
-    updated[listKey] = updated[listKey].filter(item => item.id !== id);
-    setMasterData(updated);
+  // Hapus item dari daftar master data — dengan perlindungan lock untuk bahan baku
+  const handleDeleteItem = (listKey, id, name = '') => {
+    // Deteksi tipe untuk guard
+    const guardType = listKey === 'ingredients' ? 'ingredient' : null;
+
+    if (guardType) {
+      requestDelete({
+        masterData,
+        type: guardType,
+        id,
+        name,
+        setDeleteGuardState,
+        onConfirmed: () => {
+          const updated = { ...masterData };
+          updated[listKey] = (updated[listKey] || []).filter(item => item.id !== id);
+          setMasterData(updated);
+        }
+      });
+    } else {
+      // Item lain (kategori, pelanggan, meja, dll) — konfirmasi biasa
+      if (!window.confirm(`Hapus item ini?`)) return;
+      const updated = { ...masterData };
+      updated[listKey] = (updated[listKey] || []).filter(item => item.id !== id);
+      setMasterData(updated);
+    }
   };
 
   return (
@@ -354,6 +370,12 @@ export default function MasterDataManagement({ masterData, setMasterData, select
           </div>
         </div>
       )}
+      {/* DELETE GUARD MODAL — perlindungan hapus bahan baku yang punya transaksi */}
+      <DeleteGuardModal
+        guardState={deleteGuardState}
+        onClose={() => setDeleteGuardState(null)}
+        theme={themeMode}
+      />
     </div>
   );
 }
