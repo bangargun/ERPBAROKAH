@@ -223,21 +223,20 @@ cd android && ./gradlew assembleRelease
 # 5. Output APK:
 # android/app/build/outputs/apk/release/app-release.apk
 
-# 6. Rename dan simpan dengan format standar:
+# 6. Rename dan simpan dengan format standar ringkas:
 cp android/app/build/outputs/apk/release/app-release.apk \
-   /Users/argun/Documents/MRIS/POS_KASIR_BAROKAH_v{VERSI}_{VARIAN}_Build_{TANGGAL}.apk
+   /Users/argun/Documents/MRIS/POS_KASIR_v{VERSI}.apk
 ```
 
-#### Format Nama File APK:
+#### Format Nama File APK Resmi:
 ```
-POS_KASIR_BAROKAH_v{VERSI}_{VARIAN}_Build_{YYYYMMDD}.apk
+POS_KASIR_v{VERSI}.apk
 
 Contoh:
-POS_KASIR_BAROKAH_v4.1.0_Phone_Build_20260810.apk
-POS_KASIR_BAROKAH_v4.1.0_Tab7in_Build_20260810.apk
-POS_KASIR_BAROKAH_v4.1.0_Tab10in_Build_20260810.apk   ← UTAMA
-POS_KASIR_BAROKAH_v4.1.0_Tab12in_Build_20260810.apk
+POS_KASIR_v4.2.9.apk
+POS_KASIR_v4.3.0.apk
 ```
+*(Versi terus bertambah secara berurutan setiap ada update baru)*
 
 ---
 
@@ -272,14 +271,15 @@ const layout = {
 - [ ] Keyboard virtual tidak menutupi tombol "Bayar"
 - [ ] Tombol kategori bisa diklik (tidak terlalu kecil, min 44px)
 - [ ] Font produk terbaca dari jarak ±50cm
-- [ ] APK diberi nama sesuai format standar + tanggal build
+- [ ] APK diberi nama format standar: `POS_KASIR_v{VERSI}.apk`
 - [ ] APK disimpan di `/Users/argun/Documents/MRIS/`
 
 ---
 
-### 🏪 Distribusi APK ke Outlet (Universal & Fleksibel)
+### 🏪 Distribusi APK ke Outlet (Ringkas, Universal & Fleksibel)
 
-> 💡 **Standar 1 APK Universal**: Mulai versi **v4.2.5**, sistem hanya memproduksi **1 file APK Universal & Fleksibel** (`POS_KASIR_BAROKAH_v{VERSI}_Universal_Build_{YYYYMMDD}.apk` / `POS KASIR.APK`).
+> 💡 **Standar 1 APK Universal**: Mulai versi **v4.2.9 ke atas**, penamaan file APK disederhanakan dan dikunci dengan format resmi:
+> **`POS_KASIR_v{VERSI}.apk`** (contoh: `POS_KASIR_v4.2.9.apk`).
 > APK ini secara otomatis menyesuaikan tampilan (*fluid responsive layout*) di semua ukuran layar:
 > - **Tablet 10" (Samsung Tab A8)**: 4 kolom produk, font 13–14px, sidebar 300–340px (Rekomendasi Kasir Utama).
 > - **Tablet Besar 11–13"+**: 5 kolom produk, font 14–15px, sidebar 360px.
