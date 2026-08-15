@@ -211,9 +211,20 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
       if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
-    const amountVal = Number(tx.amount || 0);
-    const payVal = Number(tx.cash_paid || tx.amount || 0);
-    const changeVal = Math.max(0, payVal - amountVal);
+    const amountVal = Number(tx.amount || tx.grandTotal || tx.total || 0);
+    const payVal = Number(
+      tx.paid_amount !== undefined && tx.paid_amount !== null ? tx.paid_amount :
+      tx.cash_paid !== undefined && tx.cash_paid !== null ? tx.cash_paid :
+      tx.tendered !== undefined && tx.tendered !== null ? tx.tendered :
+      tx.bayar !== undefined && tx.bayar !== null ? tx.bayar :
+      amountVal
+    );
+    const changeVal = Number(
+      tx.change_amount !== undefined && tx.change_amount !== null ? tx.change_amount :
+      tx.change !== undefined && tx.change !== null ? tx.change :
+      tx.kembalian !== undefined && tx.kembalian !== null ? tx.kembalian :
+      Math.max(0, payVal - amountVal)
+    );
     lines.push('[B]' + rowLine('TOTAL:', fmt(amountVal)));
     lines.push(rowLine('Metode Bayar:', tx.payment_method || 'Cash'));
     lines.push(rowLine('Bayar:', fmt(payVal)));

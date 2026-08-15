@@ -2538,7 +2538,12 @@ export default function AndroidPosRegister({
       discount_amount: discountAmount,
       amount: cartTotal,
       paid_amount: paidVal,
+      cash_paid: paidVal,
+      tendered: paidVal,
+      bayar: paidVal,
       change_amount: Math.max(0, paidVal - cartTotal),
+      kembalian: Math.max(0, paidVal - cartTotal),
+      change: Math.max(0, paidVal - cartTotal),
       payment_method: methodName,
       cashier: currentUserSession?.name || 'Kasir Mobile',
       notes: `${orderType} (${orderType === 'Dine In' ? selectedTableObj.number : 'Take Away'}) - Pembayaran ${methodName}`,
@@ -8505,6 +8510,31 @@ export default function AndroidPosRegister({
                 <span>TOTAL TAGIHAN</span>
                 <span>{formatRupiah(lastCompletedTx.amount)}</span>
               </div>
+              {!(lastCompletedTx.isContohTagihan || lastCompletedTx.id?.startsWith('BILL') || lastCompletedTx.id?.startsWith('HOLD')) && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--pos-txt-primary)', fontSize: '0.82rem', marginTop: '6px' }}>
+                    <span>Bayar / Tunai:</span>
+                    <strong style={{ color: '#38bdf8' }}>
+                      {formatRupiah(
+                        lastCompletedTx.paid_amount !== undefined && lastCompletedTx.paid_amount !== null ? lastCompletedTx.paid_amount :
+                        lastCompletedTx.cash_paid !== undefined && lastCompletedTx.cash_paid !== null ? lastCompletedTx.cash_paid :
+                        lastCompletedTx.tendered !== undefined && lastCompletedTx.tendered !== null ? lastCompletedTx.tendered :
+                        lastCompletedTx.amount || 0
+                      )}
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--pos-txt-primary)', fontSize: '0.88rem', fontWeight: '800', marginTop: '3px' }}>
+                    <span>Kembalian:</span>
+                    <strong style={{ color: '#34d399' }}>
+                      {formatRupiah(
+                        lastCompletedTx.change_amount !== undefined && lastCompletedTx.change_amount !== null ? lastCompletedTx.change_amount :
+                        lastCompletedTx.kembalian !== undefined && lastCompletedTx.kembalian !== null ? lastCompletedTx.kembalian :
+                        Math.max(0, (lastCompletedTx.paid_amount || lastCompletedTx.cash_paid || lastCompletedTx.amount || 0) - (lastCompletedTx.amount || 0))
+                      )}
+                    </strong>
+                  </div>
+                </>
+              )}
 
               {(lastCompletedTx.isContohTagihan || lastCompletedTx.id?.startsWith('BILL') || lastCompletedTx.id?.startsWith('HOLD')) && (
                 <div style={{
@@ -10580,10 +10610,31 @@ export default function AndroidPosRegister({
 
             {/* Footer Summary - NO PRICE FOR KITCHEN / BAR / TABLE CHECKER TICKETS */}
             {ticketPreviewType === 'CASHIER' ? (
-              <div style={{ borderTop: '2px dashed #000', paddingTop: '8px', marginBottom: '16px', fontSize: '0.9rem' }}>
+              <div style={{ borderTop: '2px dashed #000', paddingTop: '8px', marginBottom: '16px', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900' }}>
                   <span>TOTAL BILL</span>
                   <span>{formatRupiah(ticketPreviewData.amount || cartTotal)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#333' }}>
+                  <span>Bayar / Tunai</span>
+                  <strong style={{ color: '#0284c7' }}>
+                    {formatRupiah(
+                      ticketPreviewData.paid_amount !== undefined && ticketPreviewData.paid_amount !== null ? ticketPreviewData.paid_amount :
+                      ticketPreviewData.cash_paid !== undefined && ticketPreviewData.cash_paid !== null ? ticketPreviewData.cash_paid :
+                      ticketPreviewData.tendered !== undefined && ticketPreviewData.tendered !== null ? ticketPreviewData.tendered :
+                      ticketPreviewData.amount || cartTotal
+                    )}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', fontWeight: '900', color: '#16a34a' }}>
+                  <span>Kembalian</span>
+                  <span>
+                    {formatRupiah(
+                      ticketPreviewData.change_amount !== undefined && ticketPreviewData.change_amount !== null ? ticketPreviewData.change_amount :
+                      ticketPreviewData.kembalian !== undefined && ticketPreviewData.kembalian !== null ? ticketPreviewData.kembalian :
+                      Math.max(0, (ticketPreviewData.paid_amount || ticketPreviewData.cash_paid || ticketPreviewData.amount || cartTotal) - (ticketPreviewData.amount || cartTotal))
+                    )}
+                  </span>
                 </div>
               </div>
             ) : (

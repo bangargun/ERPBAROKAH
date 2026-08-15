@@ -1599,6 +1599,14 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                   <span>TOTAL STRUK:</span>
                   <span>{formatRupiah(previewRecord.amount)}</span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: T.txtPrimary, marginTop: '4px' }}>
+                  <span style={{ color: T.txtSecondary }}>Bayar:</span>
+                  <span>{formatRupiah(previewRecord.paid_amount || previewRecord.cash_paid || previewRecord.amount)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', fontWeight: '800', color: T.success, marginTop: '2px' }}>
+                  <span>Kembalian:</span>
+                  <span>{formatRupiah(previewRecord.change_amount !== undefined && previewRecord.change_amount !== null ? previewRecord.change_amount : (previewRecord.kembalian !== undefined && previewRecord.kembalian !== null ? previewRecord.kembalian : Math.max(0, (previewRecord.paid_amount || previewRecord.cash_paid || previewRecord.amount || 0) - (previewRecord.amount || 0))))}</span>
+                </div>
               </div>
 
               {/* Footer Struk */}
