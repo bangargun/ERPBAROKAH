@@ -2785,7 +2785,7 @@ export default function AndroidPosRegister({
     setLastCompletedTx(newTx);
     handleClearCart();
     setShowReceiptModal(true);
-    handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: true, printCashierCopy: false });
+    handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: false, printCashierCopy: true });
   };
 
   // Handle Petty Expense Entry
