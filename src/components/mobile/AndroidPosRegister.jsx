@@ -188,30 +188,46 @@ export default function AndroidPosRegister({
     return 0;
   };
 
-  // Filter products for POS Kasir — izinkan semua produk aktif termasuk menu baru
+  // Filter products for this outlet — strictly isolate by outlet
   const rawProducts = (masterData?.products || []);
+  const currentOutletIdStr = String(currentOutlet?.id || '');
+  const currentOutletNameStr = String(currentOutlet?.name || '').toLowerCase().trim();
+
   const products = rawProducts.filter(p => {
     if (!p || !p.id) return false;
     // 1. Skip if general status is Inaktif
     if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
 
-    // 2. Jika menu khusus Surabaya (PRD-004 / PRD-007) dan outlet bukan Surabaya, lewati
+    // 2. Outlet Isolation Check:
+    // Pastikan produk milik outlet ini berdasarkan outlet_id, selectedOutletIds, atau outlet_name
+    const productOutletIdStr = String(p.outlet_id || '');
+    const productOutletNameStr = String(p.outlet_name || p.branch_name || '').toLowerCase().trim();
+    const isGlobal = !productOutletIdStr || productOutletIdStr === 'Semua Outlet' || productOutletIdStr === 'Semua Outlet (Central)';
+
+    const isDirectMatch = productOutletIdStr === currentOutletIdStr;
+    const isArrayMatch = Array.isArray(p.selectedOutletIds) && p.selectedOutletIds.some(id => String(id) === currentOutletIdStr);
+    const isNameMatch = productOutletNameStr && currentOutletNameStr && (productOutletNameStr === currentOutletNameStr || productOutletNameStr.includes(currentOutletNameStr) || currentOutletNameStr.includes(productOutletNameStr));
+
+    // Jika produk bukan milik outlet ini, jangan tampilkan di outlet ini
+    if (!isGlobal && !isDirectMatch && !isArrayMatch && !isNameMatch) {
+      return false;
+    }
+
+    // 3. Khusus menu Surabaya Penyet (PRD-004 / PRD-007), strictly Surabaya only
     const pSku = String(p.sku || p.code || '').toUpperCase().trim();
-    const isSurabayaOnlyPenyet = pSku === 'PRD-004' || pSku === 'PRD-007';
-    if (isSurabayaOnlyPenyet) {
-      const isSurabayaOutlet = String(currentOutlet?.id) === '1785307180576' || 
-                               String(currentOutlet?.name || '').toLowerCase().includes('surabaya');
+    if (pSku === 'PRD-004' || pSku === 'PRD-007') {
+      const isSurabayaOutlet = currentOutletIdStr === '1785307180576' || currentOutletNameStr.includes('surabaya');
       if (!isSurabayaOutlet) return false;
     }
 
-    // 3. Status per-outlet check jika ada
+    // 4. "Tampilkan di APK" status check per outlet
     const apkStatusMap = p.apkStatus || p.outletApkStatus || {};
-    const statusForThisOutlet = apkStatusMap[currentOutlet?.id] || apkStatusMap[String(currentOutlet?.id)];
+    const statusForThisOutlet = apkStatusMap[currentOutlet?.id] || apkStatusMap[currentOutletIdStr];
     if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif' || statusForThisOutlet === 'Hide') {
       return false;
     }
 
-    // 4. Pastikan produk memiliki harga yang valid (bisa dari standardPrices, priceCombinations, variantPrices, atau p.price)
+    // 5. Pastikan produk memiliki harga yang valid untuk outlet ini
     const effectivePrice = getProductPriceForOutlet(p, currentOutlet?.id);
     if (effectivePrice <= 0 && (!p.price || Number(p.price) <= 0)) return false;
 
