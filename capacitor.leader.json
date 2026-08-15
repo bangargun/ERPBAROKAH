@@ -1,0 +1,7 @@
+{
+  "appId": "com.mris.leader",
+  "appName": "LEADER BAROKAH",
+  "webDir": "dist-leader",
+  "bundledWebRuntime": false,
+  "androidScheme": "https"
+}

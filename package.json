@@ -10,6 +10,8 @@
     "build:admin": "npm run sync-src && cd web_admin && npm run build && cd .. && npm run sync-dist",
     "build:pos": "npm run sync-src && vite build",
     "build": "npm run sync-src && cd web_admin && npm run build && cd .. && npm run sync-dist",
+    "build:leader": "npm run sync-src && cd web_admin && VITE_APP_TARGET=leader npx vite build --outDir ../dist-leader && cd ..",
+    "build:apk:leader": "export JAVA_HOME='/opt/homebrew/Cellar/openjdk@21/21.0.12/libexec/openjdk.jdk/Contents/Home' && export PATH=\"$JAVA_HOME/bin:$PATH\" && npm run build:leader && rsync -av --delete dist-leader/ android-leader/app/src/main/assets/public/ && cd android-leader && ./gradlew assembleRelease && cd .. && cp android-leader/app/build/outputs/apk/release/app-release.apk \"/Users/argun/Documents/MRIS/LEADER_BAROKAH_v1.0.0_Tab10in_Build_20260815.apk\" && cp android-leader/app/build/outputs/apk/release/app-release.apk \"/Users/argun/Documents/MRIS/LEADER_BAROKAH_v1.0.0_Phone_Build_20260815.apk\" && cp android-leader/app/build/outputs/apk/release/app-release.apk \"/Users/argun/Documents/MRIS/LEADER BAROKAH.apk\" && cp android-leader/app/build/outputs/apk/release/app-release.apk \"/Users/argun/Documents/MRIS/dist/mris-leader.apk\" && cp android-leader/app/build/outputs/apk/release/app-release.apk \"/Users/argun/Documents/MRIS/web_admin/dist/mris-leader.apk\"",
     "preview": "vite preview",
     "server": "node server.js",
     "start": "node server.js",

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LEADER BAROKAH</string>
+    <string name="title_activity_main">LEADER BAROKAH</string>
+    <string name="package_name">com.mris.leader</string>
+    <string name="custom_url_scheme">com.mris.leader</string>
+</resources>

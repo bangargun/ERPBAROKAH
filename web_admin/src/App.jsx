@@ -87,8 +87,18 @@ export default function App() {
     };
   }, []);
 
-  // App View Mode State: 'admin' for Web Browser, 'mobile' for Capacitor Android APK
+  // Check if current build target is Leader App
+  const isLeaderTarget = typeof window !== 'undefined' && (
+    import.meta.env.VITE_APP_TARGET === 'leader' ||
+    window.__APP_TARGET__ === 'leader' ||
+    localStorage.getItem('mris_app_target') === 'leader' ||
+    window.location.search.includes('target=leader') ||
+    window.location.hash.includes('target=leader')
+  );
+
+  // App View Mode State: 'admin' for Web Browser & Leader App, 'mobile' for POS Kasir Android APK
   const [viewMode, setViewMode] = useState(() => {
+    if (isLeaderTarget) return 'admin';
     if (isCapacitorNative) return 'mobile';
     return 'admin';
   });
