@@ -31,12 +31,74 @@ const MOBILE_PERM_FIELDS = [
   { key: 'shiftClosing', label: '🔒 Rekonsiliasi Shift Closing' },
 ];
 
+const normalizePermObj = (val) => {
+  if (typeof val === 'object' && val !== null) {
+    return {
+      view: Boolean(val.view),
+      edit: Boolean(val.edit),
+      delete: Boolean(val.delete)
+    };
+  }
+  const bool = Boolean(val);
+  return { view: bool, edit: bool, delete: bool };
+};
+
 const DEFAULT_WEB_MATRIX = [
-  { role: 'Super Admin', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: true },
-  { role: 'Owner', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: true },
-  { role: 'Admin', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: false },
-  { role: 'Manajer Cabang', dashboard: true, masterData: true, costs: true, stock: true, approved: true, reports: true, policies: true, settings: false },
-  { role: 'Kasir', dashboard: false, masterData: false, costs: false, stock: true, approved: false, reports: false, policies: true, settings: false }
+  { 
+    role: 'Super Admin', 
+    dashboard: { view: true, edit: true, delete: true }, 
+    masterData: { view: true, edit: true, delete: true }, 
+    costs: { view: true, edit: true, delete: true }, 
+    stock: { view: true, edit: true, delete: true }, 
+    approved: { view: true, edit: true, delete: true }, 
+    reports: { view: true, edit: true, delete: true }, 
+    policies: { view: true, edit: true, delete: true }, 
+    settings: { view: true, edit: true, delete: true } 
+  },
+  { 
+    role: 'Owner', 
+    dashboard: { view: true, edit: true, delete: true }, 
+    masterData: { view: true, edit: true, delete: true }, 
+    costs: { view: true, edit: true, delete: true }, 
+    stock: { view: true, edit: true, delete: true }, 
+    approved: { view: true, edit: true, delete: true }, 
+    reports: { view: true, edit: true, delete: true }, 
+    policies: { view: true, edit: true, delete: true }, 
+    settings: { view: true, edit: true, delete: true } 
+  },
+  { 
+    role: 'Admin', 
+    dashboard: { view: true, edit: true, delete: true }, 
+    masterData: { view: true, edit: true, delete: false }, 
+    costs: { view: true, edit: true, delete: false }, 
+    stock: { view: true, edit: true, delete: false }, 
+    approved: { view: true, edit: true, delete: false }, 
+    reports: { view: true, edit: true, delete: false }, 
+    policies: { view: true, edit: true, delete: false }, 
+    settings: { view: false, edit: false, delete: false } 
+  },
+  { 
+    role: 'Manajer Cabang', 
+    dashboard: { view: true, edit: false, delete: false }, 
+    masterData: { view: true, edit: true, delete: false }, 
+    costs: { view: true, edit: true, delete: false }, 
+    stock: { view: true, edit: true, delete: false }, 
+    approved: { view: true, edit: true, delete: false }, 
+    reports: { view: true, edit: false, delete: false }, 
+    policies: { view: true, edit: false, delete: false }, 
+    settings: { view: false, edit: false, delete: false } 
+  },
+  { 
+    role: 'Kasir', 
+    dashboard: { view: false, edit: false, delete: false }, 
+    masterData: { view: false, edit: false, delete: false }, 
+    costs: { view: false, edit: false, delete: false }, 
+    stock: { view: true, edit: true, delete: false }, 
+    approved: { view: false, edit: false, delete: false }, 
+    reports: { view: false, edit: false, delete: false }, 
+    policies: { view: true, edit: false, delete: false }, 
+    settings: { view: false, edit: false, delete: false } 
+  }
 ];
 
 const DEFAULT_MOBILE_MATRIX = [
@@ -309,6 +371,30 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
   };
 
   // ─── TOGGLE MATRIX PERMISSION (AUTO-SAVE INSTANTLY) ───
+  const toggleWebMatrixActionPerm = (roleName, permKey, actionType) => {
+    if (roleName === 'Super Admin' || roleName === 'Owner' || roleName === 'Super Admin / Owner') {
+      alert('🔒 Peran Super Admin / Owner memiliki hak akses penuh 100% (View, Edit, Delete).');
+      return;
+    }
+    const updatedWeb = webMatrix.map(item => {
+      if (item.role === roleName) {
+        const currentMod = normalizePermObj(item[permKey]);
+        const nextVal = !currentMod[actionType];
+        return {
+          ...item,
+          [permKey]: {
+            ...currentMod,
+            [actionType]: nextVal,
+            view: (actionType !== 'view' && nextVal) ? true : (actionType === 'view' ? nextVal : currentMod.view)
+          }
+        };
+      }
+      return item;
+    });
+    setWebMatrix(updatedWeb);
+    saveMatrixToServer(updatedWeb, mobileMatrix);
+  };
+
   const toggleWebMatrixPerm = (roleName, permKey) => {
     const updatedWeb = webMatrix.map(item => {
       if (item.role === roleName) {
@@ -520,11 +606,94 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
                     </div>
                   </td>
                   {columns.map(col => {
+                    if (isWeb) {
+                      const isSuperAdminOrOwner = row.role === 'Super Admin' || row.role === 'Owner' || row.role === 'Super Admin / Owner';
+                      const permObj = normalizePermObj(row[col.key]);
+
+                      return (
+                        <td key={col.key} style={{ padding: '8px 4px', textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', gap: '3px', alignItems: 'center', background: T.cardBg, padding: '3px 4px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                            {/* VIEW */}
+                            <button
+                              type="button"
+                              onClick={() => toggleWebMatrixActionPerm(row.role, col.key, 'view')}
+                              title={`Hak Lihat ${col.label}: ${permObj.view ? 'Aktif' : 'Non-Aktif'}`}
+                              style={{
+                                padding: '3px 6px',
+                                borderRadius: '5px',
+                                border: 'none',
+                                fontSize: '0.66rem',
+                                fontWeight: '800',
+                                cursor: isSuperAdminOrOwner ? 'not-allowed' : 'pointer',
+                                background: permObj.view ? T.successBg : T.dangerBg,
+                                color: permObj.view ? T.success : T.danger,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <span>👁️</span>
+                              <span>View</span>
+                            </button>
+
+                            {/* EDIT */}
+                            <button
+                              type="button"
+                              onClick={() => toggleWebMatrixActionPerm(row.role, col.key, 'edit')}
+                              title={`Hak Edit & Tambah ${col.label}: ${permObj.edit ? 'Aktif' : 'Non-Aktif'}`}
+                              style={{
+                                padding: '3px 6px',
+                                borderRadius: '5px',
+                                border: 'none',
+                                fontSize: '0.66rem',
+                                fontWeight: '800',
+                                cursor: isSuperAdminOrOwner ? 'not-allowed' : 'pointer',
+                                background: permObj.edit ? 'rgba(234, 179, 8, 0.15)' : T.dangerBg,
+                                color: permObj.edit ? '#eab308' : T.danger,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <span>✏️</span>
+                              <span>Edit</span>
+                            </button>
+
+                            {/* DELETE */}
+                            <button
+                              type="button"
+                              onClick={() => toggleWebMatrixActionPerm(row.role, col.key, 'delete')}
+                              title={`Hak Hapus ${col.label}: ${permObj.delete ? 'Aktif' : 'Non-Aktif'}`}
+                              style={{
+                                padding: '3px 6px',
+                                borderRadius: '5px',
+                                border: 'none',
+                                fontSize: '0.66rem',
+                                fontWeight: '800',
+                                cursor: isSuperAdminOrOwner ? 'not-allowed' : 'pointer',
+                                background: permObj.delete ? 'rgba(239, 68, 68, 0.18)' : T.dangerBg,
+                                color: permObj.delete ? '#ef4444' : T.danger,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <span>🗑️</span>
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    }
+
                     const isAllowed = row[col.key] !== false;
                     return (
                       <td key={col.key} style={{ padding: '12px 8px', textAlign: 'center' }}>
                         <button
-                          onClick={() => isWeb ? toggleWebMatrixPerm(row.role, col.key) : toggleMobileMatrixPerm(row.role, col.key)}
+                          onClick={() => toggleMobileMatrixPerm(row.role, col.key)}
                           style={{
                             padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: '800', fontSize: '0.74rem',
                             background: isAllowed ? T.successBg : T.dangerBg,
