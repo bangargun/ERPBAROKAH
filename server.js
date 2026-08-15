@@ -1779,6 +1779,8 @@ const sanitizeMasterDataPayload = (data) => {
       const idVal = item.id;
       const idNum = Number(idVal);
       const hasReceiptNo = !!(item.receipt_no || item.receiptNo || item.invoice_no || item.struk_no);
+      if (idNum > 1000000000000 && !hasReceiptNo && item.type === 'sale') return true;
+    }
     // Hapus data mock "Restoran Utama" / dummy shift closings
     const bName = String(item.branch_name || item.outlet_name || '').toLowerCase();
     if (bName.includes('restoran utama')) return true;
