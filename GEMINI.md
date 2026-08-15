@@ -304,6 +304,17 @@ const layout = {
   - Memeriksa `isMasterItemDeleted(item, deletedIds)` terhadap ID, SKU, Code, dan lowercase Name.
   - Data lokal browser tidak boleh membangkitkan kembali produk yang sudah dihapus di server (`serverArr` adalah base authority).
 
+### 🔄 Kebijakan Pembaruan Kategori Menu (Cascading In-Place Update)
+- **Prinsip Utama (No Delete on Category Change)**:
+  Saat nama kategori diubah atau kategori produk diganti, sistem **DILARANG MENGHAPUS** data produk/kategori. Sistem wajib melakukan **Cascading In-Place Update**.
+- **Alasan & Tujuan**:
+  1. **Audit Trail & Laporan Keuangan**: Mencegah transaksi masa lalu kehilangan relasi data (*orphan records*) dan menjaga grafik laba rugi/HPP serta riwayat penjualan tetap valid.
+  2. **Stabilitas POS Kasir**: Mencegah menu kasir tiba-tiba hilang dari layar tablet kasir cabang saat dilakukan reorganisasi kategori di pusat.
+  3. **Integritas Relasional MySQL**: Mempertahankan relasi ID produk terhadap resep bahan baku (`compositions`), stok mutasi logistik (`stockMovement`), dan laporan shift kasir (`shiftReports`).
+- **Implementasi Teknis**:
+  - Di `ProductCategoryManagement.jsx`: Saat kategori diedit, sistem memperbarui master kategori sekaligus meng-update field `category_name` & `category` pada seluruh produk terkait secara serentak.
+  - Di `ProductManagement.jsx`: Mengikat 3 atribut kunci (`category_id`, `category_name`, `category`) secara atomik dengan stempel waktu `_updatedAt: Date.now()`.
+
 ---
 
 ## 🗂️ 13. Riwayat Build APK Terbaru
