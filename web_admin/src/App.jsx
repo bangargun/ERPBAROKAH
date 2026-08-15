@@ -456,14 +456,13 @@ export default function App() {
                   const k = String(item.id ?? item.code ?? item.name ?? '');
                   if (!k || deletedIds.has(k)) return;
                   if (map.has(k)) {
-                    // Both exist — compare timestamps, newer wins
+                    // Both exist — compare timestamps
                     const serverItem = map.get(k);
                     const localTs  = Number(item._updatedAt  || item._lastMutated  || 0);
                     const serverTs = Number(serverItem._updatedAt || serverItem._lastMutated || 0);
-                    if (localTs > serverTs) {
-                      map.set(k, item); // local is newer → local wins
+                    if (localTs > serverTs || (localTs === serverTs && localTs > 0) || (localTs === 0 && serverTs === 0 && localTs >= serverTs)) {
+                      map.set(k, item); // local wins or is equal
                     }
-                    // else: server is newer or equal → keep server (already in map)
                   } else {
                     map.set(k, item); // only in local → add it
                   }

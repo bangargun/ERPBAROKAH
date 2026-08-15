@@ -1827,9 +1827,14 @@ const sanitizeMasterDataPayload = (data) => {
       const score = (isProperSku ? 3 : 0) + (hasValidPrice ? 2 : 0) + (hasMatchingOutlet ? 1 : 0);
 
       if (winnerMap.has(mapKey)) {
-        // Only replace existing winner if this candidate scores higher
+        // Only replace existing winner if this candidate scores higher or has a newer _updatedAt timestamp with equal score
         const existing = winnerMap.get(mapKey);
-        if (score <= existing._score) continue;
+        if (score < existing._score) continue;
+        if (score === existing._score) {
+          const candTs = Number(p._updatedAt || 0);
+          const existTs = Number(existing._updatedAt || 0);
+          if (candTs <= existTs) continue;
+        }
         // New winner — remove old ID from set so we can reuse
         idSet.delete(String(existing.id));
       }

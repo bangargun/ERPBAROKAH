@@ -268,7 +268,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const handleOpenEditForm = (product) => {
     setEditingProductId(product.id);
     setProdName(product.name);
-    setProdCategoryId(product.category_id || masterData.categories[0]?.id);
+    const matchedCat = (masterData.categories || []).find(c => 
+      String(c.id) === String(product.category_id) || 
+      (c.name && (c.name.trim().toUpperCase() === (product.category_name || product.category || '').trim().toUpperCase()))
+    );
+    setProdCategoryId(matchedCat ? matchedCat.id : (product.category_id || masterData.categories[0]?.id || ''));
     setProdStatus(product.status || 'Aktif');
     setProdImageUrl(product.image_url || '');
     setVariants(product.variants || []);
@@ -284,23 +288,19 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     } else {
       singleOutId = masterData.outlets[0]?.id || 1785307180576;
     }
-    const cleanOutId = isNaN(singleOutId) ? singleOutId : Number(singleOutId);
-    setSelectedOutletIds([cleanOutId]);
-    setTempOutletSelectId(String(cleanOutId));
 
-    const prodP = Number(product.price || stdP[cleanOutId] || stdP[String(cleanOutId)] || Object.values(stdP)[0] || 0);
-    setStandardPrices({ [cleanOutId]: prodP });
-    setVariantPrices(vP);
-    setOutletApkStatus({ [cleanOutId]: (product.apkStatus?.[cleanOutId] || product.outletApkStatus?.[cleanOutId] || 'Aktif') });
+    setSelectedOutletIds([singleOutId]);
+    setStandardPrices({ [singleOutId]: stdP[singleOutId] !== undefined ? stdP[singleOutId] : (product.price || 0) });
+    setOutletApkStatus({ [singleOutId]: product.apkStatus?.[singleOutId] || product.outletApkStatus?.[singleOutId] || 'Aktif' });
 
-    const loadedCompositions = (product.compositions || []).map(comp => {
-      const matchedIng = (masterData.ingredients || []).find(i => String(i.id) === String(comp.ingredient_id) || i.name === comp.ingredient_name);
-      return {
-        ...comp,
-        unit: comp.unit || matchedIng?.unit || matchedIng?.satuan || matchedIng?.unit_name || 'Gram'
-      };
-    });
-    setCompositions(loadedCompositions);
+    const cleanedVp = {};
+    if (product.variants && product.variants.length > 0) {
+      product.variants.forEach(v => {
+        cleanedVp[v] = { [singleOutId]: (vP[v] && vP[v][singleOutId] !== undefined) ? vP[v][singleOutId] : (product.price || 0) };
+      });
+    }
+    setVariantPrices(cleanedVp);
+    setCompositions(product.compositions || []);
     setShowFormModal(true);
   };
 
@@ -321,7 +321,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       ? masterData.products.find(p => p.id === editingProductId)?.sku || generateNextProductCode()
       : generateNextProductCode();
 
-    const categoryObj = masterData.categories.find(c => c.id === parseInt(prodCategoryId));
+    const categoryObj = (masterData.categories || []).find(c => String(c.id) === String(prodCategoryId));
+    const catIdVal = isNaN(Number(prodCategoryId)) ? prodCategoryId : Number(prodCategoryId);
+    const catNameVal = categoryObj ? categoryObj.name : 'Makanan Utama';
     
     const targetOutId = (selectedOutletIds && selectedOutletIds.length > 0)
       ? (isNaN(selectedOutletIds[0]) ? selectedOutletIds[0] : Number(selectedOutletIds[0]))
@@ -334,9 +336,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       sku: code,
       code: code,
       name: prodName.trim(),
-      category_id: parseInt(prodCategoryId),
-      category_name: categoryObj ? categoryObj.name : 'Makanan Utama',
-      category: categoryObj ? categoryObj.name : 'Makanan Utama',
+      category_id: catIdVal,
+      category_name: catNameVal,
+      category: catNameVal,
       price: priceVal,
       cost: 0,
       unit: 'Pcs',
@@ -595,8 +597,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()));
     
     if (selectedCategoryFilter === 'Semua') return matchesSearch;
-    const catObj = masterData.categories.find(c => c.id === p.category_id);
-    return matchesSearch && (catObj?.name === selectedCategoryFilter || p.category_name === selectedCategoryFilter);
+    const catObj = masterData.categories.find(c => String(c.id) === String(p.category_id));
+    return matchesSearch && (catObj?.name === selectedCategoryFilter || p.category_name === selectedCategoryFilter || p.category === selectedCategoryFilter);
   });
 
   // Sorting calculation
@@ -612,8 +614,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           comp = (a.name || '').localeCompare(b.name || '');
           break;
         case 'category_name': {
-          const catA = masterData.categories.find(c => c.id === a.category_id)?.name || a.category_name || '';
-          const catB = masterData.categories.find(c => c.id === b.category_id)?.name || b.category_name || '';
+          const catA = masterData.categories.find(c => String(c.id) === String(a.category_id))?.name || a.category_name || a.category || '';
+          const catB = masterData.categories.find(c => String(c.id) === String(b.category_id))?.name || b.category_name || b.category || '';
           comp = catA.localeCompare(catB);
           break;
         }
@@ -872,7 +874,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 </tr>
               ) : (
                 paginatedProducts.map(p => {
-                  const categoryName = (masterData.categories.find(c => c.id === p.category_id)?.name || p.category_name || 'Umum').toUpperCase();
+                  const matchedCat = masterData.categories.find(c => String(c.id) === String(p.category_id));
+                  const categoryName = (matchedCat?.name || p.category_name || p.category || 'Umum').toUpperCase();
                   const cleanMenuName = (p.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim().toUpperCase();
 
                   // Primary Outlet Name & Price

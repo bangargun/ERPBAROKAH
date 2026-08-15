@@ -59,7 +59,8 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
       code: autoCode,
       name: newCatName.trim(),
       status: newCatStatus,
-      created_at: new Date().toISOString().split('T')[0]
+      created_at: new Date().toISOString().split('T')[0],
+      _updatedAt: Date.now()
     };
 
     const updated = {
@@ -85,10 +86,34 @@ export default function ProductCategoryManagement({ masterData, setMasterData, t
     e.preventDefault();
     if (!editingCategory || !editingCategory.name.trim()) return;
 
+    const updatedCatObj = {
+      ...editingCategory,
+      name: editingCategory.name.trim(),
+      _updatedAt: Date.now()
+    };
+
+    const updatedCategories = (masterData.categories || []).map(c => 
+      String(c.id) === String(editingCategory.id) ? updatedCatObj : c
+    );
+
+    // Sync category_name to all associated products
+    const updatedProducts = (masterData.products || []).map(p => {
+      if (String(p.category_id) === String(editingCategory.id)) {
+        return {
+          ...p,
+          category_name: updatedCatObj.name,
+          category: updatedCatObj.name,
+          _updatedAt: Date.now()
+        };
+      }
+      return p;
+    });
+
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
-      categories: (masterData.categories || []).map(c => c.id === editingCategory.id ? { ...editingCategory } : c)
+      categories: updatedCategories,
+      products: updatedProducts
     };
     setMasterData(updated);
 
