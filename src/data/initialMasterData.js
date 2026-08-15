@@ -105,6 +105,86 @@ export const initialMasterData = {
       password: '999',
       role: 'Owner',
       status: 'Aktif'
+    },
+    {
+      id: 3,
+      name: 'RATIH',
+      outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI',
+      outlet_id: 1785307180576,
+      username: 'RATIH',
+      password: '123',
+      role: 'Kasir',
+      status: 'Aktif'
+    },
+    {
+      id: 4,
+      name: 'DIANA',
+      outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI',
+      outlet_id: 1785369561430,
+      username: 'DIANA',
+      password: '123',
+      role: 'Kasir',
+      status: 'Aktif'
+    },
+    {
+      id: 5,
+      name: 'PENTI',
+      outlet: 'PECEL LELE PAK HAJI KISARAN',
+      outlet_id: 1785564003169,
+      username: 'PENTI',
+      password: '123',
+      role: 'Kasir',
+      status: 'Aktif'
+    },
+    {
+      id: 6,
+      name: 'WIDIA',
+      outlet: 'Semua Outlet (Central)',
+      outlet_id: 'central',
+      username: 'WIDIA',
+      password: '123',
+      role: 'Kasir',
+      status: 'Aktif'
+    },
+    {
+      id: 7,
+      name: 'OLIV',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'OLIF',
+      password: '123',
+      role: 'Kasir',
+      status: 'Aktif'
+    },
+    {
+      id: 8,
+      name: 'SELLY',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'SELI',
+      password: '123',
+      role: 'Kasir',
+      status: 'Aktif'
+    },
+    {
+      id: 9,
+      name: 'PUTRI',
+      outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN',
+      outlet_id: 1785369617361,
+      username: 'PUTRI',
+      password: '123',
+      role: 'Kasir',
+      status: 'Aktif'
+    },
+    {
+      id: 10,
+      name: 'MEMEY',
+      outlet: 'Semua Outlet (Central)',
+      outlet_id: 'central',
+      username: 'MEY',
+      password: '123',
+      role: 'Admin',
+      status: 'Aktif'
     }
   ],
 
@@ -131,6 +211,95 @@ export const initialMasterData = {
       status: 'Aktif',
       canAccessMobileReports: true,
       mobileReportPassword: '9999'
+    },
+    {
+      id: 3,
+      name: 'RATIH',
+      outlet: 'AYAM BAKAR SURABAYA TEBING TINGGI',
+      outlet_id: 1785307180576,
+      username: 'RATIH',
+      mobileLoginPassword: '123',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 4,
+      name: 'DIANA',
+      outlet: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI',
+      outlet_id: 1785369561430,
+      username: 'DIANA',
+      mobileLoginPassword: '123',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 5,
+      name: 'PENTI',
+      outlet: 'PECEL LELE PAK HAJI KISARAN',
+      outlet_id: 1785564003169,
+      username: 'PENTI',
+      mobileLoginPassword: '123',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 6,
+      name: 'WIDIA',
+      outlet: 'Semua Outlet (Central)',
+      outlet_id: 'central',
+      username: 'WIDIA',
+      mobileLoginPassword: '123',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 7,
+      name: 'OLIV',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'OLIF',
+      mobileLoginPassword: '123',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 8,
+      name: 'SELLY',
+      outlet: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT',
+      outlet_id: 1785537689430,
+      username: 'SELI',
+      mobileLoginPassword: '123',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 9,
+      name: 'PUTRI',
+      outlet: 'AYAM PECAK 2001 SEAFOOD KISARAN',
+      outlet_id: 1785369617361,
+      username: 'PUTRI',
+      mobileLoginPassword: '123',
+      role: 'Kasir',
+      status: 'Aktif',
+      canAccessMobileReports: false
+    },
+    {
+      id: 10,
+      name: 'MEMEY',
+      outlet: 'Semua Outlet (Central)',
+      outlet_id: 'central',
+      username: 'MEY',
+      mobileLoginPassword: '123',
+      role: 'Admin',
+      status: 'Aktif',
+      canAccessMobileReports: true,
+      mobileReportPassword: '1234'
     }
   ],
 

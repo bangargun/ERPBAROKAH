@@ -130,11 +130,11 @@ sshpass -p 'Barokahgrub30@@' ssh -o StrictHostKeyChecking=no root@187.77.122.142
 
 ### 📌 Port Mapping Resmi VPS (`187.77.122.142`)
 
-| Port | Service | Domain |
-|------|---------|--------|
-| `5001` | MRIS ERP Backend (PM2: `erp-barokah`) | `mris-api.barokahgroupindonesia.tech`, `mris-admin.tech`, `barokahgroupindonesia.tech` |
-| `4000` | POS Kasir Backend | `pos-api.barokahgroupindonesia.com` |
-| `80/443` | Nginx reverse proxy | Semua domain |
+| Port | Service | Domain | Status / Keterangan |
+|------|---------|--------|---------------------|
+| `5001` | **MRIS Single Unified Backend** (PM2: `erp-barokah`) | `mris-api.barokahgroupindonesia.tech`, `mris-admin.barokahgroupindonesia.tech` | 🟢 **AKTIF UTAMA (Single Source of Truth)** untuk Web Admin & seluruh APK POS Kasir |
+| `4000` | ~~POS Kasir Backend Legacy~~ | ~~`pos-api.barokahgroupindonesia.com`~~ | ⛔ **DEPRECATED / SUDAH PUTUS HUBUNGAN** (Tidak digunakan lagi, dialihkan 100% ke Port 5001) |
+| `80/443` | Nginx reverse proxy | Semua domain resmi | 🟢 Proxy lalu lintas HTTPS ke Port 5001 |
 
 ### 📁 Path Penting di VPS
 
@@ -309,7 +309,8 @@ const layout = {
 ## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
 |-------|------|--------------|-----------|
-| **v4.2.6** | **`POS_KASIR_BAROKAH_v4.2.6_Universal_Build_20260815.apk`** / **`POS KASIR.APK`** | 15-08-2026 | **Perbaikan Cetak Harga Struk Lunas & Bill Sementara** + 5 Cabang Resmi Barokah Offline-First Ready di Langkah 1 Login Kasir |
+| **v4.2.8** | **`POS_KASIR_BAROKAH_v4.2.8_Universal_Build_20260815.apk`** / **`POS KASIR.APK`** | 15-08-2026 | **Sinkronisasi Otentik Akun Kasir Sesuai Pengaturan Web Admin**: Menampilkan akun real (`RATIH`, `DIANA`, `PENTI`, `WIDIA`, `OLIV`, `SELLY`, `PUTRI`, `MEMEY`, dll) per cabang di Langkah 2 login. |
+| v4.2.7 | `POS_KASIR_BAROKAH_v4.2.7_Universal_Build_20260815.apk` | 15-08-2026 | Perbaikan TDZ Sesi Login Kasir |
 | v4.2.5 | `POS_KASIR_BAROKAH_v4.2.5_Universal_Build_20260815.apk` | 15-08-2026 | Single Universal APK (Fluid Responsive Semua Layar) + Struk kembalian akurat + Pembersihan master data penyet khusus Surabaya |
 | v4.2.4 | `POS_KASIR_BAROKAH_v4.2.4_Universal_Build_20260815.apk` | 15-08-2026 | Perbaikan cetak kembalian struk kasir Bluetooth ESC/POS + Modal preview struk |
 | v4.2.3 | `POS_KASIR_BAROKAH_v4.2.3_Universal_Build_20260815.apk` | 15-08-2026 | Sinkronisasi kategori Seafood dan multi-outlet filter |
