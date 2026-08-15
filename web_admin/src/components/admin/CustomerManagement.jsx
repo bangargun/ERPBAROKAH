@@ -48,10 +48,10 @@ export default function CustomerManagement({ masterData, setMasterData, selected
   // Helper to calculate Tier Membership based on Total Spend
   const calculateTier = (totalSpend) => {
     const spend = totalSpend || 0;
-    if (spend >= 10000000) return { label: '👑 PLATINUM', color: T.accentGold, bg: 'rgba(217, 119, 6, 0.15)' };
-    if (spend >= 5000000) return { label: '🥇 GOLD', color: T.warning, bg: 'rgba(234, 179, 8, 0.15)' };
-    if (spend >= 1500000) return { label: '🥈 SILVER', color: T.info, bg: 'rgba(59, 130, 246, 0.15)' };
-    return { label: '🥉 BRONZE', color: T.txtSecondary, bg: T.tableHeaderBg };
+    if (spend >= 10000000) return { label: 'PLATINUM', color: T.accentGold, bg: 'rgba(217, 119, 6, 0.15)' };
+    if (spend >= 5000000) return { label: 'GOLD', color: T.warning, bg: 'rgba(234, 179, 8, 0.15)' };
+    if (spend >= 1500000) return { label: 'SILVER', color: T.info, bg: 'rgba(59, 130, 246, 0.15)' };
+    return { label: 'BRONZE', color: T.txtSecondary, bg: T.tableHeaderBg };
   };
 
   const formatRupiah = (val) => {
@@ -59,7 +59,7 @@ export default function CustomerManagement({ masterData, setMasterData, selected
   };
 
   const getOutletName = (id) => {
-    if (!id || id === 'ALL' || id === 'all') return '📍 Semua Outlet (Nasional)';
+    if (!id || id === 'ALL' || id === 'all') return 'Semua Outlet (Nasional)';
     const found = (masterData.outlets || []).find(o => String(o.id) === String(id));
     return found ? found.name : `Outlet #${id}`;
   };
@@ -284,20 +284,20 @@ export default function CustomerManagement({ masterData, setMasterData, selected
             onChange={e => setSortField(e.target.value)}
             style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
           >
-            <option value="code">🔢 No. Membership</option>
-            <option value="name">👤 Nama Pelanggan</option>
-            <option value="phone">📱 Nomor WhatsApp</option>
-            <option value="outlet">🏪 Asal Outlet</option>
-            <option value="join_date">📅 Tanggal Bergabung</option>
-            <option value="spend">💵 Total Belanja</option>
-            <option value="tier">👑 Tier Membership</option>
+            <option value="code">No. Membership</option>
+            <option value="name">Nama Pelanggan</option>
+            <option value="phone">Nomor WhatsApp</option>
+            <option value="outlet">Asal Outlet</option>
+            <option value="join_date">Tanggal Bergabung</option>
+            <option value="spend">Total Belanja</option>
+            <option value="tier">Tier Membership</option>
           </select>
           <button
             type="button"
             onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
             style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
           >
-            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+            {sortDirection === 'asc' ? 'Naik' : 'Turun'}
           </button>
         </div>
       </div>
@@ -399,7 +399,7 @@ export default function CustomerManagement({ masterData, setMasterData, selected
                       {/* 4. ASAL OUTLET */}
                       <td style={{ padding: '14px 12px', color: T.txtPrimary }}>
                         <span style={{ background: T.cardBg2, padding: '4px 8px', borderRadius: '6px', border: `1px solid ${T.borderStrong}`, fontSize: '0.78rem' }}>
-                          🏢 {getOutletName(cust.outlet_id)}
+                          {getOutletName(cust.outlet_id)}
                         </span>
                       </td>
 
@@ -549,7 +549,7 @@ export default function CustomerManagement({ masterData, setMasterData, selected
                   2. Tanggal Bergabung (Auto Submit Date)
                 </label>
                 <div style={{ background: T.inputBg, border: `1px solid ${T.borderStrong}`, padding: '10px 14px', borderRadius: '10px', color: T.txtPrimary, fontSize: '0.85rem' }}>
-                  📅 {editingCustomer ? (editingCustomer.join_date || '2026-07-20') : new Date().toISOString().split('T')[0]}
+                  {editingCustomer ? (editingCustomer.join_date || '2026-07-20') : new Date().toISOString().split('T')[0]}
                 </div>
               </div>
 
@@ -585,7 +585,7 @@ export default function CustomerManagement({ masterData, setMasterData, selected
                   style={{ background: T.inputBg, color: T.txtPrimary, borderColor: T.border }}
                 />
                 <span style={{ fontSize: '0.7rem', color: T.success, marginTop: '4px', display: 'block' }}>
-                  ✓ Pastikan nomor terdaftar aktif di WhatsApp
+                  Pastikan nomor terdaftar aktif di WhatsApp
                 </span>
               </div>
 
@@ -602,7 +602,7 @@ export default function CustomerManagement({ masterData, setMasterData, selected
                 >
                   {masterData.outlets.map(o => (
                     <option key={o.id} value={o.id} style={{ background: T.cardBg, color: T.txtPrimary }}>
-                      🏢 {o.name} ({o.code})
+                      {o.name} ({o.code})
                     </option>
                   ))}
                 </select>

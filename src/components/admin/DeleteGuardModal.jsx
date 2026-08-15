@@ -45,7 +45,7 @@ export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }
   const handleConfirm = () => {
     if (needsPassword) {
       if (password !== DELETE_PASSWORD) {
-        setError('❌ Password salah! Penghapusan dibatalkan.');
+        setError('Password salah! Penghapusan dibatalkan.');
         setPassword('');
         inputRef.current?.focus();
         return;
@@ -96,7 +96,7 @@ export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '24px', flexShrink: 0,
           }}>
-            {needsPassword ? '🔒' : '🗑️'}
+            {needsPassword ? '' : ''}
           </div>
           <div>
             <div style={{ fontSize: '1rem', fontWeight: '900', color: '#fff' }}>
@@ -121,7 +121,7 @@ export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }
             marginBottom: '16px',
             display: 'flex', alignItems: 'center', gap: '10px',
           }}>
-            <span style={{ fontSize: '18px' }}>📋</span>
+            <span style={{ fontSize: '18px' }}></span>
             <div>
               <div style={{ fontSize: '0.72rem', color: txtSecondary, marginBottom: '2px' }}>Item yang akan dihapus:</div>
               <div style={{ fontSize: '0.95rem', fontWeight: '800', color: danger }}>{name}</div>
@@ -137,7 +137,7 @@ export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }
               marginBottom: '20px',
             }}>
               <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#fbbf24', marginBottom: '6px' }}>
-                ⚠️ Peringatan Keras
+                Peringatan Keras
               </div>
               <div style={{ fontSize: '0.77rem', color: isDark ? '#fde68a' : '#92400e', lineHeight: 1.6 }}>
                 Data ini memiliki <strong>{txCount} transaksi terkait</strong> (riwayat penjualan, laporan, atau logistik).
@@ -152,7 +152,7 @@ export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }
           {needsPassword && (
             <div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '0.78rem', fontWeight: '700', color: txtSecondary, display: 'block', marginBottom: '8px' }}>
-                🔑 Password Hapus
+                Password Hapus
               </label>
               <div style={{ position: 'relative' }}>
                 <input
@@ -180,7 +180,7 @@ export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }
                     color: txtSecondary, fontSize: '16px', padding: '0',
                   }}
                 >
-                  {showPass ? '🙈' : '👁️'}
+                  {showPass ? '' : ''}
                 </button>
               </div>
               {error && (
@@ -217,7 +217,7 @@ export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }
                 transition: 'all 0.15s',
               }}
             >
-              {needsPassword ? '🗑️ Hapus dengan Password' : '🗑️ Ya, Hapus'}
+              {needsPassword ? 'Hapus dengan Password' : 'Ya, Hapus'}
             </button>
           </div>
         </div>

@@ -343,7 +343,7 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
     }
 
     setMasterData(updated);
-    setImportSuccessMsg(`✅ Berhasil mengimpor ${parsedData.length} data ${config.title} ke sistem!`);
+    setImportSuccessMsg(`Berhasil mengimpor ${parsedData.length} data ${config.title} ke sistem!`);
 
     setTimeout(() => {
       onClose();
@@ -438,7 +438,7 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
 
           <div style={{ background: T.inputBg, padding: '12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
             <div style={{ fontSize: '0.74rem', color: T.txtPrimary, fontWeight: '700', marginBottom: '6px' }}>
-              📋 Panduan & Cara Pengisian Kolom:
+              Panduan & Cara Pengisian Kolom:
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
               {config.instructions.map((inst, idx) => (
@@ -478,7 +478,7 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
           >
             <UploadCloud size={36} color={file ? T.success : T.txtMuted} style={{ marginBottom: '8px' }} />
             <p style={{ fontSize: '0.82rem', fontWeight: '700', color: T.txtPrimary, margin: '0 0 4px 0' }}>
-              {file ? `📄 File terpilih: ${file.name}` : 'Klik untuk cari file atau Drag & Drop file CSV / Excel ke sini'}
+              {file ? `File terpilih: ${file.name}` : 'Klik untuk cari file atau Drag & Drop file CSV / Excel ke sini'}
             </p>
             <p style={{ fontSize: '0.72rem', color: T.txtMuted, margin: 0 }}>
               Mendukung format file CSV (Comma Separated Values) dari Microsoft Excel, Google Sheets, atau Numbers

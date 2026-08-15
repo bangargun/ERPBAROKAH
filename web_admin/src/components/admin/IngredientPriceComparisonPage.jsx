@@ -9,16 +9,16 @@ import { getThemePalette } from '../../utils/themeUtils';
 import { DoubleCalendarPicker } from './SalesTransactionsPage';
 
 const TABS = [
-  { id: 'harga_bahan_outlet', label: '🏷️ Harga Satuan Bahan Baku', sublabel: 'Outlet by Outlet' },
-  { id: 'qty_bahan_outlet',   label: '📦 Quantity Bahan Baku',    sublabel: 'Outlet by Outlet' },
-  { id: 'harga_beban_outlet', label: '💸 Harga Satuan Beban',     sublabel: 'Outlet by Outlet' },
-  { id: 'qty_beban_outlet',   label: '📦 Quantity Beban',          sublabel: 'Outlet by Outlet' },
+  { id: 'harga_bahan_outlet', label: 'Harga Satuan Bahan Baku', sublabel: 'Outlet by Outlet' },
+  { id: 'qty_bahan_outlet',   label: 'Quantity Bahan Baku',    sublabel: 'Outlet by Outlet' },
+  { id: 'harga_beban_outlet', label: 'Harga Satuan Beban',     sublabel: 'Outlet by Outlet' },
+  { id: 'qty_beban_outlet',   label: 'Quantity Beban',          sublabel: 'Outlet by Outlet' },
 ];
 
 const TAB_DESC = {
-  harga_bahan_outlet: 'Harga satuan bahan baku per tanggal per outlet. Baris = tanggal + nama bahan, kolom = tiap outlet. 🟢 Termurah, 🔴 Termahal.',
+  harga_bahan_outlet: 'Harga satuan bahan baku per tanggal per outlet. Baris = tanggal + nama bahan, kolom = tiap outlet. Termurah, Termahal.',
   qty_bahan_outlet:   'Quantity bahan baku yang diterima per tanggal per outlet. Baris = tanggal + nama bahan, kolom = tiap outlet.',
-  harga_beban_outlet: 'Harga satuan beban per tanggal per outlet. Baris = tanggal + nama beban, kolom = tiap outlet. 🟢 Termurah, 🔴 Termahal.',
+  harga_beban_outlet: 'Harga satuan beban per tanggal per outlet. Baris = tanggal + nama beban, kolom = tiap outlet. Termurah, Termahal.',
   qty_beban_outlet:   'Quantity beban operasional per tanggal per outlet. Baris = tanggal + nama beban, kolom = tiap outlet.',
 };
 
@@ -513,8 +513,8 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         <div style={{ fontWeight: '900', color: T.txtPrimary, fontSize: '0.82rem' }}>{label}</div>
         {(info.isMin || info.isMax) && (
           <div style={{ fontSize: '0.62rem', marginTop: '3px' }}>
-            {info.isMin && <span style={{ color: T.success, fontWeight: '900', background: T.successBg, padding: '2px 5px', borderRadius: '4px', border: '1px solid ' + T.successBorder }}>🟢 Min</span>}
-            {info.isMax && <span style={{ color: T.danger,  fontWeight: '900', background: T.dangerBg,  padding: '2px 5px', borderRadius: '4px', border: '1px solid ' + T.dangerBorder  }}>🔴 Max</span>}
+            {info.isMin && <span style={{ color: T.success, fontWeight: '900', background: T.successBg, padding: '2px 5px', borderRadius: '4px', border: '1px solid ' + T.successBorder }}>Min</span>}
+            {info.isMax && <span style={{ color: T.danger,  fontWeight: '900', background: T.dangerBg,  padding: '2px 5px', borderRadius: '4px', border: '1px solid ' + T.dangerBorder  }}>Max</span>}
           </div>
         )}
       </td>
@@ -566,7 +566,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
           <button onClick={() => setShowColumnFilter(!showColumnFilter)}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: T.cardBg2, border: '1px solid ' + T.borderStrong, borderRadius: '10px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
             <Filter size={16} color={T.accentGold} />
-            <span>👁️ Kolom Outlet ({activeOutletColumns.length}/{outletsList.length})</span>
+            <span>Kolom Outlet ({activeOutletColumns.length}/{outletsList.length})</span>
           </button>
           <button onClick={downloadExcel} title="Download Excel"
             style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 16px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: '10px', color: '#22c55e', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -597,7 +597,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: '800', color: T.success, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              🟢 Omzet Bulan Dipilih
+              Omzet Bulan Dipilih
             </span>
             <div style={{ padding: '8px', background: T.successBg || 'rgba(16,185,129,0.15)', borderRadius: '10px', color: T.success }}>
               <TrendingUp size={20} />
@@ -608,7 +608,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               Rp {totalOmzetBulan.toLocaleString('id-ID')}
             </div>
             <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              📅 {formatMonthName(activeSelectedMonth)}
+              {formatMonthName(activeSelectedMonth)}
             </div>
           </div>
         </div>
@@ -627,7 +627,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              🟢 Omzet Hari Dipilih
+              Omzet Hari Dipilih
             </span>
             <div style={{ padding: '8px', background: 'rgba(52,211,153,0.15)', borderRadius: '10px', color: '#10b981' }}>
               <DollarSign size={20} />
@@ -638,7 +638,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               Rp {totalOmzetHarian.toLocaleString('id-ID')}
             </div>
             <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              📅 {fmtDate(activeSelectedDate)}
+              {fmtDate(activeSelectedDate)}
             </div>
           </div>
         </div>
@@ -657,7 +657,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: '800', color: T.danger, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              🔴 Beban Bulan Dipilih
+              Beban Bulan Dipilih
             </span>
             <div style={{ padding: '8px', background: T.dangerBg || 'rgba(239,68,68,0.15)', borderRadius: '10px', color: T.danger }}>
               <TrendingDown size={20} />
@@ -668,7 +668,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               Rp {totalBiayaBulan.toLocaleString('id-ID')}
             </div>
             <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              📅 {formatMonthName(activeSelectedMonth)}
+              {formatMonthName(activeSelectedMonth)}
             </div>
           </div>
         </div>
@@ -687,7 +687,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#f43f5e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              🔴 Beban Hari Dipilih
+              Beban Hari Dipilih
             </span>
             <div style={{ padding: '8px', background: 'rgba(244,63,94,0.15)', borderRadius: '10px', color: '#f43f5e' }}>
               <AlertTriangle size={20} />
@@ -698,7 +698,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               Rp {totalBiayaHarian.toLocaleString('id-ID')}
             </div>
             <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              📅 {fmtDate(activeSelectedDate)}
+              {fmtDate(activeSelectedDate)}
             </div>
           </div>
         </div>
@@ -747,7 +747,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               <div style={{ background: T.cardBg, padding: '16px 18px', borderRadius: '14px', border: '1px solid ' + T.successBorder, display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px' }}><TrendingDown size={22} color={T.success} /></div>
                 <div>
-                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🟢 Harga Terendah</div>
+                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Harga Terendah</div>
                   <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.success }}>Rp {summaryStats.minP.toLocaleString('id-ID')}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>{summaryStats.minRec?.name} • {summaryStats.minRec?.outlet_name}</div>
                 </div>
@@ -755,7 +755,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               <div style={{ background: T.cardBg, padding: '16px 18px', borderRadius: '14px', border: '1px solid ' + T.dangerBorder, display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ padding: '10px', background: T.dangerBg, borderRadius: '10px' }}><TrendingUp size={22} color={T.danger} /></div>
                 <div>
-                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🔴 Harga Tertinggi</div>
+                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Harga Tertinggi</div>
                   <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.danger }}>Rp {summaryStats.maxP.toLocaleString('id-ID')}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>{summaryStats.maxRec?.name} • {summaryStats.maxRec?.outlet_name}</div>
                 </div>
@@ -763,7 +763,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               <div style={{ background: T.cardBg, padding: '16px 18px', borderRadius: '14px', border: '1px solid ' + T.infoBorder, display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px' }}><DollarSign size={22} color={T.info} /></div>
                 <div>
-                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>💵 Rata-Rata Harga</div>
+                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Rata-Rata Harga</div>
                   <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.info }}>Rp {summaryStats.avg.toLocaleString('id-ID')}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>{summaryStats.count} Transaksi</div>
                 </div>
@@ -774,7 +774,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               <div style={{ background: T.cardBg, padding: '16px 18px', borderRadius: '14px', border: '1px solid ' + T.successBorder, display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ padding: '10px', background: T.successBg, borderRadius: '10px' }}><TrendingDown size={22} color={T.success} /></div>
                 <div>
-                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🟢 Satuan Terendah</div>
+                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Satuan Terendah</div>
                   <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.success }}>Rp {summaryStats.minP.toLocaleString('id-ID')}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>{summaryStats.minRec?.name} • {summaryStats.minRec?.outlet_name}</div>
                 </div>
@@ -782,7 +782,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               <div style={{ background: T.cardBg, padding: '16px 18px', borderRadius: '14px', border: '1px solid ' + T.dangerBorder, display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ padding: '10px', background: T.dangerBg, borderRadius: '10px' }}><TrendingUp size={22} color={T.danger} /></div>
                 <div>
-                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>🔴 Satuan Tertinggi</div>
+                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Satuan Tertinggi</div>
                   <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.danger }}>Rp {summaryStats.maxP.toLocaleString('id-ID')}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>{summaryStats.maxRec?.name} • {summaryStats.maxRec?.outlet_name}</div>
                 </div>
@@ -790,7 +790,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               <div style={{ background: T.cardBg, padding: '16px 18px', borderRadius: '14px', border: '1px solid ' + T.infoBorder, display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ padding: '10px', background: T.infoBg, borderRadius: '10px' }}><DollarSign size={22} color={T.info} /></div>
                 <div>
-                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>💵 Rata-Rata Satuan</div>
+                  <div style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Rata-Rata Satuan</div>
                   <div style={{ fontSize: '1.10rem', fontWeight: '900', color: T.info }}>Rp {summaryStats.avg.toLocaleString('id-ID')}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '2px' }}>{summaryStats.count} Transaksi Beban</div>
                 </div>
@@ -811,7 +811,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 200px', minWidth: '180px', position: 'relative' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            {isBahanTab ? '🥬 Filter Bahan Baku' : '💸 Filter Beban / Akun'}
+            {isBahanTab ? 'Filter Bahan Baku' : 'Filter Beban / Akun'}
           </label>
           <button type="button" onClick={() => setShowItemDropdown(v => !v)}
             style={{ height: '40px', padding: '0 12px', borderRadius: '6px', cursor: 'pointer', border: '1px solid ' + (selectedItem !== 'ALL' ? T.accentGold : T.border), background: T.inputBg, color: selectedItem !== 'ALL' ? T.accentGold : T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -878,15 +878,15 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
               <tr style={{ background: T.tableHeaderBg, borderBottom: '1px solid ' + T.borderStrong, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.67rem', letterSpacing: '0.04em' }}>
                 {(activeTab === 'harga_bahan_outlet' || activeTab === 'qty_bahan_outlet') && (
                   <>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '130px', borderRight: '1px solid ' + T.border }}>📅 Tanggal</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '200px', borderRight: '1px solid ' + T.border }}>🥬 Nama Bahan Baku</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '130px', borderRight: '1px solid ' + T.border }}>Tanggal</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '200px', borderRight: '1px solid ' + T.border }}>Nama Bahan Baku</th>
                     <th style={{ padding: '12px 10px', textAlign: 'center', minWidth: '70px', borderRight: '1px solid ' + T.border }}>Satuan</th>
                   </>
                 )}
                 {(activeTab === 'harga_beban_outlet' || activeTab === 'qty_beban_outlet') && (
                   <>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '130px', borderRight: '1px solid ' + T.border }}>📅 Tanggal</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '220px', borderRight: '1px solid ' + T.border }}>💸 Nama Beban / Akun</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '130px', borderRight: '1px solid ' + T.border }}>Tanggal</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '220px', borderRight: '1px solid ' + T.border }}>Nama Beban / Akun</th>
                   </>
                 )}
                 {activeOutletColumns.map(otl => (

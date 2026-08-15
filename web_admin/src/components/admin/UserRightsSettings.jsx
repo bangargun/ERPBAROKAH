@@ -11,24 +11,24 @@ const WEB_ROLES = ['Super Admin', 'Owner', 'Admin', 'Manajer Cabang', 'Kasir'];
 const MOBILE_ROLES = ['Super Admin / Owner', 'Admin', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
 
 const WEB_PERM_FIELDS = [
-  { key: 'dashboard', label: '📊 Dashboard & Penjualan' },
-  { key: 'masterData', label: '📦 Data Master Produk' },
-  { key: 'costs', label: '💰 Biaya & Pengeluaran' },
-  { key: 'stock', label: '🌾 Stok & Bahan Baku' },
-  { key: 'approved', label: '✅ Approval Transaksi' },
-  { key: 'reports', label: '📑 Laporan Keuangan' },
-  { key: 'policies', label: '📜 SOP Restoran' },
-  { key: 'settings', label: '🔒 Pengaturan System & User' },
+  { key: 'dashboard', label: 'Dashboard & Penjualan' },
+  { key: 'masterData', label: 'Data Master Produk' },
+  { key: 'costs', label: 'Biaya & Pengeluaran' },
+  { key: 'stock', label: 'Stok & Bahan Baku' },
+  { key: 'approved', label: 'Approval Transaksi' },
+  { key: 'reports', label: 'Laporan Keuangan' },
+  { key: 'policies', label: 'SOP Restoran' },
+  { key: 'settings', label: 'Pengaturan System & User' },
 ];
 
 const MOBILE_PERM_FIELDS = [
-  { key: 'posCashier', label: '📱 Mesin Kasir POS' },
-  { key: 'voidOrder', label: '🚫 Batal / Void Struk' },
-  { key: 'manualDiscount', label: '🏷️ Diskon Manual Kasir' },
-  { key: 'stockOpname', label: '📋 Stock Opname Mobile' },
-  { key: 'receiveGoods', label: '🚚 Terima Barang Dapur' },
-  { key: 'mobileReports', label: '📊 Laporan Shift Mobile' },
-  { key: 'shiftClosing', label: '🔒 Rekonsiliasi Shift Closing' },
+  { key: 'posCashier', label: 'Mesin Kasir POS' },
+  { key: 'voidOrder', label: 'Batal / Void Struk' },
+  { key: 'manualDiscount', label: 'Diskon Manual Kasir' },
+  { key: 'stockOpname', label: 'Stock Opname Mobile' },
+  { key: 'receiveGoods', label: 'Terima Barang Dapur' },
+  { key: 'mobileReports', label: 'Laporan Shift Mobile' },
+  { key: 'shiftClosing', label: 'Rekonsiliasi Shift Closing' },
 ];
 
 const normalizePermObj = (val) => {
@@ -363,7 +363,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
     setSaving(true);
     try {
       await saveMatrixToServer(webMatrix, mobileMatrix);
-      alert('✅ Matriks Hak Akses Peran berhasil diperbarui!');
+      alert('Matriks Hak Akses Peran berhasil diperbarui!');
     } catch (err) {
       alert('Gagal menyimpan matriks: ' + err.message);
     }
@@ -373,7 +373,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
   // ─── TOGGLE MATRIX PERMISSION (AUTO-SAVE INSTANTLY) ───
   const toggleWebMatrixActionPerm = (roleName, permKey, actionType) => {
     if (roleName === 'Super Admin' || roleName === 'Owner' || roleName === 'Super Admin / Owner') {
-      alert('🔒 Peran Super Admin / Owner memiliki hak akses penuh 100% (View, Edit, Delete).');
+      alert('Peran Super Admin / Owner memiliki hak akses penuh 100% (View, Edit, Delete).');
       return;
     }
     const updatedWeb = webMatrix.map(item => {
@@ -511,7 +511,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
                       color: u.status === 'Aktif' ? T.success : T.danger,
                       border: `1px solid ${u.status === 'Aktif' ? T.successBorder : T.dangerBorder}`
                     }}>
-                      {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
+                      {u.status === 'Aktif' ? 'Aktif' : 'Inaktif'}
                     </span>
                   )}
                 </td>
@@ -558,7 +558,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
               color: isWeb ? T.accentGreen : T.txtSecondary,
               border: isWeb ? `1px solid ${T.accentGreen}` : '1px solid transparent'
             }}>
-              💻 Matriks Role Web Admin
+              Matriks Role Web Admin
             </button>
             <button onClick={() => setMatrixSubTab('mobile')} style={{
               padding: '7px 16px', borderRadius: '8px', fontWeight: '800', fontSize: '0.80rem', cursor: 'pointer',
@@ -566,7 +566,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
               color: !isWeb ? T.success : T.txtSecondary,
               border: !isWeb ? `1px solid ${T.success}` : '1px solid transparent'
             }}>
-              📱 Matriks Role POS Mobile APK
+              Matriks Role POS Mobile APK
             </button>
           </div>
 
@@ -593,7 +593,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
                 {columns.map(col => (
                   <th key={col.key} style={{ padding: '12px 10px', textAlign: 'center', minWidth: '130px' }}>{col.label}</th>
                 ))}
-                {!isWeb && <th style={{ padding: '12px 10px', textAlign: 'center', minWidth: '150px', color: T.info }}>🔑 PASSWORD LAPORAN POS</th>}
+                {!isWeb && <th style={{ padding: '12px 10px', textAlign: 'center', minWidth: '150px', color: T.info }}>PASSWORD LAPORAN POS</th>}
               </tr>
             </thead>
             <tbody>
@@ -749,7 +749,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: `1px solid ${T.borderStrong}` }}>
             <h3 style={{ margin: 0, color: T.txtPrimary, fontWeight: '900', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {isMobile ? <Smartphone size={18} color={T.success} /> : <ShieldCheck size={18} color={T.accentGreen} />}
-              {editingId ? '✏️ Edit Akun & Custom Permission' : '➕ Tambah Akun'} {isMobile ? 'POS Mobile' : 'Web Admin'}
+              {editingId ? 'Edit Akun & Custom Permission' : 'Tambah Akun'} {isMobile ? 'POS Mobile' : 'Web Admin'}
             </h3>
             <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
               <X size={20} />
@@ -805,8 +805,8 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
               <div>
                 <label style={lbl}>Status Akun:</label>
                 <select value={form.status || 'Aktif'} onChange={e => f('status', e.target.value)} style={inp}>
-                  <option value="Aktif">🟢 Aktif</option>
-                  <option value="Inaktif">🔴 Inaktif</option>
+                  <option value="Aktif">Aktif</option>
+                  <option value="Inaktif">Inaktif</option>
                 </select>
               </div>
             </div>
@@ -821,7 +821,7 @@ export default function UserRightsSettings({ masterData, setMasterData, themeMod
                     onChange={e => f('useCustomPermissions', e.target.checked)}
                     style={{ width: '16px', height: '16px', accentColor: T.warning }}
                   />
-                  🔑 Aktifkan Hak Akses Khusus User Ini (Individual Override)
+                  Aktifkan Hak Akses Khusus User Ini (Individual Override)
                 </label>
               </div>
 

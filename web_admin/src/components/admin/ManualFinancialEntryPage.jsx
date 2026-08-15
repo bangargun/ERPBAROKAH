@@ -526,7 +526,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
       };
     });
 
-    setToastMessage(`✅ Laporan ${updatedItem.report_no || updatedItem.id} Berhasil Di-ACC! Status POS Mobile Ter-update menjadi APPROVED.`);
+    setToastMessage(`Laporan ${updatedItem.report_no || updatedItem.id} Berhasil Di-ACC! Status POS Mobile Ter-update menjadi APPROVED.`);
     setShowSuccessToast(true);
     setTimeout(() => setShowSuccessToast(false), 2500);
   };
@@ -1106,8 +1106,8 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
           <div>
             <span style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>Persetujuan Laporan</span>
             <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.info, marginTop: '2px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ color: T.success }}>✓ {getFilteredFinance().filter(f => f.status === 'ok' || f.status === 'approved').length} ACC</span>
-              <span style={{ color: T.accentGold }}>⏳ {getFilteredFinance().filter(f => f.status !== 'ok' && f.status !== 'approved').length} Pending</span>
+              <span style={{ color: T.success }}>{getFilteredFinance().filter(f => f.status === 'ok' || f.status === 'approved').length} ACC</span>
+              <span style={{ color: T.accentGold }}>{getFilteredFinance().filter(f => f.status !== 'ok' && f.status !== 'approved').length} Pending</span>
             </div>
           </div>
         </div>
@@ -1125,7 +1125,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               className="form-select"
               style={{ height: '40px', fontSize: '0.82rem' }}
             >
-              <option value="ALL">🏢 Semua Outlet Restoran</option>
+              <option value="ALL">Semua Outlet Restoran</option>
               {outlets.map(o => (
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
@@ -1187,23 +1187,23 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               <span>Papan Visibilitas Kolom Tabel Laporan Keuangan</span>
             </div>
             <button onClick={() => setShowFinanceColDropdown(false)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer', fontWeight: '800', fontSize: '0.85rem' }}>
-              ✕ Sembunyikan Papan Kolom
+              Sembunyikan Papan Kolom
             </button>
           </div>
           
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', background: T.cardBg2, padding: '12px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
             {[
-              { key: 'date', label: '📅 Tanggal' },
-              { key: 'reportNo', label: '🧾 No. Laporan' },
-              { key: 'outlet', label: '🏢 Outlet & Shift' },
-              { key: 'cashier', label: '👤 Kasir / Penanggung Jawab' },
-              { key: 'netSales', label: '💵 Pendapatan (Net)' },
-              { key: 'nonCashSales', label: '💳 Selain Cash' },
-              { key: 'totalExpense', label: '📉 Total Pengeluaran' },
-              { key: 'grossProfit', label: '💰 Laba Kotor' },
-              { key: 'capitalReturn', label: '🏦 Uang Modal' },
-              { key: 'status', label: '📌 Status' },
-              { key: 'actions', label: '⚙️ Aksi' }
+              { key: 'date', label: 'Tanggal' },
+              { key: 'reportNo', label: 'No. Laporan' },
+              { key: 'outlet', label: 'Outlet & Shift' },
+              { key: 'cashier', label: 'Kasir / Penanggung Jawab' },
+              { key: 'netSales', label: 'Pendapatan (Net)' },
+              { key: 'nonCashSales', label: 'Selain Cash' },
+              { key: 'totalExpense', label: 'Total Pengeluaran' },
+              { key: 'grossProfit', label: 'Laba Kotor' },
+              { key: 'capitalReturn', label: 'Uang Modal' },
+              { key: 'status', label: 'Status' },
+              { key: 'actions', label: 'Aksi' }
             ].map(col => {
               const isChecked = visibleColsFinance[col.key] !== false;
               return (
@@ -1250,7 +1250,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 {visibleColsFinance.totalExpense && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Total Pengeluaran</th>}
                 {visibleColsFinance.grossProfit && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Laba Kotor</th>}
                 {visibleColsFinance.capitalReturn && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Uang Modal</th>}
-                {visibleColsFinance.actualCash && <th style={{ padding: '12px 10px', textAlign: 'right' }}>💵 Uang Di Laci (Fisik Kas)</th>}
+                {visibleColsFinance.actualCash && <th style={{ padding: '12px 10px', textAlign: 'right' }}>Uang Di Laci (Fisik Kas)</th>}
                 {visibleColsFinance.status && <th style={{ padding: '12px 10px', textAlign: 'center', width: '140px' }}>Tombol ACC</th>}
                 {visibleColsFinance.actions && <th style={{ padding: '12px 10px', textAlign: 'center', width: '220px' }}>Aksi</th>}
               </tr>
@@ -1324,10 +1324,10 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                       )}
                       {visibleColsFinance.outlet && (
                         <td style={{ padding: '12px 10px', fontWeight: '700' }}>
-                          🏢 {fin.branch_name || (outlets.find(o => Number(o.id) === Number(fin.outlet_id))?.name || `Outlet #${fin.outlet_id}`)} {fin.shift ? <span style={{ fontSize: '0.75rem', color: T.txtMuted, fontWeight: '500' }}>({fin.shift})</span> : null}
+                          {fin.branch_name || (outlets.find(o => Number(o.id) === Number(fin.outlet_id))?.name || `Outlet #${fin.outlet_id}`)} {fin.shift ? <span style={{ fontSize: '0.75rem', color: T.txtMuted, fontWeight: '500' }}>({fin.shift})</span> : null}
                         </td>
                       )}
-                      {visibleColsFinance.cashier && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>👤 {fin.author_name || fin.cashier || 'Kasir/Admin'}</td>}
+                      {visibleColsFinance.cashier && <td style={{ padding: '12px 10px', color: T.txtSecondary }}>{fin.author_name || fin.cashier || 'Kasir/Admin'}</td>}
                       {visibleColsFinance.netSales && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: T.success }}>{formatRupiah(net)}</td>}
                       {visibleColsFinance.nonCashSales && <td style={{ padding: '12px 10px', textAlign: 'right', color: T.info }}>{formatRupiah(nonCash)}</td>}
                       {visibleColsFinance.totalExpense && <td style={{ padding: '12px 10px', textAlign: 'right', fontWeight: '800', color: T.danger }}>-{formatRupiah(totalExp)}</td>}
@@ -1455,11 +1455,11 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* 1. Header Information */}
               <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '10px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>📅 Tanggal *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>Tanggal *</label>
                   <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="form-input" />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>🏢 Nama Outlet *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>Nama Outlet *</label>
                   <select value={entryOutletId} onChange={e => setEntryOutletId(Number(e.target.value))} className="form-select">
                     {outlets.map(o => (
                       <option key={o.id} value={o.id}>{o.name}</option>
@@ -1467,7 +1467,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>👤 Dibuat Oleh *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>Dibuat Oleh *</label>
                   <select value={createdBy} onChange={e => setCreatedBy(e.target.value)} className="form-select">
                     {adminList.map(a => (
                       <option key={a.id} value={a.name}>{a.name} ({a.role || 'Staf Outlet'})</option>
@@ -1493,7 +1493,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.danger, display: 'block' }}>
-                      📦 1) HPP / Bahan Mentah Dapur (Terbuka Minimal 5 Field)
+                      1) HPP / Bahan Mentah Dapur (Terbuka Minimal 5 Field)
                     </span>
                     <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>
                       Pilih dari dropdown atau gunakan pencarian master data.
@@ -1554,7 +1554,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                             {formatRupiah(r.amount)}
                           </td>
                           <td style={{ padding: '6px', textAlign: 'center' }}>
-                            <button onClick={() => handleRemoveCogsRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}>✕</button>
+                            <button onClick={() => handleRemoveCogsRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}></button>
                           </td>
                         </tr>
                       ))}
@@ -1582,7 +1582,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.info, display: 'block' }}>
-                      💵 2) Biaya Operasional & Utilitas (Terbuka Minimal 5 Field)
+                      2) Biaya Operasional & Utilitas (Terbuka Minimal 5 Field)
                     </span>
                     <span style={{ fontSize: '0.7rem', color: T.txtSecondary }}>
                       Pilih dari dropdown atau gunakan pencarian master data biaya.
@@ -1635,7 +1635,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                             <input type="number" value={r.amount} onChange={e => handleUpdateExpenseRow(r.id, 'amount', e.target.value)} className="form-input" style={{ height: '32px', fontSize: '0.8rem', textAlign: 'right', fontWeight: '700', color: T.danger }} />
                           </td>
                           <td style={{ padding: '6px', textAlign: 'center' }}>
-                            <button onClick={() => handleRemoveExpenseRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}>✕</button>
+                            <button onClick={() => handleRemoveExpenseRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}></button>
                           </td>
                         </tr>
                       ))}
@@ -1676,7 +1676,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 </div>
 
                 <div style={{ background: T.successBg || 'rgba(16, 185, 129, 0.2)', padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.success}` }}>
-                  <span style={{ fontSize: '0.75rem', color: T.success, fontWeight: '800' }}>💵 UANG DI LACI</span>
+                  <span style={{ fontSize: '0.75rem', color: T.success, fontWeight: '800' }}>UANG DI LACI</span>
                   <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(cashInDrawer)}</div>
                 </div>
               </div>
@@ -1728,20 +1728,20 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               <div style={{ background: T.cardBg2, padding: '12px', borderRadius: '8px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <div>
                   <span style={{ color: T.txtMuted, fontSize: '0.72rem', display: 'block' }}>Cabang Outlet:</span>
-                  <span style={{ color: T.txtPrimary, fontWeight: '800' }}>🏢 {previewingRecord.branch_name}</span>
+                  <span style={{ color: T.txtPrimary, fontWeight: '800' }}>{previewingRecord.branch_name}</span>
                 </div>
                 <div>
                   <span style={{ color: T.txtMuted, fontSize: '0.72rem', display: 'block' }}>Tanggal Shift:</span>
-                  <span style={{ color: T.txtPrimary, fontWeight: '800' }}>📅 {previewingRecord.date}</span>
+                  <span style={{ color: T.txtPrimary, fontWeight: '800' }}>{previewingRecord.date}</span>
                 </div>
                 <div>
                   <span style={{ color: T.txtMuted, fontSize: '0.72rem', display: 'block' }}>Penanggung Jawab:</span>
-                  <span style={{ color: T.info, fontWeight: '800' }}>👤 {previewingRecord.author_name}</span>
+                  <span style={{ color: T.info, fontWeight: '800' }}>{previewingRecord.author_name}</span>
                 </div>
                 <div>
                   <span style={{ color: T.txtMuted, fontSize: '0.72rem', display: 'block' }}>Status:</span>
                   <span style={{ color: previewingRecord.status === 'ok' ? T.success : T.accentGold, fontWeight: '800' }}>
-                    {previewingRecord.status === 'ok' ? '✓ Approved' : '⏳ Pending'}
+                    {previewingRecord.status === 'ok' ? 'Approved' : 'Pending'}
                   </span>
                 </div>
               </div>
@@ -1782,7 +1782,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 </div>
 
                 <div style={{ background: T.successBg || 'rgba(16, 185, 129, 0.2)', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${T.success}`, display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                  <span style={{ fontWeight: '800', color: T.success }}>💵 UANG DI LACI (KAS FISIK DITUTUP)</span>
+                  <span style={{ fontWeight: '800', color: T.success }}>UANG DI LACI (KAS FISIK DITUTUP)</span>
                   <span style={{ fontWeight: '900', color: T.success, fontSize: '1rem' }}>{formatRupiah(previewingRecord.cash_physical)}</span>
                 </div>
               </div>
@@ -1845,7 +1845,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                   </div>
                   <div>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
-                      📋 Detail Laporan Keuangan yang Diterima
+                      Detail Laporan Keuangan yang Diterima
                     </h3>
                     <span style={{ fontSize: '0.78rem', color: T.txtMuted }}>
                       Nomor Laporan: <strong style={{ color: T.info }}>{previewFinanceRecord.report_no || previewFinanceRecord.id}</strong>
@@ -1860,7 +1860,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                     color: isApproved ? T.success : T.accentGold,
                     border: `1px solid ${isApproved ? T.success : T.accentGold}`
                   }}>
-                    {isApproved ? '🟢 APPROVED' : '⏳ PENDING'}
+                    {isApproved ? 'APPROVED' : 'PENDING'}
                   </span>
                   <button onClick={() => setPreviewFinanceRecord(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer' }}>
                     <X size={24} />
@@ -1871,15 +1871,15 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* Grid Metadata Laporan */}
               <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', fontSize: '0.82rem' }}>
                 <div>
-                  <span style={{ color: T.txtMuted, fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>📅 Tanggal Shift</span>
+                  <span style={{ color: T.txtMuted, fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>Tanggal Shift</span>
                   <span style={{ fontWeight: '800', color: T.txtPrimary, fontSize: '0.92rem' }}>{previewFinanceRecord.date}</span>
                 </div>
                 <div>
-                  <span style={{ color: T.txtMuted, fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>🏢 Outlet & Shift</span>
+                  <span style={{ color: T.txtMuted, fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>Outlet & Shift</span>
                   <span style={{ fontWeight: '800', color: T.info, fontSize: '0.92rem' }}>{previewFinanceRecord.branch_name || (outlets.find(o => Number(o.id) === Number(previewFinanceRecord.outlet_id))?.name || `Outlet #${previewFinanceRecord.outlet_id}`)}</span>
                 </div>
                 <div>
-                  <span style={{ color: T.txtMuted, fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>👤 Dibuat Oleh / Kasir</span>
+                  <span style={{ color: T.txtMuted, fontSize: '0.74rem', display: 'block', fontWeight: '700' }}>Dibuat Oleh / Kasir</span>
                   <span style={{ fontWeight: '800', color: T.success, fontSize: '0.92rem' }}>{previewFinanceRecord.author_name || previewFinanceRecord.cashier || 'Kasir POS'}</span>
                 </div>
               </div>
@@ -1887,7 +1887,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* Grid Financial Cards Summary */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                 <div style={{ background: T.successBg || 'rgba(52, 211, 153, 0.1)', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${T.success}` }}>
-                  <span style={{ fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>💰 Total Net Sales</span>
+                  <span style={{ fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>Total Net Sales</span>
                   <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(netSalesVal)}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '4px' }}>
                     Cash: <strong style={{ color: T.success }}>{formatRupiah(cashSalesVal)}</strong> | QRIS/EDC: <strong style={{ color: T.info }}>{formatRupiah(nonCashSalesVal)}</strong>
@@ -1895,7 +1895,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 </div>
 
                 <div style={{ background: T.dangerBg || 'rgba(251, 113, 133, 0.1)', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${T.danger}` }}>
-                  <span style={{ fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>🔥 Total Pengeluaran</span>
+                  <span style={{ fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>Total Pengeluaran</span>
                   <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.danger, marginTop: '2px' }}>-{formatRupiah(totalExpVal)}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '4px' }}>
                     Laba Kotor: <strong style={{ color: labaKotorVal >= 0 ? T.success : T.danger }}>{formatRupiah(labaKotorVal)}</strong>
@@ -1903,7 +1903,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 </div>
 
                 <div style={{ background: T.infoBg || 'rgba(56, 189, 248, 0.1)', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${T.info}` }}>
-                  <span style={{ fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>💵 Uang Fisik Di Laci Kasir</span>
+                  <span style={{ fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>Uang Fisik Di Laci Kasir</span>
                   <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>{formatRupiah(fisikKasVal)}</div>
                   <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '4px' }}>
                     Sisa Kas Modal: <strong style={{ color: T.accentGold }}>{formatRupiah(previewFinanceRecord.sisa_uang_kas || 2000000)}</strong>
@@ -1914,7 +1914,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* Tabel Detail Breakdown Pengeluaran */}
               <div style={{ background: T.cardBg2, borderRadius: '12px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
                 <div style={{ padding: '10px 16px', background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>📦 Rincian Pengeluaran Bahan Baku & Biaya Operasional</span>
+                  <span>Rincian Pengeluaran Bahan Baku & Biaya Operasional</span>
                   <span style={{ fontSize: '0.72rem', color: T.txtMuted }}>Total Item: {combinedBreakdown.length}</span>
                 </div>
                 <div style={{ overflowX: 'auto', maxHeight: '220px' }}>
@@ -1975,7 +1975,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* Notes & Keterangan */}
               {previewFinanceRecord.notes && (
                 <div style={{ background: T.cardBg2, padding: '12px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, fontSize: '0.80rem' }}>
-                  <span style={{ color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '2px' }}>📝 Catatan Kasir:</span>
+                  <span style={{ color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '2px' }}>Catatan Kasir:</span>
                   <span style={{ color: T.txtSecondary, fontStyle: 'italic' }}>{previewFinanceRecord.notes}</span>
                 </div>
               )}
@@ -2032,7 +2032,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                     Papan Informasi ACC Keuangan Kasir
                   </h3>
                 </div>
-                <button type="button" onClick={() => setAccFinanceModalRecord(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>✕</button>
+                <button type="button" onClick={() => setAccFinanceModalRecord(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}></button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -2092,7 +2092,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
                 <button type="button" onClick={() => setAccFinanceModalRecord(null)} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>Batal</button>
                 <button type="submit" className="btn-emerald" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: '800', background: T.success, color: '#ffffff', border: 'none', borderRadius: '6px' }}>
-                  ✓ Simpan & Ubah Status Jadi OK
+                  Simpan & Ubah Status Jadi OK
                 </button>
               </div>
             </form>
@@ -2116,7 +2116,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                     Edit Laporan Keuangan Kasir
                   </h3>
                 </div>
-                <button type="button" onClick={() => setEditFinanceModalRecord(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}>✕</button>
+                <button type="button" onClick={() => setEditFinanceModalRecord(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '800', fontSize: '1rem' }}></button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -2215,11 +2215,11 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* 1. TOP HEADER FIELDS (Tanggal, Nama Outlet, Dibuat Oleh) */}
               <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>📅 Tanggal *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>Tanggal *</label>
                   <input type="date" required value={dailyRepDate} onChange={e => setDailyRepDate(e.target.value)} className="form-input" style={{ width: '100%', height: '40px' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>🏢 Nama Outlet *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>Nama Outlet *</label>
                   <input
                     type="text"
                     readOnly
@@ -2229,7 +2229,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>👤 Dibuat Oleh *</label>
+                  <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '4px', fontWeight: '700' }}>Dibuat Oleh *</label>
                   <input
                     type="text"
                     readOnly
@@ -2243,17 +2243,17 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* 2. AUTO-GENERATED SALES BREAKDOWN (CASH, NON-CASH, TOTAL) */}
               <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
                 <div>
-                  <span style={{ fontSize: '0.74rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>💵 Penjualan Cash (Tunai)</span>
+                  <span style={{ fontSize: '0.74rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>Penjualan Cash (Tunai)</span>
                   <div style={{ fontSize: '1.2rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(autoCashSales)}</div>
                   <span style={{ fontSize: '0.68rem', color: T.txtMuted }}>Ter-generate otomatis (Hingga 23:59:59)</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: '0.74rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>💳 Penjualan Non-Cash (EDC/QRIS)</span>
+                  <span style={{ fontSize: '0.74rem', color: T.txtMuted, fontWeight: '700', textTransform: 'uppercase' }}>Penjualan Non-Cash (EDC/QRIS)</span>
                   <div style={{ fontSize: '1.2rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>{formatRupiah(autoNonCashSales)}</div>
                   <span style={{ fontSize: '0.68rem', color: T.txtMuted }}>Ter-generate otomatis</span>
                 </div>
                 <div style={{ background: T.successBg || 'rgba(52, 211, 153, 0.15)', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.success}` }}>
-                  <span style={{ fontSize: '0.74rem', color: T.success, fontWeight: '900', textTransform: 'uppercase' }}>💰 Total Pendapatan Penjualan</span>
+                  <span style={{ fontSize: '0.74rem', color: T.success, fontWeight: '900', textTransform: 'uppercase' }}>Total Pendapatan Penjualan</span>
                   <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(autoTotalSales)}</div>
                 </div>
               </div>
@@ -2262,7 +2262,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               <div style={{ background: T.cardBg2, borderRadius: '12px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
                 <div style={{ padding: '12px 16px', background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtPrimary }}>
-                    📦 Tabel Pengeluaran Bahan Baku & Biaya Operasional
+                    Tabel Pengeluaran Bahan Baku & Biaya Operasional
                   </span>
                   <span style={{ fontSize: '0.75rem', color: T.txtMuted }}>
                     Bahan Baku (Master Data Bahan Baku) | Biaya (Master Data Biaya)
@@ -2303,7 +2303,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                               <datalist id={`suggest-daily-${r.id}`}>
                                 {combinedMasterItemsList.map((m, mIdx) => (
                                   <option key={mIdx} value={m.name}>
-                                    {m.itemType === 'Bahan Baku' ? '🌾' : '📊'} {m.name} ({m.category})
+                                    {m.itemType === 'Bahan Baku' ? '' : ''} {m.name} ({m.category})
                                   </option>
                                 ))}
                               </datalist>
@@ -2356,7 +2356,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                                 onClick={() => handleRemoveDailyExpenseRow(r.id)}
                                 style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', fontSize: '0.9rem', fontWeight: '900' }}
                               >
-                                ✕
+                                
                               </button>
                             </td>
                           </tr>
@@ -2382,7 +2382,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
               {/* 4. TOTAL PENGELUARAN & LABA KOTOR SUMMARY BAR */}
               <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ background: T.dangerBg || 'rgba(251, 113, 133, 0.12)', padding: '12px 16px', borderRadius: '10px', border: `1px solid ${T.danger}` }}>
-                  <span style={{ fontSize: '0.74rem', color: T.danger, fontWeight: '700', textTransform: 'uppercase' }}>🔥 Total Pengeluaran (Grand Total)</span>
+                  <span style={{ fontSize: '0.74rem', color: T.danger, fontWeight: '700', textTransform: 'uppercase' }}>Total Pengeluaran (Grand Total)</span>
                   <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.danger, marginTop: '2px' }}>
                     -{formatRupiah(totalPengeluaran)}
                   </div>
@@ -2390,7 +2390,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
 
                 <div style={{ background: labaKotor >= 0 ? (T.successBg || 'rgba(52, 211, 153, 0.12)') : (T.dangerBg || 'rgba(244, 63, 94, 0.12)'), padding: '12px 16px', borderRadius: '10px', border: `1px solid ${labaKotor >= 0 ? T.success : T.danger}` }}>
                   <span style={{ fontSize: '0.74rem', color: labaKotor >= 0 ? T.success : T.danger, fontWeight: '700', textTransform: 'uppercase' }}>
-                    📈 Laba Kotor (Pendapatan - Pengeluaran)
+                    Laba Kotor (Pendapatan - Pengeluaran)
                   </span>
                   <div style={{ fontSize: '1.3rem', fontWeight: '900', color: labaKotor >= 0 ? T.success : T.danger, marginTop: '2px' }}>
                     {formatRupiah(labaKotor)}
@@ -2403,7 +2403,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <span style={{ fontSize: '0.85rem', fontWeight: '800', color: T.accentGold, display: 'block' }}>
-                      💸 Tabel Pengembalian Uang Kas
+                      Tabel Pengembalian Uang Kas
                     </span>
                     <span style={{ fontSize: '0.7rem', color: T.txtMuted }}>
                       Rincian hutang simpanan/kasir & pengembalian yang disetor hari ini
@@ -2464,7 +2464,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                               onClick={() => handleRemoveCashReturnRow(cr.id)}
                               style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}
                             >
-                              ✕
+                              
                             </button>
                           </td>
                         </tr>
@@ -2480,14 +2480,14 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 {/* Uang di Laci Box */}
                 <div style={{ background: isUangDiLaciMinus ? (T.dangerBg || 'rgba(244, 63, 94, 0.15)') : (T.successBg || 'rgba(52, 211, 153, 0.15)'), padding: '14px', borderRadius: '10px', border: `1px solid ${isUangDiLaciMinus ? T.danger : T.success}` }}>
                   <span style={{ fontSize: '0.76rem', color: isUangDiLaciMinus ? T.danger : T.success, fontWeight: '800', textTransform: 'uppercase' }}>
-                    💵 Uang Di Laci (Laba Kotor - Pengembalian Kas - Non-Cash)
+                    Uang Di Laci (Laba Kotor - Pengembalian Kas - Non-Cash)
                   </span>
                   <div style={{ fontSize: '1.3rem', fontWeight: '900', color: isUangDiLaciMinus ? T.danger : T.success, marginTop: '4px' }}>
                     {formatRupiah(uangDiLaci)}
                   </div>
                   {isUangDiLaciMinus && (
                     <div style={{ fontSize: '0.72rem', color: T.danger, marginTop: '6px', fontWeight: '700', background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px' }}>
-                      ⚠️ Result MINUS: Otomatis tercatat sebagai Hutang Pengembalian Kas di hari berikutnya!
+                      Result MINUS: Otomatis tercatat sebagai Hutang Pengembalian Kas di hari berikutnya!
                     </div>
                   )}
                 </div>
@@ -2496,7 +2496,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 <div style={{ background: T.infoBg || 'rgba(99, 102, 241, 0.15)', padding: '14px', borderRadius: '10px', border: `1px solid ${T.info}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.76rem', color: T.info, fontWeight: '800', textTransform: 'uppercase' }}>
-                      🏦 Sisa Uang Di Kas
+                      Sisa Uang Di Kas
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ fontSize: '0.7rem', color: T.txtMuted }}>Modal:</span>

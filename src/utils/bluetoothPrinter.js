@@ -111,7 +111,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
   const tableDisplay = isTakeAway ? 'TAKE AWAY' : (tx.table_number || 'Meja 01');
 
   if (ticketType === 'kitchen') {
-    // ===== 🍳 STRUK DAPUR (KITCHEN TICKET - TANPA HARGA) =====
+    // ===== STRUK DAPUR (KITCHEN TICKET - TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK DAPUR - KITCHEN TICKET');
     lines.push('[DIV]');
@@ -134,7 +134,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[C]*** UNTUK KOKI / DAPUR (TANPA HARGA) ***');
 
   } else if (ticketType === 'bar') {
-    // ===== 🍹 STRUK BAR (BAR TICKET - TANPA HARGA) =====
+    // ===== STRUK BAR (BAR TICKET - TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK BAR - BAR TICKET');
     lines.push('[DIV]');
@@ -157,7 +157,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[C]*** UNTUK BARTENDER / BAR (TANPA HARGA) ***');
 
   } else if (ticketType === 'bill') {
-    // ===== 📋 CONTOH TAGIHAN SEMENTARA / BILL MEJA (DENGAN RINCIAN HARGA) =====
+    // ===== CONTOH TAGIHAN SEMENTARA / BILL MEJA (DENGAN RINCIAN HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]CONTOH TAGIHAN SEMENTARA');
     lines.push('[DIV]');
@@ -182,11 +182,11 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     const amountVal = Number(tx.amount || tx.grandTotal || tx.total || 0);
     lines.push('[B]' + rowLine('TOTAL TAGIHAN:', fmt(amountVal)));
     lines.push('[DIV]');
-    lines.push('[C]⚠️ CONTOH TAGIHAN SEMENTARA');
+    lines.push('[C]CONTOH TAGIHAN SEMENTARA');
     lines.push('[C]BUKAN BUKTI PEMBAYARAN SAH');
 
   } else if (ticketType === 'table' || ticketType === 'checker') {
-    // ===== 📋 STRUK MEJA / ORDER CHECKER (TANPA HARGA) =====
+    // ===== STRUK MEJA / ORDER CHECKER (TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK MEJA / ORDER CHECKER');
     lines.push('[DIV]');
@@ -210,7 +210,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[C]Mohon periksa pesanan sebelum disajikan');
 
   } else {
-    // ===== 🧾 STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT - DENGAN HARGA) =====
+    // ===== STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT - DENGAN HARGA) =====
     const restoName = (headerFooter?.restaurantName || outletName || 'MRIS RESTORAN').toUpperCase();
     const groupName = headerFooter?.groupName;
     const address = headerFooter?.address;

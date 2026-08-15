@@ -94,7 +94,7 @@ export default function ShiftAudit({ selectedBranch, themeMode = 'dark' }) {
                   <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800' }}>
                     {item.variance === 0 ? (
                       <span style={{ color: T.success, background: T.successBg, padding: '4px 8px', borderRadius: '6px' }}>
-                        ✓ PAS (NIHIL)
+                        PAS (NIHIL)
                       </span>
                     ) : item.variance > 0 ? (
                       <span style={{ color: T.warning, background: T.warningBg, padding: '4px 8px', borderRadius: '6px' }}>

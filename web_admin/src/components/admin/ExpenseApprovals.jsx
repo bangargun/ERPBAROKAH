@@ -32,9 +32,9 @@ export default function ExpenseApprovals({ pendingTransactions = [], onApprove, 
             <div key={tx.id} className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', background: T.cardBg, border: `1px solid ${T.border}`, borderLeft: `4px solid ${T.accentGold}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <span style={{ background: T.cardBg2, padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', color: T.info, border: `1px solid ${T.borderStrong}`, fontWeight: '700' }}>
-                  🏢 {tx.branch_name}
+                  {tx.branch_name}
                 </span>
-                <span className="badge-pending" style={{ background: T.warningBg, color: T.warning, border: `1px solid ${T.warningBorder}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '700' }}>⏳ Menunggu Persetujuan</span>
+                <span className="badge-pending" style={{ background: T.warningBg, color: T.warning, border: `1px solid ${T.warningBorder}`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '700' }}>Menunggu Persetujuan</span>
               </div>
 
               <div>

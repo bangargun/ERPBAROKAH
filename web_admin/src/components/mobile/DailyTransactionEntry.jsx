@@ -242,7 +242,7 @@ export default function DailyTransactionEntry({ selectedBranch, categories, outl
         }} onClick={() => setHasReceipt(!hasReceipt)}>
           <Camera size={20} color={hasReceipt ? '#34d399' : '#94a3b8'} style={{ marginBottom: '4px' }} />
           <div style={{ fontSize: '0.75rem', color: hasReceipt ? '#34d399' : '#94a3b8', fontWeight: '600' }}>
-            {hasReceipt ? '✓ Foto Nota Terlampir' : '+ Ambil Foto Nota / Struk Pembelian'}
+            {hasReceipt ? 'Foto Nota Terlampir' : '+ Ambil Foto Nota / Struk Pembelian'}
           </div>
         </div>
 

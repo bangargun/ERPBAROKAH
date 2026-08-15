@@ -98,15 +98,15 @@ export default function OutletAnalyticsDetailModal({ outlet, masterData, onClose
             </div>
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🏪 {outlet.name}</span>
+                <span>{outlet.name}</span>
                 <span style={{ fontSize: '0.74rem', fontWeight: '800', background: T.infoBg, color: T.info, padding: '3px 10px', borderRadius: '8px', border: `1px solid ${T.infoBorder}` }}>
                   Kode: {outlet.code || `OTL-00${outlet.id}`}
                 </span>
               </h2>
               <div style={{ fontSize: '0.82rem', color: T.txtSecondary, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span>Alamat: <strong style={{ color: T.txtPrimary }}>📍 {outlet.address || 'Jakarta'}</strong></span>
+                <span>Alamat: <strong style={{ color: T.txtPrimary }}>{outlet.address || 'Jakarta'}</strong></span>
                 <span>•</span>
-                <span>Status Outlet: <strong style={{ color: T.success }}>🟢 {outlet.status || 'Aktif'}</strong></span>
+                <span>Status Outlet: <strong style={{ color: T.success }}>{outlet.status || 'Aktif'}</strong></span>
               </div>
             </div>
           </div>
@@ -136,7 +136,7 @@ export default function OutletAnalyticsDetailModal({ outlet, masterData, onClose
                 onChange={e => setFilterMonthYear(e.target.value)}
                 style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="Semua Bulan & Tahun">📅 Semua Waktu</option>
+                <option value="Semua Bulan & Tahun">Semua Waktu</option>
                 <option value="Juli 2026">Juli 2026</option>
                 <option value="Juni 2026">Juni 2026</option>
                 <option value="Mei 2026">Mei 2026</option>
@@ -259,7 +259,7 @@ export default function OutletAnalyticsDetailModal({ outlet, masterData, onClose
                         {row.receipt_no}
                       </td>
                       <td style={{ padding: '12px 14px', color: T.txtPrimary, fontWeight: '800' }}>
-                        🍽️ {row.menu_name}
+                        {row.menu_name}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: T.success }}>
                         {row.qty} Porsi
@@ -272,11 +272,11 @@ export default function OutletAnalyticsDetailModal({ outlet, masterData, onClose
                       </td>
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{ background: T.warningBg, padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', color: T.warning, fontWeight: '700', border: `1px solid ${T.warningBorder}` }}>
-                          💳 {row.payment_method}
+                          {row.payment_method}
                         </span>
                       </td>
                       <td style={{ padding: '12px 14px', color: T.txtMuted }}>
-                        👤 {row.cashier}
+                        {row.cashier}
                       </td>
                     </tr>
                   ))

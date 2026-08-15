@@ -229,16 +229,16 @@ export default function PaymentMethodManagement({ masterData, setMasterData, use
             onChange={e => setSortField(e.target.value)}
             style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
           >
-            <option value="code">💳 Jenis Pembayaran</option>
-            <option value="name">🏷️ Nama Metode</option>
-            <option value="status">🟢 Status</option>
+            <option value="code">Jenis Pembayaran</option>
+            <option value="name">Nama Metode</option>
+            <option value="status">Status</option>
           </select>
           <button
             type="button"
             onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
             style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
           >
-            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+            {sortDirection === 'asc' ? 'Naik' : 'Turun'}
           </button>
         </div>
       </div>

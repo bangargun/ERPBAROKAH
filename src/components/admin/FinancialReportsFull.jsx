@@ -1260,7 +1260,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
       }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <h1 style={{ fontSize: '2.0rem', fontWeight: '900', color: T.info, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-            📊 Perbandingan Laba &amp; Rugi Multi-Bulan (Side-by-Side)
+            Perbandingan Laba &amp; Rugi Multi-Bulan (Side-by-Side)
           </h1>
           <div style={{ fontSize: '0.90rem', color: T.txtSecondary, fontWeight: '700' }}>
             Membandingkan {compareMonthsCount} Bulan Berdampingan dengan Analisis Selisih Nominal &amp; Pertumbuhan (%)
@@ -1415,7 +1415,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
       }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <h1 style={{ fontSize: '2.0rem', fontWeight: '900', color: T.info, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-            📊 Perbandingan Neraca Keuangan Multi-Bulan (Side-by-Side)
+            Perbandingan Neraca Keuangan Multi-Bulan (Side-by-Side)
           </h1>
           <div style={{ fontSize: '0.90rem', color: T.txtSecondary, fontWeight: '700' }}>
             Membandingkan Posisi Neraca {compareBalanceMonthsCount} Bulan Berdampingan dengan Analisis Selisih &amp; Growth (%)
@@ -1529,7 +1529,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
       }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <h1 style={{ fontSize: '2.0rem', fontWeight: '900', color: T.info, margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-            📊 Perbandingan Arus Kas Multi-Bulan (Side-by-Side)
+            Perbandingan Arus Kas Multi-Bulan (Side-by-Side)
           </h1>
           <div style={{ fontSize: '0.90rem', color: T.txtSecondary, fontWeight: '700' }}>
             Membandingkan Pergerakan Arus Kas {compareCashflowMonthsCount} Bulan Berdampingan dengan Analisis Selisih &amp; Growth (%)
@@ -1733,7 +1733,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
             
             {/* 1. Tahun Dropdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📅 Tahun</span>
+              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tahun</span>
               <select
                 value={selectedYear}
                 onChange={e => handleYearChange(e.target.value)}
@@ -1758,7 +1758,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
 
             {/* 2. Bulan Dropdown */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>🗓️ Bulan</span>
+              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Bulan</span>
               <select
                 value={selectedMonth}
                 onChange={e => handleMonthChange(e.target.value)}
@@ -1792,7 +1792,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
 
             {/* 3. Tanggal (Rentang Waktu) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+              <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tanggal (Rentang Waktu)</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="date"
@@ -2082,7 +2082,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
               {pnlSubView === 'multi_month' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <label style={{ fontSize: '0.80rem', color: T.txtPrimary, fontWeight: '800' }}>
-                    📅 Jumlah Bulan Perbandingan:
+                    Jumlah Bulan Perbandingan:
                   </label>
                   <select
                     value={compareMonthsCount}
@@ -2127,7 +2127,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                   </div>
                 )}
                 <div style={{ fontSize: '0.75rem', color: T.txtMuted, marginTop: '4px' }}>
-                  💡 Klik nama akun untuk melihat rincian riwayat transaksi
+                  Klik nama akun untuk melihat rincian riwayat transaksi
                 </div>
               </div>
 
@@ -2550,7 +2550,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
               {balanceSubView === 'multi_month' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <label style={{ fontSize: '0.80rem', color: T.txtPrimary, fontWeight: '800' }}>
-                    📅 Jumlah Bulan Perbandingan:
+                    Jumlah Bulan Perbandingan:
                   </label>
                   <select
                     value={compareBalanceMonthsCount}
@@ -2595,7 +2595,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                   </div>
                 )}
                 <div style={{ fontSize: '0.75rem', color: T.txtMuted, marginTop: '4px' }}>
-                  💡 Klik nama akun untuk melihat rincian riwayat transaksi &amp; saldo
+                  Klik nama akun untuk melihat rincian riwayat transaksi &amp; saldo
                 </div>
               </div>
 
@@ -2877,7 +2877,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
               {cashflowSubView === 'multi_month' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <label style={{ fontSize: '0.80rem', color: T.txtPrimary, fontWeight: '800' }}>
-                    📅 Jumlah Bulan Perbandingan:
+                    Jumlah Bulan Perbandingan:
                   </label>
                   <select
                     value={compareCashflowMonthsCount}
@@ -2922,7 +2922,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                   </div>
                 )}
                 <div style={{ fontSize: '0.75rem', color: T.txtMuted, marginTop: '4px' }}>
-                  💡 Klik nama item arus kas untuk melihat rincian riwayat transaksi
+                  Klik nama item arus kas untuk melihat rincian riwayat transaksi
                 </div>
               </div>
 
@@ -3168,7 +3168,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <label style={{ fontSize: '0.80rem', color: T.txtPrimary, fontWeight: '800' }}>
-                    📅 Bandingkan Ke Belakang:
+                    Bandingkan Ke Belakang:
                   </label>
                   <select
                     value={compareMonthsCount}
@@ -3212,7 +3212,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                   }}
                 >
                   <Sparkles size={16} />
-                  <span>{aiGenerating ? 'Menganalisis Data...' : '⚡ Analisis AI Live'}</span>
+                  <span>{aiGenerating ? 'Menganalisis Data...' : 'Analisis AI Live'}</span>
                 </button>
               </div>
             </div>
@@ -3221,13 +3221,13 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
             {aiReportText && (
               <div style={{ background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(6, 182, 212, 0.08) 100%)', border: '1.5px solid rgba(52, 211, 153, 0.35)', padding: '20px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.4)' }}>
                 <div style={{ fontSize: '0.76rem', color: T.success, fontWeight: '800', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>🤖 RINGKASAN REKOMENDASI AI KEUANGAN (Dihasilkan: {aiReportText.timestamp})</span>
+                  <span>RINGKASAN REKOMENDASI AI KEUANGAN (Dihasilkan: {aiReportText.timestamp})</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <h4 style={{ fontSize: '15px', fontWeight: '800', color: T.txtPrimary, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      📌 Performa &amp; Kenaikan Omzet:
+                      Performa &amp; Kenaikan Omzet:
                     </h4>
                     <ul style={{ paddingLeft: '18px', color: T.txtPrimary, fontSize: '0.82rem', margin: 0, lineHeight: '1.5' }}>
                       {aiReportText.highlights.map((h, i) => (
@@ -3238,7 +3238,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
 
                   <div>
                     <h4 style={{ fontSize: '15px', fontWeight: '800', color: T.success, margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      💡 Rekomendasi Efisiensi Profitabilitas:
+                      Rekomendasi Efisiensi Profitabilitas:
                     </h4>
                     <ul style={{ paddingLeft: '18px', color: T.success, fontSize: '0.82rem', margin: 0, lineHeight: '1.5' }}>
                       {aiReportText.recommendations.map((r, i) => (
@@ -3254,10 +3254,10 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
             <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '16px', padding: '20px', overflowX: 'auto' }}>
               <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: '14px', fontWeight: '800', color: T.txtPrimary }}>
-                  📈 Tabel Perbandingan Laba Rugi Multi-Bulan ({compareMonthsCount} Bulan Berdampingan)
+                  Tabel Perbandingan Laba Rugi Multi-Bulan ({compareMonthsCount} Bulan Berdampingan)
                 </div>
                 <div style={{ fontSize: '0.74rem', color: T.txtSecondary }}>
-                  🟢 Tanda Hijau = Kenaikan Laba / Penghematan Biaya &bull; 🔴 Tanda Merah = Penurunan Omzet / Pembengkakan
+                  Tanda Hijau = Kenaikan Laba / Penghematan Biaya &bull; Tanda Merah = Penurunan Omzet / Pembengkakan
                 </div>
               </div>
               {renderMultiMonthComparisonTable()}

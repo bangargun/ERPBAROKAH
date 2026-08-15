@@ -146,12 +146,12 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
   const [formSteps, setFormSteps] = useState(['']);
 
   const categoryMap = {
-    opening: '🌅 Persiapan Opening',
-    kasir: '💳 Kasir & Pembayaran',
-    kebersihan: '🧹 Kebersihan & Higiene',
-    komplain: '🤝 Pelayanan Pelanggan',
-    closing: '🌙 Penutupan / Closing',
-    stok: '📦 Logistik & Stok Opname'
+    opening: 'Persiapan Opening',
+    kasir: 'Kasir & Pembayaran',
+    kebersihan: 'Kebersihan & Higiene',
+    komplain: 'Pelayanan Pelanggan',
+    closing: 'Penutupan / Closing',
+    stok: 'Logistik & Stok Opname'
   };
 
   // Open Add Modal
@@ -464,7 +464,7 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
           <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700' }}>GENERATOR AI INTEGRATED</div>
           <div style={{ fontSize: '1.1rem', fontWeight: '900', color: T.accentGold, marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Sparkles size={16} />
-            <span>✨ EDITABLE AI READY</span>
+            <span>EDITABLE AI READY</span>
           </div>
         </div>
       </div>
@@ -489,12 +489,12 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'all', label: 'Semua Kategori' },
-            { id: 'opening', label: '🌅 Opening' },
-            { id: 'kasir', label: '💳 Kasir' },
-            { id: 'kebersihan', label: '🧹 Kebersihan' },
-            { id: 'komplain', label: '🤝 Pelayanan' },
-            { id: 'closing', label: '🌙 Closing' },
-            { id: 'stok', label: '📦 Stok Opname' }
+            { id: 'opening', label: 'Opening' },
+            { id: 'kasir', label: 'Kasir' },
+            { id: 'kebersihan', label: 'Kebersihan' },
+            { id: 'komplain', label: 'Pelayanan' },
+            { id: 'closing', label: 'Closing' },
+            { id: 'stok', label: 'Stok Opname' }
           ].map(cat => (
             <button
               key={cat.id}
@@ -525,7 +525,7 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
           <div style={{ gridColumn: '1 / -1', background: T.cardBg, padding: '40px', borderRadius: '16px', textAlign: 'center', color: T.txtSecondary, border: `1px solid ${T.border}` }}>
             <BookOpen size={48} color={T.txtMuted} style={{ marginBottom: '12px' }} />
             <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>Tidak Ada Dokumen SOP Ditemukan</h3>
-            <p style={{ fontSize: '0.82rem', marginTop: '6px' }}>Coba gunakan fitur <strong>✨ Generate by AI</strong> atau ubah kata kunci pencarian.</p>
+            <p style={{ fontSize: '0.82rem', marginTop: '6px' }}>Coba gunakan fitur <strong>Generate by AI</strong> atau ubah kata kunci pencarian.</p>
           </div>
         ) : (
           paginatedSops.map((sop) => (
@@ -549,7 +549,7 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                     {sop.categoryLabel || categoryMap[sop.category]}
                   </span>
                   <span style={{ fontSize: '0.74rem', color: T.info, fontWeight: '800', background: T.infoBg, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.infoBorder}` }}>
-                    🆔 {sop.id}
+                    {sop.id}
                   </span>
                 </div>
 
@@ -562,9 +562,9 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                 </p>
 
                 <div style={{ background: T.cardBg2, padding: '12px', borderRadius: '10px', border: `1px solid ${T.border}`, display: 'flex', gap: '14px', fontSize: '0.76rem', color: T.txtSecondary }}>
-                  <span>⏱️ <strong>Estimasi:</strong> {sop.estimatedTime}</span>
-                  <span>👤 <strong>Staf:</strong> {sop.author}</span>
-                  <span>✅ <strong>Checklist:</strong> {(sop.steps || []).length} Langkah</span>
+                  <span><strong>Estimasi:</strong> {sop.estimatedTime}</span>
+                  <span><strong>Staf:</strong> {sop.author}</span>
+                  <span><strong>Checklist:</strong> {(sop.steps || []).length} Langkah</span>
                 </div>
               </div>
 
@@ -639,7 +639,7 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowAiGeneratorModal(false)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setShowAiGeneratorModal(false)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}></button>
             </div>
 
             {/* PRESET TOPIC CHIPS */}
@@ -649,12 +649,12 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                 {[
-                  { id: 'kasir', label: '💳 SOP Kasir POS & QRIS' },
-                  { id: 'kebersihan', label: '🧹 SOP Kebersihan & Higiene' },
-                  { id: 'stok', label: '📦 SOP Audit Stok Opname' },
-                  { id: 'opening', label: '🌅 SOP Checklist Opening' },
-                  { id: 'closing', label: '🌙 SOP Closing & Keamanan' },
-                  { id: 'komplain', label: '🤝 SOP Handling Komplain' }
+                  { id: 'kasir', label: 'SOP Kasir POS & QRIS' },
+                  { id: 'kebersihan', label: 'SOP Kebersihan & Higiene' },
+                  { id: 'stok', label: 'SOP Audit Stok Opname' },
+                  { id: 'opening', label: 'SOP Checklist Opening' },
+                  { id: 'closing', label: 'SOP Closing & Keamanan' },
+                  { id: 'komplain', label: 'SOP Handling Komplain' }
                 ].map(chip => (
                   <button
                     key={chip.id}
@@ -718,7 +718,7 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                 style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 16px rgba(168,85,247,0.4)' }}
               >
                 <Sparkles size={16} className={isAiGenerating ? "animate-spin" : ""} />
-                <span>{isAiGenerating ? "Membuat Dokumen SOP AI..." : "🚀 Generate Dokumen SOP & Edit"}</span>
+                <span>{isAiGenerating ? "Membuat Dokumen SOP AI..." : "Generate Dokumen SOP & Edit"}</span>
               </button>
             </div>
           </div>
@@ -757,9 +757,9 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                   style={{ padding: '6px 12px', background: T.accentGoldBg, border: `1px solid ${T.accentGoldBorder}`, color: T.accentGold, borderRadius: '8px', fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Sparkles size={14} />
-                  <span>✨ Generate AI</span>
+                  <span>Generate AI</span>
                 </button>
-                <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+                <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}></button>
               </div>
             </div>
 
@@ -798,12 +798,12 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                     className="form-input"
                     style={{ width: '100%', height: '42px', background: T.inputBg, border: `1px solid ${T.border}`, color: T.txtPrimary }}
                   >
-                    <option value="opening">🌅 Persiapan Opening</option>
-                    <option value="kasir">💳 Kasir &amp; Pembayaran</option>
-                    <option value="kebersihan">🧹 Kebersihan &amp; Higiene</option>
-                    <option value="komplain">🤝 Pelayanan Pelanggan</option>
-                    <option value="closing">🌙 Penutupan / Closing</option>
-                    <option value="stok">📦 Logistik &amp; Stok Opname</option>
+                    <option value="opening">Persiapan Opening</option>
+                    <option value="kasir">Kasir &amp; Pembayaran</option>
+                    <option value="kebersihan">Kebersihan &amp; Higiene</option>
+                    <option value="komplain">Pelayanan Pelanggan</option>
+                    <option value="closing">Penutupan / Closing</option>
+                    <option value="stok">Logistik &amp; Stok Opname</option>
                   </select>
                 </div>
 
@@ -902,7 +902,7 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                   type="submit"
                   style={{ padding: '12px 26px', background: T.primaryBtn, color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', boxShadow: `0 4px 14px ${T.primaryBtnShadow}` }}
                 >
-                  💾 {editingSopId ? 'Simpan Perubahan SOP' : 'Simpan Dokumen SOP Baru'}
+                  {editingSopId ? 'Simpan Perubahan SOP' : 'Simpan Dokumen SOP Baru'}
                 </button>
               </div>
             </form>
@@ -929,25 +929,25 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                   {viewingSop.title}
                 </h3>
               </div>
-              <button onClick={() => setViewingSop(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}>✕</button>
+              <button onClick={() => setViewingSop(null)} style={{ background: 'none', border: 'none', color: T.txtMuted, cursor: 'pointer', fontWeight: '900', fontSize: '1.2rem' }}></button>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-around', fontSize: '0.80rem', color: T.txtSecondary }}>
-                <span>🆔 <strong>Kode:</strong> {viewingSop.id}</span>
-                <span>⏱️ <strong>Estimasi:</strong> {viewingSop.estimatedTime}</span>
-                <span>👤 <strong>Author:</strong> {viewingSop.author}</span>
+                <span><strong>Kode:</strong> {viewingSop.id}</span>
+                <span><strong>Estimasi:</strong> {viewingSop.estimatedTime}</span>
+                <span><strong>Author:</strong> {viewingSop.author}</span>
               </div>
 
               <div>
-                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: T.info, marginBottom: '6px' }}>📌 Ringkasan Dokumen:</h4>
+                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: T.info, marginBottom: '6px' }}>Ringkasan Dokumen:</h4>
                 <p style={{ fontSize: '0.82rem', color: T.txtSecondary, lineHeight: '1.5', margin: 0 }}>
                   {viewingSop.summary}
                 </p>
               </div>
 
               <div>
-                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: T.txtPrimary, marginBottom: '10px' }}>✅ Langkah-Langkah Operasional Checklist:</h4>
+                <h4 style={{ fontSize: '0.88rem', fontWeight: '900', color: T.txtPrimary, marginBottom: '10px' }}>Langkah-Langkah Operasional Checklist:</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {(viewingSop.steps || []).map((step, sIdx) => (
                     <div key={sIdx} style={{ display: 'flex', gap: '12px', background: T.cardBg2, padding: '12px 14px', borderRadius: '10px', border: `1px solid ${T.border}` }}>

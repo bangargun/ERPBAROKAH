@@ -447,7 +447,7 @@ export default function LoyaltyProgramPage({ masterData, setMasterData, themeMod
                       </td>
                       <td style={{ padding: '14px 12px', color: T.txtPrimary }}>
                         <span style={{ background: T.cardBg2, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.borderStrong}`, fontSize: '0.75rem' }}>
-                          ★ {item.tier}
+                          {item.tier}
                         </span>
                       </td>
                       <td style={{ padding: '14px 12px' }}>

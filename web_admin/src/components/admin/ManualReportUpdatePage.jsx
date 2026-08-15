@@ -111,7 +111,7 @@ export default function ManualReportUpdatePage({
     if (timePart) {
       return (
         <span>
-          {formattedDate} <span style={{ fontSize: '0.72rem', color: T.txtMuted, marginLeft: '4px', fontWeight: '600' }}>⏰ {timePart}</span>
+          {formattedDate} <span style={{ fontSize: '0.72rem', color: T.txtMuted, marginLeft: '4px', fontWeight: '600' }}>{timePart}</span>
         </span>
       );
     }
@@ -620,7 +620,7 @@ export default function ManualReportUpdatePage({
       };
     });
 
-    alert(`✅ BERHASIL MENGHAPUS LAPORAN PERMANEN!\n\n• Laporan/Tanggal: ${targetReportNo || targetDate || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku dikembalikan.\n• Laporan telah dihapus permanen dari server & lokal!`);
+    alert(`BERHASIL MENGHAPUS LAPORAN PERMANEN!\n\n• Laporan/Tanggal: ${targetReportNo || targetDate || targetId}\n• Rekomposisi Stok: ${restorationMovements.length} bahan baku dikembalikan.\n• Laporan telah dihapus permanen dari server & lokal!`);
 
     setDeletingReport(null);
   };
@@ -741,14 +741,14 @@ export default function ManualReportUpdatePage({
               style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700' }}
               title="Pilih kolom yang ingin diurutkan"
             >
-              <option value="date">📅 Urut Tanggal Transaksi</option>
-              <option value="report_no">🔢 Urut No. Laporan</option>
-              <option value="outlet">🏪 Urut Outlet / Cabang</option>
-              <option value="item_name">🏷️ Urut Nama Item</option>
-              <option value="qty">🔢 Urut QTY (Jumlah)</option>
-              <option value="unit_price">💵 Urut Harga Satuan</option>
-              <option value="sales">📈 Urut Total Pemasukan</option>
-              <option value="expense">📉 Urut Total Pengeluaran</option>
+              <option value="date">Urut Tanggal Transaksi</option>
+              <option value="report_no">Urut No. Laporan</option>
+              <option value="outlet">Urut Outlet / Cabang</option>
+              <option value="item_name">Urut Nama Item</option>
+              <option value="qty">Urut QTY (Jumlah)</option>
+              <option value="unit_price">Urut Harga Satuan</option>
+              <option value="sales">Urut Total Pemasukan</option>
+              <option value="expense">Urut Total Pengeluaran</option>
             </select>
 
             <button
@@ -769,7 +769,7 @@ export default function ManualReportUpdatePage({
               }}
               title="Klik untuk memilih arah urutan (Ascending / Descending)"
             >
-              {sortDirection === 'asc' ? '🔼 Naik (A-Z / 0-9)' : '🔽 Turun (Z-A / 9-0)'}
+              {sortDirection === 'asc' ? 'Naik (A-Z / 0-9)' : 'Turun (Z-A / 9-0)'}
             </button>
           </div>
 
@@ -780,7 +780,7 @@ export default function ManualReportUpdatePage({
               onChange={e => { setSelectedOutletFilter(e.target.value); setCurrentPage(1); }}
               style={{ padding: '8px 12px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
             >
-              <option value="ALL">📁 Semua Outlet / Cabang</option>
+              <option value="ALL">Semua Outlet / Cabang</option>
               {(masterData?.outlets || []).map(o => (
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
@@ -828,7 +828,7 @@ export default function ManualReportUpdatePage({
               {paginatedReports.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted }}>
-                    📭 Belum ada laporan update atau data tidak ditemukan.
+                    Belum ada laporan update atau data tidak ditemukan.
                   </td>
                 </tr>
               ) : (
@@ -937,7 +937,7 @@ export default function ManualReportUpdatePage({
 
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <span style={{ padding: '3px 8px', background: T.successBg, border: `1px solid ${T.successBorder}`, color: T.success, borderRadius: '12px', fontSize: '0.68rem', fontWeight: '800' }}>
-                          ✅ Disetujui
+                          Disetujui
                         </span>
                       </td>
 
@@ -1039,7 +1039,7 @@ export default function ManualReportUpdatePage({
             {(previewReport.sales_details || previewReport.sales_rows || []).length > 0 && (
               <div>
                 <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.success, marginBottom: '6px' }}>
-                  🟢 Rincian Produk Penjualan Terjual:
+                  Rincian Produk Penjualan Terjual:
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
                   <thead>
@@ -1070,7 +1070,7 @@ export default function ManualReportUpdatePage({
             {(previewReport.pendapatan_details || []).length > 0 && (
               <div>
                 <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.info, marginBottom: '6px' }}>
-                  💰 Rincian Pendapatan Non-Sales (Kas Masuk):
+                  Rincian Pendapatan Non-Sales (Kas Masuk):
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
                   <thead>
@@ -1099,7 +1099,7 @@ export default function ManualReportUpdatePage({
             {(previewReport.expense_details || previewReport.expenses_breakdown || []).length > 0 && (
               <div>
                 <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.danger, marginBottom: '6px' }}>
-                  🔴 Rincian Pengeluaran / Beban Operasional:
+                  Rincian Pengeluaran / Beban Operasional:
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', border: `1px solid ${T.border}`, borderRadius: '8px' }}>
                   <thead>

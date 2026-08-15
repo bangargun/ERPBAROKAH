@@ -93,7 +93,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       <div>
         <div style={{ fontWeight: '700', color: T.txtPrimary }}>{datePart || '-'}</div>
         <div style={{ fontSize: '0.74rem', color: T.accentGold, fontWeight: '700', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <span>⏰</span>
+          <span></span>
           <span>{timePart}</span>
         </div>
       </div>
@@ -458,7 +458,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       notes: formNotes,
       ref_pelanggan: editingRecord?.ref_pelanggan || `POS-${formDate.replace(/-/g, '')}-MANUAL`,
       gudang: `GUDANG ${targetOutlet.name.toUpperCase()}`,
-      source: editingRecord ? (editingRecord.source || '✍️ By Manual') : '✍️ By Manual',
+      source: editingRecord ? (editingRecord.source || 'By Manual') : 'By Manual',
       status: editingRecord?.status || 'Selesai'
     };
 
@@ -509,7 +509,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       ...item,
       id: `00${Math.floor(2500 + Math.random() * 9000)}`,
       notes: item.notes ? `${item.notes} (Duplikat)` : 'Duplikat Transaksi',
-      source: '✍️ By Manual',
+      source: 'By Manual',
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().substring(0, 5)
     };
@@ -673,7 +673,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     tr:nth-child(even){background:#f8fafc}.total-row{background:#1e3a5f!important;color:#fff;font-weight:700}
     @media print{body{padding:0}}</style></head><body>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
-      <div><h2>📋 Riwayat Transaksi POS</h2>
+      <div><h2>Riwayat Transaksi POS</h2>
         <p style="margin:4px 0;color:#64748b">Outlet: <strong>${outletStr}</strong> &nbsp;|&nbsp; Periode: <strong>${dateStr}</strong></p>
         <p style="margin:4px 0;color:#64748b">Total Transaksi: <strong>${rows.length} transaksi</strong> &nbsp;|&nbsp; Total Omzet: <strong style="color:#1e40af">Rp ${totalAmt.toLocaleString('id-ID')}</strong></p>
       </div>
@@ -815,11 +815,11 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               {inv.customer_name || 'Default Customer'}
             </div>
             <div style={{ display: 'flex', gap: '24px', fontSize: '0.82rem', color: T.txtSecondary, marginTop: '8px' }}>
-              <span>📞 -</span>
-              <span>✉️ -</span>
+              <span>-</span>
+              <span>-</span>
             </div>
             <div style={{ marginTop: '8px', display: 'inline-flex', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
-              💳 -
+              -
             </div>
           </div>
 
@@ -1052,7 +1052,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         
         {/* Search Bar Input */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '220px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>🔍 Pencarian Struk</span>
+          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Pencarian Struk</span>
           <div style={{ position: 'relative' }}>
             <Search size={16} color="${T.txtSecondary}" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
@@ -1067,7 +1067,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
         {/* 1. Tahun Dropdown */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📅 Tahun</span>
+          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tahun</span>
           <select
             value={selectedYear}
             onChange={e => handleYearChange(e.target.value)}
@@ -1092,7 +1092,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
         {/* 2. Bulan Dropdown */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>🗓️ Bulan</span>
+          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Bulan</span>
           <select
             value={selectedMonth}
             onChange={e => handleMonthChange(e.target.value)}
@@ -1126,7 +1126,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
         {/* 3. Tanggal (Rentang Waktu) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>📆 Tanggal (Rentang Waktu)</span>
+          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tanggal (Rentang Waktu)</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input 
               type="date" 
@@ -1146,7 +1146,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
         {/* 4. Outlet Selector Dropdown */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '200px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>🏢 Outlet</span>
+          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Outlet</span>
           <select 
             value={outletFilter} 
             onChange={e => setOutletFilter(e.target.value)} 
@@ -1407,7 +1407,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                         <th style={{ padding: '6px', width: '65px' }}>Qty</th>
                         <th style={{ padding: '6px', textAlign: 'right', width: '100px' }}>Harga</th>
                         <th style={{ padding: '6px', textAlign: 'right', width: '100px' }}>Total</th>
-                        <th style={{ padding: '6px', textAlign: 'center', width: '30px' }}>✕</th>
+                        <th style={{ padding: '6px', textAlign: 'center', width: '30px' }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1445,7 +1445,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                             {formatLunaCurrency(r.amount)}
                           </td>
                           <td style={{ padding: '6px', textAlign: 'center' }}>
-                            <button type="button" onClick={() => handleRemoveItemRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}>✕</button>
+                            <button type="button" onClick={() => handleRemoveItemRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}></button>
                           </td>
                         </tr>
                       ))}
@@ -1532,7 +1532,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               {/* Resto Branding Header */}
               <div style={{ textAlign: 'center', borderBottom: '1px dashed ${T.borderStrong}', paddingBottom: '12px' }}>
                 <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '0.05em' }}>POS KASIR BAROKAH</div>
-                <div style={{ fontSize: '0.78rem', color: T.info, marginTop: '2px', fontWeight: '700' }}>🏢 {previewRecord.branch_name}</div>
+                <div style={{ fontSize: '0.78rem', color: T.info, marginTop: '2px', fontWeight: '700' }}>{previewRecord.branch_name}</div>
                 <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>Terhubung Realtime Kasir System</div>
               </div>
 
@@ -1544,21 +1544,21 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.txtSecondary }}>Waktu:</span>
-                  <span>📅 {previewRecord.date} {previewRecord.time ? `(${previewRecord.time})` : ''}</span>
+                  <span>{previewRecord.date} {previewRecord.time ? `(${previewRecord.time})` : ''}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.txtSecondary }}>Pelanggan:</span>
-                  <span style={{ fontWeight: '700', color: T.txtPrimary }}>👤 {previewRecord.customer_name || 'Pelanggan Umum'}</span>
+                  <span style={{ fontWeight: '700', color: T.txtPrimary }}>{previewRecord.customer_name || 'Pelanggan Umum'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.txtSecondary }}>Layanan:</span>
                   <strong style={{ color: previewRecord.order_type === 'Take Away' ? T.accentGold : T.info }}>
-                    {previewRecord.order_type === 'Take Away' ? '🛍️ Take Away' : '🍽️ Dine In'}
+                    {previewRecord.order_type === 'Take Away' ? 'Take Away' : 'Dine In'}
                   </strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.txtSecondary }}>Kasir POS:</span>
-                  <span>👤 {previewRecord.cashier}</span>
+                  <span>{previewRecord.cashier}</span>
                 </div>
               </div>
 
@@ -1586,7 +1586,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: T.txtSecondary }}>
                   <span>Metode Pembayaran:</span>
-                  <strong style={{ color: T.txtPrimary }}>💳 {previewRecord.payment_method}</strong>
+                  <strong style={{ color: T.txtPrimary }}>{previewRecord.payment_method}</strong>
                 </div>
 
                 {previewRecord.notes && (

@@ -47,7 +47,7 @@ class ErrorBoundary extends React.Component {
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
           }}>
             <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fb7185', marginBottom: '12px' }}>
-              ⚠️ Terjadi Kesalahan Memuat Aplikasi
+              Terjadi Kesalahan Memuat Aplikasi
             </h2>
             <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '20px' }}>
               {this.state.error?.toString() || 'Sistem memerlukan reset data lokal untuk melanjutkan.'}
@@ -66,7 +66,7 @@ class ErrorBoundary extends React.Component {
                 boxShadow: '0 4px 14px rgba(99,102,241,0.4)'
               }}
             >
-              🔄 Reset Data Lokal & Reload App
+              Reset Data Lokal & Reload App
             </button>
           </div>
         </div>

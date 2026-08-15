@@ -1230,7 +1230,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, use
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', background: T.cardBg2, padding: '12px 16px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
                   <div>
                     <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary }}>
-                      📄 {fileName}
+                      {fileName}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>
                       Terbaca <strong>{parsedAccounts.length}</strong> baris akun akuntansi dari file
@@ -1287,11 +1287,11 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, use
                           </td>
                           <td style={{ padding: '6px 10px' }}>
                             {!item.isValid ? (
-                              <span style={{ color: T.danger, fontWeight: '800', fontSize: '0.68rem' }}>❌ {item.validationMsg}</span>
+                              <span style={{ color: T.danger, fontWeight: '800', fontSize: '0.68rem' }}>{item.validationMsg}</span>
                             ) : item.isDuplicate ? (
-                              <span style={{ color: T.accentGold, fontWeight: '800', fontSize: '0.68rem' }}>⚠️ {item.validationMsg}</span>
+                              <span style={{ color: T.accentGold, fontWeight: '800', fontSize: '0.68rem' }}>{item.validationMsg}</span>
                             ) : (
-                              <span style={{ color: T.success, fontWeight: '800', fontSize: '0.68rem' }}>✅ Ready</span>
+                              <span style={{ color: T.success, fontWeight: '800', fontSize: '0.68rem' }}>Ready</span>
                             )}
                           </td>
                         </tr>
@@ -1303,7 +1303,7 @@ export default function ExpenseMasterManagement({ masterData, setMasterData, use
                 {/* STRATEGY TOGGLE */}
                 <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
                   <label style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '800', display: 'block', marginBottom: '8px' }}>
-                    ⚙️ Metode Penggabungan Data:
+                    Metode Penggabungan Data:
                   </label>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '600' }}>

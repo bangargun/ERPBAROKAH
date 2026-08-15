@@ -144,7 +144,7 @@ export default function AdminLayout({
         type: 'pos_sale',
         icon: ShoppingCart,
         color: T.success,
-        title: `🛒 Transaksi POS Baru #${tx.id || (idx + 1)}`,
+        title: `Transaksi POS Baru #${tx.id || (idx + 1)}`,
         subtitle: `Total Rp ${(tx.amount || 0).toLocaleString('id-ID')} • ${tx.payment_method || 'Kasir'}`,
         time: tx.date || 'Baru saja',
         outlet: tx.branch_name || 'Outlet Restoran'
@@ -158,7 +158,7 @@ export default function AdminLayout({
         type: 'shift_close',
         icon: Clock,
         color: T.info,
-        title: `💵 Penutupan Shift Kasir (${cs.kasir_name || cs.cashier || 'Kasir'})`,
+        title: `Penutupan Shift Kasir (${cs.kasir_name || cs.cashier || 'Kasir'})`,
         subtitle: `Net Sales: Rp ${(cs.net_sales || cs.total_omzet || 0).toLocaleString('id-ID')}`,
         time: cs.date || 'Hari ini',
         outlet: cs.outlet_name || 'Outlet Restoran'
@@ -172,7 +172,7 @@ export default function AdminLayout({
         type: 'logistics',
         icon: CheckSquare,
         color: '#fbbf24',
-        title: `📦 Audit Stok / Pengajuan Logistik`,
+        title: `Audit Stok / Pengajuan Logistik`,
         subtitle: `Status: ${lg.status || 'Pending'} • ${lg.notes || 'Pencatatan Bahan'}`,
         time: lg.date || 'Baru saja',
         outlet: lg.outlet_name || 'Outlet Restoran'
@@ -361,7 +361,7 @@ export default function AdminLayout({
           {/* Greeting & Date */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, overflow: 'hidden', flex: 1 }}>
             <div style={{ fontSize: '0.94rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Selamat Datang, {userName} 🖐️
+              Selamat Datang, {userName} 
             </div>
             <span style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '600', paddingLeft: '10px', borderLeft: `1px solid ${T.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {todayFormatted}
@@ -391,9 +391,9 @@ export default function AdminLayout({
                   transition: 'all 0.15s ease'
                 }}
               >
-                <option value="dark" style={{ background: '#1e293b', color: '#f8fafc' }}>🌙 Mode Gelap (Dark)</option>
-                <option value="light" style={{ background: '#ffffff', color: '#0f172a' }}>☀️ Mode Terang (Light)</option>
-                <option value="warm_minimalist" style={{ background: '#faf8f5', color: '#143022' }}>🌿 Warm Minimalist (Forest & Amber)</option>
+                <option value="dark" style={{ background: '#1e293b', color: '#f8fafc' }}>Mode Gelap (Dark)</option>
+                <option value="light" style={{ background: '#ffffff', color: '#0f172a' }}>Mode Terang (Light)</option>
+                <option value="warm_minimalist" style={{ background: '#faf8f5', color: '#143022' }}>Warm Minimalist (Forest & Amber)</option>
               </select>
               <Palette size={14} color={isWarmMinimalist ? '#d97706' : (isLight ? '#d97706' : '#f59e0b')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             </div>
@@ -416,9 +416,9 @@ export default function AdminLayout({
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                 }}
               >
-                <option value="">🏢 Semua Restoran (Konsolidasi)</option>
+                <option value="">Semua Restoran (Konsolidasi)</option>
                 {outlets.map(o => (
-                  <option key={o.id} value={o.id}>📍 {o.name}</option>
+                  <option key={o.id} value={o.id}>{o.name}</option>
                 ))}
               </select>
               <ChevronDown size={14} color={T.txtSecondary} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -519,7 +519,7 @@ export default function AdminLayout({
                   <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                     {inboxNotifications.length === 0 ? (
                       <div style={{ padding: '32px', textAlign: 'center', color: T.txtMuted, fontSize: '0.82rem' }}>
-                        📥 Belum ada notifikasi transaksi POS baru.
+                        Belum ada notifikasi transaksi POS baru.
                       </div>
                     ) : (
                       inboxNotifications.map(n => {
@@ -579,9 +579,9 @@ export default function AdminLayout({
                                 {n.subtitle}
                               </div>
                               <div style={{ fontSize: '0.68rem', color: T.txtMuted, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span>📍 {n.outlet}</span>
+                                <span>{n.outlet}</span>
                                 <span>•</span>
-                                <span>⏱️ {n.time}</span>
+                                <span>{n.time}</span>
                               </div>
                             </div>
                             {!isRead && (

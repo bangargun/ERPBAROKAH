@@ -94,7 +94,7 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
             </div>
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🏷️ Kategori Menu: {category.name}</span>
+                <span>Kategori Menu: {category.name}</span>
                 <span style={{ fontSize: '0.74rem', fontWeight: '800', background: T.accentGoldBg, color: T.accentGold, padding: '3px 10px', borderRadius: '8px', border: `1px solid ${T.accentGoldBorder}` }}>
                   Kode: {category.code || `CAT-00${category.id}`}
                 </span>
@@ -102,7 +102,7 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
               <div style={{ fontSize: '0.82rem', color: T.txtSecondary, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span>Total Menu Terhubung: <strong style={{ color: T.info }}>{connectedProducts.length} Menu</strong></span>
                 <span>•</span>
-                <span>Status Kategori: <strong style={{ color: T.success }}>🟢 {category.status || 'Aktif'}</strong></span>
+                <span>Status Kategori: <strong style={{ color: T.success }}>{category.status || 'Aktif'}</strong></span>
               </div>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
                 onChange={e => setFilterOutlet(e.target.value)}
                 style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="Semua Outlet">🏬 Semua Outlet Cabang</option>
+                <option value="Semua Outlet">Semua Outlet Cabang</option>
                 {outletsList.map((o, idx) => (
                   <option key={idx} value={o.name}>{o.name}</option>
                 ))}
@@ -147,7 +147,7 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
                 onChange={e => setFilterMonthYear(e.target.value)}
                 style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="Semua Bulan & Tahun">📅 Semua Waktu</option>
+                <option value="Semua Bulan & Tahun">Semua Waktu</option>
                 <option value="Juli 2026">Juli 2026</option>
                 <option value="Juni 2026">Juni 2026</option>
                 <option value="Mei 2026">Mei 2026</option>
@@ -274,10 +274,10 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
                         {row.receipt_no}
                       </td>
                       <td style={{ padding: '12px 14px', fontWeight: '700', color: T.txtPrimary }}>
-                        🏬 {row.outlet_name}
+                        {row.outlet_name}
                       </td>
                       <td style={{ padding: '12px 14px', color: T.accentGold, fontWeight: '800' }}>
-                        🍽️ {row.item_name}
+                        {row.item_name}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: T.success }}>
                         {row.qty} Porsi
@@ -290,11 +290,11 @@ export default function CategoryAnalyticsDetailModal({ category, masterData, onC
                       </td>
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{ background: T.warningBg, padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', color: T.warning, fontWeight: '700', border: `1px solid ${T.warningBorder}` }}>
-                          💳 {row.payment_method}
+                          {row.payment_method}
                         </span>
                       </td>
                       <td style={{ padding: '12px 14px', color: T.txtMuted }}>
-                        👤 {row.cashier}
+                        {row.cashier}
                       </td>
                     </tr>
                   ))

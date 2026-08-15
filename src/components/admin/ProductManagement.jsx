@@ -693,7 +693,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               }}
             >
               <FileSpreadsheet size={16} />
-              <span>📥 Template & Upload Excel</span>
+              <span>Template & Upload Excel</span>
             </button>
 
             {/* Teal Add Product Button (PROMINENT & CLEAR) */}
@@ -759,9 +759,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
             }}
           >
             <option value="Semua">Semua Status</option>
-            <option value="Aktif">🟢 Aktif</option>
-            <option value="Inaktif">🔴 Inaktif</option>
-            <option value="Hide">👁️ Hide (Sembunyi)</option>
+            <option value="Aktif">Aktif</option>
+            <option value="Inaktif">Inaktif</option>
+            <option value="Hide">Hide (Sembunyi)</option>
           </select>
 
           {/* Outlet Filter Dropdown */}
@@ -782,7 +782,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               cursor: 'pointer'
             }}
           >
-            <option value="Semua">🏬 Semua Outlet</option>
+            <option value="Semua">Semua Outlet</option>
             {(masterData.outlets || []).map(otl => (
               <option key={otl.id} value={String(otl.id)}>
                 {otl.name}
@@ -829,8 +829,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
             }}
             title="Arah urutan"
           >
-            <option value="asc">⬆️ Naik (A-Z / Kecil-Besar)</option>
-            <option value="desc">⬇️ Turun (Z-A / Besar-Kecil)</option>
+            <option value="asc">⬆Naik (A-Z / Kecil-Besar)</option>
+            <option value="desc">⬇Turun (Z-A / Besar-Kecil)</option>
           </select>
         </div>
 
@@ -957,7 +957,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         {outletNameHeader && (
                           <div style={{ marginTop: '3px' }}>
                             <span style={{ background: T.cardBg2, color: T.txtSecondary, border: `1px solid ${T.border}`, padding: '1px 6px', borderRadius: '4px', fontSize: '0.62rem', fontWeight: '700' }}>
-                              🏢 {outletNameHeader}
+                              {outletNameHeader}
                             </span>
                           </div>
                         )}
@@ -1275,9 +1275,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       fontSize: '0.85rem'
                     }}
                   >
-                    <option value="dapur">🍳 Struk Dapur (Koki)</option>
-                    <option value="bar">🍹 Struk Bar (Bartender)</option>
-                    <option value="keduanya">🍳🍹 Keduanya (Dapur & Bar)</option>
+                    <option value="dapur">Struk Dapur (Koki)</option>
+                    <option value="bar">Struk Bar (Bartender)</option>
+                    <option value="keduanya">Keduanya (Dapur & Bar)</option>
                   </select>
                 </div>
 
@@ -1299,9 +1299,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       fontSize: '0.85rem'
                     }}
                   >
-                    <option value="Aktif">🟢 Aktif</option>
-                    <option value="Inaktif">🔴 Inaktif</option>
-                    <option value="Hide">👁️ Hide (Disembunyikan dari POS)</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Inaktif">Inaktif</option>
+                    <option value="Hide">Hide (Disembunyikan dari POS)</option>
                   </select>
                 </div>
               </div>
@@ -1457,7 +1457,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
               <div style={{ border: `1px solid ${T.border}`, borderRadius: '12px', padding: '16px', background: T.cardBg2 }}>
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary }}>
-                    🏢 Outlet Cabang & Harga Menu
+                    Outlet Cabang & Harga Menu
                   </div>
                   <div style={{ fontSize: '0.75rem', color: T.txtSecondary }}>
                     Pilih 1 outlet cabang tempat menu ini dijual (1 Menu Khusus 1 Outlet).
@@ -1526,7 +1526,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   {/* Status di POS Kasir APK */}
                   <div>
                     <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                      📱 Status di POS Kasir APK:
+                      Status di POS Kasir APK:
                     </label>
                     <select
                       value={outletApkStatus[selectedOutletIds[0]] || 'Aktif'}
@@ -1546,8 +1546,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         fontWeight: '800'
                       }}
                     >
-                      <option value="Aktif">🟢 Aktif (Tampil di POS Kasir)</option>
-                      <option value="Inaktif">🔴 Inaktif (Sembunyikan dari POS Kasir)</option>
+                      <option value="Aktif">Aktif (Tampil di POS Kasir)</option>
+                      <option value="Inaktif">Inaktif (Sembunyikan dari POS Kasir)</option>
                     </select>
                   </div>
                 </div>
@@ -1798,7 +1798,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               const tagColor = apkSt === 'Inaktif' ? T.danger : T.success;
                               return (
                                 <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
-                                  {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(variantPrices[vName]?.[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
+                                  {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(variantPrices[vName]?.[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? 'Sembunyi POS' : 'Tampil POS'})</span>
                                 </span>
                               );
                             })
@@ -1815,7 +1815,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                           const tagColor = apkSt === 'Inaktif' ? T.danger : T.success;
                           return (
                             <span key={oid} style={{ marginRight: '10px', display: 'inline-block' }}>
-                              {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(standardPrices[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? '🔴 Sembunyi POS' : '🟢 Tampil POS'})</span>
+                              {oObj ? oObj.name : `Outlet #${oid}`}: <strong>{formatRupiah(standardPrices[oid] || 0)}</strong> <span style={{ color: tagColor, fontSize: '0.72rem', fontWeight: '800' }}>({apkSt === 'Inaktif' ? 'Sembunyi POS' : 'Tampil POS'})</span>
                             </span>
                           );
                         })

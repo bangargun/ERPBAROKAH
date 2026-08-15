@@ -27,10 +27,10 @@ export default function UnitManagement({ masterData, setMasterData, userSession,
   const [status, setStatus] = useState('Aktif');
 
   const culinaryCategoryOptions = [
-    { value: 'Berat / Bobot', label: '⚖️ Berat / Bobot (Kg, Gram, Ounces)', color: T.info },
-    { value: 'Volume / Cairan', label: '🧪 Volume / Cairan (Liter, Milliliter, Gallon)', color: T.success },
-    { value: 'Kuantitas / Hitungan', label: '🔢 Kuantitas / Hitungan (Pieces, Porsi, Butir)', color: T.accentGreen },
-    { value: 'Kemasan / Wadah', label: '📦 Kemasan / Wadah (Botol, Kaleng, Box, Pack)', color: T.warning }
+    { value: 'Berat / Bobot', label: 'Berat / Bobot (Kg, Gram, Ounces)', color: T.info },
+    { value: 'Volume / Cairan', label: 'Volume / Cairan (Liter, Milliliter, Gallon)', color: T.success },
+    { value: 'Kuantitas / Hitungan', label: 'Kuantitas / Hitungan (Pieces, Porsi, Butir)', color: T.accentGreen },
+    { value: 'Kemasan / Wadah', label: 'Kemasan / Wadah (Botol, Kaleng, Box, Pack)', color: T.warning }
   ];
 
   // Helper to generate next sequential Unit Code (UNT-001, UNT-002)
@@ -263,18 +263,18 @@ export default function UnitManagement({ masterData, setMasterData, userSession,
             onChange={e => setSortField(e.target.value)}
             style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
           >
-            <option value="code">🔢 Kode Unit</option>
-            <option value="name">🏷️ Nama Satuan</option>
-            <option value="symbol">🔤 Simbol Unit</option>
-            <option value="category">⚖️ Kategori F&B</option>
-            <option value="status">🟢 Status</option>
+            <option value="code">Kode Unit</option>
+            <option value="name">Nama Satuan</option>
+            <option value="symbol">Simbol Unit</option>
+            <option value="category">Kategori F&B</option>
+            <option value="status">Status</option>
           </select>
           <button
             type="button"
             onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
             style={{ padding: '5px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
           >
-            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+            {sortDirection === 'asc' ? 'Naik' : 'Turun'}
           </button>
         </div>
       </div>

@@ -140,7 +140,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
   const handleDeletePermission = (idx) => {
     const roleTarget = permissionMatrix[idx]?.role;
     if (roleTarget === 'Super Admin' || roleTarget === 'Owner' || roleTarget === 'Super Admin / Owner') {
-      alert('⚠️ Peran Super Admin dan Owner tidak boleh dihapus demi keamanan sistem!');
+      alert('Peran Super Admin dan Owner tidak boleh dihapus demi keamanan sistem!');
       return;
     }
     if (window.confirm(`Apakah Anda yakin ingin menghapus matriks hak akses untuk peran "${roleTarget}"?`)) {
@@ -162,7 +162,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
   const handleTogglePermissionAction = (idx, moduleKey, actionType) => {
     const targetRole = permissionMatrix[idx]?.role;
     if (targetRole === 'Super Admin' || targetRole === 'Owner' || targetRole === 'Super Admin / Owner') {
-      alert('🔒 Peran Super Admin / Owner dikunci dengan hak akses penuh 100% (View, Edit, Delete).');
+      alert('Peran Super Admin / Owner dikunci dengan hak akses penuh 100% (View, Edit, Delete).');
       return;
     }
 
@@ -835,7 +835,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
           }}
         >
           <Users size={16} color={T.info} />
-          <span>👤 Hak User</span>
+          <span>Hak User</span>
         </button>
       </div>
 
@@ -880,14 +880,14 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                 <thead>
                   <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtLabel, fontWeight: '800', fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
                     <th style={{ padding: '10px 8px', width: '17%' }}>Peran (User Role)</th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📊 Dashboard<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '11%' }}>🗂️ Master Data<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📖 Biaya<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📦 Stok<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>✅ Approval<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📈 Laporan<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>📜 Kebijakan<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
-                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>⚙️ Setting<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Dashboard<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '11%' }}>Master Data<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Biaya<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Stok<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Approval<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Laporan<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Kebijakan<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
+                    <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%' }}>Setting<br/><span style={{ fontSize: '0.58rem', color: T.txtSecondary }}>[V · E · D]</span></th>
                     <th style={{ padding: '8px 4px', textAlign: 'center', width: '8%' }}>Aksi</th>
                   </tr>
                 </thead>
@@ -912,7 +912,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ border: 'none', background: mObj.view ? T.infoBg : 'transparent', color: mObj.view ? T.info : T.txtSecondary, cursor: 'pointer', padding: '1px 3px', borderRadius: '3px', fontSize: '0.68rem', fontWeight: '800' }}
                             title="Akses Lihat / View"
                           >
-                            👁️
+                            
                           </button>
                           <button
                             type="button"
@@ -920,7 +920,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ border: 'none', background: mObj.edit ? T.warningBg : 'transparent', color: mObj.edit ? T.warning : T.txtSecondary, cursor: 'pointer', padding: '1px 3px', borderRadius: '3px', fontSize: '0.68rem', fontWeight: '800' }}
                             title="Akses Tambah & Ubah / Edit"
                           >
-                            ✏️
+                            
                           </button>
                           <button
                             type="button"
@@ -928,7 +928,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ border: 'none', background: mObj.delete ? T.dangerBg : 'transparent', color: mObj.delete ? T.danger : T.txtSecondary, cursor: 'pointer', padding: '1px 3px', borderRadius: '3px', fontSize: '0.68rem', fontWeight: '800' }}
                             title="Akses Hapus / Delete"
                           >
-                            🗑️
+                            
                           </button>
                         </div>
                       );
@@ -938,7 +938,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                       <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                         <td style={{ padding: '8px 8px', fontWeight: '800', color: T.info, fontSize: '0.76rem' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: T.infoBg, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontSize: '0.72rem' }}>
-                            {isSuper ? '👑' : '👤'} {pm.role}
+                            {isSuper ? '' : ''} {pm.role}
                           </span>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>{renderActionButtons('dashboard', true)}</td>
@@ -980,10 +980,10 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
             {/* KETERANGAN LEGENDA MATRIKS */}
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '0.72rem', color: T.txtSecondary, background: T.cardBg2, padding: '8px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}` }}>
-              <span style={{ fontWeight: '800', color: T.txtPrimary }}>💡 Legenda Hak Akses:</span>
-              <span><strong>👁️ View</strong>: Hanya Buka &amp; Lihat Halaman</span>
-              <span><strong>✏️ Edit</strong>: Tambah &amp; Edit Data</span>
-              <span><strong>🗑️ Delete</strong>: Munculkan Tombol Hapus Data</span>
+              <span style={{ fontWeight: '800', color: T.txtPrimary }}>Legenda Hak Akses:</span>
+              <span><strong>View</strong>: Hanya Buka &amp; Lihat Halaman</span>
+              <span><strong>Edit</strong>: Tambah &amp; Edit Data</span>
+              <span><strong>Delete</strong>: Munculkan Tombol Hapus Data</span>
               <span style={{ marginLeft: 'auto', color: T.info, fontWeight: '700' }}>* Super Admin dapat mengklik ikon langsung di tabel untuk mengubah izin</span>
             </div>
 
@@ -1028,81 +1028,81 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                         
                         {/* 1. DASHBOARD */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📊 Dashboard Utama</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Dashboard Utama</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.view} onChange={e => setPermDashboard(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.edit} onChange={e => setPermDashboard(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.delete} onChange={e => setPermDashboard(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.view} onChange={e => setPermDashboard(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.edit} onChange={e => setPermDashboard(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permDashboard.delete} onChange={e => setPermDashboard(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
                         {/* 2. MASTER DATA */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>🗂️ Data Master (Menu/Harga)</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Data Master (Menu/Harga)</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.view} onChange={e => setPermMasterData(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.edit} onChange={e => setPermMasterData(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.delete} onChange={e => setPermMasterData(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.view} onChange={e => setPermMasterData(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.edit} onChange={e => setPermMasterData(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permMasterData.delete} onChange={e => setPermMasterData(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
                         {/* 3. BIAYA / AKUNTANSI */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📖 Biaya &amp; Akuntansi</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Biaya &amp; Akuntansi</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.view} onChange={e => setPermCosts(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.edit} onChange={e => setPermCosts(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.delete} onChange={e => setPermCosts(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.view} onChange={e => setPermCosts(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.edit} onChange={e => setPermCosts(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permCosts.delete} onChange={e => setPermCosts(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
                         {/* 4. STOK OPNAME */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📦 Stok Opname &amp; Bahan</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Stok Opname &amp; Bahan</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.view} onChange={e => setPermStock(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.edit} onChange={e => setPermStock(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.delete} onChange={e => setPermStock(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.view} onChange={e => setPermStock(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.edit} onChange={e => setPermStock(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permStock.delete} onChange={e => setPermStock(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
                         {/* 5. APPROVAL TRANSAKSI */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>✅ Approval Transaksi</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Approval Transaksi</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.view} onChange={e => setPermApproved(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.edit} onChange={e => setPermApproved(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.delete} onChange={e => setPermApproved(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.view} onChange={e => setPermApproved(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.edit} onChange={e => setPermApproved(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permApproved.delete} onChange={e => setPermApproved(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
                         {/* 6. LAPORAN KEUANGAN */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📈 Laporan Keuangan</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Laporan Keuangan</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.view} onChange={e => setPermReports(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.edit} onChange={e => setPermReports(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.delete} onChange={e => setPermReports(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.view} onChange={e => setPermReports(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.edit} onChange={e => setPermReports(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permReports.delete} onChange={e => setPermReports(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
                         {/* 7. KEBIJAKAN SOP */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>📜 Kebijakan SOP</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Kebijakan SOP</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.view} onChange={e => setPermPolicies(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.edit} onChange={e => setPermPolicies(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.delete} onChange={e => setPermPolicies(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.view} onChange={e => setPermPolicies(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.edit} onChange={e => setPermPolicies(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permPolicies.delete} onChange={e => setPermPolicies(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
                         {/* 8. PENGATURAN SISTEM */}
                         <div style={{ background: T.cardBg2, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>⚙️ Pengaturan Sistem</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>Pengaturan Sistem</span>
                           <div style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.view} onChange={e => setPermSettings(p => ({ ...p, view: e.target.checked }))} /> 👁️ View</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.edit} onChange={e => setPermSettings(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> ✏️ Edit</label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.delete} onChange={e => setPermSettings(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> 🗑️ Delete</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.view} onChange={e => setPermSettings(p => ({ ...p, view: e.target.checked }))} /> View</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.edit} onChange={e => setPermSettings(p => ({ ...p, edit: e.target.checked, view: e.target.checked || p.view }))} /> Edit</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}><input type="checkbox" checked={permSettings.delete} onChange={e => setPermSettings(p => ({ ...p, delete: e.target.checked, view: e.target.checked || p.view }))} /> Delete</label>
                           </div>
                         </div>
 
@@ -1122,7 +1122,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                         className="btn-primary"
                         style={{ padding: '8px 18px', borderRadius: '8px', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}
                       >
-                        💾 Simpan Matriks Wewenang
+                        Simpan Matriks Wewenang
                       </button>
                     </div>
                   </form>
@@ -1135,7 +1135,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '12px' }}>
                 <div>
                   <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.info, display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                    📱 Permission Matrix Mobile APK - Hak Akses &amp; Wewenang Tablet POS
+                    Permission Matrix Mobile APK - Hak Akses &amp; Wewenang Tablet POS
                   </h3>
                   <p style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px', margin: 0 }}>
                     Atur izin akses wewenang operasional kasir, void order, diskon manual, stok opname, dan laporan pada Aplikasi Mobile APK.
@@ -1180,7 +1180,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Shift</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '7%' }}>Reservasi</th>
                       <th style={{ padding: '8px 2px', textAlign: 'center', width: '6%' }}>Printer</th>
-                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%', color: T.info }}>🔑 Pass Laporan</th>
+                      <th style={{ padding: '8px 2px', textAlign: 'center', width: '10%', color: T.info }}>Pass Laporan</th>
                       <th style={{ padding: '8px 4px', textAlign: 'center', width: '6%' }}>Aksi</th>
                     </tr>
                   </thead>
@@ -1189,7 +1189,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                       <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                         <td style={{ padding: '6px 6px', fontWeight: '800', color: T.info, fontSize: '0.74rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: T.infoBg, padding: '2px 6px', borderRadius: '5px', border: `1px solid ${T.infoBorder}`, fontSize: '0.70rem' }}>
-                            📱 {pm.role}
+                            {pm.role}
                           </span>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1199,7 +1199,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Buka POS / Kasir"
                           >
-                            {pm.posCashier ? '✅' : '❌'}
+                            {pm.posCashier ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1209,7 +1209,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Void / Batal Order"
                           >
-                            {pm.voidOrder ? '✅' : '❌'}
+                            {pm.voidOrder ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1219,7 +1219,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Diskon Manual"
                           >
-                            {pm.manualDiscount ? '✅' : '❌'}
+                            {pm.manualDiscount ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1229,7 +1229,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Stok Opname Mobile"
                           >
-                            {pm.stockOpname ? '✅' : '❌'}
+                            {pm.stockOpname ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1239,7 +1239,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Terima Barang (GR)"
                           >
-                            {pm.receiveGoods ? '✅' : '❌'}
+                            {pm.receiveGoods ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1249,7 +1249,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Transfer Stok Out & Retur"
                           >
-                            {pm.stockTransferOut ? '✅' : '❌'}
+                            {pm.stockTransferOut ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1259,7 +1259,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Laporan Mobile"
                           >
-                            {pm.mobileReports ? '✅' : '❌'}
+                            {pm.mobileReports ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1269,7 +1269,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Penutupan Shift"
                           >
-                            {pm.shiftClosing ? '✅' : '❌'}
+                            {pm.shiftClosing ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1279,7 +1279,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Reservasi Meja"
                           >
-                            {pm.reservations ? '✅' : '❌'}
+                            {pm.reservations ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1289,7 +1289,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.90rem' }}
                             title="Klik untuk ubah akses Setting Printer Thermal"
                           >
-                            {pm.printerSetting ? '✅' : '❌'}
+                            {pm.printerSetting ? '' : ''}
                           </button>
                         </td>
                         <td style={{ padding: '6px 2px', textAlign: 'center' }}>
@@ -1343,7 +1343,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   <div style={{ background: T.cardBg, border: `1px solid ${T.info}`, borderRadius: '16px', width: '100%', maxWidth: '620px', padding: '24px', boxShadow: T.shadowLg, display: 'flex', flexDirection: 'column', gap: '18px' }} className="animate-scale-up">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '14px' }}>
                       <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: T.info, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                        📱 <span>{editingMobilePermissionIndex !== null ? 'Edit Permission Mobile APK Peran' : 'Tambah Permission Mobile APK Baru'}</span>
+                        <span>{editingMobilePermissionIndex !== null ? 'Edit Permission Mobile APK Peran' : 'Tambah Permission Mobile APK Baru'}</span>
                       </h3>
                       <button
                         type="button"
@@ -1376,52 +1376,52 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobilePosCashier} onChange={e => setNewMobilePosCashier(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>🏪 Buka POS / Kasir</span>
+                            <span>Buka POS / Kasir</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileVoidOrder} onChange={e => setNewMobileVoidOrder(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>🚫 Void / Batal Order</span>
+                            <span>Void / Batal Order</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileManualDiscount} onChange={e => setNewMobileManualDiscount(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>🏷️ Diskon Manual &amp; Promo</span>
+                            <span>Diskon Manual &amp; Promo</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileStockOpname} onChange={e => setNewMobileStockOpname(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>📦 Stok Opname Mobile</span>
+                            <span>Stok Opname Mobile</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileReceiveGoods} onChange={e => setNewMobileReceiveGoods(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>🚚 Terima Barang (GR / Trf In)</span>
+                            <span>Terima Barang (GR / Trf In)</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileStockTransferOut} onChange={e => setNewMobileStockTransferOut(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>📤 Transfer Stok Out &amp; Retur</span>
+                            <span>Transfer Stok Out &amp; Retur</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileReports} onChange={e => setNewMobileReports(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>🔒 Laporan Omset &amp; Mobile</span>
+                            <span>Laporan Omset &amp; Mobile</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileShiftClosing} onChange={e => setNewMobileShiftClosing(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>🧾 Penutupan Shift Kasir</span>
+                            <span>Penutupan Shift Kasir</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobileReservations} onChange={e => setNewMobileReservations(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>📅 Reservasi &amp; Booking Meja</span>
+                            <span>Reservasi &amp; Booking Meja</span>
                           </label>
 
                           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg2, padding: '10px 12px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, cursor: 'pointer', fontSize: '0.82rem', color: T.txtLabel }}>
                             <input type="checkbox" checked={newMobilePrinterSetting} onChange={e => setNewMobilePrinterSetting(e.target.checked)} style={{ accentColor: T.info, width: '16px', height: '16px' }} />
-                            <span>🖨️ Setting Printer Thermal</span>
+                            <span>Setting Printer Thermal</span>
                           </label>
                         </div>
                       </div>
@@ -1438,7 +1438,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                           type="submit"
                           style={{ padding: '10px 22px', background: T.primaryBtn, color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', cursor: 'pointer' }}
                         >
-                          💾 Simpan Permission Mobile APK
+                          Simpan Permission Mobile APK
                         </button>
                       </div>
                     </form>
@@ -1489,7 +1489,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   {/* PILIH OUTLET DARI DATA MASTER */}
                   <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.borderStrong}` }}>
                     <label style={{ fontSize: '0.82rem', fontWeight: '800', color: T.info, display: 'block', marginBottom: '6px' }}>
-                      🏢 Pilih Outlet Cabang (Data Master):
+                      Pilih Outlet Cabang (Data Master):
                     </label>
                     <select
                       value={selectedOutletIdForPrint}
@@ -1545,7 +1545,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   {/* EDITABLE TEKS HEADER STRUK PEMBAYARAN */}
                   <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <label style={{ fontSize: '0.82rem', color: T.info, fontWeight: '800', display: 'block' }}>
-                      ✏️ Edit Teks Header Struk Pembayaran (Live Preview):
+                      Edit Teks Header Struk Pembayaran (Live Preview):
                     </label>
                     <div>
                       <span style={{ fontSize: '0.76rem', color: T.txtLabel, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
@@ -1576,7 +1576,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   {/* EDITABLE TEKS FOOTER STRUK */}
                   <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <label style={{ fontSize: '0.82rem', color: T.info, fontWeight: '800', display: 'block' }}>
-                      ✏️ Edit Teks Footer Struk Pembayaran (Live Preview):
+                      Edit Teks Footer Struk Pembayaran (Live Preview):
                     </label>
                     <textarea
                       rows={3}
@@ -1601,7 +1601,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                           footerText: customFooterText.trim()
                         }
                       }));
-                      alert('✅ Template Teks Header & Footer Struk Thermal Berhasil Disimpan!');
+                      alert('Template Teks Header & Footer Struk Thermal Berhasil Disimpan!');
                     }}
                     style={{
                       padding: '12px 20px',
@@ -1620,7 +1620,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                     }}
                   >
                     <Printer size={16} />
-                    <span>💾 Simpan Template Struk Thermal</span>
+                    <span>Simpan Template Struk Thermal</span>
                   </button>
 
                 </div>
@@ -1638,7 +1638,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   gap: '8px'
                 }}>
                   <div style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.05em' }}>
-                    📱 PREVIEW STRUK THERMAL HASIL CETAK
+                    PREVIEW STRUK THERMAL HASIL CETAK
                   </div>
 
                   {/* HEADER STRUK DENGAN FORMAT PERSYARATAN LENGKAP */}
@@ -1731,7 +1731,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
                 <span style={{ color: T.txtSecondary }}>Enkripsi Database Lokal APK:</span>
-                <strong style={{ color: T.success }}>✓ AES-256 Enabled</strong>
+                <strong style={{ color: T.success }}>AES-256 Enabled</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
                 <span style={{ color: T.txtSecondary }}>Pemindaian Keamanan Terakhir:</span>
@@ -1775,7 +1775,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                 <div>
                   <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.success, display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
                     <Smartphone size={18} />
-                    <span>📱 Hak User POS Mobile</span>
+                    <span>Hak User POS Mobile</span>
                   </h3>
                   <p style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '2px', margin: 0 }}>
                     Kelola otentikasi akun pengguna Aplikasi Kasir Mobile (Akses Transaksi, Shift, Void &amp; Laporan POS Mobile)
@@ -1803,7 +1803,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                     title="Super Admin: Tampilkan atau sembunyikan seluruh password akun user sekaligus"
                   >
                     {showAllPasswords ? <EyeOff size={15} /> : <Eye size={15} />}
-                    <span>{showAllPasswords ? '🙈 Sembunyikan Password' : '👁️ Tampilkan Semua Password'}</span>
+                    <span>{showAllPasswords ? 'Sembunyikan Password' : 'Tampilkan Semua Password'}</span>
                   </button>
 
                   <button
@@ -1826,7 +1826,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                     title="Tambah otentikasi akun pengguna baru khusus untuk akses Aplikasi Kasir (Mobile APK)"
                   >
                     <Plus size={15} />
-                    <span>📱 + Tambah User Mobile Kasir</span>
+                    <span>+ Tambah User Mobile Kasir</span>
                   </button>
                 </div>
               </div>
@@ -1844,7 +1844,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
               }}>
                 <div>
                   <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                    🔍 Cari Nama / Username / Peran:
+                    Cari Nama / Username / Peran:
                   </label>
                   <input
                     type="text"
@@ -1857,7 +1857,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
                 <div>
                   <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                    🏢 Filter Outlet Cabang:
+                    Filter Outlet Cabang:
                   </label>
                   <select
                     value={userFilterOutlet}
@@ -1874,7 +1874,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
                 <div>
                   <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                    👑 Filter Peran (Role):
+                    Filter Peran (Role):
                   </label>
                   <select
                     value={userFilterRole}
@@ -1890,7 +1890,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
 
                 <div>
                   <label style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700', display: 'block', marginBottom: '4px' }}>
-                    🟢 Filter Status Akun:
+                    Filter Status Akun:
                   </label>
                   <select
                     value={userFilterStatus}
@@ -1898,13 +1898,13 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
                   >
                     <option value="Semua Status">Semua Status</option>
-                    <option value="Aktif">🟢 Aktif</option>
-                    <option value="Inaktif">🔴 Inaktif</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Inaktif">Inaktif</option>
                   </select>
                 </div>
               </div>
 
-              {/* TABEL 📱 HAK USER POS MOBILE */}
+              {/* TABEL HAK USER POS MOBILE */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '12px', overflowX: 'auto', background: T.cardBg2, width: '100%' }}>
                   <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.72rem' }}>
@@ -1946,7 +1946,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     <span style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '900' }}>{u.name}</span>
-                                    <span style={{ fontSize: '0.66rem', color: T.info, fontWeight: '700' }}>🔍 Klik Preview Detail</span>
+                                    <span style={{ fontSize: '0.66rem', color: T.info, fontWeight: '700' }}>Klik Preview Detail</span>
                                   </div>
                                 </div>
                               </td>
@@ -1977,7 +1977,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                                     cursor: 'pointer'
                                   }}
                                 >
-                                  {u.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
+                                  {u.status === 'Aktif' ? 'Aktif' : 'Inaktif'}
                                 </button>
                               </td>
                               <td style={{ padding: '8px 4px', textAlign: 'center' }}>
@@ -2051,7 +2051,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '14px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Users size={22} color={T.info} />
-                <span>{editingUserId ? '✏️ Edit Hak User Pengguna' : '➕ Tambah User Pengguna Baru'}</span>
+                <span>{editingUserId ? 'Edit Hak User Pengguna' : 'Tambah User Pengguna Baru'}</span>
               </h3>
               <button
                 type="button"
@@ -2163,8 +2163,8 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                     onChange={e => setNewUserStatus(e.target.value)}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}
                   >
-                    <option value="Aktif">🟢 Aktif</option>
-                    <option value="Inaktif">🔴 Inaktif</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Inaktif">Inaktif</option>
                   </select>
                 </div>
               </div>
@@ -2184,7 +2184,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   className="btn-primary"
                   style={{ padding: '10px 22px', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem' }}
                 >
-                  {editingUserId ? 'Simpan Perubahan' : '➕ Tambahkan User'}
+                  {editingUserId ? 'Simpan Perubahan' : 'Tambahkan User'}
                 </button>
               </div>
             </form>
@@ -2205,8 +2205,8 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: `1px solid ${T.borderStrong}`, paddingBottom: '14px' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.3rem' }}>📱</span>
-                <span>{editingMobileId ? '✏️ Edit Akun POS Mobile APK' : '➕ Tambah Akun POS Mobile APK'}</span>
+                <span style={{ fontSize: '1.3rem' }}></span>
+                <span>{editingMobileId ? 'Edit Akun POS Mobile APK' : 'Tambah Akun POS Mobile APK'}</span>
               </h3>
               <button type="button" onClick={() => setShowAddMobileModal(false)}
                 style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
@@ -2267,8 +2267,8 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'block', marginBottom: '6px' }}>Status Akun:</label>
                   <select value={newMobileStatus2} onChange={e => setNewMobileStatus2(e.target.value)}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.88rem', cursor: 'pointer' }}>
-                    <option value="Aktif">🟢 Aktif</option>
-                    <option value="Inaktif">🔴 Inaktif</option>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Inaktif">Inaktif</option>
                   </select>
                 </div>
               </div>
@@ -2278,7 +2278,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                 <label style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtLabel, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={newMobileCanReport} onChange={e => setNewMobileCanReport(e.target.checked)}
                     style={{ width: '16px', height: '16px', accentColor: T.accentGold }} />
-                  <span>🔒 Boleh Akses Laporan Mobile APK</span>
+                  <span>Boleh Akses Laporan Mobile APK</span>
                 </label>
                 {newMobileCanReport && (
                   <div>
@@ -2297,7 +2297,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                 </button>
                 <button type="submit"
                   style={{ padding: '10px 22px', borderRadius: '10px', fontWeight: '800', fontSize: '0.85rem', background: T.primaryBtn, border: 'none', color: '#fff', cursor: 'pointer' }}>
-                  {editingMobileId ? 'Simpan Perubahan' : '➕ Tambahkan Akun Mobile'}
+                  {editingMobileId ? 'Simpan Perubahan' : 'Tambahkan Akun Mobile'}
                 </button>
               </div>
             </form>
@@ -2322,7 +2322,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                     {previewUserAccount.name}
                   </h3>
                   <span style={{ fontSize: '0.74rem', color: T.txtSecondary }}>
-                    📍 {previewUserAccount.outlet || 'Semua Outlet (Central)'}
+                    {previewUserAccount.outlet || 'Semua Outlet (Central)'}
                   </span>
                 </div>
               </div>
@@ -2338,14 +2338,14 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.cardBg2, padding: '10px 14px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
                 <span style={{ color: T.txtLabel, fontWeight: '700' }}>Status Operasional:</span>
                 <span style={{ fontWeight: '900', color: previewUserAccount.status === 'Aktif' ? T.success : T.danger }}>
-                  {previewUserAccount.status === 'Aktif' ? '🟢 Aktif' : '🔴 Inaktif'}
+                  {previewUserAccount.status === 'Aktif' ? 'Aktif' : 'Inaktif'}
                 </span>
               </div>
 
               {/* SECTION 1: WEB ADMIN ACCESS */}
               <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '14px', border: `1px solid ${T.infoBorder}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontWeight: '900', color: T.info, fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  💻 Detail Akun Web Based Admin
+                  Detail Akun Web Based Admin
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.txtSecondary }}>Username Web:</span>
@@ -2364,12 +2364,12 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
               {/* SECTION 2: MOBILE APK ACCESS */}
               <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '14px', border: `1px solid ${T.successBorder}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontWeight: '900', color: T.success, fontSize: '0.86rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📱 Detail Otentikasi POS Mobile APK (Tablet)
+                  Detail Otentikasi POS Mobile APK (Tablet)
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.txtSecondary }}>Akses Login Mobile:</span>
                   <span style={{ fontWeight: '800', color: previewUserAccount.canLoginMobile !== false ? T.success : T.danger }}>
-                    {previewUserAccount.canLoginMobile !== false ? '📱 ✅ Diberikan' : '📱 ❌ Dibatasi'}
+                    {previewUserAccount.canLoginMobile !== false ? 'Diberikan' : 'Dibatasi'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -2381,7 +2381,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: T.txtSecondary }}>Akses Laporan Mobile:</span>
                   <span style={{ fontWeight: '800', color: previewUserAccount.canAccessMobileReports !== false ? T.success : T.danger }}>
-                    {previewUserAccount.canAccessMobileReports !== false ? '🔒 ✅ Diberikan' : '🔒 ❌ Dibatasi'}
+                    {previewUserAccount.canAccessMobileReports !== false ? 'Diberikan' : 'Dibatasi'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>

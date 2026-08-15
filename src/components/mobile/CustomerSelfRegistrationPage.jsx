@@ -132,7 +132,7 @@ export default function CustomerSelfRegistrationPage({ masterData, setMasterData
                 {registeredSuccessData.name}
               </div>
               <div style={{ fontSize: '0.82rem', color: '#93c5fd', marginTop: '2px' }}>
-                📱 {registeredSuccessData.phone}
+                {registeredSuccessData.phone}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '20px', borderTop: '1px dashed rgba(255,255,255,0.2)', paddingTop: '12px' }}>
@@ -142,13 +142,13 @@ export default function CustomerSelfRegistrationPage({ masterData, setMasterData
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '0.68rem', color: '#cbd5e1' }}>Poin Bonus:</div>
-                  <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8' }}>⭐ {registeredSuccessData.points} Poin</div>
+                  <div style={{ fontSize: '1rem', fontWeight: '900', color: '#38bdf8' }}>{registeredSuccessData.points} Poin</div>
                 </div>
               </div>
             </div>
 
             <div style={{ background: '#0f172a', borderRadius: '12px', padding: '14px', border: '1px solid #334155', fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4, marginBottom: '20px' }}>
-              💡 Tunjukkan nomor HP <strong>{registeredSuccessData.phone}</strong> atau Kode <strong>{registeredSuccessData.code}</strong> kepada Kasir saat memesan untuk klaim poin & promo!
+              Tunjukkan nomor HP <strong>{registeredSuccessData.phone}</strong> atau Kode <strong>{registeredSuccessData.code}</strong> kepada Kasir saat memesan untuk klaim poin & promo!
             </div>
 
             <button
@@ -290,7 +290,7 @@ export default function CustomerSelfRegistrationPage({ masterData, setMasterData
                 letterSpacing: '0.3px'
               }}
             >
-              ✨ DAFTAR MEMBER SEKARANG
+              DAFTAR MEMBER SEKARANG
             </button>
           </form>
         )}

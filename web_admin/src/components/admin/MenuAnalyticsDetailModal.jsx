@@ -148,7 +148,7 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
                 onChange={e => setFilterOutlet(e.target.value)}
                 style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="Semua Outlet">🏬 Semua Outlet Cabang</option>
+                <option value="Semua Outlet">Semua Outlet Cabang</option>
                 {outletsList.map((o, idx) => (
                   <option key={idx} value={o.name}>{o.name}</option>
                 ))}
@@ -163,7 +163,7 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
                 onChange={e => setFilterMonthYear(e.target.value)}
                 style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="Semua Bulan & Tahun">📅 Semua Waktu</option>
+                <option value="Semua Bulan & Tahun">Semua Waktu</option>
                 <option value="Juli 2026">Juli 2026</option>
                 <option value="Juni 2026">Juni 2026</option>
                 <option value="Mei 2026">Mei 2026</option>
@@ -260,7 +260,7 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
                         {row.receipt_no}
                       </td>
                       <td style={{ padding: '12px 14px', fontWeight: '700', color: T.txtPrimary }}>
-                        🏬 {row.outlet_name}
+                        {row.outlet_name}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '900', color: T.success }}>
                         {row.qty} Porsi
@@ -273,11 +273,11 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
                       </td>
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{ background: T.accentGoldBg, padding: '3px 8px', borderRadius: '6px', fontSize: '0.74rem', color: T.accentGold, fontWeight: '700', border: `1px solid ${T.accentGoldBorder}` }}>
-                          💳 {row.payment_method}
+                          {row.payment_method}
                         </span>
                       </td>
                       <td style={{ padding: '12px 14px', color: T.txtSecondary }}>
-                        👤 {row.cashier}
+                        {row.cashier}
                       </td>
                     </tr>
                   ))

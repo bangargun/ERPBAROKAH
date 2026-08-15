@@ -351,14 +351,14 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
         {isLocked && (
           <div style={{ marginTop: '10px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', padding: '10px 14px', borderRadius: '10px', color: '#fca5a5', fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <AlertTriangle size={18} color="#ef4444" />
-            <span>🔒 LAPORAN TERKUNCI -- Laporan tanggal {entryDate} untuk outlet ini telah DISETUJUI (DONE) oleh Web Admin dan tidak dapat diubah lagi!</span>
+            <span>LAPORAN TERKUNCI -- Laporan tanggal {entryDate} untuk outlet ini telah DISETUJUI (DONE) oleh Web Admin dan tidak dapat diubah lagi!</span>
           </div>
         )}
 
         {isPendingEdit && (
           <div style={{ marginTop: '10px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', padding: '10px 14px', borderRadius: '10px', color: '#fcd34d', fontSize: '0.78rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FileEdit size={18} color="#f59e0b" />
-            <span>📝 MENGEDIT LAPORAN PENDING -- Sudah ada laporan berstatus Pending untuk tanggal {entryDate}. Mengirim ulang akan MEMPERBARUI laporan tersebut.</span>
+            <span>MENGEDIT LAPORAN PENDING -- Sudah ada laporan berstatus Pending untuk tanggal {entryDate}. Mengirim ulang akan MEMPERBARUI laporan tersebut.</span>
           </div>
         )}
       </div>
@@ -369,12 +369,12 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
         {/* 1. Tanggal & Kasir */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <div>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📅 Tanggal Shift *</label>
+            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Tanggal Shift *</label>
             <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="form-input" style={{ fontSize: '0.8rem', height: '36px' }} />
           </div>
 
           <div>
-            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>👤 Nama Kasir *</label>
+            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', display: 'block', marginBottom: '4px' }}>Nama Kasir *</label>
             <select value={cashierName} onChange={e => setCashierName(e.target.value)} className="form-select" style={{ fontSize: '0.8rem', height: '36px' }}>
               {adminList.map(a => (
                 <option key={a.id} value={a.name}>{a.name}</option>
@@ -399,7 +399,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
         {/* 3. Pengeluaran HPP Bahan Mentah (TERBUKA MINIMAL 5 FIELD) */}
         <div style={{ background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #fb7185', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fb7185' }}>📦 HPP Bahan Mentah (Min. 5 Field)</span>
+            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fb7185' }}>HPP Bahan Mentah (Min. 5 Field)</span>
             <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Subtotal: {formatRupiah(totalCogs)}</span>
           </div>
 
@@ -411,7 +411,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
                   <th style={{ padding: '4px', width: '55px' }}>Qty</th>
                   <th style={{ padding: '4px', textAlign: 'right', width: '90px' }}>Harga Satuan</th>
                   <th style={{ padding: '4px', textAlign: 'right', width: '95px' }}>Total HPP</th>
-                  <th style={{ padding: '4px', textAlign: 'center', width: '30px' }}>✕</th>
+                  <th style={{ padding: '4px', textAlign: 'center', width: '30px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -434,7 +434,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
                       {formatRupiah(r.amount)}
                     </td>
                     <td style={{ padding: '4px', textAlign: 'center' }}>
-                      <button onClick={() => handleRemoveCogsRow(r.id)} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}>✕</button>
+                      <button onClick={() => handleRemoveCogsRow(r.id)} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}></button>
                     </td>
                   </tr>
                 ))}
@@ -459,7 +459,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
         {/* 4. Biaya Operasional (TERBUKA MINIMAL 5 FIELD) */}
         <div style={{ background: '#0f172a', padding: '12px', borderRadius: '10px', border: '1px solid #38bdf8', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#38bdf8' }}>💵 Biaya Operasional (Min. 5 Field)</span>
+            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#38bdf8' }}>Biaya Operasional (Min. 5 Field)</span>
             <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Subtotal: {formatRupiah(totalExpenseOther)}</span>
           </div>
 
@@ -469,7 +469,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
                 <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155', textAlign: 'left' }}>
                   <th style={{ padding: '4px' }}>Nama Akun Biaya</th>
                   <th style={{ padding: '4px', textAlign: 'right', width: '120px' }}>Nominal (IDR)</th>
-                  <th style={{ padding: '4px', textAlign: 'center', width: '30px' }}>✕</th>
+                  <th style={{ padding: '4px', textAlign: 'center', width: '30px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -486,7 +486,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
                       <input type="number" value={r.amount} onChange={e => handleUpdateExpenseRow(r.id, 'amount', e.target.value)} className="form-input" style={{ height: '30px', fontSize: '0.75rem', textAlign: 'right', fontWeight: '700', color: '#fb7185', padding: '2px 4px' }} />
                     </td>
                     <td style={{ padding: '4px', textAlign: 'center' }}>
-                      <button onClick={() => handleRemoveExpenseRow(r.id)} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}>✕</button>
+                      <button onClick={() => handleRemoveExpenseRow(r.id)} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}></button>
                     </td>
                   </tr>
                 ))}
@@ -527,7 +527,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
 
           <div style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '10px', borderRadius: '8px', border: '1px solid #10b981', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '800', display: 'block' }}>💵 UANG DI LACI (FISIK KAS)</span>
+              <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: '800', display: 'block' }}>UANG DI LACI (FISIK KAS)</span>
               <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Fisik kas shift ditutup</span>
             </div>
             <div style={{ fontSize: '1.1rem', fontWeight: '900', color: '#34d399' }}>
@@ -554,7 +554,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
           }}
         >
           {isLocked ? <AlertTriangle size={16} /> : <Eye size={16} />}
-          <span>{isLocked ? '🔒 Laporan Terkunci (Approved/Done)' : (isPendingEdit ? '✏️ Perbarui Laporan Pending' : 'Lihat Pratinjau (Preview) & Simpan')}</span>
+          <span>{isLocked ? 'Laporan Terkunci (Approved/Done)' : (isPendingEdit ? 'Perbarui Laporan Pending' : 'Lihat Pratinjau (Preview) & Simpan')}</span>
         </button>
 
       </div>
@@ -587,9 +587,9 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.78rem' }}>
               
               <div style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div><span style={{ color: '#94a3b8' }}>Outlet:</span> <strong style={{ color: '#f8fafc' }}>🏢 {previewingRecord.branch_name}</strong></div>
-                <div><span style={{ color: '#94a3b8' }}>Tanggal:</span> <strong style={{ color: '#f8fafc' }}>📅 {previewingRecord.date}</strong></div>
-                <div><span style={{ color: '#94a3b8' }}>Kasir:</span> <strong style={{ color: '#818cf8' }}>👤 {previewingRecord.author_name}</strong></div>
+                <div><span style={{ color: '#94a3b8' }}>Outlet:</span> <strong style={{ color: '#f8fafc' }}>{previewingRecord.branch_name}</strong></div>
+                <div><span style={{ color: '#94a3b8' }}>Tanggal:</span> <strong style={{ color: '#f8fafc' }}>{previewingRecord.date}</strong></div>
+                <div><span style={{ color: '#94a3b8' }}>Kasir:</span> <strong style={{ color: '#818cf8' }}>{previewingRecord.author_name}</strong></div>
               </div>
 
               <div style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -620,7 +620,7 @@ export default function ShiftClosing({ selectedBranch, masterData, setMasterData
                 </div>
 
                 <div style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '8px', borderRadius: '6px', border: '1px solid #10b981', display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
-                  <span style={{ fontWeight: '800', color: '#34d399' }}>💵 UANG DI LACI</span>
+                  <span style={{ fontWeight: '800', color: '#34d399' }}>UANG DI LACI</span>
                   <span style={{ fontWeight: '900', color: '#34d399' }}>{formatRupiah(previewingRecord.cash_physical)}</span>
                 </div>
               </div>

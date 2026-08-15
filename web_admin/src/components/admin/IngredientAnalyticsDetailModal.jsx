@@ -106,7 +106,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           date: dateStr,
           month_year: 'Juli 2026',
           outlet_name: fromOutlet,
-          ordered_menu: `🔴 Transfer Out ke ${toOutlet}`,
+          ordered_menu: `Transfer Out ke ${toOutlet}`,
           used_qty: -qtyNum,
           unit: unitStr,
           total_cost: 0,
@@ -122,7 +122,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           date: dateStr,
           month_year: 'Juli 2026',
           outlet_name: toOutlet,
-          ordered_menu: `🟢 Transfer In dari ${fromOutlet}`,
+          ordered_menu: `Transfer In dari ${fromOutlet}`,
           used_qty: +qtyNum,
           unit: unitStr,
           total_cost: 0,
@@ -151,7 +151,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
             date: dateStr,
             month_year: 'Juli 2026',
             outlet_name: rep.branch_name || (outletsList.find(o => Number(o.id) === Number(rep.outlet_id))?.name || 'Outlet Utama'),
-            ordered_menu: `📥 Stok Masuk Pembelian HPP`,
+            ordered_menu: `Stok Masuk Pembelian HPP`,
             used_qty: +qty,
             unit: item.unit || ingUnit,
             total_cost: totalPrice,
@@ -175,7 +175,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           date: m.date || '2026-07-24',
           month_year: 'Juli 2026',
           outlet_name: m.outlet_name || (outletsList.find(o => Number(o.id) === Number(m.outlet_id))?.name || 'Outlet Utama'),
-          ordered_menu: `📦 ${m.source || (isOut ? 'Mutasi Stok Keluar' : 'Mutasi Stok Masuk')}`,
+          ordered_menu: `${m.source || (isOut ? 'Mutasi Stok Keluar' : 'Mutasi Stok Masuk')}`,
           used_qty: isOut ? -qtyNum : +qtyNum,
           unit: m.unit || ingUnit,
           total_cost: Number(m.total_amount || (m.price_unit ? m.price_unit * qtyNum : 0)),
@@ -197,7 +197,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
           date: w.date || '2026-07-24',
           month_year: 'Juli 2026',
           outlet_name: w.outletName || (outletsList.find(o => Number(o.id) === Number(w.outletId))?.name || 'Outlet Utama'),
-          ordered_menu: `🗑️ Barang Rusak / Waste (${w.notes || 'Kerusakan Stok'})`,
+          ordered_menu: `Barang Rusak / Waste (${w.notes || 'Kerusakan Stok'})`,
           used_qty: -qtyNum,
           unit: w.unit || ingUnit,
           total_cost: 0,
@@ -225,7 +225,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
             date: tx.date || new Date().toISOString().split('T')[0],
             month_year: 'Juli 2026',
             outlet_name: tx.branch_name || (outletsList.find(o => Number(o.id) === Number(tx.outlet_id))?.name || 'Outlet Restoran'),
-            ordered_menu: `🛒 ${itemObj.name || itemObj.item_name} (x${qty})`,
+            ordered_menu: `${itemObj.name || itemObj.item_name} (x${qty})`,
             used_qty: -qty,
             unit: ingUnit,
             total_cost: priceUnit * qty,
@@ -275,7 +275,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
             </div>
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🥦 {ingredient.name}</span>
+                <span>{ingredient.name}</span>
                 <span style={{ fontSize: '0.74rem', fontWeight: '800', background: T.successBg, color: T.success, padding: '3px 10px', borderRadius: '8px', border: `1px solid ${T.successBorder}` }}>
                   Kode: {ingredient.code || `BHN-00${ingredient.id}`}
                 </span>
@@ -315,7 +315,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
                 onChange={e => setFilterOutlet(e.target.value)}
                 style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="Semua Outlet">🏬 Semua Outlet Cabang</option>
+                <option value="Semua Outlet">Semua Outlet Cabang</option>
                 {outletsList.map((o, idx) => (
                   <option key={idx} value={o.name}>{o.name}</option>
                 ))}
@@ -330,7 +330,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
                 onChange={e => setFilterMonthYear(e.target.value)}
                 style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="Semua Bulan & Tahun">📅 Semua Waktu</option>
+                <option value="Semua Bulan & Tahun">Semua Waktu</option>
                 <option value="Juli 2026">Juli 2026</option>
                 <option value="Juni 2026">Juni 2026</option>
                 <option value="Mei 2026">Mei 2026</option>
@@ -455,7 +455,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
                           {row.date}
                         </td>
                         <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: '800', color: T.info, whiteSpace: 'nowrap' }}>
-                          📋 {row.receipt_no}
+                          {row.receipt_no}
                         </td>
                         <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                           <span style={{
@@ -468,7 +468,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
                           </span>
                         </td>
                         <td style={{ padding: '12px 14px', fontWeight: '700', color: T.txtPrimary, whiteSpace: 'nowrap' }}>
-                          🏬 {row.outlet_name}
+                          {row.outlet_name}
                         </td>
                         <td style={{ padding: '12px 14px', color: T.txtPrimary, fontWeight: '700' }}>
                           {row.ordered_menu}
@@ -480,7 +480,7 @@ export default function IngredientAnalyticsDetailModal({ ingredient, masterData,
                           {row.total_cost > 0 ? formatRupiah(row.total_cost) : '-'}
                         </td>
                         <td style={{ padding: '12px 14px', color: T.txtSecondary, whiteSpace: 'nowrap' }}>
-                          👤 {row.cashier}
+                          {row.cashier}
                         </td>
                       </tr>
                     );

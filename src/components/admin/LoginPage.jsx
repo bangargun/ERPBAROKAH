@@ -17,11 +17,11 @@ const DEFAULT_WEB_ADMIN_ACCOUNTS = [
 ];
 
 const ROLE_ICONS = {
-  'Super Admin': '👑',
-  'Owner': '💎',
-  'Admin': '🛡️',
-  'Kasir': '🏪',
-  'Manajer Cabang': '🏢',
+  'Super Admin': '',
+  'Owner': '',
+  'Admin': '',
+  'Kasir': '',
+  'Manajer Cabang': '',
 };
 
 export default function LoginPage({ onLoginSuccess, masterData, themeMode = 'dark' }) {
@@ -150,7 +150,7 @@ export default function LoginPage({ onLoginSuccess, masterData, themeMode = 'dar
             justifyContent: 'center',
             fontSize: '0.65rem'
           }}>
-            👑
+            
           </div>
         </div>
 
@@ -272,7 +272,7 @@ export default function LoginPage({ onLoginSuccess, masterData, themeMode = 'dar
                 borderRadius: '8px',
                 border: `1px solid ${T.accentGoldBorder}`
               }}>
-                <span style={{ fontSize: '1rem' }}>{ROLE_ICONS[selectedUser.role] || '👤'}</span>
+                <span style={{ fontSize: '1rem' }}>{ROLE_ICONS[selectedUser.role] || ''}</span>
                 <div>
                   <div style={{ fontSize: '0.78rem', fontWeight: '700', color: T.txtPrimary }}>{selectedUser.name}</div>
                   <div style={{ fontSize: '0.65rem', color: T.accentGold }}>{selectedUser.role} · {selectedUser.outlet}</div>
@@ -375,7 +375,7 @@ export default function LoginPage({ onLoginSuccess, masterData, themeMode = 'dar
             {isLoading ? (
               <><div style={{ width: '16px', height: '16px', border: `2px solid ${T.navActiveTxt}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Memverifikasi...</>
             ) : (
-              <>💻 Masuk ke Dashboard Admin</>
+              <>Masuk ke Dashboard Admin</>
             )}
           </button>
         </div>

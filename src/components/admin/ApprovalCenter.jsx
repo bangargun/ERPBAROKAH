@@ -230,17 +230,17 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
       const rNo = String(r.report_no || r.receiptNo || r.receipt_no || '');
       const rAuthor = String(r.author || r.created_by || r.cashier_name || r.cashier || '').toLowerCase();
 
-      let dataSourceLabel = '📱 POS Kasir';
+      let dataSourceLabel = 'POS Kasir';
       let isFromAdminOrExcel = false;
 
       if (rawSrc.includes('excel') || rawSrc.includes('batch upload') || rNo.includes('EXC')) {
-        dataSourceLabel = '📊 Upload Excel';
+        dataSourceLabel = 'Upload Excel';
         isFromAdminOrExcel = true;
       } else if (rawSrc.includes('update laporan') || rNo.startsWith('UPD-')) {
-        dataSourceLabel = '✍️ Update Laporan Admin';
+        dataSourceLabel = 'Update Laporan Admin';
         isFromAdminOrExcel = true;
       } else if (r.submitter_type === 'Admin' || rAuthor.includes('admin') || rNo.startsWith('LAP-ADM')) {
-        dataSourceLabel = '👤 Input Manual Admin';
+        dataSourceLabel = 'Input Manual Admin';
         isFromAdminOrExcel = true;
       }
 
@@ -400,7 +400,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const handleSaveEditReport = (e) => {
     e.preventDefault();
     if (!editForm.reason_for_edit.trim()) {
-      alert('⚠️ WAJIB mengisi Keterangan Perubahan / Alasan Edit sebelum menyimpan!');
+      alert('WAJIB mengisi Keterangan Perubahan / Alasan Edit sebelum menyimpan!');
       return;
     }
 
@@ -780,10 +780,10 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                 style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #10b981', borderRadius: '8px', color: '#34d399', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
               >
                 <option value="ALL">Semua Sumber Data</option>
-                <option value="Upload Excel">📊 Upload Excel</option>
-                <option value="Update Laporan Admin">✍️ Update Laporan Admin</option>
-                <option value="Input Manual Admin">👤 Input Manual Admin</option>
-                <option value="POS Kasir">📱 POS Kasir</option>
+                <option value="Upload Excel">Upload Excel</option>
+                <option value="Update Laporan Admin">Update Laporan Admin</option>
+                <option value="Input Manual Admin">Input Manual Admin</option>
+                <option value="POS Kasir">POS Kasir</option>
               </select>
             </div>
 
@@ -895,7 +895,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               {paginatedReports.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    📭 Belum ada laporan harian yang sesuai dengan filter.
+                    Belum ada laporan harian yang sesuai dengan filter.
                   </td>
                 </tr>
               ) : (
@@ -911,7 +911,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                       {/* 2. NAMA OUTLET */}
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{ fontSize: '0.84rem', fontWeight: '800', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          🏢 {item.outlet_name || (outletsList[0]?.name) || 'Outlet Barokah'}
+                          {item.outlet_name || (outletsList[0]?.name) || 'Outlet Barokah'}
                         </span>
                       </td>
 
@@ -968,7 +968,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                           color: item.submitter_type === 'Admin' ? '#38bdf8' : '#818cf8',
                           border: item.submitter_type === 'Admin' ? '1px solid #38bdf8' : '1px solid #6366f1'
                         }}>
-                          {item.submitter_type === 'Admin' ? '👤 Admin' : '📱 POS Kasir'}
+                          {item.submitter_type === 'Admin' ? 'Admin' : 'POS Kasir'}
                         </span>
                         <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>{item.cashier_name}</div>
                       </td>
@@ -1010,7 +1010,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                           {(item.status === 'Done' || item.status === 'Approved' || item.approval_status === 'Done' || item.is_auto_approved) ? (
                             <>
                               <CheckSquare size={14} />
-                              <span>✅ Approved</span>
+                              <span>Approved</span>
                             </>
                           ) : (
                             <>
@@ -1030,7 +1030,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                               <button
                                 onClick={() => {
                                   if (isDone) {
-                                    alert('🔒 Laporan ini telah DISETUJUI (Done) dan TERKUNCI. Silakan klik tombol status untuk mengubah kembali ke "Pending" terlebih dahulu jika ingin mengedit data laporan.');
+                                    alert('Laporan ini telah DISETUJUI (Done) dan TERKUNCI. Silakan klik tombol status untuk mengubah kembali ke "Pending" terlebih dahulu jika ingin mengedit data laporan.');
                                     return;
                                   }
                                   handleOpenEdit(item);
@@ -1049,7 +1049,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                                   alignItems: 'center',
                                   gap: '4px'
                                 }}
-                                title={isDone ? "🔒 Laporan disetujui (Done) & terkunci. Ubah status ke Pending untuk mengedit." : "Edit Laporan (Wajib Isi Alasan Edit)"}
+                                title={isDone ? "Laporan disetujui (Done) & terkunci. Ubah status ke Pending untuk mengedit." : "Edit Laporan (Wajib Isi Alasan Edit)"}
                               >
                                 <Edit3 size={14} /> {isDone ? 'Terkunci' : 'Edit'}
                               </button>
@@ -1085,7 +1085,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         />
       </div>
 
-      {/* 📄 MODAL DETAIL LAPORAN (KLIK NO LAPORAN) */}
+      {/* MODAL DETAIL LAPORAN (KLIK NO LAPORAN) */}
       {detailModalItem && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1093,7 +1093,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px' }}>
               <div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#38bdf8', margin: 0 }}>
-                  📄 Rincian Laporan: {detailModalItem.report_no}
+                  Rincian Laporan: {detailModalItem.report_no}
                 </h3>
                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
                   {formatDateIndo(detailModalItem.date)} &bull; {detailModalItem.outlet_name}
@@ -1119,7 +1119,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             {/* FINANCIAL SUMMARY */}
             <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', borderBottom: '1px dashed #334155', paddingBottom: '8px' }}>
-                💵 Ringkasan Penjualan &amp; Laba Kotor:
+                Ringkasan Penjualan &amp; Laba Kotor:
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
                 <span style={{ color: '#94a3b8' }}>Penjualan Tunai (Cash):</span>
@@ -1151,7 +1151,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             {/* UANG DI LACI & MODAL METRICS */}
             <div style={{ background: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#f8fafc', borderBottom: '1px dashed #334155', paddingBottom: '8px' }}>
-                💰 Metrik Uang Di Laci &amp; Hutang Modal:
+                Metrik Uang Di Laci &amp; Hutang Modal:
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
                 <span style={{ color: '#94a3b8' }}>Uang Di Laci (Cash in Drawer):</span>
@@ -1171,7 +1171,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             {detailModalItem.expense_rows && detailModalItem.expense_rows.length > 0 && (
               <div style={{ background: '#0f172a', padding: '14px', borderRadius: '12px', border: '1px solid #334155' }}>
                 <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#f8fafc', marginBottom: '8px' }}>
-                  📦 Rincian Pengeluaran ({detailModalItem.expense_rows.length} Baris):
+                  Rincian Pengeluaran ({detailModalItem.expense_rows.length} Baris):
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left' }}>
                   <thead>
@@ -1202,7 +1202,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             {detailModalItem.edit_history && detailModalItem.edit_history.length > 0 && (
               <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '14px', borderRadius: '12px', border: '1px solid #38bdf8' }}>
                 <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#38bdf8', marginBottom: '8px' }}>
-                  📜 Riwayat Perubahan &amp; Keterangan Alasan Edit:
+                  Riwayat Perubahan &amp; Keterangan Alasan Edit:
                 </div>
                 {detailModalItem.edit_history.map((log, idx) => (
                   <div key={idx} style={{ fontSize: '0.78rem', color: '#f8fafc', marginBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '4px' }}>
@@ -1222,14 +1222,14 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
       )}
 
-      {/* ✏️ MODAL EDIT LAPORAN HARIAN (WAJIB KETERANGAN PERUBAHAN) */}
+      {/* MODAL EDIT LAPORAN HARIAN (WAJIB KETERANGAN PERUBAHAN) */}
       {editModalItem && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <form onSubmit={handleSaveEditReport} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '580px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#38bdf8', margin: 0 }}>
-                ✏️ Edit Laporan Harian: {editModalItem.report_no}
+                Edit Laporan Harian: {editModalItem.report_no}
               </h3>
               <button type="button" onClick={() => setEditModalItem(null)} style={{ background: '#334155', border: 'none', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', cursor: 'pointer' }}>
                 <X size={16} />
@@ -1317,7 +1317,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
       )}
 
-      {/* ➕ MODAL INPUT LAPORAN HARIAN MANUAL (ADMIN CENTRAL) - FORMULIR LENGKAP */}
+      {/* MODAL INPUT LAPORAN HARIAN MANUAL (ADMIN CENTRAL) - FORMULIR LENGKAP */}
       {showAddModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <form onSubmit={handleSaveAddManualReport} style={{ background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '18px', width: '100%', maxWidth: '840px', maxHeight: '92vh', overflowY: 'auto', padding: '26px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1327,7 +1327,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               <div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#38bdf8', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Plus size={22} color="#38bdf8" />
-                  <span>➕ Input Laporan Harian Manual (Admin Central)</span>
+                  <span>Input Laporan Harian Manual (Admin Central)</span>
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
                   Input otomatis &amp; manual laporan pendapatan, multi-row pengeluaran, laba kotor, uang di laci, dan pengembalian modal.
@@ -1374,7 +1374,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               </div>
             </div>
 
-            {/* 📈 BAGIAN 1: LAPORAN PENJUALAN & TOTAL PENDAPATAN */}
+            {/* BAGIAN 1: LAPORAN PENJUALAN & TOTAL PENDAPATAN */}
             <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px dashed #334155', paddingBottom: '10px' }}>
                 <DollarSign size={18} color="#38bdf8" />
@@ -1382,7 +1382,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               </div>
 
               <div style={{ fontSize: '0.74rem', color: '#94a3b8', background: 'rgba(56, 189, 248, 0.08)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                💡 Data Penjualan Cash &amp; Non Cash terisi otomatis berdasarkan transaksi POS tanggal <strong>{addForm.date}</strong> hingga pukul 23:59:59. Anda dapat menyesuaikannya secara manual.
+                Data Penjualan Cash &amp; Non Cash terisi otomatis berdasarkan transaksi POS tanggal <strong>{addForm.date}</strong> hingga pukul 23:59:59. Anda dapat menyesuaikannya secara manual.
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
@@ -1424,7 +1424,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               </div>
             </div>
 
-            {/* 📦 BAGIAN 2: DATA PENGELUARAN (MULTI-ROW WITH AUTO-SUGGESTION & SATUAN) */}
+            {/* BAGIAN 2: DATA PENGELUARAN (MULTI-ROW WITH AUTO-SUGGESTION & SATUAN) */}
             <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #334155', paddingBottom: '10px' }}>
                 <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#fb7185', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1553,19 +1553,19 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
               </div>
             </div>
 
-            {/* 📊 BAGIAN 3 & 4: LABA KOTOR & UANG DI LACI */}
+            {/* BAGIAN 3 & 4: LABA KOTOR & UANG DI LACI */}
             <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
               
               {/* LABA KOTOR */}
               <div style={{ background: '#1e293b', padding: '14px', borderRadius: '12px', border: '1px solid #34d399', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800' }}>📊 3. TOTAL LABA KOTOR:</span>
+                <span style={{ fontSize: '0.78rem', color: '#34d399', fontWeight: '800' }}>3. TOTAL LABA KOTOR:</span>
                 <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#34d399' }}>{formatRupiah(computedGrossProfit)}</span>
                 <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>(Total Pendapatan dikurangi Total Pengeluaran)</span>
               </div>
 
               {/* UANG DI LACI (INTERNAL SHIFT METRIC) */}
               <div style={{ background: '#1e293b', padding: '14px', borderRadius: '12px', border: '1px solid #fbbf24', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}>💵 4. UANG DI LACI (CASH IN DRAWER):</span>
+                <span style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: '800' }}>4. UANG DI LACI (CASH IN DRAWER):</span>
                 <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#fbbf24' }}>{formatRupiah(computedCashInDrawer)}</span>
                 <span style={{ fontSize: '0.70rem', color: '#94a3b8' }}>(Laba Kotor dikurangi Penjualan Non-Cash &amp; Diskon Penjualan)</span>
               </div>
@@ -1573,10 +1573,10 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             </div>
 
             <div style={{ fontSize: '0.74rem', color: '#94a3b8', background: 'rgba(251, 191, 36, 0.08)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
-              ℹ️ <strong>Catatan Metrik:</strong> Indikator &quot;Uang Di Laci&quot; merupakan metrik fisik internal kasir shift dan tidak dimasukkan ke dalam Laporan Laba Rugi / Financial Overview resmi.
+              ℹ<strong>Catatan Metrik:</strong> Indikator &quot;Uang Di Laci&quot; merupakan metrik fisik internal kasir shift dan tidak dimasukkan ke dalam Laporan Laba Rugi / Financial Overview resmi.
             </div>
 
-            {/* 💰 BAGIAN 5: PEMBAYARAN PENGAMBILAN MODAL (MODAL RESTORAN / KASIR) */}
+            {/* BAGIAN 5: PEMBAYARAN PENGAMBILAN MODAL (MODAL RESTORAN / KASIR) */}
             <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #334155', paddingBottom: '10px' }}>
                 <div style={{ fontSize: '0.90rem', fontWeight: '900', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1699,7 +1699,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                     </span>
                   </div>
                   <div style={{ fontSize: '0.68rem', color: computedModalDebtRemaining < 0 ? '#fb7185' : '#a7f3d0', fontWeight: '700' }}>
-                    {computedModalDebtRemaining < 0 ? '⚠️ Bernilai negatif (masih ada hutang)' : '✅ Bernilai positif (sisa uang)'}
+                    {computedModalDebtRemaining < 0 ? 'Bernilai negatif (masih ada hutang)' : 'Bernilai positif (sisa uang)'}
                     <span style={{ opacity: 0.75, marginLeft: '6px' }}>[Modal seharusnya - (Modal saat ini + Total dikembalikan)]</span>
                   </div>
                 </div>
@@ -1719,7 +1719,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             </div>
 
             <div style={{ fontSize: '0.76rem', color: '#38bdf8', fontWeight: '800' }}>
-              💡 Status laporan yang di-input manual oleh Admin Central akan langsung diset ke &quot;Done&quot; (Selesai).
+              Status laporan yang di-input manual oleh Admin Central akan langsung diset ke &quot;Done&quot; (Selesai).
             </div>
 
             {/* FOOTER ACTION BUTTONS */}
@@ -1728,7 +1728,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
                 Batal
               </button>
               <button type="submit" style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)', border: 'none', borderRadius: '10px', color: '#0f172a', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(56, 189, 248, 0.4)' }}>
-                💾 Simpan Laporan Harian (Admin)
+                Simpan Laporan Harian (Admin)
               </button>
             </div>
 
@@ -1736,7 +1736,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
         </div>
       )}
 
-      {/* 🗑️ MODAL CONFIRM DELETE */}
+      {/* MODAL CONFIRM DELETE */}
       {deleteConfirmItem && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '16px', width: '100%', maxWidth: '440px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'center' }}>

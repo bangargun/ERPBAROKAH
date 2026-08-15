@@ -182,11 +182,11 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
       {/* PRINTER HARDWARE CONFIGURATION GRID */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         
-        {/* 🍳 PRINTER DAPUR (KITCHEN) */}
+        {/* PRINTER DAPUR (KITCHEN) */}
         <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🍳 Printer Dapur (Kitchen)
+              Printer Dapur (Kitchen)
             </h3>
             <span style={{ fontSize: '0.72rem', background: T.infoBg, color: T.info, padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Struk Kerja Koki
@@ -217,11 +217,11 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
           </div>
         </div>
 
-        {/* 🍹 PRINTER BAR (MINUMAN) */}
+        {/* PRINTER BAR (MINUMAN) */}
         <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🍹 Printer Bar (Minuman)
+              Printer Bar (Minuman)
             </h3>
             <span style={{ fontSize: '0.72rem', background: T.infoBg, color: T.info, padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Struk Bartender
@@ -252,11 +252,11 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
           </div>
         </div>
 
-        {/* 🧾 PRINTER KASIR (RECEIPT & BILL) */}
+        {/* PRINTER KASIR (RECEIPT & BILL) */}
         <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🧾 Printer Kasir (Nota Pembayaran)
+              Printer Kasir (Nota Pembayaran)
             </h3>
             <span style={{ fontSize: '0.72rem', background: T.infoBg, color: T.info, padding: '4px 8px', borderRadius: '6px', fontWeight: '800' }}>
               Nota Pelanggan
@@ -324,9 +324,9 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                         onChange={e => handleUpdateCategoryPrinter(cat.id, e.target.value)}
                         style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', cursor: 'pointer' }}
                       >
-                        <option value="dapur">🍳 Printer Dapur (Kitchen)</option>
-                        <option value="bar">🍹 Printer Bar (Beverages)</option>
-                        <option value="keduanya">🔄 Dapur &amp; Bar (Keduanya)</option>
+                        <option value="dapur">Printer Dapur (Kitchen)</option>
+                        <option value="bar">Printer Bar (Beverages)</option>
+                        <option value="keduanya">Dapur &amp; Bar (Keduanya)</option>
                       </select>
                     </td>
                     <td style={{ padding: '12px', color: T.txtMuted, fontSize: '0.78rem' }}>
@@ -342,12 +342,12 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
         </div>
       </div>
 
-      {/* ✍️ EDIT HEADER & FOOTER STRUK THERMAL */}
+      {/* EDIT HEADER & FOOTER STRUK THERMAL */}
       <div className="glass-card" style={{ padding: '24px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary, margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>✍️ Pengaturan Header &amp; Footer Struk Restoran</span>
+              <span>Pengaturan Header &amp; Footer Struk Restoran</span>
             </h3>
             <p style={{ fontSize: '0.80rem', color: T.txtSecondary, margin: 0 }}>
               Kustomisasi tulisan nama restoran, alamat, telepon, ucapan terima kasih, dan info WiFi pada cetakan struk thermal.
@@ -367,7 +367,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', background: T.cardBg2, padding: '12px 16px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.86rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              🏢 Pilih Outlet Restoran:
+              Pilih Outlet Restoran:
             </span>
             <select
               value={selectedOutletId}
@@ -379,7 +379,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
               ) : (
                 outlets.map(o => (
                   <option key={o.id} value={String(o.id)}>
-                    🏢 {o.name || o.branch_name}
+                    {o.name || o.branch_name}
                   </option>
                 ))
               )}
@@ -400,7 +400,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           {/* HEADER INPUTS */}
           <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.info }}>📌 Header Struk (Bagian Atas)</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.info }}>Header Struk (Bagian Atas)</div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Nama Restoran (Judul Utama):</label>
@@ -449,7 +449,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
           {/* FOOTER INPUTS */}
           <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.success }}>📌 Footer Struk (Bagian Bawah)</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '800', color: T.success }}>Footer Struk (Bagian Bawah)</div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '700' }}>Pesan Ucapan Baris 1:</label>
@@ -498,14 +498,14 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
         </div>
       </div>
 
-      {/* 🎨 DESAIN & TIPOGRAFI STRUK */}
+      {/* DESAIN & TIPOGRAFI STRUK */}
       <div className="glass-card" style={{ padding: '20px', background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div
           onClick={() => setStyleOpen(o => !o)}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none' }}
         >
           <h3 style={{ fontSize: '1.05rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🎨 <span>Desain &amp; Tipografi Struk</span>
+            <span>Desain &amp; Tipografi Struk</span>
             <span style={{ fontSize: '0.70rem', background: T.infoBg, color: T.info, padding: '2px 8px', borderRadius: '20px', fontWeight: '700' }}>LIVE PREVIEW</span>
           </h3>
           <span style={{ color: T.txtSecondary, fontSize: '1.1rem', transition: 'transform 0.2s', display: 'inline-block', transform: styleOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
@@ -566,7 +566,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
               {/* UKURAN HURUF */}
               <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.info, marginBottom: '4px' }}>📐 Ukuran Huruf (Font Size)</div>
+                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.info, marginBottom: '4px' }}>Ukuran Huruf (Font Size)</div>
                 <SizePicker label="Judul Struk" stateKey="titleSize" />
                 <SizePicker label="Nama Outlet" stateKey="groupSize" />
                 <SizePicker label="Alamat &amp; Telp" stateKey="addressSize" />
@@ -581,14 +581,14 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
                 {/* ALIGNMENT */}
                 <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.accentGold, marginBottom: '4px' }}>📏 Perataan Teks (Alignment)</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.accentGold, marginBottom: '4px' }}>Perataan Teks (Alignment)</div>
                   <AlignPicker label="Header (Judul)" stateKey="headerAlign" />
                   <AlignPicker label="Footer (Bawah)" stateKey="footerAlign" />
                 </div>
 
                 {/* BOLD TOGGLES */}
                 <div style={{ background: T.cardBg2, padding: '16px', borderRadius: '12px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.success, marginBottom: '4px' }}>🅱 Ketebalan Huruf (Bold)</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.success, marginBottom: '4px' }}>Ketebalan Huruf (Bold)</div>
                   <Toggle label="Judul Struk Bold" stateKey="titleBold" />
                   <Toggle label="Nama Menu Bold" stateKey="itemBold" />
                   <Toggle label="Total Bayar Bold" stateKey="totalBold" />
@@ -674,7 +674,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
         })()}
       </div>
 
-      {/* 🖨️ PRATINJAU REAL-TIME THERMAL RECEIPT OUTPUT */}
+      {/* PRATINJAU REAL-TIME THERMAL RECEIPT OUTPUT */}
       <ThermalReceiptPreviewSection printerSettings={printerSettings} headerFooter={headerFooter} receiptStyle={receiptStyle} themeMode={themeMode} />
 
     </div>
@@ -743,9 +743,9 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
               onChange={e => setReceiptType(e.target.value)}
               style={{ padding: '8px 12px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
             >
-              <option value="cashier">🧾 Struk Pembayaran Kasir (Nota Pelanggan)</option>
-              <option value="kitchen">🍳 Struk Kerja Dapur (Kitchen Ticket)</option>
-              <option value="bar">🍹 Struk Kerja Bar (Bar Ticket)</option>
+              <option value="cashier">Struk Pembayaran Kasir (Nota Pelanggan)</option>
+              <option value="kitchen">Struk Kerja Dapur (Kitchen Ticket)</option>
+              <option value="bar">Struk Kerja Bar (Bar Ticket)</option>
             </select>
           </div>
 
@@ -766,7 +766,7 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
             style={{ padding: '8px 16px', background: T.primaryBtn, border: 'none', borderRadius: '8px', color: '#ffffff', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: `0 4px 12px ${T.primaryBtnShadow}` }}
           >
             <Printer size={16} />
-            <span>🖨️ Cetak Struk Contoh</span>
+            <span>Cetak Struk Contoh</span>
           </button>
         </div>
       </div>

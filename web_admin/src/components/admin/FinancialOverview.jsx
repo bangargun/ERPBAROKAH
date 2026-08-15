@@ -503,9 +503,9 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 onChange={e => setSalesChartOutlet(e.target.value)}
                 style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
               >
-                <option value="ALL">🏢 Semua Outlet Restoran</option>
+                <option value="ALL">Semua Outlet Restoran</option>
                 {allOutlets.map(o => (
-                  <option key={o.id} value={o.id}>📍 {o.name}</option>
+                  <option key={o.id} value={o.id}>{o.name}</option>
                 ))}
               </select>
             </div>
@@ -518,10 +518,10 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 onChange={e => setSalesChartPeriod(e.target.value)}
                 style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
               >
-                <option value="7days">🗓 7 Hari Terakhir</option>
-                <option value="today">📅 Hari Ini ({todayStr})</option>
-                <option value="30days">📆 30 Hari Terakhir</option>
-                <option value="custom">📅 Pilih Tanggal (Custom Range)...</option>
+                <option value="7days">7 Hari Terakhir</option>
+                <option value="today">Hari Ini ({todayStr})</option>
+                <option value="30days">30 Hari Terakhir</option>
+                <option value="custom">Pilih Tanggal (Custom Range)...</option>
               </select>
             </div>
 
@@ -551,14 +551,14 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 onClick={() => setSalesChartType('area')}
                 style={{ padding: '4px 10px', background: salesChartType === 'area' ? T.success : 'transparent', color: salesChartType === 'area' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
-                📈 Trend Area
+                Trend Area
               </button>
               <button
                 type="button"
                 onClick={() => setSalesChartType('bar')}
                 style={{ padding: '4px 10px', background: salesChartType === 'bar' ? T.success : 'transparent', color: salesChartType === 'bar' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
-                📊 Bar Chart
+                Bar Chart
               </button>
             </div>
 
@@ -648,14 +648,14 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 onClick={() => setOmzetChartType('bar')}
                 style={{ padding: '4px 10px', background: omzetChartType === 'bar' ? T.info : 'transparent', color: omzetChartType === 'bar' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
-                📊 Bar
+                Bar
               </button>
               <button
                 type="button"
                 onClick={() => setOmzetChartType('area')}
                 style={{ padding: '4px 10px', background: omzetChartType === 'area' ? T.info : 'transparent', color: omzetChartType === 'area' ? T.cardBg2 : '#cbd5e1', border: 'none', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
               >
-                📈 Trend
+                Trend
               </button>
             </div>
 
@@ -666,9 +666,9 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 onChange={e => setOmzetFilterBranch(e.target.value)}
                 style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="ALL">🏢 Semua Outlet Restoran</option>
+                <option value="ALL">Semua Outlet Restoran</option>
                 {allOutlets.map(o => (
-                  <option key={o.id} value={o.id}>📍 {o.name}</option>
+                  <option key={o.id} value={o.id}>{o.name}</option>
                 ))}
               </select>
             </div>
@@ -721,7 +721,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             <tbody>
               {omzetCompData.map(d => (
                 <tr key={d.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ padding: '8px 12px', fontWeight: '800', color: T.txtPrimary }}>📍 {d.name}</td>
+                  <td style={{ padding: '8px 12px', fontWeight: '800', color: T.txtPrimary }}>{d.name}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', color: T.txtSecondary }}>{formatRupiah(d.omzetBulanLalu)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: T.info }}>{formatRupiah(d.omzetBulanIni)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: d.diff >= 0 ? T.success : T.danger }}>
@@ -767,9 +767,9 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 onChange={e => setIngredientTimeRange(e.target.value)}
                 style={{ padding: '6px 10px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="bulan_ini">🗓 Bulan Ini</option>
-                <option value="minggu_ini">📆 Minggu Ini</option>
-                <option value="hari_ini">📅 Hari Ini</option>
+                <option value="bulan_ini">Bulan Ini</option>
+                <option value="minggu_ini">Minggu Ini</option>
+                <option value="hari_ini">Hari Ini</option>
               </select>
 
               <select
@@ -777,12 +777,12 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 onChange={e => setSelectedIngredientCategory(e.target.value)}
                 style={{ padding: '6px 10px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
               >
-                <option value="ALL">📦 Semua Bahan Baku</option>
-                <option value="Ayam">🍗 Ayam</option>
-                <option value="Daging">🥩 Daging</option>
-                <option value="Bumbu">🌶️ Bumbu</option>
-                <option value="Minyak">🛢️ Minyak</option>
-                <option value="Sembako">🌾 Sembako</option>
+                <option value="ALL">Semua Bahan Baku</option>
+                <option value="Ayam">Ayam</option>
+                <option value="Daging">Daging</option>
+                <option value="Bumbu">Bumbu</option>
+                <option value="Minyak">Minyak</option>
+                <option value="Sembako">Sembako</option>
               </select>
             </div>
           </div>
@@ -790,18 +790,18 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '230px', overflowY: 'auto' }}>
             {ingredientComparisonList.length === 0 ? (
               <div style={{ background: T.cardBg2, border: '1px dashed #334155', borderRadius: '10px', padding: '24px', textAlign: 'center', color: T.txtSecondary, fontSize: '0.78rem' }}>
-                📦 Belum ada data bahan baku terdaftar. Tambahkan bahan baku baru di menu <strong>Data Master &gt; Bahan Baku</strong>.
+                Belum ada data bahan baku terdaftar. Tambahkan bahan baku baru di menu <strong>Data Master &gt; Bahan Baku</strong>.
               </div>
             ) : (
               ingredientComparisonList.map((ing, idx) => (
                 <div key={idx} style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ color: T.accentGold }}>📦 {ing.name}</span>
+                      <span style={{ color: T.accentGold }}>{ing.name}</span>
                       <span style={{ fontSize: '0.68rem', color: T.txtSecondary, background: T.inputBg, padding: '2px 8px', borderRadius: '6px' }}>per {ing.unit}</span>
                     </div>
                     <div style={{ fontSize: '0.72rem', color: ing.disparity > 2000 ? T.danger : T.success, fontWeight: '800' }}>
-                      {ing.disparity > 2000 ? `⚠️ Selisih Harga: ${formatRupiah(ing.disparity)}` : '✅ Harga Stabil'}
+                      {ing.disparity > 2000 ? `Selisih Harga: ${formatRupiah(ing.disparity)}` : 'Harga Stabil'}
                     </div>
                   </div>
 
@@ -846,10 +846,10 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
               onChange={e => setHppTimeRange(e.target.value)}
               style={{ padding: '6px 12px', background: T.inputBg, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
             >
-              <option value="bulan_ini">🗓 Bulan Ini (MTD)</option>
-              <option value="hari_ini">📅 Hari Ini</option>
-              <option value="bulan_lalu">📆 Bulan Lalu</option>
-              <option value="tahun_ini">📈 Tahun Ini</option>
+              <option value="bulan_ini">Bulan Ini (MTD)</option>
+              <option value="hari_ini">Hari Ini</option>
+              <option value="bulan_lalu">Bulan Lalu</option>
+              <option value="tahun_ini">Tahun Ini</option>
             </select>
           </div>
         </div>
@@ -884,7 +884,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
             <tbody>
               {hppComparisonList.map(h => (
                 <tr key={h.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ padding: '8px 12px', fontWeight: '800', color: T.txtPrimary }}>📍 {h.name}</td>
+                  <td style={{ padding: '8px 12px', fontWeight: '800', color: T.txtPrimary }}>{h.name}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', color: T.txtPrimary }}>{formatRupiah(h.revenue)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '800', color: T.danger }}>{formatRupiah(h.hppAmount)}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '900', color: h.isOverBudget ? T.danger : T.success }}>{h.hppPct}%</td>
@@ -896,7 +896,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                       color: h.isOverBudget ? T.danger : T.success,
                       border: `1px solid ${h.isOverBudget ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`
                     }}>
-                      {h.isOverBudget ? '⚠️ Over Budget' : '✅ Aman / Ideal'}
+                      {h.isOverBudget ? 'Over Budget' : 'Aman / Ideal'}
                     </span>
                   </td>
                 </tr>
@@ -933,14 +933,14 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
               onClick={() => setTxTypeFilter('income')}
               style={{ padding: '4px 10px', background: txTypeFilter === 'income' ? 'rgba(34,197,94,0.2)' : 'transparent', color: T.success, border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
             >
-              📈 Pemasukan
+              Pemasukan
             </button>
             <button
               type="button"
               onClick={() => setTxTypeFilter('expense')}
               style={{ padding: '4px 10px', background: txTypeFilter === 'expense' ? 'rgba(239,68,68,0.2)' : 'transparent', color: T.danger, border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer' }}
             >
-              📉 Pengeluaran
+              Pengeluaran
             </button>
           </div>
         </div>
@@ -963,7 +963,7 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                 filteredRecentTx.slice(0, 6).map((tx) => (
                   <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', color: T.txtPrimary }}>
                     <td style={{ padding: '8px 12px', color: T.txtPrimary, fontSize: '0.76rem' }}>{tx.date}</td>
-                    <td style={{ padding: '8px 12px', fontWeight: '700', color: T.txtPrimary }}>📍 {tx.branch_name}</td>
+                    <td style={{ padding: '8px 12px', fontWeight: '700', color: T.txtPrimary }}>{tx.branch_name}</td>
                     <td style={{ padding: '8px 12px' }}>
                       <span style={{
                         padding: '3px 8px',
@@ -974,20 +974,20 @@ export default function FinancialOverview({ stats, chartData, recentTransactions
                         color: tx.type === 'income' ? T.success : T.danger,
                         border: `1px solid ${tx.type === 'income' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
                       }}>
-                        {tx.type === 'income' ? '📈 Pemasukan' : '📉 Pengeluaran'}
+                        {tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
                       </span>
                     </td>
                     <td style={{ padding: '8px 12px' }}>
                       <div style={{ fontWeight: '700', color: T.info }}>{tx.category}</div>
                       <div style={{ fontSize: '0.70rem', color: T.txtSecondary }}>{tx.description}</div>
                     </td>
-                    <td style={{ padding: '8px 12px', color: T.txtPrimary, fontSize: '0.76rem' }}>💳 {tx.payment_method}</td>
+                    <td style={{ padding: '8px 12px', color: T.txtPrimary, fontSize: '0.76rem' }}>{tx.payment_method}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '900', color: tx.type === 'income' ? T.success : T.danger }}>
                       {tx.type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                       <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: T.success, border: '1px solid rgba(34, 197, 94, 0.3)', padding: '3px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800' }}>
-                        ✓ Terverifikasi
+                        Terverifikasi
                       </span>
                     </td>
                   </tr>

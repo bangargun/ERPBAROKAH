@@ -106,14 +106,14 @@ export function requestDelete({ masterData, type, id, name, onConfirmed, setDele
   // Fallback: gunakan window.prompt / window.confirm
   if (txCount > 0) {
     const msg =
-      `⚠️ DATA INI TERKUNCI!\n\n` +
+      `DATA INI TERKUNCI!\n\n` +
       `"${name}" memiliki ${txCount} transaksi terkait.\n` +
       `Data yang memiliki transaksi tidak dapat dihapus sembarangan.\n\n` +
       `Masukkan password untuk melanjutkan penghapusan:`;
     const entered = window.prompt(msg);
     if (entered === null) return; // cancelled
     if (entered !== DELETE_PASSWORD) {
-      window.alert('❌ Password salah! Penghapusan dibatalkan.');
+      window.alert('Password salah! Penghapusan dibatalkan.');
       return;
     }
   } else {

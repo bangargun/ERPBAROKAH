@@ -305,7 +305,7 @@ export default function IngredientPriceTrendPage({
         {/* 2. Pilih Bahan Baku (Searchable Dropdown) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 200px', minWidth: '180px', position: 'relative' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            🥬 Pilih Bahan Baku
+            Pilih Bahan Baku
           </label>
           <button
             type="button"
@@ -437,7 +437,7 @@ export default function IngredientPriceTrendPage({
             </span>
             {(startDate || endDate) && (
               <span style={{ fontSize: '0.70rem', color: T.info, background: T.infoBg, padding: '3px 9px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontWeight: '700' }}>
-                📅 Periode: {startDate || 'Awal'} s/d {endDate || 'Sekarang'}
+                Periode: {startDate || 'Awal'} s/d {endDate || 'Sekarang'}
               </span>
             )}
             <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: T.txtMuted, fontWeight: '700', background: T.cardBg, padding: '3px 10px', borderRadius: '20px', border: `1px solid ${T.border}` }}>
@@ -516,7 +516,7 @@ export default function IngredientPriceTrendPage({
 
           {trendRows.length > 0 && (
             <div style={{ padding: '10px 20px', borderTop: `1px solid ${T.border}`, background: T.cardBg2, fontSize: '0.70rem', color: T.txtMuted, fontWeight: '600' }}>
-              📌 Diurutkan dari transaksi <strong>terbaru → terlama</strong>. Kolom &ldquo;Perubahan Harga&rdquo; menunjukkan selisih harga satuan vs pembelian sebelumnya.
+              Diurutkan dari transaksi <strong>terbaru → terlama</strong>. Kolom &ldquo;Perubahan Harga&rdquo; menunjukkan selisih harga satuan vs pembelian sebelumnya.
             </div>
           )}
         </div>

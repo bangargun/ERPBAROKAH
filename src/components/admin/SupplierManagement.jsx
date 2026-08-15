@@ -27,10 +27,10 @@ export default function SupplierManagement({ masterData, setMasterData, userSess
   const [status, setStatus] = useState('Aktif');
 
   const availableSupplyOptions = [
-    { value: 'Bahan Kering', label: '🌾 Bahan Kering (Beras, Tepung, Minyak, Bumbu)', color: T.info },
-    { value: 'Sayur Mayur', label: '🥬 Sayur Mayur (Cabai, Bawang, Sayuran)', color: T.success },
-    { value: 'Ikan', label: '🐟 Ikan (Daging Ikan, Udang, Seafood)', color: T.info },
-    { value: 'Lain-lain', label: '📦 Lain-lain (Kemasan, Tissue, Peralatan)', color: T.accentGold }
+    { value: 'Bahan Kering', label: 'Bahan Kering (Beras, Tepung, Minyak, Bumbu)', color: T.info },
+    { value: 'Sayur Mayur', label: 'Sayur Mayur (Cabai, Bawang, Sayuran)', color: T.success },
+    { value: 'Ikan', label: 'Ikan (Daging Ikan, Udang, Seafood)', color: T.info },
+    { value: 'Lain-lain', label: 'Lain-lain (Kemasan, Tissue, Peralatan)', color: T.accentGold }
   ];
 
   // Helper to generate next sequential Supplier Code (SUP-001, SUP-002)
@@ -52,7 +52,7 @@ export default function SupplierManagement({ masterData, setMasterData, userSess
   };
 
   const getOutletName = (id) => {
-    if (!id || id === 'ALL' || id === 'all') return '📍 Semua Outlet (Nasional)';
+    if (!id || id === 'ALL' || id === 'all') return 'Semua Outlet (Nasional)';
     const found = masterData.outlets?.find(o => String(o.id) === String(id));
     return found ? found.name : `Outlet #${id}`;
   };
@@ -264,18 +264,18 @@ export default function SupplierManagement({ masterData, setMasterData, userSess
             onChange={e => setSortField(e.target.value)}
             style={{ padding: '5px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700' }}
           >
-            <option value="code">🔢 Kode Supplier</option>
-            <option value="name">🏷️ Nama Supplier</option>
-            <option value="outlet">🏪 Outlet Tujuan</option>
-            <option value="type">📦 Jenis Pasokan</option>
-            <option value="status">🟢 Status</option>
+            <option value="code">Kode Supplier</option>
+            <option value="name">Nama Supplier</option>
+            <option value="outlet">Outlet Tujuan</option>
+            <option value="type">Jenis Pasokan</option>
+            <option value="status">Status</option>
           </select>
           <button
             type="button"
             onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
             style={{ padding: '5px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
           >
-            {sortDirection === 'asc' ? '🔼 Naik' : '🔽 Turun'}
+            {sortDirection === 'asc' ? 'Naik' : 'Turun'}
           </button>
         </div>
       </div>
@@ -513,7 +513,7 @@ export default function SupplierManagement({ masterData, setMasterData, userSess
                 >
                   {masterData.outlets.map(o => (
                     <option key={o.id} value={o.id}>
-                      🏢 {o.name} ({o.code})
+                      {o.name} ({o.code})
                     </option>
                   ))}
                 </select>

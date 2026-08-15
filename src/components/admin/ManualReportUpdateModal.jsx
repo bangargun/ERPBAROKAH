@@ -665,20 +665,20 @@ export default function ManualReportUpdateModal({
           } else if (itemType === 'penjualan') {
             matchedProduct = findMatchingProduct(nameOrCode);
             if (matchedProduct) {
-              validationMsg = `✅ Produk Ada (${matchedProduct.sku})`;
+              validationMsg = `Produk Ada (${matchedProduct.sku})`;
             } else {
-              validationMsg = `✨ Auto-Register Produk Baru`;
+              validationMsg = `Auto-Register Produk Baru`;
             }
           } else if (itemType === 'pendapatan') {
-            validationMsg = `💰 Kas Masuk (Pendapatan Non-Sales)`;
+            validationMsg = `Kas Masuk (Pendapatan Non-Sales)`;
           } else if (itemType === 'pembelian') {
-            validationMsg = `📦 Pembelian Stok (Tambah Restok)`;
+            validationMsg = `Pembelian Stok (Tambah Restok)`;
           } else {
             matchedCOA = findMatchingExpenseAccount(nameOrCode);
             if (matchedCOA) {
-              validationMsg = `✅ Biaya Ada [${matchedCOA.code}]`;
+              validationMsg = `Biaya Ada [${matchedCOA.code}]`;
             } else {
-              validationMsg = `✨ Auto-Generate Kode Biaya`;
+              validationMsg = `Auto-Generate Kode Biaya`;
             }
           }
 
@@ -1212,12 +1212,12 @@ export default function ManualReportUpdateModal({
     if (newAccountsCreatedCount > 0) autoMsg += `\n• Auto-Generate Kode Biaya Baru: ${newAccountsCreatedCount} Akun terdaftar.`;
     if (newProductsCreatedCount > 0) autoMsg += `\n• Auto-Register Produk Baru: ${newProductsCreatedCount} Produk terdaftar.`;
 
-    const mergeInfo = mergedCount > 0 ? `\n• 🔄 Di-merge ke tanggal sudah ada: ${mergedCount} tanggal/outlet` : '';
-    const createInfo = createdCount > 0 ? `\n• ✨ Laporan baru dibuat: ${createdCount} tanggal/outlet` : '';
+    const mergeInfo = mergedCount > 0 ? `\n• Di-merge ke tanggal sudah ada: ${mergedCount} tanggal/outlet` : '';
+    const createInfo = createdCount > 0 ? `\n• Laporan baru dibuat: ${createdCount} tanggal/outlet` : '';
 
     alert(isEditMode
-      ? `✅ LAPORAN BERHASIL DIUPDATE!\n\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}${autoMsg}`
-      : `✅ BERHASIL UPDATE LAPORAN!${createInfo}${mergeInfo}\n\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')} (Sales: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}, Pendapatan Lain: Rp ${totalPendapatanLainAll.toLocaleString('id-ID')})\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
+      ? `LAPORAN BERHASIL DIUPDATE!\n\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')}\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}${autoMsg}`
+      : `BERHASIL UPDATE LAPORAN!${createInfo}${mergeInfo}\n\n• Total Pemasukan: Rp ${totalTotalPemasukan.toLocaleString('id-ID')} (Sales: Rp ${totalSalesOmsetAll.toLocaleString('id-ID')}, Pendapatan Lain: Rp ${totalPendapatanLainAll.toLocaleString('id-ID')})\n• Total Pengeluaran: Rp ${totalExpenseAmountAll.toLocaleString('id-ID')}\n• Net Cashflow: Rp ${netCashFlowAll.toLocaleString('id-ID')}${autoMsg}\n• Mutasi Stok: ${newStockMovements.length} item.`);
 
     onClose();
   };
@@ -1259,7 +1259,7 @@ export default function ManualReportUpdateModal({
             </div>
             <div>
               <h2 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{isEditMode ? `✏️ Edit Laporan: ${editData?.report_no || ''}` : '+ Update Laporan Transaksi & Kas'}</span>
+                <span>{isEditMode ? `Edit Laporan: ${editData?.report_no || ''}` : '+ Update Laporan Transaksi & Kas'}</span>
               </h2>
               <p style={{ fontSize: '0.74rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
                 {isEditMode
@@ -1322,7 +1322,7 @@ export default function ManualReportUpdateModal({
             }}
           >
             <Plus size={16} />
-            <span>✍️ Input Manual Transaksi</span>
+            <span>Input Manual Transaksi</span>
           </button>
 
           <button
@@ -1342,7 +1342,7 @@ export default function ManualReportUpdateModal({
             }}
           >
             <FileSpreadsheet size={16} />
-            <span>📊 Batch Upload File Excel / CSV</span>
+            <span>Batch Upload File Excel / CSV</span>
           </button>
         </div>
 
@@ -1371,7 +1371,7 @@ export default function ManualReportUpdateModal({
                 }}
               >
                 <TrendingUp size={15} />
-                <span>🟢 Penjualan Produk</span>
+                <span>Penjualan Produk</span>
               </button>
 
               <button
@@ -1393,7 +1393,7 @@ export default function ManualReportUpdateModal({
                 }}
               >
                 <DollarSign size={15} />
-                <span>💰 Pendapatan Non-Sales (Kas Masuk)</span>
+                <span>Pendapatan Non-Sales (Kas Masuk)</span>
               </button>
 
               <button
@@ -1415,7 +1415,7 @@ export default function ManualReportUpdateModal({
                 }}
               >
                 <TrendingDown size={15} />
-                <span>🔴 Pengeluaran (Kas Keluar)</span>
+                <span>Pengeluaran (Kas Keluar)</span>
               </button>
 
               <button
@@ -1437,7 +1437,7 @@ export default function ManualReportUpdateModal({
                 }}
               >
                 <ShoppingBag size={15} />
-                <span>📦 Pembelian Stok</span>
+                <span>Pembelian Stok</span>
               </button>
             </div>
 
@@ -1451,7 +1451,7 @@ export default function ManualReportUpdateModal({
                 </datalist>
 
                 <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>🛒 Rincian Menu Produk Terjual:</span>
+                  <span>Rincian Menu Produk Terjual:</span>
                   <span style={{ fontSize: '0.68rem', color: T.info }}>*Ketik nama produk baru untuk pendaftaran otomatis</span>
                 </div>
 
@@ -1470,9 +1470,9 @@ export default function ManualReportUpdateModal({
                         />
                         <div style={{ fontSize: '0.64rem', marginTop: '2px', fontWeight: '800' }}>
                           {matched ? (
-                            <span style={{ color: T.success }}>✅ Terdaftar [{matched.sku}]</span>
+                            <span style={{ color: T.success }}>Terdaftar [{matched.sku}]</span>
                           ) : item.productName && item.productName.trim() ? (
-                            <span style={{ color: T.accentGold }}>✨ Auto-Register Produk Baru</span>
+                            <span style={{ color: T.accentGold }}>Auto-Register Produk Baru</span>
                           ) : null}
                         </div>
                       </div>
@@ -1532,7 +1532,7 @@ export default function ManualReportUpdateModal({
                 </datalist>
 
                 <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>💸 Rincian Pengeluaran &amp; Beban Operasional (Kas Keluar):</span>
+                  <span>Rincian Pengeluaran &amp; Beban Operasional (Kas Keluar):</span>
                   <span style={{ fontSize: '0.68rem', color: T.info }}>*Ketik Nama Biaya (Kode biaya ter-generate otomatis di Data Master)</span>
                 </div>
 
@@ -1551,9 +1551,9 @@ export default function ManualReportUpdateModal({
                         />
                         <div style={{ fontSize: '0.64rem', marginTop: '2px', fontWeight: '800' }}>
                           {matched ? (
-                            <span style={{ color: T.info }}>✅ Kode Akun [{matched.code}]</span>
+                            <span style={{ color: T.info }}>Kode Akun [{matched.code}]</span>
                           ) : item.categoryName && item.categoryName.trim() ? (
-                            <span style={{ color: T.accentGold }}>✨ Auto-Generate Kode Biaya</span>
+                            <span style={{ color: T.accentGold }}>Auto-Generate Kode Biaya</span>
                           ) : null}
                         </div>
                       </div>
@@ -1606,7 +1606,7 @@ export default function ManualReportUpdateModal({
                 </datalist>
 
                 <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>📦 Rincian Pembelian Bahan Baku (Otomatis Menambah Stok Master):</span>
+                  <span>Rincian Pembelian Bahan Baku (Otomatis Menambah Stok Master):</span>
                   <span style={{ fontSize: '0.68rem', color: T.accentGold }}>*Stok bahan baku di master data akan otomatis bertambah</span>
                 </div>
 
@@ -1680,7 +1680,7 @@ export default function ManualReportUpdateModal({
             {entryType === 'pendapatan' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>💰 Rincian Pendapatan Non-Sales (Sewa, Bagi Hasil, Catering, Pemasukan Kas Masuk):</span>
+                  <span>Rincian Pendapatan Non-Sales (Sewa, Bagi Hasil, Catering, Pemasukan Kas Masuk):</span>
                   <span style={{ fontSize: '0.68rem', color: T.info }}>*Menambah Total Kas Masuk Outlet</span>
                 </div>
 
@@ -1815,7 +1815,7 @@ export default function ManualReportUpdateModal({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.cardBg2, padding: '10px 14px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
                   <div style={{ fontSize: '0.82rem', fontWeight: '800', color: T.txtPrimary }}>
-                    📄 {fileName} ({parsedRows.length} Baris Terbaca)
+                    {fileName} ({parsedRows.length} Baris Terbaca)
                   </div>
                   <button
                     onClick={() => { setUploadStep('select'); setParsedRows([]); }}
@@ -1830,8 +1830,8 @@ export default function ManualReportUpdateModal({
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', minWidth: '700px' }}>
                     <thead>
                       <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.66rem' }}>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>📅 Tanggal</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>🏪 Outlet</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>Tanggal</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>Outlet</th>
                         <th style={{ padding: '8px 10px' }}>Tipe</th>
                         <th style={{ padding: '8px 10px' }}>Item / Akun / Pendapatan</th>
                         <th style={{ padding: '8px 10px', textAlign: 'center' }}>Qty</th>
@@ -1853,7 +1853,7 @@ export default function ManualReportUpdateModal({
                               {r.outletName || getOutletName(r.outletId || selectedOutletId)}
                             </td>
                             <td style={{ padding: '6px 10px', fontWeight: '800', color: isInc ? T.success : T.danger, whiteSpace: 'nowrap' }}>
-                              {r.type === 'penjualan' ? '🟢 Jual' : r.type === 'pendapatan' ? '💰 Masuk' : r.type === 'pembelian' ? '📦 Stok' : '🔴 Keluar'}
+                              {r.type === 'penjualan' ? 'Jual' : r.type === 'pendapatan' ? 'Masuk' : r.type === 'pembelian' ? 'Stok' : 'Keluar'}
                             </td>
                             <td style={{ padding: '6px 10px', color: T.txtPrimary, fontWeight: '700' }}>
                               {r.nameOrCode}
@@ -1869,9 +1869,9 @@ export default function ManualReportUpdateModal({
                             </td>
                             <td style={{ padding: '6px 10px' }}>
                               {r.isValid ? (
-                                <span style={{ color: T.success, fontWeight: '800', fontSize: '0.68rem' }}>{r.validationMsg || '✅ Valid'}</span>
+                                <span style={{ color: T.success, fontWeight: '800', fontSize: '0.68rem' }}>{r.validationMsg || 'Valid'}</span>
                               ) : (
-                                <span style={{ color: T.danger, fontWeight: '800', fontSize: '0.68rem' }}>❌ {r.validationMsg}</span>
+                                <span style={{ color: T.danger, fontWeight: '800', fontSize: '0.68rem' }}>{r.validationMsg}</span>
                               )}
                             </td>
                             <td style={{ padding: '6px 10px', textAlign: 'center' }}>

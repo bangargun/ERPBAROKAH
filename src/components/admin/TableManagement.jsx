@@ -314,7 +314,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                 >
                   {masterData.outlets.map(o => (
                     <option key={o.id} value={o.id}>
-                      🏢 {o.name} ({o.code})
+                      {o.name} ({o.code})
                     </option>
                   ))}
                 </select>
@@ -337,7 +337,7 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
                   style={{ fontSize: '1.05rem', fontWeight: '800' }}
                 />
                 <span style={{ fontSize: '0.7rem', color: T.info, marginTop: '4px', display: 'block' }}>
-                  ✓ Otomatis meng-generate penomoran MEJA-01 s/d MEJA-{(parseInt(tableCount) || 1).toString().padStart(2, '0')}
+                  Otomatis meng-generate penomoran MEJA-01 s/d MEJA-{(parseInt(tableCount) || 1).toString().padStart(2, '0')}
                 </span>
               </div>
 
