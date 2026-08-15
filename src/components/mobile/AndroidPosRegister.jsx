@@ -8494,8 +8494,32 @@ export default function AndroidPosRegister({
       {/* 7. MODAL PENCARIAN NAMA PELANGGAN DATA MASTER */}
 
       {showCustomerSearchModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
-          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', maxHeight: '85vh', padding: '24px', background: 'var(--pos-bg-card)', display: 'flex', flexDirection: 'column' }}>
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCustomerSearchModal(false); }}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: '12px', boxSizing: 'border-box',
+            overflowY: 'auto'
+          }}
+        >
+          <div
+            className="glass-card animate-fade-in"
+            style={{
+              width: '100%', maxWidth: '500px',
+              maxHeight: 'min(85vh, 85dvh)',
+              height: 'auto',
+              margin: '0 auto',
+              padding: '20px',
+              background: 'var(--pos-bg-card)',
+              display: 'flex', flexDirection: 'column',
+              borderRadius: '16px',
+              boxSizing: 'border-box',
+              overflow: 'hidden',
+              flexShrink: 0,
+            }}
+          >
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -8564,7 +8588,7 @@ export default function AndroidPosRegister({
             </div>
 
             {/* CUSTOMERS LIST CONTAINER */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
               
               {/* DEFAULT OPTION: PELANGGAN UMUM */}
               <div
