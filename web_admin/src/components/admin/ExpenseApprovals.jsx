@@ -48,7 +48,7 @@ export default function ExpenseApprovals({ pendingTransactions = [], onApprove, 
                 <p style={{ fontStyle: 'italic', marginBottom: '10px' }}>"{tx.description || 'Tidak ada catatan'}"</p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: T.txtSecondary }}>
                   <span>Diajukan oleh: <strong style={{ color: T.txtPrimary }}>{tx.created_by}</strong></span>
-                  <span>Tanggal: {tx.date}</span>
+                  <span>Tanggal: {tx.date} {tx.time ? tx.time.substring(0, 5) : '00:00'} WIB</span>
                 </div>
               </div>
 

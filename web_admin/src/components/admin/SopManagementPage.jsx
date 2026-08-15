@@ -561,10 +561,11 @@ export default function SopManagementPage({ masterData, setMasterData, selectedB
                   {sop.summary}
                 </p>
 
-                <div style={{ background: T.cardBg2, padding: '12px', borderRadius: '10px', border: `1px solid ${T.border}`, display: 'flex', gap: '14px', fontSize: '0.76rem', color: T.txtSecondary }}>
+                <div style={{ background: T.cardBg2, padding: '12px', borderRadius: '10px', border: `1px solid ${T.border}`, display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '0.76rem', color: T.txtSecondary }}>
                   <span><strong>Estimasi:</strong> {sop.estimatedTime}</span>
                   <span><strong>Staf:</strong> {sop.author}</span>
                   <span><strong>Checklist:</strong> {(sop.steps || []).length} Langkah</span>
+                  <span><strong>Diperbarui:</strong> {sop.lastUpdated || new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' WIB'}</span>
                 </div>
               </div>
 

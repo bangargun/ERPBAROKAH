@@ -123,12 +123,23 @@ export default function AdminLayout({
     checkWebPermission(userRole, item.permKey, masterData?.permissionMatrix)
   );
 
-  const todayFormatted = new Date().toLocaleDateString('id-ID', {
+  const [currentDateTime, setCurrentDateTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentDateTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const todayFormatted = currentDateTime.toLocaleDateString('id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
-  });
+  }) + ', ' + currentDateTime.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }) + ' WIB';
 
   // GENERATE INBOX NOTIFICATIONS FROM REAL-TIME POS DATA PUSH
   const inboxNotifications = useMemo(() => {
@@ -139,6 +150,7 @@ export default function AdminLayout({
 
     // 1. Sales POS notifications
     salesTx.slice(0, 5).forEach((tx, idx) => {
+      const timeDisplay = tx.time ? `${tx.date || ''} ${tx.time}` : (tx.timestamp ? new Date(tx.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (tx.date || 'Baru saja'));
       list.push({
         id: `tx-${tx.id || idx}`,
         type: 'pos_sale',
@@ -146,13 +158,14 @@ export default function AdminLayout({
         color: T.success,
         title: `Transaksi POS Baru #${tx.id || (idx + 1)}`,
         subtitle: `Total Rp ${(tx.amount || 0).toLocaleString('id-ID')} • ${tx.payment_method || 'Kasir'}`,
-        time: tx.date || 'Baru saja',
+        time: timeDisplay,
         outlet: tx.branch_name || 'Outlet Restoran'
       });
     });
 
     // 2. Closing Shift notifications
     closings.slice(0, 3).forEach((cs, idx) => {
+      const timeDisplay = cs.time ? `${cs.date || ''} ${cs.time}` : (cs.timestamp ? new Date(cs.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (cs.date || 'Hari ini'));
       list.push({
         id: `cs-${cs.id || idx}`,
         type: 'shift_close',
@@ -160,13 +173,14 @@ export default function AdminLayout({
         color: T.info,
         title: `Penutupan Shift Kasir (${cs.kasir_name || cs.cashier || 'Kasir'})`,
         subtitle: `Net Sales: Rp ${(cs.net_sales || cs.total_omzet || 0).toLocaleString('id-ID')}`,
-        time: cs.date || 'Hari ini',
+        time: timeDisplay,
         outlet: cs.outlet_name || 'Outlet Restoran'
       });
     });
 
     // 3. Stock Audit / Logistics notifications
     logistics.slice(0, 3).forEach((lg, idx) => {
+      const timeDisplay = lg.time ? `${lg.date || ''} ${lg.time}` : (lg.timestamp ? new Date(lg.timestamp).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (lg.date || 'Baru saja'));
       list.push({
         id: `lg-${lg.id || idx}`,
         type: 'logistics',
@@ -174,7 +188,7 @@ export default function AdminLayout({
         color: '#fbbf24',
         title: `Audit Stok / Pengajuan Logistik`,
         subtitle: `Status: ${lg.status || 'Pending'} • ${lg.notes || 'Pencatatan Bahan'}`,
-        time: lg.date || 'Baru saja',
+        time: timeDisplay,
         outlet: lg.outlet_name || 'Outlet Restoran'
       });
     });

@@ -328,7 +328,11 @@ export default function CustomerManagement({ masterData, setMasterData, selected
               ) : (
                 paginatedCustomers.map(cust => {
                   const tier = calculateTier(cust.total_spend);
-                  const joinDate = cust.join_date || '2026-07-20';
+                  const rawJoin = cust.join_date || cust.created_at || '2026-07-20';
+                  const joinTime = cust.join_time || '08:00';
+                  const joinDate = String(rawJoin).includes(':') 
+                    ? String(rawJoin) 
+                    : `${String(rawJoin).split('T')[0]} ${joinTime} WIB`;
                   const cleanCustName = (cust.name || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
 
                   return (

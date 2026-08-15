@@ -2652,7 +2652,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '8px 10px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{m.date}</div>
-                            <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '2px' }}>{m.time || ''}</div>
+                            <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '2px' }}>{m.time ? m.time.substring(0, 5) : '00:00'} WIB</div>
                           </td>
 
                           {/* 2. NAMA OUTLET */}
@@ -2831,7 +2831,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{tx.date}</div>
-                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{tx.time || ''}</div>
+                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{tx.time ? tx.time.substring(0, 5) : '00:00'} WIB</div>
                           </td>
 
                           {/* 2. NAMA OUTLET */}
@@ -2969,7 +2969,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{t.date}</div>
-                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{t.time || ''}</div>
+                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{t.time ? t.time.substring(0, 5) : '00:00'} WIB</div>
                           </td>
 
                           {/* 2. NAMA OUTLET (FROM → TO) */}
@@ -3186,7 +3186,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{m.date}</div>
-                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{m.time || ''}</div>
+                            <div style={{ fontSize: '0.70rem', color: T.txtMuted, marginTop: '2px' }}>{m.time ? m.time.substring(0, 5) : '00:00'} WIB</div>
                           </td>
 
                           {/* 2. NAMA OUTLET */}
@@ -3587,7 +3587,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '8px 10px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{op.date}</div>
-                            <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '2px' }}>{op.time || ''}</div>
+                            <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '2px' }}>{op.time ? op.time.substring(0, 5) : '00:00'} WIB</div>
                           </td>
 
                           {/* 2. NAMA OUTLET */}
