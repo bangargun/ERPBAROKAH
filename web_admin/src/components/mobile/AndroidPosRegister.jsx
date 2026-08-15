@@ -95,6 +95,23 @@ export default function AndroidPosRegister({
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
   const [activeNavTab, setActiveNavTab] = useState('kasir');
 
+  // MULTI-STEP LOGIN BOARD STATES (Dinamis Berdasarkan Data Pengaturan Web Admin)
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => !!userSession);
+  const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
+  const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
+  const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
+  const [loginSelectedOutlet, setLoginSelectedOutlet] = useState(null); // outlet yang dipilih di form login
+  const [loginUsernameInput, setLoginUsernameInput] = useState('');
+  const [loginPasswordInput, setLoginPasswordInput] = useState('');
+  const [loginErrorText, setLoginErrorText] = useState('');
+  const [showLoginPasswordEye, setShowLoginPasswordEye] = useState(false);
+  const [currentUserSession, setCurrentUserSession] = useState(() => ({
+    name: userSession?.name || 'Kasir Barokah',
+    role: userSession?.role || 'Kasir',
+    outlet: userSession?.outlet || masterData?.outlets?.[0]?.name || 'Ayam Bakar Surabaya Tebing Tinggi',
+    username: userSession?.username || 'kasir'
+  }));
+
   const outlets = masterData?.outlets || [];
   const userOutletName = currentUserSession?.outlet || userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
   const userOutletId = currentUserSession?.outlet_id || userSession?.outlet_id || '';
@@ -750,23 +767,6 @@ export default function AndroidPosRegister({
 
   // Stok Opname Summary Preview State (Data sent from Web Admin)
   const [previewOpnameSummaryRecord, setPreviewOpnameSummaryRecord] = useState(null);
-
-  // MULTI-STEP LOGIN BOARD STATES (Dinamis Berdasarkan Data Pengaturan Web Admin)
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => !!userSession);
-  const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
-  const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
-  const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
-  const [loginSelectedOutlet, setLoginSelectedOutlet] = useState(null); // outlet yang dipilih di form login
-  const [loginUsernameInput, setLoginUsernameInput] = useState('');
-  const [loginPasswordInput, setLoginPasswordInput] = useState('');
-  const [loginErrorText, setLoginErrorText] = useState('');
-  const [showLoginPasswordEye, setShowLoginPasswordEye] = useState(false);
-  const [currentUserSession, setCurrentUserSession] = useState(() => ({
-    name: userSession?.name || 'Kasir Barokah',
-    role: userSession?.role || 'Kasir',
-    outlet: userSession?.outlet || (outlets[0]?.name) || 'Ayam Bakar Surabaya Tebing Tinggi',
-    username: userSession?.username || 'kasir'
-  }));
 
   // Settings Page Sub-Tab & Preferences States (Matching User Screenshot 100%)
   const [settingSubTab, setSettingSubTab] = useState('umum'); // 'umum' | 'printer' | 'sistem' | 'akun' | 'scanner' | 'dual_display'
