@@ -9176,7 +9176,7 @@ export default function AndroidPosRegister({
                 </button>
               </div>
 
-              {/* OPTION 3: STRUK MEJA / BILL (TABLE COPY - DENGAN HARGA) */}
+              {/* OPTION 3: STRUK MEJA / CHECKER (TABLE COPY - TANPA HARGA) */}
               <div
                 style={{
                   background: activeReceiptSelections.printTableCopy ? 'rgba(16,185,129,0.15)' : 'var(--pos-bg-app)',
@@ -9196,8 +9196,8 @@ export default function AndroidPosRegister({
                 >
                   {activeReceiptSelections.printTableCopy ? <CheckSquare size={18} color="#34d399" /> : <Square size={18} color="#64748b" />}
                   <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📋 Struk Meja / Bill (Table Copy)</div>
-                    <div style={{ fontSize: '0.68rem', color: '#34d399', fontWeight: '700' }}>* Tagihan Sementara Pelanggan</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>📋 Struk Meja / Checker (Table Order)</div>
+                    <div style={{ fontSize: '0.68rem', color: '#34d399', fontWeight: '700' }}>* Tampil Pesanan TANPA HARGA (Pelayan/Checker)</div>
                   </div>
                 </div>
 
@@ -9222,7 +9222,7 @@ export default function AndroidPosRegister({
                   }}
                 >
                   <Eye size={13} />
-                  <span>Lihat Bill</span>
+                  <span>Lihat Checker</span>
                 </button>
               </div>
 
@@ -10390,11 +10390,11 @@ export default function AndroidPosRegister({
               <div style={{ fontSize: '0.82rem', fontWeight: '900', marginTop: '8px', background: '#000000', color: 'var(--pos-txt-white)', padding: '4px 10px', borderRadius: '4px', display: 'inline-block' }}>
                 {ticketPreviewType === 'KITCHEN' && '🍳 STRUK DAPUR (KITCHEN TICKET)'}
                 {ticketPreviewType === 'BAR' && '🍹 STRUK BAR (BAR TICKET)'}
-                {ticketPreviewType === 'TABLE_BILL' && '📋 STRUK MEJA (BILL SEMENTARA)'}
+                {ticketPreviewType === 'TABLE_BILL' && '📋 STRUK MEJA / ORDER CHECKER'}
                 {ticketPreviewType === 'CASHIER' && '🧾 STRUK COPY KASIR'}
               </div>
               <div style={{ fontSize: '0.75rem', marginTop: '6px', fontWeight: '800' }}>
-                {(ticketPreviewType === 'KITCHEN' || ticketPreviewType === 'BAR') ? '*** TAMPIL PRODUK TANPA HARGA ***' : '*** RINCIAN NOTA TAGIHAN ***'}
+                {ticketPreviewType === 'CASHIER' ? '*** RINCIAN NOTA PEMBAYARAN ***' : '*** TAMPIL PESANAN TANPA HARGA ***'}
               </div>
             </div>
 
@@ -10409,7 +10409,7 @@ export default function AndroidPosRegister({
             {/* Item Table Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: '900', borderBottom: '1px solid #000', paddingBottom: '4px', marginBottom: '8px' }}>
               <span>QTY  NAMA PRODUK / MINUMAN</span>
-              {(ticketPreviewType === 'TABLE_BILL' || ticketPreviewType === 'CASHIER') && <span>SUBTOTAL</span>}
+              {ticketPreviewType === 'CASHIER' && <span>SUBTOTAL</span>}
             </div>
 
             {/* Item Rows */}
@@ -10418,7 +10418,7 @@ export default function AndroidPosRegister({
                 <div key={idx} style={{ borderBottom: '1px dashed #eee', paddingBottom: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '800' }}>
                     <span>{it.qty}x  {it.name.toUpperCase()}</span>
-                    {(ticketPreviewType === 'TABLE_BILL' || ticketPreviewType === 'CASHIER') && (
+                    {ticketPreviewType === 'CASHIER' && (
                       <span>{formatRupiah((it.price || it.price_unit || 0) * it.qty)}</span>
                     )}
                   </div>
@@ -10431,32 +10431,17 @@ export default function AndroidPosRegister({
               ))}
             </div>
 
-            {/* Footer Summary - NO PRICE FOR KITCHEN / BAR TICKETS */}
-            {(ticketPreviewType === 'TABLE_BILL' || ticketPreviewType === 'CASHIER') ? (
+            {/* Footer Summary - NO PRICE FOR KITCHEN / BAR / TABLE CHECKER TICKETS */}
+            {ticketPreviewType === 'CASHIER' ? (
               <div style={{ borderTop: '2px dashed #000', paddingTop: '8px', marginBottom: '16px', fontSize: '0.9rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '900' }}>
                   <span>TOTAL BILL</span>
                   <span>{formatRupiah(ticketPreviewData.amount || cartTotal)}</span>
                 </div>
-                {(ticketPreviewType === 'TABLE_BILL' || ticketPreviewType === 'CASHIER') && (
-                  <div style={{
-                    fontSize: '0.72rem',
-                    fontWeight: '800',
-                    color: '#dc2626',
-                    border: '1px dashed #dc2626',
-                    padding: '8px',
-                    borderRadius: '6px',
-                    marginTop: '10px',
-                    textAlign: 'center',
-                    lineHeight: 1.35
-                  }}>
-                    ⚠️ Struk ini hanya sebagai informasi tagihan BUKAN BUKTI PEMBAYARAN. Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir
-                  </div>
-                )}
               </div>
             ) : (
               <div style={{ borderTop: '2px dashed #000', paddingTop: '10px', marginBottom: '16px', textAlign: 'center', fontSize: '0.80rem', fontWeight: '900', fontStyle: 'italic' }}>
-                *** PRODUK TANPA HARGA (TICKET DAPUR/BAR) ***
+                *** PRODUK TANPA HARGA (TICKET DAPUR / BAR / MEJA) ***
               </div>
             )}
 

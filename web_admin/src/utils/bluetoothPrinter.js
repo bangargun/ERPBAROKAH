@@ -102,65 +102,86 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     return leftStr + ' '.repeat(spaces) + rightStr;
   };
 
+  const isTakeAway = (tx.order_type && String(tx.order_type).toLowerCase().includes('take')) ||
+                     (tx.order_type && String(tx.order_type).toLowerCase().includes('bungkus')) ||
+                     tx.table_number === 'Take Away' ||
+                     tx.table_number === 'Bungkus';
+
+  const orderTypeLabel = isTakeAway ? 'TAKE AWAY / BUNGKUS' : 'DINE IN';
+  const tableDisplay = isTakeAway ? 'TAKE AWAY' : (tx.table_number || 'Meja 01');
+
   if (ticketType === 'kitchen') {
-    // ===== STRUK DAPUR =====
+    // ===== 🍳 STRUK DAPUR (KITCHEN TICKET - TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK DAPUR - KITCHEN TICKET');
     lines.push('[DIV]');
-    lines.push(rowLine('No. Order:', tx.id || '-'));
-    lines.push(rowLine('Meja:', tx.table_number || 'Meja 01'));
+    lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
+    lines.push(rowLine('Tipe Order:', orderTypeLabel));
+    if (!isTakeAway) {
+      lines.push(rowLine('Meja:', tableDisplay));
+    }
+    lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
     lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
+    lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
-    lines.push('[B]QTY  NAMA PRODUK');
+    lines.push('[B]QTY  NAMA PESANAN (DAPUR)');
     lines.push('[DIV]');
     (tx.items || []).forEach(it => {
-      lines.push(`[B]${it.qty}x  ${(it.name || '').toUpperCase()}`);
-      if (it.notes) lines.push(`   * ${it.notes}`);
+      lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
+      if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
-    lines.push('[C]*** UNTUK KOKI / DAPUR ***');
+    lines.push('[C]*** UNTUK KOKI / DAPUR (TANPA HARGA) ***');
 
   } else if (ticketType === 'bar') {
-    // ===== STRUK BAR =====
+    // ===== 🍹 STRUK BAR (BAR TICKET - TANPA HARGA) =====
     lines.push('[C][B]' + outlet);
     lines.push('[C]STRUK BAR - BAR TICKET');
     lines.push('[DIV]');
-    lines.push(rowLine('No. Order:', tx.id || '-'));
-    lines.push(rowLine('Meja:', tx.table_number || 'Meja 01'));
-    lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
-    lines.push('[DIV]');
-    lines.push('[B]QTY  NAMA MINUMAN');
-    lines.push('[DIV]');
-    (tx.items || []).forEach(it => {
-      lines.push(`[B]${it.qty}x  ${(it.name || '').toUpperCase()}`);
-      if (it.notes) lines.push(`   * ${it.notes}`);
-    });
-    lines.push('[DIVD]');
-    lines.push('[C]*** UNTUK BARTENDER / BAR ***');
-
-  } else if (ticketType === 'bill') {
-    // ===== STRUK BILL SEMENTARA =====
-    lines.push('[C][B]' + outlet);
-    lines.push('[C]STRUK MEJA / BILL SEMENTARA');
-    lines.push('[DIV]');
-    lines.push(rowLine('No. Order:', tx.id || '-'));
-    lines.push(rowLine('Meja:', tx.table_number || 'Meja 01'));
+    lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
+    lines.push(rowLine('Tipe Order:', orderTypeLabel));
+    if (!isTakeAway) {
+      lines.push(rowLine('Meja:', tableDisplay));
+    }
     lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
+    lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
+    lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
-    lines.push(rowLine('ITEM', 'SUBTOTAL'));
+    lines.push('[B]QTY  NAMA MINUMAN (BAR)');
     lines.push('[DIV]');
     (tx.items || []).forEach(it => {
-      const sub = (it.price || it.price_unit || 0) * it.qty;
-      lines.push(rowLine(`${it.qty}x ${(it.name || '').toUpperCase()}`, fmt(sub)));
-      if (it.notes) lines.push(`   * ${it.notes}`);
+      lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
+      if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
-    lines.push('[B]' + rowLine('TOTAL BILL:', fmt(tx.amount || 0)));
+    lines.push('[C]*** UNTUK BARTENDER / BAR (TANPA HARGA) ***');
+
+  } else if (ticketType === 'bill' || ticketType === 'table' || ticketType === 'checker') {
+    // ===== 📋 STRUK MEJA / ORDER CHECKER (TANPA HARGA) =====
+    lines.push('[C][B]' + outlet);
+    lines.push('[C]STRUK MEJA / ORDER CHECKER');
     lines.push('[DIV]');
-    lines.push('[C]Terima kasih atas kunjungan Anda');
+    lines.push(rowLine('No. Order:', tx.id || tx.receipt_no || '-'));
+    lines.push(rowLine('Tipe Order:', orderTypeLabel));
+    if (!isTakeAway) {
+      lines.push(rowLine('Meja:', tableDisplay));
+    }
+    lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
+    lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
+    lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
+    lines.push('[DIV]');
+    lines.push('[B]QTY  NAMA PESANAN');
+    lines.push('[DIV]');
+    (tx.items || []).forEach(it => {
+      lines.push(`[B]${it.qty || 1}x  ${(it.name || it.item_name || '').toUpperCase()}`);
+      if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
+    });
+    lines.push('[DIVD]');
+    lines.push('[C]*** PESANAN TANPA HARGA (CHECKER MEJA) ***');
+    lines.push('[C]Mohon periksa pesanan sebelum disajikan');
 
   } else {
-    // ===== STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT) =====
+    // ===== 🧾 STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT - DENGAN HARGA) =====
     const restoName = (headerFooter?.restaurantName || outletName || 'MRIS RESTORAN').toUpperCase();
     const groupName = headerFooter?.groupName;
     const address = headerFooter?.address;
@@ -175,8 +196,10 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push(rowLine('No. Struk:', tx.id || tx.receipt_no || '-'));
     lines.push(rowLine('Tanggal:', tx.date || ''));
     lines.push(rowLine('Waktu:', tx.time || ''));
-    lines.push(rowLine('Tipe Order:', tx.order_type || 'Dine In'));
-    lines.push(rowLine('Meja:', tx.table_number || '-'));
+    lines.push(rowLine('Tipe Order:', orderTypeLabel));
+    if (!isTakeAway) {
+      lines.push(rowLine('Meja:', tableDisplay));
+    }
     lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
     lines.push(rowLine('Kasir:', tx.cashier || '-'));
     lines.push('[DIV]');
@@ -185,7 +208,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     (tx.items || []).forEach(it => {
       const sub = (it.price || it.price_unit || 0) * (it.qty || 1);
       lines.push(rowLine(`${it.qty || 1}x ${(it.name || it.item_name || '').toUpperCase()}`, fmt(sub)));
-      if (it.notes) lines.push(`   * ${it.notes}`);
+      if (it.notes) lines.push(`   * Catatan: ${it.notes}`);
     });
     lines.push('[DIVD]');
     const amountVal = Number(tx.amount || 0);
