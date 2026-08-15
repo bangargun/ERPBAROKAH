@@ -95,23 +95,6 @@ export default function AndroidPosRegister({
   // 5 MAIN TABS: 'kasir' | 'riwayat' | 'keuangan' | 'logistik' | 'omzet'
   const [activeNavTab, setActiveNavTab] = useState('kasir');
 
-  // MULTI-STEP LOGIN BOARD STATES (Dinamis Berdasarkan Data Pengaturan Web Admin)
-  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => !!userSession);
-  const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
-  const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
-  const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
-  const [loginSelectedOutlet, setLoginSelectedOutlet] = useState(null); // outlet yang dipilih di form login
-  const [loginUsernameInput, setLoginUsernameInput] = useState('');
-  const [loginPasswordInput, setLoginPasswordInput] = useState('');
-  const [loginErrorText, setLoginErrorText] = useState('');
-  const [showLoginPasswordEye, setShowLoginPasswordEye] = useState(false);
-  const [currentUserSession, setCurrentUserSession] = useState(() => ({
-    name: userSession?.name || 'Kasir Barokah',
-    role: userSession?.role || 'Kasir',
-    outlet: userSession?.outlet || masterData?.outlets?.[0]?.name || 'Ayam Bakar Surabaya Tebing Tinggi',
-    username: userSession?.username || 'kasir'
-  }));
-
   const outlets = masterData?.outlets || [];
   const userOutletName = currentUserSession?.outlet || userSession?.outlet || userSession?.branch_name || userSession?.outlet_name || '';
   const userOutletId = currentUserSession?.outlet_id || userSession?.outlet_id || '';
@@ -767,6 +750,23 @@ export default function AndroidPosRegister({
 
   // Stok Opname Summary Preview State (Data sent from Web Admin)
   const [previewOpnameSummaryRecord, setPreviewOpnameSummaryRecord] = useState(null);
+
+  // MULTI-STEP LOGIN BOARD STATES (Dinamis Berdasarkan Data Pengaturan Web Admin)
+  const [isAppLoggedIn, setIsAppLoggedIn] = useState(() => !!userSession);
+  const [loginStep, setLoginStep] = useState(1); // 1 | 2 | 3
+  const [selectedLoginCategory, setSelectedLoginCategory] = useState(null); // 'super_admin' | 'owner' | outlet object
+  const [selectedUserAccount, setSelectedUserAccount] = useState(null); // account object selected in Step 2
+  const [loginSelectedOutlet, setLoginSelectedOutlet] = useState(null); // outlet yang dipilih di form login
+  const [loginUsernameInput, setLoginUsernameInput] = useState('');
+  const [loginPasswordInput, setLoginPasswordInput] = useState('');
+  const [loginErrorText, setLoginErrorText] = useState('');
+  const [showLoginPasswordEye, setShowLoginPasswordEye] = useState(false);
+  const [currentUserSession, setCurrentUserSession] = useState(() => ({
+    name: userSession?.name || 'Kasir Barokah',
+    role: userSession?.role || 'Kasir',
+    outlet: userSession?.outlet || (outlets[0]?.name) || 'Ayam Bakar Surabaya Tebing Tinggi',
+    username: userSession?.username || 'kasir'
+  }));
 
   // Settings Page Sub-Tab & Preferences States (Matching User Screenshot 100%)
   const [settingSubTab, setSettingSubTab] = useState('umum'); // 'umum' | 'printer' | 'sistem' | 'akun' | 'scanner' | 'dual_display'
@@ -2949,48 +2949,23 @@ export default function AndroidPosRegister({
     })();
 
     const registeredUsers = (() => {
-      const list = Array.from(usersMap.values());
-
-      // Pastikan setiap outlet di availableOutlets memiliki akun Kasir & SPV jika belum didaftarkan di Web Admin
+      if (usersMap.size > 0) return Array.from(usersMap.values());
+      const fallbackList = [
+        { id: 1, name: 'Super Admin Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '888', canAccessMobileReports: true },
+        { id: 2, name: 'Owner Restoran', role: 'Super Admin / Owner', outlet: 'Semua Outlet (Central)', outlet_id: 'central', mobileLoginPassword: '999', canAccessMobileReports: true }
+      ];
       availableOutlets.forEach((o, idx) => {
-        const oIdStr = String(o.id || '');
-        const oNameStr = String(o.name || '').toLowerCase().trim();
-
-        const hasOutletUser = list.some(u => {
-          const uOutlet = String(u.outlet || u.assignedOutlet || u.outlet_name || u.branch || '').toLowerCase().trim();
-          const uOutletId = String(u.outlet_id || u.outletId || '').toLowerCase().trim();
-          return (uOutletId && uOutletId === oIdStr) || (uOutlet && (uOutlet === oNameStr || uOutlet.includes(oNameStr) || oNameStr.includes(uOutlet)));
+        fallbackList.push({
+          id: 100 + idx,
+          name: `Kasir ${o.name.replace(/^(AYAM BAKAR|AYAM PECAK 2001 SEAFOOD|PECEL LELE)\s*/i, '')}`,
+          role: 'Kasir',
+          outlet: o.name,
+          outlet_id: o.id,
+          mobileLoginPassword: '',
+          canAccessMobileReports: false
         });
-
-        if (!hasOutletUser) {
-          const cleanBranchName = o.name.replace(/^(AYAM BAKAR|AYAM PECAK 2001 SEAFOOD|PECEL LELE)\s*/i, '');
-          list.push({
-            id: `kasir-${o.id}`,
-            name: `Kasir ${cleanBranchName}`,
-            username: `kasir_${o.code?.toLowerCase() || idx}`,
-            role: 'Kasir',
-            outlet: o.name,
-            outlet_id: o.id,
-            mobileLoginPassword: '1234',
-            canAccessMobileReports: false,
-            status: 'Aktif'
-          });
-          list.push({
-            id: `spv-${o.id}`,
-            name: `SPV ${cleanBranchName}`,
-            username: `spv_${o.code?.toLowerCase() || idx}`,
-            role: 'Kepala Cabang / SPV',
-            outlet: o.name,
-            outlet_id: o.id,
-            mobileLoginPassword: '1234',
-            canAccessMobileReports: true,
-            mobileReportPassword: '1234',
-            status: 'Aktif'
-          });
-        }
       });
-
-      return list;
+      return fallbackList;
     })();
 
     const activeOutletObj = loginSelectedOutlet || availableOutlets[0] || null;
@@ -3003,7 +2978,7 @@ export default function AndroidPosRegister({
       const uRole = String(u.role || '').toLowerCase();
 
       const isCentral = !uOutlet || uOutlet.includes('semua outlet') || uOutlet.includes('central') || uRole.includes('super admin') || uRole.includes('owner');
-      const isMatch = isCentral || (uOutletId && uOutletId === activeOutletId) || (uOutlet && activeOutletName && (uOutlet.includes(activeOutletName) || activeOutletName.includes(uOutlet)));
+      const isMatch = isCentral || uOutlet.includes(activeOutletName) || activeOutletName.includes(uOutlet) || (uOutletId && uOutletId === activeOutletId);
       return isMatch;
     }) : registeredUsers;
 
