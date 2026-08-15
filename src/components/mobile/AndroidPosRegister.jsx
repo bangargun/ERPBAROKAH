@@ -125,7 +125,7 @@ export default function AndroidPosRegister({
     const outId = outletId || currentOutlet?.id || 1;
     const outIdStr = String(outId);
 
-    // 1. Check standardPrices for outId
+    // 1. Check standardPrices for outId (STRICT: only this outlet's key)
     const stdPrices = item.standardPrices || {};
     let stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : stdPrices[outIdStr];
     if (stdVal === undefined) {
@@ -140,7 +140,7 @@ export default function AndroidPosRegister({
       return Number(stdVal);
     }
 
-    // 2. Check priceCombinations for outId
+    // 2. Check priceCombinations for outId (STRICT: only this outlet's key)
     if (item.priceCombinations && item.priceCombinations.length > 0) {
       for (const combo of item.priceCombinations) {
         if (combo.outletPrices) {
@@ -152,7 +152,7 @@ export default function AndroidPosRegister({
       }
     }
 
-    // 3. Check variantPrices for outId
+    // 3. Check variantPrices for outId (STRICT: only this outlet's key)
     if (item.variantPrices && typeof item.variantPrices === 'object') {
       for (const vName in item.variantPrices) {
         const vMap = item.variantPrices[vName];
@@ -165,26 +165,31 @@ export default function AndroidPosRegister({
       }
     }
 
-    return Number(item.price || item.cost_price || item.cost || 0);
+    // STRICT: Do NOT fall back to item.price — that would show products from other outlets.
+    // Only return a price if this outlet explicitly has one.
+    return 0;
   };
 
-  // Filter products for this outlet (pure real data from masterData, no fake fallback)
+  // Filter products for this outlet — strictly by outlet_id only, no fuzzy fallback
   const rawProducts = (masterData?.products || []);
   const products = rawProducts.filter(p => {
     if (!p || !p.id) return false;
     // 1. Skip if general status is Inaktif
     if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
 
-    // 2. Outlet assignment check (if selectedOutletIds is set, outlet MUST be selected in array)
+    // 2. STRICT outlet check: product must belong to this exact outlet
+    const productOutletId = String(p.outlet_id || '');
+    const currentOutletId = String(currentOutlet?.id || '');
+
+    // Check outlet_id directly
+    if (productOutletId && productOutletId !== 'Semua Outlet' && productOutletId !== 'Semua Outlet (Central)') {
+      if (productOutletId !== currentOutletId) return false;
+    }
+
+    // Also verify via selectedOutletIds if present
     if (Array.isArray(p.selectedOutletIds) && p.selectedOutletIds.length > 0) {
-      const isSelected = p.selectedOutletIds.some(id => String(id) === String(currentOutlet?.id));
+      const isSelected = p.selectedOutletIds.some(id => String(id) === currentOutletId);
       if (!isSelected) return false;
-    } else if (p.outlet_id && p.outlet_id !== 'Semua Outlet' && p.outlet_id !== 'Semua Outlet (Central)') {
-      const isMatch = String(p.outlet_id) === String(currentOutlet?.id) ||
-        String(p.outlet_name || '').toLowerCase() === String(currentOutlet?.name || '').toLowerCase() ||
-        String(currentOutlet?.id) === '1' ||
-        String(p.outlet_id) === '1';
-      if (!isMatch) return false;
     }
 
     // 3. "Tampilkan di APK" status check per outlet
@@ -194,7 +199,7 @@ export default function AndroidPosRegister({
       return false;
     }
 
-    // 4. Effective price check for this specific outlet
+    // 4. Effective price check — STRICT, must have price for THIS outlet
     const effectivePrice = getProductPriceForOutlet(p, currentOutlet?.id);
     if (effectivePrice <= 0) return false;
 
