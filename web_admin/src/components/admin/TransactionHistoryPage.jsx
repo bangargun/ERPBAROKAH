@@ -435,8 +435,13 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       amount: Number(r.amount || 0)
     }));
 
+    const existingId = editingRecord ? (editingRecord.id || editingRecord.receipt_no || editingRecord.receiptNo || editingRecord.invoice_no) : `00${Math.floor(2500 + Math.random() * 9000)}`;
+
     const newRecord = {
-      id: editingRecord ? editingRecord.id : `00${Math.floor(2500 + Math.random() * 9000)}`,
+      ...(editingRecord || {}),
+      id: existingId,
+      receipt_no: editingRecord?.receipt_no || editingRecord?.receiptNo || existingId,
+      receiptNo: editingRecord?.receiptNo || editingRecord?.receipt_no || existingId,
       date: formDate,
       time: formTime,
       type: 'Invoice Penjualan',
@@ -446,28 +451,54 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       order_type: formOrderType || 'DineIn',
       items: activeItems,
       amount: grandTotalStrukAmount,
+      total: grandTotalStrukAmount,
+      grandTotal: grandTotalStrukAmount,
       payment_method: formPaymentMethod,
       cashier: formCashier,
       notes: formNotes,
-      ref_pelanggan: `POS-${formDate.replace(/-/g, '')}-MANUAL`,
+      ref_pelanggan: editingRecord?.ref_pelanggan || `POS-${formDate.replace(/-/g, '')}-MANUAL`,
       gudang: `GUDANG ${targetOutlet.name.toUpperCase()}`,
       source: editingRecord ? (editingRecord.source || '✍️ By Manual') : '✍️ By Manual',
-      status: 'Selesai'
+      status: editingRecord?.status || 'Selesai'
     };
 
-    let updatedList = [...transactions];
+    const isMatch = (t) => {
+      if (!t || !editingRecord) return false;
+      const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
+      const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+      const targetId = String(editingRecord.id || '');
+      const targetRcpt = String(editingRecord.receipt_no || editingRecord.receiptNo || editingRecord.invoice_no || '');
+      if (targetId && tid && (tid === targetId || tid === targetRcpt)) return true;
+      if (targetRcpt && trcpt && (trcpt === targetRcpt || trcpt === targetId)) return true;
+      if (targetId && trcpt && trcpt === targetId) return true;
+      return false;
+    };
+
+    let updatedSalesTx = [...(masterData?.salesTransactions || [])];
+    let updatedTx = [...(masterData?.transactions || [])];
+
     if (editingRecord) {
-      const index = updatedList.findIndex(t => t.id === editingRecord.id);
-      if (index !== -1) updatedList[index] = newRecord;
+      const idx1 = updatedSalesTx.findIndex(isMatch);
+      if (idx1 !== -1) updatedSalesTx[idx1] = newRecord;
+      else updatedSalesTx = [newRecord, ...updatedSalesTx];
+
+      const idx2 = updatedTx.findIndex(isMatch);
+      if (idx2 !== -1) updatedTx[idx2] = newRecord;
     } else {
-      updatedList = [newRecord, ...updatedList];
+      updatedSalesTx = [newRecord, ...updatedSalesTx];
     }
 
     if (setMasterData) {
       setMasterData({
         ...masterData,
-        salesTransactions: updatedList
+        _lastUpdated: Date.now(),
+        salesTransactions: updatedSalesTx,
+        transactions: updatedTx
       });
+    }
+
+    if (viewMode === 'detail') {
+      setSelectedInvoice(newRecord);
     }
 
     setShowModal(false);
@@ -492,26 +523,27 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     }
   };
 
-  const handleDeleteTransaction = async (id) => {
-    if (!id) return;
-    const targetTx = (masterData?.salesTransactions || []).find(t => 
-      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
-    ) || (masterData?.transactions || []).find(t => 
-      String(t.id) === String(id) || String(t.receipt_no) === String(id) || String(t.receiptNo) === String(id) || String(t.invoice_no) === String(id)
+  const handleDeleteTransaction = async (target) => {
+    if (!target) return;
+    const targetObj = typeof target === 'object' ? target : null;
+    const targetId = targetObj ? String(targetObj.id || targetObj.receipt_no || targetObj.receiptNo || targetObj.invoice_no || '') : String(target);
+    const targetReceiptNo = targetObj ? (targetObj.receipt_no || targetObj.receiptNo || targetObj.invoice_no || null) : null;
+
+    const allTx = [...(masterData?.salesTransactions || []), ...(masterData?.transactions || [])];
+    const targetTx = targetObj || allTx.find(t => 
+      String(t.id) === targetId || String(t.receipt_no) === targetId || String(t.receiptNo) === targetId || String(t.invoice_no) === targetId
     );
 
-    const targetId = targetTx?.id ? String(targetTx.id) : String(id);
-    const targetReceiptNo = targetTx?.receipt_no || targetTx?.receiptNo || targetTx?.invoice_no || null;
-    const displayLabel = targetReceiptNo || targetId;
+    const displayLabel = targetReceiptNo || targetTx?.receipt_no || targetTx?.receiptNo || targetTx?.invoice_no || targetId;
 
     if (window.confirm(`Apakah Anda yakin ingin menghapus transaksi penjualan ${displayLabel}? Data penjualan ini akan terhapus permanen dari Web Admin, Riwayat Kategori, Laba Rugi, dan Kasir Mobile.`)) {
       const isMatch = (t) => {
         if (!t) return false;
-        const tid = String(t.id !== undefined ? t.id : '');
+        const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
         const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
-        if (tid && (tid === targetId || tid === String(id))) return true;
+        if (tid && (tid === targetId || (targetReceiptNo && tid === targetReceiptNo))) return true;
         if (targetReceiptNo && trcpt && trcpt === targetReceiptNo) return true;
-        if (trcpt && (trcpt === targetId || trcpt === String(id))) return true;
+        if (trcpt && trcpt === targetId) return true;
         return false;
       };
 
@@ -522,14 +554,14 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       const updatedStockMovement = (masterData?.stockMovement || []).filter(m => {
         if (!m) return false;
         const refId = String(m.ref_id || m.transaction_id || m.receipt_no || '');
-        if (refId && (refId === targetId || refId === String(id) || (targetReceiptNo && refId === targetReceiptNo))) return false;
+        if (refId && (refId === targetId || (targetReceiptNo && refId === targetReceiptNo))) return false;
         return true;
       });
 
       const prevDelSales = (masterData?.deletedSalesIds || []).map(x => String(x));
       const prevDelLog = (masterData?.deletedLogisticsIds || []).map(x => String(x));
-      const updatedDelSales = Array.from(new Set([...prevDelSales, targetId, targetReceiptNo, String(id)].filter(Boolean)));
-      const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReceiptNo, String(id)].filter(Boolean)));
+      const updatedDelSales = Array.from(new Set([...prevDelSales, targetId, targetReceiptNo].filter(Boolean)));
+      const updatedDelLog = Array.from(new Set([...prevDelLog, targetId, targetReceiptNo].filter(Boolean)));
 
       const updated = {
         ...masterData,
@@ -564,9 +596,8 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         console.error('Delete transaction API error:', err);
       }
 
-      if (viewMode === 'detail') {
-        setViewMode('list');
-      }
+      setSelectedInvoice(null);
+      setViewMode('list');
     }
   };
 
@@ -708,62 +739,63 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   // =========================================================
   // VIEW MODE 2: LUNA POS INVOICE DETAIL VIEW (MATCHING IMAGE 2 & 3)
   // =========================================================
-  if (viewMode === 'detail' && selectedInvoice) {
-    const inv = selectedInvoice;
-    const itemList = inv.items && inv.items.length > 0 
-      ? inv.items 
-      : [{ name: inv.item_name || 'AYAM BAKAR / SAMBAL PENYET', sku: '000987', qty: inv.qty || 1, unit: 'PORSI', price_unit: inv.amount || 35000, amount: inv.amount || 35000 }];
-    
-    const totalQtyCount = itemList.reduce((sum, it) => sum + Number(it.qty || 1), 0);
+  const inv = selectedInvoice;
+  const itemList = inv && inv.items && inv.items.length > 0 
+    ? inv.items 
+    : (inv ? [{ name: inv.item_name || 'AYAM BAKAR / SAMBAL PENYET', sku: '000987', qty: inv.qty || 1, unit: 'PORSI', price_unit: inv.amount || 35000, amount: inv.amount || 35000 }] : []);
+  
+  const totalQtyCount = itemList.reduce((sum, it) => sum + Number(it.qty || 1), 0);
 
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, minHeight: '100vh', padding: '20px', color: T.txtPrimary }} className="animate-fade-in">
-        
-        {/* HEADER BAR LUNA POS INVOICE */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button 
-              onClick={handleBackToList}
-              style={{
-                background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 14px', borderRadius: '8px',
-                cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px'
-              }}
-            >
-              <ArrowLeft size={16} />
-              <span>Kembali</span>
-            </button>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span>Invoice: {inv.id}</span>
-              <span style={{ background: T.danger, color: T.txtPrimary, fontSize: '0.72rem', fontWeight: '800', padding: '3px 10px', borderRadius: '12px', letterSpacing: '0.05em' }}>
-                {inv.status === 'CLOSED' || inv.status === 'Selesai' ? 'CLOSED' : inv.status}
-              </span>
-            </h2>
-          </div>
+  return (
+    <>
+      {viewMode === 'detail' && selectedInvoice ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, minHeight: '100vh', padding: '20px', color: T.txtPrimary }} className="animate-fade-in">
+          
+          {/* HEADER BAR LUNA POS INVOICE */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button 
+                onClick={handleBackToList}
+                style={{
+                  background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 14px', borderRadius: '8px',
+                  cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                <ArrowLeft size={16} />
+                <span>Kembali</span>
+              </button>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>Invoice: {inv.id || inv.receipt_no || inv.receiptNo || inv.invoice_no}</span>
+                <span style={{ background: T.danger, color: T.txtPrimary, fontSize: '0.72rem', fontWeight: '800', padding: '3px 10px', borderRadius: '12px', letterSpacing: '0.05em' }}>
+                  {inv.status === 'CLOSED' || inv.status === 'Selesai' ? 'CLOSED' : inv.status}
+                </span>
+              </h2>
+            </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button 
-              onClick={() => window.print()} 
-              style={{ background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Printer size={16} color="${T.txtSecondary}" />
-              <span>Print</span>
-              <ChevronDown size={14} />
-            </button>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button 
+                onClick={() => window.print()} 
+                style={{ background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Printer size={16} color="${T.txtSecondary}" />
+                <span>Print</span>
+                <ChevronDown size={14} />
+              </button>
 
-            <button 
-              onClick={() => handleOpenEditModal(inv)}
-              style={{ background: '#7e22ce', border: 'none', color: T.txtPrimary, padding: '8px 20px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
-            >
-              Ubah
-            </button>
+              <button 
+                onClick={() => handleOpenEditModal(inv)}
+                style={{ background: '#7e22ce', border: 'none', color: T.txtPrimary, padding: '8px 20px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Ubah
+              </button>
 
-            <button 
-              onClick={() => handleDeleteTransaction(inv.id)}
-              style={{ background: T.danger, border: 'none', color: T.txtPrimary, padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Trash2 size={16} />
-              <span>Hapus</span>
-            </button>
+              <button 
+                onClick={() => handleDeleteTransaction(inv)}
+                style={{ background: T.danger, border: 'none', color: T.txtPrimary, padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Trash2 size={16} />
+                <span>Hapus</span>
+              </button>
 
             <button style={{ background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}>
               <MoreVertical size={16} />
@@ -961,16 +993,10 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         </div>
 
       </div>
-    );
-  }
-
-  // =========================================================
-  // VIEW MODE 1: LUNA POS MAIN PENJUALAN TABLE (MATCHING DARK THEME SYSTEM)
-  // =========================================================
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, padding: '20px', borderRadius: '16px', color: T.txtPrimary, minHeight: '88vh' }} className="animate-fade-in">
-      
-      {/* 1. HEADER ROW WITH TITLE & "+ TAMBAH BARU" BUTTON */}
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, padding: '20px', borderRadius: '16px', color: T.txtPrimary, minHeight: '88vh' }} className="animate-fade-in">
+        
+        {/* 1. HEADER ROW WITH TITLE & "+ TAMBAH BARU" BUTTON */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h1 style={{ fontSize: '1.8rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
@@ -1256,7 +1282,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                           Ubah
                         </button>
                         <button 
-                          onClick={() => handleDeleteTransaction(item.id)}
+                          onClick={() => handleDeleteTransaction(item)}
                           title="Hapus Transaksi Penjualan"
                           style={{
                             background: T.danger, color: T.txtPrimary, border: 'none', padding: '6px 12px', borderRadius: '16px',
@@ -1288,6 +1314,8 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
            themeMode={themeMode} />
         </div>
       </div>
+    </div>
+    )}
 
       {/* ========================================================= */}
       {/* FORM MODAL ADD / EDIT MANUAL TRANSACTION                  */}
@@ -1596,6 +1624,6 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         </div>
       )}
 
-    </div>
+    </>
   );
 }
