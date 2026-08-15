@@ -1748,8 +1748,7 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
       if (!p) return false;
       const pId = String(p.id !== undefined && p.id !== null ? p.id : '').toLowerCase().trim();
       const pSku = String(p.sku || p.code || '').toLowerCase().trim();
-      const pName = String(p.name || '').toLowerCase().trim();
-      return !deletedProdSet.has(pId) && !deletedProdSet.has(pSku) && !deletedProdSet.has(pName);
+      return !deletedProdSet.has(pId) && !deletedProdSet.has(pSku);
     });
   }
 

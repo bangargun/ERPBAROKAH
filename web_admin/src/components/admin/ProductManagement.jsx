@@ -374,28 +374,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     };
 
     if (editingProductId) {
-      // When editing: check for duplicate name in same outlet (excluding self)
-      const nameConflict = (updated.products || []).find(p =>
-        p.id !== editingProductId &&
-        String(p.outlet_id) === String(targetOutId) &&
-        (p.name || '').trim().toUpperCase() === prodName.trim().toUpperCase()
-      );
-      if (nameConflict) {
-        alert(`⚠️ Menu "${prodName.trim()}" sudah ada di outlet yang sama (${nameConflict.sku}).\n\nSetiap menu hanya boleh 1 kali per outlet. Gunakan nama yang berbeda atau pilih outlet yang berbeda.`);
-        return;
-      }
       const idx = (updated.products || []).findIndex(p => p.id === editingProductId);
       if (idx !== -1) updated.products[idx] = productPayload;
     } else {
-      // When adding: strictly prevent duplicate name in same outlet
-      const nameConflict = (updated.products || []).find(p =>
-        String(p.outlet_id) === String(targetOutId) &&
-        (p.name || '').trim().toUpperCase() === prodName.trim().toUpperCase()
-      );
-      if (nameConflict) {
-        alert(`⚠️ Menu "${prodName.trim()}" sudah ada di outlet yang sama (${nameConflict.sku}).\n\nSetiap menu hanya boleh 1 kali per outlet. Jika menu ini dijual di outlet lain, tambahkan sebagai produk terpisah dengan outlet yang berbeda.`);
-        return;
-      }
       updated.products.unshift(productPayload);
     }
 

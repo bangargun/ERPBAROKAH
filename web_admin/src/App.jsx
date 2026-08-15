@@ -384,8 +384,7 @@ export default function App() {
                 ...(prev.deletedProductIds || []),
                 ...(serverData.deletedProductIds || []),
                 '1786694529714.3901', '1786771748483', '1786771829811', '1786771750515',
-                'prd-045', 'prd-103', 'prd-105', 'prd-106',
-                'ayam penyet [sambal merah]'
+                'prd-045', 'prd-103', 'prd-105', 'prd-106'
               ].map(x => String(x).toLowerCase().trim()));
 
               const isMasterItemDeleted = (item, deletedIds) => {
@@ -393,11 +392,9 @@ export default function App() {
                 const iId = String(item.id !== undefined && item.id !== null ? item.id : '').toLowerCase().trim();
                 const iSku = String(item.sku || '').toLowerCase().trim();
                 const iCode = String(item.code || '').toLowerCase().trim();
-                const iName = String(item.name || '').toLowerCase().trim();
                 return (iId && deletedIds.has(iId)) ||
                        (iSku && deletedIds.has(iSku)) ||
-                       (iCode && deletedIds.has(iCode)) ||
-                       (iName && deletedIds.has(iName));
+                       (iCode && deletedIds.has(iCode));
               };
 
               const getCombinedArray = (a, b) => {
