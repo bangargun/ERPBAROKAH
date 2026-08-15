@@ -123,10 +123,19 @@ export default function AndroidPosRegister({
   const getProductPriceForOutlet = (item, outletId) => {
     if (!item) return 0;
     const outId = outletId || currentOutlet?.id || 1;
+    const outIdStr = String(outId);
 
     // 1. Check standardPrices for outId
     const stdPrices = item.standardPrices || {};
-    const stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : stdPrices[String(outId)];
+    let stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : stdPrices[outIdStr];
+    if (stdVal === undefined) {
+      for (const k of Object.keys(stdPrices)) {
+        if (String(k) === outIdStr) {
+          stdVal = stdPrices[k];
+          break;
+        }
+      }
+    }
     if (stdVal !== undefined && Number(stdVal) > 0) {
       return Number(stdVal);
     }
@@ -135,7 +144,7 @@ export default function AndroidPosRegister({
     if (item.priceCombinations && item.priceCombinations.length > 0) {
       for (const combo of item.priceCombinations) {
         if (combo.outletPrices) {
-          const cVal = combo.outletPrices[outId] !== undefined ? combo.outletPrices[outId] : combo.outletPrices[String(outId)];
+          const cVal = combo.outletPrices[outId] !== undefined ? combo.outletPrices[outId] : combo.outletPrices[outIdStr];
           if (cVal !== undefined && Number(cVal) > 0) {
             return Number(cVal);
           }
@@ -148,7 +157,7 @@ export default function AndroidPosRegister({
       for (const vName in item.variantPrices) {
         const vMap = item.variantPrices[vName];
         if (vMap) {
-          const vVal = vMap[outId] !== undefined ? vMap[outId] : vMap[String(outId)];
+          const vVal = vMap[outId] !== undefined ? vMap[outId] : vMap[outIdStr];
           if (vVal !== undefined && Number(vVal) > 0) {
             return Number(vVal);
           }
@@ -156,39 +165,37 @@ export default function AndroidPosRegister({
       }
     }
 
-    // If standard price was explicitly 0, return 0
-    if (stdVal !== undefined && Number(stdVal) <= 0) return 0;
-
     return Number(item.price || item.cost_price || item.cost || 0);
   };
 
   // Filter products for this outlet (pure real data from masterData, no fake fallback)
   const rawProducts = (masterData?.products || []);
   const products = rawProducts.filter(p => {
+    if (!p || !p.id) return false;
     // 1. Skip if general status is Inaktif
     if (p.status === 'Inaktif' || p.status === 'Non-Aktif') return false;
 
     // 2. Outlet assignment check (if selectedOutletIds is set, outlet MUST be selected in array)
-    if (Array.isArray(p.selectedOutletIds)) {
-      const isSelected = p.selectedOutletIds.some(id => String(id) === String(currentOutlet.id));
+    if (Array.isArray(p.selectedOutletIds) && p.selectedOutletIds.length > 0) {
+      const isSelected = p.selectedOutletIds.some(id => String(id) === String(currentOutlet?.id));
       if (!isSelected) return false;
     } else if (p.outlet_id && p.outlet_id !== 'Semua Outlet' && p.outlet_id !== 'Semua Outlet (Central)') {
-      const isMatch = String(p.outlet_id) === String(currentOutlet.id) ||
-        String(p.outlet_name || '').toLowerCase() === String(currentOutlet.name || '').toLowerCase() ||
-        String(currentOutlet.id) === '1' ||
+      const isMatch = String(p.outlet_id) === String(currentOutlet?.id) ||
+        String(p.outlet_name || '').toLowerCase() === String(currentOutlet?.name || '').toLowerCase() ||
+        String(currentOutlet?.id) === '1' ||
         String(p.outlet_id) === '1';
       if (!isMatch) return false;
     }
 
     // 3. "Tampilkan di APK" status check per outlet
     const apkStatusMap = p.apkStatus || p.outletApkStatus || {};
-    const statusForThisOutlet = apkStatusMap[currentOutlet.id] || apkStatusMap[String(currentOutlet.id)];
-    if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif') {
+    const statusForThisOutlet = apkStatusMap[currentOutlet?.id] || apkStatusMap[String(currentOutlet?.id)];
+    if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif' || statusForThisOutlet === 'Hide') {
       return false;
     }
 
     // 4. Effective price check for this specific outlet
-    const effectivePrice = getProductPriceForOutlet(p, currentOutlet.id);
+    const effectivePrice = getProductPriceForOutlet(p, currentOutlet?.id);
     if (effectivePrice <= 0) return false;
 
     return true;
@@ -2584,9 +2591,13 @@ export default function AndroidPosRegister({
         type_input: 'auto_pos'
       });
 
-      // 2. Reduce product stock if matching product exists
+      // 2. Reduce product stock if matching product exists (Strict ID & SKU matching)
       updatedProducts = updatedProducts.map(p => {
-        if (p.name?.toLowerCase() === cartItem.name?.toLowerCase() || cartItem.name?.toLowerCase().startsWith(p.name?.toLowerCase())) {
+        const isMatch = (cartItem.id && String(p.id) === String(cartItem.id)) ||
+                        (cartItem.product_id && String(p.id) === String(cartItem.product_id)) ||
+                        (cartItem.sku && p.sku && cartItem.sku === p.sku) ||
+                        (p.name?.toLowerCase().trim() === cartItem.name?.toLowerCase().trim());
+        if (isMatch) {
           const currentStk = Number(p.stock || p.stok || 0);
           return { ...p, stock: Math.max(0, currentStk - cartItem.qty), stok: Math.max(0, currentStk - cartItem.qty) };
         }

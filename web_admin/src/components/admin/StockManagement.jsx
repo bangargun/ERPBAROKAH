@@ -828,7 +828,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       // Helper to map sold menu items to raw material ingredients
       const mapItemToRawMaterials = (itemName, qtySold, txRef) => {
         const itemLower = (itemName || '').toLowerCase().trim();
-        const matchedProd = activeProducts.find(p => p.name?.toLowerCase() === itemLower || itemLower.startsWith(p.name?.toLowerCase()));
+        const matchedProd = activeProducts.find(p => p.name?.toLowerCase().trim() === itemLower);
 
         // 1. If explicit compositions/recipes exist on product
         if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
@@ -933,7 +933,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
           itemsSold.forEach(item => {
             const qtySold = Number(item.qty || 1);
             const itemLower = (item.name || item.product_name || '').toLowerCase().trim();
-            const matchedProd = activeProducts.find(p => p.name?.toLowerCase() === itemLower || itemLower.startsWith(p.name?.toLowerCase()));
+            const matchedProd = activeProducts.find(p => (item.product_id && String(p.id) === String(item.product_id)) || (item.id && String(p.id) === String(item.id)) || (item.sku && p.sku === item.sku) || p.name?.toLowerCase().trim() === itemLower);
 
             if (matchedProd && matchedProd.compositions && matchedProd.compositions.length > 0) {
               matchedProd.compositions.forEach(comp => {
