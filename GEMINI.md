@@ -277,63 +277,40 @@ const layout = {
 
 ---
 
-### 🏪 Distribusi APK ke Outlet
+### 🏪 Distribusi APK ke Outlet (Universal & Fleksibel)
 
-| Perangkat Kasir | Varian APK yang Dipasang |
-|---|---|
-| Samsung Tab A8 10" (kasir utama) | `Tab10in` ← **gunakan ini** |
-| Tablet 7–8" (kasir pendukung) | `Tab7in` |
-| Smartphone Android (darurat) | `Phone` |
-| Tablet besar manager | `Tab12in` |
+> 💡 **Standar 1 APK Universal**: Mulai versi **v4.2.5**, sistem hanya memproduksi **1 file APK Universal & Fleksibel** (`POS_KASIR_BAROKAH_v{VERSI}_Universal_Build_{YYYYMMDD}.apk` / `POS KASIR.APK`).
+> APK ini secara otomatis menyesuaikan tampilan (*fluid responsive layout*) di semua ukuran layar:
+> - **Tablet 10" (Samsung Tab A8)**: 4 kolom produk, font 13–14px, sidebar 300–340px (Rekomendasi Kasir Utama).
+> - **Tablet Besar 11–13"+**: 5 kolom produk, font 14–15px, sidebar 360px.
+> - **Tablet Kecil 7–8"**: 3 kolom produk, font 12px, sidebar 220px.
+> - **Smartphone (5–6.7")**: 2 kolom produk, single panel fluid.
 
 ---
 
-## 🗂️ 11. Pola Filter Tanggal POS Kasir (v3.3.0 — 14 Agustus 2026)
+## 🍗 12. Kebijakan Master Data & Menu Spesifik Outlet
 
-### Pattern Standar Filter `📅 Hari Ini | ⏮️ Kemarin | 📆 Custom`
+### Kebijakan Menu Penyet (Ayam Bakar Surabaya)
+- **`PRD-004` — `AYAM PENYET`**: Khusus aktif **hanya** untuk outlet **`AYAM BAKAR SURABAYA TEBING TINGGI`** (`1785307180576`).
+  - Varian Resmi: `sambal merah` & `sambal ijo`.
+  - Bahan Baku (Resep): `AYAM POTONG` (1 Porsi).
+- **`PRD-007` — `BEBEK PENYET`**: Khusus aktif **hanya** untuk outlet **`AYAM BAKAR SURABAYA TEBING TINGGI`** (`1785307180576`).
+  - Varian Resmi: `sambal ijo` & `sambal merah`.
+  - Bahan Baku (Resep): `BEBEK POTONGAN` (1 Porsi).
 
-Semua tabel laporan di POS Kasir (`AndroidPosRegister.jsx`) menggunakan pola filter yang sama:
+### Proteksi Penghapusan Produk (Anti-Zombie Cache Resurrection)
+- Saat produk dihapus, server dan client mencatat ID, SKU, dan Nama ke `deletedProductIds`.
+- Di `App.jsx` (`mergeMasterArray`) dan `server.js` (`mergeMasterDataSafely`):
+  - Memeriksa `isMasterItemDeleted(item, deletedIds)` terhadap ID, SKU, Code, dan lowercase Name.
+  - Data lokal browser tidak boleh membangkitkan kembali produk yang sudah dihapus di server (`serverArr` adalah base authority).
 
-**State yang dibutuhkan (per tabel):**
-```js
-const [xxxFilterMode,  setXxxFilterMode]  = useState('today'); // 'today' | 'yesterday' | 'custom'
-const [xxxCustomStart, setXxxCustomStart] = useState(() => new Date().toLocaleDateString('en-CA'));
-const [xxxCustomEnd,   setXxxCustomEnd]   = useState(() => new Date().toLocaleDateString('en-CA'));
-```
+---
 
-**Helper `getLogDate(item)`** — normalisasi berbagai format tanggal logistik ke `YYYY-MM-DD`.
-
-**Filter logic:**
-```js
-.filter(item => {
-  const d = getLogDate(item);
-  if (!d) return true;
-  if (filterMode === 'today')     return d === sharedTodayStr;
-  if (filterMode === 'yesterday') return d === sharedYesterdayStr;
-  return d >= customStart && d <= customEnd;
-})
-```
-
-### Tabel yang Sudah Diimplementasi Filter Tanggal
-| Tabel | State Prefix | Default |
-|-------|-------------|---------|
-| Riwayat Transaksi | `riwayat` | today |
-| Laporan Omzet | `omzet` | today |
-| Stok Opname / Logistik | `logistik` | today |
-| Barang Rusak (Waste) | `waste` | today |
-| Stok Transfer | `transfer` | today |
-
-### Form Laporan Harian — Auto-kalkulasi per Tanggal
-- Saat buka form: gunakan `getSalesForDate(todayStr)` → bukan `totalSalesGross`
-- Saat tanggal berubah: `useEffect` → `getSalesForDate(manualRepDate)` → update Cash & NonCash
-- **JANGAN** pakai `totalSalesGross` untuk mengisi field Laporan Harian (itu akumulasi semua hari)
-
-### APK Versi Terbaru
+## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
-|-------|------|--------------|-----------| 
-| v4.1.4 | `POS_KASIR_BAROKAH_v4.1.4_Tab10in_Build_20260815.apk` / `POS KASIR.apk` | 15-08-2026 | Cetak Struk Dapur, Struk Bar, & Struk Meja/Checker 100% tanpa harga untuk Dine In dan Take Away |
-| v4.1.3 | `POS_KASIR_BAROKAH_v4.1.3_Tab10in_Build_20260815.apk` | 15-08-2026 | Perubahan nama aplikasi jadi **POS KASIR**, Icon baru Emerald Green Barokah Grup, fix ReferenceError discountType, dan optimasi sync |
-| v3.4.1 | `POS_KASIR_BAROKAH_v3.4.1_Tab10in_Build_20260815.apk` | 15-08-2026 | Fix ReferenceError discountType di layar kasir checkout |
-| v3.4.0 | `POS_KASIR_BAROKAH_v3.4.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Tanggal input custom untuk Superadmin di payment modal + fix omzet sync dari Web Admin (server-side synthetic tx) |
-| v3.3.0 | `POS_KASIR_BAROKAH_v3.3.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Filter tanggal semua laporan logistik + fix auto-kalkulasi omzet harian |
-| v3.2.0 | `POS_KASIR_BAROKAH_v3.2.0_Tab10in_Build_20260814.apk` | 14-08-2026 | Filter riwayat + laporan omzet |
+|-------|------|--------------|-----------|
+| **v4.2.5** | **`POS_KASIR_BAROKAH_v4.2.5_Universal_Build_20260815.apk`** / **`POS KASIR.APK`** | 15-08-2026 | **Single Universal APK (Fluid Responsive Semua Layar)** + Struk kembalian akurat + Pembersihan master data penyet khusus Surabaya + Anti-zombie cache protection |
+| v4.2.4 | `POS_KASIR_BAROKAH_v4.2.4_Universal_Build_20260815.apk` | 15-08-2026 | Perbaikan cetak kembalian struk kasir Bluetooth ESC/POS + Modal preview struk |
+| v4.2.3 | `POS_KASIR_BAROKAH_v4.2.3_Universal_Build_20260815.apk` | 15-08-2026 | Sinkronisasi kategori Seafood dan multi-outlet filter |
+| v4.1.4 | `POS_KASIR_BAROKAH_v4.1.4_Tab10in_Build_20260815.apk` | 15-08-2026 | Cetak Struk Dapur, Struk Bar, & Struk Meja/Checker 100% tanpa harga |
+| v4.1.3 | `POS_KASIR_BAROKAH_v4.1.3_Tab10in_Build_20260815.apk` | 15-08-2026 | Brand POS KASIR + Emerald Green Icon Barokah Grup |
