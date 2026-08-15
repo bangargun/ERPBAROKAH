@@ -1,8 +1,14 @@
 // Master Initial Data for Multi-Restaurant System (MRIS) - Clean Slate (Super Admin Only)
 
 export const initialMasterData = {
-  // 1. DATA MASTER (KOSONG - DIREKAM OLEH PENGGUNA)
-  outlets: [],
+  // 1. DATA MASTER CABANG RESMI BAROKAH GROUP
+  outlets: [
+    { id: 1785307180576, name: 'AYAM BAKAR SURABAYA TEBING TINGGI', code: 'SBY-TT', address: 'Tebing Tinggi', status: 'Aktif' },
+    { id: 1785369561430, name: 'AYAM PECAK 2001 SEAFOOD TEBING TINGGI', code: 'PCK-TT', address: 'Tebing Tinggi', status: 'Aktif' },
+    { id: 1785537689430, name: 'AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT', code: 'PCK-RP', address: 'Rantau Prapat', status: 'Aktif' },
+    { id: 1785369617361, name: 'AYAM PECAK 2001 SEAFOOD KISARAN', code: 'PCK-KIS', address: 'Kisaran', status: 'Aktif' },
+    { id: 1785564003169, name: 'PECEL LELE PAK HAJI KISARAN', code: 'PLP-KIS', address: 'Kisaran', status: 'Aktif' }
+  ],
   categories: [],
   products: [],
   customers: [],
