@@ -375,15 +375,30 @@ export default function App() {
               const deletedCatIds = new Set([
                 ...(prev.deletedCategoriesIds || []),
                 ...(serverData.deletedCategoriesIds || [])
-              ].map(x => String(x)));
+              ].map(x => String(x).toLowerCase().trim()));
               const deletedIngredientIds = new Set([
                 ...(prev.deletedIngredientIds || []),
                 ...(serverData.deletedIngredientIds || [])
-              ].map(x => String(x)));
+              ].map(x => String(x).toLowerCase().trim()));
               const deletedProductIds = new Set([
                 ...(prev.deletedProductIds || []),
-                ...(serverData.deletedProductIds || [])
-              ].map(x => String(x)));
+                ...(serverData.deletedProductIds || []),
+                '1786694529714.3901', '1786771748483', '1786771829811', '1786771750515',
+                'prd-045', 'prd-103', 'prd-105', 'prd-106',
+                'ayam penyet [sambal merah]'
+              ].map(x => String(x).toLowerCase().trim()));
+
+              const isMasterItemDeleted = (item, deletedIds) => {
+                if (!item) return true;
+                const iId = String(item.id !== undefined && item.id !== null ? item.id : '').toLowerCase().trim();
+                const iSku = String(item.sku || '').toLowerCase().trim();
+                const iCode = String(item.code || '').toLowerCase().trim();
+                const iName = String(item.name || '').toLowerCase().trim();
+                return (iId && deletedIds.has(iId)) ||
+                       (iSku && deletedIds.has(iSku)) ||
+                       (iCode && deletedIds.has(iCode)) ||
+                       (iName && deletedIds.has(iName));
+              };
 
               const getCombinedArray = (a, b) => {
                 const arrA = Array.isArray(a) ? a : [];
@@ -441,30 +456,32 @@ export default function App() {
               const serverWaste = getCombinedArray(serverData.approvedWaste, serverData.damagedGoods);
               const mergedWaste = mergeReportsById(prevWaste, serverWaste);
 
-              // Merge master arrays — newer timestamp wins for updates, local wins for deletions
+              // Merge master arrays — server is authoritative, local additions only if freshly created < 60s
               const mergeMasterArray = (prevArr, serverArr, deletedIds) => {
                 const map = new Map();
                 // Add server items first as base
                 (Array.isArray(serverArr) ? serverArr : []).forEach(item => {
                   const k = String(item.id ?? item.code ?? item.name ?? '');
-                  if (k && !deletedIds.has(k)) map.set(k, item);
+                  if (k && !isMasterItemDeleted(item, deletedIds)) map.set(k, item);
                 });
                 // Local items: if same id exists, winner = newer _updatedAt / _lastMutated timestamp
-                // If local item is newer → replace server version (e.g. user just edited category)
-                // If local item is not in server → add it (new local addition)
                 (Array.isArray(prevArr) ? prevArr : []).forEach(item => {
                   const k = String(item.id ?? item.code ?? item.name ?? '');
-                  if (!k || deletedIds.has(k)) return;
+                  if (!k || isMasterItemDeleted(item, deletedIds)) return;
                   if (map.has(k)) {
                     // Both exist — compare timestamps
                     const serverItem = map.get(k);
                     const localTs  = Number(item._updatedAt  || item._lastMutated  || 0);
                     const serverTs = Number(serverItem._updatedAt || serverItem._lastMutated || 0);
-                    if (localTs > serverTs || (localTs === serverTs && localTs > 0) || (localTs === 0 && serverTs === 0 && localTs >= serverTs)) {
-                      map.set(k, item); // local wins or is equal
+                    if (localTs > serverTs && localTs > 0) {
+                      map.set(k, item); // local is genuinely newer
                     }
                   } else {
-                    map.set(k, item); // only in local → add it
+                    // Only keep local-only item if created freshly within last 60 seconds
+                    const localTs = Number(item._lastMutated || item._createdAt || 0);
+                    if (localTs > 0 && (Date.now() - localTs < 60000)) {
+                      map.set(k, item);
+                    }
                   }
                 });
                 return Array.from(map.values());
