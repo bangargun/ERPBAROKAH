@@ -290,6 +290,15 @@ const layout = {
 
 ## 🍗 12. Kebijakan Master Data & Menu Spesifik Outlet
 
+### 🏢 5 ID Cabang Resmi Barokah Group (DIKUNCI - JANGAN DIUBAH)
+| ID Cabang (`outlet_id`) | Nama Cabang Resmi | Kode Outlet |
+| :--- | :--- | :---: |
+| **`1785307180576`** | **AYAM BAKAR SURABAYA TEBING TINGGI** | `SBY-TT` |
+| **`1785369561430`** | **AYAM PECAK 2001 SEAFOOD TEBING TINGGI** | `PCK-TT` |
+| **`1785537689430`** | **AYAM PECAK 2001 SEAFOOD RANTAU PRAPAT** | `PCK-RP` |
+| **`1785369617361`** | **AYAM PECAK 2001 SEAFOOD KISARAN** | `PCK-KIS` |
+| **`1785564003169`** | **PECEL LELE PAK HAJI KISARAN** | `PLP-KIS` |
+
 ### Kebijakan Menu Penyet (Ayam Bakar Surabaya)
 - **`PRD-004` — `AYAM PENYET`**: Khusus aktif **hanya** untuk outlet **`AYAM BAKAR SURABAYA TEBING TINGGI`** (`1785307180576`).
   - Varian Resmi: `sambal merah` & `sambal ijo`.
