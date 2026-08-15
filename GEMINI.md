@@ -33,12 +33,24 @@ System **MRIS (Multi Restaurant Financial & Operational Information System)** im
 - **JWT & Session Cryptography**: User sessions are validated with cryptographic tokens. Token payload contains user ID, normalized role, branch access scope, and explicit permission grants.
 - **Strict Role Normalization**: System maps legacy and custom role aliases (`superadmin`, `owner`, `manajer cabang`, `kasir`, `logistik`) into standardized RBAC tiers.
 - **Super Admin Overrides**: Only verified `Super Admin / Owner` roles possess system-wide configuration write access (`settings`, `activity_log`).
-- **Granular Feature Access Matrix**:
-  - `dashboard`: Real-time financial analytics & omzet metrics.
-  - `masterData`: Product catalog, pricing matrix, categories, and table layout.
-  - `reports`: Financial statements, cash flow, P&L, daily report approvals, manual report updates, and **Perbandingan Harga**.
-  - `stock`: Logistics inventory, stock opname, and ingredient movement tracking.
-  - `settings`: System parameters, user rights, thermal printer configuration, and security logs.
+- **Granular Feature Access Matrix (View, Edit, Delete)**:
+  - Setiap modul dalam Matriks Hak Akses Web Admin dikontrol secara granular oleh 3 parameter terpisah:
+    - **`View`**: Mengontrol akses melihat modul / membuka halaman sidebar.
+    - **`Edit`**: Mengontrol izin menambah data baru (`+ Tambah`), upload Excel/CSV, dan membuka form edit (`✏️ Edit`).
+    - **`Delete`**: Mengontrol visibilitas dan eksekusi tombol hapus (`🗑️ Trash`).
+  - **Standar Antarmuka (UI) Matriks Hak Akses**:
+    - Tombol badge bersih tanpa icon/emoji di depan teks (`View`, `Edit`, `Delete`).
+    - **🟢 Warna Hijau**: Menandakan izin aktif (`true`).
+    - **🔴 Warna Merah**: Menandakan izin non-aktif (`false`).
+  - **Daftar Modul Matriks**:
+    - `dashboard`: Real-time financial analytics & omzet metrics.
+    - `masterData`: Product catalog, pricing matrix, categories, and table layout.
+    - `costs`: Biaya, pengeluaran operasional, dan beban HPP.
+    - `reports`: Financial statements, cash flow, P&L, daily report approvals, manual report updates, dan Perbandingan Harga.
+    - `stock`: Logistics inventory, stock opname, dan ingredient movement tracking.
+    - `approved`: Approval transaksi dan laporan harian outlet.
+    - `policies`: Dokumen SOP dan kebijakan restoran.
+    - `settings`: System parameters, user rights, thermal printer configuration, dan security logs.
 
 ### 🔒 Data Isolation & Multi-Branch Security
 - **Branch Scope Filtering (`selectedBranch`)**: Queries are scoped to authorized branch IDs. Cross-outlet data leakage is prevented via `isProductAvailableAtOutlet` and `activeOutletId` resolution.
