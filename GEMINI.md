@@ -309,7 +309,8 @@ const layout = {
 ## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
 |-------|------|--------------|-----------|
-| **v4.2.5** | **`POS_KASIR_BAROKAH_v4.2.5_Universal_Build_20260815.apk`** / **`POS KASIR.APK`** | 15-08-2026 | **Single Universal APK (Fluid Responsive Semua Layar)** + Struk kembalian akurat + Pembersihan master data penyet khusus Surabaya + Anti-zombie cache protection |
+| **v4.2.6** | **`POS_KASIR_BAROKAH_v4.2.6_Universal_Build_20260815.apk`** / **`POS KASIR.APK`** | 15-08-2026 | **Perbaikan Cetak Harga Struk Lunas & Bill Sementara** + 5 Cabang Resmi Barokah Offline-First Ready di Langkah 1 Login Kasir |
+| v4.2.5 | `POS_KASIR_BAROKAH_v4.2.5_Universal_Build_20260815.apk` | 15-08-2026 | Single Universal APK (Fluid Responsive Semua Layar) + Struk kembalian akurat + Pembersihan master data penyet khusus Surabaya |
 | v4.2.4 | `POS_KASIR_BAROKAH_v4.2.4_Universal_Build_20260815.apk` | 15-08-2026 | Perbaikan cetak kembalian struk kasir Bluetooth ESC/POS + Modal preview struk |
 | v4.2.3 | `POS_KASIR_BAROKAH_v4.2.3_Universal_Build_20260815.apk` | 15-08-2026 | Sinkronisasi kategori Seafood dan multi-outlet filter |
 | v4.1.4 | `POS_KASIR_BAROKAH_v4.1.4_Tab10in_Build_20260815.apk` | 15-08-2026 | Cetak Struk Dapur, Struk Bar, & Struk Meja/Checker 100% tanpa harga |
