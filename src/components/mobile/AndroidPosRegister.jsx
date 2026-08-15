@@ -107,15 +107,29 @@ export default function AndroidPosRegister({
 
   const currentOutlet = matchedOutlet || outlets[0] || { id: 1, name: 'Outlet Central' };
 
-  // Helper for extracting category name from product
+  // Helper for extracting category name from product (Single Source of Truth: masterData.categories)
   const getProductCategoryName = (item) => {
     if (!item) return 'Umum';
-    if (item.category && typeof item.category === 'string' && item.category.trim() !== '') return item.category.trim();
-    if (item.category_name && typeof item.category_name === 'string' && item.category_name.trim() !== '') return item.category_name.trim();
+    // 1. Primary: Lookup by category_id in masterData.categories
     if (item.category_id && masterData?.categories) {
       const catObj = masterData.categories.find(c => String(c.id) === String(item.category_id));
-      if (catObj && (catObj.name || catObj.category_name)) return (catObj.name || catObj.category_name).trim();
+      if (catObj && (catObj.name || catObj.category_name)) {
+        return (catObj.name || catObj.category_name).trim();
+      }
     }
+    // 2. Secondary: If category_id doesn't match, check if item's category/category_name matches any existing master category name
+    if (masterData?.categories) {
+      const rawName = (item.category_name || item.category || '').trim().toLowerCase();
+      if (rawName) {
+        const catObj = masterData.categories.find(c => (c.name || '').trim().toLowerCase() === rawName);
+        if (catObj && (catObj.name || catObj.category_name)) {
+          return (catObj.name || catObj.category_name).trim();
+        }
+      }
+    }
+    // 3. Fallback: string values directly on product item
+    if (item.category_name && typeof item.category_name === 'string' && item.category_name.trim() !== '') return item.category_name.trim();
+    if (item.category && typeof item.category === 'string' && item.category.trim() !== '') return item.category.trim();
     return 'Umum';
   };
 
