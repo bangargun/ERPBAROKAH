@@ -1736,6 +1736,23 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     });
   }
 
+  // Bersihkan produk yang sudah dihapus via deletedProductIds
+  const deletedProdSet = new Set([
+    ...(result.deletedProductIds || []),
+    ...(incoming.deletedProductIds || []),
+    ...(existing.deletedProductIds || [])
+  ].map(x => String(x).toLowerCase().trim()));
+
+  if (deletedProdSet.size > 0 && Array.isArray(result.products)) {
+    result.products = result.products.filter(p => {
+      if (!p) return false;
+      const pId = String(p.id !== undefined && p.id !== null ? p.id : '').toLowerCase().trim();
+      const pSku = String(p.sku || p.code || '').toLowerCase().trim();
+      const pName = String(p.name || '').toLowerCase().trim();
+      return !deletedProdSet.has(pId) && !deletedProdSet.has(pSku) && !deletedProdSet.has(pName);
+    });
+  }
+
   return result;
 };
 
@@ -1986,6 +2003,17 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       ].filter(Boolean)));
     }
 
+    if (key === 'products') {
+      const targetSku = String(req.body.sku || req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedProductIds = Array.from(new Set([
+        ...(existing.deletedProductIds || []),
+        idStr,
+        targetSku,
+        targetName
+      ].filter(Boolean)));
+    }
+
     if (key === 'webAdminAccounts' || key === 'mobileAccounts') {
       const filterOutUser = u => {
         if (!u) return false;
@@ -2074,8 +2102,16 @@ app.post('/api/master-data/delete-item', async (req, res) => {
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : item.code || item.name);
-        return itemId !== idStr;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemSku = String(item.sku || '');
+        const itemCode = String(item.code || '');
+        const itemName = String(item.name || '').toLowerCase().trim();
+        const targetLower = idStr.toLowerCase().trim();
+        if (itemId === idStr || (Number(itemId) && Number(itemId) === Number(idStr))) return false;
+        if (itemSku && itemSku === idStr) return false;
+        if (itemCode && itemCode === idStr) return false;
+        if (itemName && itemName === targetLower) return false;
+        return true;
       });
     }
 
