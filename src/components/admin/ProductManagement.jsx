@@ -1032,14 +1032,18 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                           }
 
                           const ingList = comps.map(c => {
-                            if (c.ingredient_name) return c.ingredient_name;
-                            if (c.ingredientName) return c.ingredientName;
-                            if (c.name && c.name !== p.name) return c.name;
-                            if (c.ingredient_id || c.ingredientId) {
-                              const ingId = c.ingredient_id || c.ingredientId;
+                            const ingId = c.ingredient_id || c.ingredientId;
+                            if (ingId) {
                               const found = (masterData.ingredients || []).find(i => String(i.id) === String(ingId));
                               if (found && found.name) return found.name;
                             }
+                            if (c.ingredient_name) {
+                              const foundByName = (masterData.ingredients || []).find(i => i.name.toLowerCase() === c.ingredient_name.toLowerCase());
+                              if (foundByName && foundByName.name) return foundByName.name;
+                              return c.ingredient_name;
+                            }
+                            if (c.ingredientName) return c.ingredientName;
+                            if (c.name && c.name !== p.name) return c.name;
                             return null;
                           }).filter(Boolean);
 
