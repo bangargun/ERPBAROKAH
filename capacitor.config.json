@@ -1,6 +1,6 @@
 {
   "appId": "com.mris.finance",
-  "appName": "POS KASIR 4.0",
+  "appName": "POS KASIR",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "androidScheme": "https"
