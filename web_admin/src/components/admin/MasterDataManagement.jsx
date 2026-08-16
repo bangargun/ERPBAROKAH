@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ProductCategoryManagement from './ProductCategoryManagement';
 import IngredientsManagement from './IngredientsManagement';
+import IngredientCategoryManagement from './IngredientCategoryManagement';
 import ProductManagement from './ProductManagement';
 import CustomerManagement from './CustomerManagement';
 import TableManagement from './TableManagement';
@@ -53,6 +54,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
     { id: 'products', name: 'Katalog Menu', icon: Package, count: masterData.products.length },
     { id: 'categories', name: 'Kategori Menu', icon: Layers, count: masterData.categories.length },
     { id: 'ingredients', name: 'Bahan Baku', icon: ShoppingBasket, count: (masterData.ingredients || []).length },
+    { id: 'ingredientCategories', name: 'Kategori Bahan', icon: Layers, count: (masterData.ingredientCategories || []).length || 6 },
     { id: 'customers', name: 'Pelanggan', icon: Users, count: masterData.customers.length },
     { id: 'tables', name: 'Meja', icon: Layout, count: masterData.tables.length },
     { id: 'outlets', name: 'Outlet', icon: Store, count: masterData.outlets.length },
@@ -256,6 +258,18 @@ export default function MasterDataManagement({ masterData, setMasterData, select
         {/* 3. BAHAN BAKU (DEDICATED COMPONENT) */}
         {activeSubTab === 'ingredients' && (
           <IngredientsManagement
+            masterData={masterData}
+            setMasterData={setMasterData}
+            selectedBranch={selectedBranch}
+            userSession={userSession}
+            themeMode={themeMode}
+            onNavigateToCategories={() => setActiveSubTab('ingredientCategories')}
+          />
+        )}
+
+        {/* 3.5 KATEGORI BAHAN BAKU (DEDICATED COMPONENT) */}
+        {activeSubTab === 'ingredientCategories' && (
+          <IngredientCategoryManagement
             masterData={masterData}
             setMasterData={setMasterData}
             selectedBranch={selectedBranch}

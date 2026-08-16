@@ -1,12 +1,22 @@
 import React, { useState } from 'react';
-import { ShoppingBasket, Plus, Search, Trash2, Edit3, X, CheckCircle2, AlertTriangle, Eye, ArrowLeft, ShieldCheck, FileSpreadsheet } from 'lucide-react';
+import { ShoppingBasket, Plus, Search, Trash2, Edit3, X, CheckCircle2, AlertTriangle, Eye, ArrowLeft, ShieldCheck, FileSpreadsheet, Layers } from 'lucide-react';
 import IngredientAnalyticsDetailModal from './IngredientAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
-export default function IngredientsManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
+export const inferDefaultIngredientCategory = (name) => {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('ikan') || n.includes('udang') || n.includes('cumi') || n.includes('kepiting') || n.includes('lele') || n.includes('gurami') || n.includes('seafood')) return 'Seafood & Ikan';
+  if (n.includes('ayam') || n.includes('bebek') || n.includes('daging') || n.includes('sapi') || n.includes('kambing') || n.includes('telur')) return 'Daging & Unggas';
+  if (n.includes('kangkung') || n.includes('bayam') || n.includes('toge') || n.includes('sayur') || n.includes('cabai') || n.includes('cabe') || n.includes('bawang') || n.includes('tomat') || n.includes('timun')) return 'Sayur & Bumbu Segar';
+  if (n.includes('milo') || n.includes('kopi') || n.includes('coffee') || n.includes('cappucino') || n.includes('teh') || n.includes('lemon tea') || n.includes('fruit tea') || n.includes('air mineral') || n.includes('sirup') || n.includes('susu') || n.includes('powder')) return 'Minuman & Powder';
+  if (n.includes('nasi') || n.includes('beras') || n.includes('minyak') || n.includes('tepung') || n.includes('gula') || n.includes('garam') || n.includes('kecap') || n.includes('saus')) return 'Sembako & Olahan';
+  return 'Bumbu & Rempah';
+};
+
+export default function IngredientsManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark', onNavigateToCategories }) {
   const T = getThemePalette(themeMode);
   const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
   const allowEdit = canEditModule(userSession, 'masterData', masterData?.permissionMatrix);
@@ -202,7 +212,30 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {onNavigateToCategories && (
+            <button
+              onClick={onNavigateToCategories}
+              style={{
+                background: T.cardBg2,
+                color: T.txtPrimary,
+                border: `1px solid ${T.borderStrong}`,
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '0.72rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                boxShadow: T.shadowSm
+              }}
+            >
+              <Layers size={14} color={T.accentGold} />
+              <span>Kelola Kategori Bahan</span>
+            </button>
+          )}
+
           {allowEdit && (
             <>
               <button
@@ -317,7 +350,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
                       {/* 2.5 KATEGORI BAHAN */}
                       <td style={{ padding: '8px 10px', color: T.txtSecondary }}>
                         <span style={{ background: T.infoBg, color: T.info, padding: '2px 8px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontSize: '0.68rem', fontWeight: '700' }}>
-                          {ing.category || ing.category_name || 'Bumbu & Rempah'}
+                          {(ing.category && ing.category !== 'Bumbu & Rempah') ? ing.category : (ing.category_name || inferDefaultIngredientCategory(ing.name))}
                         </span>
                       </td>
 

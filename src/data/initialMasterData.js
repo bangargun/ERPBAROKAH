@@ -23,6 +23,14 @@ export const initialMasterData = {
   units: [],
   expenseMaster: [],
   ingredients: [],
+  ingredientCategories: [
+    { id: 1, code: 'KBHN-001', name: 'Seafood & Ikan', description: 'Aneka ikan laut, udang, cumi, dan seafood segar', status: 'Aktif' },
+    { id: 2, code: 'KBHN-002', name: 'Daging & Unggas', description: 'Ayam, bebek, sapi, dan produk unggas', status: 'Aktif' },
+    { id: 3, code: 'KBHN-003', name: 'Sayur & Bumbu Segar', description: 'Sayuran hijau, cabai, bawang, dan bumbu basah', status: 'Aktif' },
+    { id: 4, code: 'KBHN-004', name: 'Minuman & Powder', description: 'Bubuk minuman, teh, kopi, sirup, dan kemasan', status: 'Aktif' },
+    { id: 5, code: 'KBHN-005', name: 'Sembako & Olahan', description: 'Beras, minyak goreng, tepung, gula, kecap, dan saus', status: 'Aktif' },
+    { id: 6, code: 'KBHN-006', name: 'Bumbu & Rempah', description: 'Bumbu kering, rempah-rempah dapur, dan perasa', status: 'Aktif' }
+  ],
 
   // 2. EXPENSE MANAGEMENT
   cogsExpenses: [],
