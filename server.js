@@ -1870,8 +1870,10 @@ const sanitizeMasterDataPayload = (data) => {
         cleanVP[v] = { [outId]: Number((p.variantPrices?.[v] || {})[outId] || price) };
       }
 
+      const upperName = (p.name || '').trim().toUpperCase();
       winnerMap.set(mapKey, {
         ...p,
+        name: upperName,
         id: uid,
         outlet_id: Number(outId),
         selectedOutletIds: [Number(outId)],
@@ -1885,7 +1887,7 @@ const sanitizeMasterDataPayload = (data) => {
         _score: score, // internal scoring, stripped later
         priceCombinations: [{
           id: uid,
-          combinationName: p.name,
+          combinationName: upperName,
           selectedOutletIds: [Number(outId)],
           outletPrices: { [outId]: price },
           apkStatus: { [outId]: 'Aktif' },

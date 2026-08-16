@@ -50,6 +50,30 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       setCurrentPage(1);
     }
   }, [selectedBranch]);
+
+  // Auto-uppercase all existing product names in masterData if any lowercase exists
+  useEffect(() => {
+    if (Array.isArray(masterData?.products) && masterData.products.length > 0) {
+      const needsUpdate = masterData.products.some(p => p.name && p.name !== p.name.toUpperCase());
+      if (needsUpdate) {
+        const updatedProducts = masterData.products.map(p => ({
+          ...p,
+          name: (p.name || '').toUpperCase(),
+          combinationName: (p.combinationName || p.name || '').toUpperCase(),
+          priceCombinations: (p.priceCombinations || []).map(pc => ({
+            ...pc,
+            combinationName: (pc.combinationName || p.name || '').toUpperCase()
+          }))
+        }));
+        setMasterData(prev => ({
+          ...prev,
+          products: updatedProducts,
+          _lastUpdated: Date.now()
+        }));
+      }
+    }
+  }, [masterData?.products]);
+
   const [showFormModal, setShowFormModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
@@ -338,7 +362,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       id: editingProductId || Date.now(),
       sku: code,
       code: code,
-      name: prodName.trim(),
+      name: prodName.trim().toUpperCase(),
       category_id: catIdVal,
       category_name: catNameVal,
       category: catNameVal,
@@ -360,7 +384,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       priceCombinations: [
         {
           id: Date.now(),
-          combinationName: prodName.trim(),
+          combinationName: prodName.trim().toUpperCase(),
           selectedOutletIds: [targetOutId],
           outletPrices: { [targetOutId]: priceVal },
           apkStatus: { [targetOutId]: outletApkStatus[targetOutId] || 'Aktif' },

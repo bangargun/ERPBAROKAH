@@ -239,7 +239,7 @@ export default function ExcelMasterImportModal({ isOpen, onClose, moduleType, ma
             itemsToImport.push({
               id: Date.now() + idx,
               sku,
-              name,
+              name: String(name).trim().toUpperCase(),
               category_name: categoryName,
               category_id: 1,
               price,
