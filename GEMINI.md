@@ -361,7 +361,8 @@ const layout = {
 ## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
 |-------|------|--------------|-----------| 
-| **v4.3.2** | **`POS_KASIR_v4.3.2.apk`** | 16-08-2026 | **Fix Auto-Push & Hapus Batas 60 Detik**: Kategori/produk lokal tidak lagi terhapus dari state Web Admin setelah 60 detik. Web Admin kini otomatis push data master ke server saat mendeteksi ada item lokal yang belum tersinkronisasi. |
+| **v4.3.3** | **`POS_KASIR_v4.3.3.apk`** | 16-08-2026 | **Fix Auto-Push Edit Produk**: Auto-push kini juga mendeteksi produk/kategori/bahan yang **diedit** (bukan hanya yang baru ditambah) berdasarkan perbandingan timestamp `_updatedAt`. Format harga per-outlet (`standardPrices`, `variantPrices`) kini dijamin tersinkronisasi ke server. |
+| v4.3.2 | `POS_KASIR_v4.3.2.apk` | 16-08-2026 | Fix auto-push (count-based) dan hapus batas 60 detik untuk master data lokal. |
 | v4.3.1 | `POS_KASIR_v4.3.1.apk` | 16-08-2026 | **Fix Sinkronisasi Kategori Menu**: Perbaikan kritis server-side union merge untuk `categories`, `products`, `ingredients` — mencegah APK lama menimpa data master terbaru dari Web Admin. |
 | **v4.3.0** | **`POS_KASIR_BAROKAH_v4.3.0_Universal_Build_20260816.apk`** / **`POS_KASIR_v4.3.0.apk`** / **`POS KASIR.APK`** | 16-08-2026 | **Build Rilis Universal Terbaru**: Pembaruan modul Analisis Harga Bahan, Riwayat Transaksi & Omzet POS, performa respon offline-first, dan optimasi layout multi-layar (Tablet 10", Smartphone, Tablet Besar). |
 | v4.2.9 | `POS_KASIR_BAROKAH_v4.2.9_Universal_Build_20260816.apk` | 16-08-2026 | **Fitur Pindah Meja (Move Table)**: Tombol & modal interaktif untuk memindahkan pesanan konsumen dari satu meja ke meja lain secara otomatis dan memperbarui status meja kosong/terisi. |

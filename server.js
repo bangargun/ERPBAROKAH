@@ -1805,9 +1805,10 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   if (deletedProdSet.size > 0 && Array.isArray(result.products)) {
     result.products = result.products.filter(p => {
       if (!p) return false;
-      const pId = String(p.id !== undefined && p.id !== null ? p.id : '').toLowerCase().trim();
+      const pId  = String(p.id  !== undefined && p.id  !== null ? p.id  : '').toLowerCase().trim();
       const pSku = String(p.sku || p.code || '').toLowerCase().trim();
-      return !deletedProdSet.has(pId) && !deletedProdSet.has(pSku);
+      const pName= String(p.name || '').toLowerCase().trim();
+      return !deletedProdSet.has(pId) && !deletedProdSet.has(pSku) && !deletedProdSet.has(pName);
     });
   }
 
@@ -1821,9 +1822,10 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   if (deletedCatSet.size > 0 && Array.isArray(result.categories)) {
     result.categories = result.categories.filter(c => {
       if (!c) return false;
-      const cId = String(c.id !== undefined && c.id !== null ? c.id : '').toLowerCase().trim();
+      const cId   = String(c.id   !== undefined && c.id   !== null ? c.id   : '').toLowerCase().trim();
       const cCode = String(c.code || '').toLowerCase().trim();
-      return !deletedCatSet.has(cId) && !deletedCatSet.has(cCode);
+      const cName = String(c.name || '').toLowerCase().trim();
+      return !deletedCatSet.has(cId) && !deletedCatSet.has(cCode) && !deletedCatSet.has(cName);
     });
   }
 
@@ -1837,9 +1839,10 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   if (deletedIngSet.size > 0 && Array.isArray(result.ingredients)) {
     result.ingredients = result.ingredients.filter(i => {
       if (!i) return false;
-      const iId = String(i.id !== undefined && i.id !== null ? i.id : '').toLowerCase().trim();
+      const iId   = String(i.id   !== undefined && i.id   !== null ? i.id   : '').toLowerCase().trim();
       const iCode = String(i.code || '').toLowerCase().trim();
-      return !deletedIngSet.has(iId) && !deletedIngSet.has(iCode);
+      const iName = String(i.name || '').toLowerCase().trim();
+      return !deletedIngSet.has(iId) && !deletedIngSet.has(iCode) && !deletedIngSet.has(iName);
     });
   }
 
