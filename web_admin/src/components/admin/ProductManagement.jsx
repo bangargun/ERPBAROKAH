@@ -79,6 +79,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
   // Pricing States
   const [basePrice, setBasePrice] = useState(25000);
+  const [selectedOutletIds, setSelectedOutletIds] = useState([]); // [1, 2, 3]
   const [hasCustomBranchPrices, setHasCustomBranchPrices] = useState(false);
   const [standardPrices, setStandardPrices] = useState({}); // { [outletId]: price }
   const [outletApkStatus, setOutletApkStatus] = useState({}); // { [outletId]: 'Aktif' | 'Inaktif' }
@@ -299,6 +300,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setProdStatus('Aktif');
     setProdImageUrl('');
     setBasePrice(25000);
+    setSelectedOutletIds(allOutlets.map(o => o.id));
     setHasCustomBranchPrices(false);
 
     const initStdPrices = {};
@@ -348,6 +350,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setStandardPrices(initStdPrices);
     setOutletApkStatus(initApkStatus);
     setHasCustomBranchPrices(customFound);
+
+    // Outlet selection load
+    if (Array.isArray(product.selectedOutletIds) && product.selectedOutletIds.length > 0) {
+      setSelectedOutletIds(product.selectedOutletIds);
+    } else if (product.outlet_id && product.outlet_id !== 'Semua Outlet') {
+      setSelectedOutletIds([product.outlet_id]);
+    } else {
+      setSelectedOutletIds(allOutlets.map(o => o.id));
+    }
 
     // Variants load
     const prodVars = Array.isArray(product.variants) ? product.variants : [];
@@ -438,13 +449,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     // Prepare outlet prices
     const savedStdPrices = {};
     const savedApkStatus = {};
-    const selectedOutIds = [];
+    const finalSelectedOutIds = selectedOutletIds.length > 0 ? selectedOutletIds : allOutlets.map(o => o.id);
 
     allOutlets.forEach(o => {
-      const p = hasCustomBranchPrices ? (parseFloat(standardPrices[o.id]) || priceNum) : priceNum;
+      const isIncluded = finalSelectedOutIds.some(id => String(id) === String(o.id));
+      const p = standardPrices[o.id] !== undefined ? standardPrices[o.id] : priceNum;
       savedStdPrices[o.id] = p;
-      savedApkStatus[o.id] = outletApkStatus[o.id] || 'Aktif';
-      selectedOutIds.push(o.id);
+      savedApkStatus[o.id] = isIncluded ? (outletApkStatus[o.id] || 'Aktif') : 'Inaktif';
     });
 
     const savedVariantPrices = {};
@@ -467,8 +478,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       unit: 'Pcs',
       status: prodStatus,
       image_url: prodImageUrl.trim() || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400',
-      outlet_id: 'Semua Outlet',
-      selectedOutletIds: selectedOutIds,
+      outlet_id: finalSelectedOutIds.length === allOutlets.length ? 'Semua Outlet' : (finalSelectedOutIds[0] || 'Semua Outlet'),
+      selectedOutletIds: finalSelectedOutIds,
+      selected_outlet_ids: finalSelectedOutIds,
       standardPrices: savedStdPrices,
       apkStatus: savedApkStatus,
       outletApkStatus: savedApkStatus,
@@ -1381,50 +1393,146 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     </span>
                   </div>
 
-                  {/* Toggle Custom Branch Pricing */}
-                  <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, padding: '10px 14px', borderRadius: '10px', marginTop: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* SECTION: KETERSEDIAAN & PENGATURAN HARGA PER CABANG OUTLET */}
+                  <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, padding: '12px 14px', borderRadius: '10px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
-                        <span style={{ fontSize: '0.76rem', fontWeight: '800', color: T.txtPrimary }}>Atur Harga Khusus per Cabang</span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Store size={15} color={T.primary} />
+                          <span>Pilih Cabang Outlet yang Menjual Menu Ini</span>
+                        </span>
                         <p style={{ fontSize: '0.66rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
-                          Aktifkan jika harga jual menu berbeda di masing-masing 5 outlet
+                          Centang cabang yang menjual menu ini, dan tentukan harga jual per cabang (opsional)
                         </p>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={hasCustomBranchPrices}
-                        onChange={e => setHasCustomBranchPrices(e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
+
+                      {/* Quick Select Buttons */}
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOutletIds(allOutlets.map(o => o.id))}
+                          style={{
+                            background: selectedOutletIds.length === allOutlets.length ? T.primary : T.inputBg,
+                            color: selectedOutletIds.length === allOutlets.length ? T.txtInverse : T.txtPrimary,
+                            border: `1px solid ${T.border}`,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.68rem',
+                            fontWeight: '800',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ✓ Pilih Semua ({allOutlets.length})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOutletIds([])}
+                          style={{
+                            background: T.inputBg,
+                            color: T.txtSecondary,
+                            border: `1px solid ${T.border}`,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.68rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Kosongkan
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Branch Table */}
-                    {hasCustomBranchPrices && (
-                      <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {allOutlets.map(o => (
-                          <div key={o.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.2fr 1fr', gap: '8px', alignItems: 'center', background: T.inputBg, padding: '6px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
-                            <span style={{ fontSize: '0.74rem', fontWeight: '700', color: T.txtPrimary }}>{o.name}</span>
+                    {/* Outlets Checklist & Price Table */}
+                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {allOutlets.map(o => {
+                        const isSelected = selectedOutletIds.some(id => String(id) === String(o.id));
+                        const outPrice = standardPrices[o.id] !== undefined ? standardPrices[o.id] : basePrice;
+
+                        return (
+                          <div
+                            key={o.id}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '24px 1.4fr 1.1fr 1fr',
+                              gap: '8px',
+                              alignItems: 'center',
+                              background: isSelected ? T.inputBg : 'rgba(0,0,0,0.2)',
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: `1px solid ${isSelected ? T.primary : T.border}`,
+                              opacity: isSelected ? 1 : 0.6,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {/* Checkbox */}
                             <input
-                              type="number"
-                              placeholder="Harga Rp"
-                              value={standardPrices[o.id] !== undefined ? standardPrices[o.id] : basePrice}
-                              onChange={e => setStandardPrices({ ...standardPrices, [o.id]: Number(e.target.value) })}
-                              className="form-input"
-                              style={{ background: T.cardBg, borderColor: T.border, color: T.txtPrimary, padding: '4px 8px', fontSize: '0.74rem' }}
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                if (isSelected) {
+                                  setSelectedOutletIds(selectedOutletIds.filter(id => String(id) !== String(o.id)));
+                                } else {
+                                  setSelectedOutletIds([...selectedOutletIds, o.id]);
+                                }
+                              }}
+                              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                             />
-                            <select
-                              value={outletApkStatus[o.id] || 'Aktif'}
-                              onChange={e => setOutletApkStatus({ ...outletApkStatus, [o.id]: e.target.value })}
-                              className="form-select"
-                              style={{ background: T.cardBg, borderColor: T.border, color: T.txtPrimary, padding: '4px 6px', fontSize: '0.70rem' }}
-                            >
-                              <option value="Aktif">Tersedia</option>
-                              <option value="Inaktif">Habis / Inaktif</option>
-                            </select>
+
+                            {/* Outlet Name */}
+                            <div>
+                              <span style={{ fontSize: '0.74rem', fontWeight: '800', color: isSelected ? T.txtPrimary : T.txtSecondary }}>
+                                {o.name}
+                              </span>
+                              <div style={{ fontSize: '0.62rem', color: isSelected ? T.success : T.danger, fontWeight: '700' }}>
+                                {isSelected ? '✓ Dijual di Cabang Ini' : '✗ Tidak Dijual'}
+                              </div>
+                            </div>
+
+                            {/* Custom Price Input */}
+                            <div>
+                              <input
+                                type="number"
+                                disabled={!isSelected}
+                                placeholder="Harga Rp"
+                                value={outPrice}
+                                onChange={e => setStandardPrices({ ...standardPrices, [o.id]: Number(e.target.value) })}
+                                className="form-input"
+                                style={{
+                                  background: isSelected ? T.cardBg : 'transparent',
+                                  borderColor: isSelected ? T.border : 'transparent',
+                                  color: isSelected ? T.accentGold : T.txtMuted,
+                                  padding: '4px 8px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: '800'
+                                }}
+                              />
+                            </div>
+
+                            {/* Status at POS */}
+                            <div>
+                              <select
+                                disabled={!isSelected}
+                                value={outletApkStatus[o.id] || 'Aktif'}
+                                onChange={e => setOutletApkStatus({ ...outletApkStatus, [o.id]: e.target.value })}
+                                className="form-select"
+                                style={{
+                                  background: isSelected ? T.cardBg : 'transparent',
+                                  borderColor: isSelected ? T.border : 'transparent',
+                                  color: isSelected ? T.txtPrimary : T.txtMuted,
+                                  padding: '4px 6px',
+                                  fontSize: '0.70rem'
+                                }}
+                              >
+                                <option value="Aktif">Tersedia</option>
+                                <option value="Inaktif">Habis</option>
+                              </select>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* SECTION: KELOLA VARIAN MENU */}
