@@ -35,6 +35,7 @@ import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
+import { getMenuFallbackImage } from '../../utils/formatUtils';
 import DeleteGuardModal from './DeleteGuardModal';
 import { requestDelete, countRelatedTransactions } from '../../utils/deleteGuard';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
@@ -954,6 +955,51 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
           <button
             type="button"
+            onClick={() => {
+              if (!window.confirm('Generate otomatis foto AI berkualitas tinggi untuk semua menu berdasarkan namanya?')) return;
+              const updatedProds = (masterData?.products || []).map(p => ({
+                ...p,
+                image_url: getMenuFallbackImage(p.name, p.category_name),
+                _updatedAt: Date.now(),
+                _lastMutated: Date.now()
+              }));
+              const nextMaster = {
+                ...masterData,
+                products: updatedProds,
+                _lastUpdated: Date.now(),
+                _lastMutated: Date.now()
+              };
+              setMasterData(nextMaster);
+              try {
+                localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
+              } catch (e) {}
+              fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(nextMaster)
+              }).catch(() => {});
+              alert('🎉 Sukses! Semua foto katalog menu berhasil diperbarui dengan foto kuliner yang sesuai!');
+            }}
+            className="btn-secondary"
+            style={{
+              padding: '8px 14px',
+              fontSize: '0.76rem',
+              fontWeight: '800',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: `1px solid ${T.accentGoldBorder || '#ca8a04'}`,
+              background: T.accentGoldBg || 'rgba(234,179,8,0.12)',
+              color: T.accentGold || '#fbbf24'
+            }}
+            title="Generate AI foto untuk seluruh menu katalog"
+          >
+            <Sparkles size={15} />
+            <span>AI Generate Foto Menu</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowExcelImportModal(true)}
             className="btn-secondary"
             style={{ padding: '8px 14px', fontSize: '0.76rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -1224,11 +1270,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                 {/* Photo & Status Overlay */}
                 <div style={{ position: 'relative', height: '140px', background: '#18181b', overflow: 'hidden' }}>
                   <img
-                    src={product.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'}
+                    src={product.image_url || getMenuFallbackImage(product.name, product.category_name)}
                     alt={product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isAvailable ? 1 : 0.6 }}
                     onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400';
+                      e.target.src = getMenuFallbackImage(product.name, product.category_name);
                     }}
                   />
                   {/* Category & Status Badges */}
@@ -1414,10 +1460,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <img
-                            src={product.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'}
+                            src={product.image_url || getMenuFallbackImage(product.name, product.category_name)}
                             alt={product.name}
                             style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }}
-                            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'; }}
+                            onError={(e) => { e.target.src = getMenuFallbackImage(product.name, product.category_name); }}
                           />
                           <span style={{ fontWeight: '800', color: T.info, fontFamily: 'monospace', fontSize: '0.70rem' }}>
                             {product.sku || product.code || 'PRD'}
@@ -1741,11 +1787,36 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         className="form-input"
                         style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, flex: 1 }}
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const catObj = allCategories.find(c => String(c.id) === String(prodCategoryId));
+                          const aiImg = getMenuFallbackImage(prodName, catObj?.name);
+                          setProdImageUrl(aiImg);
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                          color: '#000',
+                          fontSize: '0.74rem',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title="Generate Foto AI sesuai nama menu yang diketik"
+                      >
+                        <Sparkles size={14} /> AI Generate
+                      </button>
                       {prodImageUrl && (
                         <img
                           src={prodImageUrl}
                           alt="Preview"
-                          style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover', border: `1px solid ${T.border}` }}
+                          style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover', border: `1px solid ${T.border}` }}
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
                       )}
