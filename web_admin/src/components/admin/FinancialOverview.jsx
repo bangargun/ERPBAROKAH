@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -106,6 +106,16 @@ export default function FinancialOverview({
   // INTERACTIVE FILTER STATES
   // ------------------------------------------------------------------
   const [activeOutletFilter, setActiveOutletFilter] = useState(selectedBranch || 'ALL');
+
+  // Auto-sync activeOutletFilter with selectedBranch from header
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
+      setActiveOutletFilter(String(selectedBranch));
+    } else if (selectedBranch === 'ALL' || selectedBranch === 'Semua Restoran (Konsolidasi)') {
+      setActiveOutletFilter('ALL');
+    }
+  }, [selectedBranch]);
+
   const [dateRangePreset, setDateRangePreset] = useState('7days'); // 'today', 'yesterday', '7days', '30days', 'this_month', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -306,16 +316,6 @@ export default function FinancialOverview({
       }
     });
 
-    // Fallback if transaction items are sparse: generate from product catalog with baseline
-    if (menuMap.size === 0 && allProducts.length > 0) {
-      allProducts.slice(0, 5).forEach((p, idx) => {
-        const upper = (p.name || `MENU RESTO #${idx + 1}`).trim().toUpperCase();
-        const mockQty = 15 - idx * 2;
-        const mockRev = mockQty * (Number(p.price) || 25000);
-        menuMap.set(upper, { name: upper, qty: mockQty, revenue: mockRev, category: p.category_name || 'Makanan' });
-      });
-    }
-
     const sortedList = Array.from(menuMap.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
     const maxRev = sortedList.length > 0 ? sortedList[0].revenue : 1;
 
@@ -324,7 +324,7 @@ export default function FinancialOverview({
       rank: idx + 1,
       percentage: Math.round((m.revenue / (kpiMetrics.totalRevenue || maxRev)) * 100) || Math.round((m.revenue / maxRev) * 100)
     }));
-  }, [allSalesTx, activeDateList, activeOutletFilter, allProducts, kpiMetrics.totalRevenue, todayStr]);
+  }, [allSalesTx, activeDateList, activeOutletFilter, kpiMetrics.totalRevenue, todayStr]);
 
   // ------------------------------------------------------------------
   // 4. BRANCH PERFORMANCE COMPARISON (OMZET, HPP, LABA PER CABANG)
@@ -838,10 +838,12 @@ export default function FinancialOverview({
                 <Award size={18} color={T.warning} />
                 <span>Top 5 Menu Terlaris</span>
               </h3>
-              <span style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '700' }}>PERFORMA MENU</span>
+              <span style={{ fontSize: '0.68rem', color: T.info, background: T.infoBg, border: `1px solid ${T.infoBorder}`, padding: '2px 8px', borderRadius: '6px', fontWeight: '800' }}>
+                {activeOutletFilter === 'ALL' ? 'Semua Cabang' : (allOutlets.find(o => String(o.id) === String(activeOutletFilter))?.name || 'Cabang Terpilih')}
+              </span>
             </div>
             <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '0 0 14px 0' }}>
-              Peringkat menu dengan volume penjualan dan kontribusi omzet tertinggi
+              Peringkat menu dengan volume penjualan tertinggi di {activeOutletFilter === 'ALL' ? 'seluruh cabang restoran' : (allOutlets.find(o => String(o.id) === String(activeOutletFilter))?.name || 'cabang terpilih')}
             </p>
 
             {/* List Top Menu Items */}
