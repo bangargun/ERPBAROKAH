@@ -749,7 +749,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   return (
     <>
       {viewMode === 'detail' && selectedInvoice ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, minHeight: '100vh', padding: '20px', color: T.txtPrimary }} className="animate-fade-in">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, minHeight: '100vh', padding: '20px', color: T.txtPrimary, borderRadius: '16px', border: `1px solid ${T.border}` }} className="animate-fade-in">
           
           {/* HEADER BAR LUNA POS INVOICE */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -757,17 +757,17 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               <button 
                 onClick={handleBackToList}
                 style={{
-                  background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 14px', borderRadius: '8px',
+                  background: T.cardBg, border: `1px solid ${T.border}`, color: T.txtPrimary, padding: '8px 14px', borderRadius: '8px',
                   cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px'
                 }}
               >
                 <ArrowLeft size={16} />
                 <span>Kembali</span>
               </button>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span>Invoice: {inv.id || inv.receipt_no || inv.receiptNo || inv.invoice_no}</span>
-                <span style={{ background: T.danger, color: T.txtPrimary, fontSize: '0.72rem', fontWeight: '800', padding: '3px 10px', borderRadius: '12px', letterSpacing: '0.05em' }}>
-                  {inv.status === 'CLOSED' || inv.status === 'Selesai' ? 'CLOSED' : inv.status}
+              <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>Invoice: #{inv.id || inv.receipt_no || inv.receiptNo || inv.invoice_no}</span>
+                <span style={{ background: inv.status === 'Void' ? T.danger : T.success, color: T.txtInverse, fontSize: '0.72rem', fontWeight: '800', padding: '3px 10px', borderRadius: '12px', letterSpacing: '0.05em' }}>
+                  {inv.status === 'CLOSED' || inv.status === 'Selesai' || !inv.status ? 'LUNAS / CLOSED' : inv.status}
                 </span>
               </h2>
             </div>
@@ -775,535 +775,585 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <button 
                 onClick={() => window.print()} 
-                style={{ background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ background: T.cardBg, border: `1px solid ${T.border}`, color: T.txtPrimary, padding: '8px 16px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <Printer size={16} color="${T.txtSecondary}" />
-                <span>Print</span>
-                <ChevronDown size={14} />
+                <Printer size={15} color={T.txtSecondary} />
+                <span>Print Struk POS</span>
               </button>
 
               <button 
                 onClick={() => handleOpenEditModal(inv)}
-                style={{ background: '#7e22ce', border: 'none', color: T.txtPrimary, padding: '8px 20px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
+                style={{ background: T.primary, border: 'none', color: T.txtInverse, padding: '8px 18px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer' }}
               >
                 Ubah
               </button>
 
               <button 
                 onClick={() => handleDeleteTransaction(inv)}
-                style={{ background: T.danger, border: 'none', color: T.txtPrimary, padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: T.danger, padding: '8px 16px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <Trash2 size={16} />
+                <Trash2 size={15} />
                 <span>Hapus</span>
               </button>
+            </div>
+          </div>
 
-            <button style={{ background: T.cardBg, border: '1px solid ${T.borderStrong}', color: T.txtPrimary, padding: '8px 12px', borderRadius: '8px', cursor: 'pointer' }}>
-              <MoreVertical size={16} />
+          {/* TOP SUMMARY CARD (CUSTOMER DETAIL & LARGE AMOUNT) */}
+          <div style={{ background: T.cardBg, borderRadius: '12px', border: `1px solid ${T.border}`, padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+            {/* Customer Box */}
+            <div style={{ background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '10px', padding: '14px 18px', minWidth: '280px', flex: 1 }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <User size={15} color={T.info} />
+                <span>DETAIL PELANGGAN</span>
+              </div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '800', color: T.txtPrimary }}>
+                {inv.customer_name || 'Pelanggan Umum'}
+              </div>
+              <div style={{ fontSize: '0.76rem', color: T.accentGold, fontWeight: '700', marginTop: '4px' }}>
+                Tipe Order: {inv.order_type || 'Dine In'}
+              </div>
+            </div>
+
+            {/* Amount Box */}
+            <div style={{ textAlign: 'right', minWidth: '220px' }}>
+              <div style={{ fontSize: '0.8rem', color: T.txtSecondary, fontWeight: '700' }}>TOTAL TRANSAKSI</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: '900', color: T.accentGold, marginTop: '2px' }}>
+                {formatRupiah(inv.final_amount !== undefined ? inv.final_amount : (inv.amount || inv.total || 0))}
+              </div>
+            </div>
+          </div>
+
+          {/* METADATA INFORMATION GRID */}
+          <div style={{ background: T.cardBg, borderRadius: '12px', padding: '18px 22px', border: `1px solid ${T.border}`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', fontSize: '0.82rem' }}>
+            {/* Left Metadata */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.txtSecondary }}>No. Struk / Invoice</span>
+                <strong style={{ color: T.info }}>#{inv.receipt_no || inv.id}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.txtSecondary }}>Tanggal Transaksi</span>
+                <strong style={{ color: T.txtPrimary }}>{inv.date} {inv.time || '12:00'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.txtSecondary }}>Metode Pembayaran</span>
+                <strong style={{ color: T.accentGold }}>{inv.payment_method || 'Cash'}</strong>
+              </div>
+            </div>
+
+            {/* Right Metadata */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.txtSecondary }}>Outlet Cabang</span>
+                <strong style={{ color: T.txtPrimary }}>{inv.branch_name}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.txtSecondary }}>Kasir POS</span>
+                <strong style={{ color: T.txtPrimary }}>{inv.cashier || `Kasir ${inv.branch_name}`}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: T.txtSecondary }}>Catatan</span>
+                <span style={{ color: T.txtPrimary }}>{inv.notes || '-'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ITEMIZED PRODUCTS TABLE */}
+          <div style={{ background: T.cardBg, borderRadius: '12px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontWeight: '700' }}>
+                  <th style={{ padding: '12px 14px', width: '35px' }}>#</th>
+                  <th style={{ padding: '12px 14px' }}>Produk Menu</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'center', width: '70px' }}>Qty</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Harga Satuan</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Diskon</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemList.map((it, idx) => (
+                  <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                    <td style={{ padding: '10px 14px', color: T.txtSecondary }}>{idx + 1}</td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ fontWeight: '700', color: T.txtPrimary }}>{it.name}</div>
+                      <div style={{ fontSize: '0.72rem', color: T.txtSecondary }}>SKU: {it.sku || `SKU-${idx + 1}`}</div>
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: '800' }}>{it.qty || 1}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right' }}>{formatRupiah(it.price_unit || it.price || 0)}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', color: T.txtSecondary }}>{formatRupiah(it.discount || 0)}</td>
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: T.success }}>{formatRupiah(it.amount || it.total || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: T.tableHeaderBg, fontWeight: '800', color: T.txtPrimary, borderTop: `2px solid ${T.border}` }}>
+                  <td colSpan={2} style={{ padding: '12px 14px' }}>TOTAL ({totalQtyCount} Item Porsi)</td>
+                  <td style={{ padding: '12px 14px', textAlign: 'center' }}>{totalQtyCount}</td>
+                  <td colSpan={2}></td>
+                  <td style={{ padding: '12px 14px', textAlign: 'right', color: T.success, fontSize: '0.95rem', fontWeight: '900' }}>
+                    {formatRupiah(inv.final_amount !== undefined ? inv.final_amount : (inv.amount || inv.total || 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+        </div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, padding: '20px', borderRadius: '16px', color: T.txtPrimary, minHeight: '88vh' }} className="animate-fade-in">
+        
+        {/* 1. HEADER ROW WITH TITLE, STATUS PRESET & ACTION BUTTONS */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Receipt size={24} color={T.accentGold} />
+              <span>Riwayat Transaksi Penjualan POS</span>
+            </h1>
+
+            {/* STATUS PRESET DROPDOWN */}
+            <div style={{ position: 'relative' }}>
+              <select
+                value={statusFilterPreset}
+                onChange={e => setStatusFilterPreset(e.target.value)}
+                style={{
+                  background: T.cardBg,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: '8px',
+                  padding: '6px 30px 6px 12px',
+                  fontSize: '0.82rem',
+                  fontWeight: '800',
+                  color: T.accentGold,
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  outline: 'none'
+                }}
+              >
+                <option value="Semua">Semua Status ({rawTransactionsList.length})</option>
+                <option value="Terbayar">✓ Selesai / Terbayar</option>
+                <option value="Dibatalkan">✕ Dibatalkan / Void</option>
+              </select>
+              <ChevronDown size={14} color={T.accentGold} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            </div>
+          </div>
+
+          {/* RIGHT ACTION BUTTONS */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              onClick={handleDownloadTransactionPDF}
+              className="btn-secondary"
+              style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251,113,133,0.35)', height: '38px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontWeight: '700', background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.35)', cursor: 'pointer' }}
+              title="Export ke PDF (Print)"
+            >
+              <Printer size={15} />
+              <span>Download PDF</span>
+            </button>
+
+            <button
+              onClick={handleDownloadTransactionExcel}
+              className="btn-secondary"
+              style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52,211,153,0.35)', height: '38px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontWeight: '700', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.35)', cursor: 'pointer' }}
+              title="Export ke Excel (CSV)"
+            >
+              <Download size={15} />
+              <span>Download Excel</span>
+            </button>
+
+            <button 
+              onClick={handleOpenAddModal} 
+              style={{ 
+                padding: '8px 16px', 
+                fontSize: '0.82rem', 
+                fontWeight: '800',
+                display: 'flex', 
+                alignItems: 'center',
+                gap: '6px', 
+                background: T.primary, 
+                color: T.txtInverse,
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                height: '38px'
+              }}
+            >
+              <Plus size={16} />
+              <span>+ Input Transaksi Manual</span>
             </button>
           </div>
         </div>
 
-        {/* TOP SUMMARY CARD (CUSTOMER DETAIL & LARGE AMOUNT) */}
-        <div style={{ background: T.cardBg, borderRadius: '12px', border: '1px solid ${T.borderStrong}', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
-          {/* Customer Box */}
-          <div style={{ background: T.cardBg2, border: '1px solid ${T.borderStrong}', borderRadius: '8px', padding: '16px 20px', minWidth: '320px', flex: 1, borderTop: '4px solid #c084fc' }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <User size={16} color="#c084fc" />
-              <span>Detail Customer</span>
-            </div>
-            <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#c084fc' }}>
-              {inv.customer_name || 'Default Customer'}
-            </div>
-            <div style={{ display: 'flex', gap: '24px', fontSize: '0.82rem', color: T.txtSecondary, marginTop: '8px' }}>
-              <span>-</span>
-              <span>-</span>
-            </div>
-            <div style={{ marginTop: '8px', display: 'inline-flex', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
-              -
-            </div>
-          </div>
+        {/* 2. 4 SUMMARY KPI CARDS FOR TRANSACTIONS */}
+        {(() => {
+          const validFilteredTxs = filteredTransactions.filter(t => t.status !== 'Void' && t.status !== 'Dibatalkan');
+          const totalNetFiltered = validFilteredTxs.reduce((sum, t) => sum + Number(t.final_amount !== undefined ? t.final_amount : (t.amount || t.total || 0)), 0);
+          const successCount = validFilteredTxs.length;
+          const voidCount = filteredTransactions.filter(t => t.status === 'Void' || t.status === 'Dibatalkan').length;
+          const avgTicket = successCount > 0 ? Math.round(totalNetFiltered / successCount) : 0;
 
-          {/* Amount Box */}
-          <div style={{ textAlign: 'right', minWidth: '220px' }}>
-            <div style={{ fontSize: '0.85rem', color: T.txtSecondary, fontWeight: '700' }}>Jumlah</div>
-            <div style={{ fontSize: '2rem', fontWeight: '900', color: T.txtPrimary, marginTop: '2px' }}>
-              {formatLunaCurrency(inv.amount)}
-            </div>
-          </div>
-        </div>
+          const payMap = {};
+          validFilteredTxs.forEach(t => {
+            const p = (t.payment_method || 'Cash').trim();
+            payMap[p] = (payMap[p] || 0) + 1;
+          });
+          let topPaymentMethod = 'Tunai (Cash)';
+          let maxPayCount = 0;
+          Object.entries(payMap).forEach(([k, v]) => {
+            if (v > maxPayCount) {
+              maxPayCount = v;
+              topPaymentMethod = `${k} (${Math.round((v / (successCount || 1)) * 100)}%)`;
+            }
+          });
 
-        {/* METADATA INFORMATION GRID */}
-        <div style={{ background: T.cardBg2, borderRadius: '8px', padding: '20px 24px', border: '1px solid ${T.borderStrong}', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', fontSize: '0.82rem' }}>
-          {/* Left Metadata */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>No. Invoice</span>
-              <strong style={{ color: T.txtPrimary }}>#{inv.id}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>No. Order</span>
-              <span style={{ color: T.txtPrimary }}>-</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>No. Ref Pelanggan</span>
-              <strong style={{ color: T.txtPrimary }}>{inv.ref_pelanggan || `POS-${inv.id}`}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Tanggal</span>
-              <strong style={{ color: T.txtPrimary }}>{inv.date} {inv.time || '23:52'}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Tanggal jatuh tempo</span>
-              <span style={{ color: T.txtPrimary }}>{inv.date}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Harga termasuk pajak</span>
-              <span style={{ color: T.txtPrimary }}>Ya</span>
-            </div>
-          </div>
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+              {/* Card 1: Total Omzet */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>TOTAL OMZET TERSARING</span>
+                  <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.accentGold, marginTop: '2px' }}>{formatRupiah(totalNetFiltered)}</div>
+                  <span style={{ fontSize: '0.66rem', color: T.success, fontWeight: '700' }}>Dari {successCount} Nota Sukses</span>
+                </div>
+                <div style={{ padding: '8px', borderRadius: '10px', background: T.accentGoldBg, color: T.accentGold }}>
+                  <DollarSign size={18} />
+                </div>
+              </div>
 
-          {/* Right Metadata */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Tipe Order</span>
-              <strong style={{ color: T.txtPrimary }}>POS</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Tipe Penjualan</span>
-              <strong style={{ color: T.txtPrimary }}>{inv.order_type || 'DineIn'}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Gudang</span>
-              <strong style={{ color: T.txtPrimary }}>{inv.gudang || `GUDANG ${inv.branch_name}`}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Outlet</span>
-              <strong style={{ color: T.txtPrimary }}>{inv.branch_name}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Kasir/Pelayan</span>
-              <strong style={{ color: T.txtPrimary }}>{inv.cashier || `KASIR ${inv.branch_name}`}</strong>
-            </div>
-          </div>
-        </div>
+              {/* Card 2: Total Nota & Void */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>JUMLAH NOTA / STRUK</span>
+                  <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>{filteredTransactions.length} Nota</div>
+                  <span style={{ fontSize: '0.66rem', color: voidCount > 0 ? T.danger : T.txtSecondary }}>Void/Batal: {voidCount} Nota</span>
+                </div>
+                <div style={{ padding: '8px', borderRadius: '10px', background: T.infoBg, color: T.info }}>
+                  <Receipt size={18} />
+                </div>
+              </div>
 
-        {/* ITEMIZED PRODUCTS TABLE */}
-        <div style={{ background: T.cardBg, borderRadius: '12px', border: '1px solid ${T.borderStrong}', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: T.cardBg2, borderBottom: '1px solid ${T.borderStrong}', color: T.txtSecondary, fontWeight: '700' }}>
-                <th style={{ padding: '12px 14px', width: '30px' }}>#</th>
-                <th style={{ padding: '12px 14px' }}>Produk</th>
-                <th style={{ padding: '12px 14px' }}>Modifier</th>
-                <th style={{ padding: '12px 14px' }}>Deskripsi</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center', width: '60px' }}>Qty</th>
-                <th style={{ padding: '12px 14px', width: '80px' }}>Satuan</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Harga</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center', width: '70px' }}>Diskon %</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Diskon</th>
-                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Jumlah</th>
-              </tr>
-            </thead>
-            <tbody>
-              {itemList.map((it, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid ${T.border}', color: T.txtPrimary }}>
-                  <td style={{ padding: '12px 14px', color: T.txtSecondary }}>{idx + 1}</td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <div style={{ fontWeight: '700', color: T.txtPrimary }}>{it.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: T.txtSecondary, fontStyle: 'italic' }}>SKU: {it.sku || `000${idx + 800}`}</div>
-                  </td>
-                  <td style={{ padding: '12px 14px', color: T.txtSecondary }}>-</td>
-                  <td style={{ padding: '12px 14px', color: T.txtPrimary }}>{it.name}</td>
-                  <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: '700' }}>{it.qty}</td>
-                  <td style={{ padding: '12px 14px', color: T.txtPrimary, textTransform: 'uppercase' }}>{it.unit || 'PORSI'}</td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right' }}>{formatLunaCurrency(it.price_unit)}</td>
-                  <td style={{ padding: '12px 14px', textAlign: 'center' }}>0</td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right' }}>0,00</td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: '700' }}>{formatLunaCurrency(it.amount)}</td>
-                </tr>
-              ))}
-              <tr style={{ background: T.cardBg2, fontWeight: '800', color: T.txtPrimary }}>
-                <td colSpan={4} style={{ padding: '12px 14px', textAlign: 'right' }}>Total Qty:</td>
-                <td style={{ padding: '12px 14px', textAlign: 'center' }}>{totalQtyCount}</td>
-                <td colSpan={5}></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+              {/* Card 3: Rata-Rata Per Transaksi (AOV) */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>RATA-RATA BELANJA (AOV)</span>
+                  <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(avgTicket)}</div>
+                  <span style={{ fontSize: '0.66rem', color: T.txtSecondary }}>Nominal per Struk Pelanggan</span>
+                </div>
+                <div style={{ padding: '8px', borderRadius: '10px', background: T.successBg, color: T.success }}>
+                  <ShoppingBag size={18} />
+                </div>
+              </div>
 
-        {/* BOTTOM NOTES & SUMMARY CALCULATION SECTION */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'flex-start' }}>
-          {/* Left Notes */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ background: T.cardBg, padding: '16px', borderRadius: '8px', border: '1px solid ${T.borderStrong}' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: '800', color: T.txtPrimary, display: 'block', marginBottom: '6px' }}>Pesan untuk pelanggan</label>
-              <div style={{ fontSize: '0.82rem', color: T.txtSecondary }}>-</div>
+              {/* Card 4: Top Payment Method */}
+              <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>METODE BAYAR TERBANYAK</span>
+                  <div style={{ fontSize: '0.94rem', fontWeight: '900', color: T.primary, marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                    {topPaymentMethod}
+                  </div>
+                  <span style={{ fontSize: '0.66rem', color: T.info, fontWeight: '700' }}>Dominan Pelanggan</span>
+                </div>
+                <div style={{ padding: '8px', borderRadius: '10px', background: T.primaryBtn, color: T.navActiveTxt }}>
+                  <CreditCard size={18} />
+                </div>
+              </div>
             </div>
+          );
+        })()}
 
-            <div style={{ background: T.cardBg, padding: '16px', borderRadius: '8px', border: '1px solid ${T.borderStrong}' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: '800', color: T.txtPrimary, display: 'block', marginBottom: '6px' }}>Catatan</label>
-              <div style={{ fontSize: '0.82rem', color: T.txtPrimary }}>{inv.notes || '-'}</div>
-            </div>
-          </div>
-
-          {/* Right Calculation Box */}
-          <div style={{ background: T.cardBg, padding: '20px', borderRadius: '8px', border: '1px solid ${T.borderStrong}', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary, fontWeight: '700' }}>Subtotal</span>
-              <strong style={{ color: T.txtPrimary }}>{formatLunaCurrency(inv.amount)}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Diskon (Rp)</span>
-              <span style={{ color: T.txtPrimary }}>0</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Service charge</span>
-              <span style={{ color: T.txtPrimary }}>0,00</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Pajak</span>
-              <span style={{ color: T.txtPrimary }}>0,00</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: T.txtSecondary }}>Penyesuaian</span>
-              <span style={{ color: T.txtPrimary }}>0,00</span>
-            </div>
-
-            <div style={{ borderTop: '1px dashed ${T.borderStrong}', margin: '8px 0' }}></div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary }}>
-              <span>Total</span>
-              <span>{formatLunaCurrency(inv.amount)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.05rem', fontWeight: '800', color: '#c084fc' }}>
-              <span>Dibayar</span>
-              <span>{formatLunaCurrency(inv.amount)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: '800', color: T.success }}>
-              <span>Sisa Tagihan</span>
-              <span>LUNAS</span>
-            </div>
-          </div>
-        </div>
-
-        {/* BOTTOM PAYMENT INFO */}
-        <div style={{ background: T.cardBg, borderRadius: '8px', padding: '16px', border: '1px solid ${T.borderStrong}', fontSize: '0.85rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CreditCard size={18} color="#c084fc" />
-          <span>Informasi Pembayaran</span>
-        </div>
-
-      </div>
-    ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.cardBg2, padding: '20px', borderRadius: '16px', color: T.txtPrimary, minHeight: '88vh' }} className="animate-fade-in">
-        
-        {/* 1. HEADER ROW WITH TITLE & "+ TAMBAH BARU" BUTTON */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>
-            Penjualan
-          </h1>
-
-          {/* STATUS PRESET DROPDOWN */}
-          <div style={{ position: 'relative' }}>
-            <select
-              value={statusFilterPreset}
-              onChange={e => setStatusFilterPreset(e.target.value)}
-              style={{
-                background: T.cardBg, border: '1px solid ${T.borderStrong}', borderRadius: '8px', padding: '6px 32px 6px 14px',
-                fontSize: '0.9rem', fontWeight: '700', color: '#c084fc', cursor: 'pointer', appearance: 'none'
-              }}
-            >
-              <option value="Semua">Semua</option>
-              <option value="Terbayar">Terbayar</option>
-              <option value="Draft">Draft</option>
-              <option value="Dibatalkan">Dibatalkan</option>
-            </select>
-            <ChevronDown size={14} color="#c084fc" style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-          </div>
-        </div>
-
-        {/* "+ TAMBAH BARU" PURPLE BUTTON */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button 
-            onClick={handleOpenAddModal} 
-            style={{ 
-              padding: '8px 18px', 
-              fontSize: '0.85rem', 
-              fontWeight: '700',
-              display: 'flex', 
-              alignItems: 'center',
-              gap: '6px', 
-              background: T.cardBg, 
-              color: '#c084fc',
-              borderRadius: '8px',
-              border: '1px solid #c084fc',
-              cursor: 'pointer'
-            }}
-          >
-            <Plus size={16} color="#c084fc" />
-            <span>Tambah Baru</span>
-            <ChevronDown size={14} color="#c084fc" />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. FILTER & SEARCH CONTROL BAR MATCHING DARK THEME */}
-      <div style={{ background: T.cardBg, padding: '16px', borderRadius: '12px', border: '1px solid ${T.borderStrong}', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px', position: 'relative', zIndex: 100 }}>
-        
-        {/* Search Bar Input */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '220px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Pencarian Struk</span>
-          <div style={{ position: 'relative' }}>
-            <Search size={16} color="${T.txtSecondary}" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+        {/* 3. FILTER & SEARCH CONTROL BAR */}
+        <div style={{ background: T.cardBg, padding: '14px 18px', borderRadius: '14px', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', position: 'relative', zIndex: 100 }}>
+          
+          {/* Search Bar Input */}
+          <div style={{ position: 'relative', minWidth: '220px', flex: 1 }}>
+            <Search size={15} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text" 
-              placeholder="Cari no. struk/item..." 
+              placeholder="Cari no. struk, kasir, pelanggan, menu..." 
               value={searchQuery} 
               onChange={e => setSearchQuery(e.target.value)} 
-              style={{ paddingLeft: '36px', height: '36px', fontSize: '0.85rem', width: '100%', border: '1px solid ${T.borderStrong}', borderRadius: '6px', background: T.inputBg, color: T.txtPrimary }} 
+              style={{ paddingLeft: '34px', height: '36px', fontSize: '0.8rem', width: '100%', border: `1px solid ${T.border}`, borderRadius: '8px', background: T.inputBg, color: T.txtPrimary, outline: 'none' }} 
             />
           </div>
-        </div>
 
-        {/* 1. Tahun Dropdown */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tahun</span>
-          <select
-            value={selectedYear}
-            onChange={e => handleYearChange(e.target.value)}
-            style={{
-              padding: '0 12px',
-              borderRadius: '6px',
-              border: '1px solid ${T.borderStrong}',
-              background: T.cardBg2,
-              color: T.txtPrimary,
-              fontSize: '0.85rem',
-              fontWeight: '700',
-              height: '36px',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="">Semua Tahun</option>
-            {Array.from({ length: 17 }, (_, i) => 2024 + i).map(yr => (
-              <option key={yr} value={String(yr)}>{yr}</option>
-            ))}
-          </select>
-        </div>
+          {/* Tahun Dropdown (2024 s/d 2040) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <select
+              value={selectedYear}
+              onChange={e => handleYearChange(e.target.value)}
+              style={{
+                padding: '0 10px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                background: T.cardBg2,
+                color: T.txtPrimary,
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                height: '36px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="">Semua Tahun</option>
+              {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
+                <option key={yr} value={String(yr)}>Tahun {yr}</option>
+              ))}
+            </select>
+          </div>
 
-        {/* 2. Bulan Dropdown */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Bulan</span>
-          <select
-            value={selectedMonth}
-            onChange={e => handleMonthChange(e.target.value)}
-            style={{
-              padding: '0 12px',
-              borderRadius: '6px',
-              border: '1px solid ${T.borderStrong}',
-              background: T.cardBg2,
-              color: T.txtPrimary,
-              fontSize: '0.85rem',
-              fontWeight: '700',
-              height: '36px',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="">Semua Bulan</option>
-            <option value="01">Januari</option>
-            <option value="02">Februari</option>
-            <option value="03">Maret</option>
-            <option value="04">April</option>
-            <option value="05">Mei</option>
-            <option value="06">Juni</option>
-            <option value="07">Juli</option>
-            <option value="08">Agustus</option>
-            <option value="09">September</option>
-            <option value="10">Oktober</option>
-            <option value="11">November</option>
-            <option value="12">Desember</option>
-          </select>
-        </div>
+          {/* Bulan Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <select
+              value={selectedMonth}
+              onChange={e => handleMonthChange(e.target.value)}
+              style={{
+                padding: '0 10px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                background: T.cardBg2,
+                color: T.txtPrimary,
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                height: '36px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="">Semua Bulan</option>
+              <option value="01">Januari</option>
+              <option value="02">Februari</option>
+              <option value="03">Maret</option>
+              <option value="04">April</option>
+              <option value="05">Mei</option>
+              <option value="06">Juni</option>
+              <option value="07">Juli</option>
+              <option value="08">Agustus</option>
+              <option value="09">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+          </div>
 
-        {/* 3. Tanggal (Rentang Waktu) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tanggal (Rentang Waktu)</span>
+          {/* Date Range Inputs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input 
               type="date" 
               value={startDate} 
               onChange={e => setStartDate(e.target.value)}
-              style={{ height: '36px', fontSize: '0.82rem', border: '1px solid ${T.borderStrong}', borderRadius: '6px', padding: '0 8px', color: T.txtPrimary, fontWeight: '600', background: T.inputBg }} 
+              style={{ height: '36px', fontSize: '0.78rem', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 8px', color: T.txtPrimary, fontWeight: '700', background: T.inputBg, outline: 'none' }} 
             />
-            <span style={{ color: T.txtMuted, fontSize: '0.80rem' }}>s/d</span>
+            <span style={{ color: T.txtMuted, fontSize: '0.75rem' }}>s/d</span>
             <input 
               type="date" 
               value={endDate} 
               onChange={e => setEndDate(e.target.value)}
-              style={{ height: '36px', fontSize: '0.82rem', border: '1px solid ${T.borderStrong}', borderRadius: '6px', padding: '0 8px', color: T.txtPrimary, fontWeight: '600', background: T.inputBg }} 
+              style={{ height: '36px', fontSize: '0.78rem', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 8px', color: T.txtPrimary, fontWeight: '700', background: T.inputBg, outline: 'none' }} 
             />
           </div>
+
+          {/* Outlet Selector Dropdown */}
+          <div style={{ minWidth: '180px' }}>
+            <select 
+              value={outletFilter} 
+              onChange={e => setOutletFilter(e.target.value)} 
+              style={{ height: '36px', fontSize: '0.8rem', width: '100%', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', color: T.txtPrimary, fontWeight: '800', background: T.cardBg2, cursor: 'pointer', outline: 'none' }}
+            >
+              <option value="ALL">Semua Outlet Cabang</option>
+              {outlets.map(o => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reset filter button */}
+          {(startDate || endDate || selectedYear || selectedMonth || outletFilter !== 'ALL' || searchQuery) && (
+            <button
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+                setSelectedYear('');
+                setSelectedMonth('');
+                setOutletFilter('ALL');
+                setSearchQuery('');
+              }}
+              style={{
+                height: '36px',
+                padding: '0 12px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: T.danger,
+                borderRadius: '8px',
+                fontSize: '0.76rem',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Reset Filter
+            </button>
+          )}
+
         </div>
-
-        {/* 4. Outlet Selector Dropdown */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '200px' }}>
-          <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Outlet</span>
-          <select 
-            value={outletFilter} 
-            onChange={e => setOutletFilter(e.target.value)} 
-            style={{ height: '36px', fontSize: '0.85rem', width: '100%', border: '1px solid ${T.borderStrong}', borderRadius: '6px', padding: '0 12px', color: T.txtPrimary, fontWeight: '700', background: T.inputBg, cursor: 'pointer' }}
-          >
-            <option value="ALL">SEMUA OUTLET CABANG</option>
-            {outlets.map(o => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* More Filter Button */}
-        <button style={{ height: '38px', padding: '0 16px', border: '1px solid ${T.borderStrong}', background: T.cardBg2, color: T.txtPrimary, borderRadius: '6px', fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-          <span>More Filter</span>
-          <ChevronDown size={14} />
-        </button>
-
-        {/* Control Icons + Download Buttons */}
-        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
-          <button
-            onClick={handleDownloadTransactionExcel}
-            className="btn-secondary"
-            style={{ padding: '8px 14px', fontSize: '0.82rem', color: T.success, borderColor: 'rgba(52,211,153,0.35)', height: '38px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontWeight: '700', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.35)', cursor: 'pointer' }}
-            title="Export ke Excel (CSV)"
-          >
-            <Download size={15} />
-            <span>Excel</span>
-          </button>
-
-          <button
-            onClick={handleDownloadTransactionPDF}
-            className="btn-secondary"
-            style={{ padding: '8px 14px', fontSize: '0.82rem', color: T.danger, borderColor: 'rgba(251,113,133,0.35)', height: '38px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '8px', fontWeight: '700', background: 'rgba(251,113,133,0.08)', border: '1px solid rgba(251,113,133,0.35)', cursor: 'pointer' }}
-            title="Export ke PDF (Print)"
-          >
-            <Printer size={15} />
-            <span>PDF</span>
-          </button>
-
-          <button style={{ width: '38px', height: '38px', borderRadius: '8px', border: '1px solid ${T.borderStrong}', background: T.cardBg2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: T.txtMuted }}>
-            <RefreshCw size={18} color="${T.txtMuted}" />
-          </button>
-          <button style={{ width: '38px', height: '38px', borderRadius: '8px', border: '1px solid ${T.borderStrong}', background: T.cardBg2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: T.txtMuted }}>
-            <SlidersHorizontal size={18} color="${T.txtMuted}" />
-          </button>
-        </div>
-
-      </div>
-
-      {/* 3. LUNA POS PENJUALAN TABLE MATCHING DARK THEME SYSTEM */}
-      <div style={{ background: T.cardBg, borderRadius: '12px', border: '1px solid ${T.borderStrong}', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+      {/* 4. TABEL LOG RIWAYAT TRANSAKSI PENJUALAN POS */}
+      <div style={{ background: T.cardBg, borderRadius: '14px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
             <thead>
-              <tr style={{ background: T.cardBg2, borderBottom: '1px solid ${T.borderStrong}', color: T.txtSecondary, fontWeight: '600' }}>
-                <th style={{ padding: '14px 16px' }}>Tanggal ↕</th>
-                <th style={{ padding: '14px 16px' }}>Tipe ↕</th>
-                <th style={{ padding: '14px 16px' }}>No ↕</th>
-                <th style={{ padding: '14px 16px' }}>Outlet</th>
-                <th style={{ padding: '14px 16px' }}>Pelanggan ↕</th>
-                <th style={{ padding: '14px 16px', textAlign: 'right' }}>Total ↕</th>
-                <th style={{ padding: '14px 16px' }}>Status ↕</th>
-                <th style={{ padding: '14px 16px', textAlign: 'center', width: '90px' }}></th>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}`, color: T.txtSecondary, fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '12px 14px', width: '140px' }}>Waktu / Tanggal</th>
+                <th style={{ padding: '12px 14px' }}>No. Struk / ID</th>
+                <th style={{ padding: '12px 14px' }}>Outlet Cabang</th>
+                <th style={{ padding: '12px 14px' }}>Kasir</th>
+                <th style={{ padding: '12px 14px' }}>Pelanggan</th>
+                <th style={{ padding: '12px 14px' }}>Items Menu</th>
+                <th style={{ padding: '12px 14px' }}>Metode Bayar</th>
+                <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total (Rp)</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center', width: '120px' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {paginatedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
-                    Belum ada data penjualan. Klik "+ Tambah Baru" untuk membuat invoice penjualan baru.
+                  <td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
+                    Tidak ditemukan data transaksi yang sesuai dengan filter.
                   </td>
                 </tr>
               ) : (
-                paginatedTransactions.map((item, idx) => (
-                  <tr key={item.id || idx} style={{ borderBottom: '1px solid ${T.border}', background: T.cardBg }}>
+                paginatedTransactions.map((item, idx) => {
+                  const isVoid = item.status === 'Void' || item.status === 'Dibatalkan';
+                  const itemsList = item.items && Array.isArray(item.items) && item.items.length > 0
+                    ? item.items
+                    : (item.item_name ? [{ name: item.item_name, qty: item.qty || 1 }] : []);
+                  
+                  return (
+                  <tr key={item.id || idx} style={{ borderBottom: `1px solid ${T.border}`, background: idx % 2 === 0 ? T.cardBg : T.cardBg2 }}>
                     
                     {/* Tanggal & Waktu (Jam:Menit:Detik) */}
-                    <td style={{ padding: '14px 16px', color: T.txtPrimary }}>
+                    <td style={{ padding: '10px 14px', color: T.txtPrimary }}>
                       {formatDateTimeWithSeconds(item)}
                     </td>
 
-                    {/* Tipe */}
-                    <td style={{ padding: '16px', color: T.txtSecondary }}>
-                      {item.type || 'Invoice Penjualan'}
-                    </td>
-
-                    {/* No (CLICKABLE LINK PURPLE MATCHING DARK THEME) */}
-                    <td style={{ padding: '16px' }}>
+                    {/* No. Struk (Clickable to open Invoice) */}
+                    <td style={{ padding: '10px 14px' }}>
                       <span 
                         onClick={() => handleOpenInvoiceDetail(item)}
-                        style={{ color: '#c084fc', fontWeight: '700', cursor: 'pointer', textDecoration: 'none' }}
-                        title="Klik untuk membuka rincian invoice"
+                        style={{ color: T.info, fontWeight: '800', cursor: 'pointer', fontFamily: 'monospace', fontSize: '0.86rem' }}
+                        title="Klik untuk membuka rincian invoice POS"
                       >
-                        {item.id}
+                        {item.receipt_no || item.receiptNo || item.id || `POS-${idx + 1}`}
                       </span>
                     </td>
 
                     {/* Outlet */}
-                    <td style={{ padding: '16px', color: T.txtPrimary }}>
-                      {item.branch_name}
+                    <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700' }}>
+                      {item.branch_name || 'Semua Cabang'}
                     </td>
 
-                    {/* Pelanggan (LINK TEXT PURPLE MATCHING DARK THEME) */}
-                    <td style={{ padding: '16px' }}>
-                      <span onClick={() => handleOpenInvoiceDetail(item)} style={{ color: '#c084fc', fontWeight: '700', cursor: 'pointer' }}>
-                        {item.customer_name || 'Default Customer'}
+                    {/* Kasir */}
+                    <td style={{ padding: '10px 14px', color: T.txtSecondary }}>
+                      {item.cashier || 'Kasir POS'}
+                    </td>
+
+                    {/* Pelanggan & Tipe Order */}
+                    <td style={{ padding: '10px 14px' }}>
+                      <div style={{ fontWeight: '700', color: T.txtPrimary }}>{item.customer_name || 'Pelanggan Umum'}</div>
+                      <span style={{ fontSize: '0.68rem', color: T.accentGold, background: `${T.accentGold}15`, padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                        {item.order_type || 'Dine In'}
                       </span>
                     </td>
 
-                    {/* Total (FORMATTED WITH DECIMAL e.g. 2.424.100,00) */}
-                    <td style={{ padding: '16px', textAlign: 'right', fontWeight: '600', color: T.txtPrimary }}>
-                      {formatLunaCurrency(item.amount)}
+                    {/* Items Menu summary */}
+                    <td style={{ padding: '10px 14px', maxWidth: '200px' }}>
+                      {itemsList.length > 0 ? (
+                        <div>
+                          <div style={{ fontSize: '0.78rem', color: T.txtPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {itemsList[0].name} {itemsList[0].qty ? `(x${itemsList[0].qty})` : ''}
+                          </div>
+                          {itemsList.length > 1 && (
+                            <span style={{ fontSize: '0.68rem', color: T.info, background: `${T.info}15`, padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
+                              +{itemsList.length - 1} item lainnya
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: T.txtMuted, fontSize: '0.75rem' }}>-</span>
+                      )}
                     </td>
 
-                    {/* Status (GREEN TEXT MATCHING DARK THEME) */}
-                    <td style={{ padding: '16px' }}>
-                      <span style={{ color: T.success, fontWeight: '700' }}>
-                        {item.status || 'Selesai'}
+                    {/* Metode Bayar */}
+                    <td style={{ padding: '10px 14px' }}>
+                      <span style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', background: `${T.info}15`, color: T.info, border: `1px solid ${T.info}30` }}>
+                        {item.payment_method || 'Cash'}
                       </span>
                     </td>
 
-                    {/* Aksi (Ubah & Hapus) */}
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                    {/* Total (Rp) */}
+                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800', color: isVoid ? T.txtMuted : T.success, fontSize: '0.9rem', textDecoration: isVoid ? 'line-through' : 'none' }}>
+                      {formatRupiah(item.final_amount !== undefined ? item.final_amount : (item.amount || item.total || 0))}
+                    </td>
+
+                    {/* Status Badge */}
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: '800',
+                        padding: '3px 9px',
+                        borderRadius: '12px',
+                        background: isVoid ? 'rgba(239, 68, 68, 0.15)' : 'rgba(52, 211, 153, 0.15)',
+                        color: isVoid ? T.danger : T.success,
+                        border: `1px solid ${isVoid ? 'rgba(239, 68, 68, 0.3)' : 'rgba(52, 211, 153, 0.3)'}`
+                      }}>
+                        {isVoid ? 'Void / Batal' : 'Lunas'}
+                      </span>
+                    </td>
+
+                    {/* Aksi (Detail, Ubah, Hapus) */}
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
                         <button 
-                          onClick={() => handleOpenEditModal(item)}
+                          onClick={() => handleOpenInvoiceDetail(item)}
+                          title="Lihat Rincian Struk POS"
                           style={{
-                            background: '#7e22ce', color: T.txtPrimary, border: 'none', padding: '6px 14px', borderRadius: '16px',
-                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer'
+                            background: T.cardBg2, color: T.info, border: `1px solid ${T.border}`, padding: '5px 8px', borderRadius: '6px',
+                            fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer'
                           }}
                         >
-                          Ubah
+                          <Eye size={13} />
                         </button>
+
+                        <button 
+                          onClick={() => handleOpenEditModal(item)}
+                          title="Ubah Transaksi"
+                          style={{
+                            background: T.cardBg2, color: T.accentGold, border: `1px solid ${T.border}`, padding: '5px 8px', borderRadius: '6px',
+                            fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer'
+                          }}
+                        >
+                          <Edit3 size={13} />
+                        </button>
+
                         <button 
                           onClick={() => handleDeleteTransaction(item)}
-                          title="Hapus Transaksi Penjualan"
+                          title="Hapus / Void Transaksi"
                           style={{
-                            background: T.danger, color: T.txtPrimary, border: 'none', padding: '6px 12px', borderRadius: '16px',
-                            fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                            background: 'rgba(239, 68, 68, 0.1)', color: T.danger, border: '1px solid rgba(239, 68, 68, 0.3)', padding: '5px 8px', borderRadius: '6px',
+                            fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer'
                           }}
                         >
                           <Trash2 size={13} />
-                          <span>Hapus</span>
                         </button>
                       </div>
                     </td>
 
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
         {/* PAGINATION CONTROLS */}
-        <div style={{ padding: '16px', background: T.cardBg, borderTop: '1px solid ${T.borderStrong}' }}>
+        <div style={{ padding: '16px', background: T.cardBg, borderTop: `1px solid ${T.border}` }}>
           <PaginationControls
             currentPage={currentPage}
             totalPages={totalPages}
@@ -1347,18 +1397,18 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Tanggal Transaksi *</label>
-                  <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} required style={{ width: '100%', height: '38px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', padding: '0 10px' }} />
+                  <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} required style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.txtPrimary }} />
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Jam Transaksi *</label>
-                  <input type="time" value={formTime} onChange={e => setFormTime(e.target.value)} required style={{ width: '100%', height: '38px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', padding: '0 10px' }} />
+                  <input type="time" value={formTime} onChange={e => setFormTime(e.target.value)} required style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.txtPrimary }} />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Outlet Cabang *</label>
-                  <select value={formOutletId} onChange={e => setFormOutletId(e.target.value)} style={{ width: '100%', height: '38px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', padding: '0 10px' }}>
+                  <select value={formOutletId} onChange={e => setFormOutletId(e.target.value)} style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.txtPrimary }}>
                     {outlets.map(o => (
                       <option key={o.id} value={o.id}>{o.name}</option>
                     ))}
@@ -1366,7 +1416,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Kasir/Pelayan *</label>
-                  <select value={formCashier} onChange={e => setFormCashier(e.target.value)} style={{ width: '100%', height: '38px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', padding: '0 10px' }}>
+                  <select value={formCashier} onChange={e => setFormCashier(e.target.value)} style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.txtPrimary }}>
                     {adminList.map(a => (
                       <option key={a.id} value={a.name}>{a.name}</option>
                     ))}
@@ -1377,7 +1427,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Nama Pelanggan *</label>
-                  <select value={formCustomerName} onChange={e => setFormCustomerName(e.target.value)} style={{ width: '100%', height: '38px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', padding: '0 10px' }}>
+                  <select value={formCustomerName} onChange={e => setFormCustomerName(e.target.value)} style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.txtPrimary }}>
                     {customerList.map(c => (
                       <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
@@ -1385,7 +1435,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Tipe Order *</label>
-                  <select value={formOrderType} onChange={e => setFormOrderType(e.target.value)} style={{ width: '100%', height: '38px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', padding: '0 10px', fontWeight: '700', color: '#6b21a8' }}>
+                  <select value={formOrderType} onChange={e => setFormOrderType(e.target.value)} style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', fontWeight: '700', color: T.accentGold, background: T.inputBg }}>
                     <option value="DineIn">DineIn (Makan di Tempat)</option>
                     <option value="Take Away">Take Away (Bawa Pulang)</option>
                   </select>
@@ -1393,16 +1443,16 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               </div>
 
               {/* Multi-Row Items */}
-              <div style={{ background: T.txtPrimary, padding: '14px', borderRadius: '8px', border: '1px solid ${T.txtPrimary}', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '10px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#6b21a8' }}>Rincian Produk Menu</span>
-                  <span style={{ fontSize: '0.78rem', color: T.cardBg, fontWeight: '700' }}>Subtotal: {formatLunaCurrency(grandTotalStrukAmount)}</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '800', color: T.txtPrimary }}>Rincian Produk Menu</span>
+                  <span style={{ fontSize: '0.78rem', color: T.accentGold, fontWeight: '800' }}>Subtotal: {formatRupiah(grandTotalStrukAmount)}</span>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                     <thead>
-                      <tr style={{ color: T.txtMuted, borderBottom: '1px solid ${T.txtPrimary}', textAlign: 'left' }}>
+                      <tr style={{ color: T.txtSecondary, borderBottom: `1px solid ${T.border}`, textAlign: 'left' }}>
                         <th style={{ padding: '6px' }}>Nama Produk</th>
                         <th style={{ padding: '6px', width: '65px' }}>Qty</th>
                         <th style={{ padding: '6px', textAlign: 'right', width: '100px' }}>Harga</th>
@@ -1412,12 +1462,12 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                     </thead>
                     <tbody>
                       {formItemRows.map(r => (
-                        <tr key={r.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <tr key={r.id} style={{ borderBottom: `1px solid ${T.border}` }}>
                           <td style={{ padding: '6px' }}>
                             <select 
                               value={r.name} 
                               onChange={e => handleUpdateItemRow(r.id, 'name', e.target.value)} 
-                              style={{ width: '100%', height: '32px', fontSize: '0.78rem', border: '1px solid ${T.txtPrimary}', borderRadius: '6px', fontWeight: '600' }}
+                              style={{ width: '100%', height: '32px', fontSize: '0.78rem', border: `1px solid ${T.border}`, borderRadius: '6px', fontWeight: '600', background: T.inputBg, color: T.txtPrimary }}
                             >
                               {menuProducts.map(p => (
                                 <option key={p.id} value={p.name}>{p.name}</option>
@@ -1430,7 +1480,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                               min="1" 
                               value={r.qty} 
                               onChange={e => handleUpdateItemRow(r.id, 'qty', e.target.value)} 
-                              style={{ width: '100%', height: '32px', fontSize: '0.78rem', textAlign: 'center', border: '1px solid ${T.txtPrimary}', borderRadius: '6px' }} 
+                              style={{ width: '100%', height: '32px', fontSize: '0.78rem', textAlign: 'center', border: `1px solid ${T.border}`, borderRadius: '6px', background: T.inputBg, color: T.txtPrimary }} 
                             />
                           </td>
                           <td style={{ padding: '6px' }}>
@@ -1438,14 +1488,16 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                               type="number" 
                               value={r.price_unit} 
                               onChange={e => handleUpdateItemRow(r.id, 'price_unit', e.target.value)} 
-                              style={{ width: '100%', height: '32px', fontSize: '0.78rem', textAlign: 'right', border: '1px solid ${T.txtPrimary}', borderRadius: '6px' }} 
+                              style={{ width: '100%', height: '32px', fontSize: '0.78rem', textAlign: 'right', border: `1px solid ${T.border}`, borderRadius: '6px', background: T.inputBg, color: T.txtPrimary }} 
                             />
                           </td>
-                          <td style={{ padding: '6px', textAlign: 'right', fontWeight: '700', color: T.cardBg }}>
-                            {formatLunaCurrency(r.amount)}
+                          <td style={{ padding: '6px', textAlign: 'right', fontWeight: '700', color: T.success }}>
+                            {formatRupiah(r.amount)}
                           </td>
                           <td style={{ padding: '6px', textAlign: 'center' }}>
-                            <button type="button" onClick={() => handleRemoveItemRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}></button>
+                            <button type="button" onClick={() => handleRemoveItemRow(r.id)} style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer' }}>
+                              <Trash2 size={13} />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1456,7 +1508,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 <button 
                   type="button" 
                   onClick={handleAddBlankItemRow} 
-                  style={{ alignSelf: 'flex-start', background: '#f1f5f9', border: '1px solid ${T.txtPrimary}', color: '#6b21a8', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  style={{ alignSelf: 'flex-start', background: T.cardBg, border: `1px solid ${T.border}`, color: T.accentGold, padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                 >
                   <PlusCircle size={14} />
                   <span>+ Tambah Field Produk</span>
@@ -1470,20 +1522,20 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                   placeholder="Contoh: Meja 04, es teh manis" 
                   value={formNotes} 
                   onChange={e => setFormNotes(e.target.value)} 
-                  style={{ width: '100%', height: '38px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', padding: '0 10px' }} 
+                  style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.txtPrimary }} 
                 />
               </div>
 
-              <div style={{ background: T.txtPrimary, padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', color: T.txtMuted, fontWeight: '700' }}>TOTAL TRANSAKSI:</span>
-                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#6b21a8' }}>{formatLunaCurrency(grandTotalStrukAmount)}</span>
+              <div style={{ background: T.cardBg2, padding: '12px 16px', borderRadius: '8px', border: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: T.txtSecondary, fontWeight: '700' }}>TOTAL TRANSAKSI:</span>
+                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: T.accentGold }}>{formatRupiah(grandTotalStrukAmount)}</span>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '6px' }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '8px 16px', border: '1px solid ${T.txtPrimary}', borderRadius: '8px', background: T.txtPrimary, cursor: 'pointer', fontSize: '0.85rem' }}>
+                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '8px 16px', border: `1px solid ${T.border}`, borderRadius: '8px', background: T.cardBg, cursor: 'pointer', fontSize: '0.82rem', color: T.txtPrimary, fontWeight: '700' }}>
                   Batal
                 </button>
-                <button type="submit" style={{ padding: '8px 20px', border: 'none', borderRadius: '8px', background: '#6b21a8', color: T.txtPrimary, cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem' }}>
+                <button type="submit" style={{ padding: '8px 20px', border: 'none', borderRadius: '8px', background: T.primary, color: T.txtInverse, cursor: 'pointer', fontWeight: '800', fontSize: '0.82rem' }}>
                   Simpan Invoice
                 </button>
               </div>
@@ -1503,13 +1555,13 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 130
         }}>
           <div className="glass-card animate-fade-in" style={{
-            width: '100%', maxWidth: '440px', padding: '24px', background: T.cardBg2, border: '1px solid ${T.info}', borderRadius: '20px',
+            width: '100%', maxWidth: '440px', padding: '24px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '20px',
             boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
           }}>
             {/* Header Modal */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid ${T.borderStrong}', paddingBottom: '12px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Receipt size={22} color="${T.info}" />
+                <Receipt size={22} color={T.accentGold} />
                 <span>Pratinjau Struk Nota POS Kasir</span>
               </h3>
               <button onClick={() => setPreviewRecord(null)} style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}>
@@ -1520,7 +1572,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
             {/* Thermal Struk Card Visual */}
             <div style={{
               background: T.cardBg,
-              border: '1px dashed ${T.borderStrong}',
+              border: `1px dashed ${T.border}`,
               borderRadius: '12px',
               padding: '20px',
               display: 'flex',
@@ -1530,7 +1582,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
             }}>
               
               {/* Resto Branding Header */}
-              <div style={{ textAlign: 'center', borderBottom: '1px dashed ${T.borderStrong}', paddingBottom: '12px' }}>
+              <div style={{ textAlign: 'center', borderBottom: `1px dashed ${T.border}`, paddingBottom: '12px' }}>
                 <div style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, letterSpacing: '0.05em' }}>POS KASIR BAROKAH</div>
                 <div style={{ fontSize: '0.78rem', color: T.info, marginTop: '2px', fontWeight: '700' }}>{previewRecord.branch_name}</div>
                 <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '2px' }}>Terhubung Realtime Kasir System</div>
@@ -1563,7 +1615,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               </div>
 
               {/* Rincian Item Produk Menu */}
-              <div style={{ borderTop: '1px dashed ${T.borderStrong}', borderBottom: '1px dashed ${T.borderStrong}', padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ borderTop: `1px dashed ${T.border}`, borderBottom: `1px dashed ${T.border}`, padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ fontSize: '0.72rem', color: T.txtSecondary, textTransform: 'uppercase', fontWeight: '800', display: 'flex', justifyContent: 'space-between' }}>
                   <span>ITEM PESANAN</span>
                   <span>SUBTOTAL</span>
