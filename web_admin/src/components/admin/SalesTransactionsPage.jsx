@@ -1902,7 +1902,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         let disc = 0;
         let qty = 0;
 
-        const otlTxs = validTxs.filter(t => Number(t.outlet_id) === Number(otl.id));
+        const otlTxs = validTxs.filter(t => 
+          (Number(t.outlet_id) === Number(otl.id)) || 
+          (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+        );
 
         otlTxs.forEach(t => {
           if (t.items && Array.isArray(t.items) && t.items.length > 0) {
@@ -1910,8 +1913,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               const itName = (it.name || it.product_name || '').trim().toUpperCase();
               if (itName === menu.key) {
                 const q = Number(it.qty || it.quantity || 1);
-                const itemGross = Number(it.amount || it.total || (it.price_unit ? it.price_unit * q : 0) || (it.price ? it.price * q : 0) || 0);
-                const itemDisc = Number(it.discount || (it.discount_unit ? it.discount_unit * q : 0) || 0);
+                const itemGross = Number(it.subtotal || it.total || it.amount || (it.price_unit ? it.price_unit * q : 0) || (it.price ? it.price * q : 0) || 0);
+                const itemDisc = Number(it.discount || it.discount_amount || (it.discount_unit ? it.discount_unit * q : 0) || 0);
                 qty += q;
                 gross += itemGross;
                 disc += itemDisc;
@@ -1921,8 +1924,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             const tName = (t.item_name || t.product_name || '').trim().toUpperCase();
             if (tName === menu.key) {
               const q = Number(t.qty || t.quantity || 1);
-              const tGross = Number(t.amount || t.price || 0);
-              const tDisc = Number(t.discount || 0);
+              const tGross = Number(t.total_amount || t.amount || t.price || 0);
+              const tDisc = Number(t.discount || t.discount_amount || 0);
               qty += q;
               gross += tGross;
               disc += tDisc;
@@ -1961,7 +1964,50 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       top5PerOutlet[otl.id] = sortedForOtl;
     });
 
-    return { activeOutlets: filteredOutlets, menuRows, top5PerOutlet, start, end };
+    // KPI Metrics for Categories / Menu Sales tab
+    const grandTotalNetAll = menuRows.reduce((s, r) => s + r.totalNet, 0);
+    const grandTotalGrossAll = menuRows.reduce((s, r) => s + r.totalGross, 0);
+    const grandTotalQtyAll = menuRows.reduce((s, r) => s + r.totalQty, 0);
+    const activeMenusCount = menuRows.filter(r => r.totalQty > 0).length;
+
+    const sortedByQty = [...menuRows].sort((a, b) => b.totalQty - a.totalQty);
+    const topMenuName = sortedByQty.length > 0 && sortedByQty[0].totalQty > 0 
+      ? `${sortedByQty[0].name} (${sortedByQty[0].totalQty} Porsi)` 
+      : 'Belum Ada Penjualan';
+
+    // Category breakdown
+    const categoryRevenueMap = {};
+    menuRows.forEach(r => {
+      const p = (products || []).find(prod => (prod.name || '').trim().toUpperCase() === r.id);
+      const catName = p?.category_name || (masterData?.productCategories || []).find(c => Number(c.id) === Number(p?.category_id))?.name || 'Makanan & Minuman';
+      if (!categoryRevenueMap[catName]) categoryRevenueMap[catName] = { name: catName, net: 0, qty: 0 };
+      categoryRevenueMap[catName].net += r.totalNet;
+      categoryRevenueMap[catName].qty += r.totalQty;
+    });
+
+    let topCategoryName = 'Makanan Utama';
+    let maxCatNet = 0;
+    Object.values(categoryRevenueMap).forEach(c => {
+      if (c.net > maxCatNet) {
+        maxCatNet = c.net;
+        topCategoryName = `${c.name} (${formatRupiah(c.net)})`;
+      }
+    });
+
+    return { 
+      activeOutlets: filteredOutlets, 
+      menuRows, 
+      top5PerOutlet, 
+      start, 
+      end,
+      grandTotalNetAll,
+      grandTotalGrossAll,
+      grandTotalQtyAll,
+      activeMenusCount,
+      topMenuName,
+      topCategoryName,
+      categoryRevenueMap
+    };
   };
 
   // Helper for Line Chart Daily Movement of Filtered Menu Item
@@ -4520,28 +4566,70 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
 
       {/* 2. PENJUALAN BY MENU (TOP 5 CARDS, GRAFIK GARIS & 2 TABEL RINCIAN PER MENU) */}
-      {activeTab === 'categories' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {activeTab === 'categories' && (() => {
+        const menuData = getDetailedMenuSalesData();
+        const { activeOutlets, menuRows, top5PerOutlet, grandTotalNetAll, grandTotalGrossAll, grandTotalQtyAll, activeMenusCount, topMenuName, topCategoryName } = menuData;
+
+        return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* TOP BAR WITH DATE RANGE FILTER (DOUBLE CALENDAR PICKER) & MENU FILTER */}
-          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
-            <DoubleCalendarPicker themeMode={themeMode}
-              startDate={catStartDate}
-              endDate={catEndDate}
-              datePreset={catDatePreset}
-              setStartDate={setCatStartDate}
-              setEndDate={setCatEndDate}
-              setDatePreset={setCatDatePreset}
-              showPopover={catShowCalendarPopover}
-              setShowPopover={setCatShowCalendarPopover}
-              outlets={outlets}
-              selectedOutletIds={catSelectedOutletIds}
-              onToggleOutlet={handleToggleCatOutlet}
-              onToggleAllOutlets={() => handleToggleCatOutlet('ALL')}
-              showOutletDropdown={catShowOutletDropdown}
-              setShowOutletDropdown={setCatShowOutletDropdown}
-              selectedBranch={selectedBranch}
-            />
+          <div className="glass-card" style={{ padding: '14px 18px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {/* Quick Month Dropdown */}
+              <select
+                value={selectedOmzetMonth}
+                onChange={e => {
+                  const ym = e.target.value;
+                  setSelectedOmzetMonth(ym);
+                  const [yStr, mStr] = ym.split('-');
+                  const y = parseInt(yStr);
+                  const m = parseInt(mStr);
+                  const lastDay = new Date(y, m, 0).getDate();
+                  setCatStartDate(`${ym}-01`);
+                  setCatEndDate(`${ym}-${String(lastDay).padStart(2, '0')}`);
+                  setCatDatePreset('month');
+                }}
+                style={{
+                  padding: '7px 12px',
+                  background: T.inputBg,
+                  border: `1px solid ${T.border}`,
+                  color: T.txtPrimary,
+                  borderRadius: '8px',
+                  fontSize: '0.74rem',
+                  fontWeight: '800',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="2026-08">🗓️ Bulan Agustus 2026</option>
+                <option value="2026-07">🗓️ Bulan Juli 2026</option>
+                <option value="2026-06">🗓️ Bulan Juni 2026</option>
+                <option value="2026-05">🗓️ Bulan Mei 2026</option>
+                <option value="2026-04">🗓️ Bulan April 2026</option>
+                <option value="2026-03">🗓️ Bulan Maret 2026</option>
+                <option value="2026-02">🗓️ Bulan Februari 2026</option>
+                <option value="2026-01">🗓️ Bulan Januari 2026</option>
+              </select>
+
+              <DoubleCalendarPicker themeMode={themeMode}
+                startDate={catStartDate}
+                endDate={catEndDate}
+                datePreset={catDatePreset}
+                setStartDate={setCatStartDate}
+                setEndDate={setCatEndDate}
+                setDatePreset={setCatDatePreset}
+                showPopover={catShowCalendarPopover}
+                setShowPopover={setCatShowCalendarPopover}
+                outlets={outlets}
+                selectedOutletIds={catSelectedOutletIds}
+                onToggleOutlet={handleToggleCatOutlet}
+                onToggleAllOutlets={() => handleToggleCatOutlet('ALL')}
+                showOutletDropdown={catShowOutletDropdown}
+                setShowOutletDropdown={setCatShowOutletDropdown}
+                selectedBranch={selectedBranch}
+              />
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {/* Active Period Indicator */}
@@ -4557,7 +4645,61 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <span style={{ fontSize: '0.75rem', color: T.success, background: `${T.success}12`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.success}30`, fontWeight: '700' }}>
                 Auto Sync Realtime POS
               </span>
+            </div>
+          </div>
 
+          {/* 4 SUMMARY KPI CARDS FOR MENU SALES */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+            {/* Card 1: Total Qty Menu Terjual */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>TOTAL PORSI TERJUAL</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.accentGold, marginTop: '2px' }}>{grandTotalQtyAll.toLocaleString('id-ID')} Porsi</div>
+                <span style={{ fontSize: '0.66rem', color: T.txtSecondary }}>Dari {activeMenusCount} Varian Menu</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.accentGoldBg, color: T.accentGold }}>
+                <ShoppingBag size={18} />
+              </div>
+            </div>
+
+            {/* Card 2: Total Net Omzet Menu */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>TOTAL OMZET BERSIH MENU</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(grandTotalNetAll)}</div>
+                <span style={{ fontSize: '0.66rem', color: T.success, fontWeight: '700' }}>Setelah Diskon</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.successBg, color: T.success }}>
+                <DollarSign size={18} />
+              </div>
+            </div>
+
+            {/* Card 3: Top Best Seller Menu */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>MENU PALING LARIS</span>
+                <div style={{ fontSize: '0.94rem', fontWeight: '900', color: T.info, marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                  {topMenuName}
+                </div>
+                <span style={{ fontSize: '0.66rem', color: T.info, fontWeight: '700' }}>Top Volume Terjual</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.infoBg, color: T.info }}>
+                <Award size={18} />
+              </div>
+            </div>
+
+            {/* Card 4: Top Category */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>KATEGORI TERFAVORIT</span>
+                <div style={{ fontSize: '0.94rem', fontWeight: '900', color: T.primary, marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                  {topCategoryName}
+                </div>
+                <span style={{ fontSize: '0.66rem', color: T.success, fontWeight: '700' }}>Kontribusi Omzet Tertinggi</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.primaryBtn, color: T.navActiveTxt }}>
+                <TrendingUp size={18} />
+              </div>
             </div>
           </div>
 
@@ -4893,9 +5035,10 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </div>
               );
             })()}
+          </div>
         </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 3. RINGKASAN PENJUALAN EKSEKUTIF */}
       {activeTab === 'summary' && (
