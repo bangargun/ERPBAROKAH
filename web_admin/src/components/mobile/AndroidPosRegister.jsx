@@ -2579,6 +2579,9 @@ export default function AndroidPosRegister({
 
     if (finalCustomerName !== 'Pelanggan Umum') {
       const existingIdx = updatedCustomersList.findIndex(c => c.name?.toLowerCase() === finalCustomerName.toLowerCase());
+      const posOutletId = currentOutlet?.id || 'ALL';
+      const posOutletName = currentOutlet?.name || 'Cabang POS';
+
       if (existingIdx !== -1) {
         updatedCustomersList = updatedCustomersList.map((c, idx) => {
           if (idx === existingIdx) {
@@ -2586,6 +2589,8 @@ export default function AndroidPosRegister({
             const updatedPts = Math.max(0, currentPts + earnedPoints - pointsDeducted);
             return {
               ...c,
+              outlet_id: (c.outlet_id && c.outlet_id !== 'ALL') ? c.outlet_id : posOutletId,
+              outlet_name: (c.outlet_name && c.outlet_name !== 'Semua Outlet (Nasional)') ? c.outlet_name : posOutletName,
               total_spend: (c.total_spend || 0) + finalTotalAmount,
               points: updatedPts,
               total_orders: (c.total_orders || 0) + 1
@@ -2600,6 +2605,8 @@ export default function AndroidPosRegister({
           phone: '-',
           email: '-',
           customer_type: 'Pelanggan POS (Auto-Saved)',
+          outlet_id: posOutletId,
+          outlet_name: posOutletName,
           total_orders: 1,
           total_spend: finalTotalAmount,
           points: Math.max(0, earnedPoints - pointsDeducted),
