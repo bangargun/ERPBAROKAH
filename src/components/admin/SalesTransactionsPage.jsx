@@ -1041,6 +1041,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const [voidReason, setVoidReason] = useState('Salah input menu');
 
   // OMZET FILTER STATES
+  const [omzetViewPeriodMode, setOmzetViewPeriodMode] = useState('daily'); // 'daily' | 'monthly'
+  const [selectedOmzetYear, setSelectedOmzetYear] = useState(new Date().getFullYear().toString());
   const [selectedOmzetMonth, setSelectedOmzetMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM for Line Chart & Comparison Table
   const [omzetStartDate, setOmzetStartDate] = useState('');
   const [omzetEndDate, setOmzetEndDate] = useState('');
@@ -1424,7 +1426,146 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       ? activeOutlets
       : activeOutlets.filter(o => omzetSelectedOutletIds.some(id => Number(id) === Number(o.id)));
 
-    // Date range resolution
+    // -------------------------------------------------------------
+    // MODE BULANAN (REKAP 12 BULAN DALAM 1 TAHUN)
+    // -------------------------------------------------------------
+    if (omzetViewPeriodMode === 'monthly') {
+      const year = selectedOmzetYear || new Date().getFullYear().toString();
+      const monthDefs = [
+        { key: '01', name: 'Januari', short: 'Jan' },
+        { key: '02', name: 'Februari', short: 'Feb' },
+        { key: '03', name: 'Maret', short: 'Mar' },
+        { key: '04', name: 'April', short: 'Apr' },
+        { key: '05', name: 'Mei', short: 'Mei' },
+        { key: '06', name: 'Juni', short: 'Jun' },
+        { key: '07', name: 'Juli', short: 'Jul' },
+        { key: '08', name: 'Agustus', short: 'Agt' },
+        { key: '09', name: 'September', short: 'Sep' },
+        { key: '10', name: 'Oktober', short: 'Okt' },
+        { key: '11', name: 'November', short: 'Nov' },
+        { key: '12', name: 'Desember', short: 'Des' }
+      ];
+
+      const validTxs = transactions.filter(t => {
+        if (t.status === 'Void') return false;
+        const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 4);
+        return dt === year;
+      });
+
+      const rows = [];
+      const chartData = [];
+
+      monthDefs.forEach(m => {
+        const ym = `${year}-${m.key}`;
+        const monthTxs = validTxs.filter(t => {
+          const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 7);
+          return dt === ym;
+        });
+
+        const outletData = {};
+        let totalGrossAll = 0;
+        let totalNetAll = 0;
+
+        const chartItem = {
+          dayLabel: m.short,
+          fullDate: `${m.name} ${year}`
+        };
+
+        filteredOutlets.forEach(otl => {
+          const otlTxs = monthTxs.filter(t => 
+            (Number(t.outlet_id) === Number(otl.id)) || 
+            (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+          );
+          let gross = otlTxs.reduce((sum, t) => sum + Number(t.total_amount || t.amount || t.total || t.price || 0), 0);
+          let disc = otlTxs.reduce((sum, t) => sum + Number(t.discount || t.discount_amount || 0), 0);
+          let net = otlTxs.reduce((sum, t) => {
+            const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+            const d = Number(t.discount || t.discount_amount || 0);
+            const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+            return sum + n;
+          }, 0);
+
+          outletData[otl.id] = { gross, net, txCount: otlTxs.length };
+          chartItem[otl.name] = net;
+          totalGrossAll += gross;
+          totalNetAll += net;
+        });
+
+        chartItem['Total Omzet'] = totalNetAll;
+
+        rows.push({
+          date: ym,
+          formattedDate: `${m.name} ${year}`,
+          dayNum: m.key,
+          outlets: outletData,
+          totalGross: totalGrossAll,
+          totalNet: totalNetAll,
+          txCount: monthTxs.length
+        });
+
+        chartData.push(chartItem);
+      });
+
+      let grandTotalGross = 0;
+      let grandTotalNet = 0;
+      let grandTotalDiscount = 0;
+      const totalTxCount = validTxs.length;
+      const outletRevenueMap = {};
+
+      filteredOutlets.forEach(otl => {
+        outletRevenueMap[otl.id] = { name: otl.name, net: 0, txCount: 0 };
+      });
+
+      validTxs.forEach(t => {
+        const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+        const d = Number(t.discount || t.discount_amount || 0);
+        const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+        grandTotalGross += g;
+        grandTotalDiscount += d;
+        grandTotalNet += n;
+
+        const matchedOtl = filteredOutlets.find(o => 
+          Number(o.id) === Number(t.outlet_id) || 
+          (t.branch_name && t.branch_name.trim().toLowerCase() === o.name.trim().toLowerCase())
+        );
+        if (matchedOtl && outletRevenueMap[matchedOtl.id]) {
+          outletRevenueMap[matchedOtl.id].net += n;
+          outletRevenueMap[matchedOtl.id].txCount += 1;
+        }
+      });
+
+      let topOutletName = 'Belum Ada Transaksi';
+      let topOutletAmount = 0;
+      Object.values(outletRevenueMap).forEach(o => {
+        if (o.net > topOutletAmount) {
+          topOutletAmount = o.net;
+          topOutletName = `${o.name} (${formatRupiah(o.net)})`;
+        }
+      });
+
+      const activeMonthsCount = rows.filter(r => r.totalNet > 0).length || 1;
+      const dailyAvgNet = Math.round(grandTotalNet / activeMonthsCount);
+
+      return {
+        activeOutlets: filteredOutlets,
+        rows,
+        chartData,
+        start: `${year}-01-01`,
+        end: `${year}-12-31`,
+        displayPeriod: `Rekap 12 Bulan Tahun ${year}`,
+        grandTotalGross,
+        grandTotalDiscount,
+        grandTotalNet,
+        totalTxCount,
+        dailyAvgNet,
+        topOutletName,
+        topOutletAmount
+      };
+    }
+
+    // -------------------------------------------------------------
+    // MODE HARIAN (RINCIAN PER TANGGAL DALAM BULAN / PERIODE)
+    // -------------------------------------------------------------
     let start = omzetStartDate;
     let end = omzetEndDate;
 
@@ -3905,54 +4046,242 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* TOP BAR WITH MONTH FILTER & EXPORT BUTTONS */}
+          {/* TOP BAR WITH MODE SWITCHER, MONTH FILTER & EXPORT BUTTONS */}
           <div className="glass-card" style={{ padding: '14px 18px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
-            <DoubleCalendarPicker themeMode={themeMode}
-              startDate={omzetStartDate}
-              endDate={omzetEndDate}
-              datePreset={omzetDatePreset}
-              setStartDate={setOmzetStartDate}
-              setEndDate={setOmzetEndDate}
-              setDatePreset={setOmzetDatePreset}
-              showPopover={omzetShowCalendarPopover}
-              setShowPopover={setOmzetShowCalendarPopover}
-              outlets={outlets}
-              selectedOutletIds={omzetSelectedOutletIds}
-              onToggleOutlet={handleToggleOmzetOutlet}
-              onToggleAllOutlets={() => handleToggleOmzetOutlet('ALL')}
-              showOutletDropdown={omzetShowOutletDropdown}
-              setShowOutletDropdown={setOmzetShowOutletDropdown}
-              selectedBranch={selectedBranch}
-            />
-
+            
+            {/* Left: Mode Switcher & Date/Month Pickers */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              {(omzetStartDate || omzetEndDate) && (
-                <span style={{ fontSize: '0.75rem', color: T.accentGold, background: `${T.accentGold}18`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.accentGold}40`, fontWeight: '700' }}>
-                  {omzetStartDate || '∞'} → {omzetEndDate || '∞'}
-                </span>
+              {/* Period Mode Switcher */}
+              <div style={{ display: 'flex', gap: '3px', background: T.cardBg2, padding: '3px', borderRadius: '8px', border: `1px solid ${T.borderStrong}` }}>
+                <button
+                  type="button"
+                  onClick={() => setOmzetViewPeriodMode('daily')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: omzetViewPeriodMode === 'daily' ? T.primary : 'transparent',
+                    color: omzetViewPeriodMode === 'daily' ? T.txtInverse : T.txtSecondary,
+                    cursor: 'pointer',
+                    fontSize: '0.74rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Calendar size={13} />
+                  <span>Rincian Harian</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setOmzetViewPeriodMode('monthly')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: omzetViewPeriodMode === 'monthly' ? T.primary : 'transparent',
+                    color: omzetViewPeriodMode === 'monthly' ? T.txtInverse : T.txtSecondary,
+                    cursor: 'pointer',
+                    fontSize: '0.74rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <TrendingUp size={13} />
+                  <span>Rekap 12 Bulan</span>
+                </button>
+              </div>
+
+              {omzetViewPeriodMode === 'daily' ? (
+                <>
+                  {/* Quick Month Dropdown */}
+                  <select
+                    value={selectedOmzetMonth}
+                    onChange={e => {
+                      const ym = e.target.value;
+                      setSelectedOmzetMonth(ym);
+                      const [yStr, mStr] = ym.split('-');
+                      const y = parseInt(yStr);
+                      const m = parseInt(mStr);
+                      const lastDay = new Date(y, m, 0).getDate();
+                      setOmzetStartDate(`${ym}-01`);
+                      setOmzetEndDate(`${ym}-${String(lastDay).padStart(2, '0')}`);
+                      setOmzetDatePreset('month');
+                    }}
+                    style={{
+                      padding: '7px 12px',
+                      background: T.inputBg,
+                      border: `1px solid ${T.border}`,
+                      color: T.txtPrimary,
+                      borderRadius: '8px',
+                      fontSize: '0.74rem',
+                      fontWeight: '800',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="2026-08">🗓️ Bulan Agustus 2026</option>
+                    <option value="2026-07">🗓️ Bulan Juli 2026</option>
+                    <option value="2026-06">🗓️ Bulan Juni 2026</option>
+                    <option value="2026-05">🗓️ Bulan Mei 2026</option>
+                    <option value="2026-04">🗓️ Bulan April 2026</option>
+                    <option value="2026-03">🗓️ Bulan Maret 2026</option>
+                    <option value="2026-02">🗓️ Bulan Februari 2026</option>
+                    <option value="2026-01">🗓️ Bulan Januari 2026</option>
+                  </select>
+
+                  {/* Double Calendar Picker */}
+                  <DoubleCalendarPicker themeMode={themeMode}
+                    startDate={omzetStartDate}
+                    endDate={omzetEndDate}
+                    datePreset={omzetDatePreset}
+                    setStartDate={setOmzetStartDate}
+                    setEndDate={setOmzetEndDate}
+                    setDatePreset={setOmzetDatePreset}
+                    showPopover={omzetShowCalendarPopover}
+                    setShowPopover={setOmzetShowCalendarPopover}
+                    outlets={outlets}
+                    selectedOutletIds={omzetSelectedOutletIds}
+                    onToggleOutlet={handleToggleOmzetOutlet}
+                    onToggleAllOutlets={() => handleToggleOmzetOutlet('ALL')}
+                    showOutletDropdown={omzetShowOutletDropdown}
+                    setShowOutletDropdown={setOmzetShowOutletDropdown}
+                    selectedBranch={selectedBranch}
+                  />
+                </>
+              ) : (
+                <>
+                  {/* Year Selector */}
+                  <select
+                    value={selectedOmzetYear}
+                    onChange={e => setSelectedOmzetYear(e.target.value)}
+                    style={{
+                      padding: '7px 12px',
+                      background: T.inputBg,
+                      border: `1px solid ${T.border}`,
+                      color: T.txtPrimary,
+                      borderRadius: '8px',
+                      fontSize: '0.74rem',
+                      fontWeight: '800',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="2026">📅 Tahun 2026 (Jan - Des)</option>
+                    <option value="2025">📅 Tahun 2025 (Jan - Des)</option>
+                    <option value="2024">📅 Tahun 2024 (Jan - Des)</option>
+                  </select>
+
+                  {/* Multi-Outlet Dropdown Trigger in Monthly Mode */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setOmzetShowOutletDropdown(!omzetShowOutletDropdown)}
+                      style={{
+                        padding: '7px 12px',
+                        background: T.cardBg2,
+                        border: `1px solid ${T.border}`,
+                        color: T.txtPrimary,
+                        borderRadius: '8px',
+                        fontSize: '0.74rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Store size={13} color={T.info} />
+                      <span>{omzetSelectedOutletIds.includes('ALL') ? 'Semua Outlet' : `${omzetSelectedOutletIds.length} Outlet`}</span>
+                      <ChevronDown size={12} />
+                    </button>
+
+                    {omzetShowOutletDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        marginTop: '4px',
+                        background: T.cardBg2,
+                        border: `1px solid ${T.borderStrong}`,
+                        borderRadius: '8px',
+                        padding: '8px',
+                        zIndex: 100,
+                        minWidth: '220px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleOmzetOutlet('ALL')}
+                          style={{
+                            background: omzetSelectedOutletIds.includes('ALL') ? T.primary : 'transparent',
+                            color: omzetSelectedOutletIds.includes('ALL') ? T.txtInverse : T.txtPrimary,
+                            border: 'none',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            textAlign: 'left',
+                            fontSize: '0.72rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ✓ Semua Outlet Cabang
+                        </button>
+                        {outlets.map(o => {
+                          const isSel = omzetSelectedOutletIds.includes(o.id) || omzetSelectedOutletIds.includes(Number(o.id));
+                          return (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => handleToggleOmzetOutlet(o.id)}
+                              style={{
+                                background: isSel ? T.infoBg : 'transparent',
+                                color: isSel ? T.info : T.txtPrimary,
+                                border: 'none',
+                                padding: '6px 8px',
+                                borderRadius: '6px',
+                                textAlign: 'left',
+                                fontSize: '0.72rem',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {isSel ? '✓ ' : '• '} {o.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
-              <span style={{ fontSize: '0.75rem', color: T.info, background: `${T.info}15`, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.info}35`, fontWeight: '700' }}>
-                {omzetSelectedOutletIds.includes('ALL') ? 'Semua Outlet' : `${omzetSelectedOutletIds.length} Outlet Dipilih`}
-              </span>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {/* Right: Export buttons */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button 
                 onClick={handleDownloadOmzetComparisonPDF} 
                 className="btn-secondary" 
-                style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', height: '38px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '7px 12px', fontSize: '0.76rem', color: T.danger, borderColor: 'rgba(251, 113, 133, 0.4)', background: 'rgba(251, 113, 133, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <Printer size={15} />
-                <span>Download PDF</span>
+                <Printer size={14} />
+                <span>PDF</span>
               </button>
 
               <button 
                 onClick={handleDownloadOmzetComparisonExcel} 
                 className="btn-secondary" 
-                style={{ padding: '8px 14px', fontSize: '0.8rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', height: '38px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '7px 12px', fontSize: '0.76rem', color: T.success, borderColor: 'rgba(52, 211, 153, 0.4)', background: 'rgba(52, 211, 153, 0.1)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <FileSpreadsheet size={15} />
-                <span>Download Excel</span>
+                <FileSpreadsheet size={14} />
+                <span>Excel</span>
               </button>
             </div>
           </div>
@@ -4114,8 +4443,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     <thead>
                       <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}` }}>
                         {showDate && (
-                          <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.txtSecondary, textAlign: 'left', letterSpacing: '0.05em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap', width: '110px' }}>
-                            Tanggal
+                          <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.txtSecondary, textAlign: 'left', letterSpacing: '0.05em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap', width: '120px' }}>
+                            {omzetViewPeriodMode === 'monthly' ? 'Bulan / Periode' : 'Tanggal'}
                           </th>
                         )}
                         {activeOutlets.map(otl => (
