@@ -360,7 +360,8 @@ const layout = {
 
 ## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
-|-------|------|--------------|-----------|
+|-------|------|--------------|-----------| 
+| **v4.3.1** | **`POS_KASIR_v4.3.1.apk`** | 16-08-2026 | **Fix Sinkronisasi Kategori Menu**: Perbaikan kritis server-side union merge untuk `categories`, `products`, `ingredients` — mencegah APK lama menimpa data master terbaru dari Web Admin. Tambahan filter `deletedCategoriesIds` & `deletedIngredientIds` di server. |
 | **v4.3.0** | **`POS_KASIR_BAROKAH_v4.3.0_Universal_Build_20260816.apk`** / **`POS_KASIR_v4.3.0.apk`** / **`POS KASIR.APK`** | 16-08-2026 | **Build Rilis Universal Terbaru**: Pembaruan modul Analisis Harga Bahan, Riwayat Transaksi & Omzet POS, performa respon offline-first, dan optimasi layout multi-layar (Tablet 10", Smartphone, Tablet Besar). |
 | v4.2.9 | `POS_KASIR_BAROKAH_v4.2.9_Universal_Build_20260816.apk` | 16-08-2026 | **Fitur Pindah Meja (Move Table)**: Tombol & modal interaktif untuk memindahkan pesanan konsumen dari satu meja ke meja lain secara otomatis dan memperbarui status meja kosong/terisi. |
 | v4.2.8 | `POS_KASIR_BAROKAH_v4.2.8_Universal_Build_20260815.apk` | 15-08-2026 | **Sinkronisasi Otentik Akun Kasir Sesuai Pengaturan Web Admin**: Menampilkan akun real (`RATIH`, `DIANA`, `PENTI`, `WIDIA`, `OLIV`, `SELLY`, `PUTRI`, `MEMEY`, dll) per cabang di Langkah 2 login. |
