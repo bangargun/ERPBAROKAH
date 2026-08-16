@@ -493,13 +493,39 @@ export default function App() {
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
 
-              // Auto-push: jika local memiliki lebih banyak kategori/produk/bahan daripada server,
-              // langsung POST untuk menyelamatkan data lokal yang belum tersinkronisasi ke server.
-              const localHasExtraCategories = mergedCategories.length > (serverData.categories || []).length;
-              const localHasExtraProducts   = mergedProducts.length   > (serverData.products   || []).length;
-              const localHasExtraIngredients= mergedIngredients.length> (serverData.ingredients|| []).length;
-              if (localHasExtraCategories || localHasExtraProducts || localHasExtraIngredients) {
-                // Jadwalkan POST setelah render selesai (non-blocking)
+              // Auto-push: deteksi 2 kondisi:
+              // 1. Local punya LEBIH BANYAK item dari server (produk/kategori baru)
+              // 2. Local punya item yang isinya LEBIH BARU dari server (edit harga/varian/outlet)
+              const hasNewerLocalItem = (localArr, serverArr) => {
+                if (!Array.isArray(localArr) || !Array.isArray(serverArr)) return false;
+                const serverMap = new Map();
+                serverArr.forEach(item => {
+                  const k = String(item.id ?? item.code ?? item.name ?? '');
+                  if (k) serverMap.set(k, item);
+                });
+                return localArr.some(item => {
+                  const k = String(item.id ?? item.code ?? item.name ?? '');
+                  if (!k) return false;
+                  const localTs  = Number(item._updatedAt || item._lastMutated || item._lastUpdated || 0);
+                  if (localTs === 0) return false; // tidak ada timestamp = tidak bisa dibandingkan
+                  const serverItem = serverMap.get(k);
+                  if (!serverItem) return true; // item baru, belum ada di server
+                  const serverTs = Number(serverItem._updatedAt || serverItem._lastMutated || serverItem._lastUpdated || 0);
+                  return localTs > serverTs; // local lebih baru = edit belum ter-push
+                });
+              };
+
+              const localHasExtraCategories  = mergedCategories.length  > (serverData.categories  || []).length;
+              const localHasExtraProducts    = mergedProducts.length    > (serverData.products    || []).length;
+              const localHasExtraIngredients = mergedIngredients.length > (serverData.ingredients || []).length;
+              const localHasNewerProducts    = hasNewerLocalItem(prev.products,    serverData.products);
+              const localHasNewerCategories  = hasNewerLocalItem(prev.categories,  serverData.categories);
+              const localHasNewerIngredients = hasNewerLocalItem(prev.ingredients, serverData.ingredients);
+
+              const needsAutoPush = localHasExtraCategories || localHasExtraProducts || localHasExtraIngredients
+                                 || localHasNewerProducts   || localHasNewerCategories || localHasNewerIngredients;
+
+              if (needsAutoPush) {
                 const autoPushPayload = {
                   ...prev,
                   categories:   mergedCategories,
