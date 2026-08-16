@@ -63,6 +63,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // Modals
   const [showFormModal, setShowFormModal] = useState(false);
   const [showExcelImportModal, setShowExcelImportModal] = useState(false);
+  const [showDuplicateMergeModal, setShowDuplicateMergeModal] = useState(false);
   const [selectedMenuDetail, setSelectedMenuDetail] = useState(null);
   const [editingProductId, setEditingProductId] = useState(null);
 
@@ -582,6 +583,213 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   };
 
   // -------------------------------------------------------------
+  // SMART AUTO-MERGE & TRANSACTION RELINKING LOGIC
+  // -------------------------------------------------------------
+  const duplicateGroups = useMemo(() => {
+    const prods = masterData?.products || [];
+    const map = {};
+    prods.forEach(p => {
+      const normName = String(p.name || '').trim().toUpperCase();
+      if (!normName) return;
+      if (!map[normName]) map[normName] = [];
+      map[normName].push(p);
+    });
+
+    const groups = [];
+    Object.keys(map).forEach(name => {
+      if (map[name].length > 1) {
+        let totalTx = 0;
+        map[name].forEach(item => {
+          totalTx += countRelatedTransactions(masterData, 'product', item.id);
+        });
+
+        groups.push({
+          name,
+          items: map[name],
+          count: map[name].length,
+          totalTx
+        });
+      }
+    });
+    return groups;
+  }, [masterData?.products, masterData?.salesTransactions]);
+
+  const mergeSingleGroup = (group, currentProducts, currentSales) => {
+    const items = group.items;
+    if (items.length <= 1) return { products: currentProducts, sales: currentSales };
+
+    // Master item is first item or one with the highest recipe/price
+    const masterItem = items[0];
+    const duplicateIds = items.slice(1).map(i => i.id);
+
+    // Merge selectedOutletIds
+    const allSelectedOutletIds = Array.from(new Set(
+      items.flatMap(item => {
+        if (Array.isArray(item.selectedOutletIds) && item.selectedOutletIds.length > 0) {
+          return item.selectedOutletIds;
+        }
+        if (item.outlet_id && item.outlet_id !== 'Semua Outlet') {
+          return [item.outlet_id];
+        }
+        return allOutlets.map(o => o.id);
+      })
+    ));
+
+    // Merge standardPrices & branchVariantPrices
+    const mergedStandardPrices = {};
+    const mergedApkStatus = {};
+    const mergedBranchVariantPrices = {};
+    let mergedVariants = [];
+    let mergedCompositions = masterItem.compositions || [];
+
+    items.forEach(item => {
+      if (item.standardPrices) {
+        Object.keys(item.standardPrices).forEach(oId => {
+          if (mergedStandardPrices[oId] === undefined && Number(item.standardPrices[oId]) > 0) {
+            mergedStandardPrices[oId] = Number(item.standardPrices[oId]);
+          }
+        });
+      }
+      if (item.outlet_id && item.outlet_id !== 'Semua Outlet') {
+        mergedStandardPrices[item.outlet_id] = Number(item.price || masterItem.price || 0);
+      }
+
+      if (item.branchVariantPrices || item.branch_variant_prices) {
+        const bMap = item.branchVariantPrices || item.branch_variant_prices;
+        Object.keys(bMap).forEach(oId => {
+          mergedBranchVariantPrices[oId] = {
+            ...(mergedBranchVariantPrices[oId] || {}),
+            ...(bMap[oId] || {})
+          };
+        });
+      }
+
+      if (Array.isArray(item.variants)) {
+        mergedVariants = Array.from(new Set([...mergedVariants, ...item.variants]));
+      }
+
+      if (Array.isArray(item.compositions) && item.compositions.length > mergedCompositions.length) {
+        mergedCompositions = item.compositions;
+      }
+    });
+
+    allOutlets.forEach(o => {
+      if (mergedStandardPrices[o.id] === undefined) {
+        mergedStandardPrices[o.id] = Number(masterItem.price || 25000);
+      }
+      mergedApkStatus[o.id] = allSelectedOutletIds.some(id => String(id) === String(o.id)) ? 'Aktif' : 'Inaktif';
+    });
+
+    const mergedMasterProduct = {
+      ...masterItem,
+      selectedOutletIds: allSelectedOutletIds,
+      selected_outlet_ids: allSelectedOutletIds,
+      outlet_id: allSelectedOutletIds.length === allOutlets.length ? 'Semua Outlet' : (allSelectedOutletIds[0] || 'Semua Outlet'),
+      standardPrices: mergedStandardPrices,
+      apkStatus: mergedApkStatus,
+      outletApkStatus: mergedApkStatus,
+      variants: mergedVariants,
+      branchVariantPrices: mergedBranchVariantPrices,
+      branch_variant_prices: mergedBranchVariantPrices,
+      compositions: mergedCompositions,
+      _lastUpdated: Date.now()
+    };
+
+    // Relink sales transactions
+    const updatedSales = (currentSales || []).map(tx => {
+      if (Array.isArray(tx.items)) {
+        let hasModified = false;
+        const updatedItems = tx.items.map(it => {
+          const itProdId = it.product_id || it.productId || it.id;
+          if (duplicateIds.some(dId => String(dId) === String(itProdId))) {
+            hasModified = true;
+            return {
+              ...it,
+              product_id: masterItem.id,
+              productId: masterItem.id,
+              _mergedFromId: itProdId
+            };
+          }
+          return it;
+        });
+        return hasModified ? { ...tx, items: updatedItems } : tx;
+      }
+      const singleId = tx.product_id || tx.productId;
+      if (duplicateIds.some(dId => String(dId) === String(singleId))) {
+        return {
+          ...tx,
+          product_id: masterItem.id,
+          productId: masterItem.id,
+          _mergedFromId: singleId
+        };
+      }
+      return tx;
+    });
+
+    // Remove duplicates from products list
+    const updatedProducts = currentProducts
+      .filter(p => !duplicateIds.some(dId => String(dId) === String(p.id)))
+      .map(p => String(p.id) === String(masterItem.id) ? mergedMasterProduct : p);
+
+    return { products: updatedProducts, sales: updatedSales };
+  };
+
+  const handleMergeSingleGroup = (group) => {
+    if (!allowEdit) {
+      alert('Anda tidak memiliki hak akses untuk mengedit/menggabungkan menu.');
+      return;
+    }
+    if (!confirm(`Gabungkan ${group.items.length} menu "${group.name}" menjadi 1 Menu Master?\n\n• ${group.totalTx} riwayat transaksi penjualan akan ditautkan ke Master Baru secara aman tanpa mengubah pembukuan.`)) {
+      return;
+    }
+
+    const { products, sales } = mergeSingleGroup(group, masterData?.products || [], masterData?.salesTransactions || []);
+    setMasterData({
+      ...masterData,
+      products,
+      salesTransactions: sales,
+      _lastUpdated: Date.now()
+    });
+
+    alert(`Menu "${group.name}" berhasil dikonsolidasikan dan ${group.totalTx} transaksi berhasil ditautkan ulang!`);
+  };
+
+  const handleMergeAllDuplicates = () => {
+    if (!allowEdit) {
+      alert('Anda tidak memiliki hak akses untuk mengedit/menggabungkan menu.');
+      return;
+    }
+    if (duplicateGroups.length === 0) {
+      alert('Tidak ada menu duplikat yang terdeteksi.');
+      return;
+    }
+
+    const totalTxAll = duplicateGroups.reduce((acc, g) => acc + g.totalTx, 0);
+    if (!confirm(`Konfirmasi Smart Auto-Merge:\n\n• Ditemukan ${duplicateGroups.length} grup menu duplikat.\n• Seluruh duplikat akan disatukan menjadi Menu Master.\n• ${totalTxAll} riwayat transaksi penjualan akan ditautkan ulang dengan aman.\n\nLanjutkan konsolidasi?`)) {
+      return;
+    }
+
+    let curProds = [...(masterData?.products || [])];
+    let curSales = [...(masterData?.salesTransactions || [])];
+
+    duplicateGroups.forEach(group => {
+      const res = mergeSingleGroup(group, curProds, curSales);
+      curProds = res.products;
+      curSales = res.sales;
+    });
+
+    setMasterData({
+      ...masterData,
+      products: curProds,
+      salesTransactions: curSales,
+      _lastUpdated: Date.now()
+    });
+
+    setShowDuplicateMergeModal(false);
+    alert(`🎉 Sukses! ${duplicateGroups.length} grup menu duplikat berhasil disatukan dan ${totalTxAll} transaksi aman ditautkan!`);
+  };
+
+  // -------------------------------------------------------------
   // DELETE PRODUCT HANDLER
   // -------------------------------------------------------------
   const handleDeleteProduct = (id, name) => {
@@ -640,6 +848,29 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {duplicateGroups.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowDuplicateMergeModal(true)}
+              style={{
+                padding: '8px 14px',
+                fontSize: '0.76rem',
+                fontWeight: '800',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: T.danger,
+                border: `1px solid ${T.dangerBorder}`,
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              <AlertCircle size={15} />
+              <span>Cek {duplicateGroups.length} Menu Duplikat</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowExcelImportModal(true)}
@@ -1949,6 +2180,185 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           onClose={() => setDeleteGuardState(null)}
           themeMode={themeMode}
         />
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* 9. MODAL: SMART AUTO-MERGE & KONSOLIDASI MENU DUPLIKAT        */}
+      {/* ------------------------------------------------------------- */}
+      {showDuplicateMergeModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '16px'
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '100%',
+            maxWidth: '740px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            background: T.cardBg,
+            border: `1px solid ${T.borderStrong}`,
+            borderRadius: '16px',
+            padding: '24px',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.6)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={20} color={T.primary} />
+                  <span>Smart Konsolidasi Menu Duplikat</span>
+                </h3>
+                <p style={{ fontSize: '0.74rem', color: T.txtSecondary, margin: '4px 0 0 0' }}>
+                  Satukan menu bernama sama menjadi 1 Menu Master dengan multi-harga cabang &amp; relinking transaksi yang aman
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDuplicateMergeModal(false)}
+                style={{ background: 'none', border: 'none', color: T.txtSecondary, cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Audit-Safe Banner */}
+            <div style={{ background: T.infoBg, border: `1px solid ${T.infoBorder}`, padding: '12px 14px', borderRadius: '10px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <CheckCircle2 size={18} color={T.info} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.72rem', color: T.txtPrimary, lineHeight: '1.4' }}>
+                <strong style={{ color: T.info }}>Audit-Safe Transaction Relinking:</strong> Riwayat transaksi penjualan masa lalu akan ditautkan secara aman ke ID Menu Master baru. <strong>Nominal omzet, rincian nota, dan pembukuan masa lalu tidak akan bergeser 1 Rupiah pun.</strong>
+              </div>
+            </div>
+
+            {/* Duplicate List */}
+            {duplicateGroups.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: T.txtMuted }}>
+                <CheckCircle2 size={40} color={T.success} style={{ margin: '0 auto 10px auto' }} />
+                <h4 style={{ fontSize: '0.94rem', fontWeight: '800', color: T.txtPrimary, margin: 0 }}>Semua Menu Bersih &amp; Terkonsolidasi!</h4>
+                <p style={{ fontSize: '0.74rem', color: T.txtSecondary, marginTop: '4px' }}>Tidak ada menu dengan nama duplikat yang terdeteksi di database.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {duplicateGroups.map((grp) => (
+                  <div
+                    key={grp.name}
+                    style={{
+                      background: T.cardBg2,
+                      border: `1px solid ${T.borderStrong}`,
+                      borderRadius: '12px',
+                      padding: '14px 16px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.88rem', fontWeight: '900', color: T.txtPrimary }}>
+                          {grp.name}
+                        </span>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px', fontSize: '0.68rem', color: T.txtSecondary }}>
+                          <span style={{ background: T.dangerBg, color: T.danger, padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                            {grp.count} Item Terdaftar
+                          </span>
+                          <span>•</span>
+                          <span style={{ color: T.accentGold, fontWeight: '800' }}>
+                            📊 {grp.totalTx} Riwayat Transaksi Terkait
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleMergeSingleGroup(grp)}
+                        className="btn-primary"
+                        style={{ padding: '6px 14px', fontSize: '0.72rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Sparkles size={13} />
+                        <span>Konsolidasi Menu Ini</span>
+                      </button>
+                    </div>
+
+                    {/* Breakdown of items in this group */}
+                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {grp.items.map((item, idx) => {
+                        const txCount = countRelatedTransactions(masterData, 'product', item.id);
+                        const outName = allOutlets.find(o => String(o.id) === String(item.outlet_id))?.name || item.outlet_id || 'Semua Outlet';
+
+                        return (
+                          <div
+                            key={item.id}
+                            style={{
+                              background: T.inputBg,
+                              padding: '6px 10px',
+                              borderRadius: '8px',
+                              border: `1px solid ${T.border}`,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '0.72rem'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '0.64rem', padding: '2px 6px', borderRadius: '4px', background: idx === 0 ? T.successBg : T.cardBg, color: idx === 0 ? T.success : T.txtSecondary, fontWeight: '800' }}>
+                                {idx === 0 ? 'CALON MASTER' : `DUPLIKAT #${idx}`}
+                              </span>
+                              <span style={{ fontFamily: 'monospace', color: T.info, fontWeight: '800' }}>{item.sku || item.code}</span>
+                              <span style={{ color: T.txtPrimary, fontWeight: '700' }}>📍 {outName}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontWeight: '900', color: T.accentGold }}>{formatRupiah(item.price)}</span>
+                              <span style={{ fontSize: '0.66rem', color: T.txtMuted }}>({txCount} tx)</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Modal Footer Actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', paddingTop: '14px', borderTop: `1px solid ${T.border}` }}>
+              <button
+                type="button"
+                onClick={() => setShowDuplicateMergeModal(false)}
+                style={{ background: T.cardBg2, border: `1px solid ${T.border}`, padding: '8px 16px', borderRadius: '8px', color: T.txtSecondary, fontSize: '0.76rem', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Tutup
+              </button>
+
+              {duplicateGroups.length > 0 && allowEdit && (
+                <button
+                  type="button"
+                  onClick={handleMergeAllDuplicates}
+                  style={{
+                    padding: '8px 20px',
+                    fontSize: '0.76rem',
+                    fontWeight: '900',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)'
+                  }}
+                >
+                  <Sparkles size={16} />
+                  <span>⚡ Auto-Merge Semua Duplikat ({duplicateGroups.length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
