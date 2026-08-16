@@ -229,21 +229,40 @@ export default function FinancialOverview({
       return f.type === 'expense' && datesSet.has(d) && matchesBranch(f, activeOutletFilter);
     }).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
+    let totalQtySold = 0;
+    periodTx.forEach(t => {
+      if (Array.isArray(t.items) && t.items.length > 0) {
+        t.items.forEach(it => {
+          totalQtySold += Number(it.qty || it.quantity || 1);
+        });
+      } else {
+        totalQtySold += Number(t.qty || t.item_count || 1);
+      }
+    });
+
     const totalRevenue = Math.max(txSalesAmount, manualSalesAmount);
-    const totalExpense = periodCogs + periodOpex + periodExpenseRecs;
+    const opexTotal = periodOpex + periodExpenseRecs;
+    const totalExpense = periodCogs + opexTotal;
     const netProfit = totalRevenue - totalExpense;
     const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : '0.0';
     const avgTicket = txCount > 0 ? Math.round(totalRevenue / txCount) : 0;
+    const cogsPct = totalRevenue > 0 ? ((periodCogs / totalRevenue) * 100).toFixed(1) : '0.0';
+    const opexPct = totalRevenue > 0 ? ((opexTotal / totalRevenue) * 100).toFixed(1) : '0.0';
+    const itemsPerTicket = txCount > 0 ? (totalQtySold / txCount).toFixed(1) : '0.0';
 
     return {
       totalRevenue,
       totalExpense,
       periodCogs,
-      periodOpex: periodOpex + periodExpenseRecs,
+      periodOpex: opexTotal,
+      cogsPct,
+      opexPct,
       netProfit,
       profitMargin,
       txCount,
       avgTicket,
+      totalQtySold,
+      itemsPerTicket,
       activeOutletCount: allOutlets.length
     };
   }, [activeDateList, allSalesTx, allApprovedFinance, allFinancialRecords, activeOutletFilter, allOutlets.length, todayStr]);
@@ -657,7 +676,7 @@ export default function FinancialOverview({
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. EXECUTIVE KPI CARDS (TOP 5 CARDS WITH MODERN VISUALS)      */}
+      {/* 2. EXECUTIVE KPI CARDS (8 CARDS - 4x2 SYMMETRICAL GRID)       */}
       {/* ------------------------------------------------------------- */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
         
@@ -706,7 +725,7 @@ export default function FinancialOverview({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              TOTAL PENGELUARAN &amp; HPP
+              TOTAL BEBAN KESELURUHAN
             </span>
             <div style={{ padding: '6px', borderRadius: '8px', background: T.dangerBg, color: T.danger }}>
               <Wallet size={16} />
@@ -810,6 +829,96 @@ export default function FinancialOverview({
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.70rem', color: T.success, fontWeight: '700', marginTop: '4px' }}>
               <CheckCircle2 size={13} />
               <span>Transaksi Kasir Selesai</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 6: BIAYA HPP BAHAN BAKU */}
+        <div style={{
+          background: T.cardBg,
+          border: `1px solid ${T.borderStrong}`,
+          borderRadius: '14px',
+          padding: '16px 18px',
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              BIAYA HPP BAHAN BAKU
+            </span>
+            <div style={{ padding: '6px', borderRadius: '8px', background: T.dangerBg, color: T.danger }}>
+              <Percent size={16} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.danger, letterSpacing: '-0.02em' }}>
+              {formatRupiah(kpiMetrics.periodCogs)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.70rem', color: Number(kpiMetrics.cogsPct) > 60 ? T.danger : T.success, fontWeight: '700', marginTop: '4px' }}>
+              <span>Rasio HPP: {kpiMetrics.cogsPct}% (Target &lt; 60%)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 7: BIAYA OPERASIONAL & GAJI */}
+        <div style={{
+          background: T.cardBg,
+          border: `1px solid ${T.borderStrong}`,
+          borderRadius: '14px',
+          padding: '16px 18px',
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              BIAYA OPERASIONAL &amp; GAJI
+            </span>
+            <div style={{ padding: '6px', borderRadius: '8px', background: T.accentGoldBg, color: T.accentGold }}>
+              <Building2 size={16} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.accentGold, letterSpacing: '-0.02em' }}>
+              {formatRupiah(kpiMetrics.periodOpex)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '600', marginTop: '4px' }}>
+              <span>Rasio OPEX: {kpiMetrics.opexPct}% dari Omzet</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 8: TOTAL PORSI MENU TERJUAL */}
+        <div style={{
+          background: T.cardBg,
+          border: `1px solid ${T.borderStrong}`,
+          borderRadius: '14px',
+          padding: '16px 18px',
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              TOTAL PORSI MENU TERJUAL
+            </span>
+            <div style={{ padding: '6px', borderRadius: '8px', background: T.infoBg, color: T.info }}>
+              <Utensils size={16} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.info, letterSpacing: '-0.02em' }}>
+              {kpiMetrics.totalQtySold} Porsi
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.70rem', color: T.success, fontWeight: '700', marginTop: '4px' }}>
+              <span>Rata-rata: {kpiMetrics.itemsPerTicket} Menu / Struk</span>
             </div>
           </div>
         </div>
