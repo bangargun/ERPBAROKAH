@@ -10,6 +10,7 @@ import StockManagement from './components/admin/StockManagement';
 import AdjustmentsManagementPage from './components/admin/AdjustmentsManagementPage';
 import ApprovalCenter from './components/admin/ApprovalCenter';
 import ManualReportUpdatePage from './components/admin/ManualReportUpdatePage';
+import IngredientPriceAnalysisPage from './components/admin/IngredientPriceAnalysisPage';
 import IngredientPriceComparisonPage from './components/admin/IngredientPriceComparisonPage';
 import IngredientPriceTrendPage from './components/admin/IngredientPriceTrendPage';
 import FinancialReportsFull from './components/admin/FinancialReportsFull';
@@ -652,6 +653,7 @@ export default function App() {
     'costs': 'costs',
     'stock': 'stock',
     'adjustments': 'stock',
+    'ingredient_analysis': 'reports',
     'reports': 'reports',
     'sop': 'policies',
     'settings': 'settings',
@@ -761,17 +763,10 @@ export default function App() {
             />
           )}
 
-          {adminTab === 'ingredient_prices' && (
-            <IngredientPriceComparisonPage
+          {(adminTab === 'ingredient_analysis' || adminTab === 'ingredient_prices' || adminTab === 'tren_harga_outlet') && (
+            <IngredientPriceAnalysisPage
               masterData={masterData}
-              selectedBranch={selectedBranch}
-              themeMode={themeMode}
-            />
-          )}
-
-          {adminTab === 'tren_harga_outlet' && (
-            <IngredientPriceTrendPage
-              masterData={masterData}
+              setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
               themeMode={themeMode}
             />

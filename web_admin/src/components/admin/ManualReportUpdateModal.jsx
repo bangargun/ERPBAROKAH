@@ -19,7 +19,8 @@ import {
   Building2,
   Calendar,
   User,
-  Info
+  Info,
+  Sparkles
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { getThemePalette } from '../../utils/themeUtils';
@@ -386,6 +387,70 @@ export default function ManualReportUpdateModal({
         paymentMethod: 'Kas Kasir (Tunai)'
       }
     ]);
+  };
+
+  const handleFetchFromPosTransactions = () => {
+    const allSales = masterData?.salesTransactions || masterData?.recentTransactions || [];
+    const matchingTx = allSales.filter(tx => {
+      const matchBranch = String(tx.outlet_id || tx.branchId || '') === String(selectedOutletId);
+      const matchDate = (tx.date || '').startsWith(reportDate) || (tx.timestamp && new Date(tx.timestamp).toISOString().startsWith(reportDate));
+      return matchBranch && matchDate;
+    });
+
+    if (matchingTx.length === 0) {
+      alert(`Tidak ditemukan transaksi POS kasir untuk outlet & tanggal ${reportDate}. Pastikan kasir telah melakukan transaksi di aplikasi POS.`);
+      return;
+    }
+
+    const itemMap = new Map();
+    matchingTx.forEach(tx => {
+      const items = tx.items || [];
+      if (items.length > 0) {
+        items.forEach(it => {
+          const key = it.productId || it.id || it.name || it.productName;
+          const name = it.name || it.productName || 'Menu POS';
+          const qty = Number(it.qty || it.quantity || 1);
+          const price = Number(it.price || it.unitPrice || 0);
+          const subtotal = Number(it.subtotal || (qty * price) || 0);
+
+          if (itemMap.has(key)) {
+            const existing = itemMap.get(key);
+            existing.qty += qty;
+            existing.subtotal += subtotal;
+          } else {
+            itemMap.set(key, {
+              id: Date.now() + Math.random(),
+              productId: it.productId || it.id || '',
+              productName: name,
+              qty: qty,
+              price: price,
+              subtotal: subtotal,
+              paymentMethod: tx.paymentMethod || 'Kas Kasir (Tunai)'
+            });
+          }
+        });
+      } else if (tx.totalAmount || tx.grandTotal || tx.amount) {
+        const key = `tx-${tx.id || Math.random()}`;
+        const total = Number(tx.totalAmount || tx.grandTotal || tx.amount || 0);
+        itemMap.set(key, {
+          id: Date.now() + Math.random(),
+          productId: '',
+          productName: `Penjualan POS #${tx.receiptNumber || tx.id || 'TX'}`,
+          qty: 1,
+          price: total,
+          subtotal: total,
+          paymentMethod: tx.paymentMethod || 'Kas Kasir (Tunai)'
+        });
+      }
+    });
+
+    const populatedItems = Array.from(itemMap.values());
+    if (populatedItems.length > 0) {
+      setSalesItems(populatedItems);
+      setEntryType('penjualan');
+      const totalOmzet = populatedItems.reduce((acc, it) => acc + (it.subtotal || 0), 0);
+      alert(`Berhasil menarik ${matchingTx.length} transaksi POS kasir (${populatedItems.length} item menu) dengan total omzet ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalOmzet)}!`);
+    }
   };
 
   const handleRemoveSalesRow = (id) => {
@@ -1450,9 +1515,33 @@ export default function ManualReportUpdateModal({
                   ))}
                 </datalist>
 
-                <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <span>Rincian Menu Produk Terjual:</span>
-                  <span style={{ fontSize: '0.68rem', color: T.info }}>*Ketik nama produk baru untuk pendaftaran otomatis</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={handleFetchFromPosTransactions}
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid #10b981',
+                        color: '#10b981',
+                        padding: '4px 10px',
+                        borderRadius: '8px',
+                        fontSize: '0.72rem',
+                        fontWeight: '800',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Ambil dan hitung otomatis transaksi kasir POS yang telah terjadi untuk cabang dan tanggal yang dipilih"
+                    >
+                      <Sparkles size={13} />
+                      <span>Tarik Otomatis dari POS Kasir</span>
+                    </button>
+                    <span style={{ fontSize: '0.68rem', color: T.info }}>*Ketik nama produk baru untuk pendaftaran otomatis</span>
+                  </div>
                 </div>
 
                 {salesItems.map((item) => {
