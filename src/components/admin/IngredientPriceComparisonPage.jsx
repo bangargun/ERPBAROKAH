@@ -26,6 +26,9 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
   const T = getThemePalette(themeMode);
 
   const [activeTab, setActiveTab]       = useState('harga_bahan_outlet');
+  const [periodViewMode, setPeriodViewMode] = useState('daily'); // 'daily' | 'monthly'
+  const [selectedYear, setSelectedYear]     = useState(String(new Date().getFullYear()));
+  const [selectedMonth, setSelectedMonth]   = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [startDate, setStartDate]       = useState('');
   const [endDate, setEndDate]           = useState('');
   const [datePreset, setDatePreset]     = useState('all');
@@ -49,6 +52,16 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
   };
 
   const fmtDate = (d) => {
+    if (!d) return '-';
+    if (periodViewMode === 'monthly') {
+      try {
+        const parts = d.split('-');
+        if (parts.length >= 2) {
+          const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+          return dt.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+        }
+      } catch { return d; }
+    }
     try { return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }); }
     catch { return d; }
   };
@@ -127,6 +140,26 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
       });
     });
 
+    // 4. Fallback baseline Master Ingredients HPP for all branches if sparse
+    (masterData?.ingredients || []).forEach(ing => {
+      if (!ing?.name) return;
+      const cost = Number(ing.cost || ing.harga || 0);
+      if (cost > 0) {
+        outletsList.forEach(otl => {
+          records.push({
+            date: new Date().toISOString().substring(0, 10),
+            name: ing.name.trim(),
+            unit: ing.unit || 'Kg',
+            outlet_id: String(otl.id),
+            outlet_name: otl.name,
+            unit_price: cost,
+            qty: 1,
+            isBaseline: true
+          });
+        });
+      }
+    });
+
     return records;
   }, [masterData, outletsList]);
 
@@ -175,6 +208,8 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
     if (selectedBranch && selectedBranch !== 'ALL' && !String(selectedBranch).includes('Konsolidasi')) {
       if (String(r.outlet_id) !== String(selectedBranch)) return false;
     }
+    if (selectedYear && !r.date.startsWith(selectedYear)) return false;
+    if (periodViewMode === 'daily' && selectedMonth && r.date.substring(5, 7) !== selectedMonth) return false;
     if (startDate && r.date < startDate) return false;
     if (endDate   && r.date > endDate)   return false;
     if (searchTerm.trim() && !r.name.toLowerCase().includes(searchTerm.toLowerCase().trim())) return false;
@@ -182,9 +217,9 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
   });
 
   const filteredIngredients = useMemo(() => applyFilters(allIngredientRecords),
-    [allIngredientRecords, selectedBranch, startDate, endDate, searchTerm]);
+    [allIngredientRecords, selectedBranch, selectedYear, selectedMonth, periodViewMode, startDate, endDate, searchTerm]);
   const filteredExpenses = useMemo(() => applyFilters(allExpenseRecords),
-    [allExpenseRecords, selectedBranch, startDate, endDate, searchTerm]);
+    [allExpenseRecords, selectedBranch, selectedYear, selectedMonth, periodViewMode, startDate, endDate, searchTerm]);
 
   const markMinMax = (infoMap) => {
     const vals = Object.values(infoMap).map(o => o.value).filter(v => v > 0);
@@ -201,8 +236,9 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
     const src = selectedItem !== 'ALL' ? filteredIngredients.filter(r => r.name === selectedItem) : filteredIngredients;
     const map = new Map();
     src.forEach(r => {
-      const key = (r.date || '') + '||' + r.name;
-      if (!map.has(key)) map.set(key, { date: r.date, name: r.name, unit: r.unit, outlets: {} });
+      const timeKey = periodViewMode === 'monthly' ? r.date.substring(0, 7) : r.date;
+      const key = (timeKey || '') + '||' + r.name;
+      if (!map.has(key)) map.set(key, { date: timeKey, name: r.name, unit: r.unit, outlets: {} });
       const row = map.get(key);
       if (!row.outlets[r.outlet_id]) row.outlets[r.outlet_id] = { prices: [], qtys: [] };
       row.outlets[r.outlet_id].prices.push(r.unit_price);
@@ -216,21 +252,20 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
       });
       return { date: row.date, name: row.name, unit: row.unit, priceInfo: markMinMax(priceInfo), qtyInfo: markMinMax(qtyInfo) };
     }).sort((a, b) => new Date(b.date) - new Date(a.date) || a.name.localeCompare(b.name));
-  }, [filteredIngredients, selectedItem]);
+  }, [filteredIngredients, selectedItem, periodViewMode]);
 
   const uniqueIngredientNames = useMemo(() => {
     const s = new Set(filteredIngredients.map(r => r.name));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [filteredIngredients]);
 
-
-
   const expenseOutletPivot = useMemo(() => {
     const src = selectedItem !== 'ALL' ? filteredExpenses.filter(r => r.name === selectedItem) : filteredExpenses;
     const map = new Map();
     src.forEach(r => {
-      const key = (r.date || '') + '||' + r.name;
-      if (!map.has(key)) map.set(key, { date: r.date, name: r.name, outlets: {} });
+      const timeKey = periodViewMode === 'monthly' ? r.date.substring(0, 7) : r.date;
+      const key = (timeKey || '') + '||' + r.name;
+      if (!map.has(key)) map.set(key, { date: timeKey, name: r.name, outlets: {} });
       const row = map.get(key);
       if (!row.outlets[r.outlet_id]) row.outlets[r.outlet_id] = { unitPrices: [], qtys: [] };
       row.outlets[r.outlet_id].unitPrices.push(r.unit_price);
@@ -244,13 +279,12 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
       });
       return { date: row.date, name: row.name, unitPriceInfo: markMinMax(unitPriceInfo), qtyInfo: markMinMax(qtyInfo) };
     }).sort((a, b) => new Date(b.date) - new Date(a.date) || a.name.localeCompare(b.name));
-  }, [filteredExpenses, selectedItem]);
+  }, [filteredExpenses, selectedItem, periodViewMode]);
 
   const uniqueExpenseNames = useMemo(() => {
     const s = new Set(filteredExpenses.map(r => r.name));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [filteredExpenses]);
-
 
   const currentDataRows = useMemo(() => {
     if (activeTab === 'harga_bahan_outlet' || activeTab === 'qty_bahan_outlet') return ingredientOutletPivot;
@@ -550,189 +584,195 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }} className="animate-fade-in">
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', background: T.cardBg, padding: '20px 24px', borderRadius: '16px', border: '1px solid ' + T.border }}>
+      {/* 1. TOP HEADER & MODE SWITCHER (HARIAN VS BULANAN) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', background: T.cardBg, padding: '18px 22px', borderRadius: '16px', border: `1px solid ${T.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ padding: '12px', background: T.accentGoldBg, border: '1px solid ' + T.accentGoldBorder, borderRadius: '14px' }}>
-            <Scale size={28} color={T.accentGold} />
+          <div style={{ padding: '12px', background: T.accentGoldBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '14px' }}>
+            <Scale size={26} color={T.accentGold} />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.30rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>Perbandingan</h1>
-            <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
-              Komparasi harga satuan &amp; quantity bahan baku dan beban operasional antar outlet.
+            <h1 style={{ fontSize: '1.25rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+              Perbandingan Harga &amp; Kuantitas Stok Bahan
+            </h1>
+            <p style={{ fontSize: '0.76rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
+              Komparasi harga satuan dan kuantitas bahan baku antar outlet (Hari ke Hari &amp; Bulan ke Bulan).
             </p>
           </div>
         </div>
+
+        {/* MODE SWITCHER PILL BUTTONS */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{
+            display: 'inline-flex',
+            background: T.cardBg2,
+            padding: '3px',
+            borderRadius: '10px',
+            border: `1px solid ${T.borderStrong}`,
+            gap: '4px'
+          }}>
+            <button
+              type="button"
+              onClick={() => { setPeriodViewMode('daily'); setCurrentPage(1); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                background: periodViewMode === 'daily' ? T.primary : 'transparent',
+                color: periodViewMode === 'daily' ? T.txtInverse : T.txtSecondary,
+                fontWeight: '800',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              📅 Rincian Harian (Hari ke Hari)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPeriodViewMode('monthly'); setCurrentPage(1); }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                background: periodViewMode === 'monthly' ? T.primary : 'transparent',
+                color: periodViewMode === 'monthly' ? T.txtInverse : T.txtSecondary,
+                fontWeight: '800',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              📊 Rekap Bulanan (Bulan ke Bulan)
+            </button>
+          </div>
+
           <button onClick={() => setShowColumnFilter(!showColumnFilter)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: T.cardBg2, border: '1px solid ' + T.borderStrong, borderRadius: '10px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
-            <Filter size={16} color={T.accentGold} />
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '10px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}>
+            <Filter size={15} color={T.accentGold} />
             <span>Kolom Outlet ({activeOutletColumns.length}/{outletsList.length})</span>
           </button>
+
           <button onClick={downloadExcel} title="Download Excel"
-            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 16px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: '10px', color: '#22c55e', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <FileSpreadsheet size={16} />
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: '10px', color: '#22c55e', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}>
+            <FileSpreadsheet size={15} />
             <span>Excel</span>
           </button>
+
           <button onClick={downloadPDF} title="Download / Print PDF"
-            style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 16px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '10px', color: '#ef4444', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <Printer size={16} />
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '10px', color: '#ef4444', fontWeight: '800', fontSize: '0.78rem', cursor: 'pointer' }}>
+            <Printer size={15} />
             <span>PDF</span>
           </button>
         </div>
       </div>
 
-      {/* ─── 4 CARD RINGKASAN OMZET & BIAYA (BULANAN & HARIAN) ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px' }}>
-        {/* CARD 1: OMZET BULANAN */}
-        <div style={{
-          background: T.cardBg,
-          padding: '18px 20px',
-          borderRadius: '16px',
-          border: '1px solid ' + (T.successBorder || '#10b98140'),
-          boxShadow: T.shadowSm,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          gap: '10px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: T.success, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Omzet Bulan Dipilih
-            </span>
-            <div style={{ padding: '8px', background: T.successBg || 'rgba(16,185,129,0.15)', borderRadius: '10px', color: T.success }}>
-              <TrendingUp size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.success }}>
-              Rp {totalOmzetBulan.toLocaleString('id-ID')}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              {formatMonthName(activeSelectedMonth)}
-            </div>
-          </div>
-        </div>
+      {/* 2. 4 STRATEGIC PURCHASING & DISPARITY KPI CARDS */}
+      {(() => {
+        // Compute price disparity across outlets for active dataset
+        let maxDisparityItem = '-';
+        let maxDisparityVal = 0;
+        currentDataRows.forEach(r => {
+          const vals = Object.values(r.priceInfo || r.unitPriceInfo || {}).map(x => x.value).filter(v => v > 0);
+          if (vals.length >= 2) {
+            const diff = Math.max(...vals) - Math.min(...vals);
+            if (diff > maxDisparityVal) {
+              maxDisparityVal = diff;
+              maxDisparityItem = r.name;
+            }
+          }
+        });
 
-        {/* CARD 2: OMZET HARIAN */}
-        <div style={{
-          background: T.cardBg,
-          padding: '18px 20px',
-          borderRadius: '16px',
-          border: '1px solid ' + (T.successBorder || '#34d39940'),
-          boxShadow: T.shadowSm,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          gap: '10px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Omzet Hari Dipilih
-            </span>
-            <div style={{ padding: '8px', background: 'rgba(52,211,153,0.15)', borderRadius: '10px', color: '#10b981' }}>
-              <DollarSign size={20} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#10b981' }}>
-              Rp {totalOmzetHarian.toLocaleString('id-ID')}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              {fmtDate(activeSelectedDate)}
-            </div>
-          </div>
-        </div>
+        // Compute lowest average price branch
+        const branchSpendMap = {};
+        filteredIngredients.forEach(r => {
+          if (!branchSpendMap[r.outlet_name]) branchSpendMap[r.outlet_name] = { total: 0, count: 0 };
+          branchSpendMap[r.outlet_name].total += r.unit_price;
+          branchSpendMap[r.outlet_name].count += 1;
+        });
+        let lowestAvgBranch = '-';
+        let lowestAvgPrice = Infinity;
+        Object.entries(branchSpendMap).forEach(([bName, data]) => {
+          const avg = data.total / (data.count || 1);
+          if (avg < lowestAvgPrice) {
+            lowestAvgPrice = avg;
+            lowestAvgBranch = bName;
+          }
+        });
 
-        {/* CARD 3: BEBAN BULANAN */}
-        <div style={{
-          background: T.cardBg,
-          padding: '18px 20px',
-          borderRadius: '16px',
-          border: '1px solid ' + (T.dangerBorder || '#ef444440'),
-          boxShadow: T.shadowSm,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          gap: '10px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: T.danger, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Beban Bulan Dipilih
-            </span>
-            <div style={{ padding: '8px', background: T.dangerBg || 'rgba(239,68,68,0.15)', borderRadius: '10px', color: T.danger }}>
-              <TrendingDown size={20} />
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+            {/* Card 1: Disparitas Harga Tertinggi */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>SELISIH HARGA TERTINGGI</span>
+                <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.danger, marginTop: '2px' }}>
+                  {maxDisparityVal > 0 ? `Rp ${maxDisparityVal.toLocaleString('id-ID')}` : 'Rp 0'}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: T.accentGold, fontWeight: '700' }}>
+                  {maxDisparityItem !== '-' ? maxDisparityItem : 'Harga Seragam'}
+                </span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.dangerBg, color: T.danger }}>
+                <TrendingUp size={18} />
+              </div>
             </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.danger }}>
-              Rp {totalBiayaBulan.toLocaleString('id-ID')}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              {formatMonthName(activeSelectedMonth)}
-            </div>
-          </div>
-        </div>
 
-        {/* CARD 4: BEBAN HARIAN */}
-        <div style={{
-          background: T.cardBg,
-          padding: '18px 20px',
-          borderRadius: '16px',
-          border: '1px solid ' + (T.dangerBorder || '#f8717140'),
-          boxShadow: T.shadowSm,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          gap: '10px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#f43f5e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Beban Hari Dipilih
-            </span>
-            <div style={{ padding: '8px', background: 'rgba(244,63,94,0.15)', borderRadius: '10px', color: '#f43f5e' }}>
-              <AlertTriangle size={20} />
+            {/* Card 2: Total Item Bahan Baku Terdata */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>TOTAL ITEM TERDATA</span>
+                <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>
+                  {isBahanTab ? uniqueIngredientNames.length : uniqueExpenseNames.length} {isBahanTab ? 'Bahan' : 'Beban'}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>{currentDataRows.length} Entri Komparasi</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.infoBg, color: T.info }}>
+                <Scale size={18} />
+              </div>
             </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: '#f43f5e' }}>
-              Rp {totalBiayaHarian.toLocaleString('id-ID')}
-            </div>
-            <div style={{ fontSize: '0.72rem', color: T.txtSecondary, marginTop: '4px', fontWeight: '600' }}>
-              {fmtDate(activeSelectedDate)}
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {showColumnFilter && (
-        <div style={{ background: T.cardBg, padding: '16px 20px', borderRadius: '14px', border: '1px solid ' + T.accentGoldBorder, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.accentGold, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Layers size={16} /><span>Tampilkan / Sembunyikan Kolom Outlet:</span>
+            {/* Card 3: Cabang Purchasing Paling Hemat */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>CABANG PALING HEMAT</span>
+                <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.success, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                  {lowestAvgBranch !== '-' ? lowestAvgBranch : 'Semua Cabang'}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: T.success, fontWeight: '700' }}>
+                  {lowestAvgPrice !== Infinity ? `Avg Rp ${Math.round(lowestAvgPrice).toLocaleString('id-ID')}` : 'Terdaftar'}
+                </span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.successBg, color: T.success }}>
+                <TrendingDown size={18} />
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setVisibleOutletIds(outletsList.map(o => String(o.id)))} style={{ background: 'none', border: 'none', color: T.info, fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}>Pilih Semua</button>
-              <span style={{ color: T.txtMuted }}>|</span>
-              <button onClick={() => setVisibleOutletIds([])} style={{ background: 'none', border: 'none', color: T.danger, fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer' }}>Bersihkan</button>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
-            {outletsList.map(otl => (
-              <label key={otl.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: T.cardBg2, borderRadius: '8px', border: '1px solid ' + T.border, cursor: 'pointer', fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '700' }}>
-                <input type="checkbox" checked={visibleOutletIds.includes(String(otl.id))} onChange={() => toggleOutletColumn(otl.id)} style={{ accentColor: T.accentGold }} />
-                <span>{otl.name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
 
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', background: T.cardBg, padding: '10px', borderRadius: '14px', border: '1px solid ' + T.border }}>
+            {/* Card 4: Rata-Rata Satuan Harga */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>RATA-RATA HARGA SATUAN</span>
+                <div style={{ fontSize: '1.25rem', fontWeight: '900', color: T.accentGold, marginTop: '2px' }}>
+                  Rp {(summaryStats?.avg || 0).toLocaleString('id-ID')}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary }}>
+                  {periodViewMode === 'daily' ? 'Mode Harian' : 'Mode Rata-Rata Bulanan'}
+                </span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.accentGoldBg, color: T.accentGold }}>
+                <DollarSign size={18} />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 3. TABS SELECTOR (HARGA BAHAN / QTY BAHAN / HARGA BEBAN / QTY BEBAN) */}
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', background: T.cardBg, padding: '8px', borderRadius: '14px', border: `1px solid ${T.border}` }}>
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button key={tab.id} onClick={() => handleTabChange(tab.id)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + (isActive ? T.accentGoldBorder : T.border), background: isActive ? T.accentGoldBg : 'transparent', color: isActive ? T.accentGold : T.txtSecondary, transition: 'all 0.2s', flex: '1 1 auto', minWidth: '150px', textAlign: 'left' }}>
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', border: `1px solid ${isActive ? T.accentGoldBorder : T.border}`, background: isActive ? T.accentGoldBg : 'transparent', color: isActive ? T.accentGold : T.txtSecondary, transition: 'all 0.2s', flex: '1 1 auto', minWidth: '140px', textAlign: 'left' }}>
               <span style={{ fontWeight: '800', fontSize: '0.78rem', lineHeight: 1.3 }}>{tab.label}</span>
               <span style={{ fontSize: '0.64rem', opacity: 0.8, marginTop: '2px' }}>{tab.sublabel}</span>
             </button>
@@ -800,30 +840,99 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         </div>
       )}
 
-      <div style={{ background: T.cardBg, border: '1px solid ' + T.border, borderRadius: '14px', padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+      {/* 4. FILTER BAR CONTROLS */}
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+        
+        {/* Cari Bahan / Beban */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 160px', minWidth: '150px' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <Search size={13} color={T.txtMuted} /> Cari {isBahanTab ? 'Bahan' : 'Beban'}
           </label>
           <input type="text" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Ketik kata kunci..."
-            style={{ padding: '0 12px', height: '40px', borderRadius: '6px', border: '1px solid ' + T.border, background: T.inputBg, color: T.txtPrimary, fontSize: '0.84rem', fontWeight: '600' }} />
+            style={{ padding: '0 12px', height: '38px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '600', outline: 'none' }} />
         </div>
 
+        {/* Dropdown Tahun (2024 s/d 2040) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
+            Tahun
+          </label>
+          <select
+            value={selectedYear}
+            onChange={e => { setSelectedYear(e.target.value); setCurrentPage(1); }}
+            style={{
+              padding: '0 12px',
+              borderRadius: '8px',
+              border: `1px solid ${T.border}`,
+              background: T.cardBg2,
+              color: T.txtPrimary,
+              fontSize: '0.82rem',
+              fontWeight: '800',
+              height: '38px',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            <option value="">Semua Tahun</option>
+            {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
+              <option key={yr} value={String(yr)}>Tahun {yr}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Dropdown Pilihan Bulan Cepat */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
+            Bulan
+          </label>
+          <select
+            value={selectedMonth}
+            onChange={e => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
+            style={{
+              padding: '0 12px',
+              borderRadius: '8px',
+              border: `1px solid ${T.border}`,
+              background: T.cardBg2,
+              color: T.txtPrimary,
+              fontSize: '0.82rem',
+              fontWeight: '800',
+              height: '38px',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            <option value="">Semua Bulan</option>
+            <option value="01">Januari</option>
+            <option value="02">Februari</option>
+            <option value="03">Maret</option>
+            <option value="04">April</option>
+            <option value="05">Mei</option>
+            <option value="06">Juni</option>
+            <option value="07">Juli</option>
+            <option value="08">Agustus</option>
+            <option value="09">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+        </div>
+
+        {/* Filter Bahan Baku / Beban */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 200px', minWidth: '180px', position: 'relative' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
             {isBahanTab ? 'Filter Bahan Baku' : 'Filter Beban / Akun'}
           </label>
           <button type="button" onClick={() => setShowItemDropdown(v => !v)}
-            style={{ height: '40px', padding: '0 12px', borderRadius: '6px', cursor: 'pointer', border: '1px solid ' + (selectedItem !== 'ALL' ? T.accentGold : T.border), background: T.inputBg, color: selectedItem !== 'ALL' ? T.accentGold : T.txtPrimary, fontSize: '0.84rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            style={{ height: '38px', padding: '0 12px', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${selectedItem !== 'ALL' ? T.accentGold : T.border}`, background: T.inputBg, color: selectedItem !== 'ALL' ? T.accentGold : T.txtPrimary, fontSize: '0.82rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selectedItem === 'ALL' ? ('— Semua ' + (isBahanTab ? 'bahan' : 'beban') + ' —') : selectedItem}
             </span>
             <ChevronDown size={14} color={T.txtMuted} />
           </button>
           {showItemDropdown && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: T.cardBg, border: '1px solid ' + T.accentGoldBorder, borderRadius: '10px', boxShadow: '0 16px 40px rgba(0,0,0,0.65)', zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '10px', boxShadow: '0 16px 40px rgba(0,0,0,0.65)', zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px' }}>
               <input type="text" value={itemDropdownSearch} onChange={e => setItemDropdownSearch(e.target.value)} placeholder="Cari..." autoFocus
-                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid ' + T.border, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }} />
+                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }} />
               <div style={{ overflowY: 'auto', maxHeight: '220px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <button type="button"
                   onClick={() => { setSelectedItem('ALL'); setShowItemDropdown(false); setItemDropdownSearch(''); setCurrentPage(1); }}
@@ -836,7 +945,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
                   .map((name, i) => (
                     <button key={i} type="button"
                       onClick={() => { setSelectedItem(name); setShowItemDropdown(false); setItemDropdownSearch(''); setCurrentPage(1); }}
-                      style={{ padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer', background: selectedItem === name ? T.accentGoldBg : 'transparent', color: selectedItem === name ? T.accentGold : T.txtPrimary, fontSize: '0.80rem', fontWeight: selectedItem === name ? '900' : '600', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      style={{ padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer', background: selectedItem === name ? T.accentGoldBg : 'transparent', color: selectedItem === name ? T.accentGold : T.txtPrimary, fontSize: '0.80rem', fontWeight: '900', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>{name}</span>
                       {selectedItem === name && <Check size={13} color={T.accentGold} />}
                     </button>
@@ -849,6 +958,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
           )}
         </div>
 
+        {/* Double Calendar Picker */}
         <DoubleCalendarPicker
           startDate={startDate} endDate={endDate} datePreset={datePreset}
           setStartDate={setStartDate} setEndDate={setEndDate} setDatePreset={setDatePreset}
@@ -856,8 +966,8 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
           hideOutletFilter={true} noWrapper={true} themeMode={themeMode}
         />
 
-        {(searchTerm || startDate || endDate || selectedItem !== 'ALL') && (
-          <button onClick={resetFilters} style={{ height: '40px', padding: '0 14px', borderRadius: '6px', border: '1px solid ' + T.border, background: 'transparent', color: T.txtMuted, fontSize: '0.80rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {(searchTerm || startDate || endDate || selectedItem !== 'ALL' || selectedYear || selectedMonth) && (
+          <button onClick={resetFilters} style={{ height: '38px', padding: '0 14px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <RotateCcw size={13} /> Reset
           </button>
         )}
@@ -875,22 +985,26 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: T.tableHeaderBg, borderBottom: '1px solid ' + T.borderStrong, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.67rem', letterSpacing: '0.04em' }}>
+              <tr style={{ background: T.tableHeaderBg, borderBottom: `1px solid ${T.borderStrong}`, color: T.txtSecondary, fontWeight: '800', textTransform: 'uppercase', fontSize: '0.67rem', letterSpacing: '0.04em' }}>
                 {(activeTab === 'harga_bahan_outlet' || activeTab === 'qty_bahan_outlet') && (
                   <>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '130px', borderRight: '1px solid ' + T.border }}>Tanggal</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '200px', borderRight: '1px solid ' + T.border }}>Nama Bahan Baku</th>
-                    <th style={{ padding: '12px 10px', textAlign: 'center', minWidth: '70px', borderRight: '1px solid ' + T.border }}>Satuan</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '140px', borderRight: `1px solid ${T.border}` }}>
+                      {periodViewMode === 'daily' ? 'Tanggal / Hari' : 'Bulan (MoM)'}
+                    </th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '200px', borderRight: `1px solid ${T.border}` }}>Nama Bahan Baku</th>
+                    <th style={{ padding: '12px 10px', textAlign: 'center', minWidth: '70px', borderRight: `1px solid ${T.border}` }}>Satuan</th>
                   </>
                 )}
                 {(activeTab === 'harga_beban_outlet' || activeTab === 'qty_beban_outlet') && (
                   <>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '130px', borderRight: '1px solid ' + T.border }}>Tanggal</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '220px', borderRight: '1px solid ' + T.border }}>Nama Beban / Akun</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '140px', borderRight: `1px solid ${T.border}` }}>
+                      {periodViewMode === 'daily' ? 'Tanggal / Hari' : 'Bulan (MoM)'}
+                    </th>
+                    <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '220px', borderRight: `1px solid ${T.border}` }}>Nama Beban / Akun</th>
                   </>
                 )}
                 {activeOutletColumns.map(otl => (
-                  <th key={otl.id} style={{ padding: '12px 14px', textAlign: 'right', minWidth: '160px', borderRight: '1px solid ' + T.border }}>
+                  <th key={otl.id} style={{ padding: '12px 14px', textAlign: 'right', minWidth: '160px', borderRight: `1px solid ${T.border}` }}>
                     {otl.name}
                   </th>
                 ))}
