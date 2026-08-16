@@ -783,7 +783,7 @@ export default function FinancialOverview({
           </div>
         </div>
 
-        {/* KPI 5: OPERATIONAL BRANCH STATUS */}
+        {/* KPI 5: TOTAL STRUK TRANSAKSI */}
         <div style={{
           background: T.cardBg,
           border: `1px solid ${T.borderStrong}`,
@@ -797,19 +797,19 @@ export default function FinancialOverview({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              CABANG OUTLET RESTORAN
+              TOTAL STRUK TRANSAKSI
             </span>
             <div style={{ padding: '6px', borderRadius: '8px', background: T.accentGreenBg, color: T.accentGreen }}>
-              <Store size={16} />
+              <Receipt size={16} />
             </div>
           </div>
           <div>
             <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.accentGreen, letterSpacing: '-0.02em' }}>
-              {kpiMetrics.activeOutletCount} Outlet
+              {kpiMetrics.txCount} Struk
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.70rem', color: T.success, fontWeight: '700', marginTop: '4px' }}>
               <CheckCircle2 size={13} />
-              <span>100% Terhubung &amp; Sinkron</span>
+              <span>Transaksi Kasir Selesai</span>
             </div>
           </div>
         </div>
