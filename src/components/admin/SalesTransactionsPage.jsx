@@ -1481,12 +1481,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       };
 
       filteredOutlets.forEach(otl => {
-        const otlTxs = dayTxs.filter(t => Number(t.outlet_id) === Number(otl.id));
-        let gross = otlTxs.reduce((sum, t) => sum + Number(t.amount || t.price || 0), 0);
-        let disc = otlTxs.reduce((sum, t) => sum + Number(t.discount || 0), 0);
-        let net = gross - disc;
+        const otlTxs = dayTxs.filter(t => 
+          (Number(t.outlet_id) === Number(otl.id)) || 
+          (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+        );
+        let gross = otlTxs.reduce((sum, t) => sum + Number(t.total_amount || t.amount || t.total || t.price || 0), 0);
+        let disc = otlTxs.reduce((sum, t) => sum + Number(t.discount || t.discount_amount || 0), 0);
+        let net = otlTxs.reduce((sum, t) => {
+          const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+          const d = Number(t.discount || t.discount_amount || 0);
+          const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+          return sum + n;
+        }, 0);
 
-        outletData[otl.id] = { gross, net };
+        outletData[otl.id] = { gross, net, txCount: otlTxs.length };
         chartItem[otl.name] = net;
         totalGrossAll += gross;
         totalNetAll += net;
@@ -1500,15 +1508,71 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         dayNum: parseInt(d),
         outlets: outletData,
         totalGross: totalGrossAll,
-        totalNet: totalNetAll
+        totalNet: totalNetAll,
+        txCount: dayTxs.length
       });
 
       chartData.push(chartItem);
     }
 
+    // Comprehensive KPI metrics for Omzet tab
+    let grandTotalGross = 0;
+    let grandTotalNet = 0;
+    let grandTotalDiscount = 0;
+    const totalTxCount = validTxs.length;
+    const outletRevenueMap = {};
+
+    filteredOutlets.forEach(otl => {
+      outletRevenueMap[otl.id] = { name: otl.name, net: 0, txCount: 0 };
+    });
+
+    validTxs.forEach(t => {
+      const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+      const d = Number(t.discount || t.discount_amount || 0);
+      const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+      grandTotalGross += g;
+      grandTotalDiscount += d;
+      grandTotalNet += n;
+
+      const matchedOtl = filteredOutlets.find(o => 
+        Number(o.id) === Number(t.outlet_id) || 
+        (t.branch_name && t.branch_name.trim().toLowerCase() === o.name.trim().toLowerCase())
+      );
+      if (matchedOtl && outletRevenueMap[matchedOtl.id]) {
+        outletRevenueMap[matchedOtl.id].net += n;
+        outletRevenueMap[matchedOtl.id].txCount += 1;
+      }
+    });
+
+    let topOutletName = 'Belum Ada Transaksi';
+    let topOutletAmount = 0;
+    Object.values(outletRevenueMap).forEach(o => {
+      if (o.net > topOutletAmount) {
+        topOutletAmount = o.net;
+        topOutletName = `${o.name} (${formatRupiah(o.net)})`;
+      }
+    });
+
+    const activeDaysCount = rows.filter(r => r.totalNet > 0).length || 1;
+    const dailyAvgNet = Math.round(grandTotalNet / activeDaysCount);
+
     const displayPeriod = start === end ? start : (start.slice(0, 7) === end.slice(0, 7) ? start.slice(0, 7) : `${start} s/d ${end}`);
 
-    return { activeOutlets: filteredOutlets, rows, chartData, start, end, displayPeriod };
+    return {
+      activeOutlets: filteredOutlets,
+      rows,
+      chartData,
+      start,
+      end,
+      displayPeriod,
+      grandTotalGross,
+      grandTotalDiscount,
+      grandTotalNet,
+      totalTxCount,
+      dailyAvgNet,
+      topOutletName,
+      topOutletAmount
+    };
   };
 
   // EXPORT EXCEL FOR OMZET COMPARISON
@@ -3833,11 +3897,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       </div>
 
       {/* CONTENT AREA: 1. OMZET PENJUALAN (GRAFIK GARIS & TABEL PERBANDINGAN SEBELUM/SETELAH DISKON) */}
-      {activeTab === 'omzet' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {activeTab === 'omzet' && (() => {
+        const omzetData = getOmzetOutletComparisonData();
+        const { activeOutlets, chartData, rows, displayPeriod, grandTotalNet, grandTotalGross, grandTotalDiscount, totalTxCount, dailyAvgNet, topOutletName } = omzetData;
+        const colors = [`${T.info}`, `${T.success}`, `${T.accentGold}`, '#ec4899', '#f43f5e', '#a78bfa'];
+
+        return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* TOP BAR WITH MONTH FILTER & EXPORT BUTTONS */}
-          <div className="glass-card" style={{ padding: '16px 20px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
+          <div className="glass-card" style={{ padding: '14px 18px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
             <DoubleCalendarPicker themeMode={themeMode}
               startDate={omzetStartDate}
               endDate={omzetEndDate}
@@ -3885,6 +3954,59 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 <FileSpreadsheet size={15} />
                 <span>Download Excel</span>
               </button>
+            </div>
+          </div>
+
+          {/* 4 SUMMARY KPI CARDS FOR OMZET */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+            {/* Card 1: Total Net Omzet */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>TOTAL OMZET BERSIH</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.accentGold, marginTop: '2px' }}>{formatRupiah(grandTotalNet)}</div>
+                <span style={{ fontSize: '0.66rem', color: T.success, fontWeight: '700' }}>Setelah Diskon: {formatRupiah(grandTotalDiscount)}</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.accentGoldBg, color: T.accentGold }}>
+                <DollarSign size={18} />
+              </div>
+            </div>
+
+            {/* Card 2: Total Transactions */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>TRANSAKSI SELESAI</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>{totalTxCount} Nota</div>
+                <span style={{ fontSize: '0.66rem', color: T.info, fontWeight: '700' }}>Transaksi Sukses POS</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.infoBg, color: T.info }}>
+                <Receipt size={18} />
+              </div>
+            </div>
+
+            {/* Card 3: Daily Average */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>RATA-RATA HARIAN</span>
+                <div style={{ fontSize: '1.3rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(dailyAvgNet)}</div>
+                <span style={{ fontSize: '0.66rem', color: T.txtSecondary }}>Omzet per Hari Aktif</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.successBg, color: T.success }}>
+                <TrendingUp size={18} />
+              </div>
+            </div>
+
+            {/* Card 4: Top Outlet */}
+            <div style={{ background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>CABANG KONTRIBUTOR UTAMA</span>
+                <div style={{ fontSize: '0.94rem', fontWeight: '900', color: T.primary, marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                  {topOutletName}
+                </div>
+                <span style={{ fontSize: '0.66rem', color: T.success, fontWeight: '700' }}>Top Performer Branch</span>
+              </div>
+              <div style={{ padding: '8px', borderRadius: '10px', background: T.primaryBtn, color: T.navActiveTxt }}>
+                <Award size={18} />
+              </div>
             </div>
           </div>
 
@@ -4062,7 +4184,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
 
         </div>
-      )}
+        );
+      })()}
 
 
       {/* 2. PENJUALAN BY MENU (TOP 5 CARDS, GRAFIK GARIS & 2 TABEL RINCIAN PER MENU) */}
