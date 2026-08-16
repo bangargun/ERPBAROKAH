@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import DashboardAIInsightModal from './DashboardAIInsightModal';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -125,6 +126,8 @@ export default function FinancialOverview({
   const [txTypeFilter, setTxTypeFilter] = useState('ALL'); // 'ALL' | 'income' | 'expense'
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiLastUpdated, setAiLastUpdated] = useState('Baru saja (Real-time)');
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiModalTab, setAiModalTab] = useState('summary');
 
   // Currency Formatter
   const formatRupiah = (val) => {
@@ -530,13 +533,13 @@ export default function FinancialOverview({
   }, [recentTransactions, allSalesTx, allOutlets, txTypeFilter, todayStr]);
 
   // AI Analysis Trigger
+  const handleOpenAIInsight = (tab = 'summary') => {
+    setAiModalTab(tab);
+    setShowAIModal(true);
+  };
+
   const handleTriggerAI = () => {
-    setIsAnalyzingAI(true);
-    setTimeout(() => {
-      setIsAnalyzingAI(false);
-      const now = new Date();
-      setAiLastUpdated(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')} WIB`);
-    }, 1000);
+    handleOpenAIInsight('summary');
   };
 
   return (
@@ -949,9 +952,32 @@ export default function FinancialOverview({
                 <Award size={18} color={T.warning} />
                 <span>Top 5 Menu Terlaris</span>
               </h3>
-              <span style={{ fontSize: '0.68rem', color: T.info, background: T.infoBg, border: `1px solid ${T.infoBorder}`, padding: '2px 8px', borderRadius: '6px', fontWeight: '800' }}>
-                {activeOutletFilter === 'ALL' ? 'Semua Cabang' : (allOutlets.find(o => String(o.id) === String(activeOutletFilter))?.name || 'Cabang Terpilih')}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAIInsight('sales')}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    color: '#a855f7',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.66rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Analisis AI untuk Menu Terlaris & Kasir"
+                >
+                  <Sparkles size={11} />
+                  <span>AI Menu</span>
+                </button>
+                <span style={{ fontSize: '0.68rem', color: T.info, background: T.infoBg, border: `1px solid ${T.infoBorder}`, padding: '2px 8px', borderRadius: '6px', fontWeight: '800' }}>
+                  {activeOutletFilter === 'ALL' ? 'Semua Cabang' : (allOutlets.find(o => String(o.id) === String(activeOutletFilter))?.name || 'Cabang Terpilih')}
+                </span>
+              </div>
             </div>
             <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '0 0 14px 0' }}>
               Peringkat menu dengan volume penjualan tertinggi di {activeOutletFilter === 'ALL' ? 'seluruh cabang restoran' : (allOutlets.find(o => String(o.id) === String(activeOutletFilter))?.name || 'cabang terpilih')}
@@ -1103,7 +1129,30 @@ export default function FinancialOverview({
                 <Percent size={18} color={T.danger} />
                 <span>Efisiensi HPP (Target Max 60%)</span>
               </h3>
-              <span style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '700' }}>COGS CONTROL</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAIInsight('cogs')}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    color: '#a855f7',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.66rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Audit AI Efisiensi HPP & Biaya"
+                >
+                  <Sparkles size={11} />
+                  <span>AI HPP</span>
+                </button>
+                <span style={{ fontSize: '0.68rem', color: T.txtSecondary, fontWeight: '700' }}>COGS CONTROL</span>
+              </div>
             </div>
             <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '0 0 14px 0' }}>
               Pantau rasio persentase biaya bahan baku terhadap omzet di tiap cabang
@@ -1175,19 +1224,43 @@ export default function FinancialOverview({
             </p>
           </div>
 
-          {/* Category Filter Dynamically from Master Data */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
-            <Filter size={14} color={T.txtSecondary} />
-            <select
-              value={selectedIngredientCategory}
-              onChange={e => setSelectedIngredientCategory(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => handleOpenAIInsight('purchasing')}
+              style={{
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
+                border: '1px solid rgba(168, 85, 247, 0.3)',
+                color: '#a855f7',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                fontSize: '0.72rem',
+                fontWeight: '800',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer'
+              }}
+              title="Analisis AI Disparitas Harga Supplier"
             >
-              <option value="ALL">Semua Kategori Bahan</option>
-              {dynamicIngredientCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+              <Sparkles size={12} />
+              <span>AI Purchasing</span>
+            </button>
+
+            {/* Category Filter Dynamically from Master Data */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
+              <Filter size={14} color={T.txtSecondary} />
+              <select
+                value={selectedIngredientCategory}
+                onChange={e => setSelectedIngredientCategory(e.target.value)}
+                style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
+              >
+                <option value="ALL">Semua Kategori Bahan</option>
+                {dynamicIngredientCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1419,6 +1492,24 @@ export default function FinancialOverview({
           </table>
         </div>
       </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 7. DASHBOARD AI INSIGHT MODAL                                 */}
+      {/* ------------------------------------------------------------- */}
+      <DashboardAIInsightModal
+        isOpen={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        initialTab={aiModalTab}
+        kpiMetrics={kpiMetrics}
+        salesTrendData={salesTrendChartData}
+        topSellingMenu={topSellingMenu}
+        branchComparisonData={branchComparisonData}
+        ingredientDisparityList={ingredientDisparityList}
+        allOutlets={allOutlets}
+        activeOutletFilter={activeOutletFilter}
+        dateRangePreset={dateRangePreset}
+        themeMode={themeMode}
+      />
 
     </div>
   );
