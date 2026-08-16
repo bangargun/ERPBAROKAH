@@ -219,6 +219,38 @@ export default function App() {
           if (Array.isArray(parsedMobPerm) && parsedMobPerm.length > 0) baseData.mobilePermissionMatrix = parsedMobPerm;
         } catch (e) {}
       }
+      if (Array.isArray(baseData.products) && baseData.products.length > 0) {
+        const nameMap = new Map();
+        baseData.products.forEach(p => {
+          if (!p) return;
+          const normName = String(p.name || '').trim().toUpperCase();
+          if (!normName) return;
+          if (!nameMap.has(normName)) {
+            nameMap.set(normName, p);
+          } else {
+            const exist = nameMap.get(normName);
+            const existTs = Number(exist._updatedAt || exist._lastMutated || exist._lastUpdated || 0);
+            const pTs = Number(p._updatedAt || p._lastMutated || p._lastUpdated || 0);
+            const winner = (pTs > existTs || (Array.isArray(p.variants) && p.variants.length > (exist.variants || []).length)) ? p : exist;
+            const other = winner === p ? exist : p;
+            const mergedOutlets = Array.from(new Set([
+              ...(winner.selectedOutletIds || winner.selected_outlet_ids || []),
+              ...(other.selectedOutletIds || other.selected_outlet_ids || [])
+            ]));
+            nameMap.set(normName, {
+              ...winner,
+              selectedOutletIds: mergedOutlets,
+              selected_outlet_ids: mergedOutlets,
+              standardPrices: { ...(other.standardPrices || other.standard_prices || {}), ...(winner.standardPrices || winner.standard_prices || {}) },
+              standard_prices: { ...(other.standardPrices || other.standard_prices || {}), ...(winner.standardPrices || winner.standard_prices || {}) },
+              branchVariantPrices: { ...(other.branchVariantPrices || other.branch_variant_prices || {}), ...(winner.branchVariantPrices || winner.branch_variant_prices || {}) },
+              branch_variant_prices: { ...(other.branchVariantPrices || other.branch_variant_prices || {}), ...(winner.branchVariantPrices || winner.branch_variant_prices || {}) },
+              variants: Array.from(new Set([...(winner.variants || []), ...(other.variants || [])]))
+            });
+          }
+        });
+        baseData.products = Array.from(nameMap.values());
+      }
       return baseData;
     } catch (e) {
       console.error("Master data parse error:", e);
@@ -482,7 +514,37 @@ export default function App() {
                     map.set(k, item);
                   }
                 });
-                return Array.from(map.values());
+
+                // Deduplicate by normalized uppercase name
+                const byNameMap = new Map();
+                Array.from(map.values()).forEach(item => {
+                  const norm = String(item.name || item.title || '').trim().toUpperCase();
+                  if (!norm) return;
+                  if (!byNameMap.has(norm)) {
+                    byNameMap.set(norm, item);
+                  } else {
+                    const exist = byNameMap.get(norm);
+                    const existTs = Number(exist._updatedAt || exist._lastMutated || exist._lastUpdated || 0);
+                    const itemTs  = Number(item._updatedAt || item._lastMutated || item._lastUpdated || 0);
+                    const winner = (itemTs > existTs || (Array.isArray(item.variants) && item.variants.length > (exist.variants || []).length)) ? item : exist;
+                    const other  = winner === item ? exist : item;
+                    const mergedOutlets = Array.from(new Set([
+                      ...(winner.selectedOutletIds || winner.selected_outlet_ids || []),
+                      ...(other.selectedOutletIds || other.selected_outlet_ids || [])
+                    ]));
+                    byNameMap.set(norm, {
+                      ...winner,
+                      selectedOutletIds: mergedOutlets,
+                      selected_outlet_ids: mergedOutlets,
+                      standardPrices: { ...(other.standardPrices || other.standard_prices || {}), ...(winner.standardPrices || winner.standard_prices || {}) },
+                      standard_prices: { ...(other.standardPrices || other.standard_prices || {}), ...(winner.standardPrices || winner.standard_prices || {}) },
+                      branchVariantPrices: { ...(other.branchVariantPrices || other.branch_variant_prices || {}), ...(winner.branchVariantPrices || winner.branch_variant_prices || {}) },
+                      branch_variant_prices: { ...(other.branchVariantPrices || other.branch_variant_prices || {}), ...(winner.branchVariantPrices || winner.branch_variant_prices || {}) },
+                      variants: Array.from(new Set([...(winner.variants || []), ...(other.variants || [])]))
+                    });
+                  }
+                });
+                return Array.from(byNameMap.values());
               };
 
               const mergedCategories  = mergeMasterArray(prev.categories,   serverData.categories,   deletedCatIds);

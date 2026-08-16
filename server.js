@@ -1812,6 +1812,66 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     });
   }
 
+  // ── Otomatis Konsolidasi Produk dengan Nama Sama (Mencegah Duplikasi Menu Master) ──
+  if (Array.isArray(result.products) && result.products.length > 0) {
+    const nameMap = new Map();
+    result.products.forEach(p => {
+      if (!p) return;
+      const rawName = String(p.name || '').trim();
+      const normName = rawName.toUpperCase();
+      if (!normName) return;
+
+      if (!nameMap.has(normName)) {
+        nameMap.set(normName, { ...p, name: rawName });
+      } else {
+        const exist = nameMap.get(normName);
+        const existOutlets = new Set((exist.selectedOutletIds || exist.selected_outlet_ids || []).map(x => String(x)));
+        if (exist.outlet_id && !['Semua Outlet', 'ALL', ''].includes(String(exist.outlet_id))) existOutlets.add(String(exist.outlet_id));
+
+        const newOutlets = (p.selectedOutletIds || p.selected_outlet_ids || []).map(x => String(x));
+        if (p.outlet_id && !['Semua Outlet', 'ALL', ''].includes(String(p.outlet_id))) newOutlets.push(String(p.outlet_id));
+        newOutlets.forEach(o => existOutlets.add(o));
+
+        const mergedStdPrices = {
+          ...(exist.standardPrices || exist.standard_prices || {}),
+          ...(p.standardPrices || p.standard_prices || {})
+        };
+
+        const mergedVariants = Array.from(new Set([
+          ...(exist.variants || []),
+          ...(p.variants || [])
+        ]));
+
+        const mergedBranchVars = {
+          ...(exist.branchVariantPrices || exist.branch_variant_prices || {}),
+          ...(p.branchVariantPrices || p.branch_variant_prices || {})
+        };
+
+        const existTs = Number(exist._updatedAt || exist._lastMutated || exist._lastUpdated || 0);
+        const pTs = Number(p._updatedAt || p._lastMutated || p._lastUpdated || 0);
+        const baseWinner = (pTs > existTs || (Array.isArray(p.variants) && p.variants.length > (exist.variants || []).length)) ? p : exist;
+
+        const mergedProduct = {
+          ...baseWinner,
+          name: rawName,
+          selectedOutletIds: Array.from(existOutlets),
+          selected_outlet_ids: Array.from(existOutlets),
+          standardPrices: mergedStdPrices,
+          standard_prices: mergedStdPrices,
+          branch_prices: mergedStdPrices,
+          outlet_prices: mergedStdPrices,
+          variants: mergedVariants,
+          branchVariantPrices: mergedBranchVars,
+          branch_variant_prices: mergedBranchVars,
+          _updatedAt: Math.max(existTs, pTs, Date.now())
+        };
+
+        nameMap.set(normName, mergedProduct);
+      }
+    });
+    result.products = Array.from(nameMap.values());
+  }
+
   // Bersihkan kategori yang sudah dihapus via deletedCategoriesIds
   const deletedCatSet = new Set([
     ...(result.deletedCategoriesIds || []),
