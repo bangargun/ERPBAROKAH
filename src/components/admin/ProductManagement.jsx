@@ -28,7 +28,8 @@ import {
   RotateCcw,
   SlidersHorizontal,
   ChevronRight,
-  Utensils
+  Utensils,
+  Palette
 } from 'lucide-react';
 import MenuAnalyticsDetailModal from './MenuAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
@@ -81,6 +82,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [hasCustomBranchPrices, setHasCustomBranchPrices] = useState(false);
   const [standardPrices, setStandardPrices] = useState({}); // { [outletId]: price }
   const [outletApkStatus, setOutletApkStatus] = useState({}); // { [outletId]: 'Aktif' | 'Inaktif' }
+
+  // Variant States
+  const [variants, setVariants] = useState([]); // ['Sambal Pecak', 'Sambal Ijo']
+  const [variantPrices, setVariantPrices] = useState({}); // { 'Sambal Pecak': 25000 }
+  const [hasCustomVariantPrices, setHasCustomVariantPrices] = useState(false);
+  const [tempVariantInput, setTempVariantInput] = useState('');
 
   // Recipe / Composition States
   const [compositions, setCompositions] = useState([]); // [{ id, ingredient_id, ingredient_name, qty, unit }]
@@ -274,6 +281,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     });
     setStandardPrices(initStdPrices);
     setOutletApkStatus(initApkStatus);
+    setVariants([]);
+    setVariantPrices({});
+    setHasCustomVariantPrices(false);
+    setTempVariantInput('');
     setCompositions([]);
     setFormSubTab('info');
     setShowFormModal(true);
@@ -309,9 +320,39 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setStandardPrices(initStdPrices);
     setOutletApkStatus(initApkStatus);
     setHasCustomBranchPrices(customFound);
+
+    // Variants load
+    const prodVars = Array.isArray(product.variants) ? product.variants : [];
+    setVariants(prodVars);
+    const vPrices = product.variantPrices || {};
+    setVariantPrices(vPrices);
+    const hasDiffPrices = prodVars.some(v => vPrices[v] && Number(vPrices[v]) !== pPrice);
+    setHasCustomVariantPrices(hasDiffPrices);
+    setTempVariantInput('');
+
     setCompositions(product.compositions || []);
     setFormSubTab('info');
     setShowFormModal(true);
+  };
+
+  // -------------------------------------------------------------
+  // VARIANT HANDLERS
+  // -------------------------------------------------------------
+  const handleAddVariant = () => {
+    if (!tempVariantInput.trim()) return;
+    const vName = tempVariantInput.trim();
+    if (!variants.includes(vName)) {
+      setVariants([...variants, vName]);
+      setVariantPrices(prev => ({ ...prev, [vName]: parseFloat(basePrice) || 0 }));
+    }
+    setTempVariantInput('');
+  };
+
+  const handleRemoveVariant = (vName) => {
+    setVariants(variants.filter(v => v !== vName));
+    const copy = { ...variantPrices };
+    delete copy[vName];
+    setVariantPrices(copy);
   };
 
   // -------------------------------------------------------------
@@ -378,6 +419,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       selectedOutIds.push(o.id);
     });
 
+    const savedVariantPrices = {};
+    if (variants.length > 0) {
+      variants.forEach(v => {
+        savedVariantPrices[v] = hasCustomVariantPrices ? (parseFloat(variantPrices[v]) || priceNum) : priceNum;
+      });
+    }
+
     const productPayload = {
       id: editingProductId || Date.now(),
       sku: prodSku.trim().toUpperCase() || generateNextProductCode(),
@@ -396,6 +444,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       standardPrices: savedStdPrices,
       apkStatus: savedApkStatus,
       outletApkStatus: savedApkStatus,
+      variants: variants,
+      variantPrices: savedVariantPrices,
       compositions: compositions,
       _lastUpdated: Date.now()
     };
@@ -817,9 +867,14 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       </span>
                     </div>
 
-                    {/* Composition Count */}
-                    <div style={{ fontSize: '0.66rem', color: T.txtMuted, marginTop: '6px' }}>
-                      🥣 Resep: {product.compositions?.length || 0} bahan baku terhubung
+                    {/* Composition & Variants Count */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.66rem', color: T.txtMuted, marginTop: '6px' }}>
+                      <span>🥣 Resep: {product.compositions?.length || 0} bahan</span>
+                      {product.variants && product.variants.length > 0 && (
+                        <span style={{ color: T.primary, fontWeight: '800' }}>
+                          🎨 {product.variants.length} Varian
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -950,8 +1005,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       {/* Product Name */}
                       <td style={{ padding: '10px 12px', fontWeight: '800', textTransform: 'uppercase' }}>
                         {product.name}
-                        <div style={{ fontSize: '0.64rem', color: T.txtSecondary, textTransform: 'none', fontWeight: '600' }}>
-                          🥣 {product.compositions?.length || 0} bahan baku
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.64rem', color: T.txtSecondary, textTransform: 'none', fontWeight: '600', marginTop: '2px', flexWrap: 'wrap' }}>
+                          <span>🥣 {product.compositions?.length || 0} bahan baku</span>
+                          {product.variants && product.variants.length > 0 && (
+                            <span style={{ color: T.primary, fontWeight: '800' }}>
+                              • 🎨 {product.variants.length} Varian ({product.variants.join(', ')})
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -1335,6 +1395,127 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             </select>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SECTION: KELOLA VARIAN MENU */}
+                  <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, padding: '12px 14px', borderRadius: '10px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Palette size={15} color={T.primary} />
+                          <span>Pilihan Varian Menu (Opsional)</span>
+                        </span>
+                        <p style={{ fontSize: '0.66rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
+                          Contoh: Pilihan Sambal (Pecak / Ijo / Matah), Suhu (Dingin / Panas), atau Ukuran (Reguler / Jumbo)
+                        </p>
+                      </div>
+                      <span style={{ fontSize: '0.66rem', padding: '2px 6px', borderRadius: '4px', background: T.infoBg, color: T.info, fontWeight: '800' }}>
+                        {variants.length} Varian
+                      </span>
+                    </div>
+
+                    {/* Input Tag Varian */}
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                      <input
+                        type="text"
+                        placeholder="Ketik nama varian (contoh: Sambal Pecak / Porsi Jumbo)..."
+                        value={tempVariantInput}
+                        onChange={e => setTempVariantInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddVariant(); } }}
+                        className="form-input"
+                        style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, flex: 1, fontSize: '0.74rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddVariant}
+                        style={{
+                          background: T.primary,
+                          color: T.txtInverse,
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontWeight: '800',
+                          fontSize: '0.74rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Plus size={14} />
+                        <span>Tambah</span>
+                      </button>
+                    </div>
+
+                    {/* List of Variant Chips */}
+                    {variants.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+                        {variants.map(v => (
+                          <span
+                            key={v}
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: '800',
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              background: T.inputBg,
+                              border: `1px solid ${T.borderStrong}`,
+                              color: T.txtPrimary,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <span>{v}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVariant(v)}
+                              style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Custom Price per Variant Toggle & Table */}
+                    {variants.length > 0 && (
+                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${T.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: '0.74rem', fontWeight: '700', color: T.txtPrimary }}>Atur Harga Khusus per Varian</span>
+                            <p style={{ fontSize: '0.64rem', color: T.txtSecondary, margin: '1px 0 0 0' }}>
+                              Jika tidak dicentang, semua varian akan menggunakan harga dasar ({formatRupiah(basePrice)})
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={hasCustomVariantPrices}
+                            onChange={e => setHasCustomVariantPrices(e.target.checked)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                        </div>
+
+                        {hasCustomVariantPrices && (
+                          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {variants.map(v => (
+                              <div key={v} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr', gap: '8px', alignItems: 'center', background: T.inputBg, padding: '6px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                                <span style={{ fontSize: '0.74rem', fontWeight: '700', color: T.txtPrimary }}>{v}</span>
+                                <input
+                                  type="number"
+                                  placeholder="Harga Rp"
+                                  value={variantPrices[v] !== undefined ? variantPrices[v] : basePrice}
+                                  onChange={e => setVariantPrices({ ...variantPrices, [v]: Number(e.target.value) })}
+                                  className="form-input"
+                                  style={{ background: T.cardBg, borderColor: T.border, color: T.txtPrimary, padding: '4px 8px', fontSize: '0.74rem' }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
