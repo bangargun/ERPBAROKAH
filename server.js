@@ -657,34 +657,40 @@ const syncToMySQL = async (masterData) => {
     const outlets = masterData.outlets || [];
     for (const o of outlets) {
       if (!o || !o.id) continue;
-      await mysqlPool.execute(`
-        INSERT INTO outlets (id, code, name, address, location, manager_name, phone, target_omzet, employee_count, status, color)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          code = VALUES(code),
-          name = VALUES(name),
-          address = VALUES(address),
-          location = VALUES(location),
-          manager_name = VALUES(manager_name),
-          phone = VALUES(phone),
-          target_omzet = VALUES(target_omzet),
-          employee_count = VALUES(employee_count),
-          status = VALUES(status),
-          color = VALUES(color)
-      `, [
-        Number(o.id) || Date.now(),
-        String(o.code || `OUT-${o.id}`),
-        String(o.name || o.branch_name || 'Outlet Cabang'),
-        String(o.address || ''),
-        String(o.location || o.address || ''),
-        String(o.manager_name || o.manager || ''),
-        String(o.phone || ''),
-        Number(o.target_omzet || o.monthly_budget || 0),
-        Number(o.employee_count || 0),
-        String(o.status || 'Aktif'),
-        String(o.color || '#3b82f6')
-      ]);
+      try {
+        await mysqlPool.execute(`
+          INSERT INTO outlets (id, code, name, address, location, manager_name, phone, target_omzet, employee_count, status, color)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            code = VALUES(code),
+            name = VALUES(name),
+            address = VALUES(address),
+            location = VALUES(location),
+            manager_name = VALUES(manager_name),
+            phone = VALUES(phone),
+            target_omzet = VALUES(target_omzet),
+            employee_count = VALUES(employee_count),
+            status = VALUES(status),
+            color = VALUES(color)
+        `, [
+          Number(o.id) || Date.now(),
+          String(o.code || `OUT-${o.id}`),
+          String(o.name || o.branch_name || 'Outlet Cabang'),
+          String(o.address || ''),
+          String(o.location || o.address || ''),
+          String(o.manager_name || o.manager || ''),
+          String(o.phone || ''),
+          Number(o.target_omzet || o.monthly_budget || 0),
+          Number(o.employee_count || 0),
+          String(o.status || 'Aktif'),
+          String(o.color || '#3b82f6')
+        ]);
+      } catch (outletErr) {
+        // Duplicate code/id conflict — skip relational sync for this outlet, JSON blob is still correct
+        console.warn(`syncToMySQL outlet skip (${o.code || o.id}): ${outletErr.message}`);
+      }
     }
+
 
     // 2. Sync Web Admin Users & Mobile POS Users to separate relational tables in MySQL
     const webUsers = masterData.webAdminAccounts || [];
