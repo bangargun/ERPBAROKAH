@@ -105,10 +105,16 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     }
   }, [selectedBranch]);
 
-  // Master ingredients & categories
+  // Master ingredients, categories, outlets, and units
   const allIngredients = useMemo(() => masterData?.ingredients || [], [masterData?.ingredients]);
   const allCategories = useMemo(() => masterData?.categories || [], [masterData?.categories]);
   const allOutlets = useMemo(() => masterData?.outlets || [], [masterData?.outlets]);
+  const allUnits = useMemo(() => {
+    const list = masterData?.units || [];
+    const unitNames = list.map(u => u.name || u.nama || u.unit || u.code).filter(Boolean);
+    const fallbackUnits = ['Gram', 'Kg', 'Pcs', 'ml', 'Liter', 'Botol', 'Bungkus', 'Porsi', 'Sendok', 'Ikat', 'Kaleng', 'Dus', 'Butir', 'Batang', 'Lembar', 'Biji'];
+    return Array.from(new Set([...unitNames, ...fallbackUnits]));
+  }, [masterData?.units]);
 
   // Format IDR Helper
   const formatRupiah = (val) => {
@@ -189,7 +195,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     compositionsList.forEach(comp => {
       const ing = allIngredients.find(i => String(i.id) === String(comp.ingredient_id));
       if (ing) {
-        const ingPrice = Number(ing.avg_buy_price || ing.price || ing.standardPrices?.[selectedBranch] || 0);
+        const ingPrice = Number(ing.avg_buy_price || ing.price || ing.standardPrices?.[selectedBranch] || ing.last_buy_price || 0);
         const qtyNum = parseFloat(comp.qty) || 0;
         const ingUnit = String(ing.unit || ing.satuan || '').toLowerCase().trim();
         const compUnit = String(comp.unit || '').toLowerCase().trim();
@@ -197,8 +203,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
         let cost = 0;
         if ((ingUnit === 'kg' || ingUnit === 'kilogram') && (compUnit === 'gram' || compUnit === 'gr' || compUnit === 'g')) {
           cost = (qtyNum / 1000) * ingPrice;
-        } else if ((ingUnit === 'liter' || ingUnit === 'l') && (compUnit === 'ml' || compUnit === 'mililiter')) {
+        } else if ((ingUnit === 'gram' || ingUnit === 'gr' || ingUnit === 'g') && (compUnit === 'kg' || compUnit === 'kilogram')) {
+          cost = (qtyNum * 1000) * ingPrice;
+        } else if ((ingUnit === 'liter' || ingUnit === 'l') && (compUnit === 'ml' || compUnit === 'mililiter' || compUnit === 'cc')) {
           cost = (qtyNum / 1000) * ingPrice;
+        } else if ((ingUnit === 'ml' || ingUnit === 'mililiter' || ingUnit === 'cc') && (compUnit === 'liter' || compUnit === 'l')) {
+          cost = (qtyNum * 1000) * ingPrice;
         } else {
           cost = qtyNum * ingPrice;
         }
@@ -455,14 +465,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // -------------------------------------------------------------
   const handleAddCompositionRow = () => {
     const firstIng = allIngredients[0];
+    const defaultUnit = firstIng ? (firstIng.unit || firstIng.satuan || 'Pcs') : 'Pcs';
     setCompositions(prev => [
       ...prev,
       {
         id: Date.now() + Math.random(),
         ingredient_id: firstIng ? firstIng.id : '',
         ingredient_name: firstIng ? firstIng.name : '',
-        qty: 100,
-        unit: firstIng ? (firstIng.unit || 'Gram') : 'Gram'
+        qty: 1,
+        unit: defaultUnit
       }
     ]);
   };
@@ -472,11 +483,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       if (c.id !== compId) return c;
       if (field === 'ingredient_id') {
         const ing = allIngredients.find(i => String(i.id) === String(val));
+        const ingUnit = ing ? (ing.unit || ing.satuan || c.unit) : c.unit;
         return {
           ...c,
           ingredient_id: val,
           ingredient_name: ing ? ing.name : c.ingredient_name,
-          unit: ing ? (ing.unit || 'Gram') : c.unit
+          unit: ingUnit
         };
       }
       return { ...c, [field]: val };
@@ -1824,7 +1836,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               />
                             </div>
 
-                            {/* Unit Select */}
+                            {/* Unit Select Dynamically from masterData.units */}
                             <div>
                               <select
                                 value={comp.unit}
@@ -1832,13 +1844,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                                 className="form-select"
                                 style={{ background: T.cardBg, borderColor: T.border, color: T.txtPrimary, width: '100%', fontSize: '0.72rem' }}
                               >
-                                <option value="Gram">Gram</option>
-                                <option value="Kg">Kg</option>
-                                <option value="Pcs">Pcs</option>
-                                <option value="ml">ml</option>
-                                <option value="Liter">Liter</option>
-                                <option value="Sendok">Sendok</option>
-                                <option value="Porsi">Porsi</option>
+                                {allUnits.map(u => (
+                                  <option key={u} value={u}>{u}</option>
+                                ))}
+                                {comp.unit && !allUnits.includes(comp.unit) && (
+                                  <option value={comp.unit}>{comp.unit}</option>
+                                )}
                               </select>
                             </div>
 
