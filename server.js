@@ -775,6 +775,7 @@ const syncToMySQL = async (masterData) => {
     for (const p of products) {
       if (!p || !p.name) continue;
       const pId = Number(p.id) || Date.now();
+      const outIdNum = p.outlet_id && !isNaN(Number(p.outlet_id)) ? Number(p.outlet_id) : null;
       await mysqlPool.execute(`
         INSERT INTO products (id, sku, name, category_id, category_name, price, cost_price, stock, unit, outlet_id, selected_outlet_ids, image_url, description, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -802,7 +803,7 @@ const syncToMySQL = async (masterData) => {
         Number(p.cost_price || p.cost || 0),
         Number(p.stock || 0),
         String(p.unit || 'Porsi'),
-        p.outlet_id ? Number(p.outlet_id) : null,
+        outIdNum,
         Array.isArray(p.selectedOutletIds || p.selected_outlet_ids) ? JSON.stringify(p.selectedOutletIds || p.selected_outlet_ids) : String(p.selectedOutletIds || p.selected_outlet_ids || ''),
         String(p.image_url || p.image || ''),
         String(p.description || ''),
@@ -1813,106 +1814,75 @@ const sanitizeMasterDataPayload = (data) => {
     }
   });
 
-  // ===== AUTO DEDUPLICATION: 1 PRODUK = 1 OUTLET =====
-  // Setiap kali data dibaca/ditulis via API, produk otomatis dibersihkan dari duplikat
+  // ===== MASTER PRODUCTS DEDUPLICATION & SANITIZATION (MULTI-OUTLET SAFE) =====
   if (Array.isArray(clean.products) && clean.products.length > 0) {
-    const VALID_OUTLETS = new Set(['1785307180576','1785369561430','1785537689430','1785564003169','1785369617361']);
-    const winnerMap = new Map();
-    const idSet = new Set();
+    const prodMap = new Map();
 
     for (const p of clean.products) {
       if (!p || !p.id) continue;
+      const idKey = String(p.id).trim();
 
-      // Resolve canonical outlet_id (must be a valid outlet)
-      let outId = String(p.outlet_id || '');
-      if (!VALID_OUTLETS.has(outId)) {
-        const firstValid = (p.selectedOutletIds || []).map(String).find(x => VALID_OUTLETS.has(x));
-        outId = firstValid || '1785307180576';
+      // Normalize selectedOutletIds
+      let selIds = Array.isArray(p.selectedOutletIds)
+        ? p.selectedOutletIds.map(String)
+        : (Array.isArray(p.selected_outlet_ids) ? p.selected_outlet_ids.map(String) : []);
+
+      if (selIds.length === 0 && p.outlet_id && p.outlet_id !== 'Semua Outlet' && p.outlet_id !== 'ALL') {
+        selIds = [String(p.outlet_id)];
       }
 
-      const nameKey = (p.name || '').trim().toUpperCase();
-      const mapKey = outId + '||' + nameKey;
+      // Preserve all standardPrices and alias maps
+      const stdPrices = {
+        ...(p.standardPrices || {}),
+        ...(p.standard_prices || {}),
+        ...(p.branch_prices || {}),
+        ...(p.outlet_prices || {})
+      };
+      const apkStatus = {
+        ...(p.apkStatus || {}),
+        ...(p.outletApkStatus || {}),
+        ...(p.outlet_apk_status || {})
+      };
 
-      // Resolve price strictly for this outlet
-      let price = 0;
-      const sp = p.standardPrices || {};
-      price = Number(sp[outId] || sp[Number(outId)] || 0);
-      if (!price && p.variantPrices) {
-        for (const v of Object.keys(p.variantPrices)) {
-          const vp = Number((p.variantPrices[v] || {})[outId] || 0);
-          if (vp > 0) { price = vp; break; }
-        }
-      }
-      if (!price) price = Number(p.price || 5000);
-
-      // Score this candidate — higher = better (prefer clean server-side records over browser-local broken ones)
-      // Scoring criteria:
-      //   +3: SKU has proper format PRD-NNN (all numeric digits after dash)
-      //   +2: Has valid standardPrices for this outlet
-      //   +1: Has proper numeric outlet_id matching
-      const skuNum = String(p.sku || '').replace(/^PRD-/, '');
-      const isProperSku = /^\d+$/.test(skuNum); // PRD-067 = proper, PRD-B67 = broken
-      const hasValidPrice = price > 0;
-      const hasMatchingOutlet = String(p.outlet_id) === outId;
-      const score = (isProperSku ? 3 : 0) + (hasValidPrice ? 2 : 0) + (hasMatchingOutlet ? 1 : 0);
-
-      if (winnerMap.has(mapKey)) {
-        // Only replace existing winner if this candidate scores higher or has a newer _updatedAt timestamp with equal score
-        const existing = winnerMap.get(mapKey);
-        if (score < existing._score) continue;
-        if (score === existing._score) {
-          const candTs = Number(p._updatedAt || 0);
-          const existTs = Number(existing._updatedAt || 0);
-          if (candTs <= existTs) continue;
-        }
-        // New winner — remove old ID from set so we can reuse
-        idSet.delete(String(existing.id));
-      }
-
-      // Ensure unique numeric ID
-      let uid = Number(p.id);
-      while (idSet.has(String(uid))) uid = Date.now() + Math.floor(Math.random() * 999999);
-      idSet.add(String(uid));
-
-      // Clean variantPrices to only include this outlet
-      const cleanVP = {};
-      for (const v of (p.variants || [])) {
-        cleanVP[v] = { [outId]: Number((p.variantPrices?.[v] || {})[outId] || price) };
-      }
-
-      const upperName = (p.name || '').trim().toUpperCase();
-      winnerMap.set(mapKey, {
+      const sanitizedProd = {
         ...p,
-        name: upperName,
-        id: uid,
-        outlet_id: Number(outId),
-        selectedOutletIds: [Number(outId)],
-        selected_outlet_ids: [Number(outId)],
-        price,
-        standardPrices: { [outId]: price },
-        variantPrices: cleanVP,
-        apkStatus: { [outId]: 'Aktif' },
-        outletApkStatus: { [outId]: 'Aktif' },
+        id: isNaN(Number(p.id)) ? p.id : Number(p.id),
+        name: String(p.name || '').trim().toUpperCase(),
+        sku: String(p.sku || p.code || `PRD-${p.id}`).trim().toUpperCase(),
+        code: String(p.sku || p.code || `PRD-${p.id}`).trim().toUpperCase(),
+        price: Number(p.price || 0),
+        cost: Number(p.cost || p.cost_price || 0),
         status: p.status || 'Aktif',
-        _score: score, // internal scoring, stripped later
-        priceCombinations: [{
-          id: uid,
-          combinationName: upperName,
-          selectedOutletIds: [Number(outId)],
-          outletPrices: { [outId]: price },
-          apkStatus: { [outId]: 'Aktif' },
-          status: 'Aktif'
-        }]
-      });
+        selectedOutletIds: selIds,
+        selected_outlet_ids: selIds,
+        standardPrices: stdPrices,
+        standard_prices: stdPrices,
+        branch_prices: stdPrices,
+        outlet_prices: stdPrices,
+        apkStatus: apkStatus,
+        outletApkStatus: apkStatus,
+        outlet_apk_status: apkStatus,
+        variants: Array.isArray(p.variants) ? p.variants : [],
+        variantPrices: p.variantPrices || {},
+        branchVariantPrices: p.branchVariantPrices || p.branch_variant_prices || {},
+        branch_variant_prices: p.branchVariantPrices || p.branch_variant_prices || {},
+        compositions: Array.isArray(p.compositions) ? p.compositions : []
+      };
+
+      if (prodMap.has(idKey)) {
+        const exist = prodMap.get(idKey);
+        const candTs = Number(p._lastUpdated || p._updatedAt || p._lastMutated || 0);
+        const existTs = Number(exist._lastUpdated || exist._updatedAt || exist._lastMutated || 0);
+        if (candTs >= existTs) {
+          prodMap.set(idKey, sanitizedProd);
+        }
+      } else {
+        prodMap.set(idKey, sanitizedProd);
+      }
     }
 
-    // Strip internal _score field before returning
-    clean.products = Array.from(winnerMap.values()).map(p => {
-      const { _score, ...rest } = p;
-      return rest;
-    });
+    clean.products = Array.from(prodMap.values());
   }
-  // ===== END AUTO DEDUPLICATION =====
 
   return clean;
 };
