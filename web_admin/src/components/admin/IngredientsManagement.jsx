@@ -532,28 +532,58 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
               {/* Field 2.5: Kategori Bahan Baku */}
               <div>
                 <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
-                  Kategori Bahan Baku
+                  Kategori Bahan Baku (Dari Data Master Kategori Bahan) *
                 </label>
-                <input
-                  type="text"
-                  list="ingredientCategoriesList"
-                  placeholder="Pilih atau ketik kategori (contoh: Seafood, Daging, Sayur, Sembako, Minuman)"
-                  value={ingCategory}
-                  onChange={e => setIngCategory(e.target.value)}
-                  className="form-input"
-                  style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
-                />
-                <datalist id="ingredientCategoriesList">
-                  <option value="Seafood & Ikan" />
-                  <option value="Daging & Unggas" />
-                  <option value="Sayur & Bumbu Segar" />
-                  <option value="Minuman & Powder" />
-                  <option value="Sembako & Olahan" />
-                  <option value="Bumbu & Rempah" />
-                  {(masterData.categories || []).map(c => (
-                    <option key={c.id} value={c.name} />
-                  ))}
-                </datalist>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <select
+                    value={ingCategory}
+                    onChange={e => setIngCategory(e.target.value)}
+                    className="form-select"
+                    style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, flex: 1 }}
+                  >
+                    {(masterData.ingredientCategories && masterData.ingredientCategories.length > 0
+                      ? masterData.ingredientCategories
+                      : [
+                          { id: 1, name: 'Seafood & Ikan' },
+                          { id: 2, name: 'Daging & Unggas' },
+                          { id: 3, name: 'Sayur & Bumbu Segar' },
+                          { id: 4, name: 'Minuman & Powder' },
+                          { id: 5, name: 'Sembako & Olahan' },
+                          { id: 6, name: 'Bumbu & Rempah' }
+                        ]
+                    ).map(c => (
+                      <option key={c.id || c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {onNavigateToCategories && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddFormModal(false);
+                        onNavigateToCategories();
+                      }}
+                      title="Kelola Master Kategori Bahan Baku"
+                      style={{
+                        background: T.cardBg2,
+                        border: `1px solid ${T.borderStrong}`,
+                        color: T.accentGold,
+                        padding: '0 10px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.72rem',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Plus size={14} />
+                      <span>Kategori</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Field 3 & 4: Satuan Unit & Stok Awal */}

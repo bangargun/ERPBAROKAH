@@ -38,6 +38,7 @@ export default function MasterDataManagement({ masterData, setMasterData, select
   const [deleteGuardState, setDeleteGuardState] = useState(null);
 
   const [activeSubTab, setActiveSubTab] = useState('products');
+  const [activeCategoryTab, setActiveCategoryTab] = useState('menu'); // 'menu' | 'ingredients'
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -52,9 +53,8 @@ export default function MasterDataManagement({ masterData, setMasterData, select
 
   const subTabs = [
     { id: 'products', name: 'Katalog Menu', icon: Package, count: masterData.products.length },
-    { id: 'categories', name: 'Kategori Menu', icon: Layers, count: masterData.categories.length },
+    { id: 'categories', name: 'Kategori', icon: Layers, count: (masterData.categories?.length || 0) + ((masterData.ingredientCategories || []).length || 6) },
     { id: 'ingredients', name: 'Bahan Baku', icon: ShoppingBasket, count: (masterData.ingredients || []).length },
-    { id: 'ingredientCategories', name: 'Kategori Bahan', icon: Layers, count: (masterData.ingredientCategories || []).length || 6 },
     { id: 'customers', name: 'Pelanggan', icon: Users, count: masterData.customers.length },
     { id: 'tables', name: 'Meja', icon: Layout, count: masterData.tables.length },
     { id: 'outlets', name: 'Outlet', icon: Store, count: masterData.outlets.length },
@@ -244,15 +244,103 @@ export default function MasterDataManagement({ masterData, setMasterData, select
         )}
 
 
-        {/* 2. KATEGORI PRODUK (DEDICATED COMPONENT) */}
+        {/* 2. KATEGORI (KATEGORI MENU & KATEGORI BAHAN BAKU) */}
         {activeSubTab === 'categories' && (
-          <ProductCategoryManagement
-            masterData={masterData}
-            setMasterData={setMasterData}
-            selectedBranch={selectedBranch}
-            userSession={userSession}
-            themeMode={themeMode}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Inner Subtabs Navigation */}
+            <div style={{
+              display: 'inline-flex',
+              background: T.cardBg2,
+              padding: '4px',
+              borderRadius: '12px',
+              border: `1px solid ${T.borderStrong}`,
+              gap: '4px',
+              alignSelf: 'flex-start'
+            }}>
+              <button
+                type="button"
+                onClick={() => setActiveCategoryTab('menu')}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  background: activeCategoryTab === 'menu' ? T.primary : 'transparent',
+                  color: activeCategoryTab === 'menu' ? T.txtInverse : T.txtSecondary,
+                  fontWeight: '800',
+                  fontSize: '0.78rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: activeCategoryTab === 'menu' ? T.shadowSm : 'none'
+                }}
+              >
+                <Package size={15} />
+                <span>Kategori Menu</span>
+                <span style={{
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontSize: '0.66rem',
+                  background: activeCategoryTab === 'menu' ? 'rgba(0,0,0,0.2)' : T.inputBg,
+                  color: activeCategoryTab === 'menu' ? T.txtInverse : T.txtPrimary
+                }}>
+                  {masterData.categories?.length || 0}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveCategoryTab('ingredients')}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  background: activeCategoryTab === 'ingredients' ? T.primary : 'transparent',
+                  color: activeCategoryTab === 'ingredients' ? T.txtInverse : T.txtSecondary,
+                  fontWeight: '800',
+                  fontSize: '0.78rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: activeCategoryTab === 'ingredients' ? T.shadowSm : 'none'
+                }}
+              >
+                <ShoppingBasket size={15} />
+                <span>Kategori Bahan Baku</span>
+                <span style={{
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontSize: '0.66rem',
+                  background: activeCategoryTab === 'ingredients' ? 'rgba(0,0,0,0.2)' : T.inputBg,
+                  color: activeCategoryTab === 'ingredients' ? T.txtInverse : T.txtPrimary
+                }}>
+                  {(masterData.ingredientCategories || []).length || 6}
+                </span>
+              </button>
+            </div>
+
+            {/* Inner Content */}
+            {activeCategoryTab === 'menu' ? (
+              <ProductCategoryManagement
+                masterData={masterData}
+                setMasterData={setMasterData}
+                selectedBranch={selectedBranch}
+                userSession={userSession}
+                themeMode={themeMode}
+              />
+            ) : (
+              <IngredientCategoryManagement
+                masterData={masterData}
+                setMasterData={setMasterData}
+                selectedBranch={selectedBranch}
+                userSession={userSession}
+                themeMode={themeMode}
+              />
+            )}
+          </div>
         )}
 
         {/* 3. BAHAN BAKU (DEDICATED COMPONENT) */}
@@ -263,18 +351,10 @@ export default function MasterDataManagement({ masterData, setMasterData, select
             selectedBranch={selectedBranch}
             userSession={userSession}
             themeMode={themeMode}
-            onNavigateToCategories={() => setActiveSubTab('ingredientCategories')}
-          />
-        )}
-
-        {/* 3.5 KATEGORI BAHAN BAKU (DEDICATED COMPONENT) */}
-        {activeSubTab === 'ingredientCategories' && (
-          <IngredientCategoryManagement
-            masterData={masterData}
-            setMasterData={setMasterData}
-            selectedBranch={selectedBranch}
-            userSession={userSession}
-            themeMode={themeMode}
+            onNavigateToCategories={() => {
+              setActiveSubTab('categories');
+              setActiveCategoryTab('ingredients');
+            }}
           />
         )}
 
