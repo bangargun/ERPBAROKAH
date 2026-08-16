@@ -361,25 +361,107 @@ export default function FinancialOverview({
   }, [allOutlets, allSalesTx, allApprovedFinance]);
 
   // ------------------------------------------------------------------
-  // 5. INGREDIENT PRICE DISPARITY ACROSS BRANCHES
+  // 5. INGREDIENT CATEGORIES & PRICE DISPARITY ACROSS BRANCHES
   // ------------------------------------------------------------------
+  // Dynamic categories strictly from Master Data Ingredients & Master Categories
+  const dynamicIngredientCategories = useMemo(() => {
+    const catsSet = new Set();
+    (masterData?.ingredients || []).forEach(i => {
+      const cat = (i.category || i.category_name || i.type || '').trim();
+      if (cat) catsSet.add(cat);
+    });
+    (masterData?.categories || []).forEach(c => {
+      if (c.type === 'ingredient' || c.category_type === 'ingredient' || c.is_ingredient) {
+        if (c.name) catsSet.add(c.name.trim());
+      }
+    });
+    return Array.from(catsSet);
+  }, [masterData?.ingredients, masterData?.categories]);
+
+  // Comprehensive Price lookup per outlet per ingredient from Master Data & Logistics
   const ingredientDisparityList = useMemo(() => {
     if (allIngredients.length === 0) return [];
 
     let filtered = allIngredients;
     if (selectedIngredientCategory !== 'ALL') {
-      filtered = allIngredients.filter(i => (i.category || '').toLowerCase() === selectedIngredientCategory.toLowerCase());
+      filtered = allIngredients.filter(i => {
+        const cat = (i.category || i.category_name || i.type || '').toLowerCase().trim();
+        return cat === selectedIngredientCategory.toLowerCase().trim();
+      });
     }
 
-    return filtered.slice(0, 8).map(ing => {
+    return filtered.slice(0, 12).map(ing => {
+      const ingNameLower = (ing.name || '').toLowerCase().trim();
+      const baseCost = Number(ing.price || ing.cost || ing.buy_price || ing.unitPrice || 0);
+
       const outletPrices = allOutlets.map(o => {
-        const p = Number(ing.price || ing.cost || ing.unitPrice || ing.buy_price || 0);
-        return { outletId: o.id, outletName: o.name, price: p };
+        const oIdStr = String(o.id);
+        let foundPrice = 0;
+
+        // 1. Check stockMovement (stok masuk / pembelian logistik per outlet)
+        const matchedStockIn = (masterData?.stockMovement || []).filter(m => {
+          const mName = (m.item_name || m.name || m.ingredient_name || '').toLowerCase().trim();
+          const mOId = String(m.outlet_id || m.branch_id || '');
+          const mType = String(m.type || m.movement_type || '').toLowerCase();
+          return mName === ingNameLower && mOId === oIdStr && (mType.includes('in') || mType.includes('masuk') || mType.includes('beli'));
+        });
+        if (matchedStockIn.length > 0) {
+          const latestStock = matchedStockIn[matchedStockIn.length - 1];
+          foundPrice = Number(latestStock.price || latestStock.cost || latestStock.unit_price || 0);
+        }
+
+        // 2. Check approvedLogistics
+        if (!foundPrice) {
+          (masterData?.approvedLogistics || []).forEach(log => {
+            if (String(log.outlet_id || log.branch_id || '') === oIdStr) {
+              const items = log.items || log.ingredients || [];
+              items.forEach(it => {
+                const itName = (it.ingredient_name || it.name || it.item_name || '').toLowerCase().trim();
+                if (itName === ingNameLower && Number(it.price_per_unit || it.cost || it.price || 0) > 0) {
+                  foundPrice = Number(it.price_per_unit || it.cost || it.price);
+                }
+              });
+            }
+          });
+        }
+
+        // 3. Check approvedFinanceDaily / manualEntryRecords cogs rows
+        if (!foundPrice) {
+          const allReps = [...(masterData?.approvedFinanceDaily || []), ...(masterData?.manualEntryRecords || [])];
+          allReps.forEach(rep => {
+            if (String(rep.outlet_id || rep.branch_id || '') === oIdStr) {
+              const rows = rep.expense_rows || rep.cogs_items || rep.cogs_breakdown || [];
+              rows.forEach(r => {
+                const rName = (r.item_name || r.name || '').toLowerCase().trim();
+                if (rName === ingNameLower && Number(r.price_per_unit || r.cost || 0) > 0) {
+                  foundPrice = Number(r.price_per_unit || r.cost);
+                }
+              });
+            }
+          });
+        }
+
+        // 4. Fallback to ingredient's own base cost/price from Master Data Bahan Baku
+        if (!foundPrice) {
+          if (ing.outletPrices && (ing.outletPrices[o.id] || ing.outletPrices[oIdStr])) {
+            foundPrice = Number(ing.outletPrices[o.id] || ing.outletPrices[oIdStr]);
+          } else if (ing.standardPrices && (ing.standardPrices[o.id] || ing.standardPrices[oIdStr])) {
+            foundPrice = Number(ing.standardPrices[o.id] || ing.standardPrices[oIdStr]);
+          } else {
+            foundPrice = baseCost;
+          }
+        }
+
+        return {
+          outletId: o.id,
+          outletName: o.name,
+          price: foundPrice
+        };
       });
 
-      const prices = outletPrices.map(op => op.price).filter(p => p > 0);
-      const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-      const maxPrice = prices.length > 0 ? Math.max(...prices) : 0;
+      const validPrices = outletPrices.map(op => op.price).filter(p => p > 0);
+      const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+      const maxPrice = validPrices.length > 0 ? Math.max(...validPrices) : 0;
       const disparity = maxPrice - minPrice;
 
       return {
@@ -391,7 +473,7 @@ export default function FinancialOverview({
         hasDisparityAlert: disparity > 2000
       };
     });
-  }, [allIngredients, selectedIngredientCategory, allOutlets]);
+  }, [allIngredients, selectedIngredientCategory, allOutlets, masterData?.stockMovement, masterData?.approvedLogistics, masterData?.approvedFinanceDaily, masterData?.manualEntryRecords]);
 
   // ------------------------------------------------------------------
   // 6. RECENT TRANSACTIONS FEED
@@ -1064,7 +1146,7 @@ export default function FinancialOverview({
             </p>
           </div>
 
-          {/* Category Filter */}
+          {/* Category Filter Dynamically from Master Data */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
             <Filter size={14} color={T.txtSecondary} />
             <select
@@ -1073,11 +1155,9 @@ export default function FinancialOverview({
               style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
             >
               <option value="ALL">Semua Kategori Bahan</option>
-              <option value="Ayam">Ayam</option>
-              <option value="Daging">Daging</option>
-              <option value="Bumbu">Bumbu</option>
-              <option value="Minyak">Minyak</option>
-              <option value="Sembako">Sembako</option>
+              {dynamicIngredientCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
           </div>
         </div>
