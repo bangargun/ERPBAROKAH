@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { X, Package, DollarSign, Calendar, Store, ShoppingBag, CreditCard, TrendingUp, Filter, Receipt } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
 
-export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose, themeMode = 'dark' }) {
+export default function MenuAnalyticsDetailModal({ menuItem, product, masterData, onClose, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const activeItem = menuItem || product;
   const [filterOutlet, setFilterOutlet] = useState('Semua Outlet');
   const [filterMonthYear, setFilterMonthYear] = useState('Semua Bulan & Tahun');
 
-  if (!menuItem) return null;
+  if (!activeItem) return null;
 
   // Retrieve outlets list
   const outletsList = masterData?.outlets || [];
@@ -28,16 +29,16 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
       const matchedItem = trxItems.find(i => {
         if (!i) return false;
         // 1. Match by Product ID / ID
-        if (i.product_id && (Number(i.product_id) === Number(menuItem.id) || String(i.product_id) === String(menuItem.id))) return true;
-        if (i.id && (Number(i.id) === Number(menuItem.id) || String(i.id) === String(menuItem.id))) return true;
+        if (i.product_id && (Number(i.product_id) === Number(activeItem.id) || String(i.product_id) === String(activeItem.id))) return true;
+        if (i.id && (Number(i.id) === Number(activeItem.id) || String(i.id) === String(activeItem.id))) return true;
         
         // 2. Match by SKU / Code
-        if (i.sku && menuItem.sku && i.sku.toLowerCase() === menuItem.sku.toLowerCase()) return true;
+        if (i.sku && activeItem.sku && i.sku.toLowerCase() === activeItem.sku.toLowerCase()) return true;
 
         // 3. Match by Product Name (case-insensitive & substring match)
-        if (i.name && menuItem.name) {
+        if (i.name && activeItem.name) {
           const iName = i.name.trim().toLowerCase();
-          const mName = menuItem.name.trim().toLowerCase();
+          const mName = activeItem.name.trim().toLowerCase();
           if (iName === mName) return true;
           if (iName.startsWith(mName) || mName.startsWith(iName)) return true;
           if (iName.includes(mName) || mName.includes(iName)) return true;
@@ -47,7 +48,7 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
 
       if (matchedItem) {
         const itemQty = Number(matchedItem.qty || matchedItem.quantity || 1);
-        const unitPrice = Number(matchedItem.price || matchedItem.price_unit || menuItem.price || 0);
+        const unitPrice = Number(matchedItem.price || matchedItem.price_unit || activeItem.price || 0);
         const totalPrice = Number(matchedItem.amount || matchedItem.total_price || (itemQty * unitPrice));
 
         matchedHistory.push({
@@ -100,23 +101,23 @@ export default function MenuAnalyticsDetailModal({ menuItem, masterData, onClose
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: `1px solid ${T.border}`, paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: T.primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.navActiveTxt, fontWeight: '900', fontSize: '1.4rem', boxShadow: T.primaryBtnShadow }}>
-              {menuItem.name ? menuItem.name.charAt(0).toUpperCase() : 'M'}
+              {activeItem.name ? activeItem.name.charAt(0).toUpperCase() : 'M'}
             </div>
             <div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{menuItem.name}</span>
+                <span>{activeItem.name}</span>
                 <span style={{ fontSize: '0.74rem', fontWeight: '800', background: T.infoBg, color: T.info, padding: '3px 10px', borderRadius: '8px', border: `1px solid ${T.infoBorder}` }}>
-                  Kode: {menuItem.sku || `MNU-${menuItem.id}`}
+                  Kode: {activeItem.sku || `MNU-${activeItem.id}`}
                 </span>
               </h2>
               <div style={{ fontSize: '0.82rem', color: T.txtSecondary, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span>Kategori: <strong style={{ color: T.info }}>{menuItem.category_name || menuItem.category || 'Umum'}</strong></span>
+                <span>Kategori: <strong style={{ color: T.info }}>{activeItem.category_name || activeItem.category || 'Umum'}</strong></span>
                 <span>•</span>
-                <span>Harga Jual: <strong style={{ color: T.success }}>{formatRupiah(menuItem.price)}</strong></span>
-                {menuItem.cost && (
+                <span>Harga Jual: <strong style={{ color: T.success }}>{formatRupiah(activeItem.price)}</strong></span>
+                {activeItem.cost && (
                   <>
                     <span>•</span>
-                    <span>HPP Modal: <strong style={{ color: T.txtSecondary }}>{formatRupiah(menuItem.cost)}</strong></span>
+                    <span>HPP Modal: <strong style={{ color: T.txtSecondary }}>{formatRupiah(activeItem.cost)}</strong></span>
                   </>
                 )}
               </div>
