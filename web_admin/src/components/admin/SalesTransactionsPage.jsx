@@ -4155,7 +4155,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </>
               ) : (
                 <>
-                  {/* Year Selector */}
+                  {/* Year Selector (2024 s/d 2040) */}
                   <select
                     value={selectedOmzetYear}
                     onChange={e => setSelectedOmzetYear(e.target.value)}
@@ -4171,9 +4171,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       cursor: 'pointer'
                     }}
                   >
-                    <option value="2026">📅 Tahun 2026 (Jan - Des)</option>
-                    <option value="2025">📅 Tahun 2025 (Jan - Des)</option>
-                    <option value="2024">📅 Tahun 2024 (Jan - Des)</option>
+                    {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
+                      <option key={yr} value={yr.toString()}>
+                        📅 Tahun {yr} (Jan - Des)
+                      </option>
+                    ))}
                   </select>
 
                   {/* Multi-Outlet Dropdown Trigger in Monthly Mode */}
