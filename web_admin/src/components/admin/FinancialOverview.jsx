@@ -363,20 +363,44 @@ export default function FinancialOverview({
   // ------------------------------------------------------------------
   // 5. INGREDIENT CATEGORIES & PRICE DISPARITY ACROSS BRANCHES
   // ------------------------------------------------------------------
+  // Helper to reliably resolve category for any ingredient from Master Data or intelligent taxonomy
+  const resolveIngredientCategory = (ing) => {
+    if (!ing) return 'Bahan Baku';
+    if (ing.category && String(ing.category).trim() && String(ing.category).trim() !== '-') return String(ing.category).trim();
+    if (ing.category_name && String(ing.category_name).trim() && String(ing.category_name).trim() !== '-') return String(ing.category_name).trim();
+    if (ing.type && String(ing.type).trim() && String(ing.type).trim() !== '-') return String(ing.type).trim();
+
+    const name = String(ing.name || '').toLowerCase();
+    if (name.includes('ikan') || name.includes('udang') || name.includes('cumi') || name.includes('kepiting') || name.includes('lele') || name.includes('gurami') || name.includes('seafood')) {
+      return 'Seafood & Ikan';
+    }
+    if (name.includes('ayam') || name.includes('bebek') || name.includes('daging') || name.includes('sapi') || name.includes('kambing') || name.includes('telur')) {
+      return 'Daging & Unggas';
+    }
+    if (name.includes('kangkung') || name.includes('bayam') || name.includes('toge') || name.includes('sayur') || name.includes('cabai') || name.includes('cabe') || name.includes('bawang') || name.includes('tomat') || name.includes('timun')) {
+      return 'Sayur & Bumbu Segar';
+    }
+    if (name.includes('milo') || name.includes('kopi') || name.includes('coffee') || name.includes('cappucino') || name.includes('teh') || name.includes('sirup') || name.includes('susu') || name.includes('powder')) {
+      return 'Minuman & Powder';
+    }
+    if (name.includes('nasi') || name.includes('beras') || name.includes('minyak') || name.includes('tepung') || name.includes('gula') || name.includes('garam') || name.includes('kecap') || name.includes('saus')) {
+      return 'Sembako & Olahan';
+    }
+    return 'Bahan Baku Utama';
+  };
+
   // Dynamic categories strictly from Master Data Ingredients & Master Categories
   const dynamicIngredientCategories = useMemo(() => {
     const catsSet = new Set();
-    (masterData?.ingredients || []).forEach(i => {
-      const cat = (i.category || i.category_name || i.type || '').trim();
+    allIngredients.forEach(i => {
+      const cat = resolveIngredientCategory(i);
       if (cat) catsSet.add(cat);
     });
     (masterData?.categories || []).forEach(c => {
-      if (c.type === 'ingredient' || c.category_type === 'ingredient' || c.is_ingredient) {
-        if (c.name) catsSet.add(c.name.trim());
-      }
+      if (c.name) catsSet.add(c.name.trim());
     });
-    return Array.from(catsSet);
-  }, [masterData?.ingredients, masterData?.categories]);
+    return Array.from(catsSet).sort();
+  }, [allIngredients, masterData?.categories]);
 
   // Comprehensive Price lookup per outlet per ingredient from Master Data & Logistics
   const ingredientDisparityList = useMemo(() => {
@@ -385,7 +409,7 @@ export default function FinancialOverview({
     let filtered = allIngredients;
     if (selectedIngredientCategory !== 'ALL') {
       filtered = allIngredients.filter(i => {
-        const cat = (i.category || i.category_name || i.type || '').toLowerCase().trim();
+        const cat = resolveIngredientCategory(i).toLowerCase().trim();
         return cat === selectedIngredientCategory.toLowerCase().trim();
       });
     }
@@ -1173,8 +1197,13 @@ export default function FinancialOverview({
               <div key={idx} style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '12px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <span style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary }}>{ing.name}</span>
-                    <span style={{ fontSize: '0.68rem', color: T.txtSecondary, marginLeft: '6px' }}>/ {ing.unit || 'Kg'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary }}>{ing.name}</span>
+                      <span style={{ fontSize: '0.66rem', color: T.txtSecondary }}>/ {ing.unit || 'Kg'}</span>
+                    </div>
+                    <div style={{ fontSize: '0.62rem', color: T.info, fontWeight: '700', marginTop: '2px' }}>
+                      Kategori: {resolveIngredientCategory(ing)}
+                    </div>
                   </div>
                   <span style={{
                     fontSize: '0.68rem',

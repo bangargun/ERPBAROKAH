@@ -25,6 +25,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
 
   // Form states
   const [ingName, setIngName] = useState('');
+  const [ingCategory, setIngCategory] = useState('Bumbu & Rempah');
   const [ingStatus, setIngStatus] = useState('Aktif');
   const [ingUnit, setIngUnit] = useState('Gram');
   const [ingStock, setIngStock] = useState('1000');
@@ -52,6 +53,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
   const handleOpenAddForm = () => {
     setEditingIngredientId(null);
     setIngName('');
+    setIngCategory('Bumbu & Rempah');
     setIngStatus('Aktif');
     setIngUnit(masterData.units?.[0]?.symbol || 'Gram');
     setIngStock('0');
@@ -64,6 +66,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
     if (!item) return;
     setEditingIngredientId(item.id);
     setIngName(item.name || '');
+    setIngCategory(item.category || item.category_name || 'Bumbu & Rempah');
     setIngStatus(item.status || 'Aktif');
     setIngUnit(item.unit || (masterData.units?.[0]?.symbol || 'Gram'));
     setIngStock(item.stock !== undefined && item.stock !== null ? String(item.stock) : '0');
@@ -93,6 +96,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
       id: editingIngredientId || Date.now(),
       code,
       name: ingName.trim(),
+      category: ingCategory.trim() || 'Bumbu & Rempah',
       unit: ingUnit,
       stock: parseFloat(ingStock) || 0,
       min_stock: parseFloat(ingMinStock) || 500,
@@ -121,6 +125,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
       id: editingIngredientId || Date.now(),
       code,
       name: ingName.trim(),
+      category: ingCategory.trim() || 'Bumbu & Rempah',
       unit: ingUnit,
       stock: parseFloat(ingStock) || 0,
       min_stock: parseFloat(ingMinStock) || 500,
@@ -251,6 +256,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
               <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', background: T.tableHeaderBg, fontWeight: '800' }}>
                 <th style={{ padding: '10px 10px' }}>Kode Bahan (Auto)</th>
                 <th style={{ padding: '10px 10px' }}>Nama Bahan Baku</th>
+                <th style={{ padding: '10px 10px' }}>Kategori</th>
                 <th style={{ padding: '10px 10px' }}>Satuan Unit</th>
                 <th style={{ padding: '10px 10px' }}>Status</th>
                 <th style={{ padding: '10px 10px', textAlign: 'right' }}>Aksi</th>
@@ -259,7 +265,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
             <tbody>
               {paginatedIngredients.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
+                  <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: T.txtMuted, fontSize: '0.76rem' }}>
                     Belum ada data bahan baku yang cocok.
                   </td>
                 </tr>
@@ -306,6 +312,13 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
                         >
                           {cleanName}
                         </button>
+                      </td>
+
+                      {/* 2.5 KATEGORI BAHAN */}
+                      <td style={{ padding: '8px 10px', color: T.txtSecondary }}>
+                        <span style={{ background: T.infoBg, color: T.info, padding: '2px 8px', borderRadius: '6px', border: `1px solid ${T.infoBorder}`, fontSize: '0.68rem', fontWeight: '700' }}>
+                          {ing.category || ing.category_name || 'Bumbu & Rempah'}
+                        </span>
                       </td>
 
                       {/* 3. SATUAN UNIT */}
@@ -481,6 +494,33 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
                   style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
                   autoFocus
                 />
+              </div>
+
+              {/* Field 2.5: Kategori Bahan Baku */}
+              <div>
+                <label style={{ fontSize: '0.78rem', color: T.txtSecondary, display: 'block', marginBottom: '6px', fontWeight: '600' }}>
+                  Kategori Bahan Baku
+                </label>
+                <input
+                  type="text"
+                  list="ingredientCategoriesList"
+                  placeholder="Pilih atau ketik kategori (contoh: Seafood, Daging, Sayur, Sembako, Minuman)"
+                  value={ingCategory}
+                  onChange={e => setIngCategory(e.target.value)}
+                  className="form-input"
+                  style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary }}
+                />
+                <datalist id="ingredientCategoriesList">
+                  <option value="Seafood & Ikan" />
+                  <option value="Daging & Unggas" />
+                  <option value="Sayur & Bumbu Segar" />
+                  <option value="Minuman & Powder" />
+                  <option value="Sembako & Olahan" />
+                  <option value="Bumbu & Rempah" />
+                  {(masterData.categories || []).map(c => (
+                    <option key={c.id} value={c.name} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Field 3 & 4: Satuan Unit & Stok Awal */}
