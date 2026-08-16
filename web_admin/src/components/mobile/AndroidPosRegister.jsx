@@ -218,6 +218,42 @@ export default function AndroidPosRegister({
     return 0;
   };
 
+  // Helper for computing effective price of a specific variant for current outlet
+  const getVariantPrice = (item, vName, outletId) => {
+    if (!item) return 0;
+    const outId = outletId || currentOutlet?.id || 1;
+    const outIdStr = String(outId);
+    const outIdNum = Number(outId);
+
+    // 1. Check branchVariantPrices / branch_variant_prices for this outlet & variant
+    const bVarPrices = item.branchVariantPrices || item.branch_variant_prices || {};
+    const outMap = bVarPrices[outId] || bVarPrices[outIdStr] || bVarPrices[outIdNum];
+    if (outMap && typeof outMap === 'object' && outMap[vName] !== undefined && Number(outMap[vName]) > 0) {
+      return Number(outMap[vName]);
+    }
+
+    // 2. Check variantPrices
+    const vPrices = item.variantPrices || {};
+    if (vPrices[vName] !== undefined) {
+      if (typeof vPrices[vName] === 'object') {
+        const vVal = vPrices[vName][outId] || vPrices[vName][outIdStr] || vPrices[vName][outIdNum];
+        if (vVal !== undefined && Number(vVal) > 0) return Number(vVal);
+      } else if (Number(vPrices[vName]) > 0) {
+        return Number(vPrices[vName]);
+      }
+    }
+
+    // 3. Check standardPrices / standard_prices / branch_prices / outlet_prices for this outlet
+    const stdPrices = item.standardPrices || item.standard_prices || item.branch_prices || item.outlet_prices || {};
+    const stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : (stdPrices[outIdStr] !== undefined ? stdPrices[outIdStr] : stdPrices[outIdNum]);
+    if (stdVal !== undefined && Number(stdVal) > 0) {
+      return Number(stdVal);
+    }
+
+    // 4. Fallback to base price
+    return Number(item.price || 0);
+  };
+
   // Filter products for this outlet — strictly isolate by outlet
   const rawProducts = (masterData?.products || []);
   const currentOutletIdStr = String(currentOutlet?.id || '');
@@ -1056,9 +1092,18 @@ export default function AndroidPosRegister({
               'closedShifts', 'dailyReports', 'manualEntryRecords'
             ]);
 
+            const MASTER_DATA_KEYS = new Set([
+              'products', 'menuItems', 'categories', 'ingredients', 'outlets', 'paymentMethods', 'expenseMaster'
+            ]);
+
             const smartMergeArray = (localArr, serverArr, keyName = '') => {
               const sArr = Array.isArray(serverArr) ? serverArr : [];
               const lArr = Array.isArray(localArr) ? localArr : [];
+
+              // Master Data (Produk, Kategori, Bahan, Outlet) dikelola di Web Admin — data server adalah otoritatif!
+              if (MASTER_DATA_KEYS.has(keyName) && sArr.length > 0) {
+                return sArr;
+              }
 
               if (sArr.length === 0 && lArr.length === 0) return [];
               if (sArr.length === 0) return lArr;
@@ -9043,12 +9088,7 @@ export default function AndroidPosRegister({
                     {/* Radio Options List */}
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {varList.map((item, idx) => {
-                        let vPrice = selectedProductForVariant.price || 0;
-                        if (item.name !== 'Standard' && selectedProductForVariant.variantPrices?.[item.name]?.[activeOutletId] !== undefined) {
-                          vPrice = selectedProductForVariant.variantPrices[item.name][activeOutletId];
-                        } else if (selectedProductForVariant.standardPrices?.[activeOutletId] !== undefined) {
-                          vPrice = selectedProductForVariant.standardPrices[activeOutletId];
-                        }
+                        const vPrice = getVariantPrice(selectedProductForVariant, item.name, activeOutletId);
 
                         const isSelected = activeVarObj.name === item.name;
 
@@ -9205,12 +9245,7 @@ export default function AndroidPosRegister({
               const varList = rawVariants.length > 0 ? rawVariants : ['Standard'];
               const activeVName = modalSelectedVariant || varList[0];
 
-              let unitPrice = selectedProductForVariant.price || 0;
-              if (activeVName !== 'Standard' && selectedProductForVariant.variantPrices?.[activeVName]?.[activeOutletId] !== undefined) {
-                unitPrice = selectedProductForVariant.variantPrices[activeVName][activeOutletId];
-              } else if (selectedProductForVariant.standardPrices?.[activeOutletId] !== undefined) {
-                unitPrice = selectedProductForVariant.standardPrices[activeOutletId];
-              }
+              const unitPrice = getVariantPrice(selectedProductForVariant, activeVName, activeOutletId);
 
               const discVal = modalDiscountEnabled && modalDiscountAmount !== '' ? Number(modalDiscountAmount) : 0;
               const netUnitPrice = Math.max(0, unitPrice - discVal);
