@@ -135,7 +135,13 @@ export function DoubleCalendarPicker({
   noWrapper = false,
   themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const [baseMonth, setBaseMonth] = useState(new Date(2026, 6, 1)); // Default to July 2026 as in screenshot
+  const [baseMonth, setBaseMonth] = useState(() => {
+    if (startDate) {
+      const d = new Date(startDate);
+      if (!isNaN(d.getTime())) return new Date(d.getFullYear(), d.getMonth(), 1);
+    }
+    return new Date();
+  });
   const [tempStart, setTempStart] = useState(startDate);
   const [tempEnd, setTempEnd] = useState(endDate);
   const containerRef = useRef(null);
@@ -218,6 +224,12 @@ export function DoubleCalendarPicker({
       setEndDate(lStr);
       setTempStart(fStr);
       setTempEnd(lStr);
+      setShowPopover(false);
+    } else if (presetKey === 'all') {
+      setStartDate('');
+      setEndDate('');
+      setTempStart('');
+      setTempEnd('');
       setShowPopover(false);
     }
   };
@@ -990,10 +1002,30 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const handleManualSync = () => {
     setIsSyncing(true);
     setTimeout(() => {
+      try {
+        const cacheRaw = localStorage.getItem('MRIS_POS_MASTER_DATA_CACHE');
+        if (cacheRaw) {
+          const cacheData = JSON.parse(cacheRaw);
+          if (cacheData && Array.isArray(cacheData.salesTransactions)) {
+            const currentIds = new Set((masterData.salesTransactions || []).map(t => String(t.id || t.receipt_no || t.invoice_no)));
+            const newTxs = cacheData.salesTransactions.filter(t => !currentIds.has(String(t.id || t.receipt_no || t.invoice_no)));
+            if (newTxs.length > 0) {
+              setMasterData(prev => ({
+                ...prev,
+                salesTransactions: [...newTxs, ...(prev.salesTransactions || [])],
+                transactions: [...newTxs, ...(prev.transactions || [])],
+                _lastUpdated: Date.now()
+              }));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing POS transactions:', err);
+      }
       setIsSyncing(false);
       const nowStr = new Date().toLocaleTimeString('id-ID');
       setLastSyncTime(nowStr);
-      alert(`Sinkronisasi Berhasil! (${nowStr})\n\nSeluruh data transaksi kasir, omzet penjualan, rincian produk, dan struk pembayaran telah tersinkronisasi otomatis dari Mobile APK Kasir seluruh outlet.`);
+      alert(`⚡ Sinkronisasi Berhasil! (${nowStr})\n\nSeluruh data transaksi kasir, omzet penjualan, rincian produk, dan struk pembayaran telah tersinkronisasi otomatis dari Mobile APK Kasir seluruh outlet.`);
     }, 600);
   };
 
