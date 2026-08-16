@@ -1046,6 +1046,7 @@ export default function AdjustmentsManagementPage({
                     className="form-select"
                     style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, width: '100%' }}
                   >
+                    <option value="Penyesuaian Awal Bulan">Penyesuaian Awal Bulan</option>
                     <option value="Basi / Kadaluarsa (Spoilage)">Basi / Kadaluarsa (Spoilage)</option>
                     <option value="Rusak / Tumpah / Pecah (Damaged)">Rusak / Tumpah / Pecah (Damaged)</option>
                     <option value="Selisih Stock Opname Fisik Dapur">Selisih Stock Opname Fisik Dapur</option>
@@ -1254,6 +1255,7 @@ export default function AdjustmentsManagementPage({
                     className="form-select"
                     style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, width: '100%' }}
                   >
+                    <option value="Penyesuaian Awal Bulan">Penyesuaian Awal Bulan</option>
                     <option value="Selisih Tutup Kasir / Shift Closing">Selisih Tutup Kasir / Shift Closing</option>
                     <option value="Pembulatan Uang Kembalian Pelanggan">Pembulatan Uang Kembalian Pelanggan</option>
                     <option value="Koreksi Modal Awal Kasir">Koreksi Modal Awal Kasir</option>
