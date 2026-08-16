@@ -2152,6 +2152,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       {selectedMenuDetail && (
         <MenuAnalyticsDetailModal
           product={selectedMenuDetail}
+          menuItem={selectedMenuDetail}
           onClose={() => setSelectedMenuDetail(null)}
           masterData={masterData}
           themeMode={themeMode}
