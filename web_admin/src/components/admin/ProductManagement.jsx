@@ -256,11 +256,19 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
       // 4. Outlet filter
       if (selectedOutletFilter !== 'Semua') {
-        const outId = selectedOutletFilter;
-        const inSelected = (product.selectedOutletIds || []).some(id => String(id) === String(outId));
-        const inStdPrices = product.standardPrices && Number(product.standardPrices[outId]) > 0;
-        const isAll = product.outlet_id === 'Semua Outlet' || String(product.outlet_id) === String(outId);
-        if (!inSelected && !inStdPrices && !isAll) return false;
+        const outId = String(selectedOutletFilter);
+        const selIds = (product.selectedOutletIds || product.selected_outlet_ids || []).map(x => String(x));
+        const stdPrices = product.standardPrices || product.standard_prices || product.branch_prices || product.outlet_prices || {};
+        const inStdPrices = (stdPrices[outId] !== undefined && Number(stdPrices[outId]) > 0) ||
+                            (stdPrices[Number(outId)] !== undefined && Number(stdPrices[Number(outId)]) > 0);
+        const isDirect = String(product.outlet_id) === outId;
+        const isGlobal = !product.outlet_id || product.outlet_id === 'Semua Outlet' || product.outlet_id === 'Semua Outlet (Central)' || product.outlet_id === 'ALL';
+
+        if (selIds.length > 0) {
+          if (!selIds.includes(outId) && !isDirect && !inStdPrices) return false;
+        } else {
+          if (!isGlobal && !isDirect && !inStdPrices) return false;
+        }
       }
 
       return true;
@@ -518,25 +526,33 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     // Prepare outlet prices
     const savedStdPrices = {};
     const savedApkStatus = {};
-    const finalSelectedOutIds = selectedOutletIds.length > 0 ? selectedOutletIds : allOutlets.map(o => o.id);
+    const finalSelectedOutIds = selectedOutletIds.length > 0
+      ? selectedOutletIds.map(x => String(x))
+      : allOutlets.map(o => String(o.id));
 
     allOutlets.forEach(o => {
       const isIncluded = finalSelectedOutIds.some(id => String(id) === String(o.id));
-      const p = standardPrices[o.id] !== undefined ? standardPrices[o.id] : priceNum;
-      savedStdPrices[o.id] = p;
-      savedApkStatus[o.id] = isIncluded ? (outletApkStatus[o.id] || 'Aktif') : 'Inaktif';
+      const p = standardPrices[o.id] !== undefined
+        ? Number(standardPrices[o.id])
+        : (standardPrices[String(o.id)] !== undefined ? Number(standardPrices[String(o.id)]) : priceNum);
+      savedStdPrices[String(o.id)] = p;
+      savedStdPrices[Number(o.id)] = p;
+      const statusVal = isIncluded ? (outletApkStatus[o.id] || outletApkStatus[String(o.id)] || 'Aktif') : 'Inaktif';
+      savedApkStatus[String(o.id)] = statusVal;
+      savedApkStatus[Number(o.id)] = statusVal;
     });
 
     const savedVariantPrices = {};
     if (variants.length > 0) {
       variants.forEach(v => {
         const firstOutPrice = Object.values(branchVariantPrices).find(bv => bv && bv[v] !== undefined)?.[v];
-        savedVariantPrices[v] = firstOutPrice !== undefined ? firstOutPrice : (parseFloat(variantPrices[v]) || priceNum);
+        savedVariantPrices[v] = firstOutPrice !== undefined ? Number(firstOutPrice) : (parseFloat(variantPrices[v]) || priceNum);
       });
     }
 
+    const nowTs = Date.now();
     const productPayload = {
-      id: editingProductId || Date.now(),
+      id: editingProductId || nowTs,
       sku: prodSku.trim().toUpperCase() || generateNextProductCode(),
       code: prodSku.trim().toUpperCase() || generateNextProductCode(),
       name: prodName.trim().toUpperCase(),
@@ -548,18 +564,29 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       unit: 'Pcs',
       status: prodStatus,
       image_url: prodImageUrl.trim() || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400',
-      outlet_id: finalSelectedOutIds.length === allOutlets.length ? 'Semua Outlet' : (finalSelectedOutIds[0] || 'Semua Outlet'),
+      outlet_id: finalSelectedOutIds.length === allOutlets.length
+        ? 'Semua Outlet'
+        : (finalSelectedOutIds.length === 1 ? String(finalSelectedOutIds[0]) : 'Semua Outlet'),
+      outlet_name: finalSelectedOutIds.length === 1
+        ? (allOutlets.find(o => String(o.id) === String(finalSelectedOutIds[0]))?.name || '')
+        : 'Semua Outlet',
       selectedOutletIds: finalSelectedOutIds,
       selected_outlet_ids: finalSelectedOutIds,
       standardPrices: savedStdPrices,
+      standard_prices: savedStdPrices,
+      branch_prices: savedStdPrices,
+      outlet_prices: savedStdPrices,
       apkStatus: savedApkStatus,
       outletApkStatus: savedApkStatus,
+      outlet_apk_status: savedApkStatus,
       variants: variants,
       variantPrices: savedVariantPrices,
       branchVariantPrices: branchVariantPrices,
       branch_variant_prices: branchVariantPrices,
       compositions: compositions,
-      _lastUpdated: Date.now()
+      _updatedAt: nowTs,
+      _lastMutated: nowTs,
+      _lastUpdated: nowTs
     };
 
     let updatedProducts = [...(masterData?.products || [])];
@@ -575,7 +602,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setMasterData({
       ...masterData,
       products: updatedProducts,
-      _lastUpdated: Date.now()
+      _lastMutated: nowTs,
+      _lastUpdated: nowTs
     });
 
     setShowFormModal(false);

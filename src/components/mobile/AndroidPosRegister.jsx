@@ -158,8 +158,8 @@ export default function AndroidPosRegister({
     const outIdStr = String(outId);
     const outIdNum = Number(outId);
 
-    // 1. Check standardPrices for outId
-    const stdPrices = item.standardPrices || {};
+    // 1. Check standardPrices, standard_prices, branch_prices, outlet_prices for outId
+    const stdPrices = item.standardPrices || item.standard_prices || item.branch_prices || item.outlet_prices || {};
     let stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : (stdPrices[outIdStr] !== undefined ? stdPrices[outIdStr] : stdPrices[outIdNum]);
     if (stdVal === undefined) {
       for (const k of Object.keys(stdPrices)) {
@@ -173,7 +173,17 @@ export default function AndroidPosRegister({
       return Number(stdVal);
     }
 
-    // 2. Check priceCombinations for outId
+    // 2. Check branchVariantPrices or branch_variant_prices for outId
+    const bVarPrices = item.branchVariantPrices || item.branch_variant_prices || {};
+    const outBranchVars = bVarPrices[outId] || bVarPrices[outIdStr] || bVarPrices[outIdNum];
+    if (outBranchVars && typeof outBranchVars === 'object') {
+      const varVals = Object.values(outBranchVars).map(v => Number(v)).filter(v => v > 0);
+      if (varVals.length > 0) {
+        return Math.min(...varVals);
+      }
+    }
+
+    // 3. Check priceCombinations for outId
     if (item.priceCombinations && item.priceCombinations.length > 0) {
       for (const combo of item.priceCombinations) {
         if (combo.outletPrices) {
@@ -185,20 +195,22 @@ export default function AndroidPosRegister({
       }
     }
 
-    // 3. Check variantPrices for outId
+    // 4. Check variantPrices for outId
     if (item.variantPrices && typeof item.variantPrices === 'object') {
       for (const vName in item.variantPrices) {
         const vMap = item.variantPrices[vName];
-        if (vMap) {
+        if (vMap && typeof vMap === 'object') {
           const vVal = vMap[outId] !== undefined ? vMap[outId] : (vMap[outIdStr] !== undefined ? vMap[outIdStr] : vMap[outIdNum]);
           if (vVal !== undefined && Number(vVal) > 0) {
             return Number(vVal);
           }
+        } else if (vMap && Number(vMap) > 0) {
+          return Number(vMap);
         }
       }
     }
 
-    // 4. If product has base price
+    // 5. If product has base price
     if (Number(item.price || 0) > 0) {
       return Number(item.price);
     }
@@ -220,14 +232,20 @@ export default function AndroidPosRegister({
     // Pastikan produk milik outlet ini berdasarkan outlet_id, selectedOutletIds, atau outlet_name
     const productOutletIdStr = String(p.outlet_id || '');
     const productOutletNameStr = String(p.outlet_name || p.branch_name || '').toLowerCase().trim();
-    const isGlobal = !productOutletIdStr || productOutletIdStr === 'Semua Outlet' || productOutletIdStr === 'Semua Outlet (Central)';
+    const selIds = (Array.isArray(p.selectedOutletIds) ? p.selectedOutletIds : (Array.isArray(p.selected_outlet_ids) ? p.selected_outlet_ids : [])).map(x => String(x));
+    const hasExplicitOutlets = selIds.length > 0;
+    const inSelOutlets = selIds.includes(currentOutletIdStr);
 
     const isDirectMatch = productOutletIdStr === currentOutletIdStr;
-    const isArrayMatch = Array.isArray(p.selectedOutletIds) && p.selectedOutletIds.some(id => String(id) === currentOutletIdStr);
     const isNameMatch = productOutletNameStr && currentOutletNameStr && (productOutletNameStr === currentOutletNameStr || productOutletNameStr.includes(currentOutletNameStr) || currentOutletNameStr.includes(productOutletNameStr));
+    const isGlobal = (!productOutletIdStr || productOutletIdStr === 'Semua Outlet' || productOutletIdStr === 'Semua Outlet (Central)' || productOutletIdStr === 'ALL') && !hasExplicitOutlets;
 
-    // Jika produk bukan milik outlet ini, jangan tampilkan di outlet ini
-    if (!isGlobal && !isDirectMatch && !isArrayMatch && !isNameMatch) {
+    // Jika produk memiliki daftar outlet yang dicentang:
+    if (hasExplicitOutlets) {
+      if (!inSelOutlets && !isDirectMatch && !isNameMatch) {
+        return false;
+      }
+    } else if (!isGlobal && !isDirectMatch && !isNameMatch) {
       return false;
     }
 
@@ -239,9 +257,9 @@ export default function AndroidPosRegister({
     }
 
     // 4. "Tampilkan di APK" status check per outlet
-    const apkStatusMap = p.apkStatus || p.outletApkStatus || {};
+    const apkStatusMap = p.apkStatus || p.outletApkStatus || p.outlet_apk_status || {};
     const statusForThisOutlet = apkStatusMap[currentOutlet?.id] || apkStatusMap[currentOutletIdStr];
-    if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif' || statusForThisOutlet === 'Hide') {
+    if (statusForThisOutlet === 'Inaktif' || statusForThisOutlet === 'inaktif' || statusForThisOutlet === 'Hide' || statusForThisOutlet === 'Tidak Dijual') {
       return false;
     }
 

@@ -470,14 +470,14 @@ export default function App() {
                   if (map.has(k)) {
                     // Both exist — compare timestamps
                     const serverItem = map.get(k);
-                    const localTs  = Number(item._updatedAt  || item._lastMutated  || 0);
-                    const serverTs = Number(serverItem._updatedAt || serverItem._lastMutated || 0);
+                    const localTs  = Number(item._updatedAt || item._lastMutated || item._lastUpdated || 0);
+                    const serverTs = Number(serverItem._updatedAt || serverItem._lastMutated || serverItem._lastUpdated || 0);
                     if (localTs > serverTs && localTs > 0) {
                       map.set(k, item); // local is genuinely newer
                     }
                   } else {
                     // Only keep local-only item if created freshly within last 60 seconds
-                    const localTs = Number(item._lastMutated || item._createdAt || 0);
+                    const localTs = Number(item._lastMutated || item._updatedAt || item._lastUpdated || item._createdAt || 0);
                     if (localTs > 0 && (Date.now() - localTs < 60000)) {
                       map.set(k, item);
                     }
