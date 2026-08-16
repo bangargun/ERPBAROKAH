@@ -206,69 +206,72 @@ export default function AdminLayout({
 
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: T.appBg, color: T.txtPrimary, fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif", transition: 'background 0.2s ease, color 0.2s ease' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: T.appBg, color: T.txtPrimary }}>
       
       {/* Sidebar Navigation */}
       <aside style={{
         width: '260px',
-        background: T.sidebarBg,
-        borderRight: `1px solid ${T.border}`,
+        background: '#120f09',
+        borderRight: '1px solid rgba(251, 191, 36, 0.25)',
         display: 'flex',
         flexDirection: 'column',
-        position: 'sticky',
-        top: 0,
-        height: '100vh',
-        zIndex: 20,
-        userSelect: 'none',
-        transition: 'background 0.2s ease, border-color 0.2s ease'
+        flexShrink: 0,
+        zIndex: 1000,
+        transition: 'all 0.2s ease',
+        boxShadow: '4px 0 24px rgba(0, 0, 0, 0.4)'
       }}>
         {/* Brand Header */}
         <div style={{
-          padding: '16px 18px',
-          borderBottom: `1px solid ${T.border}`,
+          padding: '16px 20px',
+          borderBottom: '1px solid rgba(251, 191, 36, 0.15)',
           display: 'flex',
           alignItems: 'center',
           gap: '12px'
         }}>
           <div style={{
-            width: '38px',
-            height: '38px',
+            width: '36px',
+            height: '36px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(217, 119, 6, 0.4)',
-            border: '1px solid #f59e0b'
+            color: '#000000',
+            fontWeight: '900',
+            fontSize: '1.1rem',
+            boxShadow: '0 4px 14px rgba(245, 158, 11, 0.45)'
           }}>
-            <UtensilsCrossed size={22} color="#ffffff" />
+            <UtensilsCrossed size={20} />
           </div>
           <div>
-            <h1 style={{ fontSize: '0.98rem', fontWeight: '900', color: '#f59e0b', letterSpacing: '0.04em', margin: 0, textTransform: 'uppercase' }}>
-              BAROKAH GROUP
-            </h1>
-            <p style={{ fontSize: '0.62rem', color: '#f59e0b', fontWeight: '700', margin: '1px 0 0 0', letterSpacing: '0.05em', opacity: 0.9 }}>
-              RESTAURANT MANAGEMENT SYSTEM
-            </p>
+            <h1 style={{ fontSize: '0.96rem', fontWeight: '900', color: '#f59e0b', margin: 0, letterSpacing: '0.04em' }}>BAROKAH GROUP</h1>
+            <span style={{ fontSize: '0.62rem', color: '#fbbf24', fontWeight: '800', letterSpacing: '0.06em' }}>RESTAURANT MANAGEMENT SYSTEM</span>
           </div>
         </div>
 
-        {/* Navigation Menu Items */}
-        <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
-          
-          {/* BUTTON + UPDATE LAPORAN (RIGHT ABOVE MENU UTAMA SISTEM) */}
-          <div style={{ marginBottom: '6px' }}>
+        {/* Navigation Links with Section Grouping */}
+        <nav style={{
+          padding: '12px 14px',
+          overflowY: 'auto',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px'
+        }}>
+          {/* Quick Update Button */}
+          <div>
             <button
+              type="button"
               onClick={() => setShowUpdateLaporanModal(true)}
               style={{
                 width: '100%',
                 padding: '10px 14px',
-                borderRadius: '12px',
-                border: 'none',
+                borderRadius: '10px',
+                border: '1px solid #fbbf24',
                 background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                 color: '#000000',
                 fontWeight: '900',
-                fontSize: '0.86rem',
+                fontSize: '0.84rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -279,49 +282,73 @@ export default function AdminLayout({
               }}
               title="Update data penjualan & pengeluaran (Manual & Excel)"
             >
-              <PlusCircle size={18} color="#000000" />
+              <PlusCircle size={17} color="#000000" />
               <span>+ Update Laporan</span>
             </button>
           </div>
 
-          <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: '#facc15', fontWeight: '900', padding: '6px 10px 4px 10px', letterSpacing: '0.06em', opacity: 1 }}>
-            MENU UTAMA SISTEM
-          </div>
-          {filteredMenuItems.map(item => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
+          {/* Render Sections */}
+          {menuSections.map((sec, secIdx) => {
+            const visibleItems = sec.items.filter(item =>
+              checkWebPermission(userRole, item.permKey, masterData?.permissionMatrix)
+            );
+            if (visibleItems.length === 0) return null;
+
             return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                style={{
+              <div key={sec.title} style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: secIdx === 0 ? '4px' : '6px' }}>
+                <div style={{
+                  fontSize: '0.62rem',
+                  textTransform: 'uppercase',
+                  color: '#facc15',
+                  fontWeight: '900',
+                  padding: '4px 10px 2px 10px',
+                  letterSpacing: '0.08em',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  border: isActive ? '1px solid #fbbf24' : '1px solid transparent',
-                  background: isActive ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent',
-                  color: isActive ? '#000000' : '#fbbf24',
-                  fontWeight: isActive ? '900' : '800',
-                  fontSize: '0.84rem',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  boxShadow: isActive ? '0 4px 16px rgba(245, 158, 11, 0.45)' : 'none',
-                  transition: 'all 0.18s ease'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
-                  <Icon size={18} color={isActive ? '#000000' : '#fbbf24'} />
-                  <span style={{ color: isActive ? '#000000' : '#fbbf24', fontWeight: isActive ? '900' : '800' }}>{item.label}</span>
+                  gap: '6px',
+                  opacity: 0.85
+                }}>
+                  <span>{sec.title}</span>
                 </div>
-                {item.id === 'stock' && pendingCount > 0 && (
-                  <span style={{ background: isActive ? '#000000' : '#fbbf24', color: isActive ? '#fbbf24' : '#000000', fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px' }}>
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
+
+                {visibleItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        border: isActive ? '1px solid #fbbf24' : '1px solid transparent',
+                        background: isActive ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent',
+                        color: isActive ? '#000000' : '#fbbf24',
+                        fontWeight: isActive ? '900' : '800',
+                        fontSize: '0.82rem',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        boxShadow: isActive ? '0 4px 16px rgba(245, 158, 11, 0.45)' : 'none',
+                        transition: 'all 0.18s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Icon size={17} color={isActive ? '#000000' : '#fbbf24'} />
+                        <span style={{ color: isActive ? '#000000' : '#fbbf24', fontWeight: isActive ? '900' : '800' }}>{item.label}</span>
+                      </div>
+                      {item.id === 'stock' && pendingCount > 0 && (
+                        <span style={{ background: isActive ? '#000000' : '#fbbf24', color: isActive ? '#fbbf24' : '#000000', fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px' }}>
+                          {pendingCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
