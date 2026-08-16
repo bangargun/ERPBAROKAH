@@ -14,6 +14,22 @@ export const DEFAULT_INGREDIENT_CATEGORIES = [
   { id: 6, code: 'KBHN-006', name: 'Bumbu & Rempah', description: 'Bumbu kering, rempah-rempah dapur, dan perasa', status: 'Aktif' }
 ];
 
+export const getIngredientCategoryName = (ing) => {
+  if (!ing) return 'Bumbu & Rempah';
+  if (ing.category && String(ing.category).trim() && String(ing.category).trim() !== '-') return String(ing.category).trim();
+  if (ing.category_name && String(ing.category_name).trim() && String(ing.category_name).trim() !== '-') return String(ing.category_name).trim();
+  if (ing.type && String(ing.type).trim() && String(ing.type).trim() !== '-') return String(ing.type).trim();
+
+  // Smart inference based on ingredient name
+  const n = String(ing.name || '').toLowerCase();
+  if (n.includes('ikan') || n.includes('udang') || n.includes('cumi') || n.includes('kepiting') || n.includes('lele') || n.includes('gurami') || n.includes('seafood') || n.includes('belut')) return 'Seafood & Ikan';
+  if (n.includes('ayam') || n.includes('bebek') || n.includes('daging') || n.includes('sapi') || n.includes('kambing') || n.includes('telur')) return 'Daging & Unggas';
+  if (n.includes('kangkung') || n.includes('bayam') || n.includes('toge') || n.includes('sayur') || n.includes('cabai') || n.includes('cabe') || n.includes('bawang') || n.includes('tomat') || n.includes('timun') || n.includes('jeruk') || n.includes('daun')) return 'Sayur & Bumbu Segar';
+  if (n.includes('milo') || n.includes('kopi') || n.includes('coffee') || n.includes('cappucino') || n.includes('teh') || n.includes('lemon tea') || n.includes('fruit tea') || n.includes('air mineral') || n.includes('sirup') || n.includes('susu') || n.includes('powder') || n.includes('aqua')) return 'Minuman & Powder';
+  if (n.includes('nasi') || n.includes('beras') || n.includes('minyak') || n.includes('tepung') || n.includes('gula') || n.includes('garam') || n.includes('kecap') || n.includes('saus') || n.includes('kerupuk')) return 'Sembako & Olahan';
+  return 'Bumbu & Rempah';
+};
+
 export default function IngredientCategoryManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
   const allowDelete = canDeleteModule(userSession, 'masterData', masterData?.permissionMatrix);
@@ -60,13 +76,14 @@ export default function IngredientCategoryManagement({ masterData, setMasterData
     return `KBHN-${nextNum.toString().padStart(3, '0')}`;
   };
 
-  // Helper to get connected ingredients
+  // Helper to get connected ingredients from Data Master Bahan Baku
   const getAssociatedIngredients = (catName) => {
     if (!catName) return [];
     const catLower = String(catName).toLowerCase().trim();
     return (masterData?.ingredients || []).filter(i => {
-      const iCat = String(i.category || i.category_name || '').toLowerCase().trim();
-      return iCat === catLower;
+      const resolvedCat = getIngredientCategoryName(i).toLowerCase().trim();
+      const rawCat = String(i.category || i.category_name || '').toLowerCase().trim();
+      return resolvedCat === catLower || rawCat === catLower;
     });
   };
 
