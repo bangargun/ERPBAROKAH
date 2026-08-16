@@ -363,44 +363,49 @@ export default function FinancialOverview({
   // ------------------------------------------------------------------
   // 5. INGREDIENT CATEGORIES & PRICE DISPARITY ACROSS BRANCHES
   // ------------------------------------------------------------------
-  // Helper to reliably resolve category for any ingredient from Master Data or intelligent taxonomy
+  // Helper to reliably resolve category for any ingredient strictly to Ingredient Categories
   const resolveIngredientCategory = (ing) => {
-    if (!ing) return 'Bahan Baku';
+    if (!ing) return 'Bumbu & Rempah';
     if (ing.category && String(ing.category).trim() && String(ing.category).trim() !== '-') return String(ing.category).trim();
     if (ing.category_name && String(ing.category_name).trim() && String(ing.category_name).trim() !== '-') return String(ing.category_name).trim();
-    if (ing.type && String(ing.type).trim() && String(ing.type).trim() !== '-') return String(ing.type).trim();
 
     const name = String(ing.name || '').toLowerCase();
-    if (name.includes('ikan') || name.includes('udang') || name.includes('cumi') || name.includes('kepiting') || name.includes('lele') || name.includes('gurami') || name.includes('seafood')) {
+    if (name.includes('ikan') || name.includes('udang') || name.includes('cumi') || name.includes('kepiting') || name.includes('lele') || name.includes('gurami') || name.includes('seafood') || name.includes('belut')) {
       return 'Seafood & Ikan';
     }
     if (name.includes('ayam') || name.includes('bebek') || name.includes('daging') || name.includes('sapi') || name.includes('kambing') || name.includes('telur')) {
       return 'Daging & Unggas';
     }
-    if (name.includes('kangkung') || name.includes('bayam') || name.includes('toge') || name.includes('sayur') || name.includes('cabai') || name.includes('cabe') || name.includes('bawang') || name.includes('tomat') || name.includes('timun')) {
+    if (name.includes('kangkung') || name.includes('bayam') || name.includes('toge') || name.includes('sayur') || name.includes('cabai') || name.includes('cabe') || name.includes('bawang') || name.includes('tomat') || name.includes('timun') || name.includes('jeruk') || name.includes('daun')) {
       return 'Sayur & Bumbu Segar';
     }
-    if (name.includes('milo') || name.includes('kopi') || name.includes('coffee') || name.includes('cappucino') || name.includes('teh') || name.includes('sirup') || name.includes('susu') || name.includes('powder')) {
+    if (name.includes('milo') || name.includes('kopi') || name.includes('coffee') || name.includes('cappucino') || name.includes('teh') || name.includes('lemon tea') || name.includes('fruit tea') || name.includes('air mineral') || name.includes('sirup') || name.includes('susu') || name.includes('powder') || name.includes('aqua')) {
       return 'Minuman & Powder';
     }
-    if (name.includes('nasi') || name.includes('beras') || name.includes('minyak') || name.includes('tepung') || name.includes('gula') || name.includes('garam') || name.includes('kecap') || name.includes('saus')) {
+    if (name.includes('nasi') || name.includes('beras') || name.includes('minyak') || name.includes('tepung') || name.includes('gula') || name.includes('garam') || name.includes('kecap') || name.includes('saus') || name.includes('kerupuk')) {
       return 'Sembako & Olahan';
     }
-    return 'Bahan Baku Utama';
+    return 'Bumbu & Rempah';
   };
 
-  // Dynamic categories strictly from Master Data Ingredients & Master Categories
+  // Dynamic categories STRICTLY from Data Master ➔ Kategori ➔ Kategori Bahan Baku (masterData.ingredientCategories)
   const dynamicIngredientCategories = useMemo(() => {
-    const catsSet = new Set();
-    allIngredients.forEach(i => {
-      const cat = resolveIngredientCategory(i);
-      if (cat) catsSet.add(cat);
-    });
-    (masterData?.categories || []).forEach(c => {
-      if (c.name) catsSet.add(c.name.trim());
-    });
-    return Array.from(catsSet).sort();
-  }, [allIngredients, masterData?.categories]);
+    if (Array.isArray(masterData?.ingredientCategories) && masterData.ingredientCategories.length > 0) {
+      return masterData.ingredientCategories
+        .filter(c => (c.status || 'Aktif') === 'Aktif')
+        .map(c => (c.name || '').trim())
+        .filter(Boolean)
+        .sort();
+    }
+    return [
+      'Bumbu & Rempah',
+      'Daging & Unggas',
+      'Minuman & Powder',
+      'Sayur & Bumbu Segar',
+      'Seafood & Ikan',
+      'Sembako & Olahan'
+    ];
+  }, [masterData?.ingredientCategories]);
 
   // Comprehensive Price lookup per outlet per ingredient from Master Data & Logistics
   const ingredientDisparityList = useMemo(() => {
