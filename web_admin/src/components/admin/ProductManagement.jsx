@@ -85,8 +85,9 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   const [outletApkStatus, setOutletApkStatus] = useState({}); // { [outletId]: 'Aktif' | 'Inaktif' }
 
   // Variant States
-  const [variants, setVariants] = useState([]); // ['Sambal Pecak', 'Sambal Ijo']
-  const [variantPrices, setVariantPrices] = useState({}); // { 'Sambal Pecak': 25000 }
+  const [variants, setVariants] = useState([]); // ['GORENG', 'BAKAR']
+  const [variantPrices, setVariantPrices] = useState({}); // { 'GORENG': 25000 }
+  const [branchVariantPrices, setBranchVariantPrices] = useState({}); // { [outletId]: { 'GORENG': 12000, 'BAKAR': 15000 } }
   const [hasCustomVariantPrices, setHasCustomVariantPrices] = useState(false);
   const [tempVariantInput, setTempVariantInput] = useState('');
 
@@ -117,22 +118,41 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // Dynamic Price Range Helper for Products with Variant Pricing
   const getProductDisplayPrice = (product) => {
     const baseP = Number(product.price || 0);
-    const vPrices = product.variantPrices || {};
     const vars = product.variants || [];
+    const bVarPrices = product.branchVariantPrices || product.branch_variant_prices || {};
+    const vPrices = product.variantPrices || {};
 
-    if (vars.length > 0 && typeof vPrices === 'object' && Object.keys(vPrices).length > 0) {
-      const prices = vars.map(v => {
-        const val = vPrices[v];
-        if (typeof val === 'number') return val;
-        if (typeof val === 'object') {
-          return Number(Object.values(val)[0] || baseP);
+    const allExtractedPrices = [];
+
+    if (vars.length > 0) {
+      // Check if branchVariantPrices has values
+      Object.values(bVarPrices).forEach(outMap => {
+        if (outMap && typeof outMap === 'object') {
+          vars.forEach(v => {
+            if (outMap[v] !== undefined && Number(outMap[v]) > 0) {
+              allExtractedPrices.push(Number(outMap[v]));
+            }
+          });
         }
-        return baseP;
-      }).filter(p => p > 0);
+      });
 
-      if (prices.length > 0) {
-        const minP = Math.min(...prices);
-        const maxP = Math.max(...prices);
+      // Also check flat variantPrices
+      vars.forEach(v => {
+        if (vPrices[v] !== undefined && Number(vPrices[v]) > 0) {
+          allExtractedPrices.push(Number(vPrices[v]));
+        }
+      });
+
+      // Also check standardPrices
+      if (product.standardPrices) {
+        Object.values(product.standardPrices).forEach(p => {
+          if (Number(p) > 0) allExtractedPrices.push(Number(p));
+        });
+      }
+
+      if (allExtractedPrices.length > 0) {
+        const minP = Math.min(...allExtractedPrices);
+        const maxP = Math.max(...allExtractedPrices);
         if (minP !== maxP) {
           return `${formatRupiah(minP)} - ${formatRupiah(maxP)}`;
         }
@@ -313,6 +333,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setOutletApkStatus(initApkStatus);
     setVariants([]);
     setVariantPrices({});
+    setBranchVariantPrices({});
     setHasCustomVariantPrices(false);
     setTempVariantInput('');
     setCompositions([]);
@@ -365,6 +386,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setVariants(prodVars);
     const vPrices = product.variantPrices || {};
     setVariantPrices(vPrices);
+
+    const bVarPrices = product.branchVariantPrices || product.branch_variant_prices || {};
+    setBranchVariantPrices(bVarPrices);
+
     const hasDiffPrices = prodVars.some(v => vPrices[v] && Number(vPrices[v]) !== pPrice);
     setHasCustomVariantPrices(hasDiffPrices);
     setTempVariantInput('');
@@ -379,10 +404,19 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
   // -------------------------------------------------------------
   const handleAddVariant = () => {
     if (!tempVariantInput.trim()) return;
-    const vName = tempVariantInput.trim();
+    const vName = tempVariantInput.trim().toUpperCase();
     if (!variants.includes(vName)) {
       setVariants([...variants, vName]);
-      setVariantPrices(prev => ({ ...prev, [vName]: parseFloat(basePrice) || 0 }));
+      const currentPrice = parseFloat(basePrice) || 0;
+      setVariantPrices(prev => ({ ...prev, [vName]: currentPrice }));
+      setBranchVariantPrices(prev => {
+        const next = { ...prev };
+        allOutlets.forEach(o => {
+          const outBase = standardPrices[o.id] !== undefined ? standardPrices[o.id] : currentPrice;
+          next[o.id] = { ...(next[o.id] || {}), [vName]: outBase };
+        });
+        return next;
+      });
     }
     setTempVariantInput('');
   };
@@ -392,6 +426,28 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     const copy = { ...variantPrices };
     delete copy[vName];
     setVariantPrices(copy);
+
+    setBranchVariantPrices(prev => {
+      const next = { ...prev };
+      allOutlets.forEach(o => {
+        if (next[o.id]) {
+          const outCopy = { ...next[o.id] };
+          delete outCopy[vName];
+          next[o.id] = outCopy;
+        }
+      });
+      return next;
+    });
+  };
+
+  const handleUpdateBranchVariantPrice = (outletId, variantName, priceVal) => {
+    setBranchVariantPrices(prev => ({
+      ...prev,
+      [outletId]: {
+        ...(prev[outletId] || {}),
+        [variantName]: Number(priceVal)
+      }
+    }));
   };
 
   // -------------------------------------------------------------
@@ -461,7 +517,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     const savedVariantPrices = {};
     if (variants.length > 0) {
       variants.forEach(v => {
-        savedVariantPrices[v] = hasCustomVariantPrices ? (parseFloat(variantPrices[v]) || priceNum) : priceNum;
+        const firstOutPrice = Object.values(branchVariantPrices).find(bv => bv && bv[v] !== undefined)?.[v];
+        savedVariantPrices[v] = firstOutPrice !== undefined ? firstOutPrice : (parseFloat(variantPrices[v]) || priceNum);
       });
     }
 
@@ -486,6 +543,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       outletApkStatus: savedApkStatus,
       variants: variants,
       variantPrices: savedVariantPrices,
+      branchVariantPrices: branchVariantPrices,
+      branch_variant_prices: branchVariantPrices,
       compositions: compositions,
       _lastUpdated: Date.now()
     };
@@ -1389,154 +1448,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, fontSize: '0.94rem', fontWeight: '900' }}
                     />
                     <span style={{ fontSize: '0.66rem', color: T.txtMuted, marginTop: '2px', display: 'block' }}>
-                      *Harga dasar yang berlaku secara umum untuk semua cabang outlet.
+                      *Harga acuan dasar yang otomatis mengisi harga cabang di bawah.
                     </span>
                   </div>
 
-                  {/* SECTION: KETERSEDIAAN & PENGATURAN HARGA PER CABANG OUTLET */}
-                  <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, padding: '12px 14px', borderRadius: '10px', marginTop: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                      <div>
-                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Store size={15} color={T.primary} />
-                          <span>Pilih Cabang Outlet yang Menjual Menu Ini</span>
-                        </span>
-                        <p style={{ fontSize: '0.66rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
-                          Centang cabang yang menjual menu ini, dan tentukan harga jual per cabang (opsional)
-                        </p>
-                      </div>
-
-                      {/* Quick Select Buttons */}
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedOutletIds(allOutlets.map(o => o.id))}
-                          style={{
-                            background: selectedOutletIds.length === allOutlets.length ? T.primary : T.inputBg,
-                            color: selectedOutletIds.length === allOutlets.length ? T.txtInverse : T.txtPrimary,
-                            border: `1px solid ${T.border}`,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            fontSize: '0.68rem',
-                            fontWeight: '800',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          ✓ Pilih Semua ({allOutlets.length})
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedOutletIds([])}
-                          style={{
-                            background: T.inputBg,
-                            color: T.txtSecondary,
-                            border: `1px solid ${T.border}`,
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            fontSize: '0.68rem',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Kosongkan
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Outlets Checklist & Price Table */}
-                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {allOutlets.map(o => {
-                        const isSelected = selectedOutletIds.some(id => String(id) === String(o.id));
-                        const outPrice = standardPrices[o.id] !== undefined ? standardPrices[o.id] : basePrice;
-
-                        return (
-                          <div
-                            key={o.id}
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: '24px 1.4fr 1.1fr 1fr',
-                              gap: '8px',
-                              alignItems: 'center',
-                              background: isSelected ? T.inputBg : 'rgba(0,0,0,0.2)',
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              border: `1px solid ${isSelected ? T.primary : T.border}`,
-                              opacity: isSelected ? 1 : 0.6,
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            {/* Checkbox */}
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {
-                                if (isSelected) {
-                                  setSelectedOutletIds(selectedOutletIds.filter(id => String(id) !== String(o.id)));
-                                } else {
-                                  setSelectedOutletIds([...selectedOutletIds, o.id]);
-                                }
-                              }}
-                              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                            />
-
-                            {/* Outlet Name */}
-                            <div>
-                              <span style={{ fontSize: '0.74rem', fontWeight: '800', color: isSelected ? T.txtPrimary : T.txtSecondary }}>
-                                {o.name}
-                              </span>
-                              <div style={{ fontSize: '0.62rem', color: isSelected ? T.success : T.danger, fontWeight: '700' }}>
-                                {isSelected ? '✓ Dijual di Cabang Ini' : '✗ Tidak Dijual'}
-                              </div>
-                            </div>
-
-                            {/* Custom Price Input */}
-                            <div>
-                              <input
-                                type="number"
-                                disabled={!isSelected}
-                                placeholder="Harga Rp"
-                                value={outPrice}
-                                onChange={e => setStandardPrices({ ...standardPrices, [o.id]: Number(e.target.value) })}
-                                className="form-input"
-                                style={{
-                                  background: isSelected ? T.cardBg : 'transparent',
-                                  borderColor: isSelected ? T.border : 'transparent',
-                                  color: isSelected ? T.accentGold : T.txtMuted,
-                                  padding: '4px 8px',
-                                  fontSize: '0.74rem',
-                                  fontWeight: '800'
-                                }}
-                              />
-                            </div>
-
-                            {/* Status at POS */}
-                            <div>
-                              <select
-                                disabled={!isSelected}
-                                value={outletApkStatus[o.id] || 'Aktif'}
-                                onChange={e => setOutletApkStatus({ ...outletApkStatus, [o.id]: e.target.value })}
-                                className="form-select"
-                                style={{
-                                  background: isSelected ? T.cardBg : 'transparent',
-                                  borderColor: isSelected ? T.border : 'transparent',
-                                  color: isSelected ? T.txtPrimary : T.txtMuted,
-                                  padding: '4px 6px',
-                                  fontSize: '0.70rem'
-                                }}
-                              >
-                                <option value="Aktif">Tersedia</option>
-                                <option value="Inaktif">Habis</option>
-                              </select>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* SECTION: KELOLA VARIAN MENU */}
-                  <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, padding: '12px 14px', borderRadius: '10px', marginTop: '4px' }}>
+                  {/* SECTION 1: KELOLA VARIAN MENU */}
+                  <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, padding: '12px 14px', borderRadius: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1544,7 +1461,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                           <span>Pilihan Varian Menu (Opsional)</span>
                         </span>
                         <p style={{ fontSize: '0.66rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
-                          Contoh: Pilihan Sambal (Pecak / Ijo / Matah), Suhu (Dingin / Panas), atau Ukuran (Reguler / Jumbo)
+                          Contoh: Tambah varian <strong>GORENG</strong> dan <strong>BAKAR</strong>, lalu atur harga masing-masing di cabang bawah
                         </p>
                       </div>
                       <span style={{ fontSize: '0.66rem', padding: '2px 6px', borderRadius: '4px', background: T.infoBg, color: T.info, fontWeight: '800' }}>
@@ -1556,12 +1473,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
                       <input
                         type="text"
-                        placeholder="Ketik nama varian (contoh: Sambal Pecak / Porsi Jumbo)..."
+                        placeholder="Ketik nama varian (contoh: GORENG / BAKAR / JUMBO)..."
                         value={tempVariantInput}
-                        onChange={e => setTempVariantInput(e.target.value)}
+                        onChange={e => setTempVariantInput(e.target.value.toUpperCase())}
                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddVariant(); } }}
                         className="form-input"
-                        style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, flex: 1, fontSize: '0.74rem' }}
+                        style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, flex: 1, fontSize: '0.74rem', textTransform: 'uppercase' }}
                       />
                       <button
                         type="button"
@@ -1604,7 +1521,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                               gap: '6px'
                             }}
                           >
-                            <span>{v}</span>
+                            <span>🎨 {v}</span>
                             <button
                               type="button"
                               onClick={() => handleRemoveVariant(v)}
@@ -1616,44 +1533,198 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         ))}
                       </div>
                     )}
+                  </div>
 
-                    {/* Custom Price per Variant Toggle & Table */}
-                    {variants.length > 0 && (
-                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${T.border}` }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <span style={{ fontSize: '0.74rem', fontWeight: '700', color: T.txtPrimary }}>Atur Harga Khusus per Varian</span>
-                            <p style={{ fontSize: '0.64rem', color: T.txtSecondary, margin: '1px 0 0 0' }}>
-                              Jika tidak dicentang, semua varian akan menggunakan harga dasar ({formatRupiah(basePrice)})
-                            </p>
-                          </div>
-                          <input
-                            type="checkbox"
-                            checked={hasCustomVariantPrices}
-                            onChange={e => setHasCustomVariantPrices(e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                          />
-                        </div>
-
-                        {hasCustomVariantPrices && (
-                          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {variants.map(v => (
-                              <div key={v} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr', gap: '8px', alignItems: 'center', background: T.inputBg, padding: '6px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
-                                <span style={{ fontSize: '0.74rem', fontWeight: '700', color: T.txtPrimary }}>{v}</span>
-                                <input
-                                  type="number"
-                                  placeholder="Harga Rp"
-                                  value={variantPrices[v] !== undefined ? variantPrices[v] : basePrice}
-                                  onChange={e => setVariantPrices({ ...variantPrices, [v]: Number(e.target.value) })}
-                                  className="form-input"
-                                  style={{ background: T.cardBg, borderColor: T.border, color: T.txtPrimary, padding: '4px 8px', fontSize: '0.74rem' }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                  {/* SECTION 2: KETERSEDIAAN & PENGATURAN HARGA PER CABANG OUTLET */}
+                  <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, padding: '12px 14px', borderRadius: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Store size={15} color={T.primary} />
+                          <span>Pilih Cabang &amp; Atur Harga {variants.length > 0 ? 'Varian Khusus' : 'Menu'}</span>
+                        </span>
+                        <p style={{ fontSize: '0.66rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
+                          Centang cabang yang menjual menu ini. Anda dapat menentukan harga berbeda untuk setiap varian di setiap cabang.
+                        </p>
                       </div>
-                    )}
+
+                      {/* Quick Select Buttons */}
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOutletIds(allOutlets.map(o => o.id))}
+                          style={{
+                            background: selectedOutletIds.length === allOutlets.length ? T.primary : T.inputBg,
+                            color: selectedOutletIds.length === allOutlets.length ? T.txtInverse : T.txtPrimary,
+                            border: `1px solid ${T.border}`,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.68rem',
+                            fontWeight: '800',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ✓ Pilih Semua ({allOutlets.length})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOutletIds([])}
+                          style={{
+                            background: T.inputBg,
+                            color: T.txtSecondary,
+                            border: `1px solid ${T.border}`,
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.68rem',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Kosongkan
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Outlets Checklist & Granular Variant Price Table */}
+                    <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {allOutlets.map(o => {
+                        const isSelected = selectedOutletIds.some(id => String(id) === String(o.id));
+                        const outPrice = standardPrices[o.id] !== undefined ? standardPrices[o.id] : basePrice;
+
+                        return (
+                          <div
+                            key={o.id}
+                            style={{
+                              background: isSelected ? T.inputBg : 'rgba(0,0,0,0.2)',
+                              padding: '10px 12px',
+                              borderRadius: '10px',
+                              border: `1px solid ${isSelected ? T.primary : T.border}`,
+                              opacity: isSelected ? 1 : 0.6,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {/* Header of Outlet Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '24px 1.5fr 1fr 1fr', gap: '8px', alignItems: 'center' }}>
+                              {/* Checkbox */}
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  if (isSelected) {
+                                    setSelectedOutletIds(selectedOutletIds.filter(id => String(id) !== String(o.id)));
+                                  } else {
+                                    setSelectedOutletIds([...selectedOutletIds, o.id]);
+                                  }
+                                }}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                              />
+
+                              {/* Outlet Name */}
+                              <div>
+                                <span style={{ fontSize: '0.76rem', fontWeight: '900', color: isSelected ? T.txtPrimary : T.txtSecondary }}>
+                                  {o.name}
+                                </span>
+                                <div style={{ fontSize: '0.62rem', color: isSelected ? T.success : T.danger, fontWeight: '700' }}>
+                                  {isSelected ? '✓ Dijual di Cabang Ini' : '✗ Tidak Dijual'}
+                                </div>
+                              </div>
+
+                              {/* Base Outlet Price (Only shown if NO variants) */}
+                              {variants.length === 0 ? (
+                                <div>
+                                  <input
+                                    type="number"
+                                    disabled={!isSelected}
+                                    placeholder="Harga Rp"
+                                    value={outPrice}
+                                    onChange={e => setStandardPrices({ ...standardPrices, [o.id]: Number(e.target.value) })}
+                                    className="form-input"
+                                    style={{
+                                      background: isSelected ? T.cardBg : 'transparent',
+                                      borderColor: isSelected ? T.border : 'transparent',
+                                      color: isSelected ? T.accentGold : T.txtMuted,
+                                      padding: '4px 8px',
+                                      fontSize: '0.74rem',
+                                      fontWeight: '800'
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '0.68rem', color: T.accentGold, fontWeight: '800' }}>
+                                  {variants.length} Harga Varian Khusus &darr;
+                                </div>
+                              )}
+
+                              {/* Status at POS */}
+                              <div>
+                                <select
+                                  disabled={!isSelected}
+                                  value={outletApkStatus[o.id] || 'Aktif'}
+                                  onChange={e => setOutletApkStatus({ ...outletApkStatus, [o.id]: e.target.value })}
+                                  className="form-select"
+                                  style={{
+                                    background: isSelected ? T.cardBg : 'transparent',
+                                    borderColor: isSelected ? T.border : 'transparent',
+                                    color: isSelected ? T.txtPrimary : T.txtMuted,
+                                    padding: '4px 6px',
+                                    fontSize: '0.70rem'
+                                  }}
+                                >
+                                  <option value="Aktif">Tersedia</option>
+                                  <option value="Inaktif">Habis</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Granular Variant Price Inputs per Outlet */}
+                            {isSelected && variants.length > 0 && (
+                              <div style={{
+                                marginTop: '10px',
+                                paddingTop: '10px',
+                                borderTop: `1px dashed ${T.border}`,
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                                gap: '8px'
+                              }}>
+                                {variants.map(v => {
+                                  const currentVPrice = branchVariantPrices[o.id]?.[v] !== undefined
+                                    ? branchVariantPrices[o.id][v]
+                                    : (variantPrices[v] !== undefined ? variantPrices[v] : outPrice);
+
+                                  return (
+                                    <div key={v} style={{ background: T.cardBg, padding: '6px 10px', borderRadius: '8px', border: `1px solid ${T.borderStrong}`, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                      <span style={{ fontSize: '0.66rem', fontWeight: '800', color: T.txtSecondary }}>
+                                        Varian: <strong style={{ color: T.txtPrimary }}>{v}</strong>
+                                      </span>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontWeight: '700' }}>Rp</span>
+                                        <input
+                                          type="number"
+                                          placeholder="Harga Rp"
+                                          value={currentVPrice}
+                                          onChange={e => handleUpdateBranchVariantPrice(o.id, v, e.target.value)}
+                                          className="form-input"
+                                          style={{
+                                            background: T.inputBg,
+                                            borderColor: T.border,
+                                            color: T.accentGold,
+                                            padding: '4px 6px',
+                                            fontSize: '0.76rem',
+                                            fontWeight: '800',
+                                            width: '100%'
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
