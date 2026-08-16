@@ -11,27 +11,30 @@ const DELETE_PASSWORD = 'Bismillah';
  *   onClose: () => void
  *   theme: 'dark' | 'light'
  */
-export default function DeleteGuardModal({ guardState, onClose, theme = 'dark' }) {
+export default function DeleteGuardModal({ guardState, state, onClose, theme = 'dark', themeMode }) {
+  const activeGuard = guardState || state;
+  const currentTheme = themeMode || theme || 'dark';
+
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (guardState?.show) {
+    if (activeGuard?.show) {
       setPassword('');
       setError('');
       setShowPass(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [guardState?.show]);
+  }, [activeGuard?.show]);
 
-  if (!guardState?.show) return null;
+  if (!activeGuard?.show) return null;
 
-  const { name, txCount, onConfirmed } = guardState;
+  const { name, txCount, onConfirmed } = activeGuard;
   const needsPassword = txCount > 0;
 
-  const isDark = theme === 'dark';
+  const isDark = currentTheme === 'dark';
   const bg = isDark ? '#0f172a' : '#ffffff';
   const bgCard = isDark ? '#1e293b' : '#f8fafc';
   const txtPrimary = isDark ? '#f1f5f9' : '#0f172a';

@@ -413,7 +413,11 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     setHasCustomVariantPrices(hasDiffPrices);
     setTempVariantInput('');
 
-    setCompositions(product.compositions || []);
+    const initialComps = (product.compositions || []).map((c, idx) => ({
+      ...c,
+      id: c.id || `${Date.now()}_${idx}_${Math.random()}`
+    }));
+    setCompositions(initialComps);
     setFormSubTab('info');
     setShowFormModal(true);
   };
@@ -504,8 +508,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     }));
   };
 
-  const handleRemoveCompositionRow = (compId) => {
-    setCompositions(prev => prev.filter(c => c.id !== compId));
+  const handleRemoveCompositionRow = (compId, idx) => {
+    setCompositions(prev => prev.filter((c, i) => {
+      if (compId !== undefined && compId !== null && c.id) {
+        return c.id !== compId;
+      }
+      return i !== idx;
+    }));
   };
 
   // -------------------------------------------------------------
@@ -833,8 +842,52 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       name,
       setDeleteGuardState,
       onConfirmed: () => {
-        const updated = (masterData?.products || []).filter(p => String(p.id) !== String(id));
-        setMasterData({ ...masterData, products: updated, _lastUpdated: Date.now() });
+        const prod = (masterData?.products || []).find(p => 
+          String(p.id) === String(id) || 
+          String(p.sku || '').toUpperCase() === String(id).toUpperCase() || 
+          String(p.code || '').toUpperCase() === String(id).toUpperCase() || 
+          String(p.name || '').trim().toUpperCase() === String(name || '').trim().toUpperCase()
+        );
+
+        const updated = (masterData?.products || []).filter(p => 
+          String(p.id) !== String(id) && 
+          String(p.sku || '').toUpperCase() !== String(id).toUpperCase() && 
+          String(p.code || '').toUpperCase() !== String(id).toUpperCase() && 
+          String(p.name || '').trim().toUpperCase() !== String(name || '').trim().toUpperCase()
+        );
+
+        const delSku = prod?.sku || prod?.code || id;
+        const delName = prod?.name || name;
+        const delId = prod?.id || id;
+
+        const updatedDelProductIds = Array.from(new Set([
+          ...(masterData?.deletedProductIds || []),
+          String(delId),
+          String(delId).toLowerCase(),
+          String(delSku),
+          String(delSku).toLowerCase(),
+          String(delName),
+          String(delName).toLowerCase()
+        ].filter(Boolean)));
+
+        const nextMaster = {
+          ...masterData,
+          products: updated,
+          deletedProductIds: updatedDelProductIds,
+          _lastUpdated: Date.now(),
+          _lastMutated: Date.now()
+        };
+
+        setMasterData(nextMaster);
+        try {
+          localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
+        } catch (e) {}
+
+        fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nextMaster)
+        }).catch(() => {});
       }
     });
   };
@@ -2059,12 +2112,12 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {compositions.map((comp) => {
+                      {compositions.map((comp, idx) => {
                         const ing = allIngredients.find(i => String(i.id) === String(comp.ingredient_id));
                         const ingPrice = Number(ing?.avg_buy_price || ing?.price || 0);
 
                         return (
-                          <div key={comp.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', gap: '8px', alignItems: 'center', background: T.inputBg, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+                          <div key={comp.id || idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 40px', gap: '8px', alignItems: 'center', background: T.inputBg, padding: '8px 10px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
                             {/* Ingredient Select */}
                             <div>
                               <select
@@ -2115,7 +2168,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                             {/* Remove Button */}
                             <button
                               type="button"
-                              onClick={() => handleRemoveCompositionRow(comp.id)}
+                              onClick={() => handleRemoveCompositionRow(comp.id, idx)}
                               style={{ background: 'none', border: 'none', color: T.danger, cursor: 'pointer', padding: '4px' }}
                               title="Hapus Bahan"
                             >
@@ -2205,8 +2258,10 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       {/* ------------------------------------------------------------- */}
       {deleteGuardState && (
         <DeleteGuardModal
+          guardState={deleteGuardState}
           state={deleteGuardState}
           onClose={() => setDeleteGuardState(null)}
+          theme={themeMode}
           themeMode={themeMode}
         />
       )}
