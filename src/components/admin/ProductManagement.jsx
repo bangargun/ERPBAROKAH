@@ -113,6 +113,34 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
+  // Dynamic Price Range Helper for Products with Variant Pricing
+  const getProductDisplayPrice = (product) => {
+    const baseP = Number(product.price || 0);
+    const vPrices = product.variantPrices || {};
+    const vars = product.variants || [];
+
+    if (vars.length > 0 && typeof vPrices === 'object' && Object.keys(vPrices).length > 0) {
+      const prices = vars.map(v => {
+        const val = vPrices[v];
+        if (typeof val === 'number') return val;
+        if (typeof val === 'object') {
+          return Number(Object.values(val)[0] || baseP);
+        }
+        return baseP;
+      }).filter(p => p > 0);
+
+      if (prices.length > 0) {
+        const minP = Math.min(...prices);
+        const maxP = Math.max(...prices);
+        if (minP !== maxP) {
+          return `${formatRupiah(minP)} - ${formatRupiah(maxP)}`;
+        }
+        return formatRupiah(minP);
+      }
+    }
+    return formatRupiah(baseP);
+  };
+
   // Helper to generate next sequential product SKU
   const generateNextProductCode = () => {
     const existingCodes = (masterData?.products || [])
@@ -843,7 +871,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', padding: '8px 10px', marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <span style={{ fontSize: '0.62rem', color: T.txtSecondary }}>HARGA JUAL</span>
-                        <div style={{ fontSize: '0.94rem', fontWeight: '900', color: T.accentGold }}>{formatRupiah(price)}</div>
+                        <div style={{ fontSize: '0.94rem', fontWeight: '900', color: T.accentGold }}>{getProductDisplayPrice(product)}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <span style={{ fontSize: '0.62rem', color: T.txtSecondary }}>ESTIMASI HPP</span>
@@ -1023,8 +1051,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                       </td>
 
                       {/* Selling Price */}
-                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: T.accentGold }}>
-                        {formatRupiah(price)}
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '900', color: T.accentGold, whiteSpace: 'nowrap' }}>
+                        {getProductDisplayPrice(product)}
                       </td>
 
                       {/* HPP Cost */}
