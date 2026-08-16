@@ -407,6 +407,8 @@ const defaultMasterData = {
   otherExpenses: [],
   stockMovement: [],
   stockOpname: [],
+  stockAdjustments: [],
+  cashAdjustments: [],
   shiftClosings: [],
   sopDocuments: [],
   webAdminAccounts: [],

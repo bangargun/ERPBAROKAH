@@ -7,6 +7,7 @@ import LoyaltyProgramPage from './components/admin/LoyaltyProgramPage';
 import CostsManagement from './components/admin/CostsManagement';
 
 import StockManagement from './components/admin/StockManagement';
+import AdjustmentsManagementPage from './components/admin/AdjustmentsManagementPage';
 import ApprovalCenter from './components/admin/ApprovalCenter';
 import ManualReportUpdatePage from './components/admin/ManualReportUpdatePage';
 import IngredientPriceComparisonPage from './components/admin/IngredientPriceComparisonPage';
@@ -650,6 +651,7 @@ export default function App() {
     'loyalty': 'masterData',
     'costs': 'costs',
     'stock': 'stock',
+    'adjustments': 'stock',
     'reports': 'reports',
     'sop': 'policies',
     'settings': 'settings',
@@ -726,6 +728,16 @@ export default function App() {
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          )}
+
+          {adminTab === 'adjustments' && (
+            <AdjustmentsManagementPage
+              masterData={masterData}
+              setMasterData={updateMasterData}
+              selectedBranch={selectedBranch}
+              userSession={userSession}
               themeMode={themeMode}
             />
           )}

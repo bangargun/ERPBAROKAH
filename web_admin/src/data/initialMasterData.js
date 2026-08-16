@@ -40,6 +40,8 @@ export const initialMasterData = {
   // 3. STOK INVENTORY
   stockMovement: [],
   stockOpname: [],
+  stockAdjustments: [],
+  cashAdjustments: [],
 
   // 4. APPROVED WORKFLOWS
   approvedLogistics: [],
