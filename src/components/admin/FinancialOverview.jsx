@@ -1189,16 +1189,39 @@ export default function FinancialOverview({
                   </span>
                 </div>
 
-                {/* Per Outlet Price Tags */}
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(allOutlets.length, 4)}, 1fr)`, gap: '4px', fontSize: '0.68rem' }}>
-                  {ing.outletPrices.slice(0, 4).map((op, oIdx) => (
-                    <div key={oIdx} style={{ background: T.inputBg, padding: '4px 6px', borderRadius: '6px', textAlign: 'center', border: `1px solid ${T.border}` }}>
-                      <div style={{ color: T.txtSecondary, fontSize: '0.62rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{op.outletName}</div>
-                      <div style={{ fontWeight: '800', color: op.price === ing.maxPrice && ing.hasDisparityAlert ? T.danger : T.info, marginTop: '2px' }}>
-                        {formatRupiah(op.price)}
+                {/* Per Outlet Price Tags (5 Cabang Lengkap) */}
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${allOutlets.length || 5}, 1fr)`, gap: '4px', fontSize: '0.68rem' }}>
+                  {ing.outletPrices.map((op, oIdx) => {
+                    const isLowest = ing.minPrice > 0 && op.price === ing.minPrice && ing.hasDisparityAlert;
+                    const isHighest = ing.maxPrice > 0 && op.price === ing.maxPrice && ing.hasDisparityAlert;
+                    const shortName = op.outletName
+                      ? op.outletName
+                          .replace(/AYAM PECAK 2001 SEAFOOD /i, 'PCK ')
+                          .replace(/AYAM BAKAR SURABAYA /i, 'SBY ')
+                          .replace(/PECEL LELE PAK HAJI /i, 'PLP ')
+                      : `Cabang #${oIdx + 1}`;
+
+                    return (
+                      <div 
+                        key={oIdx} 
+                        style={{ 
+                          background: isHighest ? T.dangerBg : isLowest ? T.successBg : T.inputBg, 
+                          padding: '5px 4px', 
+                          borderRadius: '6px', 
+                          textAlign: 'center', 
+                          border: `1px solid ${isHighest ? T.dangerBorder : isLowest ? T.successBorder : T.border}` 
+                        }}
+                        title={`${op.outletName}: ${formatRupiah(op.price)}`}
+                      >
+                        <div style={{ color: isHighest ? T.danger : isLowest ? T.success : T.txtSecondary, fontSize: '0.60rem', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {shortName}
+                        </div>
+                        <div style={{ fontWeight: '900', color: isHighest ? T.danger : isLowest ? T.success : T.txtPrimary, marginTop: '2px', fontSize: '0.66rem' }}>
+                          {formatRupiah(op.price)}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))
