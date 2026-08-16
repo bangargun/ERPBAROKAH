@@ -152,13 +152,29 @@ export default function AndroidPosRegister({
   };
 
   // Helper for computing effective price of a product for current outlet
+  // Helper for computing effective price of a product for current outlet
   const getProductPriceForOutlet = (item, outletId) => {
     if (!item) return 0;
     const outId = outletId || currentOutlet?.id || 1;
     const outIdStr = String(outId);
     const outIdNum = Number(outId);
 
-    // 1. Check standardPrices, standard_prices, branch_prices, outlet_prices for outId
+    // 1. Check branchVariantPrices or branch_variant_prices for outId
+    const bVarPrices = item.branchVariantPrices || item.branch_variant_prices || {};
+    const outBranchVars = bVarPrices[outId] || bVarPrices[outIdStr] || bVarPrices[outIdNum];
+    if (outBranchVars && typeof outBranchVars === 'object' && Object.keys(outBranchVars).length > 0) {
+      const varVals = Object.values(outBranchVars).map(v => Number(v)).filter(v => v > 0);
+      if (varVals.length > 0) {
+        return Math.min(...varVals);
+      }
+      // If branchVariantPrices explicitly configured for this outlet and all are <= 0:
+      const explicitVals = Object.values(outBranchVars).map(v => Number(v)).filter(v => !isNaN(v));
+      if (explicitVals.length > 0 && explicitVals.every(v => v <= 0)) {
+        return 0;
+      }
+    }
+
+    // 2. Check standardPrices, standard_prices, branch_prices, outlet_prices for outId
     const stdPrices = item.standardPrices || item.standard_prices || item.branch_prices || item.outlet_prices || {};
     let stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : (stdPrices[outIdStr] !== undefined ? stdPrices[outIdStr] : stdPrices[outIdNum]);
     if (stdVal === undefined) {
@@ -169,18 +185,8 @@ export default function AndroidPosRegister({
         }
       }
     }
-    if (stdVal !== undefined && Number(stdVal) > 0) {
-      return Number(stdVal);
-    }
-
-    // 2. Check branchVariantPrices or branch_variant_prices for outId
-    const bVarPrices = item.branchVariantPrices || item.branch_variant_prices || {};
-    const outBranchVars = bVarPrices[outId] || bVarPrices[outIdStr] || bVarPrices[outIdNum];
-    if (outBranchVars && typeof outBranchVars === 'object') {
-      const varVals = Object.values(outBranchVars).map(v => Number(v)).filter(v => v > 0);
-      if (varVals.length > 0) {
-        return Math.min(...varVals);
-      }
+    if (stdVal !== undefined) {
+      return Number(stdVal) || 0;
     }
 
     // 3. Check priceCombinations for outId
@@ -197,17 +203,19 @@ export default function AndroidPosRegister({
 
     // 4. Check variantPrices for outId
     if (item.variantPrices && typeof item.variantPrices === 'object') {
+      const vVals = [];
       for (const vName in item.variantPrices) {
         const vMap = item.variantPrices[vName];
         if (vMap && typeof vMap === 'object') {
           const vVal = vMap[outId] !== undefined ? vMap[outId] : (vMap[outIdStr] !== undefined ? vMap[outIdStr] : vMap[outIdNum]);
           if (vVal !== undefined && Number(vVal) > 0) {
-            return Number(vVal);
+            vVals.push(Number(vVal));
           }
-        } else if (vMap && Number(vMap) > 0) {
-          return Number(vMap);
+        } else if (vMap !== undefined && Number(vMap) > 0) {
+          vVals.push(Number(vMap));
         }
       }
+      if (vVals.length > 0) return Math.min(...vVals);
     }
 
     // 5. If product has base price
@@ -228,26 +236,26 @@ export default function AndroidPosRegister({
     // 1. Check branchVariantPrices / branch_variant_prices for this outlet & variant
     const bVarPrices = item.branchVariantPrices || item.branch_variant_prices || {};
     const outMap = bVarPrices[outId] || bVarPrices[outIdStr] || bVarPrices[outIdNum];
-    if (outMap && typeof outMap === 'object' && outMap[vName] !== undefined && Number(outMap[vName]) > 0) {
-      return Number(outMap[vName]);
+    if (outMap && typeof outMap === 'object' && outMap[vName] !== undefined) {
+      return Number(outMap[vName]) || 0;
     }
 
     // 2. Check variantPrices
     const vPrices = item.variantPrices || {};
     if (vPrices[vName] !== undefined) {
       if (typeof vPrices[vName] === 'object') {
-        const vVal = vPrices[vName][outId] || vPrices[vName][outIdStr] || vPrices[vName][outIdNum];
-        if (vVal !== undefined && Number(vVal) > 0) return Number(vVal);
-      } else if (Number(vPrices[vName]) > 0) {
-        return Number(vPrices[vName]);
+        const vVal = vPrices[vName][outId] !== undefined ? vPrices[vName][outId] : (vPrices[vName][outIdStr] !== undefined ? vPrices[vName][outIdStr] : vPrices[vName][outIdNum]);
+        if (vVal !== undefined) return Number(vVal) || 0;
+      } else {
+        return Number(vPrices[vName]) || 0;
       }
     }
 
     // 3. Check standardPrices / standard_prices / branch_prices / outlet_prices for this outlet
     const stdPrices = item.standardPrices || item.standard_prices || item.branch_prices || item.outlet_prices || {};
     const stdVal = stdPrices[outId] !== undefined ? stdPrices[outId] : (stdPrices[outIdStr] !== undefined ? stdPrices[outIdStr] : stdPrices[outIdNum]);
-    if (stdVal !== undefined && Number(stdVal) > 0) {
-      return Number(stdVal);
+    if (stdVal !== undefined) {
+      return Number(stdVal) || 0;
     }
 
     // 4. Fallback to base price
@@ -1532,10 +1540,13 @@ export default function AndroidPosRegister({
 
   const handleProductCardClick = (item) => {
     if (!item) return;
+    const activeOutletId = currentOutlet?.id || 1;
+    const rawVariants = Array.isArray(item.variants) && item.variants.length > 0 ? item.variants : [];
+    const validVariants = rawVariants.filter(v => getVariantPrice(item, v, activeOutletId) > 0);
+    const defaultVariant = validVariants.length > 0 ? validVariants[0] : (rawVariants.length === 0 ? 'Standard' : (rawVariants[0] || 'Standard'));
+
     setSelectedProductForVariant(item);
-    
-    const pVariants = Array.isArray(item.variants) && item.variants.length > 0 ? item.variants : ['Standard'];
-    setModalSelectedVariant(pVariants[0]);
+    setModalSelectedVariant(defaultVariant);
     setModalProductQty(1);
     setModalDiscountEnabled(false);
     setModalDiscountAmount('');
@@ -3869,11 +3880,18 @@ export default function AndroidPosRegister({
                           {/* Image Placeholder */}
                           <div style={{ height: '90px', background: 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                             <ShoppingBag size={28} color="#60a5fa" style={{ opacity: 0.7 }} />
-                            {item.variants && item.variants.length > 0 && (
-                              <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(37,99,235,0.9)', color: 'var(--pos-txt-white)', fontSize: '0.58rem', fontWeight: '800', padding: '2px 6px', borderRadius: '4px' }}>
-                                VARIAN
-                              </div>
-                            )}
+                            {item.variants && item.variants.length > 0 && (() => {
+                              const activeOutletId = currentOutlet?.id || 1;
+                              const availableVars = item.variants.filter(v => getVariantPrice(item, v, activeOutletId) > 0);
+                              if (availableVars.length > 0) {
+                                return (
+                                  <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(37,99,235,0.9)', color: 'var(--pos-txt-white)', fontSize: '0.58rem', fontWeight: '800', padding: '2px 6px', borderRadius: '4px' }}>
+                                    {availableVars.length > 1 ? `${availableVars.length} VARIAN` : 'VARIAN'}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
 
                           {/* Item Info */}
@@ -9055,20 +9073,33 @@ export default function AndroidPosRegister({
                   : [];
                 const activeOutletId = currentOutlet?.id || 1;
 
+                // Filter ONLY variants with price > 0 for this outlet.
+                // Jika harga varian adalah 0, secara otomatis varian tidak akan tampil di pos kasir!
+                const validVariants = rawVariants.filter(v => getVariantPrice(selectedProductForVariant, v, activeOutletId) > 0);
+
                 // Build variant list with full formatted titles e.g. "AYAM / SAMBAL PECAK"
-                const varList = rawVariants.length > 0 ? rawVariants.map(v => {
+                const varList = validVariants.length > 0 ? validVariants.map(v => {
                   const isPrefixed = v.toLowerCase().startsWith(selectedProductForVariant.name.toLowerCase());
                   return {
                     name: v,
                     title: isPrefixed ? v.toUpperCase() : `${selectedProductForVariant.name.toUpperCase()} / ${v.toUpperCase()}`
                   };
-                }) : [{
+                }) : (rawVariants.length === 0 ? [{
                   name: 'Standard',
                   title: selectedProductForVariant.name.toUpperCase()
-                }];
+                }] : []);
 
                 // Default active variant if empty
                 const activeVarObj = varList.find(v => v.name === modalSelectedVariant) || varList[0];
+
+                if (varList.length === 0) {
+                  return (
+                    <div style={{ padding: '24px 20px', textAlign: 'center', color: '#e11d48', background: '#fff1f2', borderBottom: '1px solid #ffe4e6' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '800' }}>Varian Tidak Tersedia</div>
+                      <div style={{ fontSize: '0.78rem', marginTop: '4px', color: '#9f1239' }}>Harga varian untuk cabang ini diset 0 / belum tersedia.</div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div>
@@ -9242,14 +9273,18 @@ export default function AndroidPosRegister({
               const rawVariants = Array.isArray(selectedProductForVariant.variants) && selectedProductForVariant.variants.length > 0
                 ? selectedProductForVariant.variants
                 : [];
-              const varList = rawVariants.length > 0 ? rawVariants : ['Standard'];
-              const activeVName = modalSelectedVariant || varList[0];
+              const validVariants = rawVariants.filter(v => getVariantPrice(selectedProductForVariant, v, activeOutletId) > 0);
+              const varList = validVariants.length > 0 ? validVariants : (rawVariants.length === 0 ? ['Standard'] : []);
+              const activeVName = modalSelectedVariant && varList.includes(modalSelectedVariant)
+                ? modalSelectedVariant
+                : (varList.length > 0 ? varList[0] : 'Standard');
 
               const unitPrice = getVariantPrice(selectedProductForVariant, activeVName, activeOutletId);
 
               const discVal = modalDiscountEnabled && modalDiscountAmount !== '' ? Number(modalDiscountAmount) : 0;
               const netUnitPrice = Math.max(0, unitPrice - discVal);
               const computedTotal = netUnitPrice * modalProductQty;
+              const isInvalidPrice = unitPrice <= 0 || varList.length === 0;
 
               return (
                 <div style={{
@@ -9263,7 +9298,9 @@ export default function AndroidPosRegister({
                   {/* Left Purple Button: Simpan + Total Price */}
                   <button
                     type="button"
+                    disabled={isInvalidPrice}
                     onClick={() => {
+                      if (isInvalidPrice) return;
                       const isStd = activeVName === 'Standard';
                       const finalItemName = isStd 
                         ? selectedProductForVariant.name 
@@ -9294,7 +9331,7 @@ export default function AndroidPosRegister({
                     style={{
                       flex: 1,
                       height: '48px',
-                      background: '#583782',
+                      background: isInvalidPrice ? '#94a3b8' : '#583782',
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '10px',
@@ -9304,11 +9341,11 @@ export default function AndroidPosRegister({
                       alignItems: 'center',
                       fontSize: '0.95rem',
                       fontWeight: '800',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(88,55,130,0.25)'
+                      cursor: isInvalidPrice ? 'not-allowed' : 'pointer',
+                      boxShadow: isInvalidPrice ? 'none' : '0 4px 12px rgba(88,55,130,0.25)'
                     }}
                   >
-                    <span>Simpan</span>
+                    <span>{isInvalidPrice ? 'Harga Belum Diset' : 'Simpan'}</span>
                     <span>{formatRupiah(computedTotal)}</span>
                   </button>
 

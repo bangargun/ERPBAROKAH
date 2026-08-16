@@ -361,7 +361,8 @@ const layout = {
 ## 🗂️ 13. Riwayat Build APK Terbaru
 | Versi | File | Tanggal Build | Perubahan |
 |-------|------|--------------|-----------| 
-| **v4.3.3** | **`POS_KASIR_v4.3.3.apk`** | 16-08-2026 | **Fix Auto-Push Edit Produk**: Auto-push kini juga mendeteksi produk/kategori/bahan yang **diedit** (bukan hanya yang baru ditambah) berdasarkan perbandingan timestamp `_updatedAt`. Format harga per-outlet (`standardPrices`, `variantPrices`) kini dijamin tersinkronisasi ke server. |
+| **v4.3.4** | **`POS_KASIR_v4.3.4.apk`** | 16-08-2026 | **Auto-Hide Menu & Varian Harga Rp 0**: Jika harga produk/menu untuk cabang aktif diset `0`, produk tidak muncul di grid menu POS. Jika harga varian diset `0`, varian tersebut otomatis disembunyikan dari daftar pilihan varian di drawer/modal kasir. |
+| v4.3.3 | `POS_KASIR_v4.3.3.apk` | 16-08-2026 | Fix Auto-Push Edit Produk: Deteksi update konten produk via `_updatedAt` dan nama-based tombstone filter. |
 | v4.3.2 | `POS_KASIR_v4.3.2.apk` | 16-08-2026 | Fix auto-push (count-based) dan hapus batas 60 detik untuk master data lokal. |
 | v4.3.1 | `POS_KASIR_v4.3.1.apk` | 16-08-2026 | **Fix Sinkronisasi Kategori Menu**: Perbaikan kritis server-side union merge untuk `categories`, `products`, `ingredients` — mencegah APK lama menimpa data master terbaru dari Web Admin. |
 | **v4.3.0** | **`POS_KASIR_BAROKAH_v4.3.0_Universal_Build_20260816.apk`** / **`POS_KASIR_v4.3.0.apk`** / **`POS KASIR.APK`** | 16-08-2026 | **Build Rilis Universal Terbaru**: Pembaruan modul Analisis Harga Bahan, Riwayat Transaksi & Omzet POS, performa respon offline-first, dan optimasi layout multi-layar (Tablet 10", Smartphone, Tablet Besar). |
