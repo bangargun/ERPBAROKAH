@@ -1677,23 +1677,65 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
 
       // Proteksi khusus: field user-kritis tidak boleh di-overwrite dengan [] tanpa _isExplicitClear
       if (USER_CRITICAL_KEYS.has(key) && incVal.length === 0 && Array.isArray(extVal) && extVal.length > 0 && !incoming._isExplicitClear) {
-        // Pertahankan data existing yang ada — jangan izinkan array kosong menimpa data user
         result[key] = extVal;
         return;
       }
 
-      // If incoming payload timestamp is newer or equal (active client mutation), adopt incVal directly to respect additions & deletions 100%
+      // ─── UNION MERGE untuk Master Data arrays ────────────────────────────────
+      // Kategori, Produk, Bahan, Outlet, dll. TIDAK BOLEH di-overwrite mentah-mentah
+      // oleh klien yang mungkin punya data lebih sedikit (misal: APK lama).
+      // Gunakan union merge: gabungkan existing + incoming berdasarkan ID/name,
+      // prioritaskan item dengan _updatedAt lebih baru.
+      const MASTER_DATA_ARRAY_KEYS = new Set([
+        'categories', 'ingredients', 'products', 'menuItems',
+        'outlets', 'paymentMethods', 'expenseMaster'
+      ]);
+
+      if (MASTER_DATA_ARRAY_KEYS.has(key) && (incVal.length > 0 || (Array.isArray(extVal) && extVal.length > 0))) {
+        const unionMap = new Map();
+
+        // Seed dengan data existing (base)
+        (Array.isArray(extVal) ? extVal : []).forEach(item => {
+          if (!item) return;
+          const k = String(item.id != null ? item.id : (item.code || item.name || '')).trim();
+          if (k) unionMap.set(k, item);
+        });
+
+        // Overlay dengan data incoming: jika item sudah ada, ambil yang _updatedAt lebih baru
+        (Array.isArray(incVal) ? incVal : []).forEach(item => {
+          if (!item) return;
+          const k = String(item.id != null ? item.id : (item.code || item.name || '')).trim();
+          if (!k) return;
+
+          if (unionMap.has(k)) {
+            const existItem = unionMap.get(k);
+            const existTs = Number(existItem._updatedAt || existItem._lastMutated || existItem._lastUpdated || 0);
+            const incItemTs = Number(item._updatedAt || item._lastMutated || item._lastUpdated || 0);
+            // Jika incoming lebih baru ATAU keduanya tanpa timestamp (ambil incoming sebagai perubahan terbaru)
+            if (incItemTs >= existTs) {
+              unionMap.set(k, item);
+            }
+          } else {
+            // Item baru dari incoming yang belum ada di existing → tambahkan
+            unionMap.set(k, item);
+          }
+        });
+
+        result[key] = Array.from(unionMap.values());
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
+      // Untuk array non-master-data: gunakan logika replace berdasarkan timestamp
       if (incTs >= extTs || !extVal) {
         if (incVal.length > 0) {
           result[key] = incVal;
         } else if (!extVal || extVal.length === 0 || incoming._isExplicitClear) {
           result[key] = [];
         } else {
-          // If incVal is [] but extVal has items and not an explicit clear, keep extVal to protect against accidental empty array payload wipes
           result[key] = extVal;
         }
       } else {
-        // If incoming timestamp is older, adopt incoming non-empty array or keep existing
         if (incVal.length > 0) {
           result[key] = incVal;
         } else {
@@ -1762,6 +1804,39 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
       return !deletedProdSet.has(pId) && !deletedProdSet.has(pSku);
     });
   }
+
+  // Bersihkan kategori yang sudah dihapus via deletedCategoriesIds
+  const deletedCatSet = new Set([
+    ...(result.deletedCategoriesIds || []),
+    ...(incoming.deletedCategoriesIds || []),
+    ...(existing.deletedCategoriesIds || [])
+  ].map(x => String(x).toLowerCase().trim()));
+
+  if (deletedCatSet.size > 0 && Array.isArray(result.categories)) {
+    result.categories = result.categories.filter(c => {
+      if (!c) return false;
+      const cId = String(c.id !== undefined && c.id !== null ? c.id : '').toLowerCase().trim();
+      const cCode = String(c.code || '').toLowerCase().trim();
+      return !deletedCatSet.has(cId) && !deletedCatSet.has(cCode);
+    });
+  }
+
+  // Bersihkan bahan baku yang sudah dihapus via deletedIngredientIds
+  const deletedIngSet = new Set([
+    ...(result.deletedIngredientIds || []),
+    ...(incoming.deletedIngredientIds || []),
+    ...(existing.deletedIngredientIds || [])
+  ].map(x => String(x).toLowerCase().trim()));
+
+  if (deletedIngSet.size > 0 && Array.isArray(result.ingredients)) {
+    result.ingredients = result.ingredients.filter(i => {
+      if (!i) return false;
+      const iId = String(i.id !== undefined && i.id !== null ? i.id : '').toLowerCase().trim();
+      const iCode = String(i.code || '').toLowerCase().trim();
+      return !deletedIngSet.has(iId) && !deletedIngSet.has(iCode);
+    });
+  }
+
 
   return result;
 };
