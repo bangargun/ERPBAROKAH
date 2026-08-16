@@ -455,7 +455,8 @@ export default function App() {
               const serverWaste = getCombinedArray(serverData.approvedWaste, serverData.damagedGoods);
               const mergedWaste = mergeReportsById(prevWaste, serverWaste);
 
-              // Merge master arrays — server is authoritative, local additions only if freshly created < 60s
+              // Merge master arrays — server is authoritative, local additions ALWAYS kept (no expiry)
+              // Kategori/produk/bahan baku bersifat permanen — jangan hapus hanya karena POST sempat gagal
               const mergeMasterArray = (prevArr, serverArr, deletedIds) => {
                 const map = new Map();
                 // Add server items first as base
@@ -476,11 +477,9 @@ export default function App() {
                       map.set(k, item); // local is genuinely newer
                     }
                   } else {
-                    // Only keep local-only item if created freshly within last 60 seconds
-                    const localTs = Number(item._lastMutated || item._updatedAt || item._lastUpdated || item._createdAt || 0);
-                    if (localTs > 0 && (Date.now() - localTs < 60000)) {
-                      map.set(k, item);
-                    }
+                    // ← PENTING: TIDAK ada batas 60 detik untuk master data.
+                    // Item lokal yang belum ter-POST ke server TETAP disimpan sampai user hapus secara eksplisit.
+                    map.set(k, item);
                   }
                 });
                 return Array.from(map.values());
@@ -493,6 +492,29 @@ export default function App() {
               const prevStr = JSON.stringify(prev);
               const serverStr = JSON.stringify(serverData);
               if (prevStr === serverStr) return prev;
+
+              // Auto-push: jika local memiliki lebih banyak kategori/produk/bahan daripada server,
+              // langsung POST untuk menyelamatkan data lokal yang belum tersinkronisasi ke server.
+              const localHasExtraCategories = mergedCategories.length > (serverData.categories || []).length;
+              const localHasExtraProducts   = mergedProducts.length   > (serverData.products   || []).length;
+              const localHasExtraIngredients= mergedIngredients.length> (serverData.ingredients|| []).length;
+              if (localHasExtraCategories || localHasExtraProducts || localHasExtraIngredients) {
+                // Jadwalkan POST setelah render selesai (non-blocking)
+                const autoPushPayload = {
+                  ...prev,
+                  categories:   mergedCategories,
+                  products:     mergedProducts,
+                  ingredients:  mergedIngredients,
+                  _lastUpdated: Date.now()
+                };
+                setTimeout(() => {
+                  fetch(getApiUrl('/api/master-data'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(autoPushPayload)
+                  }).catch(() => {});
+                }, 200);
+              }
 
               lastRemoteTsRef.current = remoteTs;
               return {
