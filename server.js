@@ -2261,7 +2261,15 @@ app.post('/api/pos/transaction', async (req, res) => {
 
     const txId = String(tx.id);
     const txDate = tx.date || new Date().toISOString().split('T')[0];
-    const txTime = tx.time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const formatTimeHHMMSS = (t) => {
+      if (t && String(t).includes(':')) {
+        const parts = String(t).split(':');
+        return `${parts[0].padStart(2, '0')}:${(parts[1] || '00').padStart(2, '0')}:${(parts[2] || '00').padStart(2, '0')}`.substring(0, 8);
+      }
+      const _n = new Date();
+      return `${String(_n.getHours()).padStart(2, '0')}:${String(_n.getMinutes()).padStart(2, '0')}:${String(_n.getSeconds()).padStart(2, '0')}`;
+    };
+    const txTime = formatTimeHHMMSS(tx.time);
     const outletId = Number(tx.outlet_id || tx.branch_id || 1);
     const branchName = tx.branch_name || tx.outlet || 'Cabang';
     const customerName = tx.customer_name || tx.customer || 'Pelanggan Umum';
