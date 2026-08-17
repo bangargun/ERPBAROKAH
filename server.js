@@ -2196,6 +2196,8 @@ const sanitizeMasterDataPayload = (data) => {
 // SINKRONISASI DATA MASTER TERPUSAT (SINGLE PRIMARY DATABASE: MySQL mris_db)
 // -----------------------------------------------------------------------------
 
+let forceFlushUntil = 0;
+
 // GET /api/master-data — 100% MySQL PRIMARY STORAGE
 app.get('/api/master-data', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -2207,9 +2209,8 @@ app.get('/api/master-data', async (req, res) => {
     const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : defaultMasterData;
     const serverTs = Number(activeData._lastUpdated || 0);
 
-    // Jika ada perintah force-flush aktif, embed ke response dan reset flag
-    const shouldForceFlush = forceFlushActive;
-    if (shouldForceFlush) forceFlushActive = false;
+    // Jika forceFlush window aktif (10 menit sejak di-trigger), embed ke response
+    const shouldForceFlush = Date.now() < forceFlushUntil;
 
     if (clientTs > 0 && serverTs > 0 && clientTs >= serverTs && !shouldForceFlush) {
       return res.status(304).end();
@@ -2223,11 +2224,11 @@ app.get('/api/master-data', async (req, res) => {
   }
 });
 
-// POST /api/pos-force-flush — Paksa semua POS tablet flush offline queue ke server
+// POST /api/pos-force-flush — Paksa semua POS tablet flush data transaksi ke server selama 10 menit
 app.post('/api/pos-force-flush', (req, res) => {
-  forceFlushActive = true;
-  console.log('[FORCE-FLUSH] Perintah force-flush dikirim ke semua POS client pada GET berikutnya');
-  return res.json({ success: true, message: 'Perintah force-flush aktif. Semua POS akan flush offline queue pada sync berikutnya (dalam 3-15 detik).' });
+  forceFlushUntil = Date.now() + 10 * 60 * 1000; // Aktif selama 10 menit ke depan
+  console.log('[FORCE-FLUSH] Perintah force-flush aktif selama 10 menit untuk semua POS client');
+  return res.json({ success: true, message: 'Perintah force-flush aktif selama 10 menit. Semua POS akan otomatis upload seluruh transaksi.' });
 });
 
 // POST /api/master-data — 100% MySQL PRIMARY STORAGE UPDATE
