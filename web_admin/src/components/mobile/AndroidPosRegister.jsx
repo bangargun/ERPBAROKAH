@@ -2037,7 +2037,8 @@ export default function AndroidPosRegister({
 
     const isDineIn = orderType === 'Dine In' && selectedTableId;
     const tblNum = isDineIn ? (selectedTableObj?.number || 'Meja 01') : 'N/A (Take Away)';
-    const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const _now2040 = new Date();
+    const currentTime = `${String(_now2040.getHours()).padStart(2,'0')}:${String(_now2040.getMinutes()).padStart(2,'0')}:${String(_now2040.getSeconds()).padStart(2,'0')}`;
     const currentDate = new Date().toISOString().split('T')[0];
 
     // Compute diff items for supplementary printing if order was opened & modified
@@ -2118,7 +2119,8 @@ export default function AndroidPosRegister({
     if (cart.length === 0) return;
 
     const tblNum = orderType === 'Dine In' ? (selectedTableObj?.number || 'Meja 01') : 'N/A';
-    const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const _now2121 = new Date();
+    const currentTime = `${String(_now2121.getHours()).padStart(2,'0')}:${String(_now2121.getMinutes()).padStart(2,'0')}:${String(_now2121.getSeconds()).padStart(2,'0')}`;
     const currentDate = new Date().toISOString().split('T')[0];
     const receiptNo = `BILL-${Date.now().toString().substring(6)}`;
 
@@ -2598,7 +2600,8 @@ export default function AndroidPosRegister({
       return r.includes('super') || r.includes('admin') || r.includes('owner');
     })();
     const currentDate = isSuperAdminUser && customTxDate ? customTxDate : new Date().toISOString().split('T')[0];
-    const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const _now2601 = new Date();
+    const currentTime = `${String(_now2601.getHours()).padStart(2,'0')}:${String(_now2601.getMinutes()).padStart(2,'0')}:${String(_now2601.getSeconds()).padStart(2,'0')}`;
     const paidVal = customTendered !== null && customTendered !== '' ? Number(customTendered) : cartTotal;
 
     const newTx = {
@@ -2879,7 +2882,7 @@ export default function AndroidPosRegister({
       id: Date.now(),
       name: pettyExpenseName,
       amount: Number(pettyExpenseAmount),
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+      time: (() => { const _n = new Date(); return `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}:${String(_n.getSeconds()).padStart(2,'0')}`; })()
     };
     setPettyExpenses([newExp, ...pettyExpenses]);
     setPettyExpenseName('');
@@ -2935,7 +2938,7 @@ export default function AndroidPosRegister({
       id: `SHIFT-CLOSE-${Date.now().toString().substring(7)}`,
       report_no: `LAP-SHIFT-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
       date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      time: (() => { const _n = new Date(); return `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}:${String(_n.getSeconds()).padStart(2,'0')}`; })(),
       outlet_id: currentOutlet.id,
       outlet_name: currentOutlet.name,
       branch_name: currentOutlet.name,       // alias untuk ApprovalCenter Web Admin
