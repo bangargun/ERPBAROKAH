@@ -722,14 +722,26 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
   ]);
 
-  const rawTransactionsList = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
-    if (!t) return false;
-    const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
-    const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
-    if (tid && deletedSalesSet.has(tid)) return false;
-    if (trcpt && deletedSalesSet.has(trcpt)) return false;
-    return true;
-  });
+  const rawTransactionsList = (masterData?.salesTransactions || masterData?.transactions || [])
+    .filter(t => {
+      if (!t) return false;
+      const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
+      const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+      if (tid && deletedSalesSet.has(tid)) return false;
+      if (trcpt && deletedSalesSet.has(trcpt)) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      const dateA = String(a.date || a.entry_date || a.transaction_date || a.created_at || '').substring(0, 10);
+      const dateB = String(b.date || b.entry_date || b.transaction_date || b.created_at || '').substring(0, 10);
+      if (dateA !== dateB) return dateB.localeCompare(dateA);
+      const timeA = String(a.time || '00:00:00');
+      const timeB = String(b.time || '00:00:00');
+      if (timeA !== timeB) return timeB.localeCompare(timeA);
+      const idA = String(a.id || a.receipt_no || '');
+      const idB = String(b.id || b.receipt_no || '');
+      return idB.localeCompare(idA);
+    });
 
   const filteredTransactions = rawTransactionsList.filter(item => {
     if (outletFilter !== 'ALL' && Number(item.outlet_id) !== Number(outletFilter)) return false;

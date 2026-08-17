@@ -691,7 +691,17 @@ const getMasterDataFromMySQL = async () => {
           txMap.set(k, mappedTx);
         });
 
-        const mergedAllTx = Array.from(txMap.values());
+        const mergedAllTx = Array.from(txMap.values()).sort((a, b) => {
+          const dateA = String(a.date || a.entry_date || a.transaction_date || a.created_at || '').substring(0, 10);
+          const dateB = String(b.date || b.entry_date || b.transaction_date || b.created_at || '').substring(0, 10);
+          if (dateA !== dateB) return dateB.localeCompare(dateA);
+          const timeA = String(a.time || '00:00:00');
+          const timeB = String(b.time || '00:00:00');
+          if (timeA !== timeB) return timeB.localeCompare(timeA);
+          const idA = String(a.id || a.receipt_no || '');
+          const idB = String(b.id || b.receipt_no || '');
+          return idB.localeCompare(idA);
+        });
         masterData.salesTransactions = mergedAllTx;
         masterData.transactions = mergedAllTx;
         masterData.outletTransactions = mergedAllTx;
