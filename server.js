@@ -1780,37 +1780,59 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
       // oleh klien yang mungkin punya data lebih sedikit (misal: APK lama).
       // Gunakan union merge: gabungkan existing + incoming berdasarkan ID/name,
       // prioritaskan item dengan _updatedAt lebih baru.
+      // ─── UNION MERGE ADDITIVE untuk Transaction arrays ───────────────────────
+      // salesTransactions, shiftClosings, dll. TIDAK BOLEH di-overwrite (replace).
+      // Selalu gabungkan berdasarkan ID: existing + incoming, tidak ada yang hilang.
+      const TRANSACTION_ARRAY_KEYS = new Set([
+        'salesTransactions', 'transactions',
+        'shiftClosings', 'closedShifts', 'shift_closings', 'shiftReports',
+        'stockOpname', 'approvedLogistics', 'approvedOpname',
+        'stockTransfer', 'approvedTransfers',
+        'damagedGoods', 'approvedWaste',
+        'approvedFinanceDaily', 'manualEntryRecords', 'manualReports',
+        'stockMovement', 'stockIn', 'purchases', 'cogsExpenses',
+        'productionExpenses', 'otherExpenses', 'stockAdjustments',
+        'cashAdjustments', 'customers', 'suppliers', 'units', 'tables'
+      ]);
+
       const MASTER_DATA_ARRAY_KEYS = new Set([
         'categories', 'ingredients', 'products', 'menuItems',
         'outlets', 'paymentMethods', 'expenseMaster'
       ]);
 
-      if (MASTER_DATA_ARRAY_KEYS.has(key) && (incVal.length > 0 || (Array.isArray(extVal) && extVal.length > 0))) {
+      const shouldUnionMerge = MASTER_DATA_ARRAY_KEYS.has(key) || TRANSACTION_ARRAY_KEYS.has(key);
+      if (shouldUnionMerge && (incVal.length > 0 || (Array.isArray(extVal) && extVal.length > 0))) {
         const unionMap = new Map();
 
-        // Seed dengan data existing (base)
+        // Seed dengan data existing (base) — tidak ada yang hilang dari server
         (Array.isArray(extVal) ? extVal : []).forEach(item => {
           if (!item) return;
-          const k = String(item.id != null ? item.id : (item.code || item.name || '')).trim();
+          const k = String(
+            item.id != null ? item.id :
+            (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
+          ).trim();
           if (k) unionMap.set(k, item);
         });
 
         // Overlay dengan data incoming: jika item sudah ada, ambil yang _updatedAt lebih baru
         (Array.isArray(incVal) ? incVal : []).forEach(item => {
           if (!item) return;
-          const k = String(item.id != null ? item.id : (item.code || item.name || '')).trim();
+          const k = String(
+            item.id != null ? item.id :
+            (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
+          ).trim();
           if (!k) return;
 
           if (unionMap.has(k)) {
             const existItem = unionMap.get(k);
             const existTs = Number(existItem._updatedAt || existItem._lastMutated || existItem._lastUpdated || 0);
             const incItemTs = Number(item._updatedAt || item._lastMutated || item._lastUpdated || 0);
-            // Jika incoming lebih baru ATAU keduanya tanpa timestamp (ambil incoming sebagai perubahan terbaru)
+            // Jika incoming lebih baru ATAU keduanya tanpa timestamp → pakai incoming
             if (incItemTs >= existTs) {
               unionMap.set(k, item);
             }
           } else {
-            // Item baru dari incoming yang belum ada di existing → tambahkan
+            // Item baru dari incoming yang belum ada di existing → SELALU tambahkan
             unionMap.set(k, item);
           }
         });
