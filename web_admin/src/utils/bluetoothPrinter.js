@@ -464,4 +464,51 @@ export const _browserPrintFallback = (textContent, paperWidth = '58') => {
   }
 };
 
-export default { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint };
+/**
+ * Konversi data rekonsiliasi tutup shift kasir ke format teks ESC/POS untuk thermal printer.
+ */
+export const buildShiftClosingReceiptText = (shiftData, outletName, paperWidth = '58', formatRupiah) => {
+  const charsPerLine = paperWidth === '80' ? 48 : 32;
+  const lines = [];
+  const fmt = formatRupiah || ((n) => `Rp ${Number(n || 0).toLocaleString('id-ID')}`);
+  const rowLine = (left, right, totalWidth = charsPerLine) => {
+    const r = String(right);
+    const l = String(left);
+    const space = Math.max(1, totalWidth - l.length - r.length);
+    return l + ' '.repeat(space) + r;
+  };
+
+  lines.push('[C][B]' + (outletName || 'POS BAROKAH').toUpperCase() + '[/B][/C]');
+  lines.push('[C][B]REKAPITULASI TUTUP SHIFT[/B][/C]');
+  lines.push('[C]' + (shiftData.date || new Date().toISOString().split('T')[0]) + ' ' + (shiftData.time || '') + '[/C]');
+  lines.push('[DIV]');
+  lines.push(rowLine('Kasir/Petugas', shiftData.cashier_name || 'Kasir'));
+  lines.push(rowLine('Status Shift', 'SELESAI DITUTUP'));
+  lines.push('[DIV]');
+  lines.push(rowLine('Total Transaksi', `${shiftData.total_receipts || 0} Struk`));
+  lines.push(rowLine('Total Penjualan', fmt(shiftData.gross_sales || 0)));
+  lines.push(rowLine('Penjualan Tunai', fmt(shiftData.cash_sales || 0)));
+  lines.push(rowLine('Non-Tunai (QRIS/EDC)', fmt(shiftData.non_cash_sales || 0)));
+  lines.push(rowLine('Kas Kecil (Expense)', '-' + fmt(shiftData.petty_expense || 0)));
+  lines.push(rowLine('Modal Awal (Float)', fmt(shiftData.initial_cash || 0)));
+  lines.push('[DIVD]');
+  lines.push('[B]' + rowLine('Target Kas Laci', fmt(shiftData.expected_cash || 0)) + '[/B]');
+  lines.push('[B]' + rowLine('Fisik Dihitung', fmt(shiftData.physical_cash || 0)) + '[/B]');
+  const v = Number(shiftData.variance || 0);
+  const vLabel = v === 0 ? 'PAS (Rp 0)' : (v < 0 ? `MINUS ${fmt(Math.abs(v))}` : `LEBIH ${fmt(v)}`);
+  lines.push('[B]' + rowLine('Selisih Kas', vLabel) + '[/B]');
+  lines.push('[DIV]');
+  if (shiftData.notes) {
+    lines.push('Catatan: ' + shiftData.notes);
+    lines.push('[DIV]');
+  }
+  lines.push('[C]Tanda Tangan Kasir,[/C]');
+  lines.push('\n\n');
+  lines.push('[C]( ' + (shiftData.cashier_name || 'Kasir') + ' )[/C]');
+  lines.push('[DIV]');
+  lines.push('[C]Laporan tersimpan otomatis[/C]');
+  lines.push('[CUT]');
+  return lines.join('\n');
+};
+
+export default { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, buildShiftClosingReceiptText, testPrint };

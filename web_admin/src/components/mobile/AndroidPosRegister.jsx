@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
-import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, testPrint as btTestPrint, _browserPrintFallback, checkPrinterLiveStatus, listenBluetoothStatusChange } from '../../utils/bluetoothPrinter';
+import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, buildShiftClosingReceiptText, testPrint as btTestPrint, _browserPrintFallback, checkPrinterLiveStatus, listenBluetoothStatusChange } from '../../utils/bluetoothPrinter';
 import { 
   ShoppingBag, 
   History, 
@@ -3037,9 +3037,55 @@ export default function AndroidPosRegister({
     alert('Permintaan Bahan Baku Logistik Terkirim ke Web Admin!');
   };
 
-  // Handle Shift Closing Submission to Web Admin Menu 7 (Persetujuan)
+  const [showShiftClosingModal, setShowShiftClosingModal] = useState(false);
+  const [shiftDenominations, setShiftDenominations] = useState({
+    100000: '',
+    50000: '',
+    20000: '',
+    10000: '',
+    5000: '',
+    2000: '',
+    1000: '',
+    coin: ''
+  });
+  const [shiftCustomNotes, setShiftCustomNotes] = useState('');
+
+  // Hitung total fisik kas dari pecahan uang kertas & koin
+  const physicalCashCalculated = useMemo(() => {
+    return Object.entries(shiftDenominations).reduce((sum, [denom, count]) => {
+      const c = Number(count || 0);
+      return denom === 'coin' ? sum + c : sum + (Number(denom) * c);
+    }, 0);
+  }, [shiftDenominations]);
+
+  // Cetak Struk Rekap Tutup Shift ke Printer Bluetooth / Thermal
+  const handlePrintShiftClosingReceipt = async () => {
+    const physicalVal = physicalCashCalculated > 0 ? physicalCashCalculated : Number(physicalCashDrawer || expectedCashInDrawer);
+    const variance = physicalVal - expectedCashInDrawer;
+
+    const shiftData = {
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      cashier_name: currentUserSession?.name || userSession?.name || 'Kasir POS',
+      total_receipts: (outletTransactions || []).length,
+      gross_sales: totalSalesGross,
+      cash_sales: cashSales,
+      non_cash_sales: qrisSales + edcSales,
+      petty_expense: totalPettyExpense,
+      initial_cash: Number(initialCash || 0),
+      expected_cash: expectedCashInDrawer,
+      physical_cash: physicalVal,
+      variance: variance,
+      notes: shiftCustomNotes
+    };
+
+    const text = buildShiftClosingReceiptText(shiftData, currentOutlet.name, printerPaperWidth, formatRupiah);
+    await printTextToBluetooth(text);
+  };
+
+  // Handle Shift Closing Submission to Web Admin Menu 7 (Persetujuan) & MySQL
   const handleSubmitShiftClosing = () => {
-    const physicalVal = Number(physicalCashDrawer || expectedCashInDrawer);
+    const physicalVal = physicalCashCalculated > 0 ? physicalCashCalculated : Number(physicalCashDrawer || expectedCashInDrawer);
     const variance = physicalVal - expectedCashInDrawer;
 
     const newShiftReport = {
@@ -3047,11 +3093,11 @@ export default function AndroidPosRegister({
       report_no: `LAP-SHIFT-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
       date: new Date().toISOString().split('T')[0],
       time: (() => { const _n = new Date(); return `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}:${String(_n.getSeconds()).padStart(2,'0')}`; })(),
-      outlet_id: currentOutlet.id,
+      outlet_id: Number(currentOutlet.id),
       outlet_name: currentOutlet.name,
       branch_name: currentOutlet.name,       // alias untuk ApprovalCenter Web Admin
-      cashier_name: userSession?.name || currentUserSession?.name || masterData?.currentUser?.name || 'Kasir Outlet',
-      initial_cash: initialCash,
+      cashier_name: currentUserSession?.name || userSession?.name || 'Kasir POS',
+      initial_cash: Number(initialCash || 0),
       // Field utama POS Kasir
       gross_sales: totalSalesGross,
       cash_sales: cashSales,
@@ -3059,15 +3105,20 @@ export default function AndroidPosRegister({
       petty_expense: totalPettyExpense,
       expected_cash: expectedCashInDrawer,
       physical_cash: physicalVal,
+      cash_physical: physicalVal,
       variance: variance,
+      cash_variance: variance,
       // Alias field yang dibutuhkan ApprovalCenter Web Admin
-      net_sales: totalSalesGross,            // ApprovalCenter membaca: net_sales || total_sales || total_income
+      net_sales: totalSalesGross,
       total_sales: totalSalesGross,
       total_income: totalSalesGross,
-      total_expense: totalPettyExpense,      // ApprovalCenter membaca: total_expense
-      cash_in_drawer: physicalVal,           // ApprovalCenter membaca: cash_in_drawer
+      total_expense: totalPettyExpense,
+      cash_in_drawer: physicalVal,
+      denominations: shiftDenominations,
+      notes: shiftCustomNotes,
       // Status & metadata
-      status: 'Pending',
+      status: 'SELESAI DITUTUP',
+      is_approved: true,
       submitter_type: 'POS Kasir',
       type_input: 'POS Kasir'
     };
@@ -3078,15 +3129,17 @@ export default function AndroidPosRegister({
         ...prev,
         _lastUpdated: now,
         clientUpdated: now,
-        approvedFinanceDaily: [newShiftReport, ...(prev.approvedFinanceDaily || [])],
-        shiftClosings: [newShiftReport, ...(prev.shiftClosings || [])],
-        closedShifts: [newShiftReport, ...(prev.closedShifts || [])]
+        approvedFinanceDaily: [newShiftReport, ...(prev.approvedFinanceDaily || []).filter(s => s.id !== newShiftReport.id)],
+        shiftClosings: [newShiftReport, ...(prev.shiftClosings || []).filter(s => s.id !== newShiftReport.id)],
+        shift_closings: [newShiftReport, ...(prev.shift_closings || []).filter(s => s.id !== newShiftReport.id)],
+        closedShifts: [newShiftReport, ...(prev.closedShifts || []).filter(s => s.id !== newShiftReport.id)]
       };
       saveToServerWithGuard(newMaster);
       return newMaster;
     });
 
-    alert(`Laporan Shift Kasir Outlet ${currentOutlet.name} Terkirim ke Web Admin (Menu 7. Persetujuan)!`);
+    setShowShiftClosingModal(false);
+    alert(`✅ Rekonsiliasi Tutup Shift Berhasil Disimpan!\n\nOutlet: ${currentOutlet.name}\nTotal Penjualan: ${formatRupiah(totalSalesGross)}\nFisik Kas Laci: ${formatRupiah(physicalVal)}\nSelisih: ${variance === 0 ? 'PAS (Rp 0)' : (variance < 0 ? 'MINUS ' + formatRupiah(Math.abs(variance)) : 'LEBIH ' + formatRupiah(variance))}\n\nLaporan shift telah tersinkronisasi ke server & Web Admin.`);
   };
 
   // PAPAN LOGIN SEDERHANA & RESPONSIF (DATA DINAMIS DARI WEB ADMIN)
@@ -5267,11 +5320,11 @@ export default function AndroidPosRegister({
 
               {/* Action Button Closing Shift */}
               <button
-                onClick={onShiftCloseClick}
+                onClick={() => setShowShiftClosingModal(true)}
                 style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(239,68,68,0.3)' }}
               >
                 <Clock size={16} />
-                <span>Closing Sesi Shift Aktif</span>
+                <span>Closing Sesi Shift Aktif (Tutup Shift)</span>
               </button>
             </div>
 
@@ -8860,6 +8913,175 @@ export default function AndroidPosRegister({
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 5.B MODAL TUTUP SHIFT KASIR & HITUNG DENOMINASI UANG FISIK LACI */}
+      {showShiftClosingModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 130, padding: '16px' }}>
+          <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '20px', border: '1px solid var(--pos-border)' }}>
+            
+            {/* Header Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '14px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                  <Clock size={22} color="#ef4444" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                    Rekonsiliasi Tutup Shift Kasir
+                  </h3>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: '2px 0 0 0' }}>
+                    {currentOutlet.name} • Kasir: {currentUserSession?.name || userSession?.name || 'Kasir'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowShiftClosingModal(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--pos-txt-secondary)', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 1. Ringkasan Penjualan Shift */}
+            <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)', marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#38bdf8', marginBottom: '10px', textTransform: 'uppercase' }}>
+                📊 Ringkasan Penjualan Hari Ini
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '0.8rem' }}>
+                <div>Total Struk Terjual: <strong>{(outletTransactions || []).length} Struk</strong></div>
+                <div>Total Penjualan: <strong style={{ color: '#34d399' }}>{formatRupiah(totalSalesGross)}</strong></div>
+                <div>Penjualan Tunai (Cash): <strong style={{ color: '#f59e0b' }}>{formatRupiah(cashSales)}</strong></div>
+                <div>Non-Tunai (QRIS/EDC/Grab): <strong>{formatRupiah(qrisSales + edcSales)}</strong></div>
+                <div>Pengeluaran Kas Kecil: <strong style={{ color: '#ef4444' }}>- {formatRupiah(totalPettyExpense)}</strong></div>
+                <div>Modal Awal (Float): <strong>{formatRupiah(initialCash || 0)}</strong></div>
+              </div>
+              <hr style={{ borderColor: 'rgba(255,255,255,0.08)', margin: '10px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem', fontWeight: '900' }}>
+                <span>TARGET UANG SEHARUSNYA DI LACI:</span>
+                <span style={{ color: '#38bdf8' }}>{formatRupiah(expectedCashInDrawer)}</span>
+              </div>
+            </div>
+
+            {/* 2. Hitung Fisik Pecahan Uang (Denominasi) */}
+            <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)', marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#f59e0b', marginBottom: '10px', textTransform: 'uppercase' }}>
+                💵 Kalkulator Uang Fisik di Laci (Ketik Jumlah Lembar)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                {[
+                  { denom: 100000, label: 'Rp 100.000' },
+                  { denom: 50000, label: 'Rp 50.000' },
+                  { denom: 20000, label: 'Rp 20.000' },
+                  { denom: 10000, label: 'Rp 10.000' },
+                  { denom: 5000, label: 'Rp 5.000' },
+                  { denom: 2000, label: 'Rp 2.000' },
+                  { denom: 1000, label: 'Rp 1.000' },
+                ].map(({ denom, label }) => {
+                  const cnt = Number(shiftDenominations[denom] || 0);
+                  const sub = denom * cnt;
+                  return (
+                    <div key={denom} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--pos-bg-card)', padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--pos-border-card)' }}>
+                      <span style={{ fontSize: '0.76rem', fontWeight: '700', width: '75px' }}>{label}</span>
+                      <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.72rem' }}>x</span>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={shiftDenominations[denom] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setShiftDenominations(prev => ({ ...prev, [denom]: val }));
+                        }}
+                        style={{ width: '45px', padding: '4px', textAlign: 'center', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.8rem', outline: 'none' }}
+                      />
+                      <span style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: '800', flex: 1, textAlign: 'right' }}>
+                        {cnt > 0 ? formatRupiah(sub) : '-'}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {/* Koin / Logam */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--pos-bg-card)', padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--pos-border-card)' }}>
+                  <span style={{ fontSize: '0.76rem', fontWeight: '700', width: '75px' }}>Koin (Rp)</span>
+                  <span style={{ color: 'var(--pos-txt-secondary)', fontSize: '0.72rem' }}>=</span>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={shiftDenominations.coin || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setShiftDenominations(prev => ({ ...prev, coin: val }));
+                    }}
+                    style={{ flex: 1, padding: '4px 8px', textAlign: 'right', background: 'var(--pos-bg-app)', border: '1px solid var(--pos-border-card)', borderRadius: '6px', color: 'var(--pos-txt-primary)', fontSize: '0.8rem', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              {/* Status Selisih Live */}
+              <div style={{ marginTop: '14px', padding: '12px', borderRadius: '10px', background: 'var(--pos-bg-card)', border: '1px solid var(--pos-border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)' }}>TOTAL FISIK UANG DI LACI:</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)' }}>
+                    {formatRupiah(physicalCashCalculated)}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--pos-txt-secondary)' }}>STATUS SELISIH (VARIANCE):</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: '900', color: (physicalCashCalculated - expectedCashInDrawer) === 0 ? '#10b981' : (physicalCashCalculated - expectedCashInDrawer) < 0 ? '#ef4444' : '#3b82f6' }}>
+                    {(physicalCashCalculated - expectedCashInDrawer) === 0 ? (
+                      '✅ PAS (Rp 0)'
+                    ) : (physicalCashCalculated - expectedCashInDrawer) < 0 ? (
+                      `⚠️ MINUS ${formatRupiah(Math.abs(physicalCashCalculated - expectedCashInDrawer))}`
+                    ) : (
+                      `➕ SURPLUS ${formatRupiah(physicalCashCalculated - expectedCashInDrawer)}`
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Catatan Kasir */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', fontWeight: '700', display: 'block', marginBottom: '4px' }}>
+                Catatan Kasir / Keterangan Selisih:
+              </label>
+              <input
+                type="text"
+                value={shiftCustomNotes}
+                onChange={e => setShiftCustomNotes(e.target.value)}
+                placeholder="Contoh: Kas pas, uang pecahan 2rb habis diganti permen..."
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--pos-border-card)', background: 'var(--pos-bg-app)', color: 'var(--pos-txt-primary)', fontSize: '0.8rem', outline: 'none' }}
+              />
+            </div>
+
+            {/* 4. Action Buttons */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={handlePrintShiftClosingReceipt}
+                className="btn-secondary"
+                style={{ flex: 1, padding: '10px', fontSize: '0.82rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <Printer size={16} />
+                <span>Cetak Struk Rekap</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitShiftClosing}
+                className="btn-primary"
+                style={{ flex: 1.4, padding: '10px', fontSize: '0.84rem', fontWeight: '900', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <CheckCircle2 size={16} />
+                <span>Selesaikan Tutup Shift</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}
