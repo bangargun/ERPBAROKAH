@@ -29,8 +29,12 @@ import {
   Utensils,
   Store,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert,
+  ShieldCheck,
+  X
 } from 'lucide-react';
+import SystemIntegrityBoard from './SystemIntegrityBoard';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -557,6 +561,32 @@ export default function FinancialOverview({
     setShowAIModal(true);
   };
 
+  const [showIntegrityModal, setShowIntegrityModal] = useState(false);
+
+  // Deteksi Anomali Ringan untuk Banner Dashboard
+  const dashboardAnomaliesCount = useMemo(() => {
+    const timeToSec = (tStr) => {
+      if (!tStr) return 0;
+      const [h, m, s] = String(tStr).split(':').map(Number);
+      return (h || 0) * 3600 + (m || 0) * 60 + (s || 0);
+    };
+
+    let count = 0;
+    const sorted = [...allSalesTx].sort((a, b) => timeToSec(a.time) - timeToSec(b.time));
+    for (let i = 0; i < sorted.length; i++) {
+      const amt = Number(sorted[i].amount || 0);
+      if (amt > 0 && amt < 5000) count++;
+      if (i > 0) {
+        const prev = sorted[i - 1];
+        const secDiff = Math.abs(timeToSec(sorted[i].time) - timeToSec(prev.time));
+        if (secDiff <= 60 && amt === Number(prev.amount || 0) && amt > 0 && sorted[i].branch_name === prev.branch_name) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }, [allSalesTx]);
+
   const handleTriggerAI = () => {
     handleOpenAIInsight('summary');
   };
@@ -674,6 +704,61 @@ export default function FinancialOverview({
           </button>
         </div>
       </div>
+
+      {/* BANNER DETEKSI ANOMALI & GUARD INTEGRITAS */}
+      {dashboardAnomaliesCount > 0 && (
+        <div 
+          style={{
+            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '14px',
+            padding: '14px 18px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px',
+            boxShadow: '0 4px 14px rgba(239, 68, 68, 0.15)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+              <ShieldAlert size={20} color="#ef4444" />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.88rem', fontWeight: '800', color: T.txtPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>Peringatan Integritas: Ditemukan {dashboardAnomaliesCount} Potensi Transaksi Anomali / Double Input</span>
+                <span style={{ fontSize: '0.68rem', background: '#ef4444', color: '#fff', padding: '1px 6px', borderRadius: '10px' }}>PERLU REVIEW</span>
+              </div>
+              <div style={{ fontSize: '0.76rem', color: T.txtSecondary, marginTop: '2px' }}>
+                Papan informasi mendeteksi adanya transaksi bernilai rendah atau pesanan serupa dalam rentang detik.
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowIntegrityModal(true)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              fontSize: '0.78rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              background: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+            }}
+          >
+            <ShieldAlert size={14} />
+            <span>Buka Papan Audit & Anomali</span>
+          </button>
+        </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
       {/* 2. EXECUTIVE KPI CARDS (8 CARDS - 4x2 SYMMETRICAL GRID)       */}
@@ -1619,6 +1704,56 @@ export default function FinancialOverview({
         dateRangePreset={dateRangePreset}
         themeMode={themeMode}
       />
+
+      {/* ------------------------------------------------------------- */}
+      {/* 8. POPUP MODAL PAPAN INTEGRITAS & AUDIT ANOMALI               */}
+      {/* ------------------------------------------------------------- */}
+      {showIntegrityModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 99999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '24px'
+        }}>
+          <div style={{
+            background: T.cardBg,
+            border: `1px solid ${T.borderStrong}`,
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '1200px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            position: 'relative'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+              <button
+                onClick={() => setShowIntegrityModal(false)}
+                className="btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <X size={16} />
+                <span>Tutup Papan Audit</span>
+              </button>
+            </div>
+            <SystemIntegrityBoard
+              masterData={masterData}
+              setMasterData={setMasterData}
+              selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );

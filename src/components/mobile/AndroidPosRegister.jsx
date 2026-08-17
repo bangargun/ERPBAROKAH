@@ -2670,9 +2670,37 @@ export default function AndroidPosRegister({
     setShowPaymentScreenModal(true);
   };
 
+  // State Guard: Anti-double checkout & rapid checkout protection
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [lastPaymentTimestamp, setLastPaymentTimestamp] = useState(0);
+  const [lastProcessedCartSummary, setLastProcessedCartSummary] = useState(null);
+
   // TAP 2: EXECUTE INSTANT PAYMENT & RESET TABLE TO KOSONG
   const handleExecuteQuickPayment = (methodName, customTendered = null) => {
     if (cart.length === 0) return;
+    if (isProcessingPayment) return;
+
+    // GUARD 1: Peringatan Nominal Rendah / Anomali (< Rp 5.000)
+    if (cartTotal < 5000) {
+      if (!window.confirm(`⚠️ PERINGATAN NOMINAL ANOMALI:\n\nTotal transaksi hanya ${formatRupiah(cartTotal)}.\n\nApakah Anda yakin ingin memproses struk penjualan ini?`)) {
+        return;
+      }
+    }
+
+    // GUARD 2: Pencegahan Double Checkout dalam rentang < 15 detik untuk menu & nominal yang sama
+    const currentCartSummary = `${cartTotal}-${cart.map(i => `${i.id || i.name}:${i.qty}`).join('|')}`;
+    const nowMs = Date.now();
+    if (lastProcessedCartSummary === currentCartSummary && (nowMs - lastPaymentTimestamp < 15000)) {
+      const timeDiffSec = Math.max(1, Math.round((nowMs - lastPaymentTimestamp) / 1000));
+      if (!window.confirm(`⚠️ PERINGATAN POTENSI DOUBLE INPUT / STRUK GANDA:\n\nPesanan dengan menu dan nominal persis sama (${formatRupiah(cartTotal)}) baru saja selesai diproses ${timeDiffSec} detik yang lalu.\n\nApakah Anda yakin ingin MEMBUAT STRUK BARU LAGI untuk pesanan ini?`)) {
+        return;
+      }
+    }
+
+    setIsProcessingPayment(true);
+    setTimeout(() => setIsProcessingPayment(false), 2500);
+    setLastPaymentTimestamp(nowMs);
+    setLastProcessedCartSummary(currentCartSummary);
 
     const receiptNo = `TX-POS-${Date.now().toString().substring(6)}`;
     const isSuperAdminUser = (() => {

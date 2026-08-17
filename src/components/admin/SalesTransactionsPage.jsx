@@ -30,9 +30,11 @@ import {
   Wifi,
   CheckCircle2,
   Zap,
-  Receipt
+  Receipt,
+  ShieldAlert
 } from 'lucide-react';
 import TransactionHistoryPage from './TransactionHistoryPage';
+import SystemIntegrityBoard from './SystemIntegrityBoard';
 import { 
   BarChart as ReBarChart, 
   Bar as ReBar, 
@@ -1251,7 +1253,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     { id: 'hourly', name: '6. Penjualan per Jam', icon: Clock },
     { id: 'receipts', name: '7. Penjualan By Layanan', icon: ShoppingBag },
     { id: 'customers', name: '8. Penjualan per Pelanggan', icon: Users },
-    { id: 'monthly_comparison', name: '9. Perbandingan Bulanan', icon: TrendingUp }
+    { id: 'monthly_comparison', name: '9. Perbandingan Bulanan', icon: TrendingUp },
+    { id: 'system_integrity', name: '10. Papan Audit & Anomali', icon: ShieldAlert }
   ];
 
   const transactions = masterData.salesTransactions || [];
@@ -6376,6 +6379,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
             </div>
           </div>
         </div>
+      )}
+
+      {/* 10. PAPAN AUDIT & ANOMALI SISTEM */}
+      {activeTab === 'system_integrity' && (
+        <SystemIntegrityBoard
+          masterData={masterData}
+          setMasterData={setMasterData}
+          selectedBranch={selectedBranch}
+          themeMode={themeMode}
+        />
       )}
     </div>
   );
