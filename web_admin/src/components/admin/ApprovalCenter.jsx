@@ -246,16 +246,17 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
 
       const submitterText = isFromAdminOrExcel ? 'Admin' : 'POS Kasir';
 
-      // Tentukan Status (Upload Excel / Update Laporan / Admin -> LANGSUNG AUTO-APPROVED / Done)
+      // Tentukan Status (Rekonsiliasi Shift POS Kasir & Admin -> LANGSUNG OTOMATIS SELESAI / Done)
       let currentStatus = r.status || r.approval_status;
-      if (isFromAdminOrExcel) {
+      const isShiftClosing = String(r.id || '').startsWith('SHIFT-') || String(r.report_no || '').startsWith('LAP-SHIFT');
+      if (isFromAdminOrExcel || isShiftClosing || r.submitter_type === 'POS Kasir') {
         currentStatus = 'Done';
       } else {
         if (!currentStatus || currentStatus === 'pending' || currentStatus === 'acc_pending_send' || currentStatus === 'ACC') {
           currentStatus = 'ACC';
         } else if (currentStatus === 'approved' || currentStatus === 'Approved' || currentStatus === 'disetujui' || currentStatus === 'Disetujui') {
           currentStatus = 'Approved';
-        } else if (currentStatus === 'done' || currentStatus === 'Done' || currentStatus === 'read') {
+        } else if (currentStatus === 'done' || currentStatus === 'Done' || currentStatus === 'read' || currentStatus === 'SELESAI DITUTUP') {
           currentStatus = 'Done';
         }
       }

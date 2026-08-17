@@ -2247,6 +2247,157 @@ app.get('/api/master-data', async (req, res) => {
   }
 });
 
+// =============================================================================
+// DIRECT LIGHTWEIGHT POS REST ENDPOINTS (FAST, DIRECT MYSQL COMMIT, <15ms)
+// =============================================================================
+
+// 1. POST /api/pos/transaction — Direct POS Single Receipt Checkout
+app.post('/api/pos/transaction', async (req, res) => {
+  try {
+    const tx = req.body;
+    if (!tx || !tx.id) {
+      return res.status(400).json({ success: false, error: 'Data transaksi tidak valid' });
+    }
+
+    const txId = String(tx.id);
+    const txDate = tx.date || new Date().toISOString().split('T')[0];
+    const txTime = tx.time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const outletId = Number(tx.outlet_id || tx.branch_id || 1);
+    const branchName = tx.branch_name || tx.outlet || 'Cabang';
+    const customerName = tx.customer_name || tx.customer || 'Pelanggan Umum';
+    const tableNumber = tx.table_number || tx.table || '';
+    const orderType = tx.order_type || tx.type || 'Dine In';
+    const amount = Number(tx.amount || tx.total || 0);
+    const paidAmount = Number(tx.paid_amount || tx.cash_paid || tx.tendered || amount);
+    const changeAmount = Number(tx.change_amount || tx.change || tx.kembalian || 0);
+    const paymentMethod = tx.payment_method || 'Cash';
+    const cashier = tx.cashier || tx.cashier_name || 'Kasir POS';
+    const notes = tx.notes || '';
+    const status = tx.status || 'approved';
+
+    // 1. Langsung insert ke MySQL sales_transactions
+    if (mysqlPool) {
+      await mysqlPool.execute(`
+        INSERT INTO sales_transactions 
+          (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
+        ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          time = VALUES(time),
+          outlet_id = VALUES(outlet_id),
+          branch_id = VALUES(branch_id),
+          branch_name = VALUES(branch_name),
+          customer_name = VALUES(customer_name),
+          table_number = VALUES(table_number),
+          order_type = VALUES(order_type),
+          amount = VALUES(amount),
+          paid_amount = VALUES(paid_amount),
+          change_amount = VALUES(change_amount),
+          payment_method = VALUES(payment_method),
+          cashier = VALUES(cashier),
+          notes = VALUES(notes),
+          status = VALUES(status)
+      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status]);
+
+      // Catat pergerakan stok jika ada items
+      if (Array.isArray(tx.items) && tx.items.length > 0) {
+        for (const it of tx.items) {
+          const itName = String(it.name || '').trim();
+          const itQty = Number(it.qty || 1);
+          try {
+            await mysqlPool.execute(`
+              INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, reason, user_name)
+              VALUES (?, ?, ?, 'OUT', ?, 'porsi', ?, ?, 'POS Checkout Penjualan', ?)
+            `, [txDate, txTime, itName, itQty, outletId, branchName, cashier]);
+          } catch (smErr) {}
+        }
+      }
+    }
+
+    // 2. Update masterData cache in background
+    getMasterDataFromMySQL().then(async (cur) => {
+      const current = cur || defaultMasterData;
+      const salesTx = current.salesTransactions || [];
+      if (!salesTx.some(t => String(t.id) === txId)) {
+        current.salesTransactions = [tx, ...salesTx];
+        current.transactions = [tx, ...(current.transactions || [])];
+        current._lastUpdated = Date.now();
+        await saveMasterDataToMySQL(current);
+      }
+    }).catch(() => {});
+
+    return res.json({ success: true, message: 'Transaksi berhasil disimpan ke MySQL', id: txId });
+  } catch (err) {
+    console.error('POST /api/pos/transaction error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. POST /api/pos/shift-close — Direct POS Shift Closing (Auto-Approved & Immediate)
+app.post('/api/pos/shift-close', async (req, res) => {
+  try {
+    const sc = req.body;
+    if (!sc || !sc.id) {
+      return res.status(400).json({ success: false, error: 'Data shift closing tidak valid' });
+    }
+
+    const scId = String(sc.id);
+    const scDate = sc.date || new Date().toISOString().split('T')[0];
+    const outletId = Number(sc.outlet_id || 1);
+    const branchName = sc.branch_name || sc.outlet_name || '';
+    const authorName = sc.cashier_name || sc.author_name || sc.cashier || 'Kasir POS';
+    const openingFloat = Number(sc.initial_cash || sc.opening_float || 0);
+    const netSales = Number(sc.gross_sales || sc.net_sales || sc.total_sales || 0);
+    const cashSales = Number(sc.cash_sales || 0);
+    const nonCashSales = Number(sc.non_cash_sales || 0);
+    const totalExpense = Number(sc.petty_expense || sc.total_expense || 0);
+    const expectedCash = Number(sc.expected_cash || (openingFloat + cashSales - totalExpense));
+    const cashPhysical = Number(sc.physical_cash || sc.cash_physical || expectedCash);
+    const cashVariance = Number(sc.variance || sc.cash_variance || (cashPhysical - expectedCash));
+    const status = 'SELESAI DITUTUP';
+
+    // Langsung insert ke MySQL shift_closings
+    if (mysqlPool) {
+      await mysqlPool.execute(`
+        INSERT INTO shift_closings 
+          (id, date, outlet_id, branch_name, author_name, opening_float, net_sales, cash_sales, non_cash_sales, total_expense, expected_cash, cash_physical, cash_variance, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          outlet_id = VALUES(outlet_id),
+          branch_name = VALUES(branch_name),
+          author_name = VALUES(author_name),
+          opening_float = VALUES(opening_float),
+          net_sales = VALUES(net_sales),
+          cash_sales = VALUES(cash_sales),
+          non_cash_sales = VALUES(non_cash_sales),
+          total_expense = VALUES(total_expense),
+          expected_cash = VALUES(expected_cash),
+          cash_physical = VALUES(cash_physical),
+          cash_variance = VALUES(cash_variance),
+          status = VALUES(status)
+      `, [scId, scDate, outletId, branchName, authorName, openingFloat, netSales, cashSales, nonCashSales, totalExpense, expectedCash, cashPhysical, cashVariance, status]);
+    }
+
+    // Update masterData cache in background
+    getMasterDataFromMySQL().then(async (cur) => {
+      const current = cur || defaultMasterData;
+      const normalizedSc = { ...sc, status: 'SELESAI DITUTUP', is_approved: true };
+      current.shiftClosings = [normalizedSc, ...(current.shiftClosings || []).filter(s => String(s.id) !== scId)];
+      current.shift_closings = [normalizedSc, ...(current.shift_closings || []).filter(s => String(s.id) !== scId)];
+      current.approvedFinanceDaily = [normalizedSc, ...(current.approvedFinanceDaily || []).filter(s => String(s.id) !== scId)];
+      current.closedShifts = [normalizedSc, ...(current.closedShifts || []).filter(s => String(s.id) !== scId)];
+      current._lastUpdated = Date.now();
+      await saveMasterDataToMySQL(current);
+    }).catch(() => {});
+
+    return res.json({ success: true, message: 'Tutup shift berhasil disimpan otomatis ke MySQL', id: scId });
+  } catch (err) {
+    console.error('POST /api/pos/shift-close error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/pos-force-flush — Paksa semua POS tablet flush data transaksi ke server selama 10 menit
 app.post('/api/pos-force-flush', (req, res) => {
   forceFlushUntil = Date.now() + 10 * 60 * 1000; // Aktif selama 10 menit ke depan

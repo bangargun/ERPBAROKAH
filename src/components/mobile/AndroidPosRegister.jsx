@@ -2946,9 +2946,15 @@ export default function AndroidPosRegister({
       // 1. Simpan Instan ke Cache Device (0ms Latency)
       try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
 
-      // 2. Kirim INSTANT ke Server VPS & Web Admin dengan Guard Proteksi
+      // 2. Kirim INSTANT ke Server VPS & Web Admin dengan Direct POS REST API (<15ms)
       if (isOnlineNow) {
-        saveToServerWithGuard(updated);
+        fetch(getApiUrl('/api/pos/transaction'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(finalTx)
+        }).catch(() => {
+          saveToServerWithGuard(updated);
+        });
       } else {
         // Jika offline, masukkan ke antrean pending
         try {
@@ -3134,7 +3140,16 @@ export default function AndroidPosRegister({
         shift_closings: [newShiftReport, ...(prev.shift_closings || []).filter(s => s.id !== newShiftReport.id)],
         closedShifts: [newShiftReport, ...(prev.closedShifts || []).filter(s => s.id !== newShiftReport.id)]
       };
-      saveToServerWithGuard(newMaster);
+      
+      // Kirim direct endpoint TUTUP SHIFT ke server MySQL
+      fetch(getApiUrl('/api/pos/shift-close'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newShiftReport)
+      }).catch(() => {
+        saveToServerWithGuard(newMaster);
+      });
+
       return newMaster;
     });
 
