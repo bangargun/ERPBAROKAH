@@ -290,6 +290,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [formOrderType, setFormOrderType] = useState('Dine In');
   const [formItemRows, setFormItemRows] = useState([]);
   const [formPaymentMethod, setFormPaymentMethod] = useState('Cash');
+  const [formDiscountAmount, setFormDiscountAmount] = useState(0);
   const [formNotes, setFormNotes] = useState('');
 
   // HANDLER TO OPEN INVOICE DETAIL VIEW (MATCHING LUNA POS INVOICE PAGE)
@@ -314,6 +315,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     setFormCustomerName('Default Customer');
     setFormOrderType('Dine In');
     setFormPaymentMethod('Cash');
+    setFormDiscountAmount(0);
     setFormNotes('');
 
     const firstProduct = menuProducts[0] || { name: 'AYAM BAKAR / SAMBAL PENYET', price: 35000, sku: '000987' };
@@ -341,6 +343,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     setFormCustomerName(item.customer_name || 'Default Customer');
     setFormOrderType(item.order_type || 'Dine In');
     setFormPaymentMethod(item.payment_method || 'Cash');
+    setFormDiscountAmount(Number(item.discount || item.discount_amount || 0));
     setFormNotes(item.notes || '');
 
     if (item.items && item.items.length > 0) {
@@ -420,55 +423,57 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     setFormItemRows(formItemRows.filter(r => r.id !== id));
   };
 
-  const grandTotalStrukAmount = formItemRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const rawSubtotal = formItemRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+    const discVal = Number(formDiscountAmount || 0);
+    const netAmount = Math.max(0, rawSubtotal - discVal);
 
-  const handleSaveTransaction = (e) => {
-    e.preventDefault();
-    const targetOutlet = outlets.find(o => Number(o.id) === Number(formOutletId)) || { name: 'RUMAH PRODUKSI' };
-    
-    const activeItems = formItemRows.map(r => ({
-      name: r.name,
-      sku: r.sku || 'SKU-1',
-      unit: r.unit || 'PORSI',
-      qty: Number(r.qty || 1),
-      price_unit: Number(r.price_unit || 0),
-      amount: Number(r.amount || 0)
-    }));
+    const handleSaveTransaction = (e) => {
+      e.preventDefault();
+      const targetOutlet = outlets.find(o => Number(o.id) === Number(formOutletId)) || { name: 'RUMAH PRODUKSI' };
+      
+      const activeItems = formItemRows.map(r => ({
+        name: r.name,
+        sku: r.sku || 'SKU-1',
+        unit: r.unit || 'PORSI',
+        qty: Number(r.qty || 1),
+        price_unit: Number(r.price_unit || 0),
+        amount: Number(r.amount || 0)
+      }));
 
-    const existingId = editingRecord ? (editingRecord.id || editingRecord.receipt_no || editingRecord.receiptNo || editingRecord.invoice_no) : `00${Math.floor(2500 + Math.random() * 9000)}`;
+      const existingId = editingRecord ? (editingRecord.id || editingRecord.receipt_no || editingRecord.receiptNo || editingRecord.invoice_no) : `00${Math.floor(2500 + Math.random() * 9000)}`;
 
-    const newRecord = {
-      ...(editingRecord || {}),
-      id: existingId,
-      receipt_no: editingRecord?.receipt_no || editingRecord?.receiptNo || existingId,
-      receiptNo: editingRecord?.receiptNo || editingRecord?.receipt_no || existingId,
-      date: formDate,
-      time: formTime,
-      type: 'Invoice Penjualan',
-      outlet_id: Number(formOutletId),
-      branch_name: targetOutlet.name,
-      customer_name: formCustomerName || 'Default Customer',
-      order_type: formOrderType || 'DineIn',
-      items: activeItems,
-      subtotal: grandTotalStrukAmount,
-      amount: grandTotalStrukAmount,
-      total: grandTotalStrukAmount,
-      grandTotal: grandTotalStrukAmount,
-      paid_amount: grandTotalStrukAmount,
-      tendered: grandTotalStrukAmount,
-      discount: 0,
-      discount_amount: 0,
-      item_discounts: 0,
-      summary_discount: 0,
-      payment_method: formPaymentMethod,
-      cashier: formCashier,
-      notes: formNotes,
-      ref_pelanggan: editingRecord?.ref_pelanggan || `POS-${formDate.replace(/-/g, '')}-MANUAL`,
-      gudang: `GUDANG ${targetOutlet.name.toUpperCase()}`,
-      source: editingRecord ? (editingRecord.source || 'By Manual') : 'By Manual',
-      status: editingRecord?.status || 'Selesai',
-      _updatedAt: Date.now()
-    };
+      const newRecord = {
+        ...(editingRecord || {}),
+        id: existingId,
+        receipt_no: editingRecord?.receipt_no || editingRecord?.receiptNo || existingId,
+        receiptNo: editingRecord?.receiptNo || editingRecord?.receipt_no || existingId,
+        date: formDate,
+        time: formTime,
+        type: 'Invoice Penjualan',
+        outlet_id: Number(formOutletId),
+        branch_name: targetOutlet.name,
+        customer_name: formCustomerName || 'Default Customer',
+        order_type: formOrderType || 'DineIn',
+        items: activeItems,
+        subtotal: rawSubtotal,
+        discount: discVal,
+        discount_amount: discVal,
+        item_discounts: discVal,
+        summary_discount: discVal,
+        amount: netAmount,
+        total: netAmount,
+        grandTotal: netAmount,
+        paid_amount: netAmount,
+        tendered: netAmount,
+        payment_method: formPaymentMethod,
+        cashier: formCashier,
+        notes: formNotes,
+        ref_pelanggan: editingRecord?.ref_pelanggan || `POS-${formDate.replace(/-/g, '')}-MANUAL`,
+        gudang: `GUDANG ${targetOutlet.name.toUpperCase()}`,
+        source: editingRecord ? (editingRecord.source || 'By Manual') : 'By Manual',
+        status: editingRecord?.status || 'Selesai',
+        _updatedAt: Date.now()
+      };
 
     const isMatch = (t) => {
       if (!t || !editingRecord) return false;
@@ -907,12 +912,26 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 ))}
               </tbody>
               <tfoot>
-                <tr style={{ background: T.tableHeaderBg, fontWeight: '800', color: T.txtPrimary, borderTop: `2px solid ${T.border}` }}>
-                  <td colSpan={2} style={{ padding: '12px 14px' }}>TOTAL ({totalQtyCount} Item Porsi)</td>
-                  <td style={{ padding: '12px 14px', textAlign: 'center' }}>{totalQtyCount}</td>
+                <tr style={{ background: T.tableHeaderBg, fontWeight: '700', color: T.txtPrimary, borderTop: `2px solid ${T.border}` }}>
+                  <td colSpan={2} style={{ padding: '10px 14px' }}>Subtotal ({totalQtyCount} Item Porsi)</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>{totalQtyCount}</td>
                   <td colSpan={2}></td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', color: T.success, fontSize: '0.95rem', fontWeight: '900' }}>
-                    {formatRupiah(inv.final_amount !== undefined ? inv.final_amount : (inv.amount || inv.total || 0))}
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '800' }}>
+                    {formatRupiah(inv.subtotal || (Number(inv.amount || 0) + Number(inv.discount_amount || inv.discount || 0)))}
+                  </td>
+                </tr>
+                {(Number(inv.discount_amount || inv.discount || 0) > 0) && (
+                  <tr style={{ background: T.tableHeaderBg, fontWeight: '700', color: T.danger }}>
+                    <td colSpan={5} style={{ padding: '8px 14px', textAlign: 'right' }}>Potongan Diskon / Promo:</td>
+                    <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: '800' }}>
+                      -{formatRupiah(Number(inv.discount_amount || inv.discount || 0))}
+                    </td>
+                  </tr>
+                )}
+                <tr style={{ background: T.tableHeaderBg, fontWeight: '900', color: T.accentGold, borderTop: `1px solid ${T.border}` }}>
+                  <td colSpan={5} style={{ padding: '12px 14px', textAlign: 'right', fontSize: '0.92rem' }}>TOTAL DIBAYAR KONSUMEN:</td>
+                  <td style={{ padding: '12px 14px', textAlign: 'right', color: T.success, fontSize: '1.05rem' }}>
+                    {formatRupiah(inv.amount || inv.total || 0)}
                   </td>
                 </tr>
               </tfoot>
@@ -1535,6 +1554,31 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 </button>
               </div>
 
+              {/* Metode Pembayaran & Diskon */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Metode Pembayaran</label>
+                  <select value={formPaymentMethod} onChange={e => setFormPaymentMethod(e.target.value)} style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.txtPrimary }}>
+                    <option value="Cash">Cash / Tunai</option>
+                    <option value="QRIS">QRIS & E-Wallet</option>
+                    <option value="EDC">Kartu Debit/Kredit (EDC)</option>
+                    <option value="Transfer Bank">Transfer Bank</option>
+                    <option value="Online Delivery">Online Delivery (GoFood/Grab/Shopee)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: T.danger, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Potongan Diskon / Promo (Rp)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    placeholder="0" 
+                    value={formDiscountAmount} 
+                    onChange={e => setFormDiscountAmount(Number(e.target.value || 0))} 
+                    style={{ width: '100%', height: '38px', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', background: T.inputBg, color: T.danger, fontWeight: '800' }} 
+                  />
+                </div>
+              </div>
+
               <div>
                 <label style={{ fontSize: '0.78rem', color: T.txtMuted, fontWeight: '700', display: 'block', marginBottom: '4px' }}>Catatan Transaksi</label>
                 <input 
@@ -1547,8 +1591,13 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               </div>
 
               <div style={{ background: T.cardBg2, padding: '12px 16px', borderRadius: '8px', border: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.82rem', color: T.txtSecondary, fontWeight: '700' }}>TOTAL TRANSAKSI:</span>
-                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: T.accentGold }}>{formatRupiah(grandTotalStrukAmount)}</span>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: T.txtSecondary }}>
+                    Subtotal: {formatRupiah(rawSubtotal)} {discVal > 0 ? `| Diskon: -${formatRupiah(discVal)}` : ''}
+                  </div>
+                  <span style={{ fontSize: '0.82rem', color: T.txtPrimary, fontWeight: '800' }}>TOTAL DIBAYAR KONSUMEN:</span>
+                </div>
+                <span style={{ fontSize: '1.2rem', fontWeight: '900', color: T.accentGold }}>{formatRupiah(netAmount)}</span>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '6px' }}>
