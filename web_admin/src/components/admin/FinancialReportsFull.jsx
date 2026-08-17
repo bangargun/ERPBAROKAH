@@ -271,12 +271,12 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
     });
     const salesTransactions = Array.from(salesTxMap.values()).filter(t => 
       isOutletMatch(t.outlet_id || t.branch_id) && 
-      isMatchedDate(t.date || t.timestamp || t.created_at)
+      isMatchedDate(t.entry_date || t.date || t.transaction_date || t.timestamp || t.created_at)
     );
 
     const financialRecords = (masterData?.financialRecords || []).filter(f => 
       isOutletMatch(f.outlet_id) && 
-      isMatchedDate(f.date || f.created_at)
+      isMatchedDate(f.entry_date || f.date || f.transaction_date || f.created_at)
     );
 
     const cashSalesTotal = approvedReports.reduce((sum, f) => {
