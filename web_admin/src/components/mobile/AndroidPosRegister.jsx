@@ -1045,32 +1045,43 @@ export default function AndroidPosRegister({
           // Double-check guard setelah fetch selesai (async delay)
           if (isSavingRef.current) return;
 
-          // ─── FORCE-FLUSH COMMAND: Server memerintahkan POS kirim semua data lokal ─
+          // ─── FORCE-FLUSH COMMAND: Server memerintahkan POS kirim offline queue ──
           if (serverMaster._forceFlushCommand === true) {
-            console.log('[FORCE-FLUSH] Perintah dari server diterima. Mengirim semua data lokal ke server...');
-            setMasterData(currentLocal => {
-              // Kirim seluruh state lokal terkini ke server (termasuk transaksi offline)
-              const offlineRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
-              const offlineQueue = offlineRaw ? (JSON.parse(offlineRaw) || []) : [];
-              const localSalesTxs = currentLocal.salesTransactions || [];
-              // Gabungkan offline queue + local state agar tidak ada yang ketinggalan
-              const mergedByKey = new Map();
-              [...localSalesTxs, ...offlineQueue].forEach(t => { if (t && t.id) mergedByKey.set(String(t.id), t); });
-              const allTxs = Array.from(mergedByKey.values());
-              const flushPayload = { ...currentLocal, salesTransactions: allTxs, transactions: allTxs, _lastUpdated: Date.now() };
-              fetch(getApiUrl('/api/master-data'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(flushPayload)
-              }).then(r => r.json()).then(rd => {
-                if (rd && rd.success) {
-                  localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-                  setOfflineQueueCount(0);
-                  console.log('[FORCE-FLUSH] Berhasil! Semua data lokal terkirim ke server.');
-                }
-              }).catch(() => {});
-              return currentLocal; // state lokal tidak berubah
-            });
+            console.log('[FORCE-FLUSH] Perintah dari server diterima.');
+            // AMAN: ambil offline queue dari localStorage, merge KE DALAM data server (bukan menimpa)
+            const offlineRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+            const offlineQueue = offlineRaw ? (JSON.parse(offlineRaw) || []) : [];
+            if (offlineQueue.length === 0) {
+              console.log('[FORCE-FLUSH] Tidak ada offline queue. Tidak ada yang perlu dikirim.');
+              return; // tidak ada yang perlu di-flush
+            }
+            // Merge offline queue ke dalam data server (additive only)
+            const serverTxIds = new Set((serverMaster.salesTransactions || []).map(t => String(t.id)));
+            const newTxs = offlineQueue.filter(t => t && t.id && !serverTxIds.has(String(t.id)));
+            if (newTxs.length === 0) {
+              console.log('[FORCE-FLUSH] Semua offline TX sudah ada di server.');
+              localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+              setOfflineQueueCount(0);
+              return;
+            }
+            // Push hanya TX yang belum ada di server, tambahkan ke server data
+            const flushPayload = {
+              ...serverMaster,
+              salesTransactions: [...newTxs, ...(serverMaster.salesTransactions || [])],
+              transactions: [...newTxs, ...(serverMaster.salesTransactions || [])],
+              _lastUpdated: Date.now()
+            };
+            fetch(getApiUrl('/api/master-data'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(flushPayload)
+            }).then(r => r.json()).then(rd => {
+              if (rd && rd.success) {
+                localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                setOfflineQueueCount(0);
+                console.log('[FORCE-FLUSH] Berhasil! ' + newTxs.length + ' TX offline terkirim ke server.');
+              }
+            }).catch(() => {});
             return; // skip normal merge setelah force-flush
           }
 
