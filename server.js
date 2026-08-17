@@ -8,6 +8,10 @@ import { exec } from 'child_process';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// ─── FLAG: Force-flush perintah ke semua POS client ────────────────────────
+// Diset via POST /api/pos-force-flush, dibaca dan di-clear saat GET /api/master-data
+let forceFlushActive = false;
+
 // Load .env file manually if present
 const envPath = path.join(__dirname, '.env');
 if (fs.existsSync(envPath)) {
@@ -2181,14 +2185,27 @@ app.get('/api/master-data', async (req, res) => {
     const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : defaultMasterData;
     const serverTs = Number(activeData._lastUpdated || 0);
 
-    if (clientTs > 0 && serverTs > 0 && clientTs >= serverTs) {
+    // Jika ada perintah force-flush aktif, embed ke response dan reset flag
+    const shouldForceFlush = forceFlushActive;
+    if (shouldForceFlush) forceFlushActive = false;
+
+    if (clientTs > 0 && serverTs > 0 && clientTs >= serverTs && !shouldForceFlush) {
       return res.status(304).end();
     }
 
-    return res.json(sanitizeMasterDataPayload(activeData));
+    const payload = sanitizeMasterDataPayload(activeData);
+    if (shouldForceFlush) payload._forceFlushCommand = true;
+    return res.json(payload);
   } catch (err) {
     return res.json(sanitizeMasterDataPayload(defaultMasterData));
   }
+});
+
+// POST /api/pos-force-flush — Paksa semua POS tablet flush offline queue ke server
+app.post('/api/pos-force-flush', (req, res) => {
+  forceFlushActive = true;
+  console.log('[FORCE-FLUSH] Perintah force-flush dikirim ke semua POS client pada GET berikutnya');
+  return res.json({ success: true, message: 'Perintah force-flush aktif. Semua POS akan flush offline queue pada sync berikutnya (dalam 3-15 detik).' });
 });
 
 // POST /api/master-data — 100% MySQL PRIMARY STORAGE UPDATE

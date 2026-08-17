@@ -1045,6 +1045,38 @@ export default function AndroidPosRegister({
           // Double-check guard setelah fetch selesai (async delay)
           if (isSavingRef.current) return;
 
+          // ─── FORCE-FLUSH COMMAND: Server memerintahkan POS kirim semua data lokal ─
+          if (serverMaster._forceFlushCommand === true) {
+            console.log('[FORCE-FLUSH] Perintah dari server diterima. Mengirim semua data lokal ke server...');
+            setMasterData(currentLocal => {
+              // Kirim seluruh state lokal terkini ke server (termasuk transaksi offline)
+              const offlineRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+              const offlineQueue = offlineRaw ? (JSON.parse(offlineRaw) || []) : [];
+              const localSalesTxs = currentLocal.salesTransactions || [];
+              // Gabungkan offline queue + local state agar tidak ada yang ketinggalan
+              const mergedByKey = new Map();
+              [...localSalesTxs, ...offlineQueue].forEach(t => { if (t && t.id) mergedByKey.set(String(t.id), t); });
+              const allTxs = Array.from(mergedByKey.values());
+              const flushPayload = { ...currentLocal, salesTransactions: allTxs, transactions: allTxs, _lastUpdated: Date.now() };
+              fetch(getApiUrl('/api/master-data'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(flushPayload)
+              }).then(r => r.json()).then(rd => {
+                if (rd && rd.success) {
+                  localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                  setOfflineQueueCount(0);
+                  console.log('[FORCE-FLUSH] Berhasil! Semua data lokal terkirim ke server.');
+                }
+              }).catch(() => {});
+              return currentLocal; // state lokal tidak berubah
+            });
+            return; // skip normal merge setelah force-flush
+          }
+
+          // Double-check guard setelah fetch selesai (async delay)
+          if (isSavingRef.current) return;
+
           setMasterData(prev => {
             const deletedUserIdsSet = new Set([
               ...(prev.deletedUserIds || []),
