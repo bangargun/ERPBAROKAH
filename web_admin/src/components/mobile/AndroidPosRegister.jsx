@@ -1045,43 +1045,58 @@ export default function AndroidPosRegister({
           // Double-check guard setelah fetch selesai (async delay)
           if (isSavingRef.current) return;
 
-          // ─── FORCE-FLUSH COMMAND: Server memerintahkan POS kirim offline queue ──
+          // ─── FORCE-FLUSH COMMAND: Server memerintahkan POS kirim semua transaksi lokal ──
           if (serverMaster._forceFlushCommand === true) {
-            console.log('[FORCE-FLUSH] Perintah dari server diterima.');
-            // AMAN: ambil offline queue dari localStorage, merge KE DALAM data server (bukan menimpa)
+            console.log('[FORCE-FLUSH] Perintah force-flush dari server diterima.');
             const offlineRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
             const offlineQueue = offlineRaw ? (JSON.parse(offlineRaw) || []) : [];
-            if (offlineQueue.length === 0) {
-              console.log('[FORCE-FLUSH] Tidak ada offline queue. Tidak ada yang perlu dikirim.');
-              return; // tidak ada yang perlu di-flush
-            }
-            // Merge offline queue ke dalam data server (additive only)
-            const serverTxIds = new Set((serverMaster.salesTransactions || []).map(t => String(t.id)));
-            const newTxs = offlineQueue.filter(t => t && t.id && !serverTxIds.has(String(t.id)));
-            if (newTxs.length === 0) {
-              console.log('[FORCE-FLUSH] Semua offline TX sudah ada di server.');
-              localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-              setOfflineQueueCount(0);
-              return;
-            }
-            // Push hanya TX yang belum ada di server, tambahkan ke server data
-            const flushPayload = {
-              ...serverMaster,
-              salesTransactions: [...newTxs, ...(serverMaster.salesTransactions || [])],
-              transactions: [...newTxs, ...(serverMaster.salesTransactions || [])],
-              _lastUpdated: Date.now()
-            };
-            fetch(getApiUrl('/api/master-data'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(flushPayload)
-            }).then(r => r.json()).then(rd => {
-              if (rd && rd.success) {
-                localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-                setOfflineQueueCount(0);
-                console.log('[FORCE-FLUSH] Berhasil! ' + newTxs.length + ' TX offline terkirim ke server.');
+
+            setMasterData(prev => {
+              const localSalesTxs = prev.salesTransactions || [];
+              const serverTxIds = new Set((serverMaster.salesTransactions || []).map(t => String(t.id || t.tx_id || t.receipt_no || '')));
+
+              // Gabungkan kandidat dari offline queue & local state
+              const combinedCandidates = [...offlineQueue, ...localSalesTxs];
+              const uniqueMap = new Map();
+              combinedCandidates.forEach(t => {
+                if (!t) return;
+                const tid = String(t.id || t.tx_id || t.receipt_no || '');
+                if (tid && !uniqueMap.has(tid)) uniqueMap.set(tid, t);
+              });
+
+              const newTxs = Array.from(uniqueMap.values()).filter(t => {
+                const tid = String(t.id || t.tx_id || t.receipt_no || '');
+                return tid && !serverTxIds.has(tid);
+              });
+
+              if (newTxs.length > 0) {
+                console.log(`[FORCE-FLUSH] Mengirim ${newTxs.length} transaksi lokal ke server...`);
+                const allMergedSales = [...newTxs, ...(serverMaster.salesTransactions || [])];
+                const flushPayload = {
+                  ...serverMaster,
+                  salesTransactions: allMergedSales,
+                  transactions: allMergedSales,
+                  _lastUpdated: Date.now()
+                };
+                fetch(getApiUrl('/api/master-data'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(flushPayload)
+                }).then(r => r.json()).then(rd => {
+                  if (rd && rd.success) {
+                    localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                    setOfflineQueueCount(0);
+                    console.log(`[FORCE-FLUSH] Berhasil! ${newTxs.length} transaksi terkirim ke server.`);
+                  }
+                }).catch(() => {});
+              } else {
+                if (offlineQueue.length > 0) {
+                  localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+                  setOfflineQueueCount(0);
+                }
               }
-            }).catch(() => {});
+              return prev;
+            });
             return; // skip normal merge setelah force-flush
           }
 
@@ -1212,8 +1227,6 @@ export default function AndroidPosRegister({
             });
 
             // ─── PURGE Update Laporan records dari salesTransactions/transactions ────
-            // Data TX-POS- dari Update Laporan Web Admin bisa tersimpan di MySQL server
-            // dan dimuat ulang setiap sync. Harus dibersihkan di sini sebelum masuk state.
             const isULRecord = (t) => {
               if (!t) return false;
               const src = String(t.source || '');
@@ -1229,6 +1242,30 @@ export default function AndroidPosRegister({
             }
             if (Array.isArray(mergedCollections.transactions)) {
               mergedCollections.transactions = mergedCollections.transactions.filter(t => !isULRecord(t));
+            }
+
+            // ─── AUTO-PUSH TRANSAKSI LOKAL YANG BELUM ADA DI SERVER ────────────────
+            const serverTxIdSet = new Set((serverMaster.salesTransactions || []).map(t => String(t.id || t.tx_id || t.receipt_no || '')));
+            const unSyncedTxs = (mergedCollections.salesTransactions || []).filter(t => {
+              if (!t) return false;
+              const tid = String(t.id || t.tx_id || t.receipt_no || '');
+              return tid && !serverTxIdSet.has(tid);
+            });
+
+            if (unSyncedTxs.length > 0 && !isSavingRef.current) {
+              const autoSyncPayload = {
+                ...serverMaster,
+                salesTransactions: mergedCollections.salesTransactions,
+                transactions: mergedCollections.transactions,
+                _lastUpdated: Date.now()
+              };
+              setTimeout(() => {
+                fetch(getApiUrl('/api/master-data'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(autoSyncPayload)
+                }).catch(() => {});
+              }, 500);
             }
 
             return {
