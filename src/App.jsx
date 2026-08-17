@@ -272,6 +272,7 @@ export default function App() {
               });
             }
             const sub = Number(t.subtotal || 0);
+            const disc = Number(t.discount_amount || t.discount || 0);
             if (isAnom || (disc > sub && sub > 0)) {
               const newItems = fixedItems || t.items || [];
               const newSub = newItems.reduce((s, it) => s + Number(it.amount || ((it.price_unit || 0) * (it.qty || 1))), 0) || sub;
@@ -528,6 +529,7 @@ export default function App() {
               const mergedSalesTx = rawMergedSalesTx.map(t => {
                 if (!t || typeof t !== 'object') return t;
                 const sub = Number(t.subtotal || 0);
+                const disc = Number(t.discount_amount || t.discount || 0);
                 if (disc > sub && sub > 0) {
                   const fixedItems = Array.isArray(t.items) ? t.items.map(it => ({ ...it, discount_unit: 0, amount: Number(it.price_unit || 0) * Number(it.qty || 1) })) : [];
                   const newSub = fixedItems.reduce((s, it) => s + Number(it.amount || 0), 0) || sub;
