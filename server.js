@@ -930,9 +930,22 @@ const syncToMySQL = async (masterData) => {
           (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
         ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          time = VALUES(time),
+          outlet_id = VALUES(outlet_id),
+          branch_id = VALUES(branch_id),
+          branch_name = VALUES(branch_name),
+          outlet = VALUES(outlet),
+          customer_name = VALUES(customer_name),
+          table_number = VALUES(table_number),
+          order_type = VALUES(order_type),
+          subtotal = VALUES(subtotal),
           amount = VALUES(amount),
           paid_amount = VALUES(paid_amount),
+          change_amount = VALUES(change_amount),
           payment_method = VALUES(payment_method),
+          cashier = VALUES(cashier),
+          notes = VALUES(notes),
           status = VALUES(status)
       `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status]);
     }
@@ -946,23 +959,33 @@ const syncToMySQL = async (masterData) => {
           (id, date, outlet_id, branch_name, author_name, opening_float, net_sales, cash_sales, non_cash_sales, total_expense, expected_cash, cash_physical, cash_variance, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          outlet_id = VALUES(outlet_id),
+          branch_name = VALUES(branch_name),
+          author_name = VALUES(author_name),
+          opening_float = VALUES(opening_float),
           net_sales = VALUES(net_sales),
+          cash_sales = VALUES(cash_sales),
+          non_cash_sales = VALUES(non_cash_sales),
+          total_expense = VALUES(total_expense),
+          expected_cash = VALUES(expected_cash),
           cash_physical = VALUES(cash_physical),
+          cash_variance = VALUES(cash_variance),
           status = VALUES(status)
       `, [
         String(sc.id),
         sc.date || new Date().toISOString().split('T')[0],
         Number(sc.outlet_id || 1),
         sc.branch_name || '',
-        sc.author_name || sc.cashier || 'Kasir',
-        Number(sc.opening_float || 0),
-        Number(sc.net_sales || 0),
+        sc.author_name || sc.cashier_name || sc.cashier || 'Kasir',
+        Number(sc.opening_float || sc.initial_cash || 0),
+        Number(sc.net_sales || sc.gross_sales || sc.total_sales || 0),
         Number(sc.cash_sales || 0),
         Number(sc.non_cash_sales || 0),
-        Number(sc.total_expense || 0),
+        Number(sc.total_expense || sc.petty_expense || 0),
         Number(sc.expected_cash || 0),
-        Number(sc.cash_physical || 0),
-        Number(sc.cash_variance || 0),
+        Number(sc.cash_physical || sc.physical_cash || 0),
+        Number(sc.cash_variance || sc.variance || 0),
         sc.status || 'ditunda'
       ]);
     }
