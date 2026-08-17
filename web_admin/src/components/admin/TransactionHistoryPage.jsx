@@ -450,16 +450,24 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       customer_name: formCustomerName || 'Default Customer',
       order_type: formOrderType || 'DineIn',
       items: activeItems,
+      subtotal: grandTotalStrukAmount,
       amount: grandTotalStrukAmount,
       total: grandTotalStrukAmount,
       grandTotal: grandTotalStrukAmount,
+      paid_amount: grandTotalStrukAmount,
+      tendered: grandTotalStrukAmount,
+      discount: 0,
+      discount_amount: 0,
+      item_discounts: 0,
+      summary_discount: 0,
       payment_method: formPaymentMethod,
       cashier: formCashier,
       notes: formNotes,
       ref_pelanggan: editingRecord?.ref_pelanggan || `POS-${formDate.replace(/-/g, '')}-MANUAL`,
       gudang: `GUDANG ${targetOutlet.name.toUpperCase()}`,
       source: editingRecord ? (editingRecord.source || 'By Manual') : 'By Manual',
-      status: editingRecord?.status || 'Selesai'
+      status: editingRecord?.status || 'Selesai',
+      _updatedAt: Date.now()
     };
 
     const isMatch = (t) => {
@@ -488,14 +496,26 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       updatedSalesTx = [newRecord, ...updatedSalesTx];
     }
 
+    const updatedMaster = {
+      ...masterData,
+      _lastUpdated: Date.now(),
+      _lastMutated: Date.now(),
+      salesTransactions: updatedSalesTx,
+      transactions: updatedTx
+    };
+
     if (setMasterData) {
-      setMasterData({
-        ...masterData,
-        _lastUpdated: Date.now(),
-        salesTransactions: updatedSalesTx,
-        transactions: updatedTx
-      });
+      setMasterData(updatedMaster);
     }
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
+    } catch (e) {}
+
+    fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedMaster)
+    }).catch(() => {});
 
     if (viewMode === 'detail') {
       setSelectedInvoice(newRecord);
