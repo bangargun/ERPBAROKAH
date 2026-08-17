@@ -287,6 +287,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
     }, 0);
 
     const nonCashSalesTotal = approvedReports.reduce((sum, f) => sum + Number(f.non_cash_sales || 0), 0);
+    const salesTxTotal = salesTransactions.reduce((s, t) => s + Number(t.amount || 0), 0);
 
     // 1. Diskon Penjualan (Contra Revenue)
     const salesTxDiscounts = salesTransactions.reduce((s, t) => s + Number(t.discount || t.discount_amount || 0), 0);
