@@ -1982,6 +1982,7 @@ const sanitizeMasterDataPayload = (data) => {
           });
         }
         const sub = Number(t.subtotal || 0);
+        const disc = Number(t.discount_amount || t.discount || 0);
         if (isAnomalous || (disc > sub && sub > 0)) {
           const newItems = fixedItems || t.items || [];
           const newSub = newItems.reduce((s, it) => s + Number(it.amount || ((it.price_unit || 0) * (it.qty || 1))), 0) || sub;
