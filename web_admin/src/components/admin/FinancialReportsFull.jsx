@@ -287,14 +287,32 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
     }, 0);
 
     const nonCashSalesTotal = approvedReports.reduce((sum, f) => sum + Number(f.non_cash_sales || 0), 0);
-    const salesTxTotal = salesTransactions.reduce((s, t) => s + Number(t.amount || 0), 0);
-    const rawSalesTotal = salesTxTotal > 0 ? salesTxTotal : (cashSalesTotal + nonCashSalesTotal);
 
-    const realDiscountsTotal = salesTransactions.reduce((s, t) => s + Number(t.discount || t.discount_amount || 0), 0) +
-                                approvedReports.reduce((s, f) => s + Number(f.discount_amount || 0), 0);
+    // 1. Diskon Penjualan (Contra Revenue)
+    const salesTxDiscounts = salesTransactions.reduce((s, t) => s + Number(t.discount || t.discount_amount || 0), 0);
+    const reportsDiscounts = approvedReports.reduce((s, f) => s + Number(f.discount_amount || 0), 0);
+    const realDiscountsTotal = salesTransactions.length > 0 ? salesTxDiscounts : reportsDiscounts;
 
-    const pendapatanUsaha = rawSalesTotal;
-    const diskonPenjualan = realDiscountsTotal > 0 ? -realDiscountsTotal : 0;
+    // 2. Gross Penjualan (Pendapatan Usaha Bruto sebelum diskon)
+    // Sesuai prinsip akuntansi: Gross Sales = Net Diterima + Potongan Diskon
+    const salesTxGrossTotal = salesTransactions.reduce((s, t) => {
+      const sub = Number(t.subtotal || 0);
+      const amt = Number(t.amount || 0);
+      const disc = Number(t.discount || t.discount_amount || 0);
+      return s + (sub > 0 ? sub : (amt + disc));
+    }, 0);
+
+    const reportsGrossTotal = approvedReports.reduce((s, f) => {
+      const gross = Number(f.gross_sales || 0);
+      const net = Number(f.net_sales != null ? f.net_sales : (f.total_omset != null ? f.total_omset : (f.total_sales || 0)));
+      const disc = Number(f.discount_amount || 0);
+      return s + (gross > 0 ? gross : (net + disc));
+    }, 0);
+
+    const rawSalesTotal = salesTransactions.length > 0 ? salesTxGrossTotal : (reportsGrossTotal > 0 ? reportsGrossTotal : (cashSalesTotal + nonCashSalesTotal + realDiscountsTotal));
+
+    const pendapatanUsaha = rawSalesTotal; // Akun [4001] Pendapatan Penjualan (Gross)
+    const diskonPenjualan = realDiscountsTotal > 0 ? -realDiscountsTotal : 0; // Akun [4002] Diskon Penjualan (Contra Revenue)
 
     const otherIncomeMap = {};
     financialRecords
@@ -1033,14 +1051,20 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
             if (filterMethod === 'transfer') return m.includes('transfer') || m.includes('bank') || m.includes('bca') || m.includes('bri') || m.includes('mandiri');
             return m.includes(filterMethod);
           })
-          .map((t, idx) => ({
-            id: t.id || `TX-SALES-${idx + 1}`,
-            date: t.date || t.timestamp || t.created_at || '2026-07-23',
-            outlet_name: getOutletName(t.outlet_id),
-            cashier: t.cashier || t.author_name || 'Kasir POS',
-            description: `Penjualan POS (${t.payment_method || 'Kasir POS'}) ${t.customer ? `- ${t.customer}` : ''}`,
-            amount: Number(t.amount || 0)
-          }));
+          .map((t, idx) => {
+            const sub = Number(t.subtotal || 0);
+            const amt = Number(t.amount || 0);
+            const disc = Number(t.discount || t.discount_amount || 0);
+            const gross = sub > 0 ? sub : (amt + disc);
+            return {
+              id: t.id || `TX-SALES-${idx + 1}`,
+              date: t.date || t.timestamp || t.created_at || '2026-07-23',
+              outlet_name: getOutletName(t.outlet_id),
+              cashier: t.cashier || t.author_name || 'Kasir POS',
+              description: `Penjualan POS (${t.payment_method || 'Kasir POS'}) ${t.customer ? `- ${t.customer}` : ''}${disc > 0 ? ` [Gross: ${formatRupiah(gross)}, Diskon: -${formatRupiah(disc)}]` : ''}`,
+              amount: gross
+            };
+          });
       }
       
       if (transactionsList.length === 0) {
