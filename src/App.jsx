@@ -721,7 +721,8 @@ export default function App() {
         .catch(() => {});
     };
 
-    fetchLatestFromServer();
+    // Also immediately fetch once on mount without waiting for interval
+    setTimeout(fetchLatestFromServer, 500);
     const livePollTimer = setInterval(fetchLatestFromServer, 5000);
     return () => clearInterval(livePollTimer);
   }, []);
