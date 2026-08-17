@@ -134,8 +134,8 @@ export default function FinancialOverview({
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
-  // Helper Date Matcher
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  // Helper Date Matcher (Local Time YYYY-MM-DD)
+  const todayStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
 
   // Compute Active Dates List based on Preset
   const activeDateList = useMemo(() => {
@@ -147,18 +147,18 @@ export default function FinancialOverview({
     } else if (dateRangePreset === 'yesterday') {
       const yest = new Date();
       yest.setDate(today.getDate() - 1);
-      dates.push(yest.toISOString().split('T')[0]);
+      dates.push(yest.toLocaleDateString('en-CA'));
     } else if (dateRangePreset === '7days') {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
-        dates.push(d.toISOString().split('T')[0]);
+        dates.push(d.toLocaleDateString('en-CA'));
       }
     } else if (dateRangePreset === '30days') {
       for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
-        dates.push(d.toISOString().split('T')[0]);
+        dates.push(d.toLocaleDateString('en-CA'));
       }
     } else if (dateRangePreset === 'this_month') {
       const year = today.getFullYear();
@@ -166,21 +166,21 @@ export default function FinancialOverview({
       const firstDay = new Date(year, month, 1);
       let curr = new Date(firstDay);
       while (curr <= today) {
-        dates.push(curr.toISOString().split('T')[0]);
+        dates.push(curr.toLocaleDateString('en-CA'));
         curr.setDate(curr.getDate() + 1);
       }
     } else if (dateRangePreset === 'custom' && customStartDate && customEndDate) {
       let curr = new Date(customStartDate);
       const end = new Date(customEndDate);
       while (curr <= end) {
-        dates.push(curr.toISOString().split('T')[0]);
+        dates.push(curr.toLocaleDateString('en-CA'));
         curr.setDate(curr.getDate() + 1);
       }
     } else {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
-        dates.push(d.toISOString().split('T')[0]);
+        dates.push(d.toLocaleDateString('en-CA'));
       }
     }
     return dates;
@@ -206,7 +206,7 @@ export default function FinancialOverview({
 
     // Sales Transactions
     const periodTx = allSalesTx.filter(t => {
-      const d = t.date || todayStr;
+      const d = String(t.date || t.entry_date || t.transaction_date || t.timestamp || todayStr).substring(0, 10);
       return datesSet.has(d) && matchesBranch(t, activeOutletFilter);
     });
 
@@ -215,7 +215,7 @@ export default function FinancialOverview({
 
     // Approved Finance
     const periodApproved = allApprovedFinance.filter(f => {
-      const d = f.date || todayStr;
+      const d = String(f.date || f.entry_date || f.created_at || todayStr).substring(0, 10);
       return datesSet.has(d) && matchesBranch(f, activeOutletFilter);
     });
 
@@ -225,7 +225,7 @@ export default function FinancialOverview({
 
     // Expense Records
     const periodExpenseRecs = allFinancialRecords.filter(f => {
-      const d = f.date || todayStr;
+      const d = String(f.date || f.entry_date || f.created_at || todayStr).substring(0, 10);
       return f.type === 'expense' && datesSet.has(d) && matchesBranch(f, activeOutletFilter);
     }).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
@@ -277,10 +277,10 @@ export default function FinancialOverview({
       const parts = dateStr.split('-');
       const shortLabel = parts.length === 3 ? `${parseInt(parts[2], 10)} ${monthNames[parseInt(parts[1], 10) - 1] || ''}` : dateStr;
 
-      const dayTxs = allSalesTx.filter(t => (t.date === dateStr || (!t.date && dateStr === todayStr)) && matchesBranch(t, activeOutletFilter));
+      const dayTxs = allSalesTx.filter(t => (String(t.date || t.entry_date || t.transaction_date || t.timestamp || todayStr).substring(0, 10) === dateStr) && matchesBranch(t, activeOutletFilter));
       const txSum = dayTxs.reduce((sum, t) => sum + (Number(t.amount) || Number(t.total) || 0), 0);
 
-      const dayApproved = allApprovedFinance.filter(f => (f.date === dateStr || (!f.date && dateStr === todayStr)) && matchesBranch(f, activeOutletFilter));
+      const dayApproved = allApprovedFinance.filter(f => (String(f.date || f.entry_date || f.created_at || todayStr).substring(0, 10) === dateStr) && matchesBranch(f, activeOutletFilter));
       const approvedSum = dayApproved.reduce((sum, f) => sum + (Number(f.net_sales) || 0), 0);
 
       const dayRevenue = Math.max(txSum, approvedSum);
@@ -303,7 +303,7 @@ export default function FinancialOverview({
     const datesSet = new Set(activeDateList);
 
     const relevantTxs = allSalesTx.filter(t => {
-      const d = t.date || todayStr;
+      const d = String(t.date || t.entry_date || t.transaction_date || t.timestamp || todayStr).substring(0, 10);
       return datesSet.has(d) && matchesBranch(t, activeOutletFilter);
     });
 

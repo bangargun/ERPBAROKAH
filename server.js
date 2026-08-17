@@ -435,7 +435,8 @@ const initMySQLPool = async () => {
       connectTimeout: 10000,
       queueLimit: 0,
       enableKeepAlive: true,
-      keepAliveInitialDelay: 0
+      keepAliveInitialDelay: 0,
+      dateStrings: true
     });
     await ensureMasterDataTable();
 
@@ -648,7 +649,9 @@ const getMasterDataFromMySQL = async () => {
         salesRows.forEach(r => {
           const k = String(r.id || r.receipt_no || '');
           if (!k) return;
-          const dtStr = r.date ? (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)) : '';
+          const dtStr = typeof r.date === 'string' 
+            ? r.date.substring(0, 10) 
+            : (r.date ? (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)) : '');
           const existing = txMap.get(k);
           const mappedTx = {
             ...(existing || {}),
