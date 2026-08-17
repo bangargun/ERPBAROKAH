@@ -2093,7 +2093,7 @@ app.get('/api/master-data', async (req, res) => {
   try {
     const clientTs = Number(req.query.ts || req.headers['x-mris-ts'] || 0);
     const mysqlData = await getMasterDataFromMySQL();
-    const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : masterData;
+    const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : defaultMasterData;
     const serverTs = Number(activeData._lastUpdated || 0);
 
     if (clientTs > 0 && serverTs > 0 && clientTs >= serverTs) {
@@ -2102,7 +2102,7 @@ app.get('/api/master-data', async (req, res) => {
 
     return res.json(sanitizeMasterDataPayload(activeData));
   } catch (err) {
-    return res.json(sanitizeMasterDataPayload(masterData));
+    return res.json(sanitizeMasterDataPayload(defaultMasterData));
   }
 });
 

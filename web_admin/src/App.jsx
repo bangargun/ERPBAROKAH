@@ -370,7 +370,7 @@ export default function App() {
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
         .then(serverData => {
-          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.outlets)) {
+          if (serverData && typeof serverData === 'object' && !Array.isArray(serverData)) {
             const remoteTs = serverData._lastUpdated || 0;
 
             setMasterData(prev => {
