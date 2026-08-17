@@ -1449,10 +1449,22 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         { key: '12', name: 'Desember', short: 'Des' }
       ];
 
+      const isAllOutlets = selectedOutletIds.includes('ALL') || selectedOutletIds.length === 0;
+
       const validTxs = transactions.filter(t => {
         if (t.status === 'Void') return false;
         const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 4);
-        return dt === year;
+        if (dt !== year) return false;
+
+        if (!isAllOutlets) {
+          const matchesOutlet = filteredOutlets.some(otl => 
+            Number(otl.id) === Number(t.outlet_id) || 
+            (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+          );
+          if (!matchesOutlet) return false;
+        }
+
+        return true;
       });
 
       const rows = [];
@@ -1590,11 +1602,22 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const endDateObj = new Date(end);
     const daysDiff = Math.max(1, Math.min(62, Math.round((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1));
 
+    const isAllOutlets = selectedOutletIds.includes('ALL') || selectedOutletIds.length === 0;
+
     const validTxs = transactions.filter(t => {
       if (t.status === 'Void') return false;
       const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 10);
       if (start && dt < start) return false;
       if (end && dt > end) return false;
+
+      if (!isAllOutlets) {
+        const matchesOutlet = filteredOutlets.some(otl => 
+          Number(otl.id) === Number(t.outlet_id) || 
+          (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+        );
+        if (!matchesOutlet) return false;
+      }
+
       return true;
     });
 
