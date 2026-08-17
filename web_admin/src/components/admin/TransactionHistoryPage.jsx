@@ -1485,7 +1485,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               <div style={{ background: T.cardBg2, padding: '14px', borderRadius: '10px', border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: '800', color: T.txtPrimary }}>Rincian Produk Menu</span>
-                  <span style={{ fontSize: '0.78rem', color: T.accentGold, fontWeight: '800' }}>Subtotal: {formatRupiah(grandTotalStrukAmount)}</span>
+                  <span style={{ fontSize: '0.78rem', color: T.accentGold, fontWeight: '800' }}>Subtotal: {formatRupiah(rawSubtotal)}</span>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
