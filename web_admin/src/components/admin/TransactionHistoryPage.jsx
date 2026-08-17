@@ -78,6 +78,30 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       }
     }
 
+    // Fallback: jika timePart masih 00:00:xx atau kosong, decode waktu akurat dari ID TX-POS
+    if ((!timePart || timePart.startsWith('00:00:')) && item.id && String(item.id).startsWith('TX-POS-')) {
+      const suffix = String(item.id).replace('TX-POS-', '').trim();
+      if (/^[0-9]+$/.test(suffix) && suffix.length >= 6) {
+        const dStr = String(item.date || item.entry_date || '2026-08-17').substring(0, 10);
+        const dayStartMs = new Date(`${dStr}T00:00:00+07:00`).getTime();
+        const dayEndMs = dayStartMs + 24 * 3600 * 1000;
+        const prefixLen = 13 - suffix.length;
+        const minPrefix = parseInt(String(dayStartMs).slice(0, prefixLen)) - 1;
+        const maxPrefix = parseInt(String(dayEndMs).slice(0, prefixLen)) + 1;
+        for (let p = minPrefix; p <= maxPrefix; p++) {
+          const candMs = parseInt(String(p) + suffix);
+          if (candMs >= dayStartMs - 7200000 && candMs <= dayEndMs + 7200000) {
+            const dt = new Date(candMs);
+            const hours = String((dt.getUTCHours() + 7) % 24).padStart(2, '0');
+            const minutes = String(dt.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(dt.getUTCSeconds()).padStart(2, '0');
+            timePart = `${hours}:${minutes}:${seconds}`;
+            break;
+          }
+        }
+      }
+    }
+
     if (timePart) {
       const tParts = timePart.split(':');
       if (tParts.length === 2) {
