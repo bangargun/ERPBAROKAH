@@ -4227,6 +4227,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     showOutletDropdown={omzetShowOutletDropdown}
                     setShowOutletDropdown={setOmzetShowOutletDropdown}
                     selectedBranch={selectedBranch}
+                    hideOutletFilter={true}
                   />
                 </>
               ) : (
@@ -4253,91 +4254,6 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                       </option>
                     ))}
                   </select>
-
-                  {/* Multi-Outlet Dropdown Trigger in Monthly Mode */}
-                  <div style={{ position: 'relative' }}>
-                    <button
-                      type="button"
-                      onClick={() => setOmzetShowOutletDropdown(!omzetShowOutletDropdown)}
-                      style={{
-                        padding: '7px 12px',
-                        background: T.cardBg2,
-                        border: `1px solid ${T.border}`,
-                        color: T.txtPrimary,
-                        borderRadius: '8px',
-                        fontSize: '0.74rem',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <Store size={13} color={T.info} />
-                      <span>{omzetSelectedOutletIds.includes('ALL') ? 'Semua Outlet' : `${omzetSelectedOutletIds.length} Outlet`}</span>
-                      <ChevronDown size={12} />
-                    </button>
-
-                    {omzetShowOutletDropdown && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        marginTop: '4px',
-                        background: T.cardBg2,
-                        border: `1px solid ${T.borderStrong}`,
-                        borderRadius: '8px',
-                        padding: '8px',
-                        zIndex: 100,
-                        minWidth: '220px',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px'
-                      }}>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleOmzetOutlet('ALL')}
-                          style={{
-                            background: omzetSelectedOutletIds.includes('ALL') ? T.primary : 'transparent',
-                            color: omzetSelectedOutletIds.includes('ALL') ? T.txtInverse : T.txtPrimary,
-                            border: 'none',
-                            padding: '6px 8px',
-                            borderRadius: '6px',
-                            textAlign: 'left',
-                            fontSize: '0.72rem',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          ✓ Semua Outlet Cabang
-                        </button>
-                        {outlets.map(o => {
-                          const isSel = omzetSelectedOutletIds.includes(o.id) || omzetSelectedOutletIds.includes(Number(o.id));
-                          return (
-                            <button
-                              key={o.id}
-                              type="button"
-                              onClick={() => handleToggleOmzetOutlet(o.id)}
-                              style={{
-                                background: isSel ? T.infoBg : 'transparent',
-                                color: isSel ? T.info : T.txtPrimary,
-                                border: 'none',
-                                padding: '6px 8px',
-                                borderRadius: '6px',
-                                textAlign: 'left',
-                                fontSize: '0.72rem',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {isSel ? '✓ ' : '• '} {o.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
                 </>
               )}
             </div>
@@ -4658,6 +4574,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 showOutletDropdown={catShowOutletDropdown}
                 setShowOutletDropdown={setCatShowOutletDropdown}
                 selectedBranch={selectedBranch}
+                hideOutletFilter={true}
               />
             </div>
 
@@ -5091,6 +5008,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               showOutletDropdown={sumShowOutletDropdown}
               setShowOutletDropdown={setSumShowOutletDropdown}
               selectedBranch={selectedBranch}
+              hideOutletFilter={true}
             />
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -5308,6 +5226,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               showOutletDropdown={dailyShowOutletDropdown}
               setShowOutletDropdown={setDailyShowOutletDropdown}
               selectedBranch={selectedBranch}
+              hideOutletFilter={true}
             />
 
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -5447,6 +5366,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               showOutletDropdown={hourShowOutletDropdown}
               setShowOutletDropdown={setHourShowOutletDropdown}
               selectedBranch={selectedBranch}
+              hideOutletFilter={true}
             />
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -5689,6 +5609,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     showOutletDropdown={rcptShowOutletDropdown}
                     setShowOutletDropdown={setRcptShowOutletDropdown}
                     selectedBranch={selectedBranch}
+                    hideOutletFilter={true}
                   />
 
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -5989,6 +5910,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               showOutletDropdown={custShowOutletDropdown}
               setShowOutletDropdown={setCustShowOutletDropdown}
               selectedBranch={selectedBranch}
+              hideOutletFilter={true}
             />
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -6176,6 +6098,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               showOutletDropdown={momShowOutletDropdown}
               setShowOutletDropdown={setMomShowOutletDropdown}
               selectedBranch={selectedBranch}
+              hideOutletFilter={true}
             />
 
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
