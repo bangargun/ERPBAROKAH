@@ -1140,17 +1140,32 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
         });
       }
     } else {
+      const matchesAccount = (catOrNotes, code) => {
+        const cat = String(catOrNotes || '').toLowerCase();
+        if (code === accountCode) return true;
+        if (accountCode === '6001' && (cat.includes('gaji') || cat.includes('payroll') || cat.includes('upah'))) return true;
+        if (accountCode === '6002' && (cat.includes('sewa') || cat.includes('rent'))) return true;
+        if (accountCode === '6003' && (cat.includes('listrik') || cat.includes('air') || cat.includes('utility') || cat.includes('wifi') || cat.includes('internet'))) return true;
+        if (accountCode === '6004' && (cat.includes('maintenance') || cat.includes('servis') || cat.includes('peralatan') || cat.includes('dapur'))) return true;
+        if (accountCode === '6005' && (cat.includes('iklan') || cat.includes('promosi') || cat.includes('marketing') || cat.includes('diskon'))) return true;
+        if (accountCode === '6006' && (cat.includes('kemasan') || cat.includes('packaging') || cat.includes('plastik') || cat.includes('box'))) return true;
+        if (accountCode === '6007' && (cat.includes('bersih') || cat.includes('sanitasi') || cat.includes('sabun'))) return true;
+        if (accountCode === '6008' && (cat.includes('admin') || cat.includes('bank') || cat.includes('fee') || cat.includes('qris'))) return true;
+        if (accountName && cat && (accountName.toLowerCase().includes(cat) || cat.includes(accountName.toLowerCase()))) return true;
+        return false;
+      };
+
       approvedReports.forEach((f) => {
         if (f.expenses_breakdown && f.expenses_breakdown.length > 0) {
           f.expenses_breakdown.forEach((ex, idx) => {
             const exCode = ex.code || `69${String(idx + 1).padStart(2, '0')}`;
-            if (exCode === accountCode || accountName.includes(ex.name || ex.category)) {
+            if (matchesAccount(ex.name || ex.category || ex.notes, exCode)) {
               transactionsList.push({
-                id: `${f.report_no}-EXP-${idx + 1}`,
-                date: f.date || '2026-07-23',
+                id: `${f.report_no || 'REP'}-EXP-${idx + 1}`,
+                date: f.date || f.entry_date || '2026-07-23',
                 outlet_name: f.branch_name || getOutletName(f.outlet_id),
-                cashier: f.cashier_name || 'Kasir',
-                description: ex.notes || ex.name || ex.category || accountName,
+                cashier: f.cashier_name || f.author || 'Kasir / Admin',
+                description: ex.notes ? `${ex.name || ex.category || accountName} (${ex.notes})` : (ex.name || ex.category || accountName),
                 amount: Number(ex.amount || 0)
               });
             }
@@ -1160,13 +1175,13 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
 
       financialRecords.forEach((f, idx) => {
         const fCode = f.code || (f.type === 'expense' ? `69${String(idx + 50).padStart(2, '0')}` : f.type === 'other_expense' ? `8${String(idx + 1).padStart(3, '0')}` : `7${String(idx + 1).padStart(3, '0')}`);
-        if (fCode === accountCode || accountName.includes(f.category || f.notes)) {
+        if (matchesAccount(f.category || f.notes, fCode)) {
           transactionsList.push({
-            id: f.id || `FIN-REC-${idx + 1}`,
-            date: f.date || f.created_at || '2026-07-23',
-            outlet_name: f.branch_name || getOutletName(f.outlet_id),
-            cashier: f.author || f.author_name || 'Web Admin',
-            description: f.notes || f.category || accountName,
+            id: f.id ? `FIN-${String(f.id).slice(-6)}` : `FIN-REC-${idx + 1}`,
+            date: f.date || f.entry_date || f.created_at || '2026-07-23',
+            outlet_name: f.outlet_name || f.branch_name || getOutletName(f.outlet_id),
+            cashier: f.author || f.author_name || 'Import Batch Excel',
+            description: f.notes ? `${f.category || accountName} (${f.notes})` : (f.category || accountName),
             amount: Number(f.amount || 0)
           });
         }
