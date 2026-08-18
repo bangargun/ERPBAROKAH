@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "server": "node server.js",
     "start": "node server.js",
-    "deploy": "npm run build && git add -A && git commit -m 'deploy: update build' --allow-empty && git push && sshpass -p 'Barokahgrub30@@' ssh -o StrictHostKeyChecking=no root@187.77.122.142 'cd /var/www/erp-barokah && git fetch origin && git reset --hard origin/main && pm2 restart erp-barokah'"
+    "deploy": "node -e \"const h=(new Date().getUTCHours()+7)%24; if(h>=10&&h<=23){console.error('⚠️  PEAK HOURS '+h+':xx WIB. Kasir mungkin aktif. Gunakan npm run deploy-force untuk override.');process.exit(1)}\" && npm run build && git add -A && git commit -m 'deploy: update build' --allow-empty && git push && sshpass -p 'Barokahgrub30@@' ssh -o StrictHostKeyChecking=no root@187.77.122.142 'cd /var/www/erp-barokah && git fetch origin && git reset --hard origin/main && pm2 restart erp-barokah'",
+    "deploy-force": "npm run build && git add -A && git commit -m 'deploy: update build' --allow-empty && git push && sshpass -p 'Barokahgrub30@@' ssh -o StrictHostKeyChecking=no root@187.77.122.142 'cd /var/www/erp-barokah && git fetch origin && git reset --hard origin/main && pm2 restart erp-barokah'"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

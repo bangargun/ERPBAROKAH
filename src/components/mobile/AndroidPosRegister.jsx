@@ -4002,14 +4002,14 @@ export default function AndroidPosRegister({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 
-            {/* OFFLINE QUEUE STATUS BADGE */}
+            {/* OFFLINE QUEUE STATUS BADGE — merah mencolok agar kasir tidak menutup app */}
             {offlineQueueCount > 0 && (
               <div 
                 style={{
-                  background: 'rgba(245, 158, 11, 0.25)',
-                  border: '1.5px solid #f59e0b',
-                  color: '#fbbf24',
-                  padding: '4px 10px',
+                  background: 'rgba(239, 68, 68, 0.20)',
+                  border: '2px solid #ef4444',
+                  color: '#fca5a5',
+                  padding: '5px 12px',
                   borderRadius: '8px',
                   fontSize: '0.74rem',
                   fontWeight: '900',
@@ -4017,13 +4017,13 @@ export default function AndroidPosRegister({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  boxShadow: '0 0 12px rgba(245, 158, 11, 0.3)'
+                  boxShadow: '0 0 16px rgba(239, 68, 68, 0.45)'
                 }}
                 title="Transaksi Offline Tersimpan di Tablet — Klik untuk paksa sync ke Cloud VPS"
                 className="animate-pulse"
               >
                 <RefreshCw size={13} className="animate-spin" />
-                <span>{offlineQueueCount} Offline Pending</span>
+                <span>🔴 {offlineQueueCount} transaksi belum tersinkron - Jangan tutup aplikasi</span>
               </div>
             )}
 
