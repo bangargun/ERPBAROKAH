@@ -32,6 +32,9 @@ import {
   AlertCircle,
   ShieldAlert,
   ShieldCheck,
+  Search,
+  LayoutGrid,
+  List,
   X
 } from 'lucide-react';
 
@@ -127,6 +130,8 @@ export default function FinancialOverview({
   const [salesChartType, setSalesChartType] = useState('area'); // 'area' | 'bar'
   const [omzetChartType, setOmzetChartType] = useState('bar'); // 'bar' | 'area'
   const [selectedIngredientCategory, setSelectedIngredientCategory] = useState('ALL');
+  const [disparityViewMode, setDisparityViewMode] = useState('table'); // 'table' | 'cards'
+  const [disparitySearchTerm, setDisparitySearchTerm] = useState('');
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiLastUpdated, setAiLastUpdated] = useState('Baru saja (Real-time)');
   const [showAIModal, setShowAIModal] = useState(false);
@@ -1288,21 +1293,106 @@ export default function FinancialOverview({
         padding: '20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
+        gap: '16px',
         boxShadow: T.shadowSm
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        {/* Header & Controls Toolbar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h3 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Package size={18} color={T.accentGold} />
+            <h3 style={{ fontSize: '0.98rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Package size={19} color={T.accentGold} />
               <span>Disparitas Harga Pembelian Bahan Baku Antar Cabang</span>
             </h3>
-            <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
-              Deteksi perbedaan harga beli supplier antar outlet untuk efisiensi pengadaan central kitchen
+            <p style={{ fontSize: '0.74rem', color: T.txtSecondary, margin: '3px 0 0 0' }}>
+              Deteksi perbedaan harga beli supplier antar outlet secara transparan untuk efisiensi pengadaan central kitchen
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Search Bar Bahan Baku */}
+            <div style={{ position: 'relative', minWidth: '180px' }}>
+              <Search size={14} color={T.txtMuted} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Cari bahan baku..."
+                value={disparitySearchTerm}
+                onChange={e => setDisparitySearchTerm(e.target.value)}
+                style={{
+                  padding: '5px 10px 5px 30px',
+                  background: T.inputBg,
+                  border: `1px solid ${T.borderStrong}`,
+                  borderRadius: '10px',
+                  color: T.txtPrimary,
+                  fontSize: '0.74rem',
+                  fontWeight: '700',
+                  outline: 'none',
+                  width: '100%'
+                }}
+              />
+            </div>
+
+            {/* Category Filter Dynamically from Master Data */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
+              <Filter size={13} color={T.txtSecondary} />
+              <select
+                value={selectedIngredientCategory}
+                onChange={e => setSelectedIngredientCategory(e.target.value)}
+                style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
+              >
+                <option value="ALL">Semua Kategori</option>
+                {dynamicIngredientCategories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* View Mode Toggle: Table vs Cards */}
+            <div style={{ display: 'flex', background: T.cardBg2, padding: '3px', borderRadius: '9px', border: `1px solid ${T.borderStrong}` }}>
+              <button
+                type="button"
+                onClick={() => setDisparityViewMode('table')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: disparityViewMode === 'table' ? T.primary : 'transparent',
+                  color: disparityViewMode === 'table' ? T.txtInverse : T.txtSecondary,
+                  fontSize: '0.72rem',
+                  fontWeight: '800',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+                title="Tampilan Tabel Matriks"
+              >
+                <List size={13} />
+                <span>Tabel</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisparityViewMode('cards')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: disparityViewMode === 'cards' ? T.primary : 'transparent',
+                  color: disparityViewMode === 'cards' ? T.txtInverse : T.txtSecondary,
+                  fontSize: '0.72rem',
+                  fontWeight: '800',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer'
+                }}
+                title="Tampilan Kartu Rinci"
+              >
+                <LayoutGrid size={13} />
+                <span>Kartu</span>
+              </button>
+            </div>
+
+            {/* AI Purchasing Button */}
             <button
               type="button"
               onClick={() => handleOpenAIInsight('purchasing')}
@@ -1310,108 +1400,314 @@ export default function FinancialOverview({
                 background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
                 border: '1px solid rgba(168, 85, 247, 0.3)',
                 color: '#a855f7',
-                padding: '4px 10px',
-                borderRadius: '8px',
-                fontSize: '0.72rem',
+                padding: '5px 12px',
+                borderRadius: '9px',
+                fontSize: '0.74rem',
                 fontWeight: '800',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                gap: '5px',
                 cursor: 'pointer'
               }}
               title="Analisis AI Disparitas Harga Supplier"
             >
-              <Sparkles size={12} />
+              <Sparkles size={13} />
               <span>AI Purchasing</span>
             </button>
-
-            {/* Category Filter Dynamically from Master Data */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
-              <Filter size={14} color={T.txtSecondary} />
-              <select
-                value={selectedIngredientCategory}
-                onChange={e => setSelectedIngredientCategory(e.target.value)}
-                style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
-              >
-                <option value="ALL">Semua Kategori Bahan</option>
-                {dynamicIngredientCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
 
-        {/* Grid Disparitas Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
-          {ingredientDisparityList.length === 0 ? (
-            <div style={{ gridColumn: '1 / -1', padding: '24px', textAlign: 'center', color: T.txtMuted, fontSize: '0.78rem' }}>
-              Belum ada data bahan baku terdaftar pada kategori ini.
+        {/* Quick KPI Summary Badges */}
+        {(() => {
+          const list = ingredientDisparityList.filter(ing => {
+            if (!disparitySearchTerm) return true;
+            const term = disparitySearchTerm.toLowerCase().trim();
+            return (ing.name || '').toLowerCase().includes(term) || resolveIngredientCategory(ing).toLowerCase().includes(term);
+          });
+          const totalCount = list.length;
+          const alertCount = list.filter(i => i.hasDisparityAlert).length;
+          const stableCount = totalCount - alertCount;
+
+          return (
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ background: T.inputBg, border: `1px solid ${T.border}`, padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '700' }}>Dipantau:</span>
+                <span style={{ fontSize: '0.78rem', color: T.txtPrimary, fontWeight: '900' }}>{totalCount} Bahan</span>
+              </div>
+              <div style={{ background: T.dangerBg, border: `1px solid ${T.dangerBorder}`, padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.70rem', color: T.danger, fontWeight: '700' }}>⚠️ Disparitas Tinggi:</span>
+                <span style={{ fontSize: '0.78rem', color: T.danger, fontWeight: '900' }}>{alertCount} Bahan</span>
+              </div>
+              <div style={{ background: T.successBg, border: `1px solid ${T.successBorder}`, padding: '6px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.70rem', color: T.success, fontWeight: '700' }}>✅ Harga Stabil:</span>
+                <span style={{ fontSize: '0.78rem', color: T.success, fontWeight: '900' }}>{stableCount} Bahan</span>
+              </div>
             </div>
-          ) : (
-            ingredientDisparityList.map((ing, idx) => (
-              <div key={idx} style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '12px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtPrimary }}>{ing.name}</span>
-                      <span style={{ fontSize: '0.66rem', color: T.txtSecondary }}>/ {ing.unit || 'Kg'}</span>
-                    </div>
-                    <div style={{ fontSize: '0.62rem', color: T.info, fontWeight: '700', marginTop: '2px' }}>
-                      Kategori: {resolveIngredientCategory(ing)}
-                    </div>
-                  </div>
-                  <span style={{
-                    fontSize: '0.68rem',
-                    fontWeight: '800',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    background: ing.hasDisparityAlert ? T.dangerBg : T.successBg,
-                    color: ing.hasDisparityAlert ? T.danger : T.success,
-                    border: `1px solid ${ing.hasDisparityAlert ? T.dangerBorder : T.successBorder}`
-                  }}>
-                    {ing.hasDisparityAlert ? `Selisih: ${formatRupiah(ing.disparity)}` : 'Harga Stabil'}
-                  </span>
-                </div>
+          );
+        })()}
 
-                {/* Per Outlet Price Tags (5 Cabang Lengkap) */}
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${allOutlets.length || 5}, 1fr)`, gap: '4px', fontSize: '0.68rem' }}>
-                  {ing.outletPrices.map((op, oIdx) => {
-                    const isLowest = ing.minPrice > 0 && op.price === ing.minPrice && ing.hasDisparityAlert;
-                    const isHighest = ing.maxPrice > 0 && op.price === ing.maxPrice && ing.hasDisparityAlert;
-                    const shortName = op.outletName
-                      ? op.outletName
-                          .replace(/AYAM PECAK 2001 SEAFOOD /i, 'PCK ')
-                          .replace(/AYAM BAKAR SURABAYA /i, 'SBY ')
-                          .replace(/PECEL LELE PAK HAJI /i, 'PLP ')
-                      : `Cabang #${oIdx + 1}`;
+        {/* Main Content: Matrix Table or Cards */}
+        {(() => {
+          const list = ingredientDisparityList.filter(ing => {
+            if (!disparitySearchTerm) return true;
+            const term = disparitySearchTerm.toLowerCase().trim();
+            return (ing.name || '').toLowerCase().includes(term) || resolveIngredientCategory(ing).toLowerCase().includes(term);
+          });
 
-                    return (
-                      <div 
-                        key={oIdx} 
-                        style={{ 
-                          background: isHighest ? T.dangerBg : isLowest ? T.successBg : T.inputBg, 
-                          padding: '5px 4px', 
-                          borderRadius: '6px', 
-                          textAlign: 'center', 
-                          border: `1px solid ${isHighest ? T.dangerBorder : isLowest ? T.successBorder : T.border}` 
-                        }}
-                        title={`${op.outletName}: ${formatRupiah(op.price)}`}
-                      >
-                        <div style={{ color: isHighest ? T.danger : isLowest ? T.success : T.txtSecondary, fontSize: '0.60rem', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {shortName}
+          if (list.length === 0) {
+            return (
+              <div style={{ padding: '36px 20px', textAlign: 'center', color: T.txtMuted, fontSize: '0.80rem', background: T.cardBg2, borderRadius: '12px', border: `1px solid ${T.border}` }}>
+                Tidak ditemukan data bahan baku yang sesuai dengan kriteria pencarian / kategori ini.
+              </div>
+            );
+          }
+
+          if (disparityViewMode === 'table') {
+            return (
+              <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '12px', overflowX: 'auto', background: T.cardBg2 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem', whiteSpace: 'nowrap' }}>
+                  <thead>
+                    <tr style={{ background: T.tableHeaderBg, color: T.txtPrimary, fontSize: '0.70rem', textTransform: 'uppercase', fontWeight: '900' }}>
+                      <th style={{ padding: '12px 14px', textAlign: 'center', width: '40px' }}>No</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'left', minWidth: '220px' }}>Bahan Baku &amp; Kategori</th>
+                      {allOutlets.map(o => (
+                        <th key={o.id} style={{ padding: '12px 14px', textAlign: 'right', minWidth: '150px' }}>
+                          <div style={{ fontWeight: '800', color: T.txtPrimary }}>{o.name}</div>
+                          <div style={{ fontSize: '0.62rem', color: T.txtMuted, textTransform: 'none', fontWeight: '600' }}>Harga Beli / Satuan</div>
+                        </th>
+                      ))}
+                      <th style={{ padding: '12px 14px', textAlign: 'right', minWidth: '130px' }}>Termurah vs Termahal</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'right', minWidth: '130px' }}>Selisih (Disparitas)</th>
+                      <th style={{ padding: '12px 14px', textAlign: 'center', minWidth: '120px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {list.map((ing, idx) => {
+                      const categoryName = resolveIngredientCategory(ing);
+                      const unitStr = ing.unit || 'Kg';
+                      const hasAlert = ing.hasDisparityAlert;
+
+                      return (
+                        <tr 
+                          key={idx} 
+                          style={{ 
+                            borderBottom: `1px solid ${T.border}`, 
+                            background: idx % 2 === 0 ? 'transparent' : (T.cardBg || 'rgba(255,255,255,0.01)'),
+                            transition: 'background 0.15s ease' 
+                          }}
+                        >
+                          {/* 1. Index */}
+                          <td style={{ padding: '12px 14px', textAlign: 'center', color: T.txtMuted, fontWeight: '700' }}>
+                            {idx + 1}
+                          </td>
+
+                          {/* 2. Bahan Baku Info */}
+                          <td style={{ padding: '12px 14px' }}>
+                            <div style={{ fontWeight: '900', color: T.txtPrimary, fontSize: '0.80rem' }}>
+                              {ing.name}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                              <span style={{ fontSize: '0.64rem', color: T.info, fontWeight: '700', background: T.infoBg, padding: '1px 6px', borderRadius: '4px' }}>
+                                {categoryName}
+                              </span>
+                              <span style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '700' }}>
+                                Satuan: {unitStr}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* 3. Outlet Columns */}
+                          {ing.outletPrices.map((op, oIdx) => {
+                            const isLowest = ing.minPrice > 0 && op.price === ing.minPrice && hasAlert;
+                            const isHighest = ing.maxPrice > 0 && op.price === ing.maxPrice && hasAlert;
+
+                            return (
+                              <td 
+                                key={oIdx} 
+                                style={{ 
+                                  padding: '12px 14px', 
+                                  textAlign: 'right',
+                                  background: isHighest ? 'rgba(239, 68, 68, 0.05)' : isLowest ? 'rgba(34, 197, 94, 0.05)' : 'transparent'
+                                }}
+                              >
+                                <div style={{ 
+                                  fontWeight: '900', 
+                                  fontSize: '0.78rem',
+                                  color: isHighest ? T.danger : isLowest ? T.success : T.txtPrimary 
+                                }}>
+                                  {formatRupiah(op.price)}
+                                </div>
+                                <div style={{ marginTop: '2px' }}>
+                                  {isLowest && (
+                                    <span style={{ fontSize: '0.60rem', fontWeight: '800', padding: '1px 5px', borderRadius: '4px', background: T.successBg, color: T.success, border: `1px solid ${T.successBorder}` }}>
+                                      Termurah
+                                    </span>
+                                  )}
+                                  {isHighest && (
+                                    <span style={{ fontSize: '0.60rem', fontWeight: '800', padding: '1px 5px', borderRadius: '4px', background: T.dangerBg, color: T.danger, border: `1px solid ${T.dangerBorder}` }}>
+                                      Termahal
+                                    </span>
+                                  )}
+                                  {!isLowest && !isHighest && (
+                                    <span style={{ fontSize: '0.62rem', color: T.txtMuted }}>
+                                      /{unitStr}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          })}
+
+                          {/* 4. Min vs Max */}
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.72rem', color: T.success, fontWeight: '800' }}>
+                              Min: {formatRupiah(ing.minPrice)}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: T.danger, fontWeight: '800', marginTop: '2px' }}>
+                              Max: {formatRupiah(ing.maxPrice)}
+                            </div>
+                          </td>
+
+                          {/* 5. Disparity Value */}
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                            <div style={{ 
+                              fontWeight: '900', 
+                              fontSize: '0.80rem',
+                              color: hasAlert ? T.danger : T.txtSecondary 
+                            }}>
+                              {ing.disparity > 0 ? `+${formatRupiah(ing.disparity)}` : 'Rp 0'}
+                            </div>
+                            {ing.minPrice > 0 && ing.disparity > 0 && (
+                              <div style={{ fontSize: '0.64rem', color: hasAlert ? T.danger : T.txtMuted, fontWeight: '700', marginTop: '1px' }}>
+                                (+{((ing.disparity / ing.minPrice) * 100).toFixed(1)}%)
+                              </div>
+                            )}
+                          </td>
+
+                          {/* 6. Status Badge */}
+                          <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                            <span style={{
+                              fontSize: '0.66rem',
+                              fontWeight: '800',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: hasAlert ? T.dangerBg : T.successBg,
+                              color: hasAlert ? T.danger : T.success,
+                              border: `1px solid ${hasAlert ? T.dangerBorder : T.successBorder}`,
+                              display: 'inline-block'
+                            }}>
+                              {hasAlert ? '⚠️ Selisih Tinggi' : '✅ Seragam'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+
+          // Cards View Mode
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '14px' }}>
+              {list.map((ing, idx) => {
+                const categoryName = resolveIngredientCategory(ing);
+                const unitStr = ing.unit || 'Kg';
+                const hasAlert = ing.hasDisparityAlert;
+
+                return (
+                  <div 
+                    key={idx} 
+                    style={{ 
+                      background: T.cardBg2, 
+                      border: `1px solid ${hasAlert ? T.dangerBorder : T.borderStrong}`, 
+                      borderRadius: '14px', 
+                      padding: '16px', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '12px',
+                      boxShadow: T.shadowSm
+                    }}
+                  >
+                    {/* Card Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.86rem', fontWeight: '900', color: T.txtPrimary }}>
+                          {ing.name}
                         </div>
-                        <div style={{ fontWeight: '900', color: isHighest ? T.danger : isLowest ? T.success : T.txtPrimary, marginTop: '2px', fontSize: '0.66rem' }}>
-                          {formatRupiah(op.price)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                          <span style={{ fontSize: '0.64rem', color: T.info, fontWeight: '700', background: T.infoBg, padding: '1px 6px', borderRadius: '4px' }}>
+                            {categoryName}
+                          </span>
+                          <span style={{ fontSize: '0.66rem', color: T.txtSecondary, fontWeight: '700' }}>
+                            Satuan: {unitStr}
+                          </span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+
+                      <span style={{
+                        fontSize: '0.68rem',
+                        fontWeight: '800',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: hasAlert ? T.dangerBg : T.successBg,
+                        color: hasAlert ? T.danger : T.success,
+                        border: `1px solid ${hasAlert ? T.dangerBorder : T.successBorder}`,
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {hasAlert ? `Selisih: ${formatRupiah(ing.disparity)}` : '✅ Harga Stabil'}
+                      </span>
+                    </div>
+
+                    {/* Outlet Price Rows */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: T.inputBg, padding: '10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                      {ing.outletPrices.map((op, oIdx) => {
+                        const isLowest = ing.minPrice > 0 && op.price === ing.minPrice && hasAlert;
+                        const isHighest = ing.maxPrice > 0 && op.price === ing.maxPrice && hasAlert;
+
+                        return (
+                          <div 
+                            key={oIdx}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '5px 8px',
+                              borderRadius: '6px',
+                              background: isHighest ? T.dangerBg : isLowest ? T.successBg : 'transparent'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: '800', color: isHighest ? T.danger : isLowest ? T.success : T.txtPrimary }}>
+                                {op.outletName}
+                              </span>
+                              {isLowest && (
+                                <span style={{ fontSize: '0.58rem', fontWeight: '900', color: T.success }}>👑 Termurah</span>
+                              )}
+                              {isHighest && (
+                                <span style={{ fontSize: '0.58rem', fontWeight: '900', color: T.danger }}>⚠️ Termahal</span>
+                              )}
+                            </div>
+                            <span style={{ fontSize: '0.76rem', fontWeight: '900', color: isHighest ? T.danger : isLowest ? T.success : T.txtPrimary }}>
+                              {formatRupiah(op.price)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Card Footer Summary */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: T.txtMuted, borderTop: `1px solid ${T.border}`, paddingTop: '8px' }}>
+                      <span>Termurah: <strong style={{ color: T.success }}>{formatRupiah(ing.minPrice)}</strong></span>
+                      <span>Termahal: <strong style={{ color: T.danger }}>{formatRupiah(ing.maxPrice)}</strong></span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
 
