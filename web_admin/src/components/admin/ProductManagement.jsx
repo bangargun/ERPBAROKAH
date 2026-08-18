@@ -1157,28 +1157,6 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
             <option value="Aktif">Aktif</option>
             <option value="Inaktif">Inaktif / Habis</option>
           </select>
-
-          {/* Branch Outlet Filter */}
-          <select
-            value={selectedOutletFilter}
-            onChange={e => { setSelectedOutletFilter(e.target.value); setCurrentPage(1); }}
-            style={{
-              background: T.inputBg,
-              border: `1px solid ${T.borderStrong}`,
-              color: T.txtPrimary,
-              padding: '6px 10px',
-              borderRadius: '8px',
-              fontSize: '0.74rem',
-              fontWeight: '700',
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="Semua">Semua Cabang Outlet</option>
-            {allOutlets.map(o => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
         </div>
 
         {/* Right: Display Mode Switcher */}

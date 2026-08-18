@@ -603,21 +603,6 @@ export default function FinancialOverview({
 
         {/* Global Toolbar Filters */}
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          
-          {/* Outlet Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
-            <Building2 size={15} color={T.txtSecondary} />
-            <select
-              value={activeOutletFilter}
-              onChange={e => setActiveOutletFilter(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
-            >
-              <option value="ALL">Semua Cabang Restoran</option>
-              {allOutlets.map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          </div>
 
           {/* Date Preset Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>

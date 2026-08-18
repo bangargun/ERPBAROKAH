@@ -37,6 +37,14 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const [submitterFilter, setSubmitterFilter] = useState('ALL'); // 'ALL' | 'POS Kasir' | 'Admin'
   const [sourceFilter, setSourceFilter] = useState('ALL'); // 'ALL' | 'Upload Excel' | 'Update Laporan Admin' | 'Input Manual Admin' | 'POS Kasir'
 
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
+      setOutletFilter(selectedBranch);
+    } else {
+      setOutletFilter('ALL');
+    }
+  }, [selectedBranch]);
+
   // DATE RANGE FILTER STATES
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -737,23 +745,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            {/* FILTER NAMA OUTLET */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <label style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Building2 size={14} color="#38bdf8" />
-                <span>Outlet:</span>
-              </label>
-              <select
-                value={outletFilter}
-                onChange={e => { setOutletFilter(e.target.value); setCurrentPage(1); }}
-                style={{ padding: '8px 12px', background: '#1e293b', border: '1px solid #38bdf8', borderRadius: '8px', color: '#38bdf8', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
-              >
-                <option value="ALL">Semua Outlet (Central)</option>
-                {outletsList.map(o => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
-            </div>
+
 
             {/* PENGAJU FILTER */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

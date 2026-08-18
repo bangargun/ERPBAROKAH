@@ -16,8 +16,17 @@ export default function CustomerManagement({ masterData, setMasterData, selected
 
   // Filter & Search States
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOutletFilter, setSelectedOutletFilter] = useState('Semua');
+  const [selectedOutletFilter, setSelectedOutletFilter] = useState(selectedBranch || 'Semua');
   const [selectedTierFilter, setSelectedTierFilter] = useState('Semua');
+
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
+      const foundName = allOutlets.find(o => String(o.id) === String(selectedBranch))?.name || String(selectedBranch);
+      setSelectedOutletFilter(foundName);
+    } else {
+      setSelectedOutletFilter('Semua');
+    }
+  }, [selectedBranch, allOutlets]);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -473,28 +482,6 @@ export default function CustomerManagement({ masterData, setMasterData, selected
               }}
             />
           </div>
-
-          {/* Outlet Filter */}
-          <select
-            value={selectedOutletFilter}
-            onChange={e => { setSelectedOutletFilter(e.target.value); setCurrentPage(1); }}
-            style={{
-              padding: '6px 12px',
-              background: T.inputBg,
-              border: `1px solid ${T.border}`,
-              color: T.txtPrimary,
-              borderRadius: '8px',
-              fontSize: '0.74rem',
-              fontWeight: '700',
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="Semua">Semua Asal Cabang Outlet</option>
-            {allOutlets.map(o => (
-              <option key={o.id} value={o.name}>{o.name}</option>
-            ))}
-          </select>
 
           {/* Tier Filter */}
           <select

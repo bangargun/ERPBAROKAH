@@ -1226,20 +1226,6 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
             />
           </div>
 
-          {/* Outlet Selector Dropdown */}
-          <div style={{ minWidth: '180px' }}>
-            <select 
-              value={outletFilter} 
-              onChange={e => setOutletFilter(e.target.value)} 
-              style={{ height: '36px', fontSize: '0.8rem', width: '100%', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 10px', color: T.txtPrimary, fontWeight: '800', background: T.cardBg2, cursor: 'pointer', outline: 'none' }}
-            >
-              <option value="ALL">Semua Outlet Cabang</option>
-              {outlets.map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Reset filter button */}
           {(startDate || endDate || selectedYear || selectedMonth || outletFilter !== 'ALL' || searchQuery) && (
             <button

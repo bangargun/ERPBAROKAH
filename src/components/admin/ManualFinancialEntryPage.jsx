@@ -1117,21 +1117,6 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
       <div className="glass-card" style={{ padding: '16px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
           
-          {/* Filter Outlet */}
-          <div style={{ minWidth: '200px' }}>
-            <select 
-              value={filterOutletId} 
-              onChange={e => setFilterOutletId(e.target.value)} 
-              className="form-select"
-              style={{ height: '40px', fontSize: '0.82rem' }}
-            >
-              <option value="ALL">Semua Outlet Restoran</option>
-              {outlets.map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Search Input */}
           <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
             <Search size={16} color={T.txtMuted} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />

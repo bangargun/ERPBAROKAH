@@ -2425,6 +2425,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             showOutletDropdown={logShowOutletDropdown}
             setShowOutletDropdown={setLogShowOutletDropdown}
             selectedBranch={selectedBranch}
+            hideOutletFilter={true}
           />
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -3311,20 +3312,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
               {/* FILTERS FOR OPNAME BY SYSTEM */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                {/* FILTER OUTLET */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary }}>Filter Outlet:</span>
-                  <select
-                    value={opnameOutletFilter}
-                    onChange={e => { setOpnameOutletFilter(e.target.value); setCurrentPage(1); }}
-                    style={{ padding: '6px 10px', background: T.cardBg2, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '800', cursor: 'pointer', maxWidth: '220px' }}
-                  >
-                    <option value="ALL">Semua Outlet (Central)</option>
-                    {outlets.map(o => (
-                      <option key={o.id} value={String(o.id)}>{o.name}</option>
-                    ))}
-                  </select>
-                </div>
+
 
                 {/* FILTER ITEM BAHAN BAKU */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: T.cardBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.border}` }}>

@@ -382,32 +382,6 @@ export default function ActivityLogPage({ masterData, setMasterData, selectedBra
       <div style={{ padding: '14px', background: T.cardBg, border: `1px solid ${T.borderStrong}`, borderRadius: '14px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
           
-          {/* Filter Outlet */}
-          <div style={{ minWidth: '220px' }}>
-            <select 
-              value={outletFilter} 
-              onChange={e => setOutletFilter(e.target.value)} 
-              style={{
-                width: '100%',
-                height: '40px',
-                padding: '0 12px',
-                borderRadius: '10px',
-                background: T.inputBg,
-                border: `1px solid ${T.border}`,
-                color: T.txtPrimary,
-                fontSize: '0.82rem',
-                fontWeight: '700',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="ALL">Semua Outlet Restoran (Konsolidasi)</option>
-              {outlets.map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Filter Start Date */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '0.76rem', color: T.txtSecondary, fontWeight: '700' }}>Dari:</span>

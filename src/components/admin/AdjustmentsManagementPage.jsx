@@ -516,22 +516,8 @@ export default function AdjustmentsManagementPage({
           </button>
         </div>
 
-        {/* Filter Controls (Branch & Search) */}
+        {/* Filter Controls (Search) */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Branch Filter */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
-            <Building2 size={15} color={T.txtSecondary} />
-            <select
-              value={filterBranch}
-              onChange={e => { setFilterBranch(e.target.value); setCurrentPage(1); }}
-              style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
-            >
-              <option value="ALL">Semua Cabang Outlet</option>
-              {allOutlets.map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          </div>
 
           {/* Search Bar */}
           <div style={{ position: 'relative', width: '220px' }}>
