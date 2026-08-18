@@ -1233,6 +1233,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   useEffect(() => {
     const val = selectedBranch ? [selectedBranch] : ['ALL'];
     setSelectedOutletIds(val);
+    setOmzetSelectedOutletIds(val);
     setCatSelectedOutletIds(val);
     setSumSelectedOutletIds(val);
     setDailySelectedOutletIds(val);
@@ -1452,7 +1453,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         { key: '12', name: 'Desember', short: 'Des' }
       ];
 
-      const isAllOutlets = selectedOutletIds.includes('ALL') || selectedOutletIds.length === 0;
+      const isAllOutlets = omzetSelectedOutletIds.includes('ALL') || omzetSelectedOutletIds.length === 0;
 
       const validTxs = transactions.filter(t => {
         if (t.status === 'Void') return false;
@@ -1605,7 +1606,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const endDateObj = new Date(end);
     const daysDiff = Math.max(1, Math.min(62, Math.round((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1));
 
-    const isAllOutlets = selectedOutletIds.includes('ALL') || selectedOutletIds.length === 0;
+    const isAllOutlets = omzetSelectedOutletIds.includes('ALL') || omzetSelectedOutletIds.length === 0;
 
     const validTxs = transactions.filter(t => {
       if (t.status === 'Void') return false;
