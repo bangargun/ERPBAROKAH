@@ -1271,6 +1271,32 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num || 0);
   };
 
+  // Helper for timezone-safe date extraction (WIB / UTC+7 safe)
+  const extractTxDate = (t) => {
+    if (!t) return '';
+    const raw = t.date || t.timestamp || t.created_at;
+    if (!raw) return '';
+    if (typeof raw === 'string') {
+      if (raw.includes('T')) {
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) {
+          const yr = d.getFullYear();
+          const mo = String(d.getMonth() + 1).padStart(2, '0');
+          const dy = String(d.getDate()).padStart(2, '0');
+          return `${yr}-${mo}-${dy}`;
+        }
+      }
+      return raw.slice(0, 10);
+    }
+    if (raw instanceof Date) {
+      const yr = raw.getFullYear();
+      const mo = String(raw.getMonth() + 1).padStart(2, '0');
+      const dy = String(raw.getDate()).padStart(2, '0');
+      return `${yr}-${mo}-${dy}`;
+    }
+    return '';
+  };
+
   const getOutletName = (id) => {
     const found = outlets.find(o => o.id === parseInt(id));
     return found ? found.name : 'Outlet Utama';
@@ -1457,13 +1483,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
       const validTxs = transactions.filter(t => {
         if (t.status === 'Void') return false;
-        const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 4);
+        const dt = extractTxDate(t).slice(0, 4);
         if (dt !== year) return false;
 
         if (!isAllOutlets) {
           const matchesOutlet = filteredOutlets.some(otl => 
             Number(otl.id) === Number(t.outlet_id) || 
-            (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+            Number(otl.id) === Number(t.branch_id) ||
+            (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase()) ||
+            (t.outlet && t.outlet.trim().toLowerCase() === otl.name.trim().toLowerCase())
           );
           if (!matchesOutlet) return false;
         }
@@ -1477,12 +1505,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       monthDefs.forEach(m => {
         const ym = `${year}-${m.key}`;
         const monthTxs = validTxs.filter(t => {
-          const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 7);
+          const dt = extractTxDate(t).slice(0, 7);
           return dt === ym;
         });
 
         const outletData = {};
         let totalGrossAll = 0;
+        let totalDiscAll = 0;
         let totalNetAll = 0;
 
         const chartItem = {
@@ -1493,20 +1522,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         filteredOutlets.forEach(otl => {
           const otlTxs = monthTxs.filter(t => 
             (Number(t.outlet_id) === Number(otl.id)) || 
-            (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+            (Number(t.branch_id) === Number(otl.id)) ||
+            (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase()) ||
+            (t.outlet && t.outlet.trim().toLowerCase() === otl.name.trim().toLowerCase())
           );
-          let gross = otlTxs.reduce((sum, t) => sum + Number(t.total_amount || t.amount || t.total || t.price || 0), 0);
+          let gross = otlTxs.reduce((sum, t) => sum + Number(t.total_amount || t.amount || t.total || t.price || t.subtotal || 0), 0);
           let disc = otlTxs.reduce((sum, t) => sum + Number(t.discount || t.discount_amount || 0), 0);
           let net = otlTxs.reduce((sum, t) => {
-            const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+            const g = Number(t.total_amount || t.amount || t.total || t.price || t.subtotal || 0);
             const d = Number(t.discount || t.discount_amount || 0);
-            const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+            const n = Number(t.final_amount !== undefined ? t.final_amount : (t.paid_amount > 0 ? (Number(t.paid_amount) - Number(t.change_amount || 0)) : (g - d)));
             return sum + n;
           }, 0);
 
-          outletData[otl.id] = { gross, net, txCount: otlTxs.length };
+          outletData[otl.id] = { gross, disc, net, txCount: otlTxs.length, avgPerTx: otlTxs.length > 0 ? Math.round(net / otlTxs.length) : 0 };
           chartItem[otl.name] = net;
           totalGrossAll += gross;
+          totalDiscAll += disc;
           totalNetAll += net;
         });
 
@@ -1518,6 +1550,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           dayNum: m.key,
           outlets: outletData,
           totalGross: totalGrossAll,
+          totalDiscount: totalDiscAll,
           totalNet: totalNetAll,
           txCount: monthTxs.length
         });
@@ -1536,16 +1569,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       });
 
       validTxs.forEach(t => {
-        const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+        const g = Number(t.total_amount || t.amount || t.total || t.price || t.subtotal || 0);
         const d = Number(t.discount || t.discount_amount || 0);
-        const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+        const n = Number(t.final_amount !== undefined ? t.final_amount : (t.paid_amount > 0 ? (Number(t.paid_amount) - Number(t.change_amount || 0)) : (g - d)));
         grandTotalGross += g;
         grandTotalDiscount += d;
         grandTotalNet += n;
 
         const matchedOtl = filteredOutlets.find(o => 
           Number(o.id) === Number(t.outlet_id) || 
-          (t.branch_name && t.branch_name.trim().toLowerCase() === o.name.trim().toLowerCase())
+          Number(o.id) === Number(t.branch_id) ||
+          (t.branch_name && t.branch_name.trim().toLowerCase() === o.name.trim().toLowerCase()) ||
+          (t.outlet && t.outlet.trim().toLowerCase() === o.name.trim().toLowerCase())
         );
         if (matchedOtl && outletRevenueMap[matchedOtl.id]) {
           outletRevenueMap[matchedOtl.id].net += n;
@@ -1567,6 +1602,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
       return {
         activeOutlets: filteredOutlets,
+        isSingleOutlet: filteredOutlets.length === 1,
+        singleOutlet: filteredOutlets.length === 1 ? filteredOutlets[0] : null,
         rows,
         chartData,
         start: `${year}-01-01`,
@@ -1610,14 +1647,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
     const validTxs = transactions.filter(t => {
       if (t.status === 'Void') return false;
-      const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 10);
+      const dt = extractTxDate(t);
       if (start && dt < start) return false;
       if (end && dt > end) return false;
 
       if (!isAllOutlets) {
         const matchesOutlet = filteredOutlets.some(otl => 
           Number(otl.id) === Number(t.outlet_id) || 
-          (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+          Number(otl.id) === Number(t.branch_id) ||
+          (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase()) ||
+          (t.outlet && t.outlet.trim().toLowerCase() === otl.name.trim().toLowerCase())
         );
         if (!matchesOutlet) return false;
       }
@@ -1638,12 +1677,13 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       const formattedDate = `${d}/${m}/${y}`;
 
       const dayTxs = validTxs.filter(t => {
-        const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 10);
+        const dt = extractTxDate(t);
         return dt === dateKey;
       });
 
       const outletData = {};
       let totalGrossAll = 0;
+      let totalDiscAll = 0;
       let totalNetAll = 0;
 
       const chartItem = {
@@ -1654,20 +1694,23 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       filteredOutlets.forEach(otl => {
         const otlTxs = dayTxs.filter(t => 
           (Number(t.outlet_id) === Number(otl.id)) || 
-          (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase())
+          (Number(t.branch_id) === Number(otl.id)) ||
+          (t.branch_name && t.branch_name.trim().toLowerCase() === otl.name.trim().toLowerCase()) ||
+          (t.outlet && t.outlet.trim().toLowerCase() === otl.name.trim().toLowerCase())
         );
-        let gross = otlTxs.reduce((sum, t) => sum + Number(t.total_amount || t.amount || t.total || t.price || 0), 0);
+        let gross = otlTxs.reduce((sum, t) => sum + Number(t.total_amount || t.amount || t.total || t.price || t.subtotal || 0), 0);
         let disc = otlTxs.reduce((sum, t) => sum + Number(t.discount || t.discount_amount || 0), 0);
         let net = otlTxs.reduce((sum, t) => {
-          const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+          const g = Number(t.total_amount || t.amount || t.total || t.price || t.subtotal || 0);
           const d = Number(t.discount || t.discount_amount || 0);
-          const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+          const n = Number(t.final_amount !== undefined ? t.final_amount : (t.paid_amount > 0 ? (Number(t.paid_amount) - Number(t.change_amount || 0)) : (g - d)));
           return sum + n;
         }, 0);
 
-        outletData[otl.id] = { gross, net, txCount: otlTxs.length };
+        outletData[otl.id] = { gross, disc, net, txCount: otlTxs.length, avgPerTx: otlTxs.length > 0 ? Math.round(net / otlTxs.length) : 0 };
         chartItem[otl.name] = net;
         totalGrossAll += gross;
+        totalDiscAll += disc;
         totalNetAll += net;
       });
 
@@ -1679,6 +1722,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         dayNum: parseInt(d),
         outlets: outletData,
         totalGross: totalGrossAll,
+        totalDiscount: totalDiscAll,
         totalNet: totalNetAll,
         txCount: dayTxs.length
       });
@@ -1698,16 +1742,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     });
 
     validTxs.forEach(t => {
-      const g = Number(t.total_amount || t.amount || t.total || t.price || 0);
+      const g = Number(t.total_amount || t.amount || t.total || t.price || t.subtotal || 0);
       const d = Number(t.discount || t.discount_amount || 0);
-      const n = Number(t.final_amount !== undefined ? t.final_amount : (g - d));
+      const n = Number(t.final_amount !== undefined ? t.final_amount : (t.paid_amount > 0 ? (Number(t.paid_amount) - Number(t.change_amount || 0)) : (g - d)));
       grandTotalGross += g;
       grandTotalDiscount += d;
       grandTotalNet += n;
 
       const matchedOtl = filteredOutlets.find(o => 
         Number(o.id) === Number(t.outlet_id) || 
-        (t.branch_name && t.branch_name.trim().toLowerCase() === o.name.trim().toLowerCase())
+        Number(o.id) === Number(t.branch_id) ||
+        (t.branch_name && t.branch_name.trim().toLowerCase() === o.name.trim().toLowerCase()) ||
+        (t.outlet && t.outlet.trim().toLowerCase() === o.name.trim().toLowerCase())
       );
       if (matchedOtl && outletRevenueMap[matchedOtl.id]) {
         outletRevenueMap[matchedOtl.id].net += n;
@@ -1727,10 +1773,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const activeDaysCount = rows.filter(r => r.totalNet > 0).length || 1;
     const dailyAvgNet = Math.round(grandTotalNet / activeDaysCount);
 
-    const displayPeriod = start === end ? start : (start.slice(0, 7) === end.slice(0, 7) ? start.slice(0, 7) : `${start} s/d ${end}`);
+    const [sy, sm] = (start || '').split('-');
+    const monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const displayPeriod = start && end && start.slice(0, 7) === end.slice(0, 7)
+      ? `Bulan ${monthNames[parseInt(sm)] || sm} ${sy}`
+      : `${start} s/d ${end}`;
 
     return {
       activeOutlets: filteredOutlets,
+      isSingleOutlet: filteredOutlets.length === 1,
+      singleOutlet: filteredOutlets.length === 1 ? filteredOutlets[0] : null,
       rows,
       chartData,
       start,
@@ -4335,7 +4387,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
           {/* 1. GRAFIK GARIS TREN PERGERAKAN HARIAN ANTAR OUTLET */}
           {(() => {
-            const { activeOutlets, chartData, displayPeriod } = getOmzetOutletComparisonData();
+            const { activeOutlets, chartData, displayPeriod, isSingleOutlet, singleOutlet } = getOmzetOutletComparisonData();
             const colors = [`${T.info}`, `${T.success}`, `${T.accentGold}`, `${T.info}`, '#f43f5e', '#a78bfa'];
 
             return (
@@ -4344,10 +4396,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                   <div>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <TrendingUp size={22} color={T.info} />
-                      <span>Grafik Tren Pergerakan Omzet Harian Antar Outlet ({displayPeriod})</span>
+                      <span>
+                        {isSingleOutlet 
+                          ? `Grafik Tren Pergerakan Omzet Harian - ${singleOutlet?.name} (${displayPeriod})`
+                          : `Grafik Tren Pergerakan Omzet Harian Antar Outlet (${displayPeriod})`}
+                      </span>
                     </h3>
                     <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
-                      Grafik garis membandingkan tren kenaikan & penurunan omzet harian seluruh cabang restoran per hari
+                      {isSingleOutlet 
+                        ? `Grafik memantau tren omzet harian cabang ${singleOutlet?.name}`
+                        : 'Grafik garis membandingkan tren kenaikan & penurunan omzet harian seluruh cabang restoran per hari'}
                     </p>
                   </div>
 
@@ -4392,10 +4450,16 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <DollarSign size={22} color={T.success} />
-                  <span>Tabel Perbandingan Omzet Antar Outlet (Setelah Diskon)</span>
+                  <span>
+                    {omzetData.isSingleOutlet
+                      ? `Tabel Rincian Omzet Harian - ${omzetData.singleOutlet?.name || 'Cabang'}`
+                      : 'Tabel Perbandingan Omzet Antar Outlet (Setelah Diskon)'}
+                  </span>
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: T.txtSecondary, marginTop: '4px', margin: 0 }}>
-                  Rincian omzet bersih (Setelah Diskon) tiap outlet per hari
+                  {omzetData.isSingleOutlet
+                    ? 'Rincian omzet kotor, diskon promosi, omzet bersih (Setelah Diskon), dan jumlah nota harian'
+                    : 'Rincian omzet bersih (Setelah Diskon) tiap outlet per hari'}
                 </p>
               </div>
 
@@ -4422,85 +4486,193 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               </div>
             </div>
 
-            {/* MATRIX COMPARISON TABLE */}
+            {/* MATRIX COMPARISON OR SINGLE-OUTLET TABLE */}
             {(() => {
-              const { activeOutlets, rows } = getOmzetOutletComparisonData();
+              const { activeOutlets, rows, isSingleOutlet, singleOutlet, displayPeriod } = omzetData;
               const grandTotalNetAll = rows.reduce((s, r) => s + r.totalNet, 0);
+              const grandTotalGrossAll = rows.reduce((s, r) => s + (r.totalGross || 0), 0);
+              const grandTotalDiscAll = rows.reduce((s, r) => s + (r.totalDiscount || 0), 0);
+              const grandTotalTxAll = rows.reduce((s, r) => s + (r.txCount || 0), 0);
+              const grandAvgPerTx = grandTotalTxAll > 0 ? Math.round(grandTotalNetAll / grandTotalTxAll) : 0;
 
               const showDate = visibleColumns.date !== false;
               const showNet = visibleColumns.net !== false;
               const showTotalNet = visibleColumns.totalNet !== false;
 
               return (
-                <div style={{ overflowX: 'auto', borderRadius: '10px', border: `1px solid ${T.border}` }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'auto' }}>
-                    <thead>
-                      <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}` }}>
-                        {showDate && (
-                          <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.txtSecondary, textAlign: 'left', letterSpacing: '0.05em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap', width: '120px' }}>
-                            {omzetViewPeriodMode === 'monthly' ? 'Bulan / Periode' : 'Tanggal'}
-                          </th>
-                        )}
-                        {activeOutlets.map(otl => (
-                          <th key={otl.id} style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.info, textAlign: 'right', letterSpacing: '0.03em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
-                            {otl.name}
-                          </th>
-                        ))}
-                        {showTotalNet && (
-                          <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.success, textAlign: 'right', letterSpacing: '0.03em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                            Total
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((row, idx) => (
-                        <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, background: idx % 2 === 0 ? T.cardBg : T.cardBg2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Alert notice if 0 total transactions recorded */}
+                  {grandTotalNetAll === 0 && (
+                    <div style={{
+                      padding: '12px 16px',
+                      background: 'rgba(234, 179, 8, 0.08)',
+                      border: '1px solid rgba(234, 179, 8, 0.25)',
+                      borderRadius: '10px',
+                      color: T.accentGold,
+                      fontSize: '0.78rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <AlertCircle size={16} />
+                      <span>
+                        Belum ada transaksi penjualan kasir POS yang tercatat untuk {isSingleOutlet ? singleOutlet?.name : 'outlet yang dipilih'} pada periode <strong>{displayPeriod}</strong>. Data akan otomatis terupdate saat kasir mencatat transaksi baru.
+                      </span>
+                    </div>
+                  )}
+
+                  <div style={{ overflowX: 'auto', borderRadius: '10px', border: `1px solid ${T.border}` }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'auto' }}>
+                      <thead>
+                        <tr style={{ background: T.tableHeaderBg, borderBottom: `2px solid ${T.border}` }}>
                           {showDate && (
-                            <td style={{ padding: '9px 14px', fontWeight: '600', color: T.txtSecondary, borderRight: `1px solid ${T.border}`, textAlign: 'left', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                              {row.formattedDate}
-                            </td>
+                            <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.txtSecondary, textAlign: 'left', letterSpacing: '0.05em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap', width: '120px' }}>
+                              {omzetViewPeriodMode === 'monthly' ? 'Bulan / Periode' : 'Tanggal'}
+                            </th>
                           )}
-                          {activeOutlets.map(otl => {
-                            const d = row.outlets[otl.id] || { net: 0 };
-                            const isZero = d.net === 0;
-                            return (
-                              <td key={otl.id} style={{ padding: '9px 14px', textAlign: 'right', fontWeight: isZero ? '400' : '700', color: isZero ? T.txtMuted : T.txtPrimary, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
-                                {showNet ? (isZero ? <span style={{ color: T.txtMuted, fontSize: '0.75rem' }}>—</span> : formatRupiah(d.net)) : '—'}
-                              </td>
-                            );
-                          })}
-                          {showTotalNet && (
-                            <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: '800', color: T.success, whiteSpace: 'nowrap' }}>
-                              {formatRupiah(row.totalNet)}
-                            </td>
+
+                          {/* SINGLE-OUTLET MODE HEADERS */}
+                          {isSingleOutlet ? (
+                            <>
+                              <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.txtPrimary, textAlign: 'right', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                Omzet Kotor (Gross)
+                              </th>
+                              <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.danger, textAlign: 'right', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                Diskon / Promo
+                              </th>
+                              <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.success, textAlign: 'right', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                Omzet Bersih (Net)
+                              </th>
+                              <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.info, textAlign: 'center', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                Jumlah Nota
+                              </th>
+                              <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.accentGold, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                Rata-rata / Nota
+                              </th>
+                            </>
+                          ) : (
+                            /* MULTI-OUTLET HEADERS */
+                            <>
+                              {activeOutlets.map(otl => (
+                                <th key={otl.id} style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.info, textAlign: 'right', letterSpacing: '0.03em', textTransform: 'uppercase', borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                  {otl.name}
+                                </th>
+                              ))}
+                              {showTotalNet && (
+                                <th style={{ padding: '11px 14px', fontWeight: '700', fontSize: '0.75rem', color: T.success, textAlign: 'right', letterSpacing: '0.03em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                  Total Konsolidasi
+                                </th>
+                              )}
+                            </>
                           )}
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.border}` }}>
-                        {showDate && (
-                          <td style={{ padding: '11px 14px', fontWeight: '800', color: T.txtPrimary, borderRight: `1px solid ${T.border}`, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Total
-                          </td>
-                        )}
-                        {activeOutlets.map(otl => {
-                          const sumNet = rows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
+                      </thead>
+                      <tbody>
+                        {rows.map((row, idx) => {
+                          if (isSingleOutlet) {
+                            const otlId = singleOutlet?.id;
+                            const d = row.outlets[otlId] || { gross: 0, disc: 0, net: 0, txCount: 0, avgPerTx: 0 };
+                            const isZero = d.net === 0;
+
+                            return (
+                              <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, background: idx % 2 === 0 ? T.cardBg : T.cardBg2 }}>
+                                {showDate && (
+                                  <td style={{ padding: '9px 14px', fontWeight: '600', color: T.txtSecondary, borderRight: `1px solid ${T.border}`, textAlign: 'left', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                    {row.formattedDate}
+                                  </td>
+                                )}
+                                <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: isZero ? '400' : '700', color: isZero ? T.txtMuted : T.txtPrimary, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                  {isZero ? '—' : formatRupiah(d.gross)}
+                                </td>
+                                <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: d.disc > 0 ? '700' : '400', color: d.disc > 0 ? T.danger : T.txtMuted, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                  {d.disc > 0 ? `-${formatRupiah(d.disc)}` : '—'}
+                                </td>
+                                <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: isZero ? '400' : '800', color: isZero ? T.txtMuted : T.success, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                  {isZero ? '—' : formatRupiah(d.net)}
+                                </td>
+                                <td style={{ padding: '9px 14px', textAlign: 'center', fontWeight: d.txCount > 0 ? '800' : '400', color: d.txCount > 0 ? T.info : T.txtMuted, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                  {d.txCount > 0 ? `${d.txCount} Nota` : '—'}
+                                </td>
+                                <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: d.avgPerTx > 0 ? '800' : '400', color: d.avgPerTx > 0 ? T.accentGold : T.txtMuted, whiteSpace: 'nowrap' }}>
+                                  {d.avgPerTx > 0 ? formatRupiah(d.avgPerTx) : '—'}
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          // Multi-Outlet Mode Row
                           return (
-                            <td key={otl.id} style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
-                              {formatRupiah(sumNet)}
-                            </td>
+                            <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, background: idx % 2 === 0 ? T.cardBg : T.cardBg2 }}>
+                              {showDate && (
+                                <td style={{ padding: '9px 14px', fontWeight: '600', color: T.txtSecondary, borderRight: `1px solid ${T.border}`, textAlign: 'left', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                  {row.formattedDate}
+                                </td>
+                              )}
+                              {activeOutlets.map(otl => {
+                                const d = row.outlets[otl.id] || { net: 0 };
+                                const isZero = d.net === 0;
+                                return (
+                                  <td key={otl.id} style={{ padding: '9px 14px', textAlign: 'right', fontWeight: isZero ? '400' : '700', color: isZero ? T.txtMuted : T.txtPrimary, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                    {showNet ? (isZero ? <span style={{ color: T.txtMuted, fontSize: '0.75rem' }}>—</span> : formatRupiah(d.net)) : '—'}
+                                  </td>
+                                );
+                              })}
+                              {showTotalNet && (
+                                <td style={{ padding: '9px 14px', textAlign: 'right', fontWeight: '800', color: T.success, whiteSpace: 'nowrap' }}>
+                                  {formatRupiah(row.totalNet)}
+                                </td>
+                              )}
+                            </tr>
                           );
                         })}
-                        {showTotalNet && (
-                          <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '900', color: T.success, whiteSpace: 'nowrap', fontSize: '0.88rem' }}>
-                            {formatRupiah(grandTotalNetAll)}
-                          </td>
-                        )}
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ background: T.tableHeaderBg, borderTop: `2px solid ${T.border}` }}>
+                          {showDate && (
+                            <td style={{ padding: '11px 14px', fontWeight: '800', color: T.txtPrimary, borderRight: `1px solid ${T.border}`, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              Total
+                            </td>
+                          )}
+
+                          {isSingleOutlet ? (
+                            <>
+                              <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '900', color: T.txtPrimary, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                {formatRupiah(grandTotalGrossAll)}
+                              </td>
+                              <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '900', color: T.danger, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                {grandTotalDiscAll > 0 ? `-${formatRupiah(grandTotalDiscAll)}` : 'Rp 0'}
+                              </td>
+                              <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '900', color: T.success, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap', fontSize: '0.88rem' }}>
+                                {formatRupiah(grandTotalNetAll)}
+                              </td>
+                              <td style={{ padding: '11px 14px', textAlign: 'center', fontWeight: '900', color: T.info, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                {grandTotalTxAll} Nota
+                              </td>
+                              <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '900', color: T.accentGold, whiteSpace: 'nowrap' }}>
+                                {formatRupiah(grandAvgPerTx)}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              {activeOutlets.map(otl => {
+                                const sumNet = rows.reduce((s, r) => s + (r.outlets[otl.id]?.net || 0), 0);
+                                return (
+                                  <td key={otl.id} style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '800', color: T.info, borderRight: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>
+                                    {formatRupiah(sumNet)}
+                                  </td>
+                                );
+                              })}
+                              {showTotalNet && (
+                                <td style={{ padding: '11px 14px', textAlign: 'right', fontWeight: '900', color: T.success, whiteSpace: 'nowrap', fontSize: '0.88rem' }}>
+                                  {formatRupiah(grandTotalNetAll)}
+                                </td>
+                              )}
+                            </>
+                          )}
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               );
             })()}
