@@ -34,7 +34,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import TransactionHistoryPage from './TransactionHistoryPage';
-import SystemIntegrityBoard from './SystemIntegrityBoard';
+import { getApiUrl } from '../../utils/apiConfig';
 import { 
   BarChart as ReBarChart, 
   Bar as ReBar, 
@@ -990,45 +990,49 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(true);
   const [syncPulse, setSyncPulse] = useState(false);
 
-  // Periodic Auto Sync effect (Simulates live data stream from Mobile APK Kasir every 10 seconds)
+  // Periodic Auto Sync effect (Fetches live data from server every 10 seconds)
   useEffect(() => {
     if (!isAutoSyncEnabled) return;
     const interval = setInterval(() => {
-      setSyncPulse(true);
-      setLastSyncTime(new Date().toLocaleTimeString('id-ID'));
-      setTimeout(() => setSyncPulse(false), 1200);
+      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+        .then(res => res.ok ? res.json() : null)
+        .then(serverData => {
+          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.salesTransactions)) {
+            setMasterData(prev => ({
+              ...prev,
+              ...serverData
+            }));
+            setSyncPulse(true);
+            setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour12: false }));
+            setTimeout(() => setSyncPulse(false), 1200);
+          }
+        })
+        .catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
   }, [isAutoSyncEnabled]);
 
-  const handleManualSync = () => {
+  const handleManualSync = async () => {
     setIsSyncing(true);
-    setTimeout(() => {
-      try {
-        const cacheRaw = localStorage.getItem('MRIS_POS_MASTER_DATA_CACHE');
-        if (cacheRaw) {
-          const cacheData = JSON.parse(cacheRaw);
-          if (cacheData && Array.isArray(cacheData.salesTransactions)) {
-            const currentIds = new Set((masterData.salesTransactions || []).map(t => String(t.id || t.receipt_no || t.invoice_no)));
-            const newTxs = cacheData.salesTransactions.filter(t => !currentIds.has(String(t.id || t.receipt_no || t.invoice_no)));
-            if (newTxs.length > 0) {
-              setMasterData(prev => ({
-                ...prev,
-                salesTransactions: [...newTxs, ...(prev.salesTransactions || [])],
-                transactions: [...newTxs, ...(prev.transactions || [])],
-                _lastUpdated: Date.now()
-              }));
-            }
-          }
+    try {
+      const res = await fetch(getApiUrl('/api/master-data'), { cache: 'no-store' });
+      if (res.ok) {
+        const serverData = await res.json();
+        if (serverData && typeof serverData === 'object') {
+          setMasterData(prev => ({
+            ...prev,
+            ...serverData,
+            _lastUpdated: Date.now()
+          }));
         }
-      } catch (err) {
-        console.error('Error syncing POS transactions:', err);
       }
+    } catch (err) {
+      console.error('Error syncing POS transactions from server:', err);
+    } finally {
       setIsSyncing(false);
-      const nowStr = new Date().toLocaleTimeString('id-ID');
+      const nowStr = new Date().toLocaleTimeString('id-ID', { hour12: false });
       setLastSyncTime(nowStr);
-      alert(`⚡ Sinkronisasi Berhasil! (${nowStr})\n\nSeluruh data transaksi kasir, omzet penjualan, rincian produk, dan struk pembayaran telah tersinkronisasi otomatis dari Mobile APK Kasir seluruh outlet.`);
-    }, 600);
+    }
   };
 
   // Form New Transaction state
@@ -1253,8 +1257,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     { id: 'hourly', name: '6. Penjualan per Jam', icon: Clock },
     { id: 'receipts', name: '7. Penjualan By Layanan', icon: ShoppingBag },
     { id: 'customers', name: '8. Penjualan per Pelanggan', icon: Users },
-    { id: 'monthly_comparison', name: '9. Perbandingan Bulanan', icon: TrendingUp },
-    { id: 'system_integrity', name: '10. Papan Audit & Anomali', icon: ShieldAlert }
+    { id: 'monthly_comparison', name: '9. Perbandingan Bulanan', icon: TrendingUp }
   ];
 
   const transactions = masterData.salesTransactions || [];
@@ -6404,15 +6407,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         </div>
       )}
 
-      {/* 10. PAPAN AUDIT & ANOMALI SISTEM */}
-      {activeTab === 'system_integrity' && (
-        <SystemIntegrityBoard
-          masterData={masterData}
-          setMasterData={setMasterData}
-          selectedBranch={selectedBranch}
-          themeMode={themeMode}
-        />
-      )}
+
     </div>
   );
 }

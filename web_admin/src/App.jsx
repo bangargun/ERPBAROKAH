@@ -31,6 +31,7 @@ import ServerLoadingOverlay from './components/common/ServerLoadingOverlay';
 
 import { initialMasterData } from './data/initialMasterData';
 import { checkWebPermission } from './utils/permissionUtils';
+import { getApiUrl } from './utils/apiConfig';
 import { Lock } from 'lucide-react';
 
 export default function App() {
@@ -310,7 +311,7 @@ export default function App() {
     return initialMasterData;
   });
 
-  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
+
 
   // Ref untuk track timestamp remote dan mutasi lokal
   const lastRemoteTsRef = useRef(0);

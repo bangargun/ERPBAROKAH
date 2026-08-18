@@ -665,7 +665,8 @@ const getMasterDataFromMySQL = async () => {
             date: dtStr || existing?.date || '',
             entry_date: dtStr || existing?.entry_date || '',
             transaction_date: dtStr || existing?.transaction_date || '',
-            time: r.time || existing?.time || '12:00',
+            time: (r.time && !String(r.time).startsWith('00:00:')) ? String(r.time) : (r.created_at ? (typeof r.created_at === 'string' ? r.created_at.split(' ')[1] : String(r.created_at).substring(11, 19)) : existing?.time || '12:00:00'),
+            created_at: r.created_at || existing?.created_at,
             outlet_id: r.outlet_id || existing?.outlet_id,
             branch_id: r.branch_id || r.outlet_id || existing?.branch_id,
             branch_name: r.branch_name || existing?.branch_name || 'AYAM BAKAR SURABAYA TEBING TINGGI',
@@ -910,8 +911,18 @@ const syncToMySQL = async (masterData) => {
     for (const t of transactions) {
       if (!t || !t.id) continue;
       const txId = String(t.id);
-      const txDate = t.date || new Date().toISOString().split('T')[0];
-      const txTime = t.time || '00:00:00';
+      let txTime = '12:00:00';
+      if (t.time && typeof t.time === 'string') {
+        const cleanT = t.time.replace(/\./g, ':').trim();
+        const p = cleanT.split(':');
+        if (p.length >= 2) {
+          txTime = `${(p[0] || '00').padStart(2, '0')}:${(p[1] || '00').padStart(2, '0')}:${(p[2] || '00').substring(0, 2).padStart(2, '0')}`.substring(0, 8);
+        }
+      } else if (t.created_at) {
+        const caStr = String(t.created_at);
+        if (caStr.includes(' ')) txTime = caStr.split(' ')[1]?.substring(0, 8) || '12:00:00';
+        else if (caStr.includes('T')) txTime = caStr.split('T')[1]?.substring(0, 8) || '12:00:00';
+      }
       const outletId = Number(t.outlet_id || t.branch_id || 1);
       const branchName = t.branch_name || t.outlet || '';
       const customerName = t.customer_name || t.customer || 'Pelanggan Umum';
@@ -2262,12 +2273,15 @@ app.post('/api/pos/transaction', async (req, res) => {
     const txId = String(tx.id);
     const txDate = tx.date || new Date().toISOString().split('T')[0];
     const formatTimeHHMMSS = (t) => {
-      if (t && String(t).includes(':')) {
-        const parts = String(t).split(':');
-        return `${parts[0].padStart(2, '0')}:${(parts[1] || '00').padStart(2, '0')}:${(parts[2] || '00').padStart(2, '0')}`.substring(0, 8);
+      if (t && typeof t === 'string') {
+        const cleanT = t.replace(/\./g, ':').trim();
+        if (cleanT.includes(':')) {
+          const parts = cleanT.split(':');
+          return `${(parts[0] || '00').padStart(2, '0')}:${(parts[1] || '00').padStart(2, '0')}:${(parts[2] || '00').substring(0, 2).padStart(2, '0')}`.substring(0, 8);
+        }
       }
       const _n = new Date();
-      return `${String(_n.getHours()).padStart(2, '0')}:${String(_n.getMinutes()).padStart(2, '0')}:${String(_n.getSeconds()).padStart(2, '0')}`;
+      return _n.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
     };
     const txTime = formatTimeHHMMSS(tx.time);
     const outletId = Number(tx.outlet_id || tx.branch_id || 1);

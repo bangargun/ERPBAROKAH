@@ -1,13 +1,29 @@
 # 📌 UTAMA: Selalu Cek `ingat.md` & `gemini.md` Sebelum Eksekusi Kode
 > ⛔ **DILARANG DATA MOCK / PALSU**: Jika data kosong, biarkan saja kosong (`ingat.md`).
 
-## 🛑 PROTOKOL KEPATUHAN EKSEKUSI & LARANGAN IMPROVISASI SEPIHAK
-1. **Wajib Rujuk `gemini.md` Sebelum Tindakan**: Setiap kali menerima permintaan pengguna, asisten AI **WAJIB membaca dan merujuk seluruh aturan di `gemini.md` dan `ingat.md`** sebelum menulis kode, mengedit file, atau menjalankan perintah build/deploy.
-2. **Larangan Keras Improvisasi Tanpa Izin (*Zero Unauthorized Improvisation*)**:
+## 🛑 PROTOKOL KEPATUHAN EKSEKUSI & LINGKUNGAN PENGEMBANGAN
+
+### 💻 1. Aturan Mutlak: Pengerjaan Selalu di Local (Local-First Rule)
+1. **Selalu di Lingkungan Local**:
+   - Setiap perintah dan pengerjaan dari pengguna (menulis kode, mengedit file, menjalankan uji coba, build lokal) **WAJIB HANYA DILAKUKAN DI LOCAL**.
+   - Sebelum ada perintah eksplisit dari pengguna untuk melakukan deploy (misal: *"deploy"*, *"minta deploy"*, *"deploy ke vps"*), asisten AI **DILARANG KERAS menyentuh VPS atau menjalankan perintah `npm run deploy`**.
+   - Tetap berada dan bekerja di lingkungan local sampai pengguna secara khusus memerintahkan deploy.
+
+2. **Pembedaan Build APK (Local POS vs Production POS)**:
+   - **Perintah: "build apk local"**:
+     - Berikan nama yang jelas membedakan: **`Local POS`** (Nama file: `LOCAL_POS_v{VERSI}.apk` / `local-pos.apk`).
+     - **DILARANG menghubungkan POS Kasir ke live server VPS sebelum ada perintah eksplisit dari pengguna: *"pos kasir untuk terhubung ke server"***.
+     - APK Local POS ditujukan untuk pengujian internal / lokal.
+   - **Perintah: "pos kasir untuk terhubung ke server"**:
+     - HANYA setelah perintah eksplisit ini diterima, barulah konfigurasi endpoint POS kasir diarahkan dan dibangun untuk terhubung ke server production.
+
+3. **Larangan Keras Improvisasi Tanpa Izin (*Zero Unauthorized Improvisation*)**:
    - Asisten AI **HANYA mengeksekusi apa yang secara eksplisit diminta oleh pengguna**.
    - Jika asisten AI memiliki ide penyempurnaan, optimasi, atau alternatif solusi, asisten **DILARANG langsung mengeksekusinya ke dalam kode**.
    - Asisten **WAJIB menyampaikan proposal ide tersebut terlebih dahulu kepada pengguna dan WAJIB MENUNGGU PERSETUJUAN EKSPLISIT** dari pengguna sebelum melakukan modifikasi.
-3. **Uji Validitas Sebelum Eksekusi**: Perubahan backend wajib lulus `node -c server.js`, dan frontend wajib lulus `npm run build` lokal.
+
+4. **Uji Validitas Sebelum Eksekusi**:
+   - Perubahan backend wajib lulus `node -c server.js`, dan frontend wajib lulus `npm run build` lokal.
 
 ---
 
@@ -231,13 +247,17 @@ Setiap kali membangun APK POS Kasir, **wajib membuat varian untuk setiap kategor
 
 ---
 
-### 🔧 Cara Build APK per Varian (Capacitor + Android)
+### 🔧 Cara Build APK (Local POS vs Production POS)
+
+#### A. Build APK Local (Perintah: "build apk local")
+* **Aturan:** Menghasilkan APK untuk pengujian offline / local. **DILARANG** menghubungkan ke live database VPS sebelum ada perintah eksplisit.
+* **Nama File APK Local:** `LOCAL_POS_v{VERSI}.apk` (Contoh: `LOCAL_POS_v4.3.0.apk`)
 
 ```bash
 # 1. Masuk ke direktori project
 cd /Users/argun/Documents/MRIS
 
-# 2. Build web bundle (pastikan breakpoint CSS sudah disesuaikan varian)
+# 2. Build web bundle local
 npm run build
 
 # 3. Sync ke Android
@@ -246,23 +266,19 @@ npx cap sync android
 # 4. Build APK via Gradle
 cd android && ./gradlew assembleRelease
 
-# 5. Output APK:
-# android/app/build/outputs/apk/release/app-release.apk
+# 5. Simpan sebagai Local POS APK:
+cp android/app/build/outputs/apk/release/app-release.apk \
+   /Users/argun/Documents/MRIS/LOCAL_POS_v{VERSI}.apk
+```
 
-# 6. Rename dan simpan dengan format standar ringkas:
+#### B. Build APK Production (Perintah: "pos kasir untuk terhubung ke server")
+* **Aturan:** HANYA dijalankan jika ada perintah eksplisit untuk menghubungkan POS kasir ke live server production.
+* **Nama File APK Production:** `POS_KASIR_v{VERSI}.apk` (Contoh: `POS_KASIR_v4.3.0.apk`)
+
+```bash
 cp android/app/build/outputs/apk/release/app-release.apk \
    /Users/argun/Documents/MRIS/POS_KASIR_v{VERSI}.apk
 ```
-
-#### Format Nama File APK Resmi:
-```
-POS_KASIR_v{VERSI}.apk
-
-Contoh:
-POS_KASIR_v4.2.9.apk
-POS_KASIR_v4.3.0.apk
-```
-*(Versi terus bertambah secara berurutan setiap ada update baru)*
 
 ---
 

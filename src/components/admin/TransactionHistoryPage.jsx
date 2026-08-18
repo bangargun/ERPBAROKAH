@@ -50,15 +50,40 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (!item) return '-';
 
     let datePart = item.date || item.entry_date || item.transaction_date || '';
-    let timePart = item.time || '';
+    let timePart = '';
 
-    if (item.created_at && String(item.created_at).includes('T')) {
-      const sub = String(item.created_at).split('T')[1];
-      if (sub) timePart = sub.substring(0, 8);
-    } else if (item.timestamp) {
+    // 1. Ambil dari item.time jika valid (bukan 00:00:xx kosong)
+    if (item.time && typeof item.time === 'string' && item.time.trim() !== '' && !item.time.startsWith('00:00:')) {
+      const cleanT = item.time.replace(/\./g, ':').trim();
+      const parts = cleanT.split(':');
+      if (parts.length >= 2) {
+        timePart = `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:${(parts[2] || '00').substring(0, 2).padStart(2, '0')}`;
+      }
+    }
+
+    // 2. Ambil dari item.created_at (MySQL timestamp atau ISO string)
+    if (!timePart && item.created_at) {
+      if (typeof item.created_at === 'string') {
+        const ca = item.created_at.trim();
+        if (ca.includes(' ')) {
+          const sub = ca.split(' ')[1];
+          if (sub) timePart = sub.substring(0, 8);
+        } else if (ca.includes('T')) {
+          const sub = ca.split('T')[1];
+          if (sub) timePart = sub.substring(0, 8);
+        }
+      } else if (item.created_at instanceof Date) {
+        timePart = `${String(item.created_at.getHours()).padStart(2, '0')}:${String(item.created_at.getMinutes()).padStart(2, '0')}:${String(item.created_at.getSeconds()).padStart(2, '0')}`;
+      }
+    }
+
+    // 3. Ambil dari item.timestamp jika number
+    if (!timePart && item.timestamp) {
       if (typeof item.timestamp === 'number') {
         const d = new Date(item.timestamp);
-        timePart = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        if (!isNaN(d.getTime())) {
+          timePart = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\./g, ':');
+        }
       } else if (String(item.timestamp).includes('T')) {
         const sub = String(item.timestamp).split('T')[1];
         if (sub) timePart = sub.substring(0, 8);
@@ -78,30 +103,6 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       }
     }
 
-    // Fallback: jika timePart masih 00:00:xx atau kosong, decode waktu akurat dari ID TX-POS
-    if ((!timePart || timePart.startsWith('00:00:')) && item.id && String(item.id).startsWith('TX-POS-')) {
-      const suffix = String(item.id).replace('TX-POS-', '').trim();
-      if (/^[0-9]+$/.test(suffix) && suffix.length >= 6) {
-        const dStr = String(item.date || item.entry_date || '2026-08-17').substring(0, 10);
-        const dayStartMs = new Date(`${dStr}T00:00:00+07:00`).getTime();
-        const dayEndMs = dayStartMs + 24 * 3600 * 1000;
-        const prefixLen = 13 - suffix.length;
-        const minPrefix = parseInt(String(dayStartMs).slice(0, prefixLen)) - 1;
-        const maxPrefix = parseInt(String(dayEndMs).slice(0, prefixLen)) + 1;
-        for (let p = minPrefix; p <= maxPrefix; p++) {
-          const candMs = parseInt(String(p) + suffix);
-          if (candMs >= dayStartMs - 7200000 && candMs <= dayEndMs + 7200000) {
-            const dt = new Date(candMs);
-            const hours = String((dt.getUTCHours() + 7) % 24).padStart(2, '0');
-            const minutes = String(dt.getUTCMinutes()).padStart(2, '0');
-            const seconds = String(dt.getUTCSeconds()).padStart(2, '0');
-            timePart = `${hours}:${minutes}:${seconds}`;
-            break;
-          }
-        }
-      }
-    }
-
     if (timePart) {
       const tParts = timePart.split(':');
       if (tParts.length === 2) {
@@ -110,7 +111,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         timePart = `${tParts[0].padStart(2, '0')}:${tParts[1].padStart(2, '0')}:${tParts[2].substring(0, 2).padStart(2, '0')}`;
       }
     } else {
-      timePart = '00:00:00';
+      timePart = '12:00:00';
     }
 
     return (
