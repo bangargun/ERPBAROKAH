@@ -317,6 +317,13 @@ export default function App() {
   const lastRemoteTsRef = useRef(0);
   const lastLocalMutationTsRef = useRef(0);
 
+  // Futuristic Server Sync Status Tracking
+  const [isServerSyncing, setIsServerSyncing] = useState(false);
+  const [lastServerSyncTime, setLastServerSyncTime] = useState(() => {
+    const d = new Date();
+    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  });
+
   const masterDataRef = useRef(masterData);
   useEffect(() => { masterDataRef.current = masterData; }, [masterData]);
 
@@ -328,6 +335,7 @@ export default function App() {
 
     lastLocalMutationTsRef.current = ts;
     setMasterData(updatedWithTs);
+    setIsServerSyncing(true);
 
     try {
       localStorage.setItem('mris_master_data', JSON.stringify(updatedWithTs));
@@ -345,12 +353,19 @@ export default function App() {
       }
     } catch (e) {}
 
-    // Background save to server — runs silently without freezing the screen with a popup
+    // Background save to server — updates futuristic footer status indicator
     fetch(getApiUrl('/api/master-data'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedWithTs)
-    }).catch(() => {});
+    }).catch(() => {})
+      .finally(() => {
+        setTimeout(() => {
+          setIsServerSyncing(false);
+          const d = new Date();
+          setLastServerSyncTime(d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        }, 600);
+      });
   };
 
   // Live polling dari server VPS
@@ -874,6 +889,8 @@ export default function App() {
       themeMode={themeMode}
       toggleThemeMode={toggleThemeMode}
       setThemeMode={setThemeMode}
+      isServerSyncing={isServerSyncing}
+      lastServerSyncTime={lastServerSyncTime}
     >
       {!isCurrentTabAllowed ? (
         <div style={{ padding: '60px 24px', textAlign: 'center', color: themeMode === 'warm_minimalist' ? '#2d2d2d' : '#f8fafc', background: themeMode === 'warm_minimalist' ? '#f9f6f1' : '#111625', borderRadius: '16px', border: `1px solid rgba(239, 68, 68, 0.2)`, margin: '24px' }}>

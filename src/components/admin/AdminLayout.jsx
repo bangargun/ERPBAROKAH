@@ -51,6 +51,8 @@ export default function AdminLayout({
   themeMode = 'dark',
   toggleThemeMode,
   setThemeMode,
+  isServerSyncing = false,
+  lastServerSyncTime = '',
   children
 }) {
   const [showUpdateLaporanModal, setShowUpdateLaporanModal] = useState(false);
@@ -678,6 +680,130 @@ export default function AdminLayout({
         <main style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
           {children}
         </main>
+
+        {/* ========================================================================= */}
+        {/* FUTURISTIC SERVER STATUS FOOTER (WITH ANIMATED CYBER DASHED TRACK)         */}
+        {/* ========================================================================= */}
+        <footer style={{
+          position: 'relative',
+          background: isLight ? '#f8fafc' : '#080c14',
+          borderTop: `1px solid ${T.border}`,
+          padding: '8px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          zIndex: 10,
+          userSelect: 'none'
+        }}>
+          {/* Top Futuristic Animated Dashed Line / Cyber Stream Track */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2px',
+            background: isServerSyncing
+              ? 'linear-gradient(90deg, #38bdf8 0%, #34d399 50%, #f59e0b 100%)'
+              : `repeating-linear-gradient(90deg, #10b981 0px, #10b981 8px, transparent 8px, transparent 16px)`,
+            backgroundSize: isServerSyncing ? '200% 100%' : 'auto',
+            animation: isServerSyncing ? 'cyberStreamMove 0.8s linear infinite' : 'none',
+            opacity: isServerSyncing ? 1 : 0.45,
+            boxShadow: isServerSyncing ? '0 0 12px rgba(56, 189, 248, 0.8)' : 'none',
+            transition: 'all 0.3s ease'
+          }} />
+
+          {/* Left Node Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              background: isServerSyncing ? 'rgba(56, 189, 248, 0.12)' : 'rgba(16, 185, 129, 0.10)',
+              border: `1px solid ${isServerSyncing ? 'rgba(56, 189, 248, 0.3)' : 'rgba(16, 185, 129, 0.25)'}`,
+              fontSize: '0.68rem',
+              fontWeight: '800',
+              color: isServerSyncing ? '#38bdf8' : '#10b981',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase'
+            }}>
+              <span style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: isServerSyncing ? '#38bdf8' : '#10b981',
+                boxShadow: isServerSyncing ? '0 0 8px #38bdf8' : '0 0 6px #10b981',
+                animation: isServerSyncing ? 'pulseGlowFast 0.6s infinite alternate' : 'pulseGlowSlow 2s infinite alternate'
+              }} />
+              <Server size={12} />
+              <span>{isServerSyncing ? 'Syncing Engine Active' : 'Cloud Server Node'}</span>
+            </div>
+
+            <span style={{ fontSize: '0.70rem', color: T.txtSecondary, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', letterSpacing: '0.02em' }}>
+              VPS HOST: <span style={{ color: T.txtPrimary, fontWeight: '700' }}>187.77.122.142</span>
+            </span>
+          </div>
+
+          {/* Middle Cyber Stream Dashed Glow Visualizer */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            opacity: 0.7
+          }}>
+            <span style={{ fontSize: '0.65rem', color: T.txtMuted, fontFamily: 'monospace' }}>[</span>
+            <div style={{
+              width: '100px',
+              height: '3px',
+              borderRadius: '2px',
+              background: isServerSyncing
+                ? 'repeating-linear-gradient(90deg, #38bdf8 0px, #38bdf8 4px, transparent 4px, transparent 8px)'
+                : 'repeating-linear-gradient(90deg, #10b981 0px, #10b981 4px, transparent 4px, transparent 8px)',
+              animation: isServerSyncing ? 'cyberStreamMove 0.5s linear infinite' : 'none'
+            }} />
+            <span style={{ fontSize: '0.65rem', color: T.txtMuted, fontFamily: 'monospace' }}>]</span>
+          </div>
+
+          {/* Right Update Server Time & Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {isServerSyncing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.70rem', fontWeight: '800', color: '#38bdf8', letterSpacing: '0.03em' }}>
+                <Zap size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                <span>MENGIRIM & MENYINKRONKAN DATA KE SERVER...</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.70rem', color: T.txtSecondary, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
+                <CheckCircle2 size={13} color="#10b981" />
+                <span>UPDATE SERVER:</span>
+                <span style={{ color: T.txtPrimary, fontWeight: '800' }}>
+                  {lastServerSyncTime || todayFormatted} WIB
+                </span>
+                <span style={{ color: '#10b981', fontWeight: '700', marginLeft: '4px', padding: '1px 6px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                  ONLINE
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Keyframes Style Tag */}
+          <style>{`
+            @keyframes cyberStreamMove {
+              0% { background-position: 0 0; }
+              100% { background-position: 32px 0; }
+            }
+            @keyframes pulseGlowFast {
+              0% { opacity: 0.4; transform: scale(0.9); }
+              100% { opacity: 1; transform: scale(1.3); }
+            }
+            @keyframes pulseGlowSlow {
+              0% { opacity: 0.5; transform: scale(0.95); }
+              100% { opacity: 1; transform: scale(1.15); }
+            }
+          `}</style>
+        </footer>
       </div>
 
       {/* MANUAL REPORT UPDATE MODAL */}
