@@ -30,7 +30,9 @@ import {
   FileSpreadsheet,
   Scale,
   TrendingUp,
-  Receipt
+  Receipt,
+  Server,
+  Zap
 } from 'lucide-react';
 
 import { checkWebPermission } from '../../utils/permissionUtils';
