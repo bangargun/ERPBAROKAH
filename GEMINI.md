@@ -443,3 +443,32 @@ const layout = {
 | v4.2.3 | `POS_KASIR_BAROKAH_v4.2.3_Universal_Build_20260815.apk` | 15-08-2026 | Sinkronisasi kategori Seafood dan multi-outlet filter |
 | v4.1.4 | `POS_KASIR_BAROKAH_v4.1.4_Tab10in_Build_20260815.apk` | 15-08-2026 | Cetak Struk Dapur, Struk Bar, & Struk Meja/Checker 100% tanpa harga |
 | v4.1.3 | `POS_KASIR_BAROKAH_v4.1.3_Tab10in_Build_20260815.apk` | 15-08-2026 | Brand POS KASIR + Emerald Green Icon Barokah Grup |
+
+---
+
+## 🛡️ 14. Solusi & Proteksi Penyimpanan Server (Anti-Disk Full Protection)
+
+### 📊 Ringkasan Kapasitas & Kebutuhan Riil
+- **Kapasitas VPS Hostinger**: 100 GB NVMe SSD (`/dev/sda1`).
+- **Kebutuhan Riil Sistem**: ~2 GB s/d 5 GB (Database `mris_db` & `pos_barokah` + Build Web Admin + Backend Node.js).
+- **Penggunaan Normal**: 10% – 15% (Tersedia ~85 GB Free Space).
+
+### ⚙️ Konfigurasi Proteksi yang Diterapkan di VPS (187.77.122.142)
+
+1. **Auto-Expire MySQL Binary Logs (24 Jam)**:
+   - **Lokasi Konfigurasi**: `/etc/mysql/mysql.conf.d/mysqld.cnf`
+   - **Parameter**: `binlog_expire_logs_seconds = 86400`
+   - **Fungsi**: Mencegah MySQL mengumpulkan ratusan file *binlog* (sebelumnya menumpuk 750+ file = ~75 GB). Log query replikasi sementara otomatis dihapus setelah 24 jam.
+
+2. **Automated Weekly Maintenance Cron Script**:
+   - **Lokasi Script**: `/root/auto_maintenance.sh` (Berjalan setiap Minggu jam 03:00 WIB: `0 3 * * 0 /root/auto_maintenance.sh > /dev/null 2>&1`).
+   - **Aktivitas Otomasi**:
+     - Purge MySQL binary logs yang berusia lebih dari 1 hari (`PURGE BINARY LOGS BEFORE NOW() - INTERVAL 1 DAY`).
+     - Vacuum systemd journal log hingga maksimal 50 MB (`journalctl --vacuum-size=50M`).
+     - Membersihkan apt package cache (`apt-get clean && apt-get autoremove -y`).
+     - Flush riwayat log PM2 (`pm2 flush`).
+     - Membersihkan file temporary lama (`find /tmp -type f -mtime +7 -delete`).
+
+3. **Optimasi Katalog Menu Tanpa Gambar (Zero Image Bloat)**:
+   - Semua katalog menu dan bahan baku diubah menjadi model SKU & SVG icon modern berkinerja tinggi, sehingga tidak memakan bandwidth maupun media storage disk VPS.
+
