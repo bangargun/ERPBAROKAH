@@ -2230,6 +2230,7 @@ const sanitizeMasterDataPayload = (data) => {
 // SINKRONISASI DATA MASTER TERPUSAT (SINGLE PRIMARY DATABASE: MySQL mris_db)
 // -----------------------------------------------------------------------------
 
+const FORCE_FLUSH_TTL_MS = 60 * 1000; // Auto-expire: 60 detik
 let forceFlushUntil = 0;
 
 // GET /api/master-data — 100% MySQL PRIMARY STORAGE
@@ -2243,7 +2244,28 @@ app.get('/api/master-data', async (req, res) => {
     const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : defaultMasterData;
     const serverTs = Number(activeData._lastUpdated || 0);
 
-    // Jika forceFlush window aktif (10 menit sejak di-trigger), embed ke response
+    // ── Auto-expire _forceFlushCommand di DB jika sudah lewat 60 detik ──
+    if (activeData._forceFlushCommand === true) {
+      const flushAt = Number(activeData._forceFlushAt || 0);
+      const elapsed = Date.now() - flushAt;
+      if (flushAt > 0 && elapsed > FORCE_FLUSH_TTL_MS) {
+        // Expired — matikan otomatis di DB (async, tidak blokir response)
+        getMasterDataFromMySQL().then(cur => {
+          if (cur && cur._forceFlushCommand === true) {
+            cur._forceFlushCommand = false;
+            cur._forceFlushAt = null;
+            cur._lastUpdated = Date.now();
+            saveMasterDataToMySQL(cur).then(() =>
+              console.log(`[FORCE-FLUSH] Auto-expired setelah ${Math.round(elapsed / 1000)}s. DB direset otomatis.`)
+            ).catch(() => {});
+          }
+        }).catch(() => {});
+        // Jangan kirim _forceFlushCommand=true ke tablet
+        activeData._forceFlushCommand = false;
+      }
+    }
+
+    // Jika forceFlush window aktif (60 detik sejak di-trigger via API), embed ke response
     const shouldForceFlush = Date.now() < forceFlushUntil;
 
     if (clientTs > 0 && serverTs > 0 && clientTs >= serverTs && !shouldForceFlush) {
@@ -2420,11 +2442,23 @@ app.post('/api/pos/shift-close', async (req, res) => {
   }
 });
 
-// POST /api/pos-force-flush — Paksa semua POS tablet flush data transaksi ke server selama 10 menit
-app.post('/api/pos-force-flush', (req, res) => {
-  forceFlushUntil = Date.now() + 10 * 60 * 1000; // Aktif selama 10 menit ke depan
-  console.log('[FORCE-FLUSH] Perintah force-flush aktif selama 10 menit untuk semua POS client');
-  return res.json({ success: true, message: 'Perintah force-flush aktif selama 10 menit. Semua POS akan otomatis upload seluruh transaksi.' });
+// POST /api/pos-force-flush — Paksa semua POS tablet flush data transaksi ke server (auto-expire 60 detik)
+app.post('/api/pos-force-flush', async (req, res) => {
+  forceFlushUntil = Date.now() + FORCE_FLUSH_TTL_MS; // Aktif selama 60 detik
+  console.log('[FORCE-FLUSH] Perintah force-flush aktif selama 60 detik untuk semua POS client');
+
+  // Simpan _forceFlushAt ke DB agar auto-expire bekerja meski server restart
+  try {
+    const cur = await getMasterDataFromMySQL();
+    if (cur) {
+      cur._forceFlushCommand = true;
+      cur._forceFlushAt = Date.now();
+      cur._lastUpdated = Date.now();
+      await saveMasterDataToMySQL(cur);
+    }
+  } catch (e) { /* non-fatal */ }
+
+  return res.json({ success: true, message: 'Perintah force-flush aktif selama 60 detik. Semua POS akan otomatis upload transaksi, lalu perintah mati sendiri.' });
 });
 
 // POST /api/master-data — 100% MySQL PRIMARY STORAGE UPDATE
