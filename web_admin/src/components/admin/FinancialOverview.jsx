@@ -127,7 +127,6 @@ export default function FinancialOverview({
   const [salesChartType, setSalesChartType] = useState('area'); // 'area' | 'bar'
   const [omzetChartType, setOmzetChartType] = useState('bar'); // 'bar' | 'area'
   const [selectedIngredientCategory, setSelectedIngredientCategory] = useState('ALL');
-  const [txTypeFilter, setTxTypeFilter] = useState('ALL'); // 'ALL' | 'income' | 'expense'
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiLastUpdated, setAiLastUpdated] = useState('Baru saja (Real-time)');
   const [showAIModal, setShowAIModal] = useState(false);
@@ -530,30 +529,7 @@ export default function FinancialOverview({
     });
   }, [allIngredients, selectedIngredientCategory, allOutlets, masterData?.stockMovement, masterData?.approvedLogistics, masterData?.approvedFinanceDaily, masterData?.manualEntryRecords]);
 
-  // ------------------------------------------------------------------
-  // 6. RECENT TRANSACTIONS FEED
-  // ------------------------------------------------------------------
-  const feedTransactions = useMemo(() => {
-    const rawFeed = (recentTransactions && recentTransactions.length > 0)
-      ? recentTransactions
-      : allSalesTx.slice(0, 15).map(tx => ({
-          id: tx.id,
-          date: tx.date || todayStr,
-          time: tx.time || '12:00',
-          branch_name: tx.branch_name || tx.outlet_name || (allOutlets.find(o => String(o.id) === String(tx.outlet_id))?.name) || 'Restoran Barokah',
-          type: 'income',
-          category: 'Penjualan POS',
-          description: tx.receipt_no ? `Nota: ${tx.receipt_no}` : (tx.description || 'Transaksi POS Kasir'),
-          payment_method: tx.payment_method || tx.paymentMethod || 'Tunai (Cash)',
-          amount: Number(tx.amount || tx.total || 0)
-        }));
 
-    return rawFeed.filter(tx => {
-      if (txTypeFilter === 'income') return tx.type === 'income';
-      if (txTypeFilter === 'expense') return tx.type === 'expense';
-      return true;
-    }).slice(0, 8);
-  }, [recentTransactions, allSalesTx, allOutlets, txTypeFilter, todayStr]);
 
   // AI Analysis Trigger
   const handleOpenAIInsight = (tab = 'summary') => {
@@ -1438,162 +1414,7 @@ export default function FinancialOverview({
         </div>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* 6. SECTION 4: FEED LOG TRANSAKSI HARIAN TERKINI               */}
-      {/* ------------------------------------------------------------- */}
-      <div style={{
-        background: T.cardBg,
-        border: `1px solid ${T.borderStrong}`,
-        borderRadius: '16px',
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '14px',
-        boxShadow: T.shadowSm
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <h3 style={{ fontSize: '0.96rem', fontWeight: '900', color: T.txtPrimary, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={18} color={T.accentGreen} />
-              <span>Feed Transaksi Kasir &amp; Pengeluaran Harian Terkini</span>
-            </h3>
-            <p style={{ fontSize: '0.72rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
-              Log masukan kasir POS dan pengeluaran terverifikasi dengan keterangan waktu nyata
-            </p>
-          </div>
 
-          {/* Type Filter Buttons */}
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button
-              type="button"
-              onClick={() => setTxTypeFilter('ALL')}
-              style={{
-                padding: '4px 12px',
-                background: txTypeFilter === 'ALL' ? T.borderStrong : 'transparent',
-                color: txTypeFilter === 'ALL' ? T.txtPrimary : T.txtSecondary,
-                border: `1px solid ${T.borderStrong}`,
-                borderRadius: '8px',
-                fontSize: '0.72rem',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-            >
-              Semua Tipe
-            </button>
-            <button
-              type="button"
-              onClick={() => setTxTypeFilter('income')}
-              style={{
-                padding: '4px 12px',
-                background: txTypeFilter === 'income' ? T.successBg : 'transparent',
-                color: txTypeFilter === 'income' ? T.success : T.txtSecondary,
-                border: `1px solid ${txTypeFilter === 'income' ? T.successBorder : T.borderStrong}`,
-                borderRadius: '8px',
-                fontSize: '0.72rem',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-            >
-              Pemasukan (Sales)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTxTypeFilter('expense')}
-              style={{
-                padding: '4px 12px',
-                background: txTypeFilter === 'expense' ? T.dangerBg : 'transparent',
-                color: txTypeFilter === 'expense' ? T.danger : T.txtSecondary,
-                border: `1px solid ${txTypeFilter === 'expense' ? T.dangerBorder : T.borderStrong}`,
-                borderRadius: '8px',
-                fontSize: '0.72rem',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-            >
-              Pengeluaran (OPEX)
-            </button>
-          </div>
-        </div>
-
-        {/* Modern Transaction Feed Table */}
-        <div style={{ border: `1px solid ${T.borderStrong}`, borderRadius: '12px', overflow: 'hidden', background: T.cardBg2 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-            <thead>
-              <tr style={{ background: T.tableHeaderBg, color: T.txtPrimary, fontSize: '0.70rem', textTransform: 'uppercase', fontWeight: '800' }}>
-                <th style={{ padding: '10px 14px', textAlign: 'left' }}>Waktu &amp; Tanggal</th>
-                <th style={{ padding: '10px 14px', textAlign: 'left' }}>Outlet Cabang</th>
-                <th style={{ padding: '10px 14px', textAlign: 'center' }}>Tipe</th>
-                <th style={{ padding: '10px 14px', textAlign: 'left' }}>Kategori &amp; Deskripsi</th>
-                <th style={{ padding: '10px 14px', textAlign: 'left' }}>Metode</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right' }}>Nominal (Rp)</th>
-                <th style={{ padding: '10px 14px', textAlign: 'center' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {feedTransactions.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: T.txtMuted, fontSize: '0.78rem' }}>
-                    Belum ada riwayat transaksi pada filter ini.
-                  </td>
-                </tr>
-              ) : (
-                feedTransactions.map(tx => (
-                  <tr key={tx.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s ease' }} className="hover:bg-slate-800/40">
-                    {/* WAKTU LENGKAP DENGAN JAM DAN MENIT */}
-                    <td style={{ padding: '10px 14px', color: T.txtPrimary, fontWeight: '700', fontSize: '0.74rem' }}>
-                      <div>{tx.date}</div>
-                      <div style={{ fontSize: '0.64rem', color: T.txtMuted, marginTop: '2px' }}>{tx.time ? tx.time.substring(0, 5) : '12:00'} WIB</div>
-                    </td>
-
-                    {/* OUTLET */}
-                    <td style={{ padding: '10px 14px', fontWeight: '800', color: T.txtPrimary }}>
-                      {tx.branch_name}
-                    </td>
-
-                    {/* TIPE */}
-                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                      <span style={{
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontSize: '0.68rem',
-                        fontWeight: '800',
-                        background: tx.type === 'income' ? T.successBg : T.dangerBg,
-                        color: tx.type === 'income' ? T.success : T.danger,
-                        border: `1px solid ${tx.type === 'income' ? T.successBorder : T.dangerBorder}`
-                      }}>
-                        {tx.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
-                      </span>
-                    </td>
-
-                    {/* KATEGORI & DESKRIPSI */}
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ fontWeight: '800', color: T.info }}>{tx.category}</div>
-                      <div style={{ fontSize: '0.70rem', color: T.txtSecondary, marginTop: '1px' }}>{tx.description}</div>
-                    </td>
-
-                    {/* METODE */}
-                    <td style={{ padding: '10px 14px', color: T.txtPrimary, fontSize: '0.74rem' }}>
-                      {tx.payment_method}
-                    </td>
-
-                    {/* NOMINAL */}
-                    <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: '900', color: tx.type === 'income' ? T.success : T.danger }}>
-                      {tx.type === 'income' ? '+' : '-'}{formatRupiah(tx.amount)}
-                    </td>
-
-                    {/* STATUS */}
-                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                      <span style={{ background: T.successBg, color: T.success, border: `1px solid ${T.successBorder}`, padding: '3px 8px', borderRadius: '6px', fontSize: '0.68rem', fontWeight: '800' }}>
-                        Terverifikasi
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* 7. DASHBOARD AI INSIGHT MODAL                                 */}
