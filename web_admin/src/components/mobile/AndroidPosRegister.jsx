@@ -952,6 +952,55 @@ export default function AndroidPosRegister({
       });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 2. Offline Queue Flusher Handler (Deduplicated & Robust)
+  const doFlushOfflineQueue = React.useCallback(() => {
+    try {
+      const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      const queue = queueRaw ? JSON.parse(queueRaw) : [];
+      if (!queue || queue.length === 0) {
+        setOfflineQueueCount(0);
+        return;
+      }
+      setOfflineQueueCount(queue.length);
+
+      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+        .then(res => res.json())
+        .then(serverMaster => {
+          if (!serverMaster || typeof serverMaster !== 'object') return;
+          const existingSales = serverMaster.salesTransactions || [];
+          
+          // Deduplicate incoming queue with server sales
+          const seen = new Set(existingSales.map(s => String(s.id || s.receipt_no || s.receiptNo || '')));
+          const freshQueue = queue.filter(q => !seen.has(String(q.id || q.receipt_no || q.receiptNo || '')));
+          const mergedSales = [...freshQueue, ...existingSales];
+          const updatedMaster = { ...serverMaster, salesTransactions: mergedSales, transactions: mergedSales, _lastUpdated: Date.now() };
+
+          fetch(getApiUrl('/api/master-data'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedMaster)
+          })
+          .then(r => r.json())
+          .then(resData => {
+            if (resData && resData.success) {
+              localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+              setOfflineQueueCount(0);
+              setMasterData(curr => {
+                const updatedList = (curr.salesTransactions || []).map(t => ({
+                  ...t,
+                  status: 'approved',
+                  is_offline_pending: false
+                }));
+                const nextState = { ...curr, salesTransactions: updatedList, transactions: updatedList };
+                try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(nextState)); } catch (err) {}
+                return nextState;
+              });
+            }
+          }).catch(() => {});
+        }).catch(() => {});
+    } catch (err) {}
+  }, []);
+
   // 2. Realtime Network & Offline Queue Auto-Flusher Effect
   React.useEffect(() => {
     const handleOnline = () => {
@@ -964,50 +1013,6 @@ export default function AndroidPosRegister({
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    const doFlushOfflineQueue = () => {
-      try {
-        const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
-        const queue = queueRaw ? JSON.parse(queueRaw) : [];
-        if (!queue || queue.length === 0) {
-          setOfflineQueueCount(0);
-          return;
-        }
-        setOfflineQueueCount(queue.length);
-
-        fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
-          .then(res => res.json())
-          .then(serverMaster => {
-            if (!serverMaster || typeof serverMaster !== 'object') return;
-            const existingSales = serverMaster.salesTransactions || [];
-            const mergedSales = [...queue, ...existingSales];
-            const updatedMaster = { ...serverMaster, salesTransactions: mergedSales, transactions: mergedSales, _lastUpdated: Date.now() };
-
-            fetch(getApiUrl('/api/master-data'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(updatedMaster)
-            })
-            .then(r => r.json())
-            .then(resData => {
-              if (resData && resData.success) {
-                localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-                setOfflineQueueCount(0);
-                setMasterData(curr => {
-                  const updatedList = (curr.salesTransactions || []).map(t => ({
-                    ...t,
-                    status: 'approved',
-                    is_offline_pending: false
-                  }));
-                  const nextState = { ...curr, salesTransactions: updatedList, transactions: updatedList };
-                  try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(nextState)); } catch (err) {}
-                  return nextState;
-                });
-              }
-            }).catch(() => {});
-          }).catch(() => {});
-      } catch (err) {}
-    };
 
     const updateSyncTimestamp = () => {
       const now = new Date();
@@ -1030,7 +1035,7 @@ export default function AndroidPosRegister({
       window.removeEventListener('offline', handleOffline);
       clearInterval(timer);
     };
-  }, [isAppLoggedIn]);
+  }, [isAppLoggedIn, doFlushOfflineQueue]);
 
   // LIVE AUTO-FETCH MASTER DATA / USER ACCOUNTS ON LOGIN SCREEN
   useEffect(() => {
@@ -2005,20 +2010,82 @@ export default function AndroidPosRegister({
     setManualRepNonCash(nonCash);
   }, [manualRepDate, showAddManualReportModal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Derived Financials — useMemo: tidak dihitung ulang saat ketikan input
-  const totalSalesGross = useMemo(() =>
-    outletTransactions.reduce((acc, t) => acc + (t.amount || 0), 0),
-    [outletTransactions]
+  // ─── TRANSAKSI SHIFT HARI INI (Termasuk Antrean Offline & Live Sync) ─────────
+  const shiftTodayTransactions = useMemo(() => {
+    let offlineTxs = [];
+    try {
+      const q = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+      if (q) offlineTxs = JSON.parse(q);
+    } catch (e) {}
+
+    const seenKeys = new Set();
+    const combined = [];
+
+    // Prioritaskan offline queue lokal + outletTransactions
+    [...(Array.isArray(offlineTxs) ? offlineTxs : []), ...outletTransactions].forEach(tx => {
+      if (!tx) return;
+      const key = String(tx.id || tx.receipt_no || tx.receiptNo || tx.tx_id || '');
+      if (key && seenKeys.has(key)) return;
+      if (key) seenKeys.add(key);
+      combined.push(tx);
+    });
+
+    return combined.filter(tx => {
+      const d = sharedGetTxDateStr(tx);
+      return d === sharedTodayStr;
+    });
+  }, [outletTransactions, sharedTodayStr, offlineQueueCount]);
+
+  // Derived Financials Khusus Shift Hari Ini
+  const shiftTodaySalesGross = useMemo(() =>
+    shiftTodayTransactions.reduce((acc, t) => acc + (t.amount || 0), 0),
+    [shiftTodayTransactions]
   );
+  const shiftTodayCashSales = useMemo(() =>
+    shiftTodayTransactions.filter(t => {
+      const pm = String(t.payment_method || '').toLowerCase();
+      return pm.includes('cash') || pm.includes('tunai');
+    }).reduce((a, t) => a + (t.amount || 0), 0),
+    [shiftTodayTransactions]
+  );
+  const shiftTodayQrisSales = useMemo(() =>
+    shiftTodayTransactions.filter(t => {
+      const pm = String(t.payment_method || '').toLowerCase();
+      return pm.includes('qris');
+    }).reduce((a, t) => a + (t.amount || 0), 0),
+    [shiftTodayTransactions]
+  );
+  const shiftTodayEdcSales = useMemo(() =>
+    shiftTodayTransactions.filter(t => {
+      const pm = String(t.payment_method || '').toLowerCase();
+      return pm.includes('edc') || pm.includes('debit') || pm.includes('kartu') || pm.includes('card') || pm.includes('transfer') || pm.includes('bank');
+    }).reduce((a, t) => a + (t.amount || 0), 0),
+    [shiftTodayTransactions]
+  );
+  const shiftTodayNonCashSales = useMemo(() =>
+    shiftTodayTransactions.filter(t => {
+      const pm = String(t.payment_method || '').toLowerCase();
+      return !pm.includes('cash') && !pm.includes('tunai');
+    }).reduce((a, t) => a + (t.amount || 0), 0),
+    [shiftTodayTransactions]
+  );
+
   const totalPettyExpense = useMemo(() =>
     pettyExpenses.reduce((acc, e) => acc + (e.amount || 0), 0),
     [pettyExpenses]
   );
+
+  // TARGET UANG SEHARUSNYA DI LACI KAS: Modal Awal Kasir + Penjualan TUNAI Hari Ini - Pengeluaran Kas Kecil
   const expectedCashInDrawer = useMemo(() =>
-    initialCash + totalSalesGross - totalPettyExpense,
-    [initialCash, totalSalesGross, totalPettyExpense]
+    Number(initialCash || 0) + shiftTodayCashSales - totalPettyExpense,
+    [initialCash, shiftTodayCashSales, totalPettyExpense]
   );
 
+  // All-time totals (untuk statistik historis outlet)
+  const totalSalesGross = useMemo(() =>
+    outletTransactions.reduce((acc, t) => acc + (t.amount || 0), 0),
+    [outletTransactions]
+  );
   const cashSales = useMemo(() =>
     outletTransactions.filter(t => (t.payment_method || '').toLowerCase().includes('cash')).reduce((a, t) => a + (t.amount || 0), 0),
     [outletTransactions]
@@ -3073,10 +3140,10 @@ export default function AndroidPosRegister({
       date: new Date().toISOString().split('T')[0],
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       cashier_name: currentUserSession?.name || userSession?.name || 'Kasir POS',
-      total_receipts: (outletTransactions || []).length,
-      gross_sales: totalSalesGross,
-      cash_sales: cashSales,
-      non_cash_sales: qrisSales + edcSales,
+      total_receipts: shiftTodayTransactions.length,
+      gross_sales: shiftTodaySalesGross,
+      cash_sales: shiftTodayCashSales,
+      non_cash_sales: shiftTodayNonCashSales,
       petty_expense: totalPettyExpense,
       initial_cash: Number(initialCash || 0),
       expected_cash: expectedCashInDrawer,
@@ -3105,9 +3172,10 @@ export default function AndroidPosRegister({
       cashier_name: currentUserSession?.name || userSession?.name || 'Kasir POS',
       initial_cash: Number(initialCash || 0),
       // Field utama POS Kasir
-      gross_sales: totalSalesGross,
-      cash_sales: cashSales,
-      non_cash_sales: qrisSales + edcSales,
+      total_receipts: shiftTodayTransactions.length,
+      gross_sales: shiftTodaySalesGross,
+      cash_sales: shiftTodayCashSales,
+      non_cash_sales: shiftTodayNonCashSales,
       petty_expense: totalPettyExpense,
       expected_cash: expectedCashInDrawer,
       physical_cash: physicalVal,
@@ -3115,9 +3183,9 @@ export default function AndroidPosRegister({
       variance: variance,
       cash_variance: variance,
       // Alias field yang dibutuhkan ApprovalCenter Web Admin
-      net_sales: totalSalesGross,
-      total_sales: totalSalesGross,
-      total_income: totalSalesGross,
+      net_sales: shiftTodaySalesGross,
+      total_sales: shiftTodaySalesGross,
+      total_income: shiftTodaySalesGross,
       total_expense: totalPettyExpense,
       cash_in_drawer: physicalVal,
       denominations: shiftDenominations,
@@ -5335,7 +5403,10 @@ export default function AndroidPosRegister({
 
               {/* Action Button Closing Shift */}
               <button
-                onClick={() => setShowShiftClosingModal(true)}
+                onClick={() => {
+                  doFlushOfflineQueue();
+                  setShowShiftClosingModal(true);
+                }}
                 style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(239,68,68,0.3)' }}
               >
                 <Clock size={16} />
@@ -8962,21 +9033,31 @@ export default function AndroidPosRegister({
 
             {/* 1. Ringkasan Penjualan Shift */}
             <div style={{ background: 'var(--pos-bg-app)', padding: '16px', borderRadius: '14px', border: '1px solid var(--pos-border-card)', marginBottom: '16px' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#38bdf8', marginBottom: '10px', textTransform: 'uppercase' }}>
-                📊 Ringkasan Penjualan Hari Ini
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#38bdf8', textTransform: 'uppercase' }}>
+                  📊 Ringkasan Penjualan Shift Hari Ini
+                </div>
+                {offlineQueueCount > 0 && (
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '2px 8px', borderRadius: '6px', fontWeight: '700' }}>
+                    ⚡ {offlineQueueCount} Transaksi Offline Termasuk
+                  </span>
+                )}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '0.8rem' }}>
-                <div>Total Struk Terjual: <strong>{(outletTransactions || []).length} Struk</strong></div>
-                <div>Total Penjualan: <strong style={{ color: '#34d399' }}>{formatRupiah(totalSalesGross)}</strong></div>
-                <div>Penjualan Tunai (Cash): <strong style={{ color: '#f59e0b' }}>{formatRupiah(cashSales)}</strong></div>
-                <div>Non-Tunai (QRIS/EDC/Grab): <strong>{formatRupiah(qrisSales + edcSales)}</strong></div>
+                <div>Total Struk Shift: <strong>{shiftTodayTransactions.length} Struk</strong></div>
+                <div>Total Penjualan Shift: <strong style={{ color: '#34d399' }}>{formatRupiah(shiftTodaySalesGross)}</strong></div>
+                <div>Penjualan Tunai (Cash): <strong style={{ color: '#f59e0b' }}>{formatRupiah(shiftTodayCashSales)}</strong></div>
+                <div>Non-Tunai (QRIS/EDC): <strong>{formatRupiah(shiftTodayNonCashSales)}</strong></div>
                 <div>Pengeluaran Kas Kecil: <strong style={{ color: '#ef4444' }}>- {formatRupiah(totalPettyExpense)}</strong></div>
                 <div>Modal Awal (Float): <strong>{formatRupiah(initialCash || 0)}</strong></div>
               </div>
               <hr style={{ borderColor: 'rgba(255,255,255,0.08)', margin: '10px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.92rem', fontWeight: '900' }}>
-                <span>TARGET UANG SEHARUSNYA DI LACI:</span>
+                <span>TARGET UANG TUNAI DI LACI:</span>
                 <span style={{ color: '#38bdf8' }}>{formatRupiah(expectedCashInDrawer)}</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--pos-txt-secondary)', marginTop: '4px', textAlign: 'right' }}>
+                (Rumus Fisik: Modal Awal + Penjualan Tunai - Kas Kecil)
               </div>
             </div>
 
