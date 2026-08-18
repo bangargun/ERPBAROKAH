@@ -117,9 +117,50 @@ System **MRIS (Multi Restaurant Financial & Operational Information System)** im
 ### 12. Log Aktivitas
 - Complete audit trail of system events, login attempts, data modifications, and deletion logs.
 
+## ⚡ 3. Standar Arsitektur Data Pipeline POS Kasir, Format Jam (WIB), & Sinkronisasi
+
+### 🕒 A. Standar Jam & Timezone Resmi (WIB / Asia/Jakarta)
+1. **Format Wajib Titik Dua (`HH:mm:ss`)**:
+   - Seluruh komponen (POS Kasir, Web Admin, Backend API, MySQL) **WAJIB menyimpan dan menampilkan waktu dalam format `HH:mm:ss`** (contoh: `13:21:45`).
+   - **DILARANG KERAS** menggunakan format titik (`13.21.45`) karena MySQL `TIME` column akan mengartikannya sebagai detik dan merusak data menjadi `00:00:13`.
+2. **Kunci Timezone ke Asia/Jakarta (WIB - UTC+7)**:
+   - Setiap pembentukan tanggal/waktu transaksi baru wajib menggunakan zona waktu `Asia/Jakarta` (bukan UTC atau waktu sistem tanpa timezone).
+3. **Resolusi Waktu Transaksi**:
+   - Jika kolom `time` kosong / rusak, ambil langsung dari jam riil `created_at` (format `YYYY-MM-DD HH:MM:SS`).
+
 ---
 
-## 📱 3. Mobile Android App: POS KASIR 4.0 Architecture
+### 🚀 B. Jalur Komunikasi Ringan POS (Direct REST API)
+1. **Checkout Transaksi (`POST /api/pos/transaction`)**:
+   - Endpoint super cepat (**< 15 ms**) untuk satu struk penjualan.
+   - Server langsung melakukan *commit* ke tabel `sales_transactions` MySQL, memotong stok bahan baku (`stock_movement`), dan memperbarui in-memory cache Web Admin.
+2. **Rekonsiliasi Tutup Shift (`POST /api/pos/shift-close`)**:
+   - Endpoint khusus rincian kas laci (**< 10 ms**) langsung masuk ke tabel `shift_closings`.
+3. **Resolusi URL API Terpusat (`web_admin/src/utils/apiConfig.js`)**:
+   - **Localhost (`localhost:3000`)** ➔ Otomatis mengarah ke backend lokal `http://localhost:5001`.
+   - **Web Admin Browser Produksi** ➔ Menggunakan relative path `/api/...` (Nginx proxy ke port 5001).
+   - **Mobile APK Native** ➔ Mengarah ke `https://mris-api.barokahgroupindonesia.tech`.
+
+---
+
+### 🎯 C. Aturan Bisnis Tutup Shift Kasir (Auto-Approval)
+1. **Tutup Shift POS Kasir:**
+   - Status shift langsung tercatat sebagai **`SELESAI DITUTUP` / `Done` (`is_approved: true`)** secara otomatis.
+   - Tidak memerlukan persetujuan (ACC) manual di Web Admin agar angka kas laci langsung mengalir ke laporan keuangan dan rekonsiliasi kas.
+2. **Laporan Harian Outlet (Form Manual / Berkas Fisik):**
+   - Tetap berada di Menu 7 (Approval Center) untuk verifikasi berkas jika ada pengajuan manual dari manajer cabang.
+
+---
+
+### 🧹 D. Kebersihan Antarmuka (UI Integrity)
+1. **Bebas Banner Anomali:**
+   - Tidak menampilkan banner merah/peringatan anomali transaksi double input di Dashboard maupun Penjualan.
+2. **Susunan Tab Penjualan:**
+   - Menu Penjualan memiliki **9 Sub-Tab terstruktur** (Tab 1 Omzet s/d Tab 9 Perbandingan Bulanan).
+
+---
+
+## 📱 4. Mobile Android App: POS KASIR 4.0 Architecture
 
 The mobile application **POS KASIR 4.0** is an offline-first, high-performance Android POS register built for restaurant cashiers, waiters, and branch managers.
 
