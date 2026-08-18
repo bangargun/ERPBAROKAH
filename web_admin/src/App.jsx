@@ -345,20 +345,12 @@ export default function App() {
       }
     } catch (e) {}
 
-    if (typeof window !== 'undefined' && window.showServerLoading) {
-      window.showServerLoading("mohon tunggu sebentar ya", "Sedang mengirim & menyimpan data ke server...");
-    }
-
+    // Background save to server — runs silently without freezing the screen with a popup
     fetch(getApiUrl('/api/master-data'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedWithTs)
-    }).catch(() => {})
-      .finally(() => {
-        if (typeof window !== 'undefined' && window.hideServerLoading) {
-          setTimeout(() => window.hideServerLoading(), 400);
-        }
-      });
+    }).catch(() => {});
   };
 
   // Live polling dari server VPS
