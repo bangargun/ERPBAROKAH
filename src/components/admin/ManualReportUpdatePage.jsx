@@ -136,12 +136,17 @@ export default function ManualReportUpdatePage({
 
     const map = new Map();
 
+    // STRICT: Only source genuine manual report updates entered from Web Admin
     const combineSources = [
       ...(masterData?.manualEntryRecords || []),
-      ...(masterData?.approvedFinanceDaily || []),
-      ...(masterData?.shiftReports || []),
-      ...(masterData?.dailyReports || []),
-      ...(masterData?.manualReports || [])
+      ...(masterData?.manualReports || []),
+      ...(masterData?.approvedFinanceDaily || []).filter(r => 
+        r.is_manual || 
+        String(r.source || '').includes('Manual') || 
+        String(r.source || '').includes('Update Laporan') || 
+        String(r.report_no || '').startsWith('UPD-') || 
+        String(r.report_no || '').startsWith('REP-')
+      )
     ].filter(r => !isDeletedReport(r));
 
     combineSources.forEach(r => {
@@ -150,128 +155,6 @@ export default function ManualReportUpdatePage({
         if (!map.has(key)) {
           map.set(key, r);
         }
-      }
-    });
-
-    // Synthesise standalone financialRecords and salesTransactions into date+outlet report entries if not present
-    const groupedStandalone = new Map();
-    const allFinancial = (masterData?.financialRecords || []).filter(f => !isDeletedReport(f));
-    const allSales = (masterData?.salesTransactions || []).filter(s => !isDeletedReport(s));
-
-    allFinancial.forEach(f => {
-      const dt = String(f.entry_date || f.date || f.transaction_date || f.created_at || '').substring(0, 10);
-      const otl = String(f.outlet_id || '1');
-      if (dt) {
-        const gKey = `GRP-${dt}-${otl}`;
-        if (!groupedStandalone.has(gKey)) {
-          groupedStandalone.set(gKey, {
-            id: `GRP-${dt}-${otl}`,
-            report_no: `FIN-${dt.replace(/-/g, '')}-${otl}`,
-            entry_date: dt,
-            date: dt,
-            outlet_id: f.outlet_id,
-            outlet_name: f.outlet_name || getOutletName(f.outlet_id),
-            total_omset: 0,
-            total_pendapatan_lain: 0,
-            total_pemasukan: 0,
-            total_expense: 0,
-            status: 'Disetujui',
-            is_approved: true,
-            author: f.author || 'Staf / Admin',
-            source: 'Update Laporan Excel/Manual',
-            expense_details: [],
-            pendapatan_details: [],
-            sales_details: []
-          });
-        }
-        const grp = groupedStandalone.get(gKey);
-        const amt = Number(f.amount || f.subtotal || 0);
-
-        if (f.type === 'income' || f.type === 'other_income' || f.type === 'pendapatan' || String(f.category || '').toLowerCase().includes('pendapatan')) {
-          grp.total_pendapatan_lain += amt;
-          grp.total_pemasukan += amt;
-          grp.pendapatan_details.push({
-            categoryName: f.category || f.notes || 'Pendapatan Non-Sales',
-            amount: amt,
-            subtotal: amt,
-            paymentMethod: f.payment_method || 'Kas Kasir (Tunai)',
-            notes: f.notes || ''
-          });
-        } else {
-          grp.total_expense += amt;
-          grp.expense_details.push({
-            code: f.code || '6000',
-            name: f.category || f.notes || 'Pengeluaran',
-            categoryName: f.category || f.notes || 'Pengeluaran',
-            amount: amt,
-            subtotal: amt,
-            notes: f.notes || ''
-          });
-        }
-      }
-    });
-
-    allSales.forEach(s => {
-      const dt = String(s.entry_date || s.date || s.transaction_date || s.timestamp || s.created_at || '').substring(0, 10);
-      const otl = String(s.outlet_id || '1');
-      if (dt) {
-        const gKey = `GRP-${dt}-${otl}`;
-        if (!groupedStandalone.has(gKey)) {
-          groupedStandalone.set(gKey, {
-            id: `GRP-${dt}-${otl}`,
-            report_no: `SAL-${dt.replace(/-/g, '')}-${otl}`,
-            entry_date: dt,
-            date: dt,
-            outlet_id: s.outlet_id,
-            outlet_name: s.outlet_name || getOutletName(s.outlet_id),
-            total_omset: 0,
-            total_pendapatan_lain: 0,
-            total_pemasukan: 0,
-            total_expense: 0,
-            status: 'Disetujui',
-            is_approved: true,
-            author: s.author || 'Kasir / Admin',
-            source: 'Penjualan POS / Update Laporan',
-            expense_details: [],
-            pendapatan_details: [],
-            sales_details: []
-          });
-        }
-        const grp = groupedStandalone.get(gKey);
-        const sAmt = Number(s.amount || s.total || s.subtotal || 0);
-        grp.total_omset += sAmt;
-        grp.total_pemasukan += sAmt;
-
-        if (s.items && Array.isArray(s.items)) {
-          s.items.forEach(it => {
-            const itQty = Number(it.qty || it.quantity || 1);
-            const itSubtotal = Number(it.subtotal || it.amount || it.total || 0);
-            let itPrice = Number(it.price || it.unit_price || it.unitPrice || it.harga_satuan || it.hargaSatuan || it.price_per_unit || 0);
-            if (!itPrice && itQty > 0 && itSubtotal > 0) {
-              itPrice = itSubtotal / itQty;
-            }
-            grp.sales_details.push({
-              product_name: it.name || it.product_name || 'Produk',
-              name: it.name || it.product_name || 'Produk',
-              qty: itQty,
-              price: itPrice,
-              unit_price: itPrice,
-              subtotal: itSubtotal || (itQty * itPrice),
-              amount: itSubtotal || (itQty * itPrice)
-            });
-          });
-        }
-      }
-    });
-
-    groupedStandalone.forEach((grp, gKey) => {
-      const exists = Array.from(map.values()).some(r => {
-        const rDt = String(r.entry_date || r.date || r.transaction_date || '').substring(0, 10);
-        const rOtl = String(r.outlet_id || '');
-        return rDt === grp.entry_date && (rOtl === String(grp.outlet_id) || !rOtl);
-      });
-      if (!exists) {
-        map.set(gKey, grp);
       }
     });
 
