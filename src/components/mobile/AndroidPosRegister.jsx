@@ -952,7 +952,7 @@ export default function AndroidPosRegister({
       });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 2. Offline Queue Flusher Handler (Deduplicated & Robust)
+  // 2. Offline Queue Flusher Handler (Deduplicated, Item-by-Item & Batch Outbox Pattern)
   const doFlushOfflineQueue = React.useCallback(() => {
     try {
       const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
@@ -963,6 +963,30 @@ export default function AndroidPosRegister({
       }
       setOfflineQueueCount(queue.length);
 
+      // Jalur 1: Kirim item per item ke direct POS transaction endpoint
+      queue.forEach(tx => {
+        if (!tx) return;
+        fetch(getApiUrl('/api/pos/transaction'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...tx, status: 'approved', is_offline_pending: false })
+        })
+        .then(res => res.json())
+        .then(resData => {
+          if (resData && (resData.success || resData.status === 'success')) {
+            try {
+              const curQRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+              const curQ = curQRaw ? JSON.parse(curQRaw) : [];
+              const remaining = curQ.filter(item => String(item.id || item.receipt_no || '') !== String(tx.id || tx.receipt_no || ''));
+              localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
+              setOfflineQueueCount(remaining.length);
+            } catch (e) {}
+          }
+        })
+        .catch(() => {});
+      });
+
+      // Jalur 2: Backup sync ke /api/master-data (Master State Union)
       fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
         .then(res => res.json())
         .then(serverMaster => {
@@ -972,6 +996,11 @@ export default function AndroidPosRegister({
           // Deduplicate incoming queue with server sales
           const seen = new Set(existingSales.map(s => String(s.id || s.receipt_no || s.receiptNo || '')));
           const freshQueue = queue.filter(q => !seen.has(String(q.id || q.receipt_no || q.receiptNo || '')));
+          if (freshQueue.length === 0) {
+            localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
+            setOfflineQueueCount(0);
+            return;
+          }
           const mergedSales = [...freshQueue, ...existingSales];
           const updatedMaster = { ...serverMaster, salesTransactions: mergedSales, transactions: mergedSales, _lastUpdated: Date.now() };
 
@@ -3010,27 +3039,40 @@ export default function AndroidPosRegister({
         transactions: [finalTx, ...(prev?.transactions || [])]
       };
 
-      // 1. Simpan Instan ke Cache Device (0ms Latency)
-      try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated)); } catch (e) {}
+      // 1. Simpan Instan ke Cache Device & Outbox Queue Lokal (Guaranteed Persistence)
+      try {
+        localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated));
+        const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+        const q = qRaw ? JSON.parse(qRaw) : [];
+        const filteredQ = q.filter(item => String(item.id || item.receipt_no || '') !== String(finalTx.id || finalTx.receipt_no || ''));
+        filteredQ.unshift(finalTx);
+        localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(filteredQ));
+        setOfflineQueueCount(filteredQ.length);
+      } catch (e) {}
 
-      // 2. Kirim INSTANT ke Server VPS & Web Admin dengan Direct POS REST API (<15ms)
-      if (isOnlineNow) {
-        fetch(getApiUrl('/api/pos/transaction'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(finalTx)
-        }).catch(() => {
-          saveToServerWithGuard(updated);
-        });
-      } else {
-        // Jika offline, masukkan ke antrean pending
-        try {
-          const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
-          const q = qRaw ? JSON.parse(qRaw) : [];
-          q.unshift(finalTx);
-          localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(q));
-        } catch (e) {}
-      }
+      // 2. Pemicu Pengiriman Langsung ke Server VPS
+      fetch(getApiUrl('/api/pos/transaction'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalTx)
+      })
+      .then(res => res.json())
+      .then(resData => {
+        if (resData && (resData.success || resData.status === 'success')) {
+          // Sukses terkonfirmasi server: hapus dari outbox
+          try {
+            const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+            const q = qRaw ? JSON.parse(qRaw) : [];
+            const remaining = q.filter(item => String(item.id || item.receipt_no || '') !== String(finalTx.id || finalTx.receipt_no || ''));
+            localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
+            setOfflineQueueCount(remaining.length);
+          } catch (e) {}
+        }
+      })
+      .catch(() => {
+        // Jika offline atau jaringan lambat, doFlushOfflineQueue akan otomatis memproses saat online
+        doFlushOfflineQueue();
+      });
 
       return updated;
     });
