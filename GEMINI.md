@@ -160,6 +160,18 @@ System **MRIS (Multi Restaurant Financial & Operational Information System)** im
 
 ---
 
+### 🏛️ E. Standar Filter Cabang Tunggal (Single Source of Truth)
+1. **Satu Filter Cabang Terpusat di Top Header (Navbar Atas):**
+   - Dropdown outlet utama di Navbar Atas (`selectedBranch`) adalah satu-satunya pengendali cakupan cabang untuk seluruh modul Web Admin.
+2. **Dilarang Menambahkan Dropdown Outlet Duplikat di Dalam Halaman/Tab:**
+   - Seluruh halaman (Dashboard, Katalog Menu, Pelanggan, 9 Sub-Tab Penjualan, Riwayat Transaksi, Logistik/Stok Opname, Penyesuaian, Update Laporan, Approval Center, Laporan Keuangan, dan Log Aktivitas) telah dibersihkan dari filter outlet lokal duplikat.
+   - Filter di dalam halaman hanya dikhususkan untuk parameter waktu (Tahun, Bulan, Rentang Tanggal) atau pencarian (*Search Bar*).
+3. **Bebas Tabrakan State & Kedip (*Zero Flicker Auto-Sync*):**
+   - Dengan 1 filter cabang tunggal terpusat, siklus auto-sync 10 detik berjalan mulus tanpa konflik data, lonjakan angka, atau rendering berkedip.
+
+
+---
+
 ## 📱 4. Mobile Android App: POS KASIR 4.0 Architecture
 
 The mobile application **POS KASIR 4.0** is an offline-first, high-performance Android POS register built for restaurant cashiers, waiters, and branch managers.
