@@ -1316,12 +1316,9 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img
-                        src={product.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'}
-                        alt={product.name}
-                        style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover' }}
-                        onError={e => { e.target.src = 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'; }}
-                      />
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: T.cardBg, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Utensils size={18} color={T.primary} />
+                      </div>
                       <div>
                         <div style={{ fontWeight: '800', color: T.txtPrimary, textTransform: 'uppercase' }}>{product.name}</div>
                         <div style={{ fontSize: '0.66rem', color: T.txtSecondary }}>

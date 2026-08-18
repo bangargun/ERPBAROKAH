@@ -1377,12 +1377,9 @@ export default function ProductCategoryManagement({ masterData, setMasterData, s
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img
-                        src={prod.image_url || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'}
-                        alt={prod.name}
-                        style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }}
-                        onError={e => { e.target.src = 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'; }}
-                      />
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: T.cardBg, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Package size={18} color={T.primary} />
+                      </div>
                       <div>
                         <div style={{ fontWeight: '800', color: T.txtPrimary, textTransform: 'uppercase' }}>{prod.name}</div>
                         <div style={{ fontSize: '0.66rem', color: T.info, fontFamily: 'monospace' }}>{prod.sku || prod.code} • {formatRupiah(prod.price)}</div>

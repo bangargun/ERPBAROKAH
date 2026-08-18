@@ -107,6 +107,26 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
     }
   }, [selectedBranch]);
 
+  // Auto-clean any residual menu image URLs across masterData
+  useEffect(() => {
+    if (masterData?.products && masterData.products.some(p => p.image_url || p.image)) {
+      const cleaned = masterData.products.map(p => {
+        if (!p.image_url && !p.image) return p;
+        const { image_url, image, ...rest } = p;
+        return { ...rest, image_url: '', image: '' };
+      });
+      const nextMaster = {
+        ...masterData,
+        products: cleaned,
+        _lastUpdated: Date.now()
+      };
+      setMasterData(nextMaster);
+      try {
+        localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
+      } catch (e) {}
+    }
+  }, [masterData?.products]);
+
   // Master ingredients, categories, outlets, and units
   const allIngredients = useMemo(() => masterData?.ingredients || [], [masterData?.ingredients]);
   const allCategories = useMemo(() => masterData?.categories || [], [masterData?.categories]);
@@ -573,7 +593,8 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
       cost: liveFormHpp,
       unit: 'Pcs',
       status: prodStatus,
-      image_url: prodImageUrl.trim() || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400',
+      image_url: '',
+      image: '',
       outlet_id: finalSelectedOutIds.length === allOutlets.length
         ? 'Semua Outlet'
         : (finalSelectedOutIds.length === 1 ? String(finalSelectedOutIds[0]) : 'Semua Outlet'),
@@ -955,51 +976,6 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
           <button
             type="button"
-            onClick={() => {
-              if (!window.confirm('Generate otomatis foto AI berkualitas tinggi untuk semua menu berdasarkan namanya?')) return;
-              const updatedProds = (masterData?.products || []).map(p => ({
-                ...p,
-                image_url: getMenuFallbackImage(p.name, p.category_name),
-                _updatedAt: Date.now(),
-                _lastMutated: Date.now()
-              }));
-              const nextMaster = {
-                ...masterData,
-                products: updatedProds,
-                _lastUpdated: Date.now(),
-                _lastMutated: Date.now()
-              };
-              setMasterData(nextMaster);
-              try {
-                localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
-              } catch (e) {}
-              fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(nextMaster)
-              }).catch(() => {});
-              alert('🎉 Sukses! Semua foto katalog menu berhasil diperbarui dengan foto kuliner yang sesuai!');
-            }}
-            className="btn-secondary"
-            style={{
-              padding: '8px 14px',
-              fontSize: '0.76rem',
-              fontWeight: '800',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              border: `1px solid ${T.accentGoldBorder || '#ca8a04'}`,
-              background: T.accentGoldBg || 'rgba(234,179,8,0.12)',
-              color: T.accentGold || '#fbbf24'
-            }}
-            title="Generate AI foto untuk seluruh menu katalog"
-          >
-            <Sparkles size={15} />
-            <span>AI Generate Foto Menu</span>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setShowExcelImportModal(true)}
             className="btn-secondary"
             style={{ padding: '8px 14px', fontSize: '0.76rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -1245,46 +1221,47 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                   transition: 'transform 0.15s ease, box-shadow 0.15s ease'
                 }}
               >
-                {/* Photo & Status Overlay */}
-                <div style={{ position: 'relative', height: '140px', background: '#18181b', overflow: 'hidden' }}>
-                  <img
-                    src={product.image_url || getMenuFallbackImage(product.name, product.category_name)}
-                    alt={product.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isAvailable ? 1 : 0.6 }}
-                    onError={(e) => {
-                      e.target.src = getMenuFallbackImage(product.name, product.category_name);
-                    }}
-                  />
-                  {/* Category & Status Badges */}
-                  <div style={{ position: 'absolute', top: '8px', left: '8px', display: 'flex', gap: '4px' }}>
-                    <span style={{ fontSize: '0.62rem', fontWeight: '800', background: 'rgba(0,0,0,0.7)', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', backdropFilter: 'blur(4px)' }}>
-                      {product.sku || product.code || 'PRD'}
-                    </span>
-                    <span style={{ fontSize: '0.62rem', fontWeight: '800', background: 'rgba(245, 158, 11, 0.85)', color: '#000000', padding: '2px 6px', borderRadius: '4px', backdropFilter: 'blur(4px)' }}>
-                      {product.category_name || product.category || 'Menu'}
-                    </span>
+                {/* Clean Menu Header */}
+                <div style={{
+                  padding: '14px 14px 10px 14px',
+                  borderBottom: `1px solid ${T.border}`,
+                  background: T.cardBg2,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: '8px'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.64rem', fontWeight: '800', background: T.inputBg, color: T.info, padding: '2px 6px', borderRadius: '4px', border: `1px solid ${T.border}`, fontFamily: 'monospace' }}>
+                        {product.sku || product.code || 'PRD'}
+                      </span>
+                      <span style={{ fontSize: '0.64rem', fontWeight: '800', background: T.infoBg, color: T.info, padding: '2px 6px', borderRadius: '4px' }}>
+                        {product.category_name || product.category || 'Menu'}
+                      </span>
+                    </div>
+                    <h3 style={{ fontSize: '0.94rem', fontWeight: '900', color: T.txtPrimary, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>
+                      {product.name}
+                    </h3>
                   </div>
 
-                  <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
-                    <span style={{
-                      fontSize: '0.62rem',
-                      fontWeight: '800',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      background: isAvailable ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)',
-                      color: '#ffffff'
-                    }}>
-                      {isAvailable ? 'Aktif' : 'Inaktif'}
-                    </span>
-                  </div>
+                  <span style={{
+                    fontSize: '0.64rem',
+                    fontWeight: '800',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    background: isAvailable ? T.successBg : T.dangerBg,
+                    color: isAvailable ? T.success : T.danger,
+                    border: `1px solid ${isAvailable ? T.successBorder : T.dangerBorder}`,
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {isAvailable ? 'Aktif' : 'Inaktif'}
+                  </span>
                 </div>
 
                 {/* Card Body */}
                 <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
                   <div>
-                    <h3 style={{ fontSize: '0.88rem', fontWeight: '900', color: T.txtPrimary, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>
-                      {product.name}
-                    </h3>
 
                     {/* Price & HPP Summary Box */}
                     <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', padding: '8px 10px', marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1434,16 +1411,13 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
                   return (
                     <tr key={product.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
-                      {/* Photo & SKU */}
+                      {/* SKU */}
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <img
-                            src={product.image_url || getMenuFallbackImage(product.name, product.category_name)}
-                            alt={product.name}
-                            style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }}
-                            onError={(e) => { e.target.src = getMenuFallbackImage(product.name, product.category_name); }}
-                          />
-                          <span style={{ fontWeight: '800', color: T.info, fontFamily: 'monospace', fontSize: '0.70rem' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: T.cardBg2, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Package size={15} color={T.primary} />
+                          </div>
+                          <span style={{ fontWeight: '800', color: T.info, fontFamily: 'monospace', fontSize: '0.74rem' }}>
                             {product.sku || product.code || 'PRD'}
                           </span>
                         </div>
@@ -1748,56 +1722,6 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                         <option value="Aktif">Aktif (Tersedia)</option>
                         <option value="Inaktif">Inaktif / Habis</option>
                       </select>
-                    </div>
-                  </div>
-
-                  {/* Photo URL / Upload */}
-                  <div>
-                    <label style={{ fontSize: '0.74rem', fontWeight: '700', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>
-                      URL Foto / Gambar Produk
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input
-                        type="url"
-                        placeholder="https://images.unsplash.com/..."
-                        value={prodImageUrl}
-                        onChange={e => setProdImageUrl(e.target.value)}
-                        className="form-input"
-                        style={{ background: T.inputBg, borderColor: T.border, color: T.txtPrimary, flex: 1 }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const catObj = allCategories.find(c => String(c.id) === String(prodCategoryId));
-                          const aiImg = getMenuFallbackImage(prodName, catObj?.name);
-                          setProdImageUrl(aiImg);
-                        }}
-                        style={{
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                          color: '#000',
-                          fontSize: '0.74rem',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          whiteSpace: 'nowrap'
-                        }}
-                        title="Generate Foto AI sesuai nama menu yang diketik"
-                      >
-                        <Sparkles size={14} /> AI Generate
-                      </button>
-                      {prodImageUrl && (
-                        <img
-                          src={prodImageUrl}
-                          alt="Preview"
-                          style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover', border: `1px solid ${T.border}` }}
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      )}
                     </div>
                   </div>
                 </div>
