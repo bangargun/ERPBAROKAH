@@ -207,22 +207,22 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
     const rNo = String(r.report_no || r.receiptNo || '');
     if ((rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo))) return true;
 
+    // Purge shift closing reports (Modul Shift Ditiadakan - Direct Transaction Stream)
+    const rIdLower = rId.toLowerCase();
+    const rNoLower = rNo.toLowerCase();
+    if (rIdLower.startsWith('shift-') || rIdLower.startsWith('lap-shift') || rNoLower.startsWith('lap-shift') || rNoLower.startsWith('shift-') || rIdLower.includes('shift') || rNoLower.includes('shift')) {
+      return true;
+    }
+
     // Purge mock "Restoran Utama" / dummy reports
     const bName = String(r.branch_name || r.outlet_name || '').toLowerCase();
     if (bName.includes('restoran utama')) return true;
-    const rNoLower = rNo.toLowerCase();
-    if (rNoLower.startsWith('lap-shift-kasir') && (bName.includes('restoran utama') || !r.outlet_id || r.outlet_id === 1)) {
-      return true;
-    }
     return false;
   };
 
-  // KONSOLIDASI SELURUH LAPORAN HARIAN DARI POS KASIR & WEB ADMIN
+  // KONSOLIDASI LAPORAN HARIAN MANUAL ADMIN DARI WEB ADMIN
   const rawReports = [
     ...(masterData?.approvedFinanceDaily || []),
-    ...(masterData?.shiftClosings || []),
-    ...(masterData?.shift_closings || []),
-    ...(masterData?.closedShifts || []),
     ...(masterData?.dailyReports || []),
     ...(masterData?.manualEntryRecords || [])
   ].filter(r => !isDeletedOrMockReport(r));
@@ -703,7 +703,7 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
             <span>Persetujuan Manajemen (Persetujuan Laporan Harian)</span>
           </h2>
           <p style={{ color: T.txtSecondary, fontSize: '0.72rem', marginTop: '2px', margin: 0 }}>
-            Persetujuan laporan keuangan shift closing dari POS Kasir Outlet &amp; Input Laporan Manual Admin Central.
+            Persetujuan dan verifikasi laporan harian operasional cabang &amp; Input Laporan Manual Admin Central.
           </p>
         </div>
 
