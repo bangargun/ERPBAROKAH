@@ -134,12 +134,46 @@ export default function ManualReportUpdatePage({
       return (rId && deletedReportIdsSet.has(rId)) || (rNo && deletedReportIdsSet.has(rNo));
     };
 
-    const map = new Map();
+    // Map standalone financial records (dari Import Excel / Input Keuangan) menjadi entri laporan
+    const finRecordsAsReports = (masterData?.financialRecords || []).map(f => {
+      const isIncome = f.type === 'other_income' || f.type === 'income' || f.type === 'sale';
+      const amt = Number(f.amount || 0);
+      const decId = String(f.id).split('.')[1] || String(f.id).slice(-4);
+      const repNo = f.report_no || `FIN-${decId}`;
+      const itemTitle = f.category || f.categoryName || f.name || f.notes || (isIncome ? 'Pendapatan Non-Sales' : 'Beban Operasional');
+      return {
+        id: f.id,
+        report_no: repNo,
+        date: f.date || f.entry_date || f.transaction_date,
+        entry_date: f.date || f.entry_date || f.transaction_date,
+        outlet_id: f.outlet_id,
+        outlet_name: f.outlet_name || getOutletName(f.outlet_id),
+        total_pemasukan: isIncome ? amt : 0,
+        total_pengeluaran: !isIncome ? amt : 0,
+        net_cash: isIncome ? amt : -amt,
+        laba_bersih: isIncome ? amt : -amt,
+        status: 'Disetujui',
+        is_approved: true,
+        author: f.author || 'Import Batch Excel',
+        created_by: f.created_by || 'Import Batch Excel',
+        source: f.source || 'Batch Upload Excel',
+        item_name: itemTitle,
+        name: itemTitle,
+        qty: 1,
+        unit_price: amt,
+        price: amt,
+        subtotal: amt,
+        notes: f.notes || itemTitle,
+        pendapatan_details: isIncome ? [{ name: itemTitle, amount: amt, subtotal: amt, qty: 1, price: amt }] : [],
+        expense_details: !isIncome ? [{ name: itemTitle, amount: amt, subtotal: amt, qty: 1, price: amt }] : []
+      };
+    });
 
-    // STRICT: Only source genuine manual report updates entered from Web Admin
+    // STRICT: Source genuine manual report updates & financial records entered from Web Admin / Excel
     const combineSources = [
       ...(masterData?.manualEntryRecords || []),
       ...(masterData?.manualReports || []),
+      ...finRecordsAsReports,
       ...(masterData?.approvedFinanceDaily || []).filter(r => 
         r.is_manual || 
         String(r.source || '').includes('Manual') || 
