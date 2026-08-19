@@ -6089,6 +6089,39 @@ export default function AndroidPosRegister({
                 .filter(tx => !String(tx.payment_method || '').toLowerCase().includes('cash') && !String(tx.payment_method || '').toLowerCase().includes('tunai'))
                 .reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
+              // Breakdown Rinci Berdasarkan Metode Pembayaran
+              const paymentBreakdownMap = {};
+              filteredOmzetTransactions.forEach(tx => {
+                let pm = String(tx.payment_method || tx.payment_type || 'Tunai (Cash)').trim();
+                if (!pm || pm === '-') pm = 'Tunai (Cash)';
+                const amt = Number(tx.amount || tx.grandTotal || tx.total || 0);
+                if (!paymentBreakdownMap[pm]) {
+                  paymentBreakdownMap[pm] = { name: pm, amount: 0, count: 0 };
+                }
+                paymentBreakdownMap[pm].amount += amt;
+                paymentBreakdownMap[pm].count += 1;
+              });
+              const paymentBreakdownList = Object.values(paymentBreakdownMap).sort((a, b) => b.amount - a.amount);
+
+              const getPaymentMethodIcon = (name) => {
+                const n = String(name || '').toLowerCase();
+                if (n.includes('cash') || n.includes('tunai')) return '💵';
+                if (n.includes('qris')) return '📱';
+                if (n.includes('debit') || n.includes('edc') || n.includes('kartu')) return '💳';
+                if (n.includes('transfer') || n.includes('bca') || n.includes('mandiri') || n.includes('bri') || n.includes('bni') || n.includes('bank')) return '🏦';
+                if (n.includes('gofood') || n.includes('grab') || n.includes('shopee') || n.includes('delivery') || n.includes('online')) return '🛵';
+                return '🏷️';
+              };
+
+              const getPaymentMethodColor = (name) => {
+                const n = String(name || '').toLowerCase();
+                if (n.includes('cash') || n.includes('tunai')) return '#34d399';
+                if (n.includes('qris')) return '#38bdf8';
+                if (n.includes('debit') || n.includes('edc')) return '#818cf8';
+                if (n.includes('transfer') || n.includes('bca') || n.includes('bank')) return '#a78bfa';
+                if (n.includes('gofood') || n.includes('grab') || n.includes('shopee')) return '#f97316';
+                return '#fbbf24';
+              };
 
               let activeLabel = `Hari Ini (${todayStr})`;
               if (omzetFilterMode === 'yesterday') activeLabel = `Kemarin (${yesterdayStr})`;
@@ -6148,6 +6181,82 @@ export default function AndroidPosRegister({
                         {formatRupiah(omzetNonCash)}
                       </div>
                     </div>
+                  </div>
+
+                  {/* PENJABARAN OMZET PER METODE PEMBAYARAN */}
+                  <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '20px', border: '1px solid var(--pos-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>💳</span>
+                          <span>Penjabaran Omzet Berdasarkan Metode Pembayaran</span>
+                        </h3>
+                        <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
+                          Rincian penerimaan omzet kasir per kanal metode pembayaran pada periode {activeLabel}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: '0.74rem', fontWeight: '800', background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }}>
+                        {paymentBreakdownList.length} Kanal Pembayaran
+                      </span>
+                    </div>
+
+                    {paymentBreakdownList.length === 0 ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.80rem' }}>
+                        Belum ada transaksi dengan metode pembayaran pada periode ini.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                        {paymentBreakdownList.map((pm, idx) => {
+                          const pct = omzetGross > 0 ? ((pm.amount / omzetGross) * 100).toFixed(1) : '0.0';
+                          const color = getPaymentMethodColor(pm.name);
+                          const icon = getPaymentMethodIcon(pm.name);
+
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                background: 'var(--pos-bg-app)',
+                                borderRadius: '12px',
+                                padding: '14px',
+                                border: '1px solid var(--pos-border)',
+                                borderLeft: `4px solid ${color}`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontSize: '1.2rem' }}>{icon}</span>
+                                  <div>
+                                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
+                                      {pm.name}
+                                    </div>
+                                    <div style={{ fontSize: '0.70rem', color: 'var(--pos-txt-secondary)' }}>
+                                      {pm.count} Struk Terverifikasi
+                                    </div>
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '0.74rem', fontWeight: '900', color: color, background: `${color}15`, padding: '2px 6px', borderRadius: '6px' }}>
+                                  {pct}%
+                                </span>
+                              </div>
+
+                              <div>
+                                <div style={{ fontSize: '1.15rem', fontWeight: '900', color: color, letterSpacing: '-0.02em' }}>
+                                  {formatRupiah(pm.amount)}
+                                </div>
+                              </div>
+
+                              {/* Visual Progress Bar */}
+                              <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden' }}>
+                                <div style={{ width: `${Math.min(100, Number(pct))}%`, height: '100%', background: color, borderRadius: '999px', transition: 'width 0.3s ease' }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Table Breakdown Sales Omzet */}
@@ -7452,29 +7561,138 @@ export default function AndroidPosRegister({
         )}
 
         {/* TAB 6: LAPORAN OMZET */}
-        {activeNavTab === 'omzet' && (
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '4px' }}>Laporan Omzet & Performa Outlet</h2>
-            <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '20px' }}>Analisis Ringkas Omset Outlet {currentOutlet.name}</p>
+        {activeNavTab === 'omzet' && (() => {
+          const tab6PaymentMap = {};
+          outletTransactions.forEach(tx => {
+            let pm = String(tx.payment_method || tx.payment_type || 'Tunai (Cash)').trim();
+            if (!pm || pm === '-') pm = 'Tunai (Cash)';
+            const amt = Number(tx.amount || tx.grandTotal || tx.total || 0);
+            if (!tab6PaymentMap[pm]) tab6PaymentMap[pm] = { name: pm, amount: 0, count: 0 };
+            tab6PaymentMap[pm].amount += amt;
+            tab6PaymentMap[pm].count += 1;
+          });
+          const tab6PaymentList = Object.values(tab6PaymentMap).sort((a, b) => b.amount - a.amount);
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
-              <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>TOTAL OMSET GROSS</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(totalSalesGross)}</div>
-              </div>
-              <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>TOTAL STRUK NOTA</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>{outletTransactions.length} Struk</div>
-              </div>
-              <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>RATA-RATA NILAI STRUK</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#818cf8', marginTop: '6px' }}>
-                  {formatRupiah(outletTransactions.length > 0 ? totalSalesGross / outletTransactions.length : 0)}
+          const getPmIcon = (name) => {
+            const n = String(name || '').toLowerCase();
+            if (n.includes('cash') || n.includes('tunai')) return '💵';
+            if (n.includes('qris')) return '📱';
+            if (n.includes('debit') || n.includes('edc')) return '💳';
+            if (n.includes('transfer') || n.includes('bank') || n.includes('bca')) return '🏦';
+            if (n.includes('gofood') || n.includes('grab') || n.includes('shopee')) return '🛵';
+            return '🏷️';
+          };
+
+          const getPmColor = (name) => {
+            const n = String(name || '').toLowerCase();
+            if (n.includes('cash') || n.includes('tunai')) return '#34d399';
+            if (n.includes('qris')) return '#38bdf8';
+            if (n.includes('debit') || n.includes('edc')) return '#818cf8';
+            if (n.includes('transfer') || n.includes('bank') || n.includes('bca')) return '#a78bfa';
+            if (n.includes('gofood') || n.includes('grab') || n.includes('shopee')) return '#f97316';
+            return '#fbbf24';
+          };
+
+          return (
+            <div style={{ flex: 1, padding: '20px', overflowY: 'auto', width: '100%' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: 'var(--pos-txt-primary)', marginBottom: '4px' }}>Laporan Omzet & Performa Outlet</h2>
+              <p style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', marginBottom: '20px' }}>Analisis Ringkas Omset Outlet {currentOutlet.name}</p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '20px' }}>
+                <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>TOTAL OMSET GROSS</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#34d399', marginTop: '6px' }}>{formatRupiah(totalSalesGross)}</div>
+                </div>
+                <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>TOTAL STRUK NOTA</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#38bdf8', marginTop: '6px' }}>{outletTransactions.length} Struk</div>
+                </div>
+                <div style={{ background: 'var(--pos-bg-card)', padding: '18px', borderRadius: '16px', border: '1px solid var(--pos-border)' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--pos-txt-secondary)', fontWeight: '700' }}>RATA-RATA NILAI STRUK</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#818cf8', marginTop: '6px' }}>
+                    {formatRupiah(outletTransactions.length > 0 ? totalSalesGross / outletTransactions.length : 0)}
+                  </div>
                 </div>
               </div>
+
+              {/* PENJABARAN OMZET PER METODE PEMBAYARAN */}
+              <div style={{ background: 'var(--pos-bg-card)', borderRadius: '16px', padding: '20px', border: '1px solid var(--pos-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>💳</span>
+                      <span>Penjabaran Omzet Berdasarkan Metode Pembayaran</span>
+                    </h3>
+                    <p style={{ fontSize: '0.76rem', color: 'var(--pos-txt-secondary)', margin: '4px 0 0 0' }}>
+                      Rincian penerimaan omzet outlet per kanal metode pembayaran kasir POS
+                    </p>
+                  </div>
+                  <span style={{ fontSize: '0.74rem', fontWeight: '800', background: 'rgba(99,102,241,0.15)', color: '#818cf8', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.3)' }}>
+                    {tab6PaymentList.length} Kanal Pembayaran
+                  </span>
+                </div>
+
+                {tab6PaymentList.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.80rem' }}>
+                    Belum ada transaksi dengan metode pembayaran.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                    {tab6PaymentList.map((pm, idx) => {
+                      const pct = totalSalesGross > 0 ? ((pm.amount / totalSalesGross) * 100).toFixed(1) : '0.0';
+                      const color = getPmColor(pm.name);
+                      const icon = getPmIcon(pm.name);
+
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            background: 'var(--pos-bg-app)',
+                            borderRadius: '12px',
+                            padding: '14px',
+                            border: '1px solid var(--pos-border)',
+                            borderLeft: `4px solid ${color}`,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '1.2rem' }}>{icon}</span>
+                              <div>
+                                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
+                                  {pm.name}
+                                </div>
+                                <div style={{ fontSize: '0.70rem', color: 'var(--pos-txt-secondary)' }}>
+                                  {pm.count} Struk Terverifikasi
+                                </div>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: '0.74rem', fontWeight: '900', color: color, background: `${color}15`, padding: '2px 6px', borderRadius: '6px' }}>
+                              {pct}%
+                            </span>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '1.15rem', fontWeight: '900', color: color, letterSpacing: '-0.02em' }}>
+                              {formatRupiah(pm.amount)}
+                            </div>
+                          </div>
+
+                          {/* Visual Progress Bar */}
+                          <div style={{ width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(100, Number(pct))}%`, height: '100%', background: color, borderRadius: '999px', transition: 'width 0.3s ease' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB 7: HALAMAN SETTING POS MOBILE */}
         {(activeNavTab === 'pos_settings' || activeNavTab === 'printer_setting') && (
