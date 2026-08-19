@@ -977,7 +977,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
   );
 }
 
-export default function SalesTransactionsPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
+export default function SalesTransactionsPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark', onRefreshFromServer }) {
   const T = getThemePalette(themeMode);
 
   const [activeTab, setActiveTab] = useState('omzet');
@@ -990,48 +990,37 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const [isAutoSyncEnabled, setIsAutoSyncEnabled] = useState(true);
   const [syncPulse, setSyncPulse] = useState(false);
 
-  // Periodic Auto Sync effect (Fetches live data from server every 10 seconds)
+  // Reactive listener: update visual indicator whenever masterData updates from App.jsx global polling
   useEffect(() => {
-    if (!isAutoSyncEnabled) return;
-    const interval = setInterval(() => {
-      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
-        .then(res => res.ok ? res.json() : null)
-        .then(serverData => {
-          if (serverData && typeof serverData === 'object' && Array.isArray(serverData.salesTransactions)) {
-            setMasterData(prev => ({
-              ...prev,
-              ...serverData
-            }));
-            setSyncPulse(true);
-            setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour12: false }));
-            setTimeout(() => setSyncPulse(false), 1200);
-          }
-        })
-        .catch(() => {});
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [isAutoSyncEnabled]);
+    setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour12: false }));
+    setSyncPulse(true);
+    const timer = setTimeout(() => setSyncPulse(false), 1200);
+    return () => clearTimeout(timer);
+  }, [masterData._lastUpdated, masterData.salesTransactions?.length]);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch(getApiUrl('/api/master-data'), { cache: 'no-store' });
-      if (res.ok) {
-        const serverData = await res.json();
-        if (serverData && typeof serverData === 'object') {
-          setMasterData(prev => ({
-            ...prev,
-            ...serverData,
-            _lastUpdated: Date.now()
-          }));
+      if (typeof onRefreshFromServer === 'function') {
+        await onRefreshFromServer(true);
+      } else {
+        const res = await fetch(getApiUrl('/api/master-data'), { cache: 'no-store' });
+        if (res.ok) {
+          const serverData = await res.json();
+          if (serverData && typeof serverData === 'object') {
+            setMasterData(prev => ({
+              ...prev,
+              ...serverData,
+              _lastUpdated: Date.now()
+            }));
+          }
         }
       }
     } catch (err) {
       console.error('Error syncing POS transactions from server:', err);
     } finally {
       setIsSyncing(false);
-      const nowStr = new Date().toLocaleTimeString('id-ID', { hour12: false });
-      setLastSyncTime(nowStr);
+      setLastSyncTime(new Date().toLocaleTimeString('id-ID', { hour12: false }));
     }
   };
 
@@ -1353,7 +1342,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   };
 
   // Submit New Sales Transaction (Auto syncs with Omzet and Mobile APK)
-  const handleSubmitTransaction = (e) => {
+  const handleSubmitTransaction = async (e) => {
     e.preventDefault();
     const numAmount = parseFloat(amount);
     const numDiscount = parseFloat(discountAmount) || 0;
@@ -1362,10 +1351,6 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       alert('Mohon masukkan Nominal Penjualan yang valid');
       return;
     }
-
-    const updated = { ...masterData };
-    if (!updated.salesTransactions) updated.salesTransactions = [];
-    if (!updated.customers) updated.customers = [];
 
     const todayStr = new Date().toISOString().split('T')[0];
     const newTx = {
@@ -1383,19 +1368,19 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
       void_reason: txStatus === 'Void' ? voidReason : null
     };
 
-    updated.salesTransactions.unshift(newTx);
-
-    // Update Customer Spend & Tier if customer linked and transaction is Success (not Voided)
-    if (customerId && txStatus !== 'Void') {
-      const custIdx = updated.customers.findIndex(c => c.id === parseInt(customerId));
-      if (custIdx !== -1) {
-        const oldSpend = updated.customers[custIdx].total_spend || 0;
-        const newSpend = oldSpend + (numAmount - numDiscount);
-        updated.customers[custIdx].total_spend = newSpend;
+    try {
+      await fetch(getApiUrl('/api/pos/transaction'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTx)
+      });
+      if (typeof onRefreshFromServer === 'function') {
+        await onRefreshFromServer(true);
       }
+    } catch (err) {
+      console.error('Error saving transaction to server:', err);
     }
 
-    setMasterData(updated);
     setShowAddModal(false);
     setAmount('');
     setDiscountAmount('0');
