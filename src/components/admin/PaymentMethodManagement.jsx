@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CreditCard, Plus, Search, Edit3, Trash2, X, CheckCircle2, Wallet, QrCode, Banknote, Landmark, HelpCircle, ArrowUpDown } from 'lucide-react';
+import { CreditCard, Plus, Search, Edit3, Trash2, X, CheckCircle2, Wallet, QrCode, Banknote, Landmark, HelpCircle, ArrowUpDown, Globe, Smartphone } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
@@ -27,9 +27,11 @@ export default function PaymentMethodManagement({ masterData, setMasterData, use
 
   const paymentCodeOptions = [
     { value: 'Cash', label: 'Cash (Kas Tunai)', icon: Banknote },
-    { value: 'Transfer', label: 'Transfer (Transfer Bank)', icon: Landmark },
-    { value: 'QRIS', label: 'QRIS (Barcode Instant)', icon: QrCode },
-    { value: 'E-Wallet', label: 'E-Wallet (Dompet Digital)', icon: Wallet },
+    { value: 'Transfer Bank', label: 'Transfer Bank (BCA, Mandiri, BRI, dll.)', icon: Landmark },
+    { value: 'Daring Online', label: 'Daring Online (GoFood, GrabFood, ShopeeFood, dll.)', icon: Globe },
+    { value: 'QRIS', label: 'QRIS (Barcode Instant & Static)', icon: QrCode },
+    { value: 'Debit / EDC', label: 'Debit / EDC Bank (Kartu EDC)', icon: CreditCard },
+    { value: 'E-Wallet', label: 'E-Wallet (GoPay, OVO, DANA, LinkAja)', icon: Wallet },
     { value: 'Pendapatan Lain-lain', label: 'Pendapatan Lain-lain (Voucher / Lainnya)', icon: HelpCircle }
   ];
 
@@ -37,10 +39,16 @@ export default function PaymentMethodManagement({ masterData, setMasterData, use
     switch (code) {
       case 'Cash':
         return { bg: T.successBg, color: T.success, icon: Banknote };
+      case 'Transfer Bank':
       case 'Transfer':
         return { bg: T.infoBg, color: T.info, icon: Landmark };
+      case 'Daring Online':
+        return { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316', icon: Globe };
       case 'QRIS':
         return { bg: T.accentGoldBg, color: T.accentGold, icon: QrCode };
+      case 'Debit / EDC':
+      case 'EDC':
+        return { bg: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', icon: CreditCard };
       case 'E-Wallet':
         return { bg: T.warningBg, color: T.warning, icon: Wallet };
       default:
