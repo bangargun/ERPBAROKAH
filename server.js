@@ -917,6 +917,7 @@ const syncToMySQL = async (masterData) => {
     for (const t of transactions) {
       if (!t || !t.id) continue;
       const txId = String(t.id);
+      const txDate = typeof t.date === 'string' ? t.date.substring(0, 10) : (t.entry_date || (t.created_at ? String(t.created_at).substring(0, 10) : new Date().toISOString().split('T')[0]));
       let txTime = '12:00:00';
       if (t.time && typeof t.time === 'string') {
         const cleanT = t.time.replace(/\./g, ':').trim();
