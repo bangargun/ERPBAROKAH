@@ -695,7 +695,14 @@ const getMasterDataFromMySQL = async () => {
         });
 
 
-        const mergedAllTx = Array.from(txMap.values()).sort((a, b) => {
+        const delSalesSet = new Set((masterData.deletedSalesIds || []).map(x => String(x)));
+        const mergedAllTx = Array.from(txMap.values()).filter(t => {
+          if (!t) return false;
+          const k1 = String(t.id || '');
+          const k2 = String(t.receipt_no || '');
+          const k3 = String(t.receiptNo || '');
+          return !delSalesSet.has(k1) && !delSalesSet.has(k2) && !delSalesSet.has(k3);
+        }).sort((a, b) => {
           const dateA = String(a.date || a.entry_date || a.transaction_date || a.created_at || '').substring(0, 10);
           const dateB = String(b.date || b.entry_date || b.transaction_date || b.created_at || '').substring(0, 10);
           if (dateA !== dateB) return dateB.localeCompare(dateA);
@@ -2357,8 +2364,9 @@ app.post('/api/pos/transaction', async (req, res) => {
       }
     }
 
-    // 2. Update masterData cache in background
-    getMasterDataFromMySQL().then(async (cur) => {
+    // 2. Synchronous update to masterData JSON blob so immediate GET /api/master-data has the latest transaction
+    try {
+      const cur = await getMasterDataFromMySQL();
       const current = cur || defaultMasterData;
       const salesTx = current.salesTransactions || [];
       if (!salesTx.some(t => String(t.id) === txId)) {
@@ -2367,7 +2375,9 @@ app.post('/api/pos/transaction', async (req, res) => {
         current._lastUpdated = Date.now();
         await saveMasterDataToMySQL(current);
       }
-    }).catch(() => {});
+    } catch (saveErr) {
+      console.warn('Warning updating masterData blob for new transaction:', saveErr.message);
+    }
 
     return res.json({ success: true, message: 'Transaksi berhasil disimpan ke MySQL', id: txId });
   } catch (err) {
