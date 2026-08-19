@@ -653,48 +653,47 @@ const getMasterDataFromMySQL = async () => {
         salesRows.forEach(r => {
           const k = String(r.id || r.receipt_no || '');
           if (!k) return;
-          const dtStr = typeof r.date === 'string' 
-            ? r.date.substring(0, 10) 
+
+          // JSON blob adalah sumber utama — JANGAN overwrite data blob yang sudah ada
+          // Tabel relasional hanya menambah baris yang BENAR-BENAR tidak ada di blob
+          if (txMap.has(k)) return; // ← blob sudah punya data ini, skip
+
+          const dtStr = typeof r.date === 'string'
+            ? r.date.substring(0, 10)
             : (r.date ? (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)) : '');
-          const existing = txMap.get(k);
           const mappedTx = {
-            ...(existing || {}),
             id: r.id,
-            receipt_no: r.receipt_no || existing?.receipt_no || r.id,
-            receiptNo: r.receipt_no || existing?.receiptNo || r.id,
-            date: dtStr || existing?.date || '',
-            entry_date: dtStr || existing?.entry_date || '',
-            transaction_date: dtStr || existing?.transaction_date || '',
-            time: (r.time && !String(r.time).startsWith('00:00:')) ? String(r.time) : (r.created_at ? (typeof r.created_at === 'string' ? r.created_at.split(' ')[1] : String(r.created_at).substring(11, 19)) : existing?.time || '12:00:00'),
-            created_at: r.created_at || existing?.created_at,
-            outlet_id: r.outlet_id || existing?.outlet_id,
-            branch_id: r.branch_id || r.outlet_id || existing?.branch_id,
-            branch_name: r.branch_name || existing?.branch_name || 'AYAM BAKAR SURABAYA TEBING TINGGI',
-            outlet: r.outlet || r.branch_name || existing?.outlet || 'AYAM BAKAR SURABAYA TEBING TINGGI',
-            customer_name: r.customer_name || existing?.customer_name || 'Pelanggan Umum',
-            table_number: r.table_number || existing?.table_number || 'N/A',
-            order_type: r.order_type || existing?.order_type || 'Dine In',
-            subtotal: Number(r.subtotal || existing?.subtotal || r.amount || 0),
-            discount: Number(r.discount_amount || existing?.discount || 0),
-            discount_amount: Number(r.discount_amount || existing?.discount_amount || 0),
-            amount: Number(r.amount || existing?.amount || 0),
-            total: Number(r.amount || existing?.total || 0),
-            paid_amount: Number(r.paid_amount || existing?.paid_amount || r.amount || 0),
-            change_amount: Number(r.change_amount || existing?.change_amount || 0),
-            payment_method: r.payment_method || existing?.payment_method || 'Cash',
-            cashier: r.cashier || existing?.cashier || 'Kasir POS',
-            notes: r.notes || existing?.notes || '-',
-            status: r.status || existing?.status || 'approved',
-            type: r.type || existing?.type || 'sale',
-            items: (existing && Array.isArray(existing.items) && existing.items.length > 0) ? existing.items : [{
-              name: r.notes && !r.notes.startsWith('Take Away') && !r.notes.startsWith('Dine In') ? r.notes : 'Menu Paket Restoran',
-              qty: 1,
-              price_unit: Number(r.amount || 0),
-              amount: Number(r.amount || 0)
-            }]
+            receipt_no: r.receipt_no || r.id,
+            receiptNo: r.receipt_no || r.id,
+            date: dtStr || '',
+            entry_date: dtStr || '',
+            transaction_date: dtStr || '',
+            time: (r.time && !String(r.time).startsWith('00:00:')) ? String(r.time) : (r.created_at ? (typeof r.created_at === 'string' ? r.created_at.split(' ')[1] : String(r.created_at).substring(11, 19)) : '12:00:00'),
+            created_at: r.created_at,
+            outlet_id: r.outlet_id,
+            branch_id: r.branch_id || r.outlet_id,
+            branch_name: r.branch_name || 'Restoran',
+            outlet: r.outlet || r.branch_name || 'Restoran',
+            customer_name: r.customer_name || 'Pelanggan Umum',
+            table_number: r.table_number || 'N/A',
+            order_type: r.order_type || 'Dine In',
+            subtotal: Number(r.subtotal || r.amount || 0),
+            discount: Number(r.discount_amount || 0),
+            discount_amount: Number(r.discount_amount || 0),
+            amount: Number(r.amount || 0),
+            total: Number(r.amount || 0),
+            paid_amount: Number(r.paid_amount || r.amount || 0),
+            change_amount: Number(r.change_amount || 0),
+            payment_method: r.payment_method || 'Cash',
+            cashier: r.cashier || 'Kasir POS',
+            notes: r.notes || '-',
+            status: r.status || 'approved',
+            type: r.type || 'sale',
+            items: [{ name: 'Menu Paket Restoran', qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }]
           };
           txMap.set(k, mappedTx);
         });
+
 
         const mergedAllTx = Array.from(txMap.values()).sort((a, b) => {
           const dateA = String(a.date || a.entry_date || a.transaction_date || a.created_at || '').substring(0, 10);
