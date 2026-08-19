@@ -183,6 +183,7 @@ export default function ManualReportUpdatePage({
       )
     ].filter(r => !isDeletedReport(r));
 
+    const map = new Map();
     combineSources.forEach(r => {
       if (r && (r.id != null || r.report_no)) {
         const key = String(r.report_no || r.id);
