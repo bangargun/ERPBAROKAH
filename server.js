@@ -2299,7 +2299,13 @@ app.post('/api/pos/transaction', async (req, res) => {
     }
 
     const txId = String(tx.id);
+    const txRcpt = String(tx.receipt_no || tx.receiptNo || '');
     const txDate = tx.date || new Date().toISOString().split('T')[0];
+
+    // Reject legacy test dates or permanently deleted transactions
+    if (txDate < '2026-08-13') {
+      return res.status(400).json({ success: false, error: 'Transaksi uji coba sebelum 13 Agustus 2026 telah dibersihkan' });
+    }
     const formatTimeHHMMSS = (t) => {
       if (t && typeof t === 'string') {
         const cleanT = t.replace(/\./g, ':').trim();
