@@ -33,6 +33,9 @@ import {
   ShieldAlert,
   ShieldCheck,
   Search,
+  Banknote,
+  Target,
+  XCircle,
   LayoutGrid,
   List,
   X
@@ -242,6 +245,10 @@ export default function FinancialOverview({
     let takeAwaySales = 0;
     let dineInCount = 0;
     let takeAwayCount = 0;
+    let cashSales = 0;
+    let nonCashSales = 0;
+    let cashCount = 0;
+    let nonCashCount = 0;
 
     periodTx.forEach(t => {
       const amt = Number(t.amount || t.total || 0);
@@ -254,6 +261,16 @@ export default function FinancialOverview({
       } else {
         dineInSales += amt;
         dineInCount += 1;
+      }
+
+      const pm = String(t.payment_method || t.payment_type || '').toLowerCase();
+      const isCash = pm.includes('cash') || pm.includes('tunai') || (!pm && t.type === 'cash');
+      if (isCash) {
+        cashSales += amt;
+        cashCount += 1;
+      } else {
+        nonCashSales += amt;
+        nonCashCount += 1;
       }
 
       if (Array.isArray(t.items) && t.items.length > 0) {
@@ -279,6 +296,42 @@ export default function FinancialOverview({
     const dineInPct = totalDineTakeRev > 0 ? ((dineInSales / totalDineTakeRev) * 100).toFixed(1) : '0.0';
     const takeAwayPct = totalDineTakeRev > 0 ? ((takeAwaySales / totalDineTakeRev) * 100).toFixed(1) : '0.0';
 
+    const totalCashNonCashRev = cashSales + nonCashSales;
+    const cashPct = totalCashNonCashRev > 0 ? ((cashSales / totalCashNonCashRev) * 100).toFixed(1) : (totalRevenue > 0 ? '100.0' : '0.0');
+    const nonCashPct = totalCashNonCashRev > 0 ? ((nonCashSales / totalCashNonCashRev) * 100).toFixed(1) : '0.0';
+
+    // Outlets Target Achievement (Pencapaian Target Penjualan per Outlet)
+    let targetReachedCount = 0;
+    let targetMissedCount = 0;
+    const totalOutletsCount = allOutlets.length || 1;
+    const activeDaysCount = Math.max(1, activeDateList.length);
+
+    allOutlets.forEach(o => {
+      const oTx = allSalesTx.filter(t => {
+        const d = String(t.date || t.entry_date || t.transaction_date || t.timestamp || todayStr).substring(0, 10);
+        return datesSet.has(d) && (String(t.outlet_id) === String(o.id) || String(t.branch_id) === String(o.id) || String(t.outlet) === String(o.id));
+      });
+      const oApproved = allApprovedFinance.filter(f => {
+        const d = String(f.date || f.entry_date || f.created_at || todayStr).substring(0, 10);
+        return datesSet.has(d) && (String(f.outlet_id) === String(o.id) || String(f.branch_id) === String(o.id));
+      });
+      const oTxRev = oTx.reduce((s, t) => s + (Number(t.amount) || Number(t.total) || 0), 0);
+      const oAppRev = oApproved.reduce((s, f) => s + (Number(f.net_sales) || 0), 0);
+      const oRevenue = Math.max(oTxRev, oAppRev);
+
+      const monthlyBudget = Number(o.monthly_budget || o.target_sales || 45000000);
+      const dailyTarget = monthlyBudget > 0 ? monthlyBudget / 30 : 1500000;
+      const targetForPeriod = dailyTarget * activeDaysCount;
+
+      if (oRevenue >= targetForPeriod && oRevenue > 0) {
+        targetReachedCount += 1;
+      } else {
+        targetMissedCount += 1;
+      }
+    });
+
+    const targetReachedPct = totalOutletsCount > 0 ? Math.round((targetReachedCount / totalOutletsCount) * 100) : 0;
+
     return {
       totalRevenue,
       totalExpense,
@@ -298,9 +351,19 @@ export default function FinancialOverview({
       takeAwayCount,
       dineInPct,
       takeAwayPct,
+      cashSales,
+      nonCashSales,
+      cashCount,
+      nonCashCount,
+      cashPct,
+      nonCashPct,
+      targetReachedCount,
+      targetMissedCount,
+      targetReachedPct,
+      totalOutletsCount,
       activeOutletCount: allOutlets.length
     };
-  }, [activeDateList, allSalesTx, allApprovedFinance, allFinancialRecords, activeOutletFilter, allOutlets.length, todayStr]);
+  }, [activeDateList, allSalesTx, allApprovedFinance, allFinancialRecords, activeOutletFilter, allOutlets, todayStr]);
 
   // ------------------------------------------------------------------
   // 2. SALES TREND DATA (DAILY CHART)
@@ -939,6 +1002,104 @@ export default function FinancialOverview({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.70rem', color: T.success, fontWeight: '700', marginTop: '4px' }}>
               <span>Rata-rata: {kpiMetrics.itemsPerTicket} Menu / Struk</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 9: PERBANDINGAN PENJUALAN CASH VS NON-CASH */}
+        <div style={{
+          background: T.cardBg,
+          border: `1px solid ${T.borderStrong}`,
+          borderRadius: '14px',
+          padding: '16px 18px',
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              CASH VS NON-CASH
+            </span>
+            <div style={{ padding: '6px', borderRadius: '8px', background: T.successBg, color: T.success }}>
+              <Banknote size={16} />
+            </div>
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+              <div>
+                <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontWeight: '700', display: 'block' }}>💵 Kas Tunai:</span>
+                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: T.success, letterSpacing: '-0.02em' }}>
+                  {formatRupiah(kpiMetrics.cashSales)}
+                </span>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontWeight: '700', display: 'block' }}>💳 Non-Tunai:</span>
+                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: T.info, letterSpacing: '-0.02em' }}>
+                  {formatRupiah(kpiMetrics.nonCashSales)}
+                </span>
+              </div>
+            </div>
+
+            {/* Visual Proportion Bar */}
+            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
+              <div style={{ width: `${kpiMetrics.cashPct}%`, background: T.success, transition: 'width 0.3s ease' }} title={`Cash: ${kpiMetrics.cashPct}%`} />
+              <div style={{ width: `${kpiMetrics.nonCashPct}%`, background: T.info, transition: 'width 0.3s ease' }} title={`Non-Cash: ${kpiMetrics.nonCashPct}%`} />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', fontWeight: '700' }}>
+              <span style={{ color: T.success }}>Tunai: {kpiMetrics.cashPct}% ({kpiMetrics.cashCount} Nota)</span>
+              <span style={{ color: T.info }}>Non-Tunai: {kpiMetrics.nonCashPct}% ({kpiMetrics.nonCashCount} Nota)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 10: PENCAPAIAN TARGET OUTLET */}
+        <div style={{
+          background: T.cardBg,
+          border: `1px solid ${T.borderStrong}`,
+          borderRadius: '14px',
+          padding: '16px 18px',
+          boxShadow: T.shadowSm,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              PENCAPAIAN TARGET OUTLET
+            </span>
+            <div style={{ padding: '6px', borderRadius: '8px', background: T.accentGoldBg, color: T.accentGold }}>
+              <Target size={16} />
+            </div>
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+              <div>
+                <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontWeight: '700', display: 'block' }}>🎯 Capai Target:</span>
+                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: T.success, letterSpacing: '-0.02em' }}>
+                  {kpiMetrics.targetReachedCount} Outlet
+                </span>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontWeight: '700', display: 'block' }}>⚠️ Belum Capai:</span>
+                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: T.danger, letterSpacing: '-0.02em' }}>
+                  {kpiMetrics.targetMissedCount} Outlet
+                </span>
+              </div>
+            </div>
+
+            {/* Visual Proportion Bar */}
+            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
+              <div style={{ width: `${kpiMetrics.targetReachedPct}%`, background: T.success, transition: 'width 0.3s ease' }} title={`Capai Target: ${kpiMetrics.targetReachedPct}%`} />
+              <div style={{ width: `${100 - kpiMetrics.targetReachedPct}%`, background: T.danger, transition: 'width 0.3s ease' }} title={`Belum Capai: ${100 - kpiMetrics.targetReachedPct}%`} />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', fontWeight: '700' }}>
+              <span style={{ color: T.success }}>{kpiMetrics.targetReachedPct}% Tercapai ({kpiMetrics.targetReachedCount}/{kpiMetrics.totalOutletsCount})</span>
+              <span style={{ color: T.danger }}>{100 - kpiMetrics.targetReachedPct}% Belum Tercapai</span>
             </div>
           </div>
         </div>
