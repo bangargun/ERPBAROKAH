@@ -509,4 +509,12 @@ Prinsip dasar arsitektur data: **Sederhana, Satu Jalur Tunggal, Tanpa Duplikasi 
 - **Tombol "Sync Mobile APK"**: Hanya memicu read-refresh (`GET /api/master-data`) untuk mengambil data terbaru dari database, tanpa mengirim payload POST yang berpotensi merusak state.
 - **Pembersihan Data Terhapus**: Data yang sudah dihapus permanen di-purge langsung dari database sehingga tidak menimbulkan selisih antara data mentah dan data terfilter.
 
+### 4. Alur Koreksi & Upload Excel Transaksi (Web Admin ➔ Database ➔ POS Kasir)
+1. **Koreksi / Upload dari Web Admin**: Admin dapat mengedit diskon/nominal transaksi yang salah input atau mengunggah transaksi historis via Excel.
+2. **Sinkronisasi Database**: Data langsung disimpan permanen ke tabel MySQL `sales_transactions`.
+3. **Pembaruan Laporan**: Seluruh laporan (Dashboard, Omzet, Laba Rugi) di Web Admin otomatis menyesuaikan dengan angka terkoreksi.
+4. **Respon POS Kasir**: POS Kasir mengunduh data terkoreksi saat membuka menu Riwayat Transaksi tanpa mengganggu aktivitas penjualan kasir yang sedang berjalan. Kasir tidak bisa menimpa kembali data yang sudah dikoreksi Admin.
+
+
+
 
