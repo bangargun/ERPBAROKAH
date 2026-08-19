@@ -244,8 +244,40 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
   const [endDate, setEndDate] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [orderTypeFilter, setOrderTypeFilter] = useState('ALL');
   const [itemFilter, setItemFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // HELPER FORMAT ORDER TYPE (DINE IN VS TAKE AWAY)
+  const getOrderTypeInfo = (item) => {
+    if (!item) return { type: 'Dine In', isTakeAway: false, label: 'Dine In', table: '' };
+
+    const ot = String(item.order_type || item.type || item.service_type || item.orderType || item.notes || '').toLowerCase();
+    const isTakeAway = ot.includes('take') || ot.includes('away') || ot.includes('bungkus') || ot.includes('delivery') || ot.includes('online') || ot.includes('gofood') || ot.includes('grab') || ot.includes('shopee');
+
+    const tableNo = item.table_no || item.table || item.no_meja || (ot.match(/meja\s*(\d+)/i) ? ot.match(/meja\s*(\d+)/i)[0] : '');
+
+    if (isTakeAway) {
+      let sub = 'Take Away';
+      if (ot.includes('gofood')) sub = 'GoFood';
+      else if (ot.includes('grab')) sub = 'GrabFood';
+      else if (ot.includes('shopee')) sub = 'ShopeeFood';
+      else if (ot.includes('delivery')) sub = 'Delivery';
+      return {
+        type: 'Take Away',
+        isTakeAway: true,
+        label: sub,
+        table: ''
+      };
+    }
+
+    return {
+      type: 'Dine In',
+      isTakeAway: false,
+      label: tableNo ? `Dine In (${tableNo})` : 'Dine In',
+      table: tableNo
+    };
+  };
 
   const handleYearChange = (yr) => {
     setSelectedYear(yr);
@@ -660,9 +692,10 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     const dateStr = startDate && endDate ? `${startDate}_sd_${endDate}` : startDate || endDate || new Date().toLocaleDateString('en-CA');
     const filename = `riwayat_transaksi_${outletStr}_${dateStr}.csv`;
 
-    const headers = ['No', 'Tanggal', 'Waktu', 'No Transaksi', 'Outlet', 'Kasir', 'Pelanggan', 'Metode Bayar', 'Items', 'Total (Rp)', 'Status'];
+    const headers = ['No', 'Tanggal', 'Waktu', 'No Transaksi', 'Outlet', 'Kasir', 'Pelanggan', 'Tipe Pesanan', 'Metode Bayar', 'Items', 'Total (Rp)', 'Status'];
     const csvRows = [headers.join(',')];
     rows.forEach((t, i) => {
+      const orderInfo = getOrderTypeInfo(t);
       const itemNames = (t.items || []).map(it => `${it.name}(x${it.qty || 1})`).join('; ') || t.item_name || '-';
       csvRows.push([
         i + 1,
@@ -672,6 +705,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
         `"${t.branch_name || '-'}"`,
         `"${t.cashier || '-'}"`,
         `"${t.customer_name || '-'}"`,
+        `"${orderInfo.label}"`,
         `"${t.payment_method || '-'}"`,
         `"${itemNames}"`,
         Number(t.amount || t.total || 0),
@@ -701,14 +735,20 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     const pdfFilename = `riwayat_transaksi_${outletStr.replace(/\s+/g,'_').toLowerCase()}_${dateStr.replace(/\s+/g,'')}.pdf`;
 
     const tableRows = rows.map((t, i) => {
+      const orderInfo = getOrderTypeInfo(t);
       const itemNames = (t.items || []).map(it => `${it.name} (x${it.qty||1})`).join('<br>') || t.item_name || '-';
       const statusColor = t.status === 'Void' ? '#ef4444' : '#22c55e';
+      const orderBg = orderInfo.isTakeAway ? '#fef3c7' : '#e0e7ff';
+      const orderColor = orderInfo.isTakeAway ? '#d97706' : '#4338ca';
+
       return `<tr style="border-bottom:1px solid #e2e8f0">
         <td style="padding:6px 10px;text-align:center;color:#64748b">${i+1}</td>
         <td style="padding:6px 10px">${t.date||'-'}<br><small style="color:#94a3b8">${t.time||'-'}</small></td>
         <td style="padding:6px 10px;font-family:monospace;font-size:0.8em">${t.id||t.receipt_no||'-'}</td>
         <td style="padding:6px 10px">${t.branch_name||'-'}</td>
         <td style="padding:6px 10px">${t.cashier||'-'}</td>
+        <td style="padding:6px 10px">${t.customer_name||'-'}</td>
+        <td style="padding:6px 10px;text-align:center"><span style="padding:2px 6px;border-radius:6px;font-size:0.76em;font-weight:700;background:${orderBg};color:${orderColor}">${orderInfo.label}</span></td>
         <td style="padding:6px 10px">${t.payment_method||'-'}</td>
         <td style="padding:6px 10px;font-size:0.82em">${itemNames}</td>
         <td style="padding:6px 10px;text-align:right;font-weight:700">Rp ${Number(t.amount||t.total||0).toLocaleString('id-ID')}</td>
@@ -730,9 +770,9 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       <div style="text-align:right;color:#94a3b8;font-size:0.8em">Dicetak: ${new Date().toLocaleString('id-ID')}</div>
     </div>
     <table><thead><tr>
-      <th style="width:40px">#</th><th>Tanggal</th><th>No Transaksi</th><th>Outlet</th><th>Kasir</th><th>Metode</th><th>Items</th><th style="text-align:right">Total</th><th style="text-align:center">Status</th>
+      <th style="width:40px">#</th><th>Tanggal</th><th>No Transaksi</th><th>Outlet</th><th>Kasir</th><th>Pelanggan</th><th style="text-align:center">Tipe Pesanan</th><th>Metode</th><th>Items</th><th style="text-align:right">Total</th><th style="text-align:center">Status</th>
     </tr></thead><tbody>${tableRows}</tbody>
-    <tfoot><tr class="total-row"><td colspan="7" style="padding:10px;text-align:right">TOTAL OMZET</td><td style="padding:10px;text-align:right">Rp ${totalAmt.toLocaleString('id-ID')}</td><td></td></tr></tfoot>
+    <tfoot><tr class="total-row"><td colspan="9" style="padding:10px;text-align:right">TOTAL OMZET</td><td style="padding:10px;text-align:right">Rp ${totalAmt.toLocaleString('id-ID')}</td><td></td></tr></tfoot>
     </table></body></html>`;
 
     const win = window.open('', '_blank');
@@ -772,6 +812,12 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     if (outletFilter !== 'ALL' && Number(item.outlet_id) !== Number(outletFilter)) return false;
     if (startDate && item.date < startDate) return false;
     if (endDate && item.date > endDate) return false;
+
+    if (orderTypeFilter !== 'ALL') {
+      const info = getOrderTypeInfo(item);
+      if (orderTypeFilter === 'DineIn' && info.isTakeAway) return false;
+      if (orderTypeFilter === 'TakeAway' && !info.isTakeAway) return false;
+    }
 
     if (itemFilter !== 'ALL') {
       const hasItem = (item.items || []).some(it => it.name === itemFilter) || item.item_name === itemFilter;
@@ -1209,6 +1255,30 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
             </select>
           </div>
 
+          {/* Tipe Pesanan Filter (Dine In / Take Away) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <select
+              value={orderTypeFilter}
+              onChange={e => setOrderTypeFilter(e.target.value)}
+              style={{
+                padding: '0 10px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                background: T.cardBg2,
+                color: T.txtPrimary,
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                height: '36px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="ALL">Semua Tipe Pesanan</option>
+              <option value="DineIn">🍽️ Dine In (Makan di Tempat)</option>
+              <option value="TakeAway">🛍️ Take Away (Bawa Pulang / Online)</option>
+            </select>
+          </div>
+
           {/* Date Range Inputs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <input 
@@ -1227,7 +1297,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
           </div>
 
           {/* Reset filter button */}
-          {(startDate || endDate || selectedYear || selectedMonth || outletFilter !== 'ALL' || searchQuery) && (
+          {(startDate || endDate || selectedYear || selectedMonth || outletFilter !== 'ALL' || orderTypeFilter !== 'ALL' || searchQuery) && (
             <button
               onClick={() => {
                 setStartDate('');
@@ -1235,6 +1305,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 setSelectedYear('');
                 setSelectedMonth('');
                 setOutletFilter('ALL');
+                setOrderTypeFilter('ALL');
                 setSearchQuery('');
               }}
               style={{
@@ -1265,6 +1336,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                 <th style={{ padding: '12px 14px' }}>Outlet Cabang</th>
                 <th style={{ padding: '12px 14px' }}>Kasir</th>
                 <th style={{ padding: '12px 14px' }}>Pelanggan</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center' }}>Tipe Pesanan</th>
                 <th style={{ padding: '12px 14px' }}>Items Menu</th>
                 <th style={{ padding: '12px 14px' }}>Metode Bayar</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total (Rp)</th>
@@ -1275,7 +1347,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
             <tbody>
               {paginatedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
+                  <td colSpan={11} style={{ padding: '40px', textAlign: 'center', color: T.txtSecondary }}>
                     Tidak ditemukan data transaksi yang sesuai dengan filter.
                   </td>
                 </tr>
@@ -1285,6 +1357,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                   const itemsList = item.items && Array.isArray(item.items) && item.items.length > 0
                     ? item.items
                     : (item.item_name ? [{ name: item.item_name, qty: item.qty || 1 }] : []);
+                  const orderInfo = getOrderTypeInfo(item);
                   
                   return (
                   <tr key={item.id || idx} style={{ borderBottom: `1px solid ${T.border}`, background: idx % 2 === 0 ? T.cardBg : T.cardBg2 }}>
@@ -1315,12 +1388,44 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
                       {item.cashier || 'Kasir POS'}
                     </td>
 
-                    {/* Pelanggan & Tipe Order */}
+                    {/* Pelanggan */}
                     <td style={{ padding: '10px 14px' }}>
                       <div style={{ fontWeight: '700', color: T.txtPrimary }}>{item.customer_name || 'Pelanggan Umum'}</div>
-                      <span style={{ fontSize: '0.68rem', color: T.accentGold, background: `${T.accentGold}15`, padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                        {item.order_type || 'Dine In'}
-                      </span>
+                    </td>
+
+                    {/* Tipe Pesanan (Dine In / Take Away) */}
+                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                      {orderInfo.isTakeAway ? (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'rgba(249, 115, 22, 0.15)',
+                          color: '#f97316',
+                          border: '1px solid rgba(249, 115, 22, 0.3)'
+                        }}>
+                          🛍️ {orderInfo.label}
+                        </span>
+                      ) : (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.72rem',
+                          fontWeight: '800',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: T.infoBg,
+                          color: T.info,
+                          border: `1px solid ${T.infoBorder}`
+                        }}>
+                          🍽️ {orderInfo.label}
+                        </span>
+                      )}
                     </td>
 
                     {/* Items Menu summary */}
