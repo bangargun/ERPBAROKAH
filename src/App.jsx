@@ -699,6 +699,24 @@ export default function App() {
               }, 200);
             }
 
+            const mergedPaymentMethods = (() => {
+              const map = new Map();
+              const delSet = new Set([
+                ...(prev.deletedPaymentMethodIds || []),
+                ...(serverData.deletedPaymentMethodIds || [])
+              ].map(x => String(x).toLowerCase().trim()));
+
+              (serverData.paymentMethods || initialMasterData.paymentMethods || []).forEach(p => {
+                const k = String(p.id || p.name || '').toLowerCase().trim();
+                if (k && !delSet.has(k)) map.set(k, p);
+              });
+              (prev.paymentMethods || []).forEach(p => {
+                const k = String(p.id || p.name || '').toLowerCase().trim();
+                if (k && !delSet.has(k)) map.set(k, p);
+              });
+              return Array.from(map.values());
+            })();
+
             lastRemoteTsRef.current = remoteTs;
             return {
               ...initialMasterData,
@@ -707,6 +725,7 @@ export default function App() {
               categories:           mergedCategories,
               ingredients:          mergedIngredients,
               products:             mergedProducts,
+              paymentMethods:       mergedPaymentMethods,
               deletedCategoriesIds:  Array.from(deletedCatIds),
               deletedIngredientIds:  Array.from(deletedIngredientIds),
               deletedProductIds:     Array.from(deletedProductIds),

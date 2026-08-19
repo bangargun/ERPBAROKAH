@@ -72,16 +72,17 @@ export default function PaymentMethodManagement({ masterData, setMasterData, use
     }
 
     const updated = { ...masterData };
-    if (!updated.paymentMethods) updated.paymentMethods = [];
+    const currentList = Array.isArray(updated.paymentMethods) ? [...updated.paymentMethods] : [];
 
     if (editingPayment) {
-      updated.paymentMethods = updated.paymentMethods.map(p => {
+      updated.paymentMethods = currentList.map(p => {
         if (p.id === editingPayment.id) {
           return {
             ...p,
             code: codeCategory,
             name: name.trim(),
-            status
+            status,
+            _updatedAt: Date.now()
           };
         }
         return p;
@@ -92,9 +93,10 @@ export default function PaymentMethodManagement({ masterData, setMasterData, use
         code: codeCategory,
         name: name.trim(),
         status,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        _updatedAt: Date.now()
       };
-      updated.paymentMethods.unshift(newPayment);
+      updated.paymentMethods = [newPayment, ...currentList];
     }
 
     setMasterData(updated);
@@ -105,7 +107,12 @@ export default function PaymentMethodManagement({ masterData, setMasterData, use
   const handleDeletePayment = (id, itemName) => {
     if (window.confirm(`Apakah Anda yakin ingin menghapus metode pembayaran "${itemName}"?`)) {
       const updated = { ...masterData };
-      updated.paymentMethods = updated.paymentMethods.filter(p => p.id !== id);
+      updated.paymentMethods = (updated.paymentMethods || []).filter(p => p.id !== id);
+      updated.deletedPaymentMethodIds = [
+        ...(updated.deletedPaymentMethodIds || []),
+        String(id),
+        String(itemName)
+      ];
       setMasterData(updated);
     }
   };
