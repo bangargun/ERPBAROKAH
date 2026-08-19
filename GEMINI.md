@@ -472,3 +472,39 @@ const layout = {
 3. **Optimasi Katalog Menu Tanpa Gambar (Zero Image Bloat)**:
    - Semua katalog menu dan bahan baku diubah menjadi model SKU & SVG icon modern berkinerja tinggi, sehingga tidak memakan bandwidth maupun media storage disk VPS.
 
+---
+
+## 🔄 15. Arsitektur Jalur Data Sederhana & Stabil (Kasir ↔ Database ↔ Web Admin)
+
+Prinsip dasar arsitektur data: **Sederhana, Satu Jalur Tunggal, Tanpa Duplikasi / Alternatif.**
+
+```
+[POS KASIR APK] ──(1. Bayar/Checkout: POST /api/pos/transaction)──▶ [DATABASE MYSQL]
+       ▲                                                                   │
+       │                                                                   ▼
+(4. Update Menu/Harga)                                         (2. Read: GET /api/master-data)
+       │                                                                   │
+       │                                                                   ▼
+[DATABASE MYSQL] ◀──(3. Ubah Menu/Master: POST /api/master-data)── [WEB ADMIN]
+```
+
+### 1. Alur Penjualan (Kasir POS ➔ Database ➔ Web Admin)
+1. **Input & Bayar di POS**: Kasir memproses transaksi hingga struk tercetak.
+2. **Kirim ke Database**: APK kasir mengirim data transaksi via satu-satunya endpoint resmi: `POST /api/pos/transaction`.
+3. **Penyimpanan Permanen**: Server menyimpan transaksi ke `mris_master_data` (JSON Blob) dan tabel `sales_transactions`.
+4. **Pembaruan Web Admin**: Web Admin membaca data terkini secara terpusat melalui `GET /api/master-data` (single polling loop di `App.jsx`).
+5. **Tampilan Statis & Konsisten**: Data di Web Admin ditampilkan murni sesuai catatan database tanpa modifikasi atau penimpaan lokal.
+
+### 2. Alur Pengaturan (Web Admin ➔ Database ➔ POS Kasir)
+1. **Input Data Master di Web Admin**: Admin mengubah harga menu, menambah kategori, atau mengupdate bahan baku.
+2. **Kirim ke Database**: Web Admin mengirim perubahan via `POST /api/master-data`.
+3. **Proteksi Backend**: Backend memblokir mutasi `salesTransactions` pada endpoint ini (transaksi kasir aman dan tidak bisa tertimpa oleh state Web Admin).
+4. **Pembaruan ke POS Kasir**: POS Kasir mengunduh master data terbaru dari server saat sinkronisasi, menu dan harga langsung terupdate di kasir.
+
+### 3. Ketentuan Mutlak Jalur Tunggal (Anti-Konflik & Anti-Flicker)
+- **Satu Sumber Kebenaran (Single Source of Truth)**: Database MySQL adalah satu-satunya rujukan kebenaran data.
+- **Satu Siklus Sinkronisasi di Web Admin**: Hanya ada satu live polling di tingkat root (`App.jsx`). Dilarang membuat `setInterval` terpisah di sub-halaman (seperti `SalesTransactionsPage`) yang memanggil fetch/POST secara liar.
+- **Tombol "Sync Mobile APK"**: Hanya memicu read-refresh (`GET /api/master-data`) untuk mengambil data terbaru dari database, tanpa mengirim payload POST yang berpotensi merusak state.
+- **Pembersihan Data Terhapus**: Data yang sudah dihapus permanen di-purge langsung dari database sehingga tidak menimbulkan selisih antara data mentah dan data terfilter.
+
+
