@@ -717,6 +717,37 @@ export default function App() {
               return Array.from(map.values());
             })();
 
+            const mergedOutlets = (() => {
+              const map = new Map();
+              const delSet = new Set([
+                ...(prev.deletedOutletIds || []),
+                ...(serverData.deletedOutletIds || [])
+              ].map(x => String(x).toLowerCase().trim()));
+
+              (serverData.outlets || initialMasterData.outlets || []).forEach(o => {
+                const k = String(o.id || o.code || o.name || '').toLowerCase().trim();
+                if (k && !delSet.has(k)) map.set(k, o);
+              });
+
+              (prev.outlets || []).forEach(o => {
+                const k = String(o.id || o.code || o.name || '').toLowerCase().trim();
+                if (k && !delSet.has(k)) {
+                  if (map.has(k)) {
+                    const serverO = map.get(k);
+                    const serverTs = Number(serverO._updatedAt || serverO._lastMutated || 0);
+                    const localTs = Number(o._updatedAt || o._lastMutated || 0);
+                    if (localTs >= serverTs) {
+                      map.set(k, { ...serverO, ...o });
+                    }
+                  } else {
+                    map.set(k, o);
+                  }
+                }
+              });
+
+              return Array.from(map.values());
+            })();
+
             lastRemoteTsRef.current = remoteTs;
             return {
               ...initialMasterData,
@@ -726,6 +757,7 @@ export default function App() {
               ingredients:          mergedIngredients,
               products:             mergedProducts,
               paymentMethods:       mergedPaymentMethods,
+              outlets:              mergedOutlets,
               deletedCategoriesIds:  Array.from(deletedCatIds),
               deletedIngredientIds:  Array.from(deletedIngredientIds),
               deletedProductIds:     Array.from(deletedProductIds),

@@ -164,8 +164,9 @@ export default function OutletManagement({ masterData, setMasterData, userSessio
     setCode(outlet.code || `OTL-00${outlet.id}`);
     setName(outlet.name || '');
     setAddress(outlet.address || '');
-    setTargetOmzet(outlet.target_omzet !== undefined ? outlet.target_omzet : (outlet.target || '50000000'));
-    setEmployeeCount(outlet.employee_count !== undefined ? outlet.employee_count : (outlet.employees || '10'));
+    const currentTarget = outlet.target_omzet !== undefined ? outlet.target_omzet : (outlet.monthly_budget !== undefined ? outlet.monthly_budget : (outlet.target_sales !== undefined ? outlet.target_sales : (outlet.target || '50000000')));
+    setTargetOmzet(String(currentTarget));
+    setEmployeeCount(String(outlet.employee_count !== undefined ? outlet.employee_count : (outlet.employees || '10')));
     setStatus(outlet.status || 'Aktif');
     setShowAddModal(true);
   };
@@ -181,42 +182,56 @@ export default function OutletManagement({ masterData, setMasterData, userSessio
       ...masterData,
       _lastUpdated: Date.now()
     };
-    if (!updated.outlets) updated.outlets = [];
-
+    const currentOutlets = Array.isArray(updated.outlets) ? [...updated.outlets] : [];
     const finalCode = (code.trim() || generateNextOutletCode()).toUpperCase();
+    const numTarget = Number(targetOmzet) || 0;
+    const numEmployees = Number(employeeCount) || 0;
 
     if (editingOutlet) {
-      const idx = updated.outlets.findIndex(o => o.id === editingOutlet.id);
-      if (idx !== -1) {
-        updated.outlets[idx] = {
-          ...editingOutlet,
-          code: finalCode,
-          name: name.trim().toUpperCase(),
-          address: address.trim(),
-          target_omzet: Number(targetOmzet) || 0,
-          employee_count: Number(employeeCount) || 0,
-          status: status,
-          _updatedAt: Date.now()
-        };
-      }
+      updated.outlets = currentOutlets.map(o => {
+        if (o.id === editingOutlet.id) {
+          return {
+            ...o,
+            ...editingOutlet,
+            code: finalCode,
+            name: name.trim().toUpperCase(),
+            address: address.trim(),
+            target_omzet: numTarget,
+            monthly_budget: numTarget,
+            target_sales: numTarget,
+            target: numTarget,
+            monthly_target: numTarget,
+            employee_count: numEmployees,
+            employees: numEmployees,
+            status: status,
+            _updatedAt: Date.now()
+          };
+        }
+        return o;
+      });
     } else {
       const newOutlet = {
         id: Date.now(),
         code: finalCode,
         name: name.trim().toUpperCase(),
         address: address.trim(),
-        target_omzet: Number(targetOmzet) || 0,
-        employee_count: Number(employeeCount) || 0,
+        target_omzet: numTarget,
+        monthly_budget: numTarget,
+        target_sales: numTarget,
+        target: numTarget,
+        monthly_target: numTarget,
+        employee_count: numEmployees,
+        employees: numEmployees,
         status: status,
+        created_at: new Date().toISOString(),
         _updatedAt: Date.now()
       };
-      updated.outlets.unshift(newOutlet);
+      updated.outlets = [newOutlet, ...currentOutlets];
     }
 
     setMasterData(updated);
     setShowAddModal(false);
     setEditingOutlet(null);
-    alert(`Data outlet "${name.toUpperCase()}" berhasil disimpan!`);
   };
 
   // Delete Outlet (Delete Guard)
