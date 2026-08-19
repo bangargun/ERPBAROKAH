@@ -740,9 +740,13 @@ export default function FinancialOverview({
 
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. EXECUTIVE KPI CARDS (8 CARDS - 4x2 SYMMETRICAL GRID)       */}
+      {/* 2. EXECUTIVE KPI CARDS (10 CARDS - 2 BARIS x 5 CARDS)         */}
       {/* ------------------------------------------------------------- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+        gap: '12px'
+      }}>
         
         {/* KPI 1: REVENUE / TOTAL OMZET */}
         <div style={{
