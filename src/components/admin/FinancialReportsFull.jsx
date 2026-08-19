@@ -339,50 +339,94 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
     const totalOtherIncomeVal = otherIncomeItems.reduce((s, e) => s + e.amount, 0);
     const totalIncomeVal = pendapatanUsaha + diskonPenjualan + totalOtherIncomeVal;
 
-    let cashRevenueVal = cashSalesTotal;
-    let qrisRevenueVal = 0;
-    let edcRevenueVal = 0;
-    let transferRevenueVal = 0;
-    let onlineDeliveryRevenueVal = 0;
+    // DYNAMIC PAYMENT METHOD CLASSIFICATION BASED ON MASTER DATA & SALES TRANSACTIONS
+    const dynamicPaymentMethods = (masterData?.paymentMethods && masterData.paymentMethods.length > 0)
+      ? masterData.paymentMethods.filter(p => (p.status || 'Aktif') === 'Aktif')
+      : [
+          { id: 1, name: 'Tunai (Cash)', code: 'Cash' },
+          { id: 2, name: 'QRIS', code: 'QRIS' },
+          { id: 3, name: 'Debit / EDC Bank', code: 'Debit / EDC' },
+          { id: 4, name: 'Transfer Bank', code: 'Transfer Bank' },
+          { id: 5, name: 'Daring Online (GoFood / ShopeeFood)', code: 'Daring Online' }
+        ];
 
+    const pmMap = new Map();
+    dynamicPaymentMethods.forEach((pm, idx) => {
+      const codeStr = `4001.${String(idx + 1).padStart(2, '0')}`;
+      const cleanName = (pm.name || pm.code || 'Metode').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+      pmMap.set(String(cleanName).toLowerCase().trim(), {
+        subCode: codeStr,
+        code: pm.code || 'Cash',
+        name: cleanName,
+        amount: 0,
+        transactions: []
+      });
+    });
+
+    let unclassifiedAmount = 0;
     if (salesTxTotal > 0) {
-      cashRevenueVal = salesTransactions.filter(t => {
-        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
-        return m.includes('cash') || m.includes('tunai');
-      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+      salesTransactions.forEach(t => {
+        const m = String(t.payment_method || t.payment_type || 'cash').toLowerCase().trim();
+        const amt = Number(t.amount || 0);
+        let matchedKey = null;
 
-      onlineDeliveryRevenueVal = salesTransactions.filter(t => {
-        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
-        return m.includes('grab') || m.includes('gofood') || m.includes('go-food') || m.includes('shopee') || m.includes('delivery') || m.includes('online');
-      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+        for (const [key, obj] of pmMap.entries()) {
+          const pmNameLower = String(obj.name).toLowerCase().trim();
+          const pmCodeLower = String(obj.code).toLowerCase().trim();
+          if (m === key || m === pmNameLower || m === pmCodeLower || m.includes(pmNameLower) || (pmNameLower.length > 3 && m.includes(pmNameLower)) || (pmCodeLower.length > 3 && m.includes(pmCodeLower))) {
+            matchedKey = key;
+            break;
+          }
+        }
 
-      qrisRevenueVal = salesTransactions.filter(t => {
-        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
-        return (m.includes('qris') || m.includes('dana') || m.includes('ovo') || m.includes('gopay') || m.includes('linkaja') || m.includes('wallet')) && !m.includes('grab') && !m.includes('shopee') && !m.includes('gofood');
-      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+        if (!matchedKey) {
+          if (m.includes('cash') || m.includes('tunai')) {
+            for (const [key, obj] of pmMap.entries()) {
+              if (String(obj.code).toLowerCase().includes('cash') || String(obj.name).toLowerCase().includes('tunai') || String(obj.name).toLowerCase().includes('cash')) { matchedKey = key; break; }
+            }
+          } else if (m.includes('qris') || m.includes('dana') || m.includes('ovo') || m.includes('gopay') || m.includes('linkaja') || m.includes('wallet')) {
+            for (const [key, obj] of pmMap.entries()) {
+              if (String(obj.code).toLowerCase().includes('qris') || String(obj.name).toLowerCase().includes('qris') || String(obj.code).toLowerCase().includes('wallet') || String(obj.code).toLowerCase().includes('e-wallet')) { matchedKey = key; break; }
+            }
+          } else if (m.includes('grab') || m.includes('gofood') || m.includes('shopee') || m.includes('online') || m.includes('delivery') || m.includes('daring')) {
+            for (const [key, obj] of pmMap.entries()) {
+              if (String(obj.code).toLowerCase().includes('online') || String(obj.code).toLowerCase().includes('daring') || String(obj.name).toLowerCase().includes('gofood') || String(obj.name).toLowerCase().includes('shopee') || String(obj.name).toLowerCase().includes('grab')) { matchedKey = key; break; }
+            }
+          } else if (m.includes('transfer') || m.includes('bank') || m.includes('bca') || m.includes('bri') || m.includes('mandiri')) {
+            for (const [key, obj] of pmMap.entries()) {
+              if (String(obj.code).toLowerCase().includes('transfer') || String(obj.name).toLowerCase().includes('transfer')) { matchedKey = key; break; }
+            }
+          } else if (m.includes('edc') || m.includes('debit') || m.includes('kredit') || m.includes('card')) {
+            for (const [key, obj] of pmMap.entries()) {
+              if (String(obj.code).toLowerCase().includes('edc') || String(obj.code).toLowerCase().includes('debit') || String(obj.name).toLowerCase().includes('edc') || String(obj.name).toLowerCase().includes('debit')) { matchedKey = key; break; }
+            }
+          }
+        }
 
-      edcRevenueVal = salesTransactions.filter(t => {
-        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
-        return (m.includes('edc') || m.includes('card') || m.includes('kartu') || m.includes('debit') || m.includes('kredit') || m.includes('credit')) && !m.includes('grab');
-      }).reduce((s, t) => s + Number(t.amount || 0), 0);
+        if (matchedKey && pmMap.has(matchedKey)) {
+          const item = pmMap.get(matchedKey);
+          item.amount += amt;
+          item.transactions.push(t);
+        } else {
+          unclassifiedAmount += amt;
+        }
+      });
 
-      transferRevenueVal = salesTransactions.filter(t => {
-        const m = String(t.payment_method || t.payment_type || '').toLowerCase();
-        return (m.includes('transfer') || m.includes('bank') || m.includes('bca') || m.includes('bri') || m.includes('mandiri') || m.includes('bni')) && !m.includes('grab');
-      }).reduce((s, t) => s + Number(t.amount || 0), 0);
-
-      // Catch-all remainder for any other non-cash payment method so nothing is lost:
-      const classifiedTotal = cashRevenueVal + onlineDeliveryRevenueVal + qrisRevenueVal + edcRevenueVal + transferRevenueVal;
-      if (classifiedTotal < salesTxTotal) {
-        onlineDeliveryRevenueVal += (salesTxTotal - classifiedTotal);
-      }
-
-      if (cashRevenueVal === 0 && qrisRevenueVal === 0 && edcRevenueVal === 0 && transferRevenueVal === 0 && onlineDeliveryRevenueVal === 0 && pendapatanUsaha > 0) {
-        cashRevenueVal = pendapatanUsaha;
+      if (unclassifiedAmount > 0) {
+        const firstMethod = pmMap.values().next().value;
+        if (firstMethod) firstMethod.amount += unclassifiedAmount;
       }
     } else {
-      transferRevenueVal = nonCashSalesTotal;
+      const firstMethod = pmMap.values().next().value;
+      if (firstMethod) firstMethod.amount = pendapatanUsaha;
     }
+
+    const paymentMethodItems = Array.from(pmMap.values());
+    const cashRevenueVal = paymentMethodItems.find(p => p.code === 'Cash' || p.name.toLowerCase().includes('cash') || p.name.toLowerCase().includes('tunai'))?.amount || 0;
+    const qrisRevenueVal = paymentMethodItems.find(p => p.code === 'QRIS' || p.name.toLowerCase().includes('qris'))?.amount || 0;
+    const edcRevenueVal = paymentMethodItems.find(p => p.code === 'Debit / EDC' || p.code === 'EDC' || p.name.toLowerCase().includes('edc') || p.name.toLowerCase().includes('debit'))?.amount || 0;
+    const transferRevenueVal = paymentMethodItems.find(p => p.code === 'Transfer Bank' || p.code === 'Transfer' || p.name.toLowerCase().includes('transfer'))?.amount || 0;
+    const onlineDeliveryRevenueVal = paymentMethodItems.find(p => p.code === 'Daring Online' || p.name.toLowerCase().includes('gofood') || p.name.toLowerCase().includes('shopee') || p.name.toLowerCase().includes('grab') || p.name.toLowerCase().includes('online'))?.amount || 0;
 
     // COST OF GOODS SOLD (HPP) BREAKDOWN & INGREDIENT ITEMIZATION
     const cogsItemsMap = {};
@@ -564,6 +608,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
 
     return {
       pendapatanUsaha,
+      paymentMethodItems,
       cashRevenueVal,
       qrisRevenueVal,
       edcRevenueVal,
@@ -594,7 +639,7 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
   // ─── PERHITUNGAN SINGLE PERIODE AKTIF ───
   const currentPnl = computePnlDataForDateRange(startDate, endDate);
   const {
-    pendapatanUsaha, cashRevenueVal, qrisRevenueVal, edcRevenueVal, transferRevenueVal, onlineDeliveryRevenueVal = 0,
+    pendapatanUsaha, paymentMethodItems = [], cashRevenueVal, qrisRevenueVal, edcRevenueVal, transferRevenueVal, onlineDeliveryRevenueVal = 0,
     diskonPenjualan, totalIncomeVal, cogsItemList = [], hppVal, hppUtamaVal, hppBumbuVal, hppMinumanVal,
     biayaPengiriman, totalCogsVal, grossProfitVal, expenseList, totalExpenseVal,
     netOperatingIncomeVal, otherIncomeItems, totalOtherIncomeVal, otherExpenseItems,
@@ -1033,24 +1078,32 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
         amount: netIncomeVal
       });
     } else if (accountCode.startsWith('4001')) {
-      let filterMethod = '';
-      if (accountCode === '4001.01') filterMethod = 'cash';
-      else if (accountCode === '4001.02') filterMethod = 'qris';
-      else if (accountCode === '4001.03') filterMethod = 'edc';
-      else if (accountCode === '4001.04') filterMethod = 'transfer';
-      else if (accountCode === '4001.05') filterMethod = 'online';
+      const cleanTargetName = String(accountName || '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/Penjualan/gi, '')
+        .replace(/Kas/gi, '')
+        .toLowerCase()
+        .trim();
 
       if (salesTransactions.length > 0) {
         transactionsList = salesTransactions
           .filter(t => {
-            if (!filterMethod) return true;
-            const m = String(t.payment_method || t.payment_type || 'cash').toLowerCase();
-            if (filterMethod === 'cash') return m.includes('cash') || m.includes('tunai');
-            if (filterMethod === 'online') return m.includes('grab') || m.includes('gofood') || m.includes('go-food') || m.includes('shopee') || m.includes('delivery') || m.includes('online');
-            if (filterMethod === 'qris') return (m.includes('qris') || m.includes('dana') || m.includes('ovo') || m.includes('gopay') || m.includes('linkaja') || m.includes('wallet')) && !m.includes('grab') && !m.includes('shopee');
-            if (filterMethod === 'edc') return m.includes('edc') || m.includes('card') || m.includes('kartu') || m.includes('debit') || m.includes('kredit');
-            if (filterMethod === 'transfer') return m.includes('transfer') || m.includes('bank') || m.includes('bca') || m.includes('bri') || m.includes('mandiri');
-            return m.includes(filterMethod);
+            if (accountCode === '4001') return true;
+            const m = String(t.payment_method || t.payment_type || 'cash').toLowerCase().trim();
+            if (cleanTargetName) {
+              if (m.includes(cleanTargetName)) return true;
+              if (cleanTargetName.includes('cash') || cleanTargetName.includes('tunai')) return m.includes('cash') || m.includes('tunai');
+              if (cleanTargetName.includes('qris')) return m.includes('qris');
+              if (cleanTargetName.includes('transfer') || cleanTargetName.includes('bank')) return m.includes('transfer') || m.includes('bank') || m.includes('bca') || m.includes('mandiri') || m.includes('bri');
+              if (cleanTargetName.includes('edc') || cleanTargetName.includes('debit')) return m.includes('edc') || m.includes('debit') || m.includes('card');
+              if (cleanTargetName.includes('gofood') || cleanTargetName.includes('shopee') || cleanTargetName.includes('grab') || cleanTargetName.includes('daring') || cleanTargetName.includes('online')) {
+                return m.includes('gofood') || m.includes('shopee') || m.includes('grab') || m.includes('online') || m.includes('delivery') || m.includes('daring');
+              }
+              if (cleanTargetName.includes('wallet') || cleanTargetName.includes('gopay') || cleanTargetName.includes('ovo') || cleanTargetName.includes('dana')) {
+                return m.includes('wallet') || m.includes('gopay') || m.includes('ovo') || m.includes('dana');
+              }
+            }
+            return true;
           })
           .map((t, idx) => {
             const sub = Number(t.subtotal || 0);
@@ -2094,86 +2147,26 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                     </td>
                   </tr>
 
-                  {/* SUB-ACCOUNTS 4001 ITEMIZATION BY PAYMENT METHOD */}
-                  <tr
-                    onClick={() => handleOpenAccountDetail('4001.01', 'Penjualan Kas Tunai (Cash)', cashRevenueVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [4001.01] Penjualan Kas Tunai (Cash)</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
-                      {formatLunaCurrency(cashRevenueVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
-                      {calcPercent(cashRevenueVal, totalIncomeVal)}
-                    </td>
-                  </tr>
-
-                  <tr
-                    onClick={() => handleOpenAccountDetail('4001.02', 'Penjualan Barcode QRIS & E-Wallet', qrisRevenueVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [4001.02] Penjualan Barcode QRIS &amp; E-Wallet</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
-                      {formatLunaCurrency(qrisRevenueVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
-                      {calcPercent(qrisRevenueVal, totalIncomeVal)}
-                    </td>
-                  </tr>
-
-                  <tr
-                    onClick={() => handleOpenAccountDetail('4001.03', 'Penjualan Kartu Debit/Kredit (EDC)', edcRevenueVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [4001.03] Penjualan Kartu Debit/Kredit (EDC)</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
-                      {formatLunaCurrency(edcRevenueVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
-                      {calcPercent(edcRevenueVal, totalIncomeVal)}
-                    </td>
-                  </tr>
-
-                  <tr
-                    onClick={() => handleOpenAccountDetail('4001.04', 'Penjualan Transfer Bank', transferRevenueVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [4001.04] Penjualan Transfer Bank</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
-                      {formatLunaCurrency(transferRevenueVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
-                      {calcPercent(transferRevenueVal, totalIncomeVal)}
-                    </td>
-                  </tr>
-
-                  <tr
-                    onClick={() => handleOpenAccountDetail('4001.05', 'Penjualan Online & Delivery (GrabFood, GoFood, ShopeeFood)', onlineDeliveryRevenueVal)}
-                    style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>↳ [4001.05] Penjualan Online &amp; Delivery (Grab/GoFood/Shopee)</span>
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
-                      {formatLunaCurrency(onlineDeliveryRevenueVal)}
-                    </td>
-                    <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
-                      {calcPercent(onlineDeliveryRevenueVal, totalIncomeVal)}
-                    </td>
-                  </tr>
+                  {/* DYNAMIC SUB-ACCOUNTS 4001 ITEMIZATION BY PAYMENT METHOD */}
+                  {paymentMethodItems.map((pm, pmIdx) => (
+                    <tr
+                      key={pmIdx}
+                      onClick={() => handleOpenAccountDetail(pm.subCode, `Penjualan ${pm.name}`, pm.amount)}
+                      style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = T.tableRowHover}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '8px 12px 8px 44px', color: T.txtSecondary, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>↳ [{pm.subCode}] Penjualan {pm.name}</span>
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtPrimary, fontSize: '14px', fontWeight: '600' }}>
+                        {formatLunaCurrency(pm.amount)}
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '8px 16px', color: T.txtMuted, fontSize: '14px' }}>
+                        {calcPercent(pm.amount, totalIncomeVal)}
+                      </td>
+                    </tr>
+                  ))}
 
                   {/* ACCOUNT 4002 DISKON PENJUALAN */}
                   <tr
