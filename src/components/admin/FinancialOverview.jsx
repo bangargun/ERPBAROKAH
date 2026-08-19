@@ -238,7 +238,24 @@ export default function FinancialOverview({
     }).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
 
     let totalQtySold = 0;
+    let dineInSales = 0;
+    let takeAwaySales = 0;
+    let dineInCount = 0;
+    let takeAwayCount = 0;
+
     periodTx.forEach(t => {
+      const amt = Number(t.amount || t.total || 0);
+      const ot = String(t.order_type || t.type || t.service_type || t.orderType || t.notes || '').toLowerCase();
+      const isTakeAway = ot.includes('take') || ot.includes('away') || ot.includes('bungkus') || ot.includes('delivery') || ot.includes('online') || ot.includes('gofood') || ot.includes('grab') || ot.includes('shopee');
+      
+      if (isTakeAway) {
+        takeAwaySales += amt;
+        takeAwayCount += 1;
+      } else {
+        dineInSales += amt;
+        dineInCount += 1;
+      }
+
       if (Array.isArray(t.items) && t.items.length > 0) {
         t.items.forEach(it => {
           totalQtySold += Number(it.qty || it.quantity || 1);
@@ -258,6 +275,10 @@ export default function FinancialOverview({
     const opexPct = totalRevenue > 0 ? ((opexTotal / totalRevenue) * 100).toFixed(1) : '0.0';
     const itemsPerTicket = txCount > 0 ? (totalQtySold / txCount).toFixed(1) : '0.0';
 
+    const totalDineTakeRev = dineInSales + takeAwaySales;
+    const dineInPct = totalDineTakeRev > 0 ? ((dineInSales / totalDineTakeRev) * 100).toFixed(1) : '0.0';
+    const takeAwayPct = totalDineTakeRev > 0 ? ((takeAwaySales / totalDineTakeRev) * 100).toFixed(1) : '0.0';
+
     return {
       totalRevenue,
       totalExpense,
@@ -271,6 +292,12 @@ export default function FinancialOverview({
       avgTicket,
       totalQtySold,
       itemsPerTicket,
+      dineInSales,
+      takeAwaySales,
+      dineInCount,
+      takeAwayCount,
+      dineInPct,
+      takeAwayPct,
       activeOutletCount: allOutlets.length
     };
   }, [activeDateList, allSalesTx, allApprovedFinance, allFinancialRecords, activeOutletFilter, allOutlets.length, todayStr]);
@@ -837,7 +864,7 @@ export default function FinancialOverview({
           </div>
         </div>
 
-        {/* KPI 7: BIAYA OPERASIONAL & GAJI */}
+        {/* KPI 7: PERBANDINGAN DINE IN VS TAKE AWAY */}
         <div style={{
           background: T.cardBg,
           border: `1px solid ${T.borderStrong}`,
@@ -851,18 +878,37 @@ export default function FinancialOverview({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.68rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              BIAYA OPERASIONAL &amp; GAJI
+              DINE IN VS TAKE AWAY
             </span>
-            <div style={{ padding: '6px', borderRadius: '8px', background: T.accentGoldBg, color: T.accentGold }}>
-              <Building2 size={16} />
+            <div style={{ padding: '6px', borderRadius: '8px', background: 'rgba(249, 115, 22, 0.15)', color: '#f97316' }}>
+              <ShoppingBag size={16} />
             </div>
           </div>
           <div>
-            <div style={{ fontSize: '1.35rem', fontWeight: '900', color: T.accentGold, letterSpacing: '-0.02em' }}>
-              {formatRupiah(kpiMetrics.periodOpex)}
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+              <div>
+                <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontWeight: '700', display: 'block' }}>🍽️ Dine In:</span>
+                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: T.info, letterSpacing: '-0.02em' }}>
+                  {formatRupiah(kpiMetrics.dineInSales)}
+                </span>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '0.66rem', color: T.txtMuted, fontWeight: '700', display: 'block' }}>🛍️ Take Away:</span>
+                <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#f97316', letterSpacing: '-0.02em' }}>
+                  {formatRupiah(kpiMetrics.takeAwaySales)}
+                </span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '600', marginTop: '4px' }}>
-              <span>Rasio OPEX: {kpiMetrics.opexPct}% dari Omzet</span>
+
+            {/* Visual Proportion Bar */}
+            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
+              <div style={{ width: `${kpiMetrics.dineInPct}%`, background: T.info, transition: 'width 0.3s ease' }} title={`Dine In: ${kpiMetrics.dineInPct}%`} />
+              <div style={{ width: `${kpiMetrics.takeAwayPct}%`, background: '#f97316', transition: 'width 0.3s ease' }} title={`Take Away: ${kpiMetrics.takeAwayPct}%`} />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', fontWeight: '700' }}>
+              <span style={{ color: T.info }}>Dine In: {kpiMetrics.dineInPct}% ({kpiMetrics.dineInCount} Nota)</span>
+              <span style={{ color: '#f97316' }}>Take Away: {kpiMetrics.takeAwayPct}% ({kpiMetrics.takeAwayCount} Nota)</span>
             </div>
           </div>
         </div>
