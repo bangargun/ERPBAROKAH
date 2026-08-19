@@ -2470,6 +2470,12 @@ app.post('/api/master-data', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Payload tidak valid' });
     }
 
+    // ── PROTEKSI KRITIS: salesTransactions TIDAK BOLEH diubah via POST /api/master-data ──
+    // Satu-satunya cara menulis transaksi adalah melalui POST /api/pos/transaction
+    // Ini mencegah tablet/browser dengan local cache berbeda menimpa data transaksi server
+    delete incomingData.salesTransactions;
+    delete incomingData.transactions;
+
     // Baca data terkini dari MySQL; jika gagal/null, gunakan defaultMasterData sebagai base
     const currentData = (await getMasterDataFromMySQL()) || defaultMasterData;
     const sanitizedIncoming = sanitizeMasterDataPayload(incomingData);
@@ -2477,6 +2483,9 @@ app.post('/api/master-data', async (req, res) => {
     // Merge data incoming dengan data server terkini
     const mergedData = mergeMasterDataSafely(currentData, sanitizedIncoming);
     mergedData._lastUpdated = Date.now();
+    // Kembalikan salesTransactions dari server — tidak pernah diganti oleh incoming
+    mergedData.salesTransactions = currentData.salesTransactions || [];
+    mergedData.transactions = currentData.salesTransactions || [];
 
     // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — FIX KRITIS SINKRONISASI
     await saveMasterDataToMySQL(mergedData);
