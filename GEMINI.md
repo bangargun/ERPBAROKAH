@@ -143,12 +143,14 @@ System **MRIS (Multi Restaurant Financial & Operational Information System)** im
 
 ---
 
-### 🎯 C. Aturan Bisnis Tutup Shift Kasir (Auto-Approval)
-1. **Tutup Shift POS Kasir:**
-   - Status shift langsung tercatat sebagai **`SELESAI DITUTUP` / `Done` (`is_approved: true`)** secara otomatis.
-   - Tidak memerlukan persetujuan (ACC) manual di Web Admin agar angka kas laci langsung mengalir ke laporan keuangan dan rekonsiliasi kas.
-2. **Laporan Harian Outlet (Form Manual / Berkas Fisik):**
-   - Tetap berada di Menu 7 (Approval Center) untuk verifikasi berkas jika ada pengajuan manual dari manajer cabang.
+### 🎯 C. Penghapusan Modul Shift Kasir (Direct Transaction Stream)
+1. **Modul Shift Ditiadakan**:
+   - Sistem tidak lagi memerlukan form/tabel tutup shift kasir (`shift_closings`, `closedShifts`).
+   - Seluruh omzet, kas masuk, dan rekonsiliasi kas kasir **dihitung 100% langsung dari catatan transaksi penjualan (`sales_transactions`)**.
+2. **Keuntungan Operasional**:
+   - Kasir tidak lagi terbebani pengisian form tutup shift.
+   - Database lebih ramping dan bersih tanpa data shift duplikat/gantung.
+   - Web Admin menghitung omzet secara real-time dan murni dari transaksi riil.
 
 ---
 

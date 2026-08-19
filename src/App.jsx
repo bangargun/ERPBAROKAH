@@ -539,10 +539,6 @@ export default function App() {
             const serverFinance = getCombinedArray(serverData.approvedFinanceDaily, serverData.manualEntryRecords);
             const mergedApprovedFinance = mergeReportsById(prevFinance, serverFinance);
 
-            const prevShifts = getCombinedArray(prev.shiftClosings, prev.closedShifts);
-            const serverShifts = getCombinedArray(serverData.shiftClosings, serverData.closedShifts);
-            const mergedShiftClosings = mergeReportsById(prevShifts, serverShifts);
-
             // salesTransactions: gunakan mergeServerOnly — server adalah satu-satunya sumber kebenaran
             const serverSales = getCombinedArray(serverData.salesTransactions, serverData.transactions);
             const rawMergedSalesTx = mergeServerOnly(serverSales);
@@ -716,8 +712,6 @@ export default function App() {
               deletedProductIds:     Array.from(deletedProductIds),
               approvedFinanceDaily: mergedApprovedFinance,
               manualEntryRecords: mergedApprovedFinance,
-              shiftClosings: mergedShiftClosings,
-              closedShifts: mergedShiftClosings,
               salesTransactions: mergedSalesTx,
               transactions: mergedSalesTx,
               stockOpname: mergedOpname,
