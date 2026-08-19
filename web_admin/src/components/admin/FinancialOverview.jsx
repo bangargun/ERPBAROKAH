@@ -52,7 +52,9 @@ import {
   BarChart, 
   Bar,
   Legend,
-  Cell
+  Cell,
+  ReferenceLine,
+  Line
 } from 'recharts';
 import { getThemePalette } from '../../utils/themeUtils';
 
@@ -366,8 +368,25 @@ export default function FinancialOverview({
   }, [activeDateList, allSalesTx, allApprovedFinance, allFinancialRecords, activeOutletFilter, allOutlets, todayStr]);
 
   // ------------------------------------------------------------------
-  // 2. SALES TREND DATA (DAILY CHART)
+  // 2. SALES TREND DATA & OUTLET DAILY TARGET (DAILY CHART)
   // ------------------------------------------------------------------
+  const dailyTargetRevenue = useMemo(() => {
+    const now = new Date();
+    // Total hari dalam 1 bulan kalender berjalan
+    const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() || 30;
+
+    if (!activeOutletFilter || activeOutletFilter === 'ALL' || activeOutletFilter === 'Semua' || activeOutletFilter === 'Semua Restoran (Konsolidasi)') {
+      // Konsolidasi Semua Cabang: akumulasi target bulanan seluruh outlet / hari dalam bulan berjalan
+      const totalMonthlyBudget = allOutlets.reduce((sum, o) => sum + Number(o.monthly_budget || o.target_sales || 45000000), 0);
+      return Math.round(totalMonthlyBudget / daysInCurrentMonth);
+    } else {
+      // Spesifik 1 Outlet: target bulanan outlet terpilih / hari dalam bulan berjalan
+      const targetOutlet = allOutlets.find(o => String(o.id) === String(activeOutletFilter) || String(o.name) === String(activeOutletFilter));
+      const monthlyBudget = Number(targetOutlet?.monthly_budget || targetOutlet?.target_sales || 45000000);
+      return Math.round(monthlyBudget / daysInCurrentMonth);
+    }
+  }, [allOutlets, activeOutletFilter]);
+
   const salesTrendChartData = useMemo(() => {
     const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
@@ -388,10 +407,12 @@ export default function FinancialOverview({
         fullDate: dateStr,
         date: shortLabel,
         penjualan: dayRevenue,
-        transaksi: dayCount
+        target: dailyTargetRevenue,
+        transaksi: dayCount,
+        isTargetReached: dayRevenue >= dailyTargetRevenue
       };
     });
-  }, [activeDateList, allSalesTx, allApprovedFinance, activeOutletFilter, todayStr]);
+  }, [activeDateList, allSalesTx, allApprovedFinance, activeOutletFilter, dailyTargetRevenue, todayStr]);
 
   // ------------------------------------------------------------------
   // 3. TOP SELLING PRODUCTS (TOP 5 MENU TERLARIS)
@@ -1174,29 +1195,38 @@ export default function FinancialOverview({
             </div>
           </div>
 
-          {/* Quick Metrics Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+          {/* Quick Metrics Bar (4 Kolom dengan Target Harian) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
             <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', padding: '8px 12px' }}>
-              <span style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL OMZET PERIODE</span>
-              <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(kpiMetrics.totalRevenue)}</div>
+              <span style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL OMZET</span>
+              <div style={{ fontSize: '1.02rem', fontWeight: '900', color: T.success, marginTop: '2px' }}>{formatRupiah(kpiMetrics.totalRevenue)}</div>
             </div>
             <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', padding: '8px 12px' }}>
               <span style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>RATA-RATA / HARI</span>
-              <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>
+              <div style={{ fontSize: '1.02rem', fontWeight: '900', color: T.info, marginTop: '2px' }}>
                 {formatRupiah(salesTrendChartData.length > 0 ? Math.round(kpiMetrics.totalRevenue / salesTrendChartData.length) : 0)}
               </div>
             </div>
+            <div style={{ background: T.cardBg2, border: `1px solid rgba(245, 158, 11, 0.3)`, borderRadius: '8px', padding: '8px 12px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.64rem', color: '#f59e0b', fontWeight: '800', textTransform: 'uppercase' }}>🎯 TARGET / HARI</span>
+                <span style={{ fontSize: '0.60rem', color: '#f59e0b', border: '1px dashed #f59e0b', padding: '1px 4px', borderRadius: '4px', fontWeight: '800' }}>GARIS SEMU</span>
+              </div>
+              <div style={{ fontSize: '1.02rem', fontWeight: '900', color: '#f59e0b', marginTop: '2px' }}>
+                {formatRupiah(dailyTargetRevenue)}
+              </div>
+            </div>
             <div style={{ background: T.cardBg2, border: `1px solid ${T.borderStrong}`, borderRadius: '8px', padding: '8px 12px' }}>
-              <span style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL NOTA TRANSAKSI</span>
-              <div style={{ fontSize: '1.05rem', fontWeight: '900', color: T.accentGreen, marginTop: '2px' }}>{kpiMetrics.txCount} Nota</div>
+              <span style={{ fontSize: '0.64rem', color: T.txtSecondary, fontWeight: '700', textTransform: 'uppercase' }}>TOTAL NOTA</span>
+              <div style={{ fontSize: '1.02rem', fontWeight: '900', color: T.accentGreen, marginTop: '2px' }}>{kpiMetrics.txCount} Nota</div>
             </div>
           </div>
 
-          {/* Recharts Component */}
+          {/* Recharts Component with Target Reference Line */}
           <div style={{ width: '100%', height: '240px' }}>
             <ResponsiveContainer width="100%" height="100%">
               {salesChartType === 'area' ? (
-                <AreaChart data={salesTrendChartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                <AreaChart data={salesTrendChartData} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
                   <defs>
                     <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4}/>
@@ -1208,20 +1238,44 @@ export default function FinancialOverview({
                   <YAxis stroke={T.txtMuted} fontSize={11} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                   <Tooltip 
                     contentStyle={{ background: T.tooltipBg, border: `1px solid ${T.tooltipBorder}`, borderRadius: '8px', color: T.tooltipColor, fontSize: '0.76rem' }} 
-                    formatter={(val) => formatRupiah(val)}
+                    formatter={(val, name) => [formatRupiah(val), name === 'target' ? 'Target Harian (Garis Putus-Putus)' : 'Penjualan Riil']}
                   />
-                  <Area type="monotone" dataKey="penjualan" name="Total Penjualan" stroke="#22c55e" strokeWidth={2.5} fill="url(#salesGrad)" />
+                  <Legend 
+                    verticalAlign="top" 
+                    align="right" 
+                    wrapperStyle={{ fontSize: '0.70rem', paddingBottom: '4px' }} 
+                  />
+                  <ReferenceLine 
+                    y={dailyTargetRevenue} 
+                    stroke="#f59e0b" 
+                    strokeDasharray="6 6" 
+                    strokeWidth={2}
+                  />
+                  <Area type="monotone" dataKey="penjualan" name="Penjualan Riil" stroke="#22c55e" strokeWidth={2.5} fill="url(#salesGrad)" />
+                  <Line type="monotone" dataKey="target" name="Target Harian (Garis Putus-Putus)" stroke="#f59e0b" strokeDasharray="6 6" strokeWidth={2} dot={false} />
                 </AreaChart>
               ) : (
-                <BarChart data={salesTrendChartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                <BarChart data={salesTrendChartData} margin={{ top: 12, right: 10, left: -15, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={T.gridColor} />
                   <XAxis dataKey="date" stroke={T.txtMuted} fontSize={11} tickLine={false} />
                   <YAxis stroke={T.txtMuted} fontSize={11} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                   <Tooltip 
                     contentStyle={{ background: T.tooltipBg, border: `1px solid ${T.tooltipBorder}`, borderRadius: '8px', color: T.tooltipColor, fontSize: '0.76rem' }} 
-                    formatter={(val) => formatRupiah(val)}
+                    formatter={(val, name) => [formatRupiah(val), name === 'target' ? 'Target Harian (Garis Putus-Putus)' : 'Penjualan Riil']}
                   />
-                  <Bar dataKey="penjualan" name="Total Penjualan" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Legend 
+                    verticalAlign="top" 
+                    align="right" 
+                    wrapperStyle={{ fontSize: '0.70rem', paddingBottom: '4px' }} 
+                  />
+                  <ReferenceLine 
+                    y={dailyTargetRevenue} 
+                    stroke="#f59e0b" 
+                    strokeDasharray="6 6" 
+                    strokeWidth={2}
+                  />
+                  <Bar dataKey="penjualan" name="Penjualan Riil" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="target" name="Target Harian (Garis Putus-Putus)" stroke="#f59e0b" strokeDasharray="6 6" strokeWidth={2} dot={false} />
                 </BarChart>
               )}
             </ResponsiveContainer>
