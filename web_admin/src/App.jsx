@@ -523,6 +523,19 @@ export default function App() {
                 return Array.from(map.values());
               };
 
+              // salesTransactions: SERVER IS THE ONLY SOURCE OF TRUTH.
+              // Web admin NEVER adds local-only transactions — hanya tablet kasir yang boleh push tx baru.
+              // Ini mencegah data berubah-ubah akibat local React state lama di-push kembali ke server.
+              const mergeServerOnly = (serverList = []) => {
+                const map = new Map();
+                (serverList || []).forEach(item => {
+                  const k = getItemKey(item);
+                  if (k && !deletedSet.has(k)) map.set(k, item);
+                });
+                return Array.from(map.values());
+              };
+
+
               const prevFinance = getCombinedArray(prev.approvedFinanceDaily, prev.manualEntryRecords);
               const serverFinance = getCombinedArray(serverData.approvedFinanceDaily, serverData.manualEntryRecords);
               const mergedApprovedFinance = mergeReportsById(prevFinance, serverFinance);
@@ -531,10 +544,12 @@ export default function App() {
               const serverShifts = getCombinedArray(serverData.shiftClosings, serverData.closedShifts);
               const mergedShiftClosings = mergeReportsById(prevShifts, serverShifts);
 
-              const prevSales = getCombinedArray(prev.salesTransactions, prev.transactions);
+              // salesTransactions: gunakan mergeServerOnly — server adalah satu-satunya sumber kebenaran
+              // Web admin hanya MEMBACA transaksi dari server, tidak boleh menambah dari local state
               const serverSales = getCombinedArray(serverData.salesTransactions, serverData.transactions);
-              const rawMergedSalesTx = mergeReportsById(prevSales, serverSales);
+              const rawMergedSalesTx = mergeServerOnly(serverSales);
               const mergedSalesTx = rawMergedSalesTx.map(t => {
+
                 if (!t || typeof t !== 'object') return t;
                 const sub = Number(t.subtotal || 0);
                 const disc = Number(t.discount_amount || t.discount || 0);
