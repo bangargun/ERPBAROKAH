@@ -2919,8 +2919,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     dailyOmzetMap[d].net += netVal;
 
     // Dine In vs Take Away
-    const noteLower = (t.notes || '').toLowerCase();
-    if (noteLower.includes('take') || noteLower.includes('bungkus') || noteLower.includes('delivery')) {
+    const ot = String(t.order_type || t.orderType || t.type || t.service_type || t.notes || '').toLowerCase();
+    const isTakeAway = ot.includes('take') || ot.includes('away') || ot.includes('bungkus') || ot.includes('delivery') || ot.includes('online') || ot.includes('gofood') || ot.includes('grab') || ot.includes('shopee');
+    if (isTakeAway) {
       dailyOmzetMap[d].takeAway += netVal;
     } else {
       dailyOmzetMap[d].dineIn += netVal;
@@ -3538,16 +3539,32 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const activeOutlets = outlets || [];
     const filteredOutlets = rcptSelectedOutletIds.includes('ALL') 
       ? activeOutlets 
-      : activeOutlets.filter(o => rcptSelectedOutletIds.includes(o.id));
+      : activeOutlets.filter(o => rcptSelectedOutletIds.some(id => String(id) === String(o.id)));
 
-    const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
+    const deletedSalesSet = new Set([
+      ...(masterData?.deletedSalesIds || []).map(x => String(x)),
+      ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
+    ]);
+
+    const salesTx = (masterData?.salesTransactions || masterData?.transactions || []).filter(t => {
+      if (!t) return false;
+      const tid = String(t.id !== undefined && t.id !== null ? t.id : '');
+      const trcpt = String(t.receipt_no || t.receiptNo || t.invoice_no || t.receipt || '');
+      if (tid && deletedSalesSet.has(tid)) return false;
+      if (trcpt && deletedSalesSet.has(trcpt)) return false;
+      return true;
+    });
 
     const filteredTxs = salesTx.filter(t => {
-      if (rcptStartDate && t.date < rcptStartDate) return false;
-      if (rcptEndDate && t.date > rcptEndDate) return false;
-      if (!rcptSelectedOutletIds.includes('ALL') && !rcptSelectedOutletIds.includes(t.outlet_id)) return false;
-      if (selectedBranch && t.outlet_id !== selectedBranch) return false;
-      if (t.status === 'Void') return false;
+      const d = String(t.date || t.entry_date || t.transaction_date || t.created_at || '').substring(0, 10);
+      if (rcptStartDate && d && d < rcptStartDate) return false;
+      if (rcptEndDate && d && d > rcptEndDate) return false;
+      if (!rcptSelectedOutletIds.includes('ALL')) {
+        const matchOtl = rcptSelectedOutletIds.some(id => String(id) === String(t.outlet_id) || String(id) === String(t.branch_id));
+        if (!matchOtl) return false;
+      }
+      if (selectedBranch && String(t.outlet_id) !== String(selectedBranch) && String(t.branch_id) !== String(selectedBranch)) return false;
+      if (t.status === 'Void' || t.status === 'Dibatalkan') return false;
       return true;
     });
 
@@ -3558,18 +3575,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const takeAwayOutletMap = {};
 
     filteredTxs.forEach(t => {
-      const isTakeAway = (t.type || t.service_type || t.notes || '').toLowerCase().includes('take') ||
-                         (t.notes || '').toLowerCase().includes('bungkus') ||
-                         (t.notes || '').toLowerCase().includes('delivery') ||
-                         (t.notes || '').toLowerCase().includes('ojol') ||
-                         (t.notes || '').toLowerCase().includes('online');
+      const ot = String(t.order_type || t.orderType || t.type || t.service_type || t.notes || '').toLowerCase();
+      const isTakeAway = ot.includes('take') || ot.includes('away') || ot.includes('bungkus') || ot.includes('delivery') || ot.includes('online') || ot.includes('gofood') || ot.includes('grab') || ot.includes('shopee');
 
-      const gross = Number(t.amount || t.total_amount || t.grand_total || 0);
-      const disc = Number(t.discount || t.discount_amount || 0);
-      const qty = (t.items && Array.isArray(t.items)) 
-        ? t.items.reduce((s, i) => s + Number(i.qty || 1), 0)
-        : Number(t.qty || t.quantity || 1);
-      const otlId = t.outlet_id;
+      const gross = Number(t.amount || t.total || t.total_amount || t.grand_total || t.final_amount || 0);
+      const disc = Number(t.discount || t.discount_amount || t.summary_discount || 0);
+      const qty = (t.items && Array.isArray(t.items) && t.items.length > 0) 
+        ? t.items.reduce((s, i) => s + Number(i.qty || i.quantity || 1), 0)
+        : Number(t.qty || t.item_count || t.quantity || 1);
+      const otlId = String(t.outlet_id || t.branch_id || '');
 
       if (isTakeAway) {
         takeAwayCount += 1;
@@ -3611,7 +3625,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         netSales: dineInNet,
         color: T.info,
         outletBreakdown: filteredOutlets.map(otl => {
-          const m = dineInOutletMap[otl.id] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
+          const m = dineInOutletMap[String(otl.id)] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
           return { name: otl.name, ...m };
         })
       },
@@ -3626,7 +3640,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         netSales: takeAwayNet,
         color: T.accentGold,
         outletBreakdown: filteredOutlets.map(otl => {
-          const m = takeAwayOutletMap[otl.id] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
+          const m = takeAwayOutletMap[String(otl.id)] || { receiptCount: 0, totalQty: 0, gross: 0, disc: 0, net: 0 };
           return { name: otl.name, ...m };
         })
       }
