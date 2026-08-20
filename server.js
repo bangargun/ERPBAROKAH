@@ -470,6 +470,18 @@ const ensureMasterDataTable = async () => {
     `);
     console.log('✅ Tabel mris_master_data siap');
 
+    // 1b. Tabel history/snapshot master data (Automatic Versioning & Rolling Backup 50 Versi)
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS mris_master_data_history (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        tx_count INT DEFAULT 0,
+        source_tag VARCHAR(100) DEFAULT 'auto',
+        data LONGTEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Tabel mris_master_data_history (Blob Versioning) siap');
+
     // 2. Outlets
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS outlets (
@@ -720,11 +732,34 @@ const getMasterDataFromMySQL = async () => {
   }
 };
 
-// Simpan masterData ke MySQL
-const saveMasterDataToMySQL = async (masterData) => {
-  if (!mysqlPool) return false;
+// Simpan masterData ke MySQL dengan Automatic Versioning Snapshot Backup (Rolling 50 Versi)
+const saveMasterDataToMySQL = async (masterData, sourceTag = 'general_save') => {
+  if (!mysqlPool || !masterData) return false;
   try {
     const json = JSON.stringify(masterData);
+    const txCount = Array.isArray(masterData.salesTransactions) ? masterData.salesTransactions.length : 0;
+
+    // 1. Simpan Snapshot ke History Table
+    try {
+      await mysqlPool.execute(`
+        INSERT INTO mris_master_data_history (tx_count, source_tag, data)
+        VALUES (?, ?, ?)
+      `, [txCount, String(sourceTag || 'auto').substring(0, 100), json]);
+
+      // Batasi history maksimal 50 snapshot terbaru (auto-prune tertua)
+      await mysqlPool.execute(`
+        DELETE FROM mris_master_data_history
+        WHERE id NOT IN (
+          SELECT id FROM (
+            SELECT id FROM mris_master_data_history ORDER BY id DESC LIMIT 50
+          ) as t
+        )
+      `);
+    } catch (histErr) {
+      // Non-blocking history snapshot
+    }
+
+    // 2. Simpan Current Master Data
     await mysqlPool.execute(`
       INSERT INTO mris_master_data (id, data) VALUES (1, ?)
       ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP
@@ -2389,6 +2424,55 @@ app.post('/api/admin/rebuild-blob-from-mysql', async (req, res) => {
     });
   } catch (err) {
     console.error('POST /api/admin/rebuild-blob-from-mysql error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/admin/blob-history — Lihat 50 snapshot riwayat blob terbaru
+app.get('/api/admin/blob-history', async (req, res) => {
+  try {
+    if (!mysqlPool) return res.status(500).json({ success: false, error: 'MySQL tidak terhubung' });
+    const [rows] = await mysqlPool.execute(
+      'SELECT id, tx_count, source_tag, created_at FROM mris_master_data_history ORDER BY id DESC LIMIT 50'
+    );
+    return res.json({ success: true, count: rows.length, history: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/restore-blob-version — Rollback blob ke versi history tertentu
+app.post('/api/admin/restore-blob-version', async (req, res) => {
+  try {
+    const { version_id, secret } = req.body || {};
+    if (secret !== 'MRIS-RESTORE-2026') {
+      return res.status(403).json({ success: false, error: 'Akses ditolak' });
+    }
+    if (!version_id) {
+      return res.status(400).json({ success: false, error: 'Parameter version_id wajib diisi' });
+    }
+    if (!mysqlPool) return res.status(500).json({ success: false, error: 'MySQL tidak terhubung' });
+
+    const [rows] = await mysqlPool.execute(
+      'SELECT * FROM mris_master_data_history WHERE id = ?',
+      [version_id]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, error: `Versi snapshot #${version_id} tidak ditemukan` });
+    }
+
+    const snapshotData = JSON.parse(rows[0].data);
+    snapshotData._lastUpdated = Date.now();
+    await saveMasterDataToMySQL(snapshotData, `rollback_to_v${version_id}`);
+
+    return res.json({
+      success: true,
+      message: `Berhasil rollback master data ke versi snapshot #${version_id} (${rows[0].created_at})`,
+      version_id,
+      tx_count: rows[0].tx_count,
+      created_at: rows[0].created_at
+    });
+  } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
 });

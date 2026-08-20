@@ -952,8 +952,10 @@ export default function AndroidPosRegister({
       });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 2. Offline Queue Flusher Handler (Deduplicated, Item-by-Item & Batch Outbox Pattern)
+  // 2. Offline Queue Flusher — hanya Jalur 1: item per item ke /api/pos/transaction
+  // Jalur 2 (POST /api/master-data) dihapus — POS tidak menulis ke blob
   const doFlushOfflineQueue = React.useCallback(() => {
+    if (isSavingRef.current) return;
     try {
       const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
       const queue = queueRaw ? JSON.parse(queueRaw) : [];
@@ -963,7 +965,7 @@ export default function AndroidPosRegister({
       }
       setOfflineQueueCount(queue.length);
 
-      // Jalur 1: Kirim item per item ke direct POS transaction endpoint
+      // Kirim item per item ke /api/pos/transaction — retry sampai server konfirmasi sukses
       queue.forEach(tx => {
         if (!tx) return;
         fetch(getApiUrl('/api/pos/transaction'), {
@@ -985,48 +987,6 @@ export default function AndroidPosRegister({
         })
         .catch(() => {});
       });
-
-      // Jalur 2: Backup sync ke /api/master-data (Master State Union)
-      fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
-        .then(res => res.json())
-        .then(serverMaster => {
-          if (!serverMaster || typeof serverMaster !== 'object') return;
-          const existingSales = serverMaster.salesTransactions || [];
-          
-          // Deduplicate incoming queue with server sales
-          const seen = new Set(existingSales.map(s => String(s.id || s.receipt_no || s.receiptNo || '')));
-          const freshQueue = queue.filter(q => !seen.has(String(q.id || q.receipt_no || q.receiptNo || '')));
-          if (freshQueue.length === 0) {
-            localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-            setOfflineQueueCount(0);
-            return;
-          }
-          const mergedSales = [...freshQueue, ...existingSales];
-          const updatedMaster = { ...serverMaster, salesTransactions: mergedSales, transactions: mergedSales, _lastUpdated: Date.now() };
-
-          fetch(getApiUrl('/api/master-data'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedMaster)
-          })
-          .then(r => r.json())
-          .then(resData => {
-            if (resData && resData.success) {
-              localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-              setOfflineQueueCount(0);
-              setMasterData(curr => {
-                const updatedList = (curr.salesTransactions || []).map(t => ({
-                  ...t,
-                  status: 'approved',
-                  is_offline_pending: false
-                }));
-                const nextState = { ...curr, salesTransactions: updatedList, transactions: updatedList };
-                try { localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(nextState)); } catch (err) {}
-                return nextState;
-              });
-            }
-          }).catch(() => {});
-        }).catch(() => {});
     } catch (err) {}
   }, []);
 
@@ -1079,63 +1039,6 @@ export default function AndroidPosRegister({
           // Double-check guard setelah fetch selesai (async delay)
           if (isSavingRef.current) return;
 
-          // ─── FORCE-FLUSH COMMAND: Server memerintahkan POS kirim semua transaksi lokal ──
-          if (serverMaster._forceFlushCommand === true) {
-            console.log('[FORCE-FLUSH] Perintah force-flush dari server diterima.');
-            const offlineRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
-            const offlineQueue = offlineRaw ? (JSON.parse(offlineRaw) || []) : [];
-
-            setMasterData(prev => {
-              const localSalesTxs = prev.salesTransactions || [];
-              const serverTxIds = new Set((serverMaster.salesTransactions || []).map(t => String(t.id || t.tx_id || t.receipt_no || '')));
-
-              // Gabungkan kandidat dari offline queue & local state
-              const combinedCandidates = [...offlineQueue, ...localSalesTxs];
-              const uniqueMap = new Map();
-              combinedCandidates.forEach(t => {
-                if (!t) return;
-                const tid = String(t.id || t.tx_id || t.receipt_no || '');
-                if (tid && !uniqueMap.has(tid)) uniqueMap.set(tid, t);
-              });
-
-              const newTxs = Array.from(uniqueMap.values()).filter(t => {
-                const tid = String(t.id || t.tx_id || t.receipt_no || '');
-                return tid && !serverTxIds.has(tid);
-              });
-
-              if (newTxs.length > 0) {
-                console.log(`[FORCE-FLUSH] Mengirim ${newTxs.length} transaksi lokal ke server...`);
-                const allMergedSales = [...newTxs, ...(serverMaster.salesTransactions || [])];
-                const flushPayload = {
-                  ...serverMaster,
-                  salesTransactions: allMergedSales,
-                  transactions: allMergedSales,
-                  _lastUpdated: Date.now()
-                };
-                fetch(getApiUrl('/api/master-data'), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(flushPayload)
-                }).then(r => r.json()).then(rd => {
-                  if (rd && rd.success) {
-                    localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-                    setOfflineQueueCount(0);
-                    console.log(`[FORCE-FLUSH] Berhasil! ${newTxs.length} transaksi terkirim ke server.`);
-                  }
-                }).catch(() => {});
-              } else {
-                if (offlineQueue.length > 0) {
-                  localStorage.removeItem('MRIS_POS_OFFLINE_TX_QUEUE');
-                  setOfflineQueueCount(0);
-                }
-              }
-              return prev;
-            });
-            return; // skip normal merge setelah force-flush
-          }
-
-          // Double-check guard setelah fetch selesai (async delay)
-          if (isSavingRef.current) return;
 
           setMasterData(prev => {
             const deletedUserIdsSet = new Set([
@@ -1278,29 +1181,7 @@ export default function AndroidPosRegister({
               mergedCollections.transactions = mergedCollections.transactions.filter(t => !isULRecord(t));
             }
 
-            // ─── AUTO-PUSH TRANSAKSI LOKAL YANG BELUM ADA DI SERVER ────────────────
-            const serverTxIdSet = new Set((serverMaster.salesTransactions || []).map(t => String(t.id || t.tx_id || t.receipt_no || '')));
-            const unSyncedTxs = (mergedCollections.salesTransactions || []).filter(t => {
-              if (!t) return false;
-              const tid = String(t.id || t.tx_id || t.receipt_no || '');
-              return tid && !serverTxIdSet.has(tid);
-            });
 
-            if (unSyncedTxs.length > 0 && !isSavingRef.current) {
-              const autoSyncPayload = {
-                ...serverMaster,
-                salesTransactions: mergedCollections.salesTransactions,
-                transactions: mergedCollections.transactions,
-                _lastUpdated: Date.now()
-              };
-              setTimeout(() => {
-                fetch(getApiUrl('/api/master-data'), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(autoSyncPayload)
-                }).catch(() => {});
-              }, 500);
-            }
 
             return {
               ...prev,
@@ -3039,9 +2920,8 @@ export default function AndroidPosRegister({
         transactions: [finalTx, ...(prev?.transactions || [])]
       };
 
-      // 1. Simpan Instan ke Cache Device & Outbox Queue Lokal (Guaranteed Persistence)
+      // 1. Simpan Outbox Queue Lokal (Guaranteed Persistence untuk Transaksi Offline)
       try {
-        localStorage.setItem('MRIS_POS_MASTER_DATA_CACHE', JSON.stringify(updated));
         const qRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
         const q = qRaw ? JSON.parse(qRaw) : [];
         const filteredQ = q.filter(item => String(item.id || item.receipt_no || '') !== String(finalTx.id || finalTx.receipt_no || ''));
