@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
 import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, buildShiftClosingReceiptText, testPrint as btTestPrint, _browserPrintFallback, checkPrinterLiveStatus, listenBluetoothStatusChange } from '../../utils/bluetoothPrinter';
+import { idbSaveOfflineTx, idbGetAllOfflineTx, idbDeleteOfflineTx } from '../../utils/idbStorage';
 import { 
   ShoppingBag, 
   History, 
@@ -1690,11 +1691,13 @@ export default function AndroidPosRegister({
     return roleStr.includes('waiter') || roleStr.includes('pelayan');
   }, [currentUserSession?.role, userSession?.role]);
 
-  // ─── MULTI-DEVICE SHARED REALTIME TABLE ORDERS SYNC PER OUTLET ───────────────
+  // ─── MULTI-DEVICE SHARED REALTIME TABLE ORDERS & SSE PUSH SYNC ───────────────
   useEffect(() => {
     if (!currentOutlet?.id) return;
 
     let isSubscribed = true;
+    let eventSource = null;
+
     const syncTableOrdersFromServer = () => {
       fetch(getApiUrl(`/api/pos/table-orders?outlet_id=${currentOutlet.id}`), { cache: 'no-store' })
         .then(res => res.ok ? res.json() : null)
@@ -1743,9 +1746,32 @@ export default function AndroidPosRegister({
     };
 
     syncTableOrdersFromServer();
-    const tableSyncTimer = setInterval(syncTableOrdersFromServer, 3000);
+
+    // ⚡ SSE Realtime Stream (Instant 50ms Push)
+    try {
+      if (typeof window !== 'undefined' && window.EventSource) {
+        eventSource = new EventSource(getApiUrl(`/api/pos/events?outlet_id=${currentOutlet.id}`));
+        eventSource.onmessage = (e) => {
+          if (!isSubscribed) return;
+          try {
+            const ev = JSON.parse(e.data);
+            if (ev.type === 'TABLE_ORDER_UPDATE' || ev.type === 'TX_CHECKOUT') {
+              syncTableOrdersFromServer();
+            }
+          } catch (err) {}
+        };
+        eventSource.onerror = () => {
+          // Auto-reconnect by browser EventSource
+        };
+      }
+    } catch (e) {}
+
+    // Fallback sync interval every 15 detik
+    const tableSyncTimer = setInterval(syncTableOrdersFromServer, 15000);
+
     return () => {
       isSubscribed = false;
+      if (eventSource) eventSource.close();
       clearInterval(tableSyncTimer);
     };
   }, [currentOutlet?.id]);

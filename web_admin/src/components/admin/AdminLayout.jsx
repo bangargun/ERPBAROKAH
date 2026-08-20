@@ -114,6 +114,7 @@ export default function AdminLayout({
     {
       title: 'OPERASIONAL & LOGISTIK',
       items: [
+        { id: 'kitchen',             label: '15. Kitchen Display (KDS)',         icon: UtensilsCrossed,  permKey: 'dashboard' },
         { id: 'stock',               label: '4. Logistik',                       icon: Package,          permKey: 'stock' },
         { id: 'adjustments',         label: '5. Penyesuaian',                    icon: SlidersHorizontal, permKey: 'stock' },
         { id: 'update_laporan',      label: '6. Update Laporan Harian',          icon: FileSpreadsheet,  permKey: 'reports' },

@@ -2677,8 +2677,12 @@ app.post('/api/pos/transaction', async (req, res) => {
             DELETE FROM active_table_orders 
             WHERE outlet_id = ? AND (table_number = ? OR table_id = ? OR id LIKE ?)
           `, [outletId, tableNum, tableNum, `%${tableNum}%`]);
+          // Broadcast real-time SSE table cleared
+          broadcastPosEvent(outletId, { type: 'TABLE_ORDER_UPDATE', action: 'DELETE', table_id: tableNum, outlet_id: outletId });
         } catch (delTblErr) {}
       }
+      // Broadcast real-time SSE checkout event
+      broadcastPosEvent(outletId, { type: 'TX_CHECKOUT', tx_id: txId, table_number: tableNum, amount, outlet_id: outletId });
     }
 
     // 2. Synchronous update to masterData JSON blob so immediate GET /api/master-data has the latest transaction
@@ -2703,7 +2707,67 @@ app.post('/api/pos/transaction', async (req, res) => {
   }
 });
 
-// 1b. GET /api/pos/table-orders — Mengambil pesanan meja aktif per-outlet
+// -----------------------------------------------------------------------------
+// 1b. REAL-TIME SERVER-SENT EVENTS (SSE) ENGINE (50ms Instant Push per Outlet)
+// -----------------------------------------------------------------------------
+const sseClientsByOutlet = new Map(); // outletId -> Set of res objects
+
+const broadcastPosEvent = (outletId, eventData) => {
+  const targetOutlets = [outletId, 'all', 0];
+  const payload = `data: ${JSON.stringify(eventData)}\n\n`;
+
+  targetOutlets.forEach(oId => {
+    const clients = sseClientsByOutlet.get(Number(oId)) || sseClientsByOutlet.get(String(oId));
+    if (clients && clients.size > 0) {
+      clients.forEach(clientRes => {
+        try {
+          clientRes.write(payload);
+        } catch (err) {
+          clients.delete(clientRes);
+        }
+      });
+    }
+  });
+};
+
+// GET /api/pos/events — SSE Stream Listener
+app.get('/api/pos/events', (req, res) => {
+  const outletId = Number(req.query.outlet_id || 1);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Bypass Nginx buffering
+  res.flushHeaders();
+
+  if (!sseClientsByOutlet.has(outletId)) {
+    sseClientsByOutlet.set(outletId, new Set());
+  }
+  sseClientsByOutlet.get(outletId).add(res);
+
+  // Send initial connection ack
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', outlet_id: outletId, time: Date.now() })}\n\n`);
+
+  // Heartbeat keep-alive every 25s
+  const heartbeatTimer = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n');
+    } catch (e) {
+      clearInterval(heartbeatTimer);
+    }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeatTimer);
+    const clients = sseClientsByOutlet.get(outletId);
+    if (clients) {
+      clients.delete(res);
+      if (clients.size === 0) sseClientsByOutlet.delete(outletId);
+    }
+  });
+});
+
+// 1c. GET /api/pos/table-orders — Mengambil pesanan meja aktif per-outlet
 app.get('/api/pos/table-orders', async (req, res) => {
   try {
     const outletId = Number(req.query.outlet_id || 1);
@@ -2734,7 +2798,7 @@ app.get('/api/pos/table-orders', async (req, res) => {
   }
 });
 
-// 1c. POST /api/pos/table-orders — Simpan / Update pesanan meja dari Waiters / Kasir
+// 1d. POST /api/pos/table-orders — Simpan / Update pesanan meja dari Waiters / Kasir
 app.post('/api/pos/table-orders', async (req, res) => {
   try {
     const { id, outlet_id, table_id, table_number, customer_name, order_type, waiter_name, items, total_amount, status } = req.body || {};
@@ -2763,6 +2827,26 @@ app.post('/api/pos/table-orders', async (req, res) => {
       `, [orderId, Number(outlet_id), String(table_id), String(table_number || table_id), String(customer_name || 'Pelanggan Umum'), String(order_type || 'Dine In'), String(waiter_name || 'Waiters'), itemsJson, totAmt, String(status || 'occupied')]);
     }
 
+    // Broadcast instant SSE to Kasir & KDS screens (<50ms)
+    broadcastPosEvent(Number(outlet_id), {
+      type: 'TABLE_ORDER_UPDATE',
+      action: 'SAVE',
+      table_id: String(table_id),
+      outlet_id: Number(outlet_id),
+      order: {
+        id: orderId,
+        table_id: String(table_id),
+        table_number: String(table_number || table_id),
+        customer_name: String(customer_name || 'Pelanggan Umum'),
+        order_type: String(order_type || 'Dine In'),
+        waiter_name: String(waiter_name || 'Waiters'),
+        items: typeof items === 'string' ? JSON.parse(items) : (items || []),
+        total_amount: totAmt,
+        status: String(status || 'occupied'),
+        updated_at: new Date().toISOString()
+      }
+    });
+
     return res.json({ success: true, message: 'Pesanan meja berhasil disinkronisasi', id: orderId });
   } catch (err) {
     console.error('POST /api/pos/table-orders error:', err.message);
@@ -2770,7 +2854,7 @@ app.post('/api/pos/table-orders', async (req, res) => {
   }
 });
 
-// 1d. DELETE /api/pos/table-orders/:table_id — Hapus pesanan meja (meja dikosongkan / dibatalkan)
+// 1e. DELETE /api/pos/table-orders/:table_id — Hapus pesanan meja (meja dikosongkan / dibatalkan)
 app.delete('/api/pos/table-orders/:table_id', async (req, res) => {
   try {
     const tableId = req.params.table_id;
@@ -2784,9 +2868,115 @@ app.delete('/api/pos/table-orders/:table_id', async (req, res) => {
       );
     }
 
+    // Broadcast SSE delete event
+    broadcastPosEvent(outletId, {
+      type: 'TABLE_ORDER_UPDATE',
+      action: 'DELETE',
+      table_id: String(tableId),
+      outlet_id: outletId
+    });
+
     return res.json({ success: true, message: `Pesanan meja ${tableId} berhasil dihapus` });
   } catch (err) {
     console.error('DELETE /api/pos/table-orders error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1f. GET /api/sales/paginated — High-Performance Paginated Sales Transactions (Skala Besar)
+app.get('/api/sales/paginated', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || 1, 10));
+    const limit = Math.min(200, Math.max(10, parseInt(req.query.limit || 50, 10)));
+    const offset = (page - 1) * limit;
+
+    const outletId = req.query.outlet_id ? Number(req.query.outlet_id) : null;
+    const dateFrom = req.query.date_from || null;
+    const dateTo = req.query.date_to || null;
+    const search = req.query.search ? `%${req.query.search.trim()}%` : null;
+    const paymentMethod = req.query.payment_method || null;
+
+    if (!mysqlPool) return res.json({ success: true, transactions: [], pagination: { page: 1, limit, totalRecords: 0, totalPages: 0 } });
+
+    let whereClauses = ['1=1'];
+    let params = [];
+
+    if (outletId) {
+      whereClauses.push('outlet_id = ?');
+      params.push(outletId);
+    }
+    if (dateFrom) {
+      whereClauses.push('date >= ?');
+      params.push(dateFrom);
+    }
+    if (dateTo) {
+      whereClauses.push('date <= ?');
+      params.push(dateTo);
+    }
+    if (paymentMethod && paymentMethod !== 'all') {
+      whereClauses.push('payment_method = ?');
+      params.push(paymentMethod);
+    }
+    if (search) {
+      whereClauses.push('(receipt_no LIKE ? OR id LIKE ? OR customer_name LIKE ? OR cashier LIKE ? OR notes LIKE ?)');
+      params.push(search, search, search, search, search);
+    }
+
+    const whereSql = whereClauses.join(' AND ');
+
+    const [countRows] = await mysqlPool.execute(`SELECT COUNT(*) as total FROM sales_transactions WHERE ${whereSql}`, params);
+    const totalRecords = countRows[0]?.total || 0;
+    const totalPages = Math.ceil(totalRecords / limit) || 1;
+
+    const [rows] = await mysqlPool.execute(
+      `SELECT * FROM sales_transactions WHERE ${whereSql} ORDER BY date DESC, time DESC LIMIT ? OFFSET ?`,
+      [...params, String(limit), String(offset)]
+    );
+
+    const transactions = rows.map(r => {
+      let items = [];
+      if (r.items_json) {
+        try { items = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json; } catch (e) {}
+      }
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [{ name: r.notes && r.notes !== '-' ? r.notes : (r.branch_name ? `Menu ${r.branch_name}` : 'Menu Restoran'), qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
+      }
+      const dtStr = String(r.date ? (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)) : '');
+      return {
+        id: r.id,
+        receipt_no: r.receipt_no || r.id,
+        date: dtStr,
+        time: String(r.time || '00:00:00').substring(0, 8),
+        outlet_id: r.outlet_id,
+        branch_name: r.branch_name,
+        customer_name: r.customer_name,
+        table_number: r.table_number,
+        order_type: r.order_type,
+        amount: Number(r.amount || 0),
+        subtotal: Number(r.subtotal || r.amount || 0),
+        discount_amount: Number(r.discount_amount || 0),
+        paid_amount: Number(r.paid_amount || r.amount || 0),
+        change_amount: Number(r.change_amount || 0),
+        payment_method: r.payment_method,
+        cashier: r.cashier,
+        notes: r.notes,
+        status: r.status,
+        items
+      };
+    });
+
+    return res.json({
+      success: true,
+      transactions,
+      pagination: {
+        page,
+        limit,
+        totalRecords,
+        totalPages
+      }
+    });
+  } catch (err) {
+    console.error('GET /api/sales/paginated error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -22,6 +22,7 @@ import ActivityLogPage from './components/admin/ActivityLogPage';
 import TransactionHistoryPage from './components/admin/TransactionHistoryPage';
 import SopManagementPage from './components/admin/SopManagementPage';
 import PrinterThermalSettingsPage from './components/admin/PrinterThermalSettingsPage';
+import KitchenDisplayPage from './components/admin/KitchenDisplayPage';
 import LoginPage from './components/admin/LoginPage';
 
 import AndroidPosRegister from './components/mobile/AndroidPosRegister';
@@ -978,6 +979,14 @@ export default function App() {
               selectedBranch={selectedBranch}
               themeMode={themeMode}
               onRefreshFromServer={fetchLatestFromServer}
+            />
+          )}
+
+          {adminTab === 'kitchen' && (
+            <KitchenDisplayPage
+              masterData={masterData}
+              selectedBranch={selectedBranch}
+              themeMode={themeMode}
             />
           )}
 
