@@ -562,6 +562,55 @@ export default function AndroidPosRegister({
   const [rightPanelSubTab, setRightPanelSubTab] = useState('ORDER');
   const [guestCount, setGuestCount] = useState(1);
 
+  // Online & SSE Network State
+  const [isOnline, setIsOnline] = useState(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const playTapAudio = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.04);
+    } catch (e) {}
+  }, []);
+
+  const playSuccessKaching = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08);
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.16);
+      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.24);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.45);
+    } catch (e) {}
+  }, []);
+
   // Dedicated Pembayaran Modal Screen State (Matching User's Screenshot)
   const [showPaymentScreenModal, setShowPaymentScreenModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('Cash');
@@ -2116,6 +2165,7 @@ export default function AndroidPosRegister({
 
   // TAP 1: ADD ITEM TO CART
   const handleAddToCart = (product) => {
+    playTapAudio();
     const existingIndex = cart.findIndex(item => item.id === product.id || String(item.id) === String(product.id));
     if (existingIndex >= 0) {
       const updatedCart = [...cart];
@@ -2127,6 +2177,7 @@ export default function AndroidPosRegister({
   };
 
   const handleUpdateQty = (productId, delta) => {
+    playTapAudio();
     setCart(cart.map(item => {
       if (item.id === productId || String(item.id) === String(productId)) {
         const newQty = item.qty + delta;
@@ -3098,6 +3149,7 @@ export default function AndroidPosRegister({
 
     setOpenedOriginalCart(null);
     setLastCompletedTx(newTx);
+    playSuccessKaching();
     handleClearCart();
     setShowReceiptModal(true);
     handleExecuteBatchPrint(newTx, { printKitchen: false, printBar: false, printTableCopy: false, printCashierCopy: true });
@@ -3208,6 +3260,12 @@ export default function AndroidPosRegister({
   const handleSubmitShiftClosing = () => {
     const physicalVal = physicalCashCalculated > 0 ? physicalCashCalculated : Number(physicalCashDrawer || expectedCashInDrawer);
     const variance = physicalVal - expectedCashInDrawer;
+
+    // Proteksi 10/10: Kasir WAJIB mengisi alasan jika ada selisih kas (baik kurang maupun lebih)
+    if (variance !== 0 && (!shiftCustomNotes || shiftCustomNotes.trim().length < 5)) {
+      alert(`⚠️ Terdapat SELISIH KAS sebesar ${formatRupiah(Math.abs(variance))} (${variance < 0 ? 'Kas Kurang / Defisit' : 'Kas Lebih / Surplus'}).\n\nKasir WAJIB menuliskan alasan / catatan selisih kas pada kolom catatan (minimal 5 karakter) sebelum menutup shift.`);
+      return;
+    }
 
     const newShiftReport = {
       id: `SHIFT-CLOSE-${Date.now().toString().substring(7)}`,
@@ -4007,6 +4065,23 @@ export default function AndroidPosRegister({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+
+            {/* VISUAL ONLINE / OFFLINE STATUS BADGE */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: isOnline ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+              border: `1px solid ${isOnline ? '#10b981' : '#f59e0b'}`,
+              color: isOnline ? '#10b981' : '#fbbf24',
+              padding: '4px 10px',
+              borderRadius: '8px',
+              fontSize: '0.74rem',
+              fontWeight: '800'
+            }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: isOnline ? '#10b981' : '#f59e0b', boxShadow: isOnline ? '0 0 8px #10b981' : '0 0 8px #f59e0b' }} />
+              <span>{isOnline ? '🟢 Online (SSE 50ms)' : '🟡 Mode Offline (IDB)'}</span>
+            </div>
 
             {/* OFFLINE QUEUE STATUS BADGE — merah mencolok agar kasir tidak menutup app */}
             {offlineQueueCount > 0 && (
@@ -11977,31 +12052,49 @@ export default function AndroidPosRegister({
 
               {/* CASH TENDERED QUICK PRESET BAR (IF CASH IS SELECTED) */}
               {selectedPaymentMethod === 'Cash' && (
-                <div style={{ background: '#ffffff', padding: '12px 16px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.78rem', color: '#475569', fontWeight: '800' }}>Uang Tunai Diterima:</div>
+                <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: '14px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.80rem', color: '#475569', fontWeight: '800', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Uang Tunai Diterima:</span>
+                    <span style={{ fontSize: '0.74rem', color: '#2563eb', fontWeight: '700' }}>Pilihan Cepat / Uang Pecahan</span>
+                  </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
                       type="number"
                       value={tenderedCash}
                       onChange={e => setTenderedCash(e.target.value)}
                       placeholder={`Nominal Tunai (cth: ${cartTotal})`}
-                      style={{ flex: 1, padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: '800', outline: 'none', color: '#0f172a', background: '#ffffff' }}
+                      style={{ flex: 1, padding: '12px 14px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '1rem', fontWeight: '900', outline: 'none', color: '#0f172a', background: '#ffffff' }}
                     />
                     <button
                       onClick={() => setTenderedCash(cartTotal.toString())}
-                      style={{ background: 'rgba(37,99,235,0.1)', border: '1px solid #2563eb', color: '#2563eb', padding: '0 14px', borderRadius: '10px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
+                      style={{ background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', border: 'none', color: '#ffffff', padding: '0 16px', borderRadius: '10px', fontSize: '0.82rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,99,235,0.3)' }}
                     >
                       Uang Pas
                     </button>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px', overflowX: 'auto' }}>
-                    {[10000, 20000, 50000, 100000].map(val => (
+                  
+                  {/* Preset Pecahan Bulat */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                    {[50000, 100000, 200000, Math.ceil(cartTotal / 50000) * 50000].filter((v, idx, arr) => v >= cartTotal && arr.indexOf(v) === idx).slice(0, 4).map(val => (
                       <button
                         key={val}
                         onClick={() => setTenderedCash(val.toString())}
-                        style={{ flex: 1, background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '8px 4px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: '800', color: '#0f172a', cursor: 'pointer' }}
+                        style={{ background: '#f8fafc', border: '1.5px solid #cbd5e1', padding: '10px 4px', borderRadius: '8px', fontSize: '0.80rem', fontWeight: '900', color: '#0f172a', cursor: 'pointer', transition: 'all 0.1s ease' }}
                       >
                         {formatRupiah(val)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Shortcut Penambah Cepat */}
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {[10000, 20000, 50000].map(inc => (
+                      <button
+                        key={inc}
+                        onClick={() => setTenderedCash(prev => (Number(prev || cartTotal) + inc).toString())}
+                        style={{ flex: 1, background: '#eff6ff', border: '1px solid #bfdbfe', padding: '7px 4px', borderRadius: '8px', fontSize: '0.76rem', fontWeight: '800', color: '#2563eb', cursor: 'pointer' }}
+                      >
+                        +{formatRupiah(inc)}
                       </button>
                     ))}
                   </div>
@@ -12017,36 +12110,58 @@ export default function AndroidPosRegister({
                 const kembalian = Math.max(0, numTendered - cartTotal);
 
                 return (
-                  <div style={{
-                    background: '#ffffff',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                  }}>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                      <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Total Bayar</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>
-                        {formatRupiah(numTendered)}
+                  <div>
+                    <div style={{
+                      background: '#ffffff',
+                      borderRadius: '14px',
+                      padding: '14px 16px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                    }}>
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Total Tagihan</div>
+                        <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0f172a' }}>
+                          {formatRupiah(cartTotal)}
+                        </div>
+                      </div>
+                      <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Uang Diterima</div>
+                        <div style={{ fontSize: '1rem', fontWeight: '900', color: '#2563eb' }}>
+                          {formatRupiah(numTendered)}
+                        </div>
+                      </div>
+                      <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kembalian</div>
+                        <div style={{ fontSize: '1rem', fontWeight: '900', color: kembalian > 0 ? '#10b981' : '#0f172a' }}>
+                          {formatRupiah(kembalian)}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                      <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kurang Bayar</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kurangBayar > 0 ? '#ef4444' : '#0f172a' }}>
-                        {formatRupiah(kurangBayar)}
+
+                    {/* LARGE HIGHLIGHT KEMBALIAN BANNER (10/10) */}
+                    {selectedPaymentMethod === 'Cash' && kembalian > 0 && (
+                      <div style={{
+                        marginTop: '10px',
+                        background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+                        border: '2px solid #10b981',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        textAlign: 'center',
+                        boxShadow: '0 4px 12px rgba(16,185,129,0.2)'
+                      }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: '900', color: '#047857', letterSpacing: '0.5px' }}>
+                          UANG KEMBALIAN PELANGGAN:
+                        </div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: '900', color: '#059669', marginTop: '2px' }}>
+                          {formatRupiah(kembalian)}
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ width: '1px', height: '28px', background: '#e2e8f0' }}></div>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
-                      <div style={{ fontSize: '0.75rem', color: '#475569', fontWeight: '700', marginBottom: '2px' }}>Kembalian</div>
-                      <div style={{ fontSize: '1rem', fontWeight: '900', color: kembalian > 0 ? '#10b981' : '#0f172a' }}>
-                        {formatRupiah(kembalian)}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 );
               })()}
