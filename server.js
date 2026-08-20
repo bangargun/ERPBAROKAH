@@ -444,23 +444,12 @@ const initMySQLPool = async () => {
     });
     await ensureMasterDataTable();
 
-    // Auto-Purge all legacy UPD- records directly from MySQL mris_master_data table on startup
-    try {
-      const [rows] = await mysqlPool.execute('SELECT data FROM mris_master_data WHERE id = 1');
-      if (rows && rows.length > 0 && rows[0].data) {
-        const dbData = JSON.parse(rows[0].data);
-        const cleanedDbData = sanitizeMasterDataPayload(dbData);
-        cleanedDbData._lastUpdated = Date.now();
-        const json = JSON.stringify(cleanedDbData);
-        await mysqlPool.execute(`
-          INSERT INTO mris_master_data (id, data) VALUES (1, ?)
-          ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP
-        `, [json]);
-        console.log('🧹 PERMANENTLY PURGED all legacy UPD- records from MySQL database on startup!');
-      }
-    } catch (purgeErr) {
-      console.error('⚠️ DB Purge warning:', purgeErr.message);
-    }
+    // NOTE: Auto-purge startup dihapus — sanitizeMasterDataPayload dapat memfilter
+    // transaksi POS valid yang dikirim via /api/master-data (Jalur 2) sebagai "sintetis",
+    // menyebabkan data hilang permanen setiap kali server restart.
+    // Sanitize hanya dilakukan saat data DIKIRIM ke client (GET /api/master-data),
+    // bukan saat disimpan ke database.
+
   } catch (err) {
     mysqlInitError = err.message;
   }
