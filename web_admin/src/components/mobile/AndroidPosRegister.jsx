@@ -5546,7 +5546,7 @@ export default function AndroidPosRegister({
               const activeShiftTotalSales = (outletTransactions || []).reduce((sum, tx) => sum + (tx.amount || 0), 0);
               const activeShiftTxCount = (outletTransactions || []).length;
               const activeShiftCash = (outletTransactions || []).filter(tx => (tx.payment_method || 'Cash') === 'Cash').reduce((sum, tx) => sum + (tx.amount || 0), 0);
-              const activeShiftQris = (outletTransactions || []).filter(tx => (tx.payment_method || '') === 'QRIS').reduce((sum, tx) => sum + (tx.amount || 0), 0);
+              const activeShiftQris = (outletTransactions || []).filter(tx => (tx.payment_method || '').toLowerCase().includes('qris')).reduce((sum, tx) => sum + (tx.amount || 0), 0);
               const activeShiftEdc = (outletTransactions || []).filter(tx => (tx.payment_method || '') === 'EDC').reduce((sum, tx) => sum + (tx.amount || 0), 0);
 
               const activeUserShift = {
@@ -11876,8 +11876,8 @@ export default function AndroidPosRegister({
                   { id: 'Cash', label: 'Cash' },
                   { id: 'Pembayaran Poin', label: 'Pembayaran Poin' },
                   { id: 'Transfer Bank', label: 'Transfer Bank' },
-                  { id: 'Grab-Food', label: 'Grab-Food' },
-                  { id: 'QRIS LINK AJA', label: 'QRIS LINK AJA' },
+                  { id: 'GrabFood', label: 'GrabFood' },
+                  { id: 'QRIS Link Aja', label: 'QRIS Link Aja' },
                   { id: 'Go-Food', label: 'Go-Food' },
                   { id: 'ShopeeFood', label: 'ShopeeFood' },
                   { id: 'QRIS BCA', label: 'QRIS BCA' },
