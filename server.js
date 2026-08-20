@@ -637,10 +637,14 @@ const getMasterDataFromMySQL = async () => {
     }
 
     // Auto-merge semua transaksi dari tabel relasi MySQL sales_transactions
+    // MySQL adalah ground truth — semua transaksi yang masuk via POST /api/pos/transaction
+    // langsung tersimpan di tabel ini. Blob (JSON) adalah cache yang bisa out-of-sync.
+    // Strategi: selalu union antara blob + MySQL. MySQL menambah yang tidak ada di blob.
     try {
       const [salesRows] = await mysqlPool.execute('SELECT * FROM sales_transactions ORDER BY date DESC, time DESC');
       if (Array.isArray(salesRows) && salesRows.length > 0) {
         const txMap = new Map();
+        // Seed dengan data blob terlebih dahulu (blob punya detail lebih lengkap: items, dll)
         (masterData.salesTransactions || []).forEach(t => {
           const k = String(t.id || t.receipt_no || t.receiptNo || '');
           if (k) txMap.set(k, t);
@@ -654,9 +658,8 @@ const getMasterDataFromMySQL = async () => {
           const k = String(r.id || r.receipt_no || '');
           if (!k) return;
 
-          // JSON blob adalah sumber utama — JANGAN overwrite data blob yang sudah ada
-          // Tabel relasional hanya menambah baris yang BENAR-BENAR tidak ada di blob
-          if (txMap.has(k)) return; // ← blob sudah punya data ini, skip
+          // Blob sudah punya ini dengan data lengkap (items, dll) — skip, jangan overwrite
+          if (txMap.has(k)) return;
 
           const dtStr = typeof r.date === 'string'
             ? r.date.substring(0, 10)
@@ -1855,6 +1858,33 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
           if (k) unionMap.set(k, item);
         });
 
+        // ─── PROTEKSI ANTI DATA-LOSS untuk salesTransactions ──────────────────
+        // Jika incoming salesTransactions jauh lebih sedikit dari existing (< 30%),
+        // kemungkinan besar ini adalah payload parsial dari browser yang baru dibuka.
+        // Dalam kasus ini: HANYA tambahkan item baru dari incoming, JANGAN replace existing.
+        // Tujuan: mencegah 121 transaksi hilang karena browser kirim payload dengan 12 item.
+        const existingCount = Array.isArray(extVal) ? extVal.length : 0;
+        const incomingCount = Array.isArray(incVal) ? incVal.length : 0;
+        const isSalesTxKey = (key === 'salesTransactions' || key === 'transactions');
+        const isPartialPayload = isSalesTxKey && existingCount > 20 && incomingCount > 0 && incomingCount < existingCount * 0.3;
+
+        if (isPartialPayload) {
+          // Hanya tambahkan item yang BENAR-BENAR baru (tidak ada di existing)
+          (Array.isArray(incVal) ? incVal : []).forEach(item => {
+            if (!item) return;
+            const k = String(
+              item.id != null ? item.id :
+              (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
+            ).trim();
+            if (k && !unionMap.has(k)) {
+              unionMap.set(k, item); // hanya item genuinely baru
+            }
+          });
+          result[key] = Array.from(unionMap.values());
+          return;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         // Overlay dengan data incoming: jika item sudah ada, ambil yang _updatedAt lebih baru
         (Array.isArray(incVal) ? incVal : []).forEach(item => {
           if (!item) return;
@@ -2287,6 +2317,102 @@ app.get('/api/master-data', async (req, res) => {
   }
 });
 
+// POST /api/admin/rebuild-blob-from-mysql — Emergency: Rebuild JSON blob dari tabel MySQL sales_transactions
+// Digunakan saat blob ter-overwrite dengan data parsial tapi MySQL masih punya semua transaksi.
+app.post('/api/admin/rebuild-blob-from-mysql', async (req, res) => {
+  try {
+    const { secret } = req.body || {};
+    if (secret !== 'MRIS-RESTORE-2026') {
+      return res.status(403).json({ success: false, error: 'Akses ditolak' });
+    }
+    if (!mysqlPool) {
+      return res.status(500).json({ success: false, error: 'MySQL tidak terhubung' });
+    }
+
+    // 1. Baca semua transaksi dari tabel sales_transactions (ground truth)
+    const [salesRows] = await mysqlPool.execute(
+      'SELECT * FROM sales_transactions ORDER BY date DESC, time DESC'
+    );
+
+    // 2. Baca blob saat ini
+    const current = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const blobTxMap = new Map(
+      (current.salesTransactions || []).map(t => [String(t.id || t.receipt_no || ''), t])
+    );
+
+    let addedCount = 0;
+    const delSalesSet = new Set((current.deletedSalesIds || []).map(x => String(x)));
+
+    // 3. Tambahkan dari MySQL semua yang tidak ada di blob dan tidak dalam deleted list
+    salesRows.forEach(r => {
+      const k = String(r.id || r.receipt_no || '');
+      if (!k || delSalesSet.has(k)) return;
+      if (blobTxMap.has(k)) return; // sudah ada di blob, skip
+
+      const dtStr = r.date
+        ? (typeof r.date === 'string' ? r.date.substring(0, 10) : (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)))
+        : '';
+
+      blobTxMap.set(k, {
+        id: r.id,
+        receipt_no: r.receipt_no || r.id,
+        receiptNo: r.receipt_no || r.id,
+        date: dtStr,
+        entry_date: dtStr,
+        transaction_date: dtStr,
+        time: r.time ? String(r.time) : '12:00:00',
+        created_at: r.created_at,
+        outlet_id: r.outlet_id,
+        branch_id: r.branch_id || r.outlet_id,
+        branch_name: r.branch_name || '',
+        outlet: r.outlet || r.branch_name || '',
+        customer_name: r.customer_name || 'Pelanggan Umum',
+        table_number: r.table_number || '',
+        order_type: r.order_type || 'Dine In',
+        subtotal: Number(r.subtotal || r.amount || 0),
+        discount: Number(r.discount_amount || 0),
+        discount_amount: Number(r.discount_amount || 0),
+        amount: Number(r.amount || 0),
+        total: Number(r.amount || 0),
+        paid_amount: Number(r.paid_amount || r.amount || 0),
+        change_amount: Number(r.change_amount || 0),
+        payment_method: r.payment_method || 'Cash',
+        cashier: r.cashier || 'Kasir POS',
+        notes: r.notes || '',
+        status: r.status || 'approved',
+        type: r.type || 'income',
+        items: [{ name: 'Menu', qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }]
+      });
+      addedCount++;
+    });
+
+    // 4. Simpan blob yang sudah dipulihkan
+    const rebuiltTxList = Array.from(blobTxMap.values()).sort((a, b) => {
+      const da = String(a.date || '').substring(0, 10);
+      const db = String(b.date || '').substring(0, 10);
+      if (da !== db) return db.localeCompare(da);
+      return String(b.time || '').localeCompare(String(a.time || ''));
+    });
+
+    current.salesTransactions = rebuiltTxList;
+    current.transactions = rebuiltTxList;
+    current._lastUpdated = Date.now();
+    await saveMasterDataToMySQL(current);
+
+    return res.json({
+      success: true,
+      message: `Blob berhasil di-rebuild. ${addedCount} transaksi ditambahkan dari MySQL. Total sekarang: ${rebuiltTxList.length} transaksi.`,
+      added: addedCount,
+      total: rebuiltTxList.length,
+      mysql_rows: salesRows.length,
+      blob_before: blobTxMap.size - addedCount
+    });
+  } catch (err) {
+    console.error('POST /api/admin/rebuild-blob-from-mysql error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // =============================================================================
 // DIRECT LIGHTWEIGHT POS REST ENDPOINTS (FAST, DIRECT MYSQL COMMIT, <15ms)
 // =============================================================================
@@ -2562,27 +2688,19 @@ app.post('/api/master-data', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Payload tidak valid' });
     }
 
-    // ── PROTEKSI KRITIS: salesTransactions TIDAK BOLEH diubah via POST /api/master-data ──
-    // Satu-satunya cara menulis transaksi adalah melalui POST /api/pos/transaction
-    // Ini mencegah tablet/browser dengan local cache berbeda menimpa data transaksi server
-    delete incomingData.salesTransactions;
-    delete incomingData.transactions;
-
     // Baca data terkini dari MySQL; jika gagal/null, gunakan defaultMasterData sebagai base
     const currentData = (await getMasterDataFromMySQL()) || defaultMasterData;
     const sanitizedIncoming = sanitizeMasterDataPayload(incomingData);
 
-    // Merge data incoming dengan data server terkini
+    // Merge data incoming dengan data server terkini (additive union merge for transactions & master data)
     const mergedData = mergeMasterDataSafely(currentData, sanitizedIncoming);
     mergedData._lastUpdated = Date.now();
-    // Kembalikan salesTransactions dari server — tidak pernah diganti oleh incoming
-    mergedData.salesTransactions = currentData.salesTransactions || [];
-    mergedData.transactions = currentData.salesTransactions || [];
 
     // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — FIX KRITIS SINKRONISASI
     await saveMasterDataToMySQL(mergedData);
-    // Sync ke tabel-tabel relasional MySQL (shift_closings, stock_movement, dll)
+    // Sync ke tabel-tabel relasional MySQL (sales_transactions, shift_closings, stock_movement, dll)
     await syncToMySQL(mergedData);
+
 
     return res.json({
       success: true,

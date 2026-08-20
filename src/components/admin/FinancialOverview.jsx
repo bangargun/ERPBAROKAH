@@ -147,53 +147,72 @@ export default function FinancialOverview({
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
-  // Helper Date Matcher (Local Time YYYY-MM-DD)
-  const todayStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
+  // Robust Date Parser — handles ISO strings, Date objects, MySQL datetime
+  const parseDateToYYYYMMDD = (raw) => {
+    if (!raw) return '';
+    if (raw instanceof Date) {
+      if (isNaN(raw.getTime())) return '';
+      return `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`;
+    }
+    const s = String(raw).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+    if (s.includes('T')) return s.split('T')[0];
+    if (s.includes(' ') && /^\d{4}/.test(s)) return s.split(' ')[0];
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    return s.substring(0,10);
+  };
+
+  // Helper Date Matcher — today in Asia/Jakarta timezone
+  const todayStr = useMemo(() => {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+  }, []);
 
   // Compute Active Dates List based on Preset
   const activeDateList = useMemo(() => {
     const dates = [];
     const today = new Date();
+    const fmtDate = (d) => parseDateToYYYYMMDD(d);
 
     if (dateRangePreset === 'today') {
       dates.push(todayStr);
     } else if (dateRangePreset === 'yesterday') {
-      const yest = new Date();
-      yest.setDate(today.getDate() - 1);
-      dates.push(yest.toLocaleDateString('en-CA'));
+      const yest = new Date(); yest.setDate(today.getDate() - 1);
+      dates.push(fmtDate(yest));
     } else if (dateRangePreset === '7days') {
       for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        dates.push(d.toLocaleDateString('en-CA'));
+        const d = new Date(); d.setDate(today.getDate() - i);
+        dates.push(fmtDate(d));
       }
     } else if (dateRangePreset === '30days') {
       for (let i = 29; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        dates.push(d.toLocaleDateString('en-CA'));
+        const d = new Date(); d.setDate(today.getDate() - i);
+        dates.push(fmtDate(d));
       }
     } else if (dateRangePreset === 'this_month') {
       const year = today.getFullYear();
       const month = today.getMonth();
-      const firstDay = new Date(year, month, 1);
-      let curr = new Date(firstDay);
+      let curr = new Date(year, month, 1);
       while (curr <= today) {
-        dates.push(curr.toLocaleDateString('en-CA'));
+        dates.push(fmtDate(curr));
         curr.setDate(curr.getDate() + 1);
       }
     } else if (dateRangePreset === 'custom' && customStartDate && customEndDate) {
       let curr = new Date(customStartDate);
       const end = new Date(customEndDate);
       while (curr <= end) {
-        dates.push(curr.toLocaleDateString('en-CA'));
+        dates.push(fmtDate(curr));
         curr.setDate(curr.getDate() + 1);
       }
     } else {
       for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        dates.push(d.toLocaleDateString('en-CA'));
+        const d = new Date(); d.setDate(today.getDate() - i);
+        dates.push(fmtDate(d));
       }
     }
     return dates;
@@ -219,7 +238,7 @@ export default function FinancialOverview({
 
     // Sales Transactions
     const periodTx = allSalesTx.filter(t => {
-      const d = String(t.date || t.entry_date || t.transaction_date || t.timestamp || todayStr).substring(0, 10);
+      const d = parseDateToYYYYMMDD(t.date || t.entry_date || t.transaction_date || t.created_at || t.timestamp) || todayStr;
       return datesSet.has(d) && matchesBranch(t, activeOutletFilter);
     });
 
@@ -228,7 +247,7 @@ export default function FinancialOverview({
 
     // Approved Finance
     const periodApproved = allApprovedFinance.filter(f => {
-      const d = String(f.date || f.entry_date || f.created_at || todayStr).substring(0, 10);
+      const d = parseDateToYYYYMMDD(f.date || f.entry_date || f.created_at) || todayStr;
       return datesSet.has(d) && matchesBranch(f, activeOutletFilter);
     });
 
@@ -238,9 +257,10 @@ export default function FinancialOverview({
 
     // Expense Records
     const periodExpenseRecs = allFinancialRecords.filter(f => {
-      const d = String(f.date || f.entry_date || f.created_at || todayStr).substring(0, 10);
+      const d = parseDateToYYYYMMDD(f.date || f.entry_date || f.created_at) || todayStr;
       return f.type === 'expense' && datesSet.has(d) && matchesBranch(f, activeOutletFilter);
     }).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+
 
     let totalQtySold = 0;
     let dineInSales = 0;
@@ -394,10 +414,10 @@ export default function FinancialOverview({
       const parts = dateStr.split('-');
       const shortLabel = parts.length === 3 ? `${parseInt(parts[2], 10)} ${monthNames[parseInt(parts[1], 10) - 1] || ''}` : dateStr;
 
-      const dayTxs = allSalesTx.filter(t => (String(t.date || t.entry_date || t.transaction_date || t.timestamp || todayStr).substring(0, 10) === dateStr) && matchesBranch(t, activeOutletFilter));
+      const dayTxs = allSalesTx.filter(t => (parseDateToYYYYMMDD(t.date || t.entry_date || t.transaction_date || t.created_at || t.timestamp) === dateStr) && matchesBranch(t, activeOutletFilter));
       const txSum = dayTxs.reduce((sum, t) => sum + (Number(t.amount) || Number(t.total) || 0), 0);
 
-      const dayApproved = allApprovedFinance.filter(f => (String(f.date || f.entry_date || f.created_at || todayStr).substring(0, 10) === dateStr) && matchesBranch(f, activeOutletFilter));
+      const dayApproved = allApprovedFinance.filter(f => (parseDateToYYYYMMDD(f.date || f.entry_date || f.created_at) === dateStr) && matchesBranch(f, activeOutletFilter));
       const approvedSum = dayApproved.reduce((sum, f) => sum + (Number(f.net_sales) || 0), 0);
 
       const dayRevenue = Math.max(txSum, approvedSum);
@@ -422,9 +442,10 @@ export default function FinancialOverview({
     const datesSet = new Set(activeDateList);
 
     const relevantTxs = allSalesTx.filter(t => {
-      const d = String(t.date || t.entry_date || t.transaction_date || t.timestamp || todayStr).substring(0, 10);
+      const d = parseDateToYYYYMMDD(t.date || t.entry_date || t.transaction_date || t.created_at || t.timestamp) || todayStr;
       return datesSet.has(d) && matchesBranch(t, activeOutletFilter);
     });
+
 
     relevantTxs.forEach(tx => {
       if (Array.isArray(tx.items) && tx.items.length > 0) {

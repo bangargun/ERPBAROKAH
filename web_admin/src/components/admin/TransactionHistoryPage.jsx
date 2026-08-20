@@ -787,6 +787,24 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
     ...(masterData?.deletedLogisticsIds || []).map(x => String(x))
   ]);
 
+  // Robust date parser — handles ISO strings, MySQL timestamps, Date objects
+  const parseTxDate = (raw) => {
+    if (!raw) return '';
+    if (raw instanceof Date) {
+      if (isNaN(raw.getTime())) return '';
+      return `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`;
+    }
+    const s = String(raw).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+    if (s.includes('T')) return s.split('T')[0];
+    if (s.includes(' ') && /^\d{4}/.test(s)) return s.split(' ')[0];
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    return s.substring(0,10);
+  };
+
   const rawTransactionsList = (masterData?.salesTransactions || masterData?.transactions || [])
     .filter(t => {
       if (!t) return false;
@@ -797,8 +815,8 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       return true;
     })
     .sort((a, b) => {
-      const dateA = String(a.date || a.entry_date || a.transaction_date || a.created_at || '').substring(0, 10);
-      const dateB = String(b.date || b.entry_date || b.transaction_date || b.created_at || '').substring(0, 10);
+      const dateA = parseTxDate(a.date || a.entry_date || a.transaction_date || a.created_at) || '';
+      const dateB = parseTxDate(b.date || b.entry_date || b.transaction_date || b.created_at) || '';
       if (dateA !== dateB) return dateB.localeCompare(dateA);
       const timeA = String(a.time || '00:00:00');
       const timeB = String(b.time || '00:00:00');
@@ -810,8 +828,9 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
   const filteredTransactions = rawTransactionsList.filter(item => {
     if (outletFilter !== 'ALL' && Number(item.outlet_id) !== Number(outletFilter)) return false;
-    if (startDate && item.date < startDate) return false;
-    if (endDate && item.date > endDate) return false;
+    const itemDate = parseTxDate(item.date || item.entry_date || item.transaction_date || item.created_at);
+    if (startDate && itemDate < startDate) return false;
+    if (endDate && itemDate > endDate) return false;
 
     if (orderTypeFilter !== 'ALL') {
       const info = getOrderTypeInfo(item);
@@ -833,6 +852,7 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
       const matchPay = (item.payment_method || '').toLowerCase().includes(q);
       const matchNotes = (item.notes || '').toLowerCase().includes(q);
       const matchItem = (item.items || []).some(it => (it.name || '').toLowerCase().includes(q));
+
 
       if (!matchId && !matchCust && !matchCashier && !matchBranch && !matchPay && !matchNotes && !matchItem) return false;
     }
