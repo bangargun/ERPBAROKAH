@@ -545,6 +545,25 @@ const ensureMasterDataTable = async () => {
       `);
     } catch (e) {}
 
+    // 4b. Active Table Orders (Shared Realtime Multi-Device Table Orders per Outlet)
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS active_table_orders (
+        id VARCHAR(100) PRIMARY KEY,
+        outlet_id BIGINT NOT NULL,
+        table_id VARCHAR(100) NOT NULL,
+        table_number VARCHAR(100),
+        customer_name VARCHAR(255) DEFAULT 'Pelanggan Umum',
+        order_type VARCHAR(100) DEFAULT 'Dine In',
+        waiter_name VARCHAR(255),
+        items LONGTEXT NOT NULL,
+        total_amount DECIMAL(15,2) DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'occupied',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_outlet_status (outlet_id, status)
+      )
+    `);
+    console.log('✅ Tabel active_table_orders (Multi-Device Table Sync) siap');
+
     // 5. Categories
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS categories (
@@ -2635,6 +2654,17 @@ app.post('/api/pos/transaction', async (req, res) => {
           } catch (smErr) {}
         }
       }
+
+      // Hapus otomatis dari active_table_orders untuk meja yang bersangkutan saat transaksi selesai dibayar
+      const tableNum = String(tx.table_number || '').trim();
+      if (tableNum && tableNum !== 'N/A (Take Away)' && tableNum !== 'N/A') {
+        try {
+          await mysqlPool.execute(`
+            DELETE FROM active_table_orders 
+            WHERE outlet_id = ? AND (table_number = ? OR table_id = ? OR id LIKE ?)
+          `, [outletId, tableNum, tableNum, `%${tableNum}%`]);
+        } catch (delTblErr) {}
+      }
     }
 
     // 2. Synchronous update to masterData JSON blob so immediate GET /api/master-data has the latest transaction
@@ -2655,6 +2685,94 @@ app.post('/api/pos/transaction', async (req, res) => {
     return res.json({ success: true, message: 'Transaksi berhasil disimpan ke MySQL', id: txId });
   } catch (err) {
     console.error('POST /api/pos/transaction error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1b. GET /api/pos/table-orders — Mengambil pesanan meja aktif per-outlet
+app.get('/api/pos/table-orders', async (req, res) => {
+  try {
+    const outletId = Number(req.query.outlet_id || 1);
+    if (!mysqlPool) return res.json({ success: true, tableOrders: [] });
+
+    const [rows] = await mysqlPool.execute(
+      'SELECT * FROM active_table_orders WHERE outlet_id = ? AND status = "occupied" ORDER BY updated_at DESC',
+      [outletId]
+    );
+
+    const formatted = rows.map(r => ({
+      id: r.id,
+      table_id: r.table_id,
+      table_number: r.table_number,
+      customer_name: r.customer_name,
+      order_type: r.order_type,
+      waiter_name: r.waiter_name,
+      total_amount: Number(r.total_amount || 0),
+      items: typeof r.items === 'string' ? (JSON.parse(r.items || '[]')) : (r.items || []),
+      status: r.status,
+      updated_at: r.updated_at
+    }));
+
+    return res.json({ success: true, tableOrders: formatted });
+  } catch (err) {
+    console.error('GET /api/pos/table-orders error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1c. POST /api/pos/table-orders — Simpan / Update pesanan meja dari Waiters / Kasir
+app.post('/api/pos/table-orders', async (req, res) => {
+  try {
+    const { id, outlet_id, table_id, table_number, customer_name, order_type, waiter_name, items, total_amount, status } = req.body || {};
+    if (!table_id || !outlet_id) {
+      return res.status(400).json({ success: false, error: 'outlet_id dan table_id wajib diisi' });
+    }
+
+    const orderId = String(id || `TO-${outlet_id}-${table_id}`);
+    const itemsJson = typeof items === 'string' ? items : JSON.stringify(items || []);
+    const totAmt = Number(total_amount || 0);
+
+    if (mysqlPool) {
+      await mysqlPool.execute(`
+        INSERT INTO active_table_orders 
+          (id, outlet_id, table_id, table_number, customer_name, order_type, waiter_name, items, total_amount, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          table_number = VALUES(table_number),
+          customer_name = VALUES(customer_name),
+          order_type = VALUES(order_type),
+          waiter_name = VALUES(waiter_name),
+          items = VALUES(items),
+          total_amount = VALUES(total_amount),
+          status = VALUES(status),
+          updated_at = CURRENT_TIMESTAMP
+      `, [orderId, Number(outlet_id), String(table_id), String(table_number || table_id), String(customer_name || 'Pelanggan Umum'), String(order_type || 'Dine In'), String(waiter_name || 'Waiters'), itemsJson, totAmt, String(status || 'occupied')]);
+    }
+
+    return res.json({ success: true, message: 'Pesanan meja berhasil disinkronisasi', id: orderId });
+  } catch (err) {
+    console.error('POST /api/pos/table-orders error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1d. DELETE /api/pos/table-orders/:table_id — Hapus pesanan meja (meja dikosongkan / dibatalkan)
+app.delete('/api/pos/table-orders/:table_id', async (req, res) => {
+  try {
+    const tableId = req.params.table_id;
+    const outletId = Number(req.query.outlet_id || 1);
+    if (!tableId) return res.status(400).json({ success: false, error: 'table_id wajib diisi' });
+
+    if (mysqlPool) {
+      await mysqlPool.execute(
+        'DELETE FROM active_table_orders WHERE outlet_id = ? AND (table_id = ? OR table_number = ? OR id = ?)',
+        [outletId, tableId, tableId, tableId]
+      );
+    }
+
+    return res.json({ success: true, message: `Pesanan meja ${tableId} berhasil dihapus` });
+  } catch (err) {
+    console.error('DELETE /api/pos/table-orders error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

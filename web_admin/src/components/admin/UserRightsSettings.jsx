@@ -8,7 +8,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 const API = typeof window !== 'undefined' ? window.location.origin : '';
 
 const WEB_ROLES = ['Super Admin', 'Owner', 'Admin', 'Manajer Cabang', 'Kasir'];
-const MOBILE_ROLES = ['Super Admin / Owner', 'Admin', 'Kepala Cabang / SPV', 'Kasir', 'Logistik & Dapur'];
+const MOBILE_ROLES = ['Super Admin / Owner', 'Admin', 'Kepala Cabang / SPV', 'Kasir', 'Waiters / Pelayan', 'Logistik & Dapur'];
 
 const WEB_PERM_FIELDS = [
   { key: 'dashboard', label: 'Dashboard & Penjualan' },
@@ -39,8 +39,11 @@ const normalizePermObj = (val) => {
       delete: Boolean(val.delete)
     };
   }
-  const bool = Boolean(val);
-  return { view: bool, edit: bool, delete: bool };
+  return {
+    view: Boolean(val),
+    edit: Boolean(val),
+    delete: false
+  };
 };
 
 const DEFAULT_WEB_MATRIX = [
@@ -57,18 +60,18 @@ const DEFAULT_WEB_MATRIX = [
   },
   { 
     role: 'Owner', 
-    dashboard: { view: true, edit: true, delete: true }, 
-    masterData: { view: true, edit: true, delete: true }, 
-    costs: { view: true, edit: true, delete: true }, 
-    stock: { view: true, edit: true, delete: true }, 
-    approved: { view: true, edit: true, delete: true }, 
-    reports: { view: true, edit: true, delete: true }, 
-    policies: { view: true, edit: true, delete: true }, 
-    settings: { view: true, edit: true, delete: true } 
+    dashboard: { view: true, edit: true, delete: false }, 
+    masterData: { view: true, edit: true, delete: false }, 
+    costs: { view: true, edit: true, delete: false }, 
+    stock: { view: true, edit: true, delete: false }, 
+    approved: { view: true, edit: true, delete: false }, 
+    reports: { view: true, edit: true, delete: false }, 
+    policies: { view: true, edit: true, delete: false }, 
+    settings: { view: true, edit: false, delete: false } 
   },
   { 
     role: 'Admin', 
-    dashboard: { view: true, edit: true, delete: true }, 
+    dashboard: { view: true, edit: true, delete: false }, 
     masterData: { view: true, edit: true, delete: false }, 
     costs: { view: true, edit: true, delete: false }, 
     stock: { view: true, edit: true, delete: false }, 
@@ -80,18 +83,18 @@ const DEFAULT_WEB_MATRIX = [
   { 
     role: 'Manajer Cabang', 
     dashboard: { view: true, edit: false, delete: false }, 
-    masterData: { view: true, edit: true, delete: false }, 
+    masterData: { view: true, edit: false, delete: false }, 
     costs: { view: true, edit: true, delete: false }, 
     stock: { view: true, edit: true, delete: false }, 
-    approved: { view: true, edit: true, delete: false }, 
+    approved: { view: false, edit: false, delete: false }, 
     reports: { view: true, edit: false, delete: false }, 
     policies: { view: true, edit: false, delete: false }, 
     settings: { view: false, edit: false, delete: false } 
   },
   { 
     role: 'Kasir', 
-    dashboard: { view: false, edit: false, delete: false }, 
-    masterData: { view: false, edit: false, delete: false }, 
+    dashboard: { view: true, edit: false, delete: false }, 
+    masterData: { view: true, edit: false, delete: false }, 
     costs: { view: false, edit: false, delete: false }, 
     stock: { view: true, edit: true, delete: false }, 
     approved: { view: false, edit: false, delete: false }, 
@@ -106,6 +109,7 @@ const DEFAULT_MOBILE_MATRIX = [
   { role: 'Admin', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, mobileReports: true, shiftClosing: true },
   { role: 'Kepala Cabang / SPV', posCashier: true, voidOrder: true, manualDiscount: true, stockOpname: true, receiveGoods: true, mobileReports: true, shiftClosing: true },
   { role: 'Kasir', posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: true },
+  { role: 'Waiters / Pelayan', posCashier: true, voidOrder: false, manualDiscount: false, stockOpname: false, receiveGoods: false, mobileReports: false, shiftClosing: false },
   { role: 'Logistik & Dapur', posCashier: false, voidOrder: false, manualDiscount: false, stockOpname: true, receiveGoods: true, mobileReports: false, shiftClosing: false }
 ];
 

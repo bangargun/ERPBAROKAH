@@ -1685,17 +1685,71 @@ export default function AndroidPosRegister({
     }
   });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('MRIS_POS_TABLE_STATUS_MAP', JSON.stringify(tableStatusMap || {}));
-    } catch (e) {}
-  }, [tableStatusMap]);
+  const isWaiter = useMemo(() => {
+    const roleStr = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
+    return roleStr.includes('waiter') || roleStr.includes('pelayan');
+  }, [currentUserSession?.role, userSession?.role]);
 
+  // ─── MULTI-DEVICE SHARED REALTIME TABLE ORDERS SYNC PER OUTLET ───────────────
   useEffect(() => {
-    try {
-      localStorage.setItem('MRIS_POS_HELD_ORDERS_LIST', JSON.stringify(heldOrdersList || []));
-    } catch (e) {}
-  }, [heldOrdersList]);
+    if (!currentOutlet?.id) return;
+
+    let isSubscribed = true;
+    const syncTableOrdersFromServer = () => {
+      fetch(getApiUrl(`/api/pos/table-orders?outlet_id=${currentOutlet.id}`), { cache: 'no-store' })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (!isSubscribed) return;
+          if (data && Array.isArray(data.tableOrders)) {
+            setTableStatusMap(prev => {
+              const newMap = { ...prev };
+              const serverTableIds = new Set();
+              data.tableOrders.forEach(o => {
+                if (!o.table_id) return;
+                serverTableIds.add(String(o.table_id));
+                newMap[o.table_id] = {
+                  status: 'occupied',
+                  pendingOrder: {
+                    items: Array.isArray(o.items) ? o.items : [],
+                    totalAmount: Number(o.total_amount || 0),
+                    customerName: o.customer_name || 'Pelanggan Umum',
+                    waiterName: o.waiter_name || 'Waiters',
+                    startTime: o.updated_at ? String(o.updated_at).substring(11, 16) : '',
+                    holdTx: {
+                      id: o.id,
+                      items: Array.isArray(o.items) ? o.items : [],
+                      amount: Number(o.total_amount || 0),
+                      customer_name: o.customer_name || 'Pelanggan Umum',
+                      table_number: o.table_number || o.table_id,
+                      order_type: o.order_type || 'Dine In',
+                      cashier: o.waiter_name || 'Waiters'
+                    }
+                  }
+                };
+              });
+
+              // Jika meja sebelumnya occupied tapi sudah dibayar di server oleh kasir lain -> kembalikan ke available
+              Object.keys(newMap).forEach(tid => {
+                if (!serverTableIds.has(String(tid)) && newMap[tid]?.status === 'occupied') {
+                  newMap[tid] = { status: 'available', pendingOrder: null };
+                }
+              });
+
+              return newMap;
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    syncTableOrdersFromServer();
+    const tableSyncTimer = setInterval(syncTableOrdersFromServer, 3000);
+    return () => {
+      isSubscribed = false;
+      clearInterval(tableSyncTimer);
+    };
+  }, [currentOutlet?.id]);
+
 
   // Generate dynamic table list for current outlet
   const tables = React.useMemo(() => {
@@ -2159,6 +2213,24 @@ export default function AndroidPosRegister({
           }
         }
       }));
+
+      // Realtime Multi-Device Sync: Kirim ke server agar muncul seketika di Kasir & device lain
+      fetch(getApiUrl('/api/pos/table-orders'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: holdId,
+          outlet_id: Number(currentOutlet.id),
+          table_id: selectedTableId,
+          table_number: tblNum,
+          customer_name: selectedCustomer || 'Pelanggan Umum',
+          order_type: orderType,
+          waiter_name: currentUserSession?.name || 'Waiters',
+          items: cart,
+          total_amount: cartTotal,
+          status: 'occupied'
+        })
+      }).catch(() => {});
     } else {
       setHeldOrdersList(prev => {
         const filtered = prev.filter(o => o.id !== holdId);
@@ -2649,6 +2721,9 @@ export default function AndroidPosRegister({
           delete copy[row.tableId];
           return copy;
         });
+        fetch(getApiUrl(`/api/pos/table-orders/${row.tableId}?outlet_id=${currentOutlet.id}`), {
+          method: 'DELETE'
+        }).catch(() => {});
       }
       
       setHeldOrdersList(prev => prev.filter(o => o.id !== targetId && o.id !== row.heldOrderId && o.id !== row.orderId));
@@ -4683,31 +4758,59 @@ export default function AndroidPosRegister({
                     </button>
                   </div>
 
-                  {/* Bottom Action Row 2: BAYAR (Full Width Jumbo Button) */}
-                  <button
-                    disabled={cart.length === 0}
-                    onClick={() => {
-                      if (cart.length > 0) {
-                        setSelectedPaymentMethod('Cash');
-                        setTenderedCash('');
-                        setShowPaymentScreenModal(true);
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      height: '46px',
-                      background: cart.length > 0 ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--pos-border-card)',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: 'var(--pos-txt-primary)',
-                      fontWeight: '900',
-                      fontSize: '0.95rem',
-                      cursor: cart.length > 0 ? 'pointer' : 'not-allowed',
-                      boxShadow: cart.length > 0 ? '0 4px 14px rgba(37,99,235,0.4)' : 'none'
-                    }}
-                  >
-                    Bayar
-                  </button>
+                  {/* Bottom Action Row 2: BAYAR (Kasir) vs KIRIM KE DAPUR (Waiters) */}
+                  {isWaiter ? (
+                    <button
+                      type="button"
+                      disabled={cart.length === 0}
+                      onClick={handleHoldTableOrder}
+                      style={{
+                        width: '100%',
+                        height: '46px',
+                        background: cart.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'var(--pos-border-card)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: '#ffffff',
+                        fontWeight: '900',
+                        fontSize: '0.92rem',
+                        cursor: cart.length > 0 ? 'pointer' : 'not-allowed',
+                        boxShadow: cart.length > 0 ? '0 4px 14px rgba(16,185,129,0.4)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                      }}
+                      title="Kirim pesanan ke Dapur/Bar dan sinkronkan ke kasir"
+                    >
+                      <Send size={18} />
+                      <span>Kirim ke Dapur / Simpan Pesanan (Waiters)</span>
+                    </button>
+                  ) : (
+                    <button
+                      disabled={cart.length === 0}
+                      onClick={() => {
+                        if (cart.length > 0) {
+                          setSelectedPaymentMethod('Cash');
+                          setTenderedCash('');
+                          setShowPaymentScreenModal(true);
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '46px',
+                        background: cart.length > 0 ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : 'var(--pos-border-card)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'var(--pos-txt-primary)',
+                        fontWeight: '900',
+                        fontSize: '0.95rem',
+                        cursor: cart.length > 0 ? 'pointer' : 'not-allowed',
+                        boxShadow: cart.length > 0 ? '0 4px 14px rgba(37,99,235,0.4)' : 'none'
+                      }}
+                    >
+                      Bayar
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
