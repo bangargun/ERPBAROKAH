@@ -132,6 +132,10 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     });
     lines.push('[DIVD]');
     lines.push('[C]*** UNTUK KOKI / DAPUR (TANPA HARGA) ***');
+    lines.push('[DIV]');
+    lines.push('[C][B]*** PERINGATAN KERAS ***');
+    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
+    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
 
   } else if (ticketType === 'bar') {
     // ===== STRUK BAR (BAR TICKET - TANPA HARGA) =====
@@ -155,6 +159,10 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     });
     lines.push('[DIVD]');
     lines.push('[C]*** UNTUK BARTENDER / BAR (TANPA HARGA) ***');
+    lines.push('[DIV]');
+    lines.push('[C][B]*** PERINGATAN KERAS ***');
+    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
+    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
 
   } else if (ticketType === 'bill') {
     // ===== CONTOH TAGIHAN SEMENTARA / BILL MEJA (DENGAN RINCIAN HARGA) =====
@@ -182,8 +190,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     const amountVal = Number(tx.amount || tx.grandTotal || tx.total || 0);
     lines.push('[B]' + rowLine('TOTAL TAGIHAN:', fmt(amountVal)));
     lines.push('[DIV]');
-    lines.push('[C]CONTOH TAGIHAN SEMENTARA');
-    lines.push('[C]BUKAN BUKTI PEMBAYARAN SAH');
+    lines.push('[C][B]*** PERINGATAN KERAS ***');
+    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
+    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
 
   } else if (ticketType === 'table' || ticketType === 'checker') {
     // ===== STRUK MEJA / ORDER CHECKER (TANPA HARGA) =====
@@ -207,7 +216,10 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     });
     lines.push('[DIVD]');
     lines.push('[C]*** PESANAN TANPA HARGA (CHECKER MEJA) ***');
-    lines.push('[C]Mohon periksa pesanan sebelum disajikan');
+    lines.push('[DIV]');
+    lines.push('[C][B]*** PERINGATAN KERAS ***');
+    lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
+    lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
 
   } else {
     // ===== STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT - DENGAN HARGA) =====
