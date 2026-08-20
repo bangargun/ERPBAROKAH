@@ -130,6 +130,7 @@ export default function FinancialOverview({
   }, [selectedBranch]);
 
   const [dateRangePreset, setDateRangePreset] = useState('7days'); // 'today', 'yesterday', '7days', '30days', 'this_month', 'custom'
+  const [dataSourceMode, setDataSourceMode] = useState('auto'); // 'auto' | 'pos_only' | 'manual_only'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [salesChartType, setSalesChartType] = useState('area'); // 'area' | 'bar'
@@ -304,7 +305,15 @@ export default function FinancialOverview({
       }
     });
 
-    const totalRevenue = Math.max(txSalesAmount, manualSalesAmount);
+    let totalRevenue = 0;
+    if (dataSourceMode === 'pos_only') {
+      totalRevenue = txSalesAmount;
+    } else if (dataSourceMode === 'manual_only') {
+      totalRevenue = manualSalesAmount;
+    } else {
+      // 'auto' mode: prioritaskan transaksi riil POS Kasir, jika tidak ada POS gunakan rekap manual
+      totalRevenue = txSalesAmount > 0 ? txSalesAmount : manualSalesAmount;
+    }
     const opexTotal = periodOpex + periodExpenseRecs;
     const totalExpense = periodCogs + opexTotal;
     const netProfit = totalRevenue - totalExpense;
@@ -385,7 +394,7 @@ export default function FinancialOverview({
       totalOutletsCount,
       activeOutletCount: allOutlets.length
     };
-  }, [activeDateList, allSalesTx, allApprovedFinance, allFinancialRecords, activeOutletFilter, allOutlets, todayStr]);
+  }, [activeDateList, allSalesTx, allApprovedFinance, allFinancialRecords, activeOutletFilter, allOutlets, todayStr, dataSourceMode]);
 
   // ------------------------------------------------------------------
   // 2. SALES TREND DATA & OUTLET DAILY TARGET (DAILY CHART)
@@ -420,7 +429,14 @@ export default function FinancialOverview({
       const dayApproved = allApprovedFinance.filter(f => (parseDateToYYYYMMDD(f.date || f.entry_date || f.created_at) === dateStr) && matchesBranch(f, activeOutletFilter));
       const approvedSum = dayApproved.reduce((sum, f) => sum + (Number(f.net_sales) || 0), 0);
 
-      const dayRevenue = Math.max(txSum, approvedSum);
+      let dayRevenue = 0;
+      if (dataSourceMode === 'pos_only') {
+        dayRevenue = txSum;
+      } else if (dataSourceMode === 'manual_only') {
+        dayRevenue = approvedSum;
+      } else {
+        dayRevenue = txSum > 0 ? txSum : approvedSum;
+      }
       const dayCount = dayTxs.length;
 
       return {
@@ -432,7 +448,7 @@ export default function FinancialOverview({
         isTargetReached: dayRevenue >= dailyTargetRevenue
       };
     });
-  }, [activeDateList, allSalesTx, allApprovedFinance, activeOutletFilter, dailyTargetRevenue, todayStr]);
+  }, [activeDateList, allSalesTx, allApprovedFinance, activeOutletFilter, dailyTargetRevenue, todayStr, dataSourceMode]);
 
   // ------------------------------------------------------------------
   // 3. TOP SELLING PRODUCTS (TOP 5 MENU TERLARIS)
@@ -752,6 +768,21 @@ export default function FinancialOverview({
               />
             </div>
           )}
+
+          {/* Data Source Selector (Anti Double-Counting) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
+            <Layers size={15} color={T.txtSecondary} />
+            <select
+              value={dataSourceMode}
+              onChange={e => setDataSourceMode(e.target.value)}
+              style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
+              title="Pilih Sumber Data Penjualan (Mencegah Double Counting)"
+            >
+              <option value="auto">📊 Otomatis (POS Prioritas)</option>
+              <option value="pos_only">🧾 Hanya Struk POS Kasir</option>
+              <option value="manual_only">📑 Hanya Rekap Manual / Excel</option>
+            </select>
+          </div>
 
           {/* AI Refresh Button */}
           <button
