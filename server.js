@@ -712,7 +712,18 @@ const getMasterDataFromMySQL = async () => {
             notes: r.notes || '-',
             status: r.status || 'approved',
             type: r.type || 'sale',
-            items: [{ name: 'Menu Paket Restoran', qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }]
+            items: (() => {
+              if (r.items_json) {
+                try {
+                  const parsed = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json;
+                  if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                } catch (e) {}
+              }
+              const itemTitle = (r.notes && r.notes !== '-' && !r.notes.startsWith('Pesanan Gantung') && !r.notes.startsWith('Informasi'))
+                ? r.notes
+                : (r.branch_name ? `Pesanan Menu (${r.branch_name})` : 'Menu Restoran');
+              return [{ name: itemTitle, qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
+            })()
           };
           txMap.set(k, mappedTx);
         });
@@ -2617,12 +2628,14 @@ app.post('/api/pos/transaction', async (req, res) => {
     const notes = tx.notes || '';
     const status = tx.status || 'approved';
 
+    const itemsJsonStr = (Array.isArray(tx.items) && tx.items.length > 0) ? JSON.stringify(tx.items) : null;
+
     // 1. Langsung insert ke MySQL sales_transactions
     if (mysqlPool) {
       await mysqlPool.execute(`
         INSERT INTO sales_transactions 
-          (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
+          (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type, items_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income', ?)
         ON DUPLICATE KEY UPDATE
           date = VALUES(date),
           time = VALUES(time),
@@ -2638,8 +2651,9 @@ app.post('/api/pos/transaction', async (req, res) => {
           payment_method = VALUES(payment_method),
           cashier = VALUES(cashier),
           notes = VALUES(notes),
-          status = VALUES(status)
-      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status]);
+          status = VALUES(status),
+          items_json = VALUES(items_json)
+      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status, itemsJsonStr]);
 
       // Catat pergerakan stok jika ada items
       if (Array.isArray(tx.items) && tx.items.length > 0) {
