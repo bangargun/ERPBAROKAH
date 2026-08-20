@@ -2291,6 +2291,82 @@ app.get('/api/master-data', async (req, res) => {
 // DIRECT LIGHTWEIGHT POS REST ENDPOINTS (FAST, DIRECT MYSQL COMMIT, <15ms)
 // =============================================================================
 
+// 0. POST /api/pos/bulk-restore — Pulihkan transaksi massal dari POS (bypass proteksi delete)
+// Endpoint ini dibuat untuk memulihkan data yang hilang akibat overwrite blob oleh skrip server.
+// Menerima array salesTransactions dari POS dan merge ke blob + sales_transactions.
+app.post('/api/pos/bulk-restore', async (req, res) => {
+  try {
+    const { transactions, secret } = req.body;
+    if (secret !== 'MRIS-RESTORE-2026') {
+      return res.status(403).json({ success: false, error: 'Akses ditolak' });
+    }
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ success: false, error: 'Array transactions kosong' });
+    }
+
+    const current = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const existingIds = new Set((current.salesTransactions || []).map(t => String(t.id || t.receipt_no || '')));
+
+    let inserted = 0;
+    let skipped = 0;
+    const newTxs = [];
+
+    for (const tx of transactions) {
+      if (!tx || !tx.id) { skipped++; continue; }
+      const txId = String(tx.id);
+      const txDate = tx.date || new Date().toISOString().split('T')[0];
+      if (txDate < '2026-08-13') { skipped++; continue; }
+
+      if (existingIds.has(txId)) { skipped++; continue; }
+      existingIds.add(txId);
+      newTxs.push(tx);
+
+      // Upsert ke sales_transactions
+      if (mysqlPool) {
+        try {
+          const txRcpt = String(tx.receipt_no || tx.receiptNo || txId);
+          const txTime = String(tx.time || '00:00:00').replace(/\./g, ':').substring(0, 8);
+          const outletId = Number(tx.outlet_id || tx.branch_id || 1);
+          const amount = Number(tx.amount || tx.total || 0);
+          const paidAmount = Number(tx.paid_amount || tx.cash_paid || amount);
+          const changeAmount = Number(tx.change_amount || tx.change || 0);
+          await mysqlPool.execute(`
+            INSERT INTO sales_transactions
+              (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name,
+               table_number, order_type, subtotal, discount_amount, service_charge, tax_amount,
+               adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
+            ON DUPLICATE KEY UPDATE amount = VALUES(amount), status = VALUES(status)
+          `, [txId, txRcpt, txDate, txTime, outletId, outletId,
+              tx.branch_name || tx.outlet || 'Cabang', tx.branch_name || tx.outlet || 'Cabang',
+              tx.customer_name || 'Pelanggan Umum', tx.table_number || '', tx.order_type || 'Dine In',
+              amount, 0, 0, 0, 0, amount, paidAmount, changeAmount,
+              tx.payment_method || 'Cash', tx.cashier || 'Kasir POS', tx.notes || '', tx.status || 'approved']);
+          inserted++;
+        } catch (e) { skipped++; }
+      }
+    }
+
+    // Merge ke blob
+    const merged = [...newTxs, ...(current.salesTransactions || [])];
+    current.salesTransactions = merged;
+    current.transactions = merged;
+    current._lastUpdated = Date.now();
+    await saveMasterDataToMySQL(current);
+
+    return res.json({
+      success: true,
+      message: `Berhasil memulihkan ${inserted} transaksi, ${skipped} dilewati (sudah ada / invalid)`,
+      inserted,
+      skipped,
+      total_in_blob: merged.length
+    });
+  } catch (err) {
+    console.error('POST /api/pos/bulk-restore error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1. POST /api/pos/transaction — Direct POS Single Receipt Checkout
 app.post('/api/pos/transaction', async (req, res) => {
   try {
