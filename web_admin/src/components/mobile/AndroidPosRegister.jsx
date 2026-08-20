@@ -4631,15 +4631,12 @@ export default function AndroidPosRegister({
 
                         return (
                           <div key={item.id} style={{ background: T.bgCard, padding: '10px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: `1px solid ${T.border}` }}>
-                            {/* Left: Index & Item Name */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, paddingRight: '6px' }}>
-                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#2563eb', color: 'var(--pos-txt-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: '900', flexShrink: 0 }}>
-                                {idx + 1}
+                            {/* Left: Item Name & Notes */}
+                            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, paddingRight: '8px' }}>
+                              <div style={{ fontSize: '0.86rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.name}>
+                                {item.name}
                               </div>
-                              <div style={{ overflow: 'hidden' }}>
-                                <div style={{ fontSize: '0.84rem', fontWeight: '800', color: T.txtPrimary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                                {item.notes && <div style={{ fontSize: '0.70rem', color: isLight ? '#1d4ed8' : '#60a5fa' }}>{item.notes}</div>}
-                              </div>
+                              {item.notes && <div style={{ fontSize: '0.70rem', color: isLight ? '#1d4ed8' : '#60a5fa', marginTop: '1px' }}>{item.notes}</div>}
                             </div>
 
                             {/* Right: Quantity Controls (- QTY +), Subtotal, Delete Button */}
