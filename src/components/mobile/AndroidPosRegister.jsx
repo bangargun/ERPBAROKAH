@@ -364,7 +364,26 @@ export default function AndroidPosRegister({
   }), [isLight]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem('MRIS_POS_ACTIVE_CART');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // Auto-persist cart changes to localStorage (Persistent Draft Cart)
+  useEffect(() => {
+    try {
+      if (Array.isArray(cart) && cart.length > 0) {
+        localStorage.setItem('MRIS_POS_ACTIVE_CART', JSON.stringify(cart));
+      } else {
+        localStorage.removeItem('MRIS_POS_ACTIVE_CART');
+      }
+    } catch (e) {}
+  }, [cart]);
+
   const [orderType, setOrderType] = useState('Dine In'); // 'Dine In' | 'Take Away'
   const [selectedCustomer, setSelectedCustomer] = useState('Pelanggan Umum');
   const [lastCompletedTx, setLastCompletedTx] = useState(null);
@@ -892,30 +911,8 @@ export default function AndroidPosRegister({
     checkOfflineQueueCount();
   }, [checkOfflineQueueCount]);
 
-  // ─── AUTOMATIC 08:00 AM DAILY PURGE OF UNBILLED CART ORDERS ─────────────────
-  React.useEffect(() => {
-    const check8AmCartReset = () => {
-      const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
-      const lastPurgeDate = localStorage.getItem('MRIS_POS_LAST_8AM_PURGE');
 
-      // Condition: Time is 08:00 AM or later today, and 8 AM purge has not been executed today
-      if (now.getHours() >= 8 && lastPurgeDate !== todayStr) {
-        setCart([]);
-        setOpenedOriginalCart(null);
-        setTableStatusMap({});
-        try {
-          localStorage.removeItem('MRIS_POS_DRAFT_CART_ORDERS');
-          localStorage.setItem('MRIS_POS_LAST_8AM_PURGE', todayStr);
-        } catch (e) {}
-        console.log('[CartAutoReset] 8:00 AM Daily Cart Purge completed for:', todayStr);
-      }
-    };
 
-    check8AmCartReset();
-    const interval = setInterval(check8AmCartReset, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   // ─── SAVE GUARD ──────────────────────────────────────────────────────────────
   // Mencegah auto-sync 3 detik menimpa data yang baru disimpan sebelum
@@ -1869,15 +1866,43 @@ export default function AndroidPosRegister({
     if (!tx) return '';
     const raw = tx.date || tx.entry_date || tx.transaction_date || tx.created_at || tx.timestamp;
     if (!raw) return '';
-    if (typeof raw === 'number') return new Date(raw).toLocaleDateString('en-CA');
+    if (raw instanceof Date) {
+      if (isNaN(raw.getTime())) return '';
+      return `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`;
+    }
+    if (typeof raw === 'number') {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      }
+      return '';
+    }
     const s = String(raw).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    if (s.includes('T')) return s.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    if (s.includes('T')) return s.split('T')[0];
+    if (s.includes(' ') && /^\d{4}/.test(s)) return s.split(' ')[0];
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
     return '';
   };
 
-  const sharedTodayStr = new Date().toLocaleDateString('en-CA');
-  const sharedYesterdayStr = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toLocaleDateString('en-CA'); })();
+  const sharedTodayStr = useMemo(() => {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+  }, []);
+
+  const sharedYesterdayStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(d);
+  }, []);
 
   // ─── FILTERED RIWAYAT TRANSACTIONS (default: hari ini) ───────────────────────
   const filteredRiwayatTransactions = useMemo(() => {
