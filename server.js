@@ -2097,15 +2097,6 @@ const sanitizeMasterDataPayload = (data) => {
     const src = String(item.source || '');
     if (rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan')) return true;
 
-    // Deteksi transaksi sintetis dari Update Laporan Manual:
-    // ID berupa angka float besar (Date.now()+Math.random()), type='sale',
-    // tidak punya receipt_no / receiptNo / struk asli POS Kasir
-    if (arrayKey === 'salesTransactions' || arrayKey === 'transactions' || arrayKey === 'outletTransactions') {
-      const idVal = item.id;
-      const idNum = Number(idVal);
-      const hasReceiptNo = !!(item.receipt_no || item.receiptNo || item.invoice_no || item.struk_no);
-      if (idNum > 1000000000000 && !hasReceiptNo && item.type === 'sale') return true;
-    }
     // Hapus data mock "Restoran Utama" / dummy shift closings
     const bName = String(item.branch_name || item.outlet_name || '').toLowerCase();
     if (bName.includes('restoran utama')) return true;
