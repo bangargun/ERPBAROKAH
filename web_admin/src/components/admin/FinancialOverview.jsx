@@ -132,8 +132,15 @@ export default function FinancialOverview({
 
   const [dateRangePreset, setDateRangePreset] = useState('7days'); // 'today', 'yesterday', '7days', '30days', 'this_month', 'custom'
   const [dataSourceMode, setDataSourceMode] = useState('auto'); // 'auto' | 'pos_only' | 'manual_only'
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [salesChartType, setSalesChartType] = useState('area'); // 'area' | 'bar'
   const [omzetChartType, setOmzetChartType] = useState('bar'); // 'bar' | 'area'
   const [selectedIngredientCategory, setSelectedIngredientCategory] = useState('ALL');
@@ -778,20 +785,31 @@ export default function FinancialOverview({
               border: `1px solid ${T.border}`
             }}>
               {[
-                { id: 'today', label: 'Hari Ini' },
-                { id: 'yesterday', label: 'Kemarin' },
-                { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
-                { id: 'this_month', label: 'Bulan Ini' },
-                { id: 'last_month', label: 'Bulan Lalu' },
-                { id: '7days', label: '7 Hari Terakhir' },
-                { id: 'custom', label: 'Rentang Waktu 📅' }
+                { id: 'today', label: 'Hari Ini', icon: null },
+                { id: 'yesterday', label: 'Kemarin', icon: null },
+                { id: 'last_week', label: 'Pekan Lalu (Sen-Min)', icon: null },
+                { id: 'this_month', label: 'Bulan Ini', icon: null },
+                { id: 'last_month', label: 'Bulan Lalu', icon: null },
+                { id: '7days', label: '7 Hari Terakhir', icon: null },
+                { id: 'custom', label: 'Rentang Waktu', icon: Calendar }
               ].map(tab => {
                 const isActive = dateRangePreset === tab.id;
+                const IconComp = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setDateRangePreset(tab.id)}
+                    onClick={() => {
+                      setDateRangePreset(tab.id);
+                      if (tab.id === 'custom' && (!customStartDate || !customEndDate)) {
+                        const d = new Date();
+                        const endStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        d.setDate(d.getDate() - 6);
+                        const startStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        setCustomStartDate(startStr);
+                        setCustomEndDate(endStr);
+                      }
+                    }}
                     style={{
                       padding: '6px 12px',
                       borderRadius: '8px',
@@ -803,11 +821,12 @@ export default function FinancialOverview({
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '5px',
+                      gap: '6px',
                       transition: 'all 0.15s ease',
                       boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
                     }}
                   >
+                    {IconComp && <IconComp size={14} color={isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary} />}
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -865,48 +884,61 @@ export default function FinancialOverview({
               display: 'flex',
               alignItems: 'center',
               flexWrap: 'wrap',
-              gap: '10px',
+              gap: '12px',
               background: T.cardBg,
-              padding: '8px 14px',
-              borderRadius: '10px',
+              padding: '10px 16px',
+              borderRadius: '12px',
               border: `1px solid ${T.accentGoldBorder}`,
-              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
               animation: 'fadeIn 0.2s ease-in-out'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', fontWeight: '800', color: T.accentGold }}>
-                <Calendar size={15} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', fontWeight: '900', color: T.accentGold }}>
+                <Calendar size={17} color={T.accentGold} />
                 <span>Pilih Rentang Kalender:</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={e => setCustomStartDate(e.target.value)}
-                  style={{
-                    padding: '5px 8px',
-                    background: T.inputBg,
-                    border: `1px solid ${T.border}`,
-                    borderRadius: '6px',
-                    color: T.txtPrimary,
-                    fontSize: '0.76rem',
-                    fontWeight: '700'
-                  }}
-                />
-                <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>s/d</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={e => setCustomEndDate(e.target.value)}
-                  style={{
-                    padding: '5px 8px',
-                    background: T.inputBg,
-                    border: `1px solid ${T.border}`,
-                    borderRadius: '6px',
-                    color: T.txtPrimary,
-                    fontSize: '0.76rem',
-                    fontWeight: '700'
-                  }}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={e => setCustomStartDate(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      background: T.inputBg,
+                      border: `1px solid ${T.borderStrong}`,
+                      borderRadius: '8px',
+                      color: T.txtPrimary,
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      colorScheme: isLight ? 'light' : 'dark',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '800' }}>s/d</span>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={e => setCustomEndDate(e.target.value)}
+                    style={{
+                      padding: '6px 10px',
+                      background: T.inputBg,
+                      border: `1px solid ${T.borderStrong}`,
+                      borderRadius: '8px',
+                      color: T.txtPrimary,
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      colorScheme: isLight ? 'light' : 'dark',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+              </div>
+              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
+                Format MySQL: <code>YYYY-MM-DD</code>
               </div>
             </div>
           )}
