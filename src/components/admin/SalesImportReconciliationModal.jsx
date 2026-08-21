@@ -19,7 +19,8 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Package,
-  Receipt
+  Receipt,
+  ShoppingBasket
 } from 'lucide-react';
 import { getApiUrl } from '../../utils/apiConfig';
 import { getThemePalette } from '../../utils/themeUtils';

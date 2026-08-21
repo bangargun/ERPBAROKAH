@@ -32,7 +32,8 @@ import {
   TrendingUp,
   Receipt,
   Server,
-  Zap
+  Zap,
+  ShoppingBasket
 } from 'lucide-react';
 
 import { checkWebPermission } from '../../utils/permissionUtils';
