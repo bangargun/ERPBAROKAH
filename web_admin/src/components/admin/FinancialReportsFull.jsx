@@ -4,7 +4,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function FinancialReportsFull({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
 
   const [activeSubTab, setActiveSubTab] = useState('pnl'); // 'pnl' | 'balance' | 'cashflow' | 'ai'
   const [pnlSubView, setPnlSubView] = useState('single'); // 'single' | 'multi_month'

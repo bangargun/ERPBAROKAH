@@ -7,7 +7,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function PrinterThermalSettingsPage({ masterData, setMasterData, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
 
   // Styling helper for input fields (High contrast in both Dark & Light mode)
   const inputStyle = {
@@ -549,7 +549,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
 function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptStyle = {}, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
   const [receiptType, setReceiptType] = useState('cashier');
   const [paperWidth, setPaperWidth] = useState('58');
 

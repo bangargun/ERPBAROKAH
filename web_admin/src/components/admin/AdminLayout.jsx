@@ -220,7 +220,7 @@ export default function AdminLayout({
         id: `lg-${lg.id || idx}`,
         type: 'logistics',
         icon: CheckSquare,
-        color: '#fbbf24',
+        color: T.warning,
         title: `Audit Stok / Pengajuan Logistik`,
         subtitle: `Status: ${lg.status || 'Pending'} • ${lg.notes || 'Pencatatan Bahan'}`,
         time: timeDisplay,
@@ -243,8 +243,8 @@ export default function AdminLayout({
       {/* Sidebar Navigation */}
       <aside style={{
         width: '260px',
-        background: '#120f09',
-        borderRight: '1px solid rgba(251, 191, 36, 0.25)',
+        background: isSoftBlue ? '#0d3268' : '#120f09',
+        borderRight: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.10)' : '1px solid rgba(251, 191, 36, 0.25)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -255,7 +255,7 @@ export default function AdminLayout({
         {/* Brand Header */}
         <div style={{
           padding: '16px 20px',
-          borderBottom: '1px solid rgba(251, 191, 36, 0.15)',
+          borderBottom: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.10)' : '1px solid rgba(251, 191, 36, 0.15)',
           display: 'flex',
           alignItems: 'center',
           gap: '12px'
@@ -264,20 +264,20 @@ export default function AdminLayout({
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            background: isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#000000',
+            color: '#ffffff',
             fontWeight: '900',
             fontSize: '1.1rem',
-            boxShadow: '0 4px 14px rgba(245, 158, 11, 0.45)'
+            boxShadow: isSoftBlue ? '0 4px 14px rgba(26, 111, 196, 0.45)' : '0 4px 14px rgba(245, 158, 11, 0.45)'
           }}>
             <UtensilsCrossed size={20} />
           </div>
           <div>
-            <h1 style={{ fontSize: '0.96rem', fontWeight: '900', color: '#f59e0b', margin: 0, letterSpacing: '0.04em' }}>BAROKAH GROUP</h1>
-            <span style={{ fontSize: '0.62rem', color: '#fbbf24', fontWeight: '800', letterSpacing: '0.06em' }}>RESTAURANT MANAGEMENT SYSTEM</span>
+            <h1 style={{ fontSize: '0.96rem', fontWeight: '900', color: isSoftBlue ? '#ffffff' : '#f59e0b', margin: 0, letterSpacing: '0.04em' }}>BAROKAH GROUP</h1>
+            <span style={{ fontSize: '0.62rem', color: isSoftBlue ? '#90cdf4' : '#fbbf24', fontWeight: '800', letterSpacing: '0.06em' }}>RESTAURANT MANAGEMENT SYSTEM</span>
           </div>
         </div>
 
@@ -299,9 +299,9 @@ export default function AdminLayout({
                 width: '100%',
                 padding: '11px 14px',
                 borderRadius: '12px',
-                border: '1px solid rgba(251, 191, 36, 0.65)',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 60%, #b45309 100%)',
-                color: '#000000',
+                border: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.20)' : '1px solid rgba(251, 191, 36, 0.65)',
+                background: isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 60%, #b45309 100%)',
+                color: '#ffffff',
                 fontWeight: '900',
                 fontSize: '0.84rem',
                 cursor: 'pointer',
@@ -309,7 +309,7 @@ export default function AdminLayout({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '9px',
-                boxShadow: '0 4px 18px rgba(245, 158, 11, 0.45)',
+                boxShadow: isSoftBlue ? '0 4px 18px rgba(26, 111, 196, 0.40)' : '0 4px 18px rgba(245, 158, 11, 0.45)',
                 transition: 'all 0.2s ease',
                 letterSpacing: '0.01em'
               }}
@@ -319,12 +319,12 @@ export default function AdminLayout({
                 width: '24px',
                 height: '24px',
                 borderRadius: '6px',
-                background: 'rgba(0, 0, 0, 0.15)',
+                background: 'rgba(255, 255, 255, 0.15)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <PlusCircle size={16} color="#000000" />
+                <PlusCircle size={16} color="#ffffff" />
               </div>
               <span>Update Laporan (Manual & Impor)</span>
             </button>
@@ -342,7 +342,7 @@ export default function AdminLayout({
                 <div style={{
                   fontSize: '0.62rem',
                   textTransform: 'uppercase',
-                  color: '#facc15',
+                  color: isSoftBlue ? '#7eb3e6' : '#facc15',
                   fontWeight: '900',
                   padding: '4px 10px 2px 10px',
                   letterSpacing: '0.08em',
@@ -368,23 +368,35 @@ export default function AdminLayout({
                         width: '100%',
                         padding: '9px 12px',
                         borderRadius: '10px',
-                        border: isActive ? '1px solid #fbbf24' : '1px solid transparent',
-                        background: isActive ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'transparent',
-                        color: isActive ? '#000000' : '#fbbf24',
+                        border: isActive
+                          ? (isSoftBlue ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid #fbbf24')
+                          : '1px solid transparent',
+                        background: isActive
+                          ? (isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)')
+                          : 'transparent',
+                        color: isActive
+                          ? '#ffffff'
+                          : (isSoftBlue ? '#c3d9f0' : '#fbbf24'),
                         fontWeight: isActive ? '900' : '800',
                         fontSize: '0.82rem',
                         cursor: 'pointer',
                         textAlign: 'left',
-                        boxShadow: isActive ? '0 4px 16px rgba(245, 158, 11, 0.45)' : 'none',
+                        boxShadow: isActive
+                          ? (isSoftBlue ? '0 4px 16px rgba(26, 111, 196, 0.40)' : '0 4px 16px rgba(245, 158, 11, 0.45)')
+                          : 'none',
                         transition: 'all 0.18s ease'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <Icon size={17} color={isActive ? '#000000' : '#fbbf24'} />
-                        <span style={{ color: isActive ? '#000000' : '#fbbf24', fontWeight: isActive ? '900' : '800' }}>{item.label}</span>
+                        <Icon size={17} color={isActive ? '#ffffff' : (isSoftBlue ? '#c3d9f0' : '#fbbf24')} />
+                        <span style={{ color: isActive ? '#ffffff' : (isSoftBlue ? '#c3d9f0' : '#fbbf24'), fontWeight: isActive ? '900' : '800' }}>{item.label}</span>
                       </div>
                       {item.id === 'stock' && pendingCount > 0 && (
-                        <span style={{ background: isActive ? '#000000' : '#fbbf24', color: isActive ? '#fbbf24' : '#000000', fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px' }}>
+                        <span style={{
+                          background: isActive ? '#ffffff' : (isSoftBlue ? '#ef4444' : '#fbbf24'),
+                          color: isActive ? (isSoftBlue ? '#0d5295' : '#92400e') : (isSoftBlue ? '#ffffff' : '#000000'),
+                          fontSize: '0.66rem', fontWeight: '900', padding: '2px 7px', borderRadius: '10px'
+                        }}>
                           {pendingCount}
                         </span>
                       )}
@@ -397,13 +409,13 @@ export default function AdminLayout({
         </nav>
 
         {/* User Profile Footer */}
-        <div style={{ padding: '14px 16px', borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.82rem', color: '#ffffff', border: '1px solid #f59e0b', flexShrink: 0 }}>
+        <div style={{ padding: '14px 16px', borderTop: isSoftBlue ? '1px solid rgba(255, 255, 255, 0.12)' : `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: isSoftBlue ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.82rem', color: '#ffffff', border: isSoftBlue ? '1px solid rgba(255,255,255,0.25)' : '1px solid #f59e0b', flexShrink: 0 }}>
             {userInitial}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
-            <div style={{ fontSize: '0.66rem', color: '#f59e0b', fontWeight: '700', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userRole} • {userOutlet}</div>
+            <div style={{ fontSize: '0.80rem', fontWeight: '800', color: isSoftBlue ? '#ffffff' : '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
+            <div style={{ fontSize: '0.66rem', color: isSoftBlue ? '#90cdf4' : '#f59e0b', fontWeight: '700', opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userRole} • {userOutlet}</div>
           </div>
           {onLogout && (
             <button
@@ -412,7 +424,7 @@ export default function AdminLayout({
               style={{
                 background: 'rgba(244, 63, 94, 0.15)',
                 border: '1px solid rgba(244, 63, 94, 0.3)',
-                color: '#fb7185',
+                color: isSoftBlue ? '#ef4444' : '#fb7185',
                 padding: '6px 8px',
                 borderRadius: '8px',
                 cursor: 'pointer',
@@ -434,7 +446,7 @@ export default function AdminLayout({
         {/* Top Header Bar */}
         <header style={{
           height: '60px',
-          background: T.headerBg,
+          background: T.cardBg,
           borderBottom: `1px solid ${T.border}`,
           padding: '0 24px',
           display: 'flex',
@@ -562,9 +574,9 @@ export default function AdminLayout({
                   width: '380px',
                   maxHeight: '480px',
                   background: T.dropdownBg,
-                  border: `1.5px solid ${T.dropdownBorder}`,
+                  border: `1.5px solid ${T.borderStrong || T.border}`,
                   borderRadius: '16px',
-                  boxShadow: '0 15px 40px rgba(0,0,0,0.4)',
+                  boxShadow: '0 15px 40px rgba(0,0,0,0.25)',
                   zIndex: 9999,
                   display: 'flex',
                   flexDirection: 'column',
@@ -574,7 +586,7 @@ export default function AdminLayout({
                   <div style={{
                     padding: '14px 16px',
                     borderBottom: `1px solid ${T.border}`,
-                    background: isLight ? 'rgba(217,119,6,0.06)' : 'rgba(245,158,11,0.08)',
+                    background: isSoftBlue ? 'rgba(26, 111, 196, 0.08)' : (isLight ? 'rgba(217,119,6,0.06)' : 'rgba(245,158,11,0.08)'),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
@@ -700,12 +712,10 @@ export default function AdminLayout({
           {children}
         </main>
 
-        {/* ========================================================================= */}
-        {/* FUTURISTIC SERVER STATUS FOOTER (WITH ANIMATED CYBER DASHED TRACK)         */}
-        {/* ========================================================================= */}
+        {/* FUTURISTIC SERVER STATUS FOOTER (WITH ANIMATED CYBER DASHED TRACK) */}
         <footer style={{
           position: 'relative',
-          background: isLight ? '#f8fafc' : '#080c14',
+          background: isSoftBlue ? '#ffffff' : (isLight ? '#f8fafc' : '#080c14'),
           borderTop: `1px solid ${T.border}`,
           padding: '8px 20px',
           display: 'flex',
@@ -725,7 +735,7 @@ export default function AdminLayout({
             height: '2px',
             background: isServerSyncing
               ? 'linear-gradient(90deg, #38bdf8 0%, #34d399 50%, #f59e0b 100%)'
-              : `repeating-linear-gradient(90deg, #10b981 0px, #10b981 8px, transparent 8px, transparent 16px)`,
+              : `repeating-linear-gradient(90deg, ${isSoftBlue ? '#0a7c4e' : '#10b981'} 0px, ${isSoftBlue ? '#0a7c4e' : '#10b981'} 8px, transparent 8px, transparent 16px)`,
             backgroundSize: isServerSyncing ? '200% 100%' : 'auto',
             animation: isServerSyncing ? 'cyberStreamMove 0.8s linear infinite' : 'none',
             opacity: isServerSyncing ? 1 : 0.45,
@@ -741,11 +751,15 @@ export default function AdminLayout({
               gap: '6px',
               padding: '3px 8px',
               borderRadius: '6px',
-              background: isServerSyncing ? 'rgba(56, 189, 248, 0.12)' : 'rgba(16, 185, 129, 0.10)',
-              border: `1px solid ${isServerSyncing ? 'rgba(56, 189, 248, 0.3)' : 'rgba(16, 185, 129, 0.25)'}`,
+              background: isServerSyncing
+                ? (isSoftBlue ? 'rgba(26, 111, 196, 0.10)' : 'rgba(56, 189, 248, 0.12)')
+                : (isSoftBlue ? 'rgba(10, 124, 78, 0.10)' : 'rgba(16, 185, 129, 0.10)'),
+              border: `1px solid ${isServerSyncing
+                ? (isSoftBlue ? 'rgba(26, 111, 196, 0.25)' : 'rgba(56, 189, 248, 0.3)')
+                : (isSoftBlue ? 'rgba(10, 124, 78, 0.25)' : 'rgba(16, 185, 129, 0.25)')}`,
               fontSize: '0.68rem',
               fontWeight: '800',
-              color: isServerSyncing ? '#38bdf8' : '#10b981',
+              color: isServerSyncing ? (isSoftBlue ? '#0369a1' : '#38bdf8') : (isSoftBlue ? '#0a7c4e' : '#10b981'),
               letterSpacing: '0.04em',
               textTransform: 'uppercase'
             }}>
@@ -753,7 +767,7 @@ export default function AdminLayout({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                background: isServerSyncing ? '#38bdf8' : '#10b981',
+                background: isServerSyncing ? (isSoftBlue ? '#0369a1' : '#38bdf8') : (isSoftBlue ? '#0a7c4e' : '#10b981'),
                 boxShadow: isServerSyncing ? '0 0 8px #38bdf8' : '0 0 6px #10b981',
                 animation: isServerSyncing ? 'pulseGlowFast 0.6s infinite alternate' : 'pulseGlowSlow 2s infinite alternate'
               }} />
@@ -779,8 +793,8 @@ export default function AdminLayout({
               height: '3px',
               borderRadius: '2px',
               background: isServerSyncing
-                ? 'repeating-linear-gradient(90deg, #38bdf8 0px, #38bdf8 4px, transparent 4px, transparent 8px)'
-                : 'repeating-linear-gradient(90deg, #10b981 0px, #10b981 4px, transparent 4px, transparent 8px)',
+                ? (isSoftBlue ? '#0369a1' : '#38bdf8')
+                : (isSoftBlue ? '#0a7c4e' : '#10b981'),
               animation: isServerSyncing ? 'cyberStreamMove 0.5s linear infinite' : 'none'
             }} />
             <span style={{ fontSize: '0.65rem', color: T.txtMuted, fontFamily: 'monospace' }}>]</span>
@@ -789,18 +803,26 @@ export default function AdminLayout({
           {/* Right Update Server Time & Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {isServerSyncing ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.70rem', fontWeight: '800', color: '#38bdf8', letterSpacing: '0.03em' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.70rem', fontWeight: '800', color: isSoftBlue ? '#0369a1' : '#38bdf8', letterSpacing: '0.03em' }}>
                 <Zap size={13} style={{ animation: 'spin 1s linear infinite' }} />
                 <span>MENGIRIM & MENYINKRONKAN DATA KE SERVER...</span>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.70rem', color: T.txtSecondary, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}>
-                <CheckCircle2 size={13} color="#10b981" />
+                <CheckCircle2 size={13} color={isSoftBlue ? '#0a7c4e' : '#10b981'} />
                 <span>UPDATE SERVER:</span>
                 <span style={{ color: T.txtPrimary, fontWeight: '800' }}>
                   {lastServerSyncTime || todayFormatted} WIB
                 </span>
-                <span style={{ color: '#10b981', fontWeight: '700', marginLeft: '4px', padding: '1px 6px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                <span style={{
+                  color: isSoftBlue ? '#0a7c4e' : '#10b981',
+                  fontWeight: '700',
+                  marginLeft: '4px',
+                  padding: '1px 6px',
+                  background: isSoftBlue ? 'rgba(10, 124, 78, 0.10)' : 'rgba(16, 185, 129, 0.1)',
+                  borderRadius: '4px',
+                  border: `1px solid ${isSoftBlue ? 'rgba(10, 124, 78, 0.25)' : 'rgba(16, 185, 129, 0.2)'}`
+                }}>
                   ONLINE
                 </span>
               </div>

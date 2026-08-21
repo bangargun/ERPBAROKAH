@@ -40,7 +40,7 @@ export default function ManualReportUpdateModal({
   if (!show) return null;
 
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
   const isEditMode = !!editData;
 
   // Active Tab ('manual' | 'excel' | 'import_sales' | 'import_expenses')

@@ -24,7 +24,7 @@ const TAB_DESC = {
 
 export default function IngredientPriceComparisonPage({ masterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
 
   const [activeTab, setActiveTab]       = useState('harga_bahan_outlet');
   const [periodViewMode, setPeriodViewMode] = useState('daily'); // 'daily' | 'monthly'

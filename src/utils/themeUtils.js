@@ -65,6 +65,7 @@ export function getThemePalette(themeMode) {
     navActiveBg:    'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)',
     navActiveTxt:   '#ffffff',
     navActiveShadow:'rgba(26, 111, 196, 0.30)',
+    primary:        '#1a6fc4',
     primaryBtn:     'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)',
     primaryBtnShadow:'rgba(26, 111, 196, 0.25)',
 
@@ -149,6 +150,7 @@ export function getThemePalette(themeMode) {
     navActiveBg:    'linear-gradient(135deg, #ca8a04 0%, #a16207 100%)',
     navActiveTxt:   '#ffffff',
     navActiveShadow:'rgba(202, 138, 4, 0.35)',
+    primary:        '#f59e0b',
     primaryBtn:     'linear-gradient(135deg, #ca8a04 0%, #a16207 100%)',
     primaryBtnShadow:'rgba(202, 138, 4, 0.30)',
 

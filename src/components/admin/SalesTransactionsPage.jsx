@@ -139,7 +139,7 @@ export function DoubleCalendarPicker({
   noWrapper = false,
   themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
   const [baseMonth, setBaseMonth] = useState(() => {
     if (startDate) {
       const d = new Date(startDate);
@@ -447,7 +447,7 @@ export function DoubleCalendarPicker({
         alignItems: 'center',
         flexWrap: 'wrap',
         gap: '5px',
-        background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
+        background: T.controlBg,
         padding: '4px',
         borderRadius: '10px',
         border: `1px solid ${T.border}`
@@ -490,7 +490,7 @@ export function DoubleCalendarPicker({
                 borderRadius: '7px',
                 border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
                 background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
-                color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+                color: isActive ? (isLight ? '#1a6fc4' : '#fbbf24') : T.txtSecondary,
                 fontWeight: isActive ? '900' : '700',
                 fontSize: '0.74rem',
                 cursor: 'pointer',
@@ -513,7 +513,7 @@ export function DoubleCalendarPicker({
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          background: isLight ? '#ffffff' : '#1e293b',
+          background: T.cardBg,
           border: `1px solid ${T.accentGoldBorder}`,
           padding: '4px 8px',
           borderRadius: '8px',
@@ -761,7 +761,7 @@ export function DoubleCalendarPicker({
                     fontWeight: '600',
                     cursor: 'pointer',
                     background: isActive ? `${T.accentGreen}` : T.cardBg2,
-                    color: isActive ? `${T.txtPrimary}` : T.txtPrimary,
+                    color: isActive ? T.txtInverse : T.txtPrimary,
                     transition: 'all 0.15s ease'
                   }}
                   onMouseEnter={(e) => {
@@ -820,7 +820,7 @@ export function DoubleCalendarPicker({
                 disabled={!tempStart}
                 style={{
                   background: T.accentGreen,
-                  color: T.txtPrimary,
+                  color: T.txtInverse,
                   border: 'none',
                   borderRadius: '4px',
                   padding: '6px 14px',
@@ -875,7 +875,7 @@ export function DoubleCalendarPicker({
                           padding: '6px 0',
                           fontSize: '0.75rem',
                           fontWeight: (isStart || isEnd) ? '800' : '500',
-                          color: !day.isCurrentMonth ? `${T.txtMuted}` : (isStart || isEnd) ? `${T.txtPrimary}` : T.txtPrimary,
+                          color: !day.isCurrentMonth ? `${T.txtMuted}` : (isStart || isEnd) ? T.txtInverse : T.txtPrimary,
                           background: (isStart || isEnd) ? `${T.accentGreen}` : isInRange ? `${T.accentGreenBg}` : 'transparent',
                           borderRadius: (isStart || isEnd) ? '50%' : isInRange ? '0px' : '4px',
                           cursor: 'pointer',
@@ -934,7 +934,7 @@ export function DoubleCalendarPicker({
                           padding: '6px 0',
                           fontSize: '0.75rem',
                           fontWeight: (isStart || isEnd) ? '800' : '500',
-                          color: !day.isCurrentMonth ? `${T.txtMuted}` : (isStart || isEnd) ? `${T.txtPrimary}` : T.txtPrimary,
+                          color: !day.isCurrentMonth ? `${T.txtMuted}` : (isStart || isEnd) ? T.txtInverse : T.txtPrimary,
                           background: (isStart || isEnd) ? `${T.accentGreen}` : isInRange ? `${T.accentGreenBg}` : 'transparent',
                           borderRadius: (isStart || isEnd) ? '50%' : isInRange ? '0px' : '4px',
                           cursor: 'pointer',
@@ -1923,7 +1923,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: ${T.cardBg}; }
+            body { font-family: Arial, sans-serif; padding: 30px; color: #0f172a; }
             h1 { text-align: center; color: #0284c7; font-size: 22px; margin-bottom: 4px; font-weight: bold; }
             .subtitle { text-align: center; color: ${T.txtMuted}; font-size: 14px; font-weight: bold; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
@@ -2300,7 +2300,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: ${T.cardBg}; }
+            body { font-family: Arial, sans-serif; padding: 30px; color: #0f172a; }
             h1 { text-align: center; color: #0284c7; font-size: 20px; margin-bottom: 4px; font-weight: bold; }
             .subtitle { text-align: center; color: ${T.txtMuted}; font-size: 13px; font-weight: bold; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
@@ -2363,7 +2363,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>Laporan Rincian Qty Penjualan By Menu (${start} s/d ${end})</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: ${T.cardBg}; }
+            body { font-family: Arial, sans-serif; padding: 30px; color: #0f172a; }
             h1 { text-align: center; color: #0284c7; font-size: 20px; margin-bottom: 4px; font-weight: bold; }
             .subtitle { text-align: center; color: ${T.txtMuted}; font-size: 13px; font-weight: bold; margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
@@ -2578,18 +2578,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: ${T.cardBg}; max-width: 800px; margin: 0 auto; }
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #0f172a; max-width: 800px; margin: 0 auto; }
             .header { text-align: center; margin-bottom: 28px; }
             .title { font-size: 22px; font-weight: bold; color: #0284c7; margin-bottom: 4px; }
             .period { font-size: 13px; font-weight: 600; color: ${T.txtMuted}; margin-bottom: 8px; }
-            .resto { font-size: 16px; font-weight: bold; color: ${T.cardBg}; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
+            .resto { font-size: 16px; font-weight: bold; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
             
             .section-title { font-size: 13px; font-weight: bold; color: ${T.txtMuted}; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid ${T.txtPrimary}; padding-bottom: 4px; }
             
             table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12px; }
             td { padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
             td.left { text-align: left; color: ${T.border}; }
-            td.right { text-align: right; font-weight: 600; color: ${T.cardBg2}; }
+            td.right { text-align: right; font-weight: 600; color: #1e293b; }
             tr.total-row td { font-weight: bold; font-size: 13px; border-top: 2px solid ${T.cardBg2}; border-bottom: 2px solid ${T.cardBg2}; }
             
             .product-table th { background: ${T.txtPrimary}; border-bottom: 2px solid ${T.txtPrimary}; padding: 8px 12px; text-align: left; font-size: 11px; color: ${T.txtMuted}; }
@@ -2781,8 +2781,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
-            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            body { font-family: sans-serif; padding: 20px; color: #0f172a; }
+            h2 { color: #1e293b; margin-bottom: 4px; }
             p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
@@ -3130,7 +3130,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 40px; color: ${T.cardBg}; }
+            body { font-family: Arial, sans-serif; padding: 40px; color: #0f172a; }
             h1 { text-align: center; color: #0284c7; font-size: 26px; margin-bottom: 6px; font-weight: bold; }
             .subtitle { text-align: center; color: ${T.border}; font-size: 15px; font-weight: bold; margin-bottom: 28px; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
@@ -3336,8 +3336,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
-            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            body { font-family: sans-serif; padding: 20px; color: #0f172a; }
+            h2 { color: #1e293b; margin-bottom: 4px; }
             p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
@@ -3510,8 +3510,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
-            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            body { font-family: sans-serif; padding: 20px; color: #0f172a; }
+            h2 { color: #1e293b; margin-bottom: 4px; }
             p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
@@ -3757,8 +3757,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 24px; color: ${T.cardBg}; }
-            h2 { color: ${T.cardBg2}; margin-bottom: 4px; border-bottom: 2px solid #0284c7; padding-bottom: 8px; }
+            body { font-family: sans-serif; padding: 24px; color: #0f172a; }
+            h2 { color: #1e293b; margin-bottom: 4px; border-bottom: 2px solid #0284c7; padding-bottom: 8px; }
             p { font-size: 13px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
@@ -4032,8 +4032,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         <head>
           <title>${pdfFilename}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; color: ${T.cardBg}; }
-            h2 { color: ${T.cardBg2}; margin-bottom: 4px; }
+            body { font-family: sans-serif; padding: 20px; color: #0f172a; }
+            h2 { color: #1e293b; margin-bottom: 4px; }
             p { font-size: 14px; color: ${T.txtMuted}; margin-top: 0; }
             table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             th, td { border: 1px solid ${T.txtPrimary}; padding: 10px; text-align: left; font-size: 12px; }
@@ -4172,8 +4172,8 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         {/* GLOBAL AUTO SYNC STATUS BANNER BAR */}
         <div className="glass-card animate-fade-in" style={{
           padding: '12px 18px',
-          background: 'linear-gradient(90deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%)',
-          border: '1px solid rgba(52, 211, 153, 0.3)',
+          background: isLight ? T.cardBg2 : 'linear-gradient(90deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%)',
+          border: isLight ? `1px solid ${T.borderStrong}` : '1px solid rgba(52, 211, 153, 0.3)',
           borderRadius: '12px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -5115,7 +5115,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 </div>
 
                 {/* 5. ULASAN EKSEKUTIF & AI INSIGHT BOARD */}
-                <div style={{ background: `linear-gradient(135deg, ${T.accentGreenBg} 0%, rgba(15, 23, 42, 0.95) 100%)`, padding: '24px', borderRadius: '14px', border: `1px solid ${T.accentGreen}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ background: isLight ? T.cardBg2 : `linear-gradient(135deg, ${T.accentGreenBg} 0%, rgba(15, 23, 42, 0.95) 100%)`, padding: '24px', borderRadius: '14px', border: `1px solid ${T.accentGreen}`, display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <h4 style={{ fontSize: '1.05rem', fontWeight: '900', color: T.info, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <FileText size={20} color={ T.info } />
                     <span>Ulasan Eksekutif & AI Insight Resto</span>
@@ -5238,7 +5238,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                     return (
                       <>
                         {data.map((r, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', color: T.txtPrimary }}>
+                          <tr key={idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                             <td style={{ padding: '12px 16px', fontWeight: '700', color: T.txtPrimary }}>{r.formattedDate}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>{formatRupiahDecimals(r.totalSales)}</td>
                             <td style={{ padding: '12px 16px', textAlign: 'right', color: r.discount > 0 ? `${T.danger}` : T.txtPrimary }}>{formatRupiahDecimals(r.discount)}</td>
@@ -5319,7 +5319,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{
                   fontSize: '0.8rem',
                   padding: '8px 12px',
-                  borderColor: hourShowColumnDropdown ? `${T.accentGold}` : 'rgba(255,255,255,0.1)',
+                  borderColor: hourShowColumnDropdown ? `${T.accentGold}` : T.border,
                   background: hourShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : T.cardBg,
                   color: hourShowColumnDropdown ? `${T.accentGold}` : T.txtPrimary,
                   height: '40px'
@@ -5726,7 +5726,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                           return (
                             <React.Fragment key={b.id}>
                               {/* BARIS UTAMA TIPE LAYANAN */}
-                              <tr style={{ background: 'rgba(30, 41, 59, 0.8)', borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
+                              <tr style={{ background: isLight ? T.tableHeaderBg : 'rgba(30, 41, 59, 0.8)', borderBottom: `1px solid ${T.border}`, color: T.txtPrimary }}>
                                 {rcptVisibleColumns.serviceType !== false && (
                                   <td style={{ padding: '14px 12px', fontWeight: '900', color: b.color, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
                                     <span style={{ fontSize: '1.2rem' }}>{b.icon}</span>
@@ -5862,7 +5862,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{
                   fontSize: '0.8rem',
                   padding: '8px 12px',
-                  borderColor: custShowColumnDropdown ? `${T.accentGold}` : 'rgba(255,255,255,0.1)',
+                  borderColor: custShowColumnDropdown ? `${T.accentGold}` : T.border,
                   background: custShowColumnDropdown ? 'rgba(251, 191, 36, 0.15)' : T.cardBg,
                   color: custShowColumnDropdown ? `${T.accentGold}` : T.txtPrimary,
                   borderRadius: '8px',
@@ -6050,7 +6050,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{
                   fontSize: '0.8rem',
                   padding: '8px 12px',
-                  borderColor: momShowColumnDropdown ? `${T.accentGold}` : 'rgba(255,255,255,0.1)',
+                  borderColor: momShowColumnDropdown ? `${T.accentGold}` : T.border,
                   background: momShowColumnDropdown ? 'rgba(251, 191, 36, 0.2)' : T.cardBg,
                   color: momShowColumnDropdown ? `${T.accentGold}` : T.txtPrimary,
                   height: '40px'

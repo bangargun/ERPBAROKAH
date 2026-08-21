@@ -33,7 +33,7 @@ export default function ExpenseImportReconciliationModal({
   if (!isOpen) return null;
 
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
 
   // Wizard Step: 1 (Upload), 2 (Review), 3 (Reconciliation/Correction), 4 (Confirmation)
   const [step, setStep] = useState(1);

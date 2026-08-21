@@ -37,7 +37,7 @@ export default function SalesImportReconciliationModal({
   if (!show) return null;
 
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
 
   // Wizard Steps: 1: 'upload', 2: 'review', 3: 'mapping', 4: 'confirm'
   const [step, setStep] = useState(1);

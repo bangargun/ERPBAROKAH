@@ -2649,7 +2649,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isWebAdminInput = m.type_input === 'manual' || m.type_input === 'by laporan keuangan (ACC)';
 
                       return (
-                        <tr key={m.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={m.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} >
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '8px 10px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{m.date}</div>
@@ -2828,7 +2828,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isPaid = tx.status === 'Paid' || tx.status === 'Lunas' || tx.status === 'Success' || tx.status === 'Selesai' || tx.isPaid;
 
                       return (
-                        <tr key={tx.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={tx.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} >
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{tx.date}</div>
@@ -2966,7 +2966,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const isWebAdminInput = t.type_input === 'manual';
 
                       return (
-                        <tr key={t.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={t.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} >
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{t.date}</div>
@@ -3183,7 +3183,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                         : (m.alasan_rusak || m.reason || m.damage_reason || '-');
 
                       return (
-                        <tr key={m.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={m.id} style={{ borderBottom: `1px solid ${T.border}`, transition: 'background 0.15s' }} >
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '14px 16px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{m.date}</div>
@@ -3334,7 +3334,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
             <div style={{ overflowX: 'auto', border: `1px solid ${T.border}`, borderRadius: '10px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                 <thead>
-                  <tr style={{ background: T.cardBg2, borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtSecondary, textAlign: 'left' }}>
+                  <tr style={{ background: T.cardBg2, borderBottom: `1px solid ${T.border}`, color: T.txtSecondary, textAlign: 'left' }}>
                     <th style={{ padding: '8px 10px', fontWeight: '800', width: '50px' }}>NO</th>
                     <th style={{ padding: '8px 10px', fontWeight: '800' }}>NAMA ITEM / BAHAN BAKU</th>
                     <th style={{ padding: '8px 10px', fontWeight: '800', width: '100px', textAlign: 'center' }}>SATUAN</th>
@@ -3344,7 +3344,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.info }}>TRANSFER IN</th>
                     <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.danger }}>TRANSFER OUT</th>
                     <th style={{ padding: '8px 10px', fontWeight: '800', width: '120px', textAlign: 'right', color: T.accentGold }}>STOK RUSAK</th>
-                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '160px', textAlign: 'right', color: '#38bdf8' }}>SISA STOK SISTEM</th>
+                    <th style={{ padding: '8px 10px', fontWeight: '800', width: '160px', textAlign: 'right', color: T.info }}>SISA STOK SISTEM</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -3365,7 +3365,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
 
                     return paginatedSystemRows.map((row, idx) => {
                       return (
-                        <tr key={row.id || idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={row.id || idx} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} >
                           <td style={{ padding: '8px 10px', color: T.txtSecondary, fontWeight: '700' }}>
                             {(currentPage - 1) * pageSize + idx + 1}
                           </td>
@@ -3404,7 +3404,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                             {row.stokRusak} {row.unit}
                           </td>
 
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#38bdf8', fontSize: '0.78rem' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: T.info, fontSize: '0.78rem' }}>
                             {row.sisaStokSystem} {row.unit}
                           </td>
                         </tr>
@@ -3524,8 +3524,8 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                     <th style={{ padding: '14px 12px', fontWeight: '800', whiteSpace: 'nowrap' }}>ITEM / BAHAN BAKU</th>
                     <th style={{ padding: '14px 12px', fontWeight: '800', whiteSpace: 'nowrap' }}>NO LAPORAN</th>
                     <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, whiteSpace: 'nowrap' }}>STOK KELUAR</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: '#fb7185', background: 'rgba(251,113,133,0.08)', whiteSpace: 'nowrap' }}>STOK RUSAK (-)</th>
-                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: '#fbbf24', whiteSpace: 'nowrap' }}>STOK FISIK</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, background: 'rgba(251,113,133,0.08)', whiteSpace: 'nowrap' }}>STOK RUSAK (-)</th>
+                    <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.warning, whiteSpace: 'nowrap' }}>STOK FISIK</th>
                     <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'center', whiteSpace: 'nowrap' }}>SELISIH</th>
                     <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', whiteSpace: 'nowrap' }}>HARGA SATUAN</th>
                     <th style={{ padding: '14px 12px', fontWeight: '800', textAlign: 'right', color: T.danger, whiteSpace: 'nowrap' }}>DENDA STOK</th>
@@ -3571,7 +3571,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                       const dendaVal = isDefisit ? Math.abs(diffVal) * activePrice : 0;
 
                       return (
-                        <tr key={op.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', color: T.txtPrimary, transition: 'background 0.15s' }} className="hover:bg-slate-800/50">
+                        <tr key={op.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.txtPrimary, transition: 'background 0.15s' }} >
                           {/* 1. TANGGAL */}
                           <td style={{ padding: '8px 10px', color: T.txtPrimary, fontWeight: '600' }}>
                             <div>{op.date}</div>
@@ -3626,15 +3626,15 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                           </td>
 
                           {/* 6. STOK RUSAK — otomatis dari sub-tab Stok Rusak outlet */}
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: currentStokRusak > 0 ? '#fb7185' : T.txtMuted, background: currentStokRusak > 0 ? 'rgba(251,113,133,0.06)' : 'transparent', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: currentStokRusak > 0 ? T.danger : T.txtMuted, background: currentStokRusak > 0 ? 'rgba(251,113,133,0.06)' : 'transparent', whiteSpace: 'nowrap' }}>
                             {currentStokRusak > 0 ? `-${currentStokRusak} ${op.unit || 'kg'}` : `0 ${op.unit || 'kg'}`}
                             {currentStokRusak > 0 && (
-                              <div style={{ fontSize: '0.60rem', color: '#94a3b8', marginTop: '2px' }}>auto dari laporan rusak</div>
+                              <div style={{ fontSize: '0.60rem', color: T.txtMuted, marginTop: '2px' }}>auto dari laporan rusak</div>
                             )}
                           </td>
 
                           {/* 7. STOK FISIK */}
-                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: '#fbbf24', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: T.warning, whiteSpace: 'nowrap' }}>
                             {stokFisikVal} {op.unit || 'kg'}
                           </td>
 
@@ -4838,7 +4838,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 <button type="button" onClick={() => { setShowAddModal(null); setEditingRecord(null); }} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
                   Batal
                 </button>
-                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.danger, color: T.txtPrimary, fontWeight: '800' }}>
+                <button type="submit" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', background: T.danger, color: T.txtInverse, fontWeight: '800' }}>
                   Simpan Laporan Barang Rusak
                 </button>
               </div>
@@ -4923,7 +4923,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <button
                 type="button"
                 onClick={handleSaveRusakFinal}
-                style={{ padding: '9px 24px', background: `linear-gradient(135deg, ${T.success} 0%, #059669 100%)`, border: 'none', color: T.txtPrimary, borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
+                style={{ padding: '9px 24px', background: `linear-gradient(135deg, ${T.success} 0%, #059669 100%)`, border: 'none', color: T.txtInverse, borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 14px rgba(52,211,153,0.4)' }}
               >
                 Simpan Laporan
               </button>
@@ -5564,7 +5564,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                 type="button"
                 onClick={handleSaveSalesTransaction}
                 className="btn-primary"
-                style={{ padding: '10px 24px', fontSize: '0.85rem', background: `${T.info}`, color: T.txtPrimary }}
+                style={{ padding: '10px 24px', fontSize: '0.85rem', background: `${T.info}`, color: T.txtInverse }}
               >
                 Simpan Transaksi Penjualan
               </button>
@@ -5579,7 +5579,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
       {/* ========================================================= */}
       {previewOutflowModalData && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 110 }}>
-          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '680px', maxHeight: '85vh', overflowY: 'auto', border: '1px solid #818cf8', background: T.cardBg2, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="glass-card animate-fade-in" style={{ padding: '24px', width: '680px', maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${T.borderStrong}`, background: T.cardBg2, borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
               <div>
@@ -5835,7 +5835,7 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
               <button
                 type="button"
                 onClick={() => setPreviewOpnameReportModalData(null)}
-                style={{ padding: '10px 24px', background: T.info, color: '#000000', border: 'none', borderRadius: '8px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer' }}
+                style={{ padding: '10px 24px', background: T.info, color: T.txtInverse, border: 'none', borderRadius: '8px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer' }}
               >
                 Selesai &amp; Tutup
               </button>

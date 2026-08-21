@@ -1990,7 +1990,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                 <button
                   type="button"
                   onClick={() => setPreviewFinanceRecord(null)}
-                  style={{ padding: '10px 20px', background: T.borderStrong || '#334155', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+                  style={{ padding: '10px 20px', background: T.primary || T.info, color: T.txtInverse, border: 'none', borderRadius: '10px', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
                 >
                   Tutup Detail
                 </button>
@@ -2397,7 +2397,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                   <button
                     type="button"
                     onClick={handleAddCashReturnRow}
-                    style={{ background: T.warningBg || 'rgba(245, 158, 11, 0.2)', border: `1px solid ${T.accentGold}`, color: T.accentGold, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                    style={{ background: T.warningBg || 'rgba(180, 83, 9, 0.10)', border: `1px solid ${T.warningBorder || T.warning}`, color: T.warning, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
                   >
                     + Tambah Baris Pengembalian
                   </button>
@@ -2471,7 +2471,7 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
                     {formatRupiah(uangDiLaci)}
                   </div>
                   {isUangDiLaciMinus && (
-                    <div style={{ fontSize: '0.72rem', color: T.danger, marginTop: '6px', fontWeight: '700', background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px' }}>
+                    <div style={{ fontSize: '0.72rem', color: T.danger, marginTop: '6px', fontWeight: '700', background: T.dangerBg || 'rgba(192, 21, 43, 0.10)', padding: '4px 8px', borderRadius: '4px' }}>
                       Result MINUS: Otomatis tercatat sebagai Hutang Pengembalian Kas di hari berikutnya!
                     </div>
                   )}

@@ -1637,7 +1637,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                   flexDirection: 'column',
                   gap: '8px'
                 }}>
-                  <div style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.05em' }}>
+                  <div style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: '800', color: T.txtMuted, textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.05em' }}>
                     PREVIEW STRUK THERMAL HASIL CETAK
                   </div>
 
@@ -1928,7 +1928,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                         filteredMobileList.map(u => {
                           let roleBadgeColor = T.success;
                           let roleBgColor = 'rgba(52,211,153,0.2)';
-                          if (u.role?.includes('Super Admin') || u.role?.includes('Owner')) { roleBadgeColor = '#c084fc'; roleBgColor = 'rgba(168,85,247,0.2)'; }
+                          if (u.role?.includes('Super Admin') || u.role?.includes('Owner')) { roleBadgeColor = isLight ? '#7c3aed' : '#c084fc'; roleBgColor = isLight ? 'rgba(124,58,237,0.12)' : 'rgba(168,85,247,0.2)'; }
                           else if (u.role?.includes('Kepala Cabang') || u.role?.includes('SPV')) { roleBadgeColor = T.accentGold; roleBgColor = T.accentGoldBg; }
                           else if (u.role?.includes('Logistik')) { roleBadgeColor = T.info; roleBgColor = T.infoBg; }
 
@@ -1938,7 +1938,7 @@ export default function SystemSettings({ masterData, setMasterData, themeMode = 
                                 <div
                                   onClick={() => setPreviewUserAccount(u)}
                                   style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: T.infoBg, padding: '4px 10px', borderRadius: '8px', border: `1px solid ${T.infoBorder}`, transition: 'all 0.15s ease' }}
-                                  className="hover:border-sky-400 hover:bg-sky-950/40"
+                                  className="hover:border-sky-400 hover:bg-sky-100"
                                   title="Klik untuk Pratinjau Detail Akses User Ini"
                                 >
                                   <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: roleBgColor, border: `1px solid ${roleBadgeColor}`, color: roleBadgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '0.75rem', flexShrink: 0 }}>

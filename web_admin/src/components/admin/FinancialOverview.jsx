@@ -68,7 +68,7 @@ export default function FinancialOverview({
   themeMode = 'dark' 
 }) {
   const T = getThemePalette(themeMode);
-  const isLight = themeMode === 'light';
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
 
   // Master Data Entities
   const allOutlets = outlets || masterData?.outlets || [];
@@ -871,7 +871,7 @@ export default function FinancialOverview({
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '6px',
-              background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
+              background: T.controlBg,
               padding: '5px',
               borderRadius: '12px',
               border: `1px solid ${T.border}`
@@ -907,7 +907,7 @@ export default function FinancialOverview({
                       borderRadius: '8px',
                       border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
                       background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
-                      color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+                      color: isActive ? (isLight ? '#1a6fc4' : '#fbbf24') : T.txtSecondary,
                       fontWeight: isActive ? '900' : '700',
                       fontSize: '0.76rem',
                       cursor: 'pointer',
@@ -1029,7 +1029,7 @@ export default function FinancialOverview({
                   />
                 </div>
               </div>
-              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, background: isLight ? '#f1f5f9' : 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
+              <div style={{ fontSize: '0.70rem', color: T.txtSecondary, background: T.controlBg, padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
                 Format MySQL: <code>YYYY-MM-DD</code>
               </div>
             </div>
@@ -1268,7 +1268,7 @@ export default function FinancialOverview({
             </div>
 
             {/* Visual Proportion Bar */}
-            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
+            <div style={{ width: '100%', height: '6px', background: T.controlBg, borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
               <div style={{ width: `${kpiMetrics.dineInPct}%`, background: T.info, transition: 'width 0.3s ease' }} title={`Dine In: ${kpiMetrics.dineInPct}%`} />
               <div style={{ width: `${kpiMetrics.takeAwayPct}%`, background: '#f97316', transition: 'width 0.3s ease' }} title={`Take Away: ${kpiMetrics.takeAwayPct}%`} />
             </div>
@@ -1347,7 +1347,7 @@ export default function FinancialOverview({
             </div>
 
             {/* Visual Proportion Bar */}
-            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
+            <div style={{ width: '100%', height: '6px', background: T.controlBg, borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
               <div style={{ width: `${kpiMetrics.cashPct}%`, background: T.success, transition: 'width 0.3s ease' }} title={`Cash: ${kpiMetrics.cashPct}%`} />
               <div style={{ width: `${kpiMetrics.nonCashPct}%`, background: T.info, transition: 'width 0.3s ease' }} title={`Non-Cash: ${kpiMetrics.nonCashPct}%`} />
             </div>
@@ -1396,7 +1396,7 @@ export default function FinancialOverview({
             </div>
 
             {/* Visual Proportion Bar */}
-            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
+            <div style={{ width: '100%', height: '6px', background: T.controlBg, borderRadius: '999px', overflow: 'hidden', display: 'flex', margin: '8px 0 4px 0' }}>
               <div style={{ width: `${kpiMetrics.targetReachedPct}%`, background: T.success, transition: 'width 0.3s ease' }} title={`Capai Target: ${kpiMetrics.targetReachedPct}%`} />
               <div style={{ width: `${100 - kpiMetrics.targetReachedPct}%`, background: T.danger, transition: 'width 0.3s ease' }} title={`Belum Capai: ${100 - kpiMetrics.targetReachedPct}%`} />
             </div>
@@ -1968,7 +1968,7 @@ export default function FinancialOverview({
           flexWrap: 'wrap',
           gap: '8px',
           padding: '8px 14px',
-          background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
+          background: T.controlBg,
           borderRadius: '12px',
           border: `1px solid ${T.border}`
         }}>
@@ -2009,7 +2009,7 @@ export default function FinancialOverview({
                     borderRadius: '7px',
                     border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
                     background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
-                    color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+                    color: isActive ? (isLight ? '#1a6fc4' : '#fbbf24') : T.txtSecondary,
                     fontWeight: isActive ? '900' : '700',
                     fontSize: '0.74rem',
                     cursor: 'pointer',
@@ -2033,7 +2033,7 @@ export default function FinancialOverview({
               alignItems: 'center',
               gap: '6px',
               marginLeft: 'auto',
-              background: isLight ? '#ffffff' : '#1e293b',
+              background: T.cardBg,
               padding: '4px 8px',
               borderRadius: '8px',
               border: `1px solid ${T.accentGoldBorder}`

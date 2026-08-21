@@ -1929,7 +1929,7 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                           <div
                             key={o.id}
                             style={{
-                              background: isSelected ? T.inputBg : 'rgba(0,0,0,0.2)',
+                              background: isSelected ? T.inputBg : T.controlBg,
                               padding: '10px 12px',
                               borderRadius: '10px',
                               border: `1px solid ${isSelected ? T.primary : T.border}`,
