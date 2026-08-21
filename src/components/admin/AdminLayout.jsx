@@ -89,8 +89,9 @@ export default function AdminLayout({
     try { localStorage.setItem('mris_read_notif_ids', JSON.stringify(allIds)); } catch (e) {}
   };
 
-  const isLight = themeMode === 'light';
-  const isWarmMinimalist = themeMode === 'warm_minimalist';
+  const isLight = themeMode === 'soft_blue';
+  const isSoftBlue = themeMode === 'soft_blue';
+  const isWarmMinimalist = false; // tema ini sudah dihapus
 
   const T = getThemePalette(themeMode);
 
@@ -457,7 +458,7 @@ export default function AdminLayout({
           {/* Right Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
             
-            {/* 1. THEME SWITCHER DROPDOWN (DARK / LIGHT / WARM MINIMALIST) */}
+            {/* 1. THEME SWITCHER DROPDOWN (DARK / SOFT BLUE) */}
             <div style={{ position: 'relative' }}>
               <select
                 value={themeMode}
@@ -468,7 +469,7 @@ export default function AdminLayout({
                   background: T.controlBg,
                   border: `1px solid ${T.border}`,
                   borderRadius: '10px',
-                  color: isWarmMinimalist ? '#d97706' : (isLight ? '#d97706' : '#f59e0b'),
+                  color: isSoftBlue ? '#1a6fc4' : '#f59e0b',
                   fontSize: '0.78rem',
                   fontWeight: '800',
                   cursor: 'pointer',
@@ -477,11 +478,10 @@ export default function AdminLayout({
                   transition: 'all 0.15s ease'
                 }}
               >
-                <option value="dark" style={{ background: '#1e293b', color: '#f8fafc' }}>Mode Gelap (Dark)</option>
-                <option value="light" style={{ background: '#ffffff', color: '#0f172a' }}>Mode Terang (Light)</option>
-                <option value="warm_minimalist" style={{ background: '#faf8f5', color: '#143022' }}>Warm Minimalist (Forest & Amber)</option>
+                <option value="dark" style={{ background: '#1e293b', color: '#f8fafc' }}>🌙 Mode Gelap (Dark)</option>
+                <option value="soft_blue" style={{ background: '#eaf4ff', color: '#0c1f3d' }}>☁️ Soft Blue (Klasik)</option>
               </select>
-              <Palette size={14} color={isWarmMinimalist ? '#d97706' : (isLight ? '#d97706' : '#f59e0b')} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <Palette size={14} color={isSoftBlue ? '#1a6fc4' : '#f59e0b'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
             </div>
 
             {/* 2. OUTLET SWITCHER DROPDOWN */}

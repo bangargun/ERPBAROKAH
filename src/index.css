@@ -1,7 +1,7 @@
 /* =========================================================
    MRIS – Multi Restaurant Financial Information System
    Global Theme System via CSS Custom Properties
-   Themes: [dark] [light] [warm_minimalist]
+   Themes: [dark] [soft_blue]
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -92,126 +92,161 @@
   --text-dim:          #64748b;
 }
 
-/* ── LIGHT THEME ── */
-[data-theme="light"] {
-  --app-bg:            #f1f5f9;
-  --sidebar-bg:        #ffffff;
+/* ── SOFT BLUE THEME (Klasik, Biru Muda, Profesional) ──
+   Palette: Sky Blue (#ddeeff) backgrounds + Deep Navy (#0c1f3d) text
+   High contrast, clean, classic professional aesthetic
+*/
+[data-theme="soft_blue"] {
+  --app-bg:            #ddeeff;
+  --sidebar-bg:        #0d3268;
   --header-bg:         #ffffff;
   --card-bg:           #ffffff;
-  --card-bg-2:         #f8fafc;
+  --card-bg-2:         #eaf4ff;
   --input-bg:          #ffffff;
   --dropdown-bg:       #ffffff;
-  --control-bg:        #f8fafc;
-  --hover-bg:          rgba(0,0,0,0.04);
-  --glass-bg:          rgba(255,255,255,0.80);
+  --control-bg:        #eaf4ff;
+  --hover-bg:          rgba(30, 90, 160, 0.07);
+  --glass-bg:          rgba(255, 255, 255, 0.88);
 
-  --txt-primary:       #0f172a;
-  --txt-secondary:     #475569;
-  --txt-muted:         #64748b;
-  --txt-inverse:       #f8fafc;
+  --txt-primary:       #0c1f3d;
+  --txt-secondary:     #1e4a7c;
+  --txt-muted:         #456b9a;
+  --txt-inverse:       #ffffff;
 
-  --border:            #e2e8f0;
-  --border-strong:     #cbd5e1;
-  --border-hover:      #94a3b8;
-  --glass-border:      #e2e8f0;
+  --border:            #b0ccec;
+  --border-strong:     #7aaad4;
+  --border-hover:      #3b82c4;
+  --glass-border:      #c3d9f0;
 
-  --accent-gold:       #d97706;
-  --accent-gold-hover: #b45309;
-  --accent-gold-bg:    rgba(217, 119, 6, 0.10);
-  --accent-gold-border:rgba(217, 119, 6, 0.25);
-  --accent-green:      #4f46e5;
-  --accent-green-bg:   rgba(79, 70, 229, 0.10);
-  --accent-emerald:    #059669;
-  --accent-rose:       #e11d48;
+  --accent-gold:       #1a6fc4;
+  --accent-gold-hover: #145ea8;
+  --accent-gold-bg:    rgba(26, 111, 196, 0.10);
+  --accent-gold-border:rgba(26, 111, 196, 0.28);
+  --accent-green:      #0a7c4e;
+  --accent-green-bg:   rgba(10, 124, 78, 0.10);
+  --accent-emerald:    #0a7c4e;
+  --accent-rose:       #c0152b;
   --accent-cyan:       #0284c7;
 
-  --nav-active-bg:     linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  --nav-active-bg:     linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%);
   --nav-active-txt:    #ffffff;
-  --nav-active-shadow: rgba(217, 119, 6, 0.30);
+  --nav-active-shadow: rgba(26, 111, 196, 0.30);
 
-  --shadow-sm:         0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md:         0 4px 14px rgba(0,0,0,0.10);
-  --shadow-lg:         0 8px 32px rgba(0,0,0,0.12);
-  --glass-shadow:      0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-sm:         0 1px 4px rgba(10, 40, 80, 0.10);
+  --shadow-md:         0 4px 16px rgba(10, 40, 80, 0.13);
+  --shadow-lg:         0 8px 32px rgba(10, 40, 80, 0.18);
+  --glass-shadow:      0 4px 24px rgba(10, 40, 80, 0.10);
 
-  --scrollbar-track:   #f1f5f9;
-  --scrollbar-thumb:   #cbd5e1;
-  --scrollbar-hover:   #94a3b8;
+  --scrollbar-track:   #c7e0f9;
+  --scrollbar-thumb:   #7aaad4;
+  --scrollbar-hover:   #3b82c4;
 
-  --bg-dark:           #f1f5f9;
+  --bg-dark:           #eaf4ff;
   --bg-dark-card:      #ffffff;
-  --bg-dark-card-hover:#f8fafc;
-  --border-dark:       #e2e8f0;
-  --primary:           #4f46e5;
-  --primary-hover:     #4338ca;
-  --primary-light:     rgba(79, 70, 229, 0.10);
-  --accent-amber:      #d97706;
-  --text-main:         #0f172a;
-  --text-muted:        #64748b;
-  --text-dim:          #94a3b8;
+  --bg-dark-card-hover:#f0f8ff;
+  --border-dark:       #b0ccec;
+  --primary:           #1a6fc4;
+  --primary-hover:     #145ea8;
+  --primary-light:     rgba(26, 111, 196, 0.12);
+  --accent-amber:      #b45309;
+  --text-main:         #0c1f3d;
+  --text-muted:        #456b9a;
+  --text-dim:          #7aaad4;
 }
 
-/* ── WARM MINIMALIST THEME ──
-   Palette: Deep Forest Green (#143022) + Amber Gold (#d97706) on Off-White (#faf8f5)
-   Philosophy: Organic warmth, editorial clarity, premium restaurant aesthetics
-*/
-[data-theme="warm_minimalist"] {
-  --app-bg:            #faf8f5;
-  --sidebar-bg:        #143022;
-  --header-bg:         #ffffff;
-  --card-bg:           #ffffff;
-  --card-bg-2:         #f4f1ea;
-  --input-bg:          #fdfcf9;
-  --dropdown-bg:       #ffffff;
-  --control-bg:        #f4f1ea;
-  --hover-bg:          rgba(20, 48, 34, 0.06);
-  --glass-bg:          rgba(255, 252, 245, 0.88);
-
-  --txt-primary:       #1a2e1f;
-  --txt-secondary:     #3d5445;
-  --txt-muted:         #687d71;
-  --txt-inverse:       #faf8f5;
-
-  --border:            #e0ddd5;
-  --border-strong:     #c8c0b0;
-  --border-hover:      #a39580;
-  --glass-border:      #e8e4da;
-
-  --accent-gold:       #d97706;
-  --accent-gold-hover: #b45309;
-  --accent-gold-bg:    rgba(217, 119, 6, 0.10);
-  --accent-gold-border:rgba(217, 119, 6, 0.28);
-  --accent-green:      #1b5e35;
-  --accent-green-bg:   rgba(27, 94, 53, 0.10);
-  --accent-emerald:    #2d7a4f;
-  --accent-rose:       #c0392b;
-  --accent-cyan:       #1b5e35;
-
-  --nav-active-bg:     linear-gradient(135deg, #d97706 0%, #b45309 100%);
-  --nav-active-txt:    #ffffff;
-  --nav-active-shadow: rgba(217, 119, 6, 0.30);
-
-  --shadow-sm:         0 1px 4px rgba(20, 48, 34, 0.10);
-  --shadow-md:         0 4px 16px rgba(20, 48, 34, 0.12);
-  --shadow-lg:         0 8px 32px rgba(20, 48, 34, 0.16);
-  --glass-shadow:      0 4px 24px rgba(20, 48, 34, 0.10);
-
-  --scrollbar-track:   #f0ece3;
-  --scrollbar-thumb:   #c5bfb3;
-  --scrollbar-hover:   #a39580;
-
-  --bg-dark:           #f4f1ea;
-  --bg-dark-card:      #ffffff;
-  --bg-dark-card-hover:#f9f7f2;
-  --border-dark:       #e0ddd5;
-  --primary:           #d97706;
-  --primary-hover:     #b45309;
-  --primary-light:     rgba(217, 119, 6, 0.12);
-  --accent-amber:      #d97706;
-  --text-main:         #1a2e1f;
-  --text-muted:        #687d71;
-  --text-dim:          #9aab9f;
+/* ── Soft Blue: glass-card becomes clean white card ── */
+[data-theme="soft_blue"] .glass-card {
+  background: #ffffff;
+  border-color: #b0ccec;
+  box-shadow: 0 2px 8px rgba(10, 40, 80, 0.10);
 }
+[data-theme="soft_blue"] .glass-card:hover {
+  border-color: rgba(26, 111, 196, 0.40);
+  box-shadow: 0 4px 16px rgba(10, 40, 80, 0.14);
+}
+
+/* ── Status Badges for Soft Blue ── */
+[data-theme="soft_blue"] .badge-income {
+  background: rgba(10, 124, 78, 0.10);
+  color: #0a7c4e;
+  border-color: rgba(10, 124, 78, 0.25);
+}
+[data-theme="soft_blue"] .badge-expense {
+  background: rgba(192, 21, 43, 0.10);
+  color: #c0152b;
+  border-color: rgba(192, 21, 43, 0.25);
+}
+
+/* Tables for Soft Blue */
+[data-theme="soft_blue"] table th {
+  background: #c7e0f9 !important;
+  color: #0c1f3d !important;
+  border-bottom: 2px solid #7aaad4 !important;
+}
+[data-theme="soft_blue"] table td {
+  color: #0c1f3d !important;
+  border-bottom: 1px solid #c3d9f0 !important;
+}
+[data-theme="soft_blue"] table tr:hover td {
+  background: rgba(26, 111, 196, 0.05) !important;
+}
+
+/* Form controls for Soft Blue */
+[data-theme="soft_blue"] .form-input,
+[data-theme="soft_blue"] .form-select,
+[data-theme="soft_blue"] input[type="text"],
+[data-theme="soft_blue"] input[type="date"],
+[data-theme="soft_blue"] input[type="number"],
+[data-theme="soft_blue"] select {
+  background: #ffffff !important;
+  border-color: #7aaad4 !important;
+  color: #0c1f3d !important;
+}
+[data-theme="soft_blue"] .form-input:focus,
+[data-theme="soft_blue"] .form-select:focus {
+  border-color: #1a6fc4 !important;
+  box-shadow: 0 0 0 3px rgba(26, 111, 196, 0.15) !important;
+}
+
+/* Inline dark backgrounds → white/blue ── */
+[data-theme="soft_blue"] [style*="background: #0f172a"],
+[data-theme="soft_blue"] [style*="background:#0f172a"] { background: #ffffff !important; color: #0c1f3d !important; }
+[data-theme="soft_blue"] [style*="background: #1e293b"],
+[data-theme="soft_blue"] [style*="background:#1e293b"] { background: #eaf4ff !important; color: #0c1f3d !important; }
+[data-theme="soft_blue"] [style*="background: #111625"],
+[data-theme="soft_blue"] [style*="background:#111625"] { background: #eaf4ff !important; color: #0c1f3d !important; }
+[data-theme="soft_blue"] [style*="background: #0b0f19"],
+[data-theme="soft_blue"] [style*="background:#0b0f19"] { background: #ddeeff !important; }
+
+/* Dark text colors → deep navy ── */
+[data-theme="soft_blue"] [style*="color: #f8fafc"],
+[data-theme="soft_blue"] [style*="color:#f8fafc"] { color: #0c1f3d !important; }
+[data-theme="soft_blue"] [style*="color: #94a3b8"],
+[data-theme="soft_blue"] [style*="color:#94a3b8"] { color: #1e4a7c !important; }
+[data-theme="soft_blue"] [style*="color: #64748b"],
+[data-theme="soft_blue"] [style*="color:#64748b"] { color: #456b9a !important; }
+[data-theme="soft_blue"] [style*="color: #cbd5e1"],
+[data-theme="soft_blue"] [style*="color:#cbd5e1"] { color: #456b9a !important; }
+
+/* Borders → soft blue ── */
+[data-theme="soft_blue"] [style*="border: 1px solid #334155"],
+[data-theme="soft_blue"] [style*="border:1px solid #334155"] { border-color: #b0ccec !important; }
+
+/* Semantic accent colors */
+[data-theme="soft_blue"] [style*="color: #34d399"],
+[data-theme="soft_blue"] [style*="color:#34d399"] { color: #0a7c4e !important; }
+[data-theme="soft_blue"] [style*="color: #38bdf8"],
+[data-theme="soft_blue"] [style*="color:#38bdf8"] { color: #0284c7 !important; }
+[data-theme="soft_blue"] [style*="color: #818cf8"],
+[data-theme="soft_blue"] [style*="color:#818cf8"],
+[data-theme="soft_blue"] [style*="color: #6366f1"],
+[data-theme="soft_blue"] [style*="color:#6366f1"] { color: #1a6fc4 !important; }
+[data-theme="soft_blue"] [style*="color: #fb7185"],
+[data-theme="soft_blue"] [style*="color:#fb7185"] { color: #c0152b !important; }
+[data-theme="soft_blue"] [style*="color: #fbbf24"],
+[data-theme="soft_blue"] [style*="color:#fbbf24"] { color: #b45309 !important; }
+[data-theme="soft_blue"] [style*="color: #f59e0b"],
+[data-theme="soft_blue"] [style*="color:#f59e0b"] { color: #b45309 !important; }
 
 /* ═══════════════════════════════════════════
    GLOBAL BASE
@@ -268,16 +303,6 @@ body {
   box-shadow: var(--shadow-md);
 }
 
-/* ── Warm Minimalist: glass-card becomes clean white card ── */
-[data-theme="warm_minimalist"] .glass-card {
-  background: #ffffff;
-  border-color: var(--border);
-  box-shadow: var(--shadow-sm);
-}
-[data-theme="warm_minimalist"] .glass-card:hover {
-  border-color: var(--accent-gold-border);
-  box-shadow: var(--shadow-md);
-}
 
 /* ── Status Badges ── */
 .badge-income {
@@ -292,16 +317,6 @@ body {
   align-items: center;
   gap: 4px;
 }
-[data-theme="warm_minimalist"] .badge-income {
-  background: rgba(45, 122, 79, 0.10);
-  color: #2d7a4f;
-  border-color: rgba(45, 122, 79, 0.25);
-}
-[data-theme="light"] .badge-income {
-  background: rgba(5, 150, 105, 0.10);
-  color: #047857;
-  border-color: rgba(5, 150, 105, 0.25);
-}
 
 .badge-expense {
   background: rgba(244, 63, 94, 0.12);
@@ -314,11 +329,6 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-[data-theme="warm_minimalist"] .badge-expense {
-  background: rgba(192, 57, 43, 0.10);
-  color: #c0392b;
-  border-color: rgba(192, 57, 43, 0.25);
 }
 
 .badge-pending {
@@ -432,94 +442,18 @@ body {
    ═══════════════════════════════════════════ */
 
 /* Page & body */
-[data-theme="warm_minimalist"] body {
-  background-color: var(--app-bg);
-  color: var(--txt-primary);
-}
 
 /* Tables */
-[data-theme="warm_minimalist"] table th {
-  background: #f4f1ea !important;
-  color: #1a2e1f !important;
-  border-bottom: 2px solid #c8c0b0 !important;
-}
-[data-theme="warm_minimalist"] table td {
-  color: #1a2e1f !important;
-  border-bottom: 1px solid #e8e4da !important;
-}
-[data-theme="warm_minimalist"] table tr:hover td {
-  background: rgba(217, 119, 6, 0.05) !important;
-}
 
 /* Form controls */
-[data-theme="warm_minimalist"] .form-input,
-[data-theme="warm_minimalist"] .form-select,
-[data-theme="warm_minimalist"] input[type="text"],
-[data-theme="warm_minimalist"] input[type="date"],
-[data-theme="warm_minimalist"] input[type="number"],
-[data-theme="warm_minimalist"] select {
-  background: var(--input-bg) !important;
-  border-color: var(--border-strong) !important;
-  color: var(--txt-primary) !important;
-}
 
 /* Panels with dark bg (inline style overrides) */
-[data-theme="warm_minimalist"] [style*="background: #0f172a"],
-[data-theme="warm_minimalist"] [style*="background:#0f172a"] {
-  background: #ffffff !important;
-}
-[data-theme="warm_minimalist"] [style*="background: #1e293b"],
-[data-theme="warm_minimalist"] [style*="background:#1e293b"] {
-  background: #f4f1ea !important;
-}
-[data-theme="warm_minimalist"] [style*="background: #111625"],
-[data-theme="warm_minimalist"] [style*="background:#111625"] {
-  background: #f4f1ea !important;
-}
-[data-theme="warm_minimalist"] [style*="background: #0b0f19"],
-[data-theme="warm_minimalist"] [style*="background:#0b0f19"] {
-  background: var(--app-bg) !important;
-}
 
 /* Dark text that was light (inline style) */
-[data-theme="warm_minimalist"] [style*="color: #f8fafc"],
-[data-theme="warm_minimalist"] [style*="color:#f8fafc"] {
-  color: var(--txt-primary) !important;
-}
-[data-theme="warm_minimalist"] [style*="color: #94a3b8"],
-[data-theme="warm_minimalist"] [style*="color:#94a3b8"] {
-  color: var(--txt-secondary) !important;
-}
-[data-theme="warm_minimalist"] [style*="color: #64748b"],
-[data-theme="warm_minimalist"] [style*="color:#64748b"] {
-  color: var(--txt-muted) !important;
-}
 
 /* Borders to warm parchment */
-[data-theme="warm_minimalist"] [style*="border: 1px solid #334155"],
-[data-theme="warm_minimalist"] [style*="border:1px solid #334155"] {
-  border-color: var(--border) !important;
-}
 
 /* Accent metric colors */
-[data-theme="warm_minimalist"] [style*="color: #34d399"],
-[data-theme="warm_minimalist"] [style*="color:#34d399"] {
-  color: #2d7a4f !important;
-}
-[data-theme="warm_minimalist"] [style*="color: #38bdf8"],
-[data-theme="warm_minimalist"] [style*="color:#38bdf8"] {
-  color: #1b5e35 !important;
-}
-[data-theme="warm_minimalist"] [style*="color: #818cf8"],
-[data-theme="warm_minimalist"] [style*="color:#818cf8"],
-[data-theme="warm_minimalist"] [style*="color: #6366f1"],
-[data-theme="warm_minimalist"] [style*="color:#6366f1"] {
-  color: #d97706 !important;
-}
-[data-theme="warm_minimalist"] [style*="color: #fb7185"],
-[data-theme="warm_minimalist"] [style*="color:#fb7185"] {
-  color: #c0392b !important;
-}
 
 /* ═══════════════════════════════════════════
    MOBILE FRAME (always dark, theme-agnostic)

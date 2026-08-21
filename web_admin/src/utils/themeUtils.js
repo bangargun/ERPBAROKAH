@@ -4,159 +4,100 @@
  * Used by all admin page components to achieve a professional, unified theme.
  * 
  * Themes:
- *   'dark'           — Deep navy glassmorphism (default)
- *   'light'          — Clean white/slate light mode
- *   'warm_minimalist'— Deep Forest Green + Amber Gold on Off-White ground
+ *   'dark'       — Deep navy glassmorphism (default)
+ *   'soft_blue'  — Soft classic blue-sky, high-contrast, professional
  */
 export function getThemePalette(themeMode) {
-  const isWarm = themeMode === 'warm_minimalist';
-  const isLight = themeMode === 'light';
+  const isSoftBlue = themeMode === 'soft_blue';
+  const isLight = isSoftBlue; // legacy compat alias — many components check `isLight`
 
-  if (isWarm) return {
+  if (isSoftBlue) return {
     // ── Backgrounds ──
-    appBg:          '#faf8f5',
-    pageBg:         '#faf8f5',
+    appBg:          '#ddeeff',
+    pageBg:         '#ddeeff',
     cardBg:         '#ffffff',
-    cardBg2:        '#f4f1ea',
-    inputBg:        '#fdfcf9',
-    controlBg:      '#f4f1ea',
+    cardBg2:        '#eaf4ff',
+    inputBg:        '#ffffff',
+    controlBg:      '#eaf4ff',
     dropdownBg:     '#ffffff',
-    hoverBg:        'rgba(20, 48, 34, 0.06)',
+    hoverBg:        'rgba(30, 90, 160, 0.07)',
     tableBg:        '#ffffff',
-    tableHeaderBg:  '#f4f1ea',
-    tableRowHover:  'rgba(217, 119, 6, 0.04)',
-    tableStripeBg:  '#faf8f5',
+    tableHeaderBg:  '#c7e0f9',
+    tableRowHover:  'rgba(30, 90, 160, 0.06)',
+    tableStripeBg:  '#eaf4ff',
 
     // ── Text ──
-    txtPrimary:     '#1a2e1f',
-    txtSecondary:   '#3d5445',
-    txtMuted:       '#687d71',
-    txtInverse:     '#faf8f5',
-    txtLabel:       '#3d5445',
+    txtPrimary:     '#0c1f3d',
+    txtSecondary:   '#1e4a7c',
+    txtMuted:       '#456b9a',
+    txtInverse:     '#ffffff',
+    txtLabel:       '#1e3a5f',
 
     // ── Borders ──
-    border:         '#e0ddd5',
-    borderStrong:   '#c8c0b0',
-    borderHover:    '#a39580',
-    divider:        '#e8e4da',
+    border:         '#b0ccec',
+    borderStrong:   '#7aaad4',
+    borderHover:    '#3b82c4',
+    divider:        '#c3d9f0',
 
     // ── Brand Accents ──
-    accentGold:     '#d97706',
-    accentGoldHover:'#b45309',
-    accentGoldBg:   'rgba(217, 119, 6, 0.10)',
-    accentGoldBorder:'rgba(217, 119, 6, 0.28)',
-    accentGreen:    '#1b5e35',
-    accentGreenBg:  'rgba(27, 94, 53, 0.10)',
+    accentGold:     '#1a6fc4',
+    accentGoldHover:'#145ea8',
+    accentGoldBg:   'rgba(26, 111, 196, 0.10)',
+    accentGoldBorder:'rgba(26, 111, 196, 0.28)',
+    accentGreen:    '#0d5fa3',
+    accentGreenBg:  'rgba(13, 95, 163, 0.10)',
 
     // ── Semantic Colors ──
-    success:        '#2d7a4f',
-    successBg:      'rgba(45, 122, 79, 0.10)',
-    successBorder:  'rgba(45, 122, 79, 0.25)',
-    danger:         '#c0392b',
-    dangerBg:       'rgba(192, 57, 43, 0.10)',
-    dangerBorder:   'rgba(192, 57, 43, 0.25)',
-    warning:        '#d97706',
-    warningBg:      'rgba(217, 119, 6, 0.10)',
-    warningBorder:  'rgba(217, 119, 6, 0.25)',
-    info:           '#1b5e35',
-    infoBg:         'rgba(27, 94, 53, 0.10)',
-    infoBorder:     'rgba(27, 94, 53, 0.25)',
+    success:        '#0a7c4e',
+    successBg:      'rgba(10, 124, 78, 0.10)',
+    successBorder:  'rgba(10, 124, 78, 0.25)',
+    danger:         '#c0152b',
+    dangerBg:       'rgba(192, 21, 43, 0.10)',
+    dangerBorder:   'rgba(192, 21, 43, 0.25)',
+    warning:        '#b45309',
+    warningBg:      'rgba(180, 83, 9, 0.10)',
+    warningBorder:  'rgba(180, 83, 9, 0.25)',
+    info:           '#1a6fc4',
+    infoBg:         'rgba(26, 111, 196, 0.10)',
+    infoBorder:     'rgba(26, 111, 196, 0.25)',
 
     // ── Navigation / Active ──
-    navActiveBg:    'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
+    navActiveBg:    'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)',
     navActiveTxt:   '#ffffff',
-    navActiveShadow:'rgba(217, 119, 6, 0.30)',
-    primaryBtn:     'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-    primaryBtnShadow:'rgba(217, 119, 6, 0.25)',
+    navActiveShadow:'rgba(26, 111, 196, 0.30)',
+    primaryBtn:     'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)',
+    primaryBtnShadow:'rgba(26, 111, 196, 0.25)',
 
     // ── Shadows ──
-    shadowSm:       '0 1px 4px rgba(20, 48, 34, 0.10)',
-    shadowMd:       '0 4px 16px rgba(20, 48, 34, 0.12)',
-    shadowLg:       '0 8px 32px rgba(20, 48, 34, 0.16)',
+    shadowSm:       '0 1px 4px rgba(10, 40, 80, 0.10)',
+    shadowMd:       '0 4px 16px rgba(10, 40, 80, 0.13)',
+    shadowLg:       '0 8px 32px rgba(10, 40, 80, 0.18)',
 
     // ── Chart / Tooltip ──
-    tooltipBg:      '#1a2e1f',
-    tooltipBorder:  '#d97706',
+    tooltipBg:      '#0c1f3d',
+    tooltipBorder:  '#1a6fc4',
     tooltipColor:   '#ffffff',
-    gridColor:      '#e8e4da',
-    axisColor:      '#687d71',
-    chartColors:    ['#d97706', '#2d7a4f', '#8b5e3c', '#4a7c59', '#c0392b', '#6b9a74'],
+    gridColor:      '#c7e0f9',
+    axisColor:      '#456b9a',
+    chartColors:    ['#1a6fc4', '#0a7c4e', '#b45309', '#7c3aed', '#c0152b', '#0891b2'],
 
     // ── Tab Styles ──
-    tabActiveBg:    'linear-gradient(135deg, #d97706, #b45309)',
+    tabActiveBg:    'linear-gradient(135deg, #1a6fc4, #0d5295)',
     tabActiveColor: '#ffffff',
-    tabInactiveBg:  '#f4f1ea',
-    tabInactiveColor:'#3d5445',
-    tabBorder:      '#e0ddd5',
-  };
+    tabInactiveBg:  '#eaf4ff',
+    tabInactiveColor:'#1e4a7c',
+    tabBorder:      '#b0ccec',
 
-  if (isLight) return {
-    appBg:          '#f1f5f9',
-    pageBg:         '#f1f5f9',
-    cardBg:         '#ffffff',
-    cardBg2:        '#f8fafc',
-    inputBg:        '#ffffff',
-    controlBg:      '#f8fafc',
-    dropdownBg:     '#ffffff',
-    hoverBg:        'rgba(0, 0, 0, 0.04)',
-    tableBg:        '#ffffff',
-    tableHeaderBg:  '#f8fafc',
-    tableRowHover:  'rgba(217, 119, 6, 0.04)',
-    tableStripeBg:  '#f8fafc',
+    // ── Professional Typography Scale ──
+    fsTitle:        'var(--fs-2xl)',
+    fsSubtitle:     'var(--fs-sm)',
+    fsBody:         'var(--fs-base)',
+    fsBadge:        'var(--fs-xs)',
+    fsCaption:      'var(--fs-xs)',
+    borderUltraThin:'1px solid rgba(30, 90, 160, 0.08)',
 
-    txtPrimary:     '#0f172a',
-    txtSecondary:   '#475569',
-    txtMuted:       '#64748b',
-    txtInverse:     '#f8fafc',
-    txtLabel:       '#374151',
-
-    border:         '#e2e8f0',
-    borderStrong:   '#cbd5e1',
-    borderHover:    '#94a3b8',
-    divider:        '#e2e8f0',
-
-    accentGold:     '#d97706',
-    accentGoldHover:'#b45309',
-    accentGoldBg:   'rgba(217, 119, 6, 0.10)',
-    accentGoldBorder:'rgba(217, 119, 6, 0.25)',
-    accentGreen:    '#4f46e5',
-    accentGreenBg:  'rgba(79, 70, 229, 0.10)',
-
-    success:        '#059669',
-    successBg:      'rgba(5, 150, 105, 0.10)',
-    successBorder:  'rgba(5, 150, 105, 0.25)',
-    danger:         '#e11d48',
-    dangerBg:       'rgba(225, 29, 72, 0.10)',
-    dangerBorder:   'rgba(225, 29, 72, 0.25)',
-    warning:        '#d97706',
-    warningBg:      'rgba(217, 119, 6, 0.10)',
-    warningBorder:  'rgba(217, 119, 6, 0.25)',
-    info:           '#0284c7',
-    infoBg:         'rgba(2, 132, 199, 0.10)',
-    infoBorder:     'rgba(2, 132, 199, 0.25)',
-
-    navActiveBg:    'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-    navActiveTxt:   '#ffffff',
-    navActiveShadow:'rgba(217, 119, 6, 0.25)',
-    primaryBtn:     'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-    primaryBtnShadow:'rgba(217, 119, 6, 0.20)',
-
-    shadowSm:       '0 1px 3px rgba(0, 0, 0, 0.08)',
-    shadowMd:       '0 4px 14px rgba(0, 0, 0, 0.10)',
-    shadowLg:       '0 8px 32px rgba(0, 0, 0, 0.12)',
-
-    tooltipBg:      '#0f172a',
-    tooltipBorder:  '#d97706',
-    tooltipColor:   '#ffffff',
-    gridColor:      '#e2e8f0',
-    axisColor:      '#94a3b8',
-    chartColors:    ['#d97706', '#4f46e5', '#059669', '#0284c7', '#e11d48', '#7c3aed'],
-
-    tabActiveBg:    'linear-gradient(135deg, #d97706, #b45309)',
-    tabActiveColor: '#ffffff',
-    tabInactiveBg:  '#f8fafc',
-    tabInactiveColor:'#475569',
-    tabBorder:      '#e2e8f0',
+    // ── Card shadow ──
+    cardShadow:     '0 2px 8px rgba(10,40,80,0.12), 0 0 0 1px rgba(30,90,160,0.07)',
   };
 
   // Default: Dark theme
@@ -229,11 +170,11 @@ export function getThemePalette(themeMode) {
     tabBorder:      '#334155',
 
     // ── Professional Typography Scale ──
-    fsTitle:        'var(--fs-2xl)',    // 22px — page title
-    fsSubtitle:     'var(--fs-sm)',     // 13px — label
-    fsBody:         'var(--fs-base)',   // 14px — body
-    fsBadge:        'var(--fs-xs)',     // 12px — badge / meta
-    fsCaption:      'var(--fs-xs)',     // 12px — caption
+    fsTitle:        'var(--fs-2xl)',
+    fsSubtitle:     'var(--fs-sm)',
+    fsBody:         'var(--fs-base)',
+    fsBadge:        'var(--fs-xs)',
+    fsCaption:      'var(--fs-xs)',
     borderUltraThin:'1px solid rgba(255, 255, 255, 0.06)',
 
     // ── Card shadow ──

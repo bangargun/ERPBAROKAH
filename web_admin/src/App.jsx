@@ -107,11 +107,11 @@ export default function App() {
     return 'admin';
   });
 
-  // Theme Mode State: 'dark' | 'light' | 'warm_minimalist' (Persisted in localStorage)
+  // Theme Mode State: 'dark' | 'soft_blue' (Persisted in localStorage)
   const [themeMode, setThemeModeState] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mris_web_theme');
-      if (saved === 'light' || saved === 'dark' || saved === 'warm_minimalist') return saved;
+      if (saved === 'dark' || saved === 'soft_blue') return saved;
     }
     return 'dark';
   });
@@ -129,7 +129,7 @@ export default function App() {
 
   const toggleThemeMode = () => {
     setThemeModeState(prev => {
-      const next = prev === 'dark' ? 'warm_minimalist' : (prev === 'warm_minimalist' ? 'light' : 'dark');
+      const next = prev === 'dark' ? 'soft_blue' : 'dark';
       try { localStorage.setItem('mris_web_theme', next); } catch (e) {}
       return next;
     });
