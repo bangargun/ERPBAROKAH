@@ -38,6 +38,7 @@ import {
 import { checkWebPermission } from '../../utils/permissionUtils';
 import { getThemePalette } from '../../utils/themeUtils';
 import ManualReportUpdateModal from './ManualReportUpdateModal';
+import SalesImportReconciliationModal from './SalesImportReconciliationModal';
 
 export default function AdminLayout({ 
   activeTab, 
@@ -58,6 +59,7 @@ export default function AdminLayout({
   children
 }) {
   const [showUpdateLaporanModal, setShowUpdateLaporanModal] = useState(false);
+  const [showSalesImportModal, setShowSalesImportModal] = useState(false);
   const [showInboxDropdown, setShowInboxDropdown] = useState(false);
   const [readNotifIds, setReadNotifIds] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -284,32 +286,57 @@ export default function AdminLayout({
           flexDirection: 'column',
           gap: '10px'
         }}>
-          {/* Quick Update Button */}
-          <div>
+          {/* Quick Action Buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <button
               type="button"
               onClick={() => setShowUpdateLaporanModal(true)}
               style={{
                 width: '100%',
-                padding: '10px 14px',
+                padding: '9px 14px',
                 borderRadius: '10px',
                 border: '1px solid #fbbf24',
                 background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                 color: '#000000',
                 fontWeight: '900',
-                fontSize: '0.84rem',
+                fontSize: '0.82rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 4px 16px rgba(245, 158, 11, 0.45)',
+                boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)',
                 transition: 'all 0.18s ease'
               }}
-              title="Update data penjualan & pengeluaran (Manual & Excel)"
+              title="Update data penjualan & pengeluaran (Manual & Form)"
             >
-              <PlusCircle size={17} color="#000000" />
+              <PlusCircle size={16} color="#000000" />
               <span>Update Laporan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowSalesImportModal(true)}
+              style={{
+                width: '100%',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid rgba(251, 191, 36, 0.4)',
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: '#fbbf24',
+                fontWeight: '800',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.18s ease'
+              }}
+              title="Impor dokumen Penjualan PDF & Excel dengan Papan Review & Koreksi Menu"
+            >
+              <FileSpreadsheet size={15} color="#fbbf24" />
+              <span>Impor Dokumen (PDF / Excel)</span>
             </button>
           </div>
 
@@ -813,6 +840,16 @@ export default function AdminLayout({
       <ManualReportUpdateModal
         show={showUpdateLaporanModal}
         onClose={() => setShowUpdateLaporanModal(false)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        userSession={userSession}
+        themeMode={themeMode}
+      />
+
+      {/* SALES RECONCILIATION IMPORT MODAL (PDF & EXCEL) */}
+      <SalesImportReconciliationModal
+        show={showSalesImportModal}
+        onClose={() => setShowSalesImportModal(false)}
         masterData={masterData}
         setMasterData={setMasterData}
         userSession={userSession}

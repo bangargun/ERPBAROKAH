@@ -31,9 +31,11 @@ import {
   CheckCircle2,
   Zap,
   Receipt,
-  ShieldAlert
+  ShieldAlert,
+  Upload
 } from 'lucide-react';
 import TransactionHistoryPage from './TransactionHistoryPage';
+import SalesImportReconciliationModal from './SalesImportReconciliationModal';
 import { getApiUrl } from '../../utils/apiConfig';
 import { 
   BarChart as ReBarChart, 
@@ -983,6 +985,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   const [activeTab, setActiveTab] = useState('omzet');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // AUTO SYNC STATES & ENGINE FOR MOBILE APK
   const [lastSyncTime, setLastSyncTime] = useState(() => new Date().toLocaleTimeString('id-ID'));
@@ -4309,8 +4312,30 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
               )}
             </div>
 
-            {/* Right: Export buttons */}
+            {/* Right: Export & Import buttons */}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button 
+                onClick={() => setShowImportModal(true)} 
+                style={{ 
+                  padding: '7px 14px', 
+                  fontSize: '0.76rem', 
+                  color: '#000000', 
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  fontWeight: '800', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.35)'
+                }}
+                title="Impor transaksi penjualan massal dari file PDF atau Excel"
+              >
+                <Upload size={14} color="#000000" />
+                <span>Import PDF & Excel</span>
+              </button>
+
               <button 
                 onClick={handleDownloadOmzetComparisonPDF} 
                 className="btn-secondary" 
@@ -6268,7 +6293,15 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         </div>
       )}
 
-
+      {/* SALES IMPORT RECONCILIATION MODAL (PDF & EXCEL) */}
+      <SalesImportReconciliationModal
+        show={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        themeMode={themeMode}
+        selectedBranch={selectedBranch}
+      />
     </div>
   );
 }

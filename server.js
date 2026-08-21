@@ -1,9 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
+import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2977,6 +2979,209 @@ app.get('/api/sales/paginated', async (req, res) => {
     });
   } catch (err) {
     console.error('GET /api/sales/paginated error:', err.message);
+// 1g. POST /api/sales/parse-import-file — Parse PDF / Excel Penjualan untuk Papan Review & Koreksi
+app.post('/api/sales/parse-import-file', async (req, res) => {
+  try {
+    const { fileData, fileName, filePath } = req.body;
+    let targetPath = filePath;
+
+    if (!targetPath && fileData) {
+      const isPdf = (fileName || '').toLowerCase().endsWith('.pdf') || fileData.startsWith('data:application/pdf') || fileData.startsWith('JVBERi0');
+      const ext = isPdf ? '.pdf' : '.xlsx';
+      targetPath = path.join(os.tmpdir(), `upload_${Date.now()}${ext}`);
+      
+      const base64Content = fileData.replace(/^data:[^;]+;base64,/, '');
+      await fs.promises.writeFile(targetPath, Buffer.from(base64Content, 'base64'));
+    }
+
+    if (!targetPath || !fs.existsSync(targetPath)) {
+      return res.status(400).json({ success: false, error: 'File tidak ditemukan atau format tidak didukung' });
+    }
+
+    const isPdf = targetPath.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      // Eksekusi skrip python pdf_sales_parser.py
+      const scriptPath = path.join(__dirname, 'scripts', 'pdf_sales_parser.py');
+      exec(`python3 "${scriptPath}" "${targetPath}"`, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('PDF Parse Error:', stderr || err.message);
+          return res.status(500).json({ success: false, error: `Gagal mem-parse PDF: ${stderr || err.message}` });
+        }
+        try {
+          const parsed = JSON.parse(stdout);
+          return res.json(parsed);
+        } catch (parseErr) {
+          console.error('PDF JSON parse error:', stdout.substring(0, 300));
+          return res.status(500).json({ success: false, error: 'Output parser PDF tidak valid' });
+        }
+      });
+    } else {
+      // Excel Parser
+      const workbook = XLSX.readFile(targetPath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+
+      const txList = [];
+      const uniqueRawItems = new Set();
+      let totalOmzet = 0;
+
+      rows.forEach((r, idx) => {
+        const rawDate = String(r.Tanggal || r.Date || r.date || r.tanggal || '').trim();
+        const dMatch = rawDate.match(/(\d{4}[-/]\d{2}[-/]\d{2})|(\d{2}[-/]\d{2}[-/]\d{4})/);
+        let isoDate = new Date().toISOString().split('T')[0];
+        if (dMatch) {
+          const dStr = dMatch[0];
+          if (dStr.includes('/')) {
+            const p = dStr.split('/');
+            isoDate = p[0].length === 4 ? `${p[0]}-${p[1]}-${p[2]}` : `${p[2]}-${p[1]}-${p[0]}`;
+          } else {
+            isoDate = dStr;
+          }
+        }
+
+        const rawProd = String(r.Produk || r.Item || r.Menu || r.produk || r.nama_menu || '').trim();
+        const totalVal = Number(String(r.Total || r.Jumlah || r.Amount || r.total || 0).replace(/[^0-9.-]+/g, '')) || 0;
+        totalOmzet += totalVal;
+
+        const rawItems = rawProd.split(/,|\n/).map(i => i.trim()).filter(Boolean);
+        rawItems.forEach(it => uniqueRawItems.add(it));
+
+        const receiptId = `TX-XLS-${isoDate.replace(/-/g, '')}-${idx + 1}`;
+        txList.push({
+          id: receiptId,
+          receipt_no: receiptId,
+          date: isoDate,
+          time: '12:00:00',
+          outlet_id: '1785369617361',
+          outlet_name: String(r.Outlet || r.Cabang || 'AYAM PECAK 2001 SEAFOOD - KISARAN'),
+          raw_products: rawProd,
+          raw_items: rawItems,
+          subtotal: totalVal,
+          discount: 0,
+          total: totalVal,
+          amount: totalVal,
+          paid_amount: totalVal,
+          change_amount: 0,
+          payment_method: 'Cash',
+          customer_name: String(r.Pelanggan || r.Customer || 'Pelanggan Umum'),
+          status: 'approved',
+          cashier: 'Impor Excel'
+        });
+      });
+
+      return res.json({
+        success: true,
+        totalPages: 1,
+        totalCount: txList.length,
+        totalOmzet,
+        dateStart: txList[0]?.date || '',
+        dateEnd: txList[txList.length - 1]?.date || '',
+        outletsDetected: Array.from(new Set(txList.map(t => t.outlet_name))),
+        uniqueRawMenus: Array.from(uniqueRawItems),
+        transactions: txList
+      });
+    }
+  } catch (err) {
+    console.error('POST /api/sales/parse-import-file error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1h. POST /api/sales/execute-import-batch — Simpan Seluruh Transaksi yang Terpetakan ke MySQL & Master Data
+app.post('/api/sales/execute-import-batch', async (req, res) => {
+  try {
+    const { transactions = [], menuMapping = {}, deductStock = false, defaultOutletId = null } = req.body;
+
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ success: false, error: 'Tidak ada transaksi yang dikirim' });
+    }
+
+    let insertedCount = 0;
+    let totalInsertedAmount = 0;
+
+    for (const tx of transactions) {
+      const txId = String(tx.id || `TX-IMP-${Date.now()}-${insertedCount}`);
+      const txDate = tx.date || new Date().toISOString().split('T')[0];
+      const txTime = tx.time || '12:00:00';
+      const outletId = Number(defaultOutletId || tx.outlet_id || 1);
+      const branchName = tx.outlet_name || tx.branch_name || 'Cabang';
+      const amount = Number(tx.amount || tx.total || 0);
+      totalInsertedAmount += amount;
+
+      // Transform raw items using menuMapping
+      let items = [];
+      const rawList = Array.isArray(tx.raw_items) && tx.raw_items.length > 0 ? tx.raw_items : [tx.raw_products || 'Menu Restoran'];
+      
+      const itemPrice = rawList.length > 0 ? Math.round(amount / rawList.length) : amount;
+      items = rawList.map(raw => {
+        const mappedName = menuMapping[raw] || raw;
+        return {
+          name: mappedName,
+          qty: 1,
+          price: itemPrice,
+          price_unit: itemPrice,
+          amount: itemPrice
+        };
+      });
+
+      const itemsJsonStr = JSON.stringify(items);
+
+      if (mysqlPool) {
+        await mysqlPool.execute(`
+          INSERT INTO sales_transactions 
+            (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type, items_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income', ?)
+          ON DUPLICATE KEY UPDATE
+            date = VALUES(date),
+            time = VALUES(time),
+            outlet_id = VALUES(outlet_id),
+            branch_name = VALUES(branch_name),
+            amount = VALUES(amount),
+            paid_amount = VALUES(paid_amount),
+            items_json = VALUES(items_json),
+            status = 'approved'
+        `, [
+          txId,
+          tx.receipt_no || txId,
+          txDate,
+          txTime,
+          outletId,
+          outletId,
+          branchName,
+          branchName,
+          tx.customer_name || 'Pelanggan Umum',
+          tx.table_number || '',
+          tx.order_type || 'Dine In',
+          Number(tx.subtotal || amount),
+          Number(tx.discount || 0),
+          0,
+          0,
+          0,
+          amount,
+          Number(tx.paid_amount || amount),
+          Number(tx.change_amount || 0),
+          tx.payment_method || 'Cash',
+          tx.cashier || 'Impor File',
+          tx.notes || 'Diimpor dari dokumen penjualan',
+          'approved',
+          itemsJsonStr
+        ]);
+      }
+
+      insertedCount++;
+    }
+
+    console.log(`[SalesImport] Berhasil mengimpor ${insertedCount} transaksi (Total: Rp ${totalInsertedAmount.toLocaleString('id-ID')})`);
+    return res.json({
+      success: true,
+      count: insertedCount,
+      totalAmount: totalInsertedAmount,
+      message: `Berhasil mengimpor ${insertedCount} transaksi ke dalam database sistem.`
+    });
+  } catch (err) {
+    console.error('POST /api/sales/execute-import-batch error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
