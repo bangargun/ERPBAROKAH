@@ -296,13 +296,13 @@ export default function AdminLayout({
               onClick={() => setShowUpdateLaporanModal(true)}
               style={{
                 width: '100%',
-                padding: '9px 14px',
+                padding: '10px 14px',
                 borderRadius: '10px',
                 border: '1px solid #fbbf24',
                 background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                 color: '#000000',
                 fontWeight: '900',
-                fontSize: '0.82rem',
+                fontSize: '0.84rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -311,60 +311,10 @@ export default function AdminLayout({
                 boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)',
                 transition: 'all 0.18s ease'
               }}
-              title="Update data penjualan & pengeluaran (Manual & Form)"
+              title="Update data penjualan & pengeluaran (Manual, Impor PDF & Excel)"
             >
-              <PlusCircle size={16} color="#000000" />
-              <span>Update Laporan</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowSalesImportModal(true)}
-              style={{
-                width: '100%',
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1px solid rgba(251, 191, 36, 0.4)',
-                background: 'rgba(245, 158, 11, 0.1)',
-                color: '#fbbf24',
-                fontWeight: '800',
-                fontSize: '0.78rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.18s ease'
-              }}
-              title="Impor dokumen Penjualan PDF & Excel dengan Papan Review & Koreksi Menu"
-            >
-              <FileSpreadsheet size={15} color="#fbbf24" />
-              <span>Impor Penjualan (PDF / Excel)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowExpenseImportModal(true)}
-              style={{
-                width: '100%',
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: '#f87171',
-                fontWeight: '800',
-                fontSize: '0.78rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                transition: 'all 0.18s ease'
-              }}
-              title="Impor dokumen Pengeluaran & Pembelian Bahan Baku (PDF / Excel)"
-            >
-              <ShoppingBasket size={15} color="#f87171" />
-              <span>Impor Pengeluaran (PDF / Excel)</span>
+              <PlusCircle size={17} color="#000000" />
+              <span>Update Laporan (Manual & Impor)</span>
             </button>
           </div>
 
@@ -864,7 +814,7 @@ export default function AdminLayout({
         </footer>
       </div>
 
-      {/* MANUAL REPORT UPDATE MODAL */}
+      {/* MANUAL REPORT UPDATE MODAL (UNIFIED MANUAL & IMPORT) */}
       <ManualReportUpdateModal
         show={showUpdateLaporanModal}
         onClose={() => setShowUpdateLaporanModal(false)}
@@ -872,6 +822,14 @@ export default function AdminLayout({
         setMasterData={setMasterData}
         userSession={userSession}
         themeMode={themeMode}
+        onOpenSalesImport={() => {
+          setShowUpdateLaporanModal(false);
+          setShowSalesImportModal(true);
+        }}
+        onOpenExpenseImport={() => {
+          setShowUpdateLaporanModal(false);
+          setShowExpenseImportModal(true);
+        }}
       />
 
       {/* SALES RECONCILIATION IMPORT MODAL (PDF & EXCEL) */}

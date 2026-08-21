@@ -33,7 +33,9 @@ export default function ManualReportUpdateModal({
   userSession, 
   themeMode = 'dark',
   editData = null,
-  initialEntryType = null
+  initialEntryType = null,
+  onOpenSalesImport,
+  onOpenExpenseImport
 }) {
   if (!show) return null;
 
@@ -41,7 +43,7 @@ export default function ManualReportUpdateModal({
   const isLight = themeMode === 'light';
   const isEditMode = !!editData;
 
-  // Active Tab ('manual' | 'excel')
+  // Active Tab ('manual' | 'excel' | 'import_sales' | 'import_expenses')
   const [activeTab, setActiveTab] = useState('manual');
   const [entryType, setEntryType] = useState(() => {
     if (initialEntryType) return initialEntryType;
@@ -1428,13 +1430,13 @@ export default function ManualReportUpdateModal({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
             {/* Penjualan Status */}
             <div style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
+              padding: '12px 14px',
+              borderRadius: '10px',
               background: dateStatusSummary.salesCount > 0 ? (isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.12)') : (isLight ? '#fffbeb' : 'rgba(245, 158, 11, 0.08)'),
               border: dateStatusSummary.salesCount > 0 ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(245, 158, 11, 0.25)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '4px'
+              gap: '6px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: '800', color: dateStatusSummary.salesCount > 0 ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1452,17 +1454,39 @@ export default function ManualReportUpdateModal({
                   ? `${dateStatusSummary.salesCount} Transaksi (Rp ${dateStatusSummary.salesOmzet.toLocaleString('id-ID')})`
                   : 'Belum ada transaksi tercatat'}
               </div>
+              <button
+                type="button"
+                onClick={() => onOpenSalesImport ? onOpenSalesImport() : null}
+                style={{
+                  marginTop: '4px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  color: '#fbbf24',
+                  fontSize: '0.72rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <FileSpreadsheet size={13} />
+                <span>+ Impor Penjualan (PDF / Excel)</span>
+              </button>
             </div>
 
             {/* Pengeluaran Status */}
             <div style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
+              padding: '12px 14px',
+              borderRadius: '10px',
               background: dateStatusSummary.expenseCount > 0 ? (isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.12)') : (isLight ? '#fffbeb' : 'rgba(245, 158, 11, 0.08)'),
               border: dateStatusSummary.expenseCount > 0 ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(245, 158, 11, 0.25)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '4px'
+              gap: '6px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: '800', color: dateStatusSummary.expenseCount > 0 ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -1480,50 +1504,116 @@ export default function ManualReportUpdateModal({
                   ? `${dateStatusSummary.expenseCount} Pengeluaran (Rp ${dateStatusSummary.expenseAmount.toLocaleString('id-ID')})`
                   : 'Belum ada pengeluaran tercatat'}
               </div>
+              <button
+                type="button"
+                onClick={() => onOpenExpenseImport ? onOpenExpenseImport() : null}
+                style={{
+                  marginTop: '4px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  color: '#f87171',
+                  fontSize: '0.72rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <ShoppingBag size={13} />
+                <span>+ Impor Pengeluaran (PDF / Excel)</span>
+              </button>
             </div>
           </div>
         </div>
 
         {/* MODE NAVIGATION TABS */}
-        <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, gap: '12px' }}>
+        <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, gap: '8px', flexWrap: 'wrap' }}>
           <button
+            type="button"
             onClick={() => setActiveTab('manual')}
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
               background: 'transparent',
               border: 'none',
               borderBottom: activeTab === 'manual' ? `2px solid ${T.accentGold}` : '2px solid transparent',
               color: activeTab === 'manual' ? T.accentGold : T.txtSecondary,
               fontWeight: '800',
-              fontSize: '0.82rem',
+              fontSize: '0.80rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
             }}
           >
-            <Plus size={16} />
-            <span>Input Manual Transaksi</span>
+            <Plus size={15} />
+            <span>1. Input Manual Transaksi</span>
           </button>
 
           <button
+            type="button"
+            onClick={() => onOpenSalesImport ? onOpenSalesImport() : null}
+            style={{
+              padding: '8px 14px',
+              background: 'transparent',
+              border: 'none',
+              color: '#fbbf24',
+              fontWeight: '800',
+              fontSize: '0.80rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Buka Wizard Impor Penjualan Dokumen PDF & Excel"
+          >
+            <FileSpreadsheet size={15} />
+            <span>2. Impor Penjualan (PDF / Excel)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onOpenExpenseImport ? onOpenExpenseImport() : null}
+            style={{
+              padding: '8px 14px',
+              background: 'transparent',
+              border: 'none',
+              color: '#f87171',
+              fontWeight: '800',
+              fontSize: '0.80rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+            title="Buka Wizard Impor Pengeluaran & Pembelian Bahan PDF & Excel"
+          >
+            <ShoppingBag size={15} />
+            <span>3. Impor Pengeluaran (PDF / Excel)</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('excel')}
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
               background: 'transparent',
               border: 'none',
               borderBottom: activeTab === 'excel' ? `2px solid ${T.info}` : '2px solid transparent',
               color: activeTab === 'excel' ? T.info : T.txtSecondary,
               fontWeight: '800',
-              fontSize: '0.82rem',
+              fontSize: '0.80rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
             }}
           >
-            <FileSpreadsheet size={16} />
-            <span>Batch Upload File Excel / CSV</span>
+            <Layers size={15} />
+            <span>4. Batch Upload File Excel Rekap</span>
           </button>
         </div>
 
