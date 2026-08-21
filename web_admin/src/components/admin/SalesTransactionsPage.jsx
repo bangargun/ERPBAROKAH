@@ -139,6 +139,7 @@ export function DoubleCalendarPicker({
   noWrapper = false,
   themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
   const [baseMonth, setBaseMonth] = useState(() => {
     if (startDate) {
       const d = new Date(startDate);
@@ -166,8 +167,8 @@ export function DoubleCalendarPicker({
   useEffect(() => {
     function handleClickOutside(event) {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setShowPopover(false);
-        setShowOutletDropdown(false);
+        if (typeof setShowPopover === 'function') setShowPopover(false);
+        if (typeof setShowOutletDropdown === 'function') setShowOutletDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -184,7 +185,7 @@ export function DoubleCalendarPicker({
       setEndDate(todayStr);
       setTempStart(todayStr);
       setTempEnd(todayStr);
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     } else if (presetKey === 'yesterday') {
       const yes = new Date();
       yes.setDate(today.getDate() - 1);
@@ -193,7 +194,7 @@ export function DoubleCalendarPicker({
       setEndDate(yesStr);
       setTempStart(yesStr);
       setTempEnd(yesStr);
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     } else if (presetKey === 'last_week') {
       const dayOfWeek = today.getDay();
       const daysSinceMonday = (dayOfWeek === 0 ? 7 : dayOfWeek) - 1;
@@ -212,7 +213,7 @@ export function DoubleCalendarPicker({
       setEndDate(eStr);
       setTempStart(sStr);
       setTempEnd(eStr);
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     } else if (presetKey === '7days') {
       const past = new Date();
       past.setDate(today.getDate() - 6);
@@ -221,7 +222,7 @@ export function DoubleCalendarPicker({
       setEndDate(todayStr);
       setTempStart(pastStr);
       setTempEnd(todayStr);
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     } else if (presetKey === '30days') {
       const past = new Date();
       past.setDate(today.getDate() - 29);
@@ -230,14 +231,14 @@ export function DoubleCalendarPicker({
       setEndDate(todayStr);
       setTempStart(pastStr);
       setTempEnd(todayStr);
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     } else if (presetKey === 'month') {
       const firstDayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
       setStartDate(firstDayStr);
       setEndDate(todayStr);
       setTempStart(firstDayStr);
       setTempEnd(todayStr);
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     } else if (presetKey === 'last_month') {
       const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
@@ -247,13 +248,13 @@ export function DoubleCalendarPicker({
       setEndDate(lStr);
       setTempStart(fStr);
       setTempEnd(lStr);
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     } else if (presetKey === 'all') {
       setStartDate('');
       setEndDate('');
       setTempStart('');
       setTempEnd('');
-      setShowPopover(false);
+      if (typeof setShowPopover === 'function') setShowPopover(false);
     }
   };
 
@@ -261,21 +262,29 @@ export function DoubleCalendarPicker({
     setStartDate(tempStart);
     setEndDate(tempEnd);
     setDatePreset('custom');
-    setShowPopover(false);
+    if (typeof setShowPopover === 'function') setShowPopover(false);
   };
 
   const handleDayClick = (dateYMD) => {
     if (!tempStart || (tempStart && tempEnd)) {
       setTempStart(dateYMD);
-      setTempEnd('');
-    } else {
-      if (dateYMD < tempStart) {
+      setTempEnd(null);
+    } else if (tempStart && !tempEnd) {
+      if (new Date(dateYMD) < new Date(tempStart)) {
+        setTempEnd(tempStart);
         setTempStart(dateYMD);
-        setTempEnd('');
       } else {
         setTempEnd(dateYMD);
       }
     }
+  };
+
+  const handlePrevMonth = () => {
+    setBaseMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setBaseMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   const getDaysInMonth = (year, month) => {
@@ -414,112 +423,164 @@ export function DoubleCalendarPicker({
   return (
     <div ref={containerRef} style={noWrapper ? {
       display: 'flex',
-      gap: '10px',
-      alignItems: 'flex-end',
+      gap: '8px',
+      alignItems: 'center',
+      flexWrap: 'wrap',
       position: 'relative',
       zIndex: (showPopover || showOutletDropdown) ? 999999 : 100
     } : {
       display: 'flex',
-      gap: '12px',
-      alignItems: 'flex-end',
+      gap: '8px',
+      alignItems: 'center',
       flexWrap: 'wrap',
       position: 'relative',
       zIndex: (showPopover || showOutletDropdown) ? 999999 : 100,
       background: T.cardBg,
-      padding: '12px 16px',
+      padding: '8px 12px',
       borderRadius: '12px',
       border: `1px solid ${T.border}`
     }}>
       
-      {/* 1. Tahun Dropdown */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tahun</span>
-        <select
-          value={selectedYear}
-          onChange={e => handleYearChange(e.target.value)}
-          style={{
-            padding: '0 12px',
-            borderRadius: '6px',
-            border: `1px solid ${T.border}`,
-            background: T.inputBg,
-            color: T.txtPrimary,
-            fontSize: '0.85rem',
-            fontWeight: '700',
-            height: '40px',
-            cursor: 'pointer'
-          }}
-        >
-          <option value="">Semua Tahun</option>
-          {Array.from({ length: 17 }, (_, i) => 2024 + i).map(yr => (
-            <option key={yr} value={String(yr)}>{yr}</option>
-          ))}
-        </select>
+      {/* 1. Quick Date Range Tabs (Interactive Pill Tabs) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '5px',
+        background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
+        padding: '4px',
+        borderRadius: '10px',
+        border: `1px solid ${T.border}`
+      }}>
+        {[
+          { id: 'today', label: 'Hari Ini' },
+          { id: 'yesterday', label: 'Kemarin' },
+          { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
+          { id: 'month', label: 'Bulan Ini' },
+          { id: 'last_month', label: 'Bulan Lalu' },
+          { id: '7days', label: '7 Hari Terakhir' },
+          { id: 'custom', label: 'Rentang Waktu 📅' },
+          { id: 'all', label: 'Semua Waktu' }
+        ].map(preset => {
+          const isActive = datePreset === preset.id || (preset.id === 'custom' && (datePreset === 'custom' || (startDate && endDate)));
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => {
+                if (preset.id === 'custom') {
+                  setDatePreset('custom');
+                  if (!startDate || !endDate) {
+                    const d = new Date();
+                    const endStr = formatToYMD(d);
+                    d.setDate(d.getDate() - 6);
+                    const startStr = formatToYMD(d);
+                    setStartDate(startStr);
+                    setEndDate(endStr);
+                    setTempStart(startStr);
+                    setTempEnd(endStr);
+                  }
+                  if (typeof setShowPopover === 'function') setShowPopover(true);
+                } else {
+                  handleApplyPreset(preset.id);
+                }
+              }}
+              style={{
+                padding: '5px 10px',
+                borderRadius: '7px',
+                border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
+                background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
+                color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+                fontWeight: isActive ? '900' : '700',
+                fontSize: '0.74rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.15s ease',
+                boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              <span>{preset.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* 2. Bulan Dropdown */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Bulan</span>
-        <select
-          value={selectedMonth}
-          onChange={e => handleMonthChange(e.target.value)}
-          style={{
-            padding: '0 12px',
-            borderRadius: '6px',
-            border: `1px solid ${T.border}`,
-            background: T.inputBg,
-            color: T.txtPrimary,
-            fontSize: '0.85rem',
-            fontWeight: '700',
-            height: '40px',
-            cursor: 'pointer'
-          }}
-        >
-          <option value="">Semua Bulan</option>
-          <option value="01">Januari</option>
-          <option value="02">Februari</option>
-          <option value="03">Maret</option>
-          <option value="04">April</option>
-          <option value="05">Mei</option>
-          <option value="06">Juni</option>
-          <option value="07">Juli</option>
-          <option value="08">Agustus</option>
-          <option value="09">September</option>
-          <option value="10">Oktober</option>
-          <option value="11">November</option>
-          <option value="12">Desember</option>
-        </select>
-      </div>
-
-      {/* 3. Tanggal Input Field */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative', zIndex: showPopover ? 999999 : 1 }}>
-        <span style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>Tanggal (Rentang Waktu)</span>
-        <button
-          onClick={() => { setShowPopover(!showPopover); setShowOutletDropdown(false); }}
-          style={{
-            minWidth: '210px',
-            padding: '10px 14px',
-            borderRadius: '6px',
-            border: `1px solid ${T.border}`,
-            background: T.inputBg,
-            color: T.txtPrimary,
-            fontSize: '0.85rem',
-            textAlign: 'left',
-            fontWeight: '700',
-            cursor: 'pointer',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: '40px',
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = T.info}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
-        >
-          <span>{displayDateRange()}</span>
-          <ChevronDown size={16} color={T.txtSecondary} />
-        </button>
-      </div>
+      {/* 2. Custom Date Inputs (Formatted MySQL YYYY-MM-DD) with Popover Trigger */}
+      {(datePreset === 'custom' || startDate || endDate) && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: isLight ? '#ffffff' : '#1e293b',
+          border: `1px solid ${T.accentGoldBorder}`,
+          padding: '4px 8px',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        }}>
+          <button
+            type="button"
+            onClick={() => { if (typeof setShowPopover === 'function') setShowPopover(!showPopover); }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: 0
+            }}
+            title="Buka Kalender Grid"
+          >
+            <Calendar size={15} color={T.accentGold} />
+          </button>
+          <input
+            type="date"
+            value={startDate || ''}
+            onChange={e => {
+              const val = e.target.value;
+              setStartDate(val);
+              setTempStart(val);
+              setDatePreset('custom');
+            }}
+            style={{
+              padding: '3px 6px',
+              background: T.inputBg,
+              border: `1px solid ${T.borderStrong}`,
+              borderRadius: '6px',
+              color: T.txtPrimary,
+              fontSize: '0.76rem',
+              fontWeight: '800',
+              colorScheme: isLight ? 'light' : 'dark',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          />
+          <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '800' }}>s/d</span>
+          <input
+            type="date"
+            value={endDate || ''}
+            onChange={e => {
+              const val = e.target.value;
+              setEndDate(val);
+              setTempEnd(val);
+              setDatePreset('custom');
+            }}
+            style={{
+              padding: '3px 6px',
+              background: T.inputBg,
+              border: `1px solid ${T.borderStrong}`,
+              borderRadius: '6px',
+              color: T.txtPrimary,
+              fontSize: '0.76rem',
+              fontWeight: '800',
+              colorScheme: isLight ? 'light' : 'dark',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          />
+        </div>
+      )}
 
       {/* Outlet Selection Dropdown */}
       {!hideOutletFilter && (
@@ -4248,42 +4309,6 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
               {omzetViewPeriodMode === 'daily' ? (
                 <>
-                  {/* Quick Month Dropdown */}
-                  <select
-                    value={selectedOmzetMonth}
-                    onChange={e => {
-                      const ym = e.target.value;
-                      setSelectedOmzetMonth(ym);
-                      const [yStr, mStr] = ym.split('-');
-                      const y = parseInt(yStr);
-                      const m = parseInt(mStr);
-                      const lastDay = new Date(y, m, 0).getDate();
-                      setOmzetStartDate(`${ym}-01`);
-                      setOmzetEndDate(`${ym}-${String(lastDay).padStart(2, '0')}`);
-                      setOmzetDatePreset('month');
-                    }}
-                    style={{
-                      padding: '7px 12px',
-                      background: T.inputBg,
-                      border: `1px solid ${T.border}`,
-                      color: T.txtPrimary,
-                      borderRadius: '8px',
-                      fontSize: '0.74rem',
-                      fontWeight: '800',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="2026-08">🗓️ Bulan Agustus 2026</option>
-                    <option value="2026-07">🗓️ Bulan Juli 2026</option>
-                    <option value="2026-06">🗓️ Bulan Juni 2026</option>
-                    <option value="2026-05">🗓️ Bulan Mei 2026</option>
-                    <option value="2026-04">🗓️ Bulan April 2026</option>
-                    <option value="2026-03">🗓️ Bulan Maret 2026</option>
-                    <option value="2026-02">🗓️ Bulan Februari 2026</option>
-                    <option value="2026-01">🗓️ Bulan Januari 2026</option>
-                  </select>
-
                   {/* Double Calendar Picker */}
                   <DoubleCalendarPicker themeMode={themeMode}
                     startDate={omzetStartDate}
@@ -4504,42 +4529,6 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           {/* TOP BAR WITH DATE RANGE FILTER (DOUBLE CALENDAR PICKER) & MENU FILTER */}
           <div className="glass-card" style={{ padding: '14px 18px', background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', position: 'relative', zIndex: 1000 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              {/* Quick Month Dropdown */}
-              <select
-                value={selectedOmzetMonth}
-                onChange={e => {
-                  const ym = e.target.value;
-                  setSelectedOmzetMonth(ym);
-                  const [yStr, mStr] = ym.split('-');
-                  const y = parseInt(yStr);
-                  const m = parseInt(mStr);
-                  const lastDay = new Date(y, m, 0).getDate();
-                  setCatStartDate(`${ym}-01`);
-                  setCatEndDate(`${ym}-${String(lastDay).padStart(2, '0')}`);
-                  setCatDatePreset('month');
-                }}
-                style={{
-                  padding: '7px 12px',
-                  background: T.inputBg,
-                  border: `1px solid ${T.border}`,
-                  color: T.txtPrimary,
-                  borderRadius: '8px',
-                  fontSize: '0.74rem',
-                  fontWeight: '800',
-                  outline: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="2026-08">🗓️ Bulan Agustus 2026</option>
-                <option value="2026-07">🗓️ Bulan Juli 2026</option>
-                <option value="2026-06">🗓️ Bulan Juni 2026</option>
-                <option value="2026-05">🗓️ Bulan Mei 2026</option>
-                <option value="2026-04">🗓️ Bulan April 2026</option>
-                <option value="2026-03">🗓️ Bulan Maret 2026</option>
-                <option value="2026-02">🗓️ Bulan Februari 2026</option>
-                <option value="2026-01">🗓️ Bulan Januari 2026</option>
-              </select>
-
               <DoubleCalendarPicker themeMode={themeMode}
                 startDate={catStartDate}
                 endDate={catEndDate}
