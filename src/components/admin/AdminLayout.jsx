@@ -296,10 +296,10 @@ export default function AdminLayout({
               onClick={() => setShowUpdateLaporanModal(true)}
               style={{
                 width: '100%',
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: '1px solid #fbbf24',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                padding: '11px 14px',
+                borderRadius: '12px',
+                border: '1px solid rgba(251, 191, 36, 0.65)',
+                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 60%, #b45309 100%)',
                 color: '#000000',
                 fontWeight: '900',
                 fontSize: '0.84rem',
@@ -307,13 +307,24 @@ export default function AdminLayout({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)',
-                transition: 'all 0.18s ease'
+                gap: '9px',
+                boxShadow: '0 4px 18px rgba(245, 158, 11, 0.45)',
+                transition: 'all 0.2s ease',
+                letterSpacing: '0.01em'
               }}
               title="Update data penjualan & pengeluaran (Manual, Impor PDF & Excel)"
             >
-              <PlusCircle size={17} color="#000000" />
+              <div style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '6px',
+                background: 'rgba(0, 0, 0, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <PlusCircle size={16} color="#000000" />
+              </div>
               <span>Update Laporan (Manual & Impor)</span>
             </button>
           </div>

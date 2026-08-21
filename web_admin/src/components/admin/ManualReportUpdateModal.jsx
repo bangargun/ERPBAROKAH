@@ -1484,23 +1484,25 @@ export default function ManualReportUpdateModal({
                 type="button"
                 onClick={() => onOpenSalesImport ? onOpenSalesImport() : null}
                 style={{
-                  marginTop: '4px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(245, 158, 11, 0.4)',
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  color: '#fbbf24',
-                  fontSize: '0.72rem',
-                  fontWeight: '800',
+                  marginTop: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: '#000000',
+                  fontSize: '0.76rem',
+                  fontWeight: '900',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px'
+                  gap: '7px',
+                  boxShadow: '0 3px 12px rgba(245, 158, 11, 0.35)',
+                  transition: 'all 0.18s ease'
                 }}
               >
-                <FileSpreadsheet size={13} />
-                <span>+ Impor Penjualan (PDF / Excel)</span>
+                <FileSpreadsheet size={14} color="#000000" />
+                <span>+ Buka Wizard Impor Penjualan (PDF / Excel)</span>
               </button>
             </div>
 
@@ -1534,48 +1536,61 @@ export default function ManualReportUpdateModal({
                 type="button"
                 onClick={() => onOpenExpenseImport ? onOpenExpenseImport() : null}
                 style={{
-                  marginTop: '4px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  color: '#f87171',
-                  fontSize: '0.72rem',
-                  fontWeight: '800',
+                  marginTop: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  color: '#ffffff',
+                  fontSize: '0.76rem',
+                  fontWeight: '900',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px'
+                  gap: '7px',
+                  boxShadow: '0 3px 12px rgba(239, 68, 68, 0.35)',
+                  transition: 'all 0.18s ease'
                 }}
               >
-                <ShoppingBag size={13} />
-                <span>+ Impor Pengeluaran (PDF / Excel)</span>
+                <ShoppingBag size={14} color="#ffffff" />
+                <span>+ Buka Wizard Impor Pengeluaran (PDF / Excel)</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* MODE NAVIGATION TABS */}
-        <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}`, gap: '8px', flexWrap: 'wrap' }}>
+        {/* MODE NAVIGATION TABS (SEGMENTED CONTROL BAR) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+          gap: '8px',
+          background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.8)',
+          padding: '6px',
+          borderRadius: '12px',
+          border: `1px solid ${T.border}`
+        }}>
           <button
             type="button"
             onClick={() => setActiveTab('manual')}
             style={{
-              padding: '8px 14px',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: activeTab === 'manual' ? `2px solid ${T.accentGold}` : '2px solid transparent',
-              color: activeTab === 'manual' ? T.accentGold : T.txtSecondary,
-              fontWeight: '800',
-              fontSize: '0.80rem',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: activeTab === 'manual' ? '1px solid #fbbf24' : '1px solid transparent',
+              background: activeTab === 'manual' ? (isLight ? '#ffffff' : '#1e293b') : 'transparent',
+              color: activeTab === 'manual' ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+              fontWeight: activeTab === 'manual' ? '900' : '700',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: activeTab === 'manual' ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+              transition: 'all 0.18s ease'
             }}
           >
-            <Plus size={15} />
+            <Plus size={15} color={activeTab === 'manual' ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary} />
             <span>1. Input Manual Transaksi</span>
           </button>
 
@@ -1583,20 +1598,23 @@ export default function ManualReportUpdateModal({
             type="button"
             onClick={() => onOpenSalesImport ? onOpenSalesImport() : null}
             style={{
-              padding: '8px 14px',
-              background: 'transparent',
-              border: 'none',
-              color: '#fbbf24',
-              fontWeight: '800',
-              fontSize: '0.80rem',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              background: isLight ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.12)',
+              color: isLight ? '#b45309' : '#fbbf24',
+              fontWeight: '900',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.18s ease'
             }}
             title="Buka Wizard Impor Penjualan Dokumen PDF & Excel"
           >
-            <FileSpreadsheet size={15} />
+            <FileSpreadsheet size={15} color={isLight ? '#b45309' : '#fbbf24'} />
             <span>2. Impor Penjualan (PDF / Excel)</span>
           </button>
 
@@ -1604,20 +1622,23 @@ export default function ManualReportUpdateModal({
             type="button"
             onClick={() => onOpenExpenseImport ? onOpenExpenseImport() : null}
             style={{
-              padding: '8px 14px',
-              background: 'transparent',
-              border: 'none',
-              color: '#f87171',
-              fontWeight: '800',
-              fontSize: '0.80rem',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              background: isLight ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.12)',
+              color: isLight ? '#dc2626' : '#f87171',
+              fontWeight: '900',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'all 0.18s ease'
             }}
             title="Buka Wizard Impor Pengeluaran & Pembelian Bahan PDF & Excel"
           >
-            <ShoppingBag size={15} />
+            <ShoppingBag size={15} color={isLight ? '#dc2626' : '#f87171'} />
             <span>3. Impor Pengeluaran (PDF / Excel)</span>
           </button>
 
@@ -1625,20 +1646,23 @@ export default function ManualReportUpdateModal({
             type="button"
             onClick={() => setActiveTab('excel')}
             style={{
-              padding: '8px 14px',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: activeTab === 'excel' ? `2px solid ${T.info}` : '2px solid transparent',
-              color: activeTab === 'excel' ? T.info : T.txtSecondary,
-              fontWeight: '800',
-              fontSize: '0.80rem',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: activeTab === 'excel' ? '1px solid #38bdf8' : '1px solid transparent',
+              background: activeTab === 'excel' ? (isLight ? '#ffffff' : '#1e293b') : 'transparent',
+              color: activeTab === 'excel' ? (isLight ? '#0284c7' : '#38bdf8') : T.txtSecondary,
+              fontWeight: activeTab === 'excel' ? '900' : '700',
+              fontSize: '0.78rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: activeTab === 'excel' ? '0 2px 8px rgba(0,0,0,0.12)' : 'none',
+              transition: 'all 0.18s ease'
             }}
           >
-            <Layers size={15} />
+            <Layers size={15} color={activeTab === 'excel' ? (isLight ? '#0284c7' : '#38bdf8') : T.txtSecondary} />
             <span>4. Batch Upload File Excel Rekap</span>
           </button>
         </div>
