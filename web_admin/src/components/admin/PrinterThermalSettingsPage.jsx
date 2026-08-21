@@ -7,7 +7,22 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function PrinterThermalSettingsPage({ masterData, setMasterData, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
-  
+  const isLight = themeMode === 'light';
+
+  // Styling helper for input fields (High contrast in both Dark & Light mode)
+  const inputStyle = {
+    padding: '10px 14px',
+    background: isLight ? '#ffffff' : '#0b1120',
+    border: isLight ? '1.5px solid #cbd5e1' : '1.5px solid #334155',
+    borderRadius: '10px',
+    color: isLight ? '#0f172a' : '#f8fafc',
+    fontSize: '0.88rem',
+    fontWeight: '800',
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box'
+  };
+
   const [printerSettings, setPrinterSettings] = useState(() => {
     return masterData?.printerSettings || {
       kitchenPrinter: { ip: '192.168.1.200', paperWidth: '80', enabled: true },
@@ -241,7 +256,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
               <button
                 type="button"
                 onClick={handleSyncFromDataMaster}
-                style={{ padding: '6px 12px', background: 'rgba(59,130,246,0.12)', border: '1px solid #3b82f6', borderRadius: '8px', color: '#60a5fa', fontWeight: '800', fontSize: '0.76rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ padding: '6px 12px', background: 'rgba(59,130,246,0.15)', border: '1px solid #3b82f6', borderRadius: '8px', color: '#60a5fa', fontWeight: '800', fontSize: '0.76rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 title="Isi otomatis dari profil cabang Data Master"
               >
                 <RefreshCw size={13} />
@@ -252,10 +267,10 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
             <select
               value={selectedOutletId}
               onChange={e => handleSelectOutlet(e.target.value)}
-              style={{ width: '100%', padding: '10px 14px', background: T.bgApp, border: `1.5px solid ${T.border}`, borderRadius: '10px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.88rem', outline: 'none', cursor: 'pointer' }}
+              style={inputStyle}
             >
               {outlets.map(o => (
-                <option key={o.id} value={String(o.id)}>
+                <option key={o.id} value={String(o.id)} style={{ background: isLight ? '#ffffff' : '#0f172a', color: isLight ? '#0f172a' : '#f8fafc' }}>
                   {o.name || o.branch_name}
                 </option>
               ))}
@@ -268,21 +283,21 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                 <button
                   type="button"
                   onClick={() => applyPreset('modern')}
-                  style={{ padding: '8px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.bgApp, color: T.txtPrimary, fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                  style={{ padding: '9px 6px', borderRadius: '8px', border: isLight ? '1.5px solid #cbd5e1' : '1.5px solid #334155', background: isLight ? '#f8fafc' : '#0b1120', color: isLight ? '#0f172a' : '#f8fafc', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
                 >
                   🌟 Standar Modern
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPreset('compact')}
-                  style={{ padding: '8px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.bgApp, color: T.txtPrimary, fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                  style={{ padding: '9px 6px', borderRadius: '8px', border: isLight ? '1.5px solid #cbd5e1' : '1.5px solid #334155', background: isLight ? '#f8fafc' : '#0b1120', color: isLight ? '#0f172a' : '#f8fafc', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
                 >
                   ⚡ Hemat Kertas
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPreset('corporate')}
-                  style={{ padding: '8px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.bgApp, color: T.txtPrimary, fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                  style={{ padding: '9px 6px', borderRadius: '8px', border: isLight ? '1.5px solid #cbd5e1' : '1.5px solid #334155', background: isLight ? '#f8fafc' : '#0b1120', color: isLight ? '#0f172a' : '#f8fafc', fontSize: '0.76rem', fontWeight: '800', cursor: 'pointer' }}
                 >
                   🏢 Formal / PT
                 </button>
@@ -307,7 +322,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.restaurantName || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, restaurantName: e.target.value })}
                   placeholder="Contoh: AYAM PECAK 2001"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem', fontWeight: '800' }}
+                  style={inputStyle}
                 />
               </div>
 
@@ -318,7 +333,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.groupName || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, groupName: e.target.value })}
                   placeholder="Contoh: BAROKAH GROUP"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
+                  style={inputStyle}
                 />
               </div>
             </div>
@@ -331,7 +346,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.address || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, address: e.target.value })}
                   placeholder="Contoh: Jl. Jendral Sudirman No. 88"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
+                  style={inputStyle}
                 />
               </div>
 
@@ -342,7 +357,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.phone || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, phone: e.target.value })}
                   placeholder="Contoh: 0812-3456-7890"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
+                  style={inputStyle}
                 />
               </div>
             </div>
@@ -365,7 +380,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.footerLine1 || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, footerLine1: e.target.value })}
                   placeholder="TERIMA KASIH ATAS KUNJUNGAN ANDA"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
+                  style={inputStyle}
                 />
               </div>
 
@@ -376,7 +391,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.footerLine2 || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, footerLine2: e.target.value })}
                   placeholder="SUDAH TERMASUK PB1 PAJAK RESTORAN"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
+                  style={inputStyle}
                 />
               </div>
             </div>
@@ -389,7 +404,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.wifiSsid || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, wifiSsid: e.target.value })}
                   placeholder="Contoh: BarokahResto_FreeWiFi"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
+                  style={inputStyle}
                 />
               </div>
 
@@ -400,7 +415,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                   value={headerFooter.wifiPassword || ''}
                   onChange={e => setHeaderFooter({ ...headerFooter, wifiPassword: e.target.value })}
                   placeholder="Contoh: berkahselalu"
-                  style={{ padding: '10px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.85rem' }}
+                  style={inputStyle}
                 />
               </div>
             </div>
@@ -410,7 +425,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
           <div style={{ background: T.cardBg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden' }}>
             <div
               onClick={() => setStyleOpen(!styleOpen)}
-              style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none', background: styleOpen ? T.cardBg2 : 'transparent' }}
+              style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', userSelect: 'none', background: styleOpen ? (isLight ? '#f8fafc' : '#0b1120') : 'transparent' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sparkles size={16} color="#f59e0b" />
@@ -431,12 +446,12 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                     <select
                       value={receiptStyle.separatorStyle || 'dashed'}
                       onChange={e => setRS('separatorStyle', e.target.value)}
-                      style={{ padding: '8px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem' }}
+                      style={inputStyle}
                     >
-                      <option value="dashed">--- Garis Putus-putus</option>
-                      <option value="solid">─── Garis Lurus</option>
-                      <option value="double">═══ Garis Ganda</option>
-                      <option value="stars">*** Karakter Bintang</option>
+                      <option value="dashed" style={{ background: isLight ? '#fff' : '#0f172a' }}>--- Garis Putus-putus</option>
+                      <option value="solid" style={{ background: isLight ? '#fff' : '#0f172a' }}>─── Garis Lurus</option>
+                      <option value="double" style={{ background: isLight ? '#fff' : '#0f172a' }}>═══ Garis Ganda</option>
+                      <option value="stars" style={{ background: isLight ? '#fff' : '#0f172a' }}>*** Karakter Bintang</option>
                     </select>
                   </div>
 
@@ -446,10 +461,10 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                     <select
                       value={receiptStyle.headerAlign || 'center'}
                       onChange={e => setRS('headerAlign', e.target.value)}
-                      style={{ padding: '8px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem' }}
+                      style={inputStyle}
                     >
-                      <option value="center">Rata Tengah (Center - Standar)</option>
-                      <option value="left">Rata Kiri (Left)</option>
+                      <option value="center" style={{ background: isLight ? '#fff' : '#0f172a' }}>Rata Tengah (Center - Standar)</option>
+                      <option value="left" style={{ background: isLight ? '#fff' : '#0f172a' }}>Rata Kiri (Left)</option>
                     </select>
                   </div>
 
@@ -459,10 +474,10 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                     <select
                       value={receiptStyle.footerAlign || 'center'}
                       onChange={e => setRS('footerAlign', e.target.value)}
-                      style={{ padding: '8px 12px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem' }}
+                      style={inputStyle}
                     >
-                      <option value="center">Rata Tengah (Center - Standar)</option>
-                      <option value="left">Rata Kiri (Left)</option>
+                      <option value="center" style={{ background: isLight ? '#fff' : '#0f172a' }}>Rata Tengah (Center - Standar)</option>
+                      <option value="left" style={{ background: isLight ? '#fff' : '#0f172a' }}>Rata Kiri (Left)</option>
                     </select>
                   </div>
                 </div>
@@ -482,7 +497,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                 <thead>
-                  <tr style={{ background: T.bgApp, borderBottom: `1px solid ${T.border}`, textAlign: 'left' }}>
+                  <tr style={{ background: isLight ? '#f8fafc' : '#0b1120', borderBottom: `1px solid ${T.border}`, textAlign: 'left' }}>
                     <th style={{ padding: '10px 12px', color: T.txtMuted }}>Kategori Menu</th>
                     <th style={{ padding: '10px 12px', color: T.txtMuted }}>Target Printer</th>
                   </tr>
@@ -499,11 +514,11 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
                           <select
                             value={target}
                             onChange={e => handleUpdateCategoryPrinter(cat.id, e.target.value)}
-                            style={{ padding: '6px 10px', background: T.bgApp, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontWeight: '800', fontSize: '0.78rem' }}
+                            style={{ padding: '6px 10px', background: isLight ? '#ffffff' : '#0b1120', border: isLight ? '1px solid #cbd5e1' : '1px solid #334155', borderRadius: '6px', color: isLight ? '#0f172a' : '#f8fafc', fontWeight: '800', fontSize: '0.78rem' }}
                           >
-                            <option value="dapur">Printer Dapur (Makanan)</option>
-                            <option value="bar">Printer Bar (Minuman)</option>
-                            <option value="keduanya">Dapur &amp; Bar (Keduanya)</option>
+                            <option value="dapur" style={{ background: isLight ? '#fff' : '#0f172a' }}>Printer Dapur (Makanan)</option>
+                            <option value="bar" style={{ background: isLight ? '#fff' : '#0f172a' }}>Printer Bar (Minuman)</option>
+                            <option value="keduanya" style={{ background: isLight ? '#fff' : '#0f172a' }}>Dapur &amp; Bar (Keduanya)</option>
                           </select>
                         </td>
                       </tr>
@@ -534,6 +549,7 @@ export default function PrinterThermalSettingsPage({ masterData, setMasterData, 
 
 function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptStyle = {}, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
   const [receiptType, setReceiptType] = useState('cashier');
   const [paperWidth, setPaperWidth] = useState('58');
 
@@ -560,13 +576,13 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
             onClick={() => setPaperWidth('58')}
-            style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: paperWidth === '58' ? '#2563eb' : T.bgApp, color: paperWidth === '58' ? '#fff' : T.txtMuted, fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer' }}
+            style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', background: paperWidth === '58' ? '#2563eb' : (isLight ? '#f1f5f9' : '#0b1120'), color: paperWidth === '58' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.76rem', cursor: 'pointer' }}
           >
             58mm
           </button>
           <button
             onClick={() => setPaperWidth('80')}
-            style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', background: paperWidth === '80' ? '#2563eb' : T.bgApp, color: paperWidth === '80' ? '#fff' : T.txtMuted, fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer' }}
+            style={{ padding: '5px 12px', borderRadius: '6px', border: 'none', background: paperWidth === '80' ? '#2563eb' : (isLight ? '#f1f5f9' : '#0b1120'), color: paperWidth === '80' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.76rem', cursor: 'pointer' }}
           >
             80mm
           </button>
@@ -574,22 +590,22 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
       </div>
 
       {/* TABS FOR PREVIEW TYPE */}
-      <div style={{ display: 'flex', background: T.bgApp, padding: '3px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', background: isLight ? '#f1f5f9' : '#0b1120', padding: '3px', borderRadius: '8px', border: `1px solid ${T.border}` }}>
         <button
           onClick={() => setReceiptType('cashier')}
-          style={{ flex: 1, padding: '6px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'cashier' ? '#2563eb' : 'transparent', color: receiptType === 'cashier' ? '#fff' : T.txtMuted, fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'cashier' ? '#2563eb' : 'transparent', color: receiptType === 'cashier' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
         >
           Nota Kasir
         </button>
         <button
           onClick={() => setReceiptType('bill')}
-          style={{ flex: 1, padding: '6px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'bill' ? '#2563eb' : 'transparent', color: receiptType === 'bill' ? '#fff' : T.txtMuted, fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'bill' ? '#2563eb' : 'transparent', color: receiptType === 'bill' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
         >
           Tagihan (Bill)
         </button>
         <button
           onClick={() => setReceiptType('kitchen')}
-          style={{ flex: 1, padding: '6px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'kitchen' ? '#2563eb' : 'transparent', color: receiptType === 'kitchen' ? '#fff' : T.txtMuted, fontWeight: '800', fontSize: '0.74rem', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '7px 4px', borderRadius: '6px', border: 'none', background: receiptType === 'kitchen' ? '#2563eb' : 'transparent', color: receiptType === 'kitchen' ? '#fff' : T.txtMuted, fontWeight: '900', fontSize: '0.74rem', cursor: 'pointer' }}
         >
           Dapur / Bar
         </button>
