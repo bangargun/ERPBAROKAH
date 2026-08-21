@@ -685,20 +685,102 @@ export default function ManualReportUpdatePage({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={15} color={T.txtMuted} />
+            <Calendar size={15} color={T.accentGold} />
             <input
               type="date"
               value={startDate}
               onChange={e => { setStartDate(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem' }}
+              style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700', colorScheme: isLight ? 'light' : 'dark', outline: 'none' }}
             />
-            <span style={{ color: T.txtMuted, fontSize: '0.78rem' }}>s/d</span>
+            <span style={{ color: T.txtMuted, fontSize: '0.78rem', fontWeight: '700' }}>s/d</span>
             <input
               type="date"
               value={endDate}
               onChange={e => { setEndDate(e.target.value); setCurrentPage(1); }}
-              style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem' }}
+              style={{ padding: '7px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '8px', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '700', colorScheme: isLight ? 'light' : 'dark', outline: 'none' }}
             />
+          </div>
+
+          {/* QUICK PRESET TABS */}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+            {[
+              {
+                id: 'today',
+                label: 'Hari Ini',
+                action: () => {
+                  const t = new Date().toISOString().split('T')[0];
+                  setStartDate(t); setEndDate(t); setCurrentPage(1);
+                }
+              },
+              {
+                id: 'yesterday',
+                label: 'Kemarin',
+                action: () => {
+                  const y = new Date(); y.setDate(y.getDate() - 1);
+                  const yStr = y.toISOString().split('T')[0];
+                  setStartDate(yStr); setEndDate(yStr); setCurrentPage(1);
+                }
+              },
+              {
+                id: 'last_week',
+                label: 'Pekan Lalu (Sen-Min)',
+                action: () => {
+                  const now = new Date();
+                  const day = now.getDay();
+                  const diff = (day === 0 ? 7 : day) - 1;
+                  const monThis = new Date(now); monThis.setDate(now.getDate() - diff);
+                  const monLast = new Date(monThis); monLast.setDate(monThis.getDate() - 7);
+                  const sunLast = new Date(monThis); sunLast.setDate(monThis.getDate() - 1);
+                  setStartDate(monLast.toISOString().split('T')[0]);
+                  setEndDate(sunLast.toISOString().split('T')[0]);
+                  setCurrentPage(1);
+                }
+              },
+              {
+                id: 'this_month',
+                label: 'Bulan Ini',
+                action: () => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                  setStartDate(first); setEndDate(now.toISOString().split('T')[0]); setCurrentPage(1);
+                }
+              },
+              {
+                id: 'last_month',
+                label: 'Bulan Lalu',
+                action: () => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+                  const last = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+                  setStartDate(first); setEndDate(last); setCurrentPage(1);
+                }
+              },
+              {
+                id: '7days',
+                label: '7 Hari Terakhir',
+                action: () => {
+                  const now = new Date();
+                  const past7 = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                  setStartDate(past7); setEndDate(now.toISOString().split('T')[0]); setCurrentPage(1);
+                }
+              },
+              {
+                id: 'all',
+                label: 'Semua Waktu',
+                action: () => {
+                  setStartDate(''); setEndDate(''); setCurrentPage(1);
+                }
+              }
+            ].map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={p.action}
+                style={{ padding: '6px 10px', background: T.controlBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem', fontWeight: '700', cursor: 'pointer' }}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

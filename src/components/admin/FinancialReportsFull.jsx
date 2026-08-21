@@ -141,23 +141,58 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
 
   // Quick Date Preset Handlers
   const handleQuickPreset = (preset) => {
-    const d = new Date();
-    const currentYearStr = String(d.getFullYear());
-    const currentMonthStr = String(d.getMonth() + 1).padStart(2, '0');
-    
-    if (preset === 'this_month') {
-      setStartDate(`${currentYearStr}-${currentMonthStr}-01`);
-      setEndDate(`${currentYearStr}-${currentMonthStr}-31`);
+    const today = new Date();
+    const toYMD = (dt) => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    if (preset === 'today') {
+      const t = toYMD(today);
+      setStartDate(t);
+      setEndDate(t);
+    } else if (preset === 'yesterday') {
+      const yes = new Date(today);
+      yes.setDate(today.getDate() - 1);
+      const yStr = toYMD(yes);
+      setStartDate(yStr);
+      setEndDate(yStr);
+    } else if (preset === 'last_week') {
+      // Pekan Lalu: Dimulai dari SENIN sampai dengan MINGGU pekan lalu
+      const dayOfWeek = today.getDay();
+      const daysSinceMonday = (dayOfWeek === 0 ? 7 : dayOfWeek) - 1;
+      const mondayThisWeek = new Date(today);
+      mondayThisWeek.setDate(today.getDate() - daysSinceMonday);
+
+      const mondayLastWeek = new Date(mondayThisWeek);
+      mondayLastWeek.setDate(mondayThisWeek.getDate() - 7);
+
+      const sundayLastWeek = new Date(mondayThisWeek);
+      sundayLastWeek.setDate(mondayThisWeek.getDate() - 1);
+
+      setStartDate(toYMD(mondayLastWeek));
+      setEndDate(toYMD(sundayLastWeek));
+    } else if (preset === 'this_month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      setStartDate(toYMD(firstDay));
+      setEndDate(toYMD(today));
+    } else if (preset === 'last_month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+      setStartDate(toYMD(firstDay));
+      setEndDate(toYMD(lastDay));
     } else if (preset === 'last_7_days') {
-      const past7 = new Date(d);
-      past7.setDate(past7.getDate() - 7);
-      setStartDate(past7.toISOString().split('T')[0]);
-      setEndDate(d.toISOString().split('T')[0]);
+      const past7 = new Date(today);
+      past7.setDate(today.getDate() - 6);
+      setStartDate(toYMD(past7));
+      setEndDate(toYMD(today));
     } else if (preset === 'last_30_days') {
-      const past30 = new Date(d);
-      past30.setDate(past30.getDate() - 30);
-      setStartDate(past30.toISOString().split('T')[0]);
-      setEndDate(d.toISOString().split('T')[0]);
+      const past30 = new Date(today);
+      past30.setDate(today.getDate() - 29);
+      setStartDate(toYMD(past30));
+      setEndDate(toYMD(today));
     } else if (preset === 'all') {
       setStartDate('');
       setEndDate('');
@@ -1898,7 +1933,8 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                     color: T.txtPrimary,
                     padding: '7px 12px',
                     fontSize: '0.82rem',
-                    fontWeight: '600',
+                    fontWeight: '700',
+                    colorScheme: isLight ? 'light' : 'dark',
                     outline: 'none',
                     height: '36px'
                   }}
@@ -1915,7 +1951,8 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
                     color: T.txtPrimary,
                     padding: '7px 12px',
                     fontSize: '0.82rem',
-                    fontWeight: '600',
+                    fontWeight: '700',
+                    colorScheme: isLight ? 'light' : 'dark',
                     outline: 'none',
                     height: '36px'
                   }}
@@ -1923,53 +1960,35 @@ export default function FinancialReportsFull({ masterData, setMasterData, select
               </div>
             </div>
 
-            {/* QUICK PRESET BUTTONS */}
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                onClick={() => handleQuickPreset('this_month')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: `1px solid ${T.border}`,
-                  background: startDate === '2026-07-01' && endDate === '2026-07-31' ? T.info : T.cardBg,
-                  color: startDate === '2026-07-01' && endDate === '2026-07-31' ? T.cardBg2 : T.txtPrimary,
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Bulan Ini
-              </button>
-              <button
-                onClick={() => handleQuickPreset('last_7_days')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: `1px solid ${T.border}`,
-                  background: startDate === '2026-07-24' ? T.info : T.cardBg,
-                  color: startDate === '2026-07-24' ? T.cardBg2 : T.txtPrimary,
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                7 Hari Terakhir
-              </button>
-              <button
-                onClick={() => handleQuickPreset('all')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: `1px solid ${T.border}`,
-                  background: !startDate && !endDate ? T.info : T.cardBg,
-                  color: !startDate && !endDate ? T.cardBg2 : T.txtPrimary,
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Semua Waktu
-              </button>
+            {/* QUICK PRESET BUTTONS (INTERACTIVE PILL TABS) */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+              {[
+                { id: 'today', label: 'Hari Ini' },
+                { id: 'yesterday', label: 'Kemarin' },
+                { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
+                { id: 'this_month', label: 'Bulan Ini' },
+                { id: 'last_month', label: 'Bulan Lalu' },
+                { id: 'last_7_days', label: '7 Hari Terakhir' },
+                { id: 'all', label: 'Semua Waktu' }
+              ].map(preset => (
+                <button
+                  key={preset.id}
+                  onClick={() => handleQuickPreset(preset.id)}
+                  style={{
+                    padding: '6px 11px',
+                    borderRadius: '6px',
+                    border: `1px solid ${T.border}`,
+                    background: T.cardBg,
+                    color: T.txtPrimary,
+                    fontSize: '0.74rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
           </div>
 

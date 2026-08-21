@@ -1305,15 +1305,99 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               type="date" 
               value={startDate} 
               onChange={e => setStartDate(e.target.value)}
-              style={{ height: '36px', fontSize: '0.78rem', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 8px', color: T.txtPrimary, fontWeight: '700', background: T.inputBg, outline: 'none' }} 
+              style={{ height: '36px', fontSize: '0.78rem', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 8px', color: T.txtPrimary, fontWeight: '700', background: T.inputBg, colorScheme: isLight ? 'light' : 'dark', outline: 'none' }} 
             />
             <span style={{ color: T.txtMuted, fontSize: '0.75rem' }}>s/d</span>
             <input 
               type="date" 
               value={endDate} 
               onChange={e => setEndDate(e.target.value)}
-              style={{ height: '36px', fontSize: '0.78rem', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 8px', color: T.txtPrimary, fontWeight: '700', background: T.inputBg, outline: 'none' }} 
+              style={{ height: '36px', fontSize: '0.78rem', border: `1px solid ${T.border}`, borderRadius: '8px', padding: '0 8px', color: T.txtPrimary, fontWeight: '700', background: T.inputBg, colorScheme: isLight ? 'light' : 'dark', outline: 'none' }} 
             />
+          </div>
+
+          {/* Quick Date Presets (Pill Tabs) */}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '5px' }}>
+            {[
+              {
+                id: 'today',
+                label: 'Hari Ini',
+                action: () => {
+                  const t = new Date().toISOString().split('T')[0];
+                  setStartDate(t); setEndDate(t);
+                }
+              },
+              {
+                id: 'yesterday',
+                label: 'Kemarin',
+                action: () => {
+                  const y = new Date(); y.setDate(y.getDate() - 1);
+                  const yStr = y.toISOString().split('T')[0];
+                  setStartDate(yStr); setEndDate(yStr);
+                }
+              },
+              {
+                id: 'last_week',
+                label: 'Pekan Lalu (Sen-Min)',
+                action: () => {
+                  const now = new Date();
+                  const day = now.getDay();
+                  const diff = (day === 0 ? 7 : day) - 1;
+                  const monThis = new Date(now); monThis.setDate(now.getDate() - diff);
+                  const monLast = new Date(monThis); monLast.setDate(monThis.getDate() - 7);
+                  const sunLast = new Date(monThis); sunLast.setDate(monThis.getDate() - 1);
+                  setStartDate(monLast.toISOString().split('T')[0]);
+                  setEndDate(sunLast.toISOString().split('T')[0]);
+                }
+              },
+              {
+                id: 'this_month',
+                label: 'Bulan Ini',
+                action: () => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                  setStartDate(first); setEndDate(now.toISOString().split('T')[0]);
+                }
+              },
+              {
+                id: 'last_month',
+                label: 'Bulan Lalu',
+                action: () => {
+                  const now = new Date();
+                  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+                  const last = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+                  setStartDate(first); setEndDate(last);
+                }
+              },
+              {
+                id: '7days',
+                label: '7 Hari Terakhir',
+                action: () => {
+                  const now = new Date();
+                  const past7 = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                  setStartDate(past7); setEndDate(now.toISOString().split('T')[0]);
+                }
+              }
+            ].map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={p.action}
+                style={{
+                  height: '36px',
+                  padding: '0 10px',
+                  borderRadius: '8px',
+                  border: `1px solid ${T.border}`,
+                  background: T.cardBg,
+                  color: T.txtPrimary,
+                  fontSize: '0.74rem',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
           {/* Reset filter button */}

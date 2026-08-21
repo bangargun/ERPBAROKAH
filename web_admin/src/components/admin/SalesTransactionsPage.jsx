@@ -194,6 +194,25 @@ export function DoubleCalendarPicker({
       setTempStart(yesStr);
       setTempEnd(yesStr);
       setShowPopover(false);
+    } else if (presetKey === 'last_week') {
+      const dayOfWeek = today.getDay();
+      const daysSinceMonday = (dayOfWeek === 0 ? 7 : dayOfWeek) - 1;
+      const mondayThisWeek = new Date(today);
+      mondayThisWeek.setDate(today.getDate() - daysSinceMonday);
+
+      const mondayLastWeek = new Date(mondayThisWeek);
+      mondayLastWeek.setDate(mondayThisWeek.getDate() - 7);
+
+      const sundayLastWeek = new Date(mondayThisWeek);
+      sundayLastWeek.setDate(mondayThisWeek.getDate() - 1);
+
+      const sStr = formatToYMD(mondayLastWeek);
+      const eStr = formatToYMD(sundayLastWeek);
+      setStartDate(sStr);
+      setEndDate(eStr);
+      setTempStart(sStr);
+      setTempEnd(eStr);
+      setShowPopover(false);
     } else if (presetKey === '7days') {
       const past = new Date();
       past.setDate(today.getDate() - 6);
@@ -651,13 +670,14 @@ export function DoubleCalendarPicker({
             marginRight: '12px'
           }}>
             {[
-              { id: 'today', label: 'Hari ini' },
+              { id: 'today', label: 'Hari Ini' },
               { id: 'yesterday', label: 'Kemarin' },
-              { id: '7days', label: '7 hari terakhir' },
-              { id: '30days', label: '30 hari terakhir' },
-              { id: 'month', label: 'Bulan ini' },
-              { id: 'last_month', label: 'Bulan kemarin' },
-              { id: 'custom', label: 'Custom Range' }
+              { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
+              { id: 'month', label: 'Bulan Ini' },
+              { id: 'last_month', label: 'Bulan Lalu' },
+              { id: '7days', label: '7 Hari Terakhir' },
+              { id: '30days', label: '30 Hari Terakhir' },
+              { id: 'custom', label: 'Rentang Waktu 📅' }
             ].map(preset => {
               const isActive = datePreset === preset.id || (preset.id === 'custom' && datePreset === 'custom');
               return (
