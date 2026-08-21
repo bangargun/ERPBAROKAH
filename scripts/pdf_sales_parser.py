@@ -18,7 +18,7 @@ def parse_pdf(pdf_path):
         all_content = '\n'.join(full_text)
         
         # Regex to find all transaction blocks: DD/MM/YYYY followed by HH:MM
-        pattern = re.compile(r'(\d{2}/\d{2}/\d{4})\s*\n\s*(\d{2}:\d{2})\s*\n([\s\S]*?)(?=(\d{2}/\d{2}/\d{4}\s*\n\s*\d{2}:\d{2})|\Z)')
+        pattern = re.compile(r'(\d{2}/\d{2}/\d{4})\s*\n?\s*(\d{2}:\d{2})\s*([\s\S]*?)(?=(\d{2}/\d{2}/\d{4}\s*\n?\s*\d{2}:\d{2})|\Z)')
         matches = pattern.findall(all_content)
         
         tx_list = []
