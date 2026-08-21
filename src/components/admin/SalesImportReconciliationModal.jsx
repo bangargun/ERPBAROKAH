@@ -54,14 +54,17 @@ export default function SalesImportReconciliationModal({
   const [selectedOutletOverride, setSelectedOutletOverride] = useState('');
   const [deductStock, setDeductStock] = useState(false);
 
-  // Available master products and selectable options (including variants)
+  // Available master products and selectable options (including variants) - HANYA PRODUK AKTIF
   const masterProducts = useMemo(() => {
-    return masterData?.products || [];
-  }, [masterData]);
+    return (masterData?.products || []).filter(p => {
+      const s = String(p.status || 'Aktif').toLowerCase().trim();
+      return s !== 'inaktif' && s !== 'inactive' && s !== 'non-aktif' && p.is_active !== false && p.is_active !== 0;
+    });
+  }, [masterData?.products]);
 
   const selectableMasterOptions = useMemo(() => {
     const list = [];
-    (masterData?.products || []).forEach(p => {
+    masterProducts.forEach(p => {
       // Add base product
       list.push({
         key: `prod_${p.id}`,
@@ -81,7 +84,7 @@ export default function SalesImportReconciliationModal({
       });
     });
     return list;
-  }, [masterData?.products]);
+  }, [masterProducts]);
 
   // Intelligent Menu & Variant Matcher
   const findBestMenuAndVariantMatch = (rawName) => {

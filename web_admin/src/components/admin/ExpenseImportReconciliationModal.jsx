@@ -51,10 +51,13 @@ export default function ExpenseImportReconciliationModal({
   const [increaseStock, setIncreaseStock] = useState(true);
   const [selectedOutletOverride, setSelectedOutletOverride] = useState('');
 
-  // Master Ingredients & Expense Categories
+  // Master Ingredients & Expense Categories - HANYA BAHAN BAKU AKTIF
   const masterIngredients = useMemo(() => {
-    return masterData?.ingredients || [];
-  }, [masterData]);
+    return (masterData?.ingredients || []).filter(i => {
+      const s = String(i.status || 'Aktif').toLowerCase().trim();
+      return s !== 'inaktif' && s !== 'inactive' && s !== 'non-aktif' && i.is_active !== false && i.is_active !== 0;
+    });
+  }, [masterData?.ingredients]);
 
   const expenseCategories = useMemo(() => {
     return masterData?.expenseCategories || [

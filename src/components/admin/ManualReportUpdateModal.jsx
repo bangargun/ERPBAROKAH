@@ -104,6 +104,21 @@ export default function ManualReportUpdateModal({
     };
   }, [masterData, selectedOutletId, reportDate]);
 
+  // Filter hanya produk & bahan baku yang AKTIF (menu inaktif dihilangkan dari dropdown)
+  const activeProducts = useMemo(() => {
+    return (masterData?.products || []).filter(p => {
+      const s = String(p.status || 'Aktif').toLowerCase().trim();
+      return s !== 'inaktif' && s !== 'inactive' && s !== 'non-aktif' && p.is_active !== false && p.is_active !== 0;
+    });
+  }, [masterData?.products]);
+
+  const activeIngredients = useMemo(() => {
+    return (masterData?.ingredients || []).filter(i => {
+      const s = String(i.status || 'Aktif').toLowerCase().trim();
+      return s !== 'inaktif' && s !== 'inactive' && s !== 'non-aktif' && i.is_active !== false && i.is_active !== 0;
+    });
+  }, [masterData?.ingredients]);
+
   // Manual Form - Sales Items State
   const [salesItems, setSalesItems] = useState(() => {
     if (editData && (editData.sales_details || []).length > 0) {
@@ -122,13 +137,18 @@ export default function ManualReportUpdateModal({
         };
       });
     }
+    const defaultActiveProd = (masterData?.products || []).find(p => {
+      const s = String(p.status || 'Aktif').toLowerCase().trim();
+      return s !== 'inaktif' && s !== 'inactive' && s !== 'non-aktif' && p.is_active !== false && p.is_active !== 0;
+    }) || masterData?.products?.[0];
+
     return [{
       id: 1,
-      productId: masterData?.products?.[0]?.id || '',
-      productName: masterData?.products?.[0]?.name || '',
+      productId: defaultActiveProd?.id || '',
+      productName: defaultActiveProd?.name || '',
       qty: 1,
-      price: masterData?.products?.[0]?.price || 25000,
-      subtotal: masterData?.products?.[0]?.price || 25000,
+      price: defaultActiveProd?.price || 25000,
+      subtotal: defaultActiveProd?.price || 25000,
       paymentMethod: 'Kas Kasir (Tunai)'
     }];
   });
@@ -414,7 +434,7 @@ export default function ManualReportUpdateModal({
 
   // --- MANUAL FORM HANDLERS ---
   const handleAddSalesRow = () => {
-    const firstProd = masterData?.products?.[0] || null;
+    const firstProd = activeProducts?.[0] || masterData?.products?.[0] || null;
     const price = firstProd ? (firstProd.price || 0) : 0;
     setSalesItems([
       ...salesItems,
@@ -1716,7 +1736,7 @@ export default function ManualReportUpdateModal({
             {entryType === 'penjualan' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <datalist id="mrisExistingProductsList">
-                  {(masterData?.products || []).map(p => (
+                  {(activeProducts || []).map(p => (
                     <option key={p.id} value={p.name}>{`[${p.sku}] Rp ${p.price?.toLocaleString('id-ID')}`}</option>
                   ))}
                 </datalist>
@@ -1895,7 +1915,7 @@ export default function ManualReportUpdateModal({
             {entryType === 'pembelian' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <datalist id="mrisExistingIngredientsList">
-                  {(masterData?.ingredients || []).map(ing => (
+                  {(activeIngredients || []).map(ing => (
                     <option key={ing.id} value={ing.name}>{`[Stok: ${ing.stock || ing.qty || 0} ${ing.unit || ''}]`}</option>
                   ))}
                 </datalist>
