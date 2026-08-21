@@ -146,6 +146,16 @@ export default function FinancialOverview({
   const [selectedIngredientCategory, setSelectedIngredientCategory] = useState('ALL');
   const [disparityViewMode, setDisparityViewMode] = useState('table'); // 'table' | 'cards'
   const [disparitySearchTerm, setDisparitySearchTerm] = useState('');
+  const [disparityDatePreset, setDisparityDatePreset] = useState('7days');
+  const [disparityCustomStartDate, setDisparityCustomStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [disparityCustomEndDate, setDisparityCustomEndDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiLastUpdated, setAiLastUpdated] = useState('Baru saja (Real-time)');
   const [showAIModal, setShowAIModal] = useState(false);
@@ -624,6 +634,78 @@ export default function FinancialOverview({
     ];
   }, [masterData?.ingredientCategories]);
 
+  // Active dates for Disparitas Section based on Preset (Formatted as MySQL YYYY-MM-DD)
+  const disparityActiveDates = useMemo(() => {
+    const today = new Date();
+    const toYMD = (dt) => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    if (disparityDatePreset === 'today') {
+      return [toYMD(today)];
+    } else if (disparityDatePreset === 'yesterday') {
+      const yes = new Date(today);
+      yes.setDate(today.getDate() - 1);
+      return [toYMD(yes)];
+    } else if (disparityDatePreset === 'last_week') {
+      const dayOfWeek = today.getDay();
+      const daysSinceMonday = (dayOfWeek === 0 ? 7 : dayOfWeek) - 1;
+      const mondayThisWeek = new Date(today);
+      mondayThisWeek.setDate(today.getDate() - daysSinceMonday);
+
+      const mondayLastWeek = new Date(mondayThisWeek);
+      mondayLastWeek.setDate(mondayThisWeek.getDate() - 7);
+
+      const dates = [];
+      for (let i = 0; i < 7; i++) {
+        const cur = new Date(mondayLastWeek);
+        cur.setDate(mondayLastWeek.getDate() + i);
+        dates.push(toYMD(cur));
+      }
+      return dates;
+    } else if (disparityDatePreset === 'this_month') {
+      const dates = [];
+      const currentDay = today.getDate();
+      for (let i = 1; i <= currentDay; i++) {
+        const cur = new Date(today.getFullYear(), today.getMonth(), i);
+        dates.push(toYMD(cur));
+      }
+      return dates;
+    } else if (disparityDatePreset === 'last_month') {
+      const dates = [];
+      const daysInLastMonth = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+      for (let i = 1; i <= daysInLastMonth; i++) {
+        const cur = new Date(today.getFullYear(), today.getMonth() - 1, i);
+        dates.push(toYMD(cur));
+      }
+      return dates;
+    } else if (disparityDatePreset === '7days') {
+      const dates = [];
+      for (let i = 6; i >= 0; i--) {
+        const cur = new Date(today);
+        cur.setDate(today.getDate() - i);
+        dates.push(toYMD(cur));
+      }
+      return dates;
+    } else if (disparityDatePreset === 'custom' && disparityCustomStartDate && disparityCustomEndDate) {
+      const dates = [];
+      const start = new Date(disparityCustomStartDate);
+      const end = new Date(disparityCustomEndDate);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+        const cur = new Date(start);
+        while (cur <= end) {
+          dates.push(toYMD(cur));
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+      return dates;
+    }
+    return []; // all
+  }, [disparityDatePreset, disparityCustomStartDate, disparityCustomEndDate]);
+
   // Comprehensive Price lookup per outlet per ingredient from Master Data & Logistics
   const ingredientDisparityList = useMemo(() => {
     if (allIngredients.length === 0) return [];
@@ -649,7 +731,9 @@ export default function FinancialOverview({
           const mName = (m.item_name || m.name || m.ingredient_name || '').toLowerCase().trim();
           const mOId = String(m.outlet_id || m.branch_id || '');
           const mType = String(m.type || m.movement_type || '').toLowerCase();
-          return mName === ingNameLower && mOId === oIdStr && (mType.includes('in') || mType.includes('masuk') || mType.includes('beli'));
+          const mDate = parseDateToYYYYMMDD(m.date || m.created_at || m.timestamp);
+          const dateMatches = disparityActiveDates.length === 0 || (mDate && disparityActiveDates.includes(mDate));
+          return dateMatches && mName === ingNameLower && mOId === oIdStr && (mType.includes('in') || mType.includes('masuk') || mType.includes('beli'));
         });
         if (matchedStockIn.length > 0) {
           const latestStock = matchedStockIn[matchedStockIn.length - 1];
@@ -660,13 +744,17 @@ export default function FinancialOverview({
         if (!foundPrice) {
           (masterData?.approvedLogistics || []).forEach(log => {
             if (String(log.outlet_id || log.branch_id || '') === oIdStr) {
-              const items = log.items || log.ingredients || [];
-              items.forEach(it => {
-                const itName = (it.ingredient_name || it.name || it.item_name || '').toLowerCase().trim();
-                if (itName === ingNameLower && Number(it.price_per_unit || it.cost || it.price || 0) > 0) {
-                  foundPrice = Number(it.price_per_unit || it.cost || it.price);
-                }
-              });
+              const lDate = parseDateToYYYYMMDD(log.date || log.created_at || log.timestamp);
+              const dateMatches = disparityActiveDates.length === 0 || (lDate && disparityActiveDates.includes(lDate));
+              if (dateMatches) {
+                const items = log.items || log.ingredients || [];
+                items.forEach(it => {
+                  const itName = (it.ingredient_name || it.name || it.item_name || '').toLowerCase().trim();
+                  if (itName === ingNameLower && Number(it.price_per_unit || it.cost || it.price || 0) > 0) {
+                    foundPrice = Number(it.price_per_unit || it.cost || it.price);
+                  }
+                });
+              }
             }
           });
         }
@@ -676,13 +764,17 @@ export default function FinancialOverview({
           const allReps = [...(masterData?.approvedFinanceDaily || []), ...(masterData?.manualEntryRecords || [])];
           allReps.forEach(rep => {
             if (String(rep.outlet_id || rep.branch_id || '') === oIdStr) {
-              const rows = rep.expense_rows || rep.cogs_items || rep.cogs_breakdown || [];
-              rows.forEach(r => {
-                const rName = (r.item_name || r.name || '').toLowerCase().trim();
-                if (rName === ingNameLower && Number(r.price_per_unit || r.cost || 0) > 0) {
-                  foundPrice = Number(r.price_per_unit || r.cost);
-                }
-              });
+              const rDate = parseDateToYYYYMMDD(rep.date || rep.created_at || rep.timestamp);
+              const dateMatches = disparityActiveDates.length === 0 || (rDate && disparityActiveDates.includes(rDate));
+              if (dateMatches) {
+                const rows = rep.expense_rows || rep.cogs_items || rep.cogs_breakdown || [];
+                rows.forEach(r => {
+                  const rName = (r.item_name || r.name || '').toLowerCase().trim();
+                  if (rName === ingNameLower && Number(r.price_per_unit || r.cost || 0) > 0) {
+                    foundPrice = Number(r.price_per_unit || r.cost);
+                  }
+                });
+              }
             }
           });
         }
@@ -1867,6 +1959,122 @@ export default function FinancialOverview({
               <span>AI Purchasing</span>
             </button>
           </div>
+        </div>
+
+        {/* Quick Date Range Tabs for Disparitas Section (Interactive Pills) */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '8px',
+          padding: '8px 14px',
+          background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
+          borderRadius: '12px',
+          border: `1px solid ${T.border}`
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', fontWeight: '800', color: T.accentGold, marginRight: '4px' }}>
+            <Calendar size={14} color={T.accentGold} />
+            <span>Periode Pembelian:</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+            {[
+              { id: 'today', label: 'Hari Ini' },
+              { id: 'yesterday', label: 'Kemarin' },
+              { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
+              { id: 'this_month', label: 'Bulan Ini' },
+              { id: 'last_month', label: 'Bulan Lalu' },
+              { id: '7days', label: '7 Hari Terakhir' },
+              { id: 'custom', label: 'Rentang Waktu 📅' },
+              { id: 'all', label: 'Semua Waktu' }
+            ].map(tab => {
+              const isActive = disparityDatePreset === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setDisparityDatePreset(tab.id);
+                    if (tab.id === 'custom' && (!disparityCustomStartDate || !disparityCustomEndDate)) {
+                      const d = new Date();
+                      const endStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      d.setDate(d.getDate() - 6);
+                      const startStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      setDisparityCustomStartDate(startStr);
+                      setDisparityCustomEndDate(endStr);
+                    }
+                  }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '7px',
+                    border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
+                    background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
+                    color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+                    fontWeight: isActive ? '900' : '700',
+                    fontSize: '0.74rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Custom Date Widget if selected */}
+          {disparityDatePreset === 'custom' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginLeft: 'auto',
+              background: isLight ? '#ffffff' : '#1e293b',
+              padding: '4px 8px',
+              borderRadius: '8px',
+              border: `1px solid ${T.accentGoldBorder}`
+            }}>
+              <input
+                type="date"
+                value={disparityCustomStartDate}
+                onChange={e => setDisparityCustomStartDate(e.target.value)}
+                style={{
+                  padding: '3px 6px',
+                  background: T.inputBg,
+                  border: `1px solid ${T.borderStrong}`,
+                  borderRadius: '6px',
+                  color: T.txtPrimary,
+                  fontSize: '0.74rem',
+                  fontWeight: '700',
+                  colorScheme: isLight ? 'light' : 'dark',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              />
+              <span style={{ fontSize: '0.70rem', color: T.txtSecondary, fontWeight: '800' }}>s/d</span>
+              <input
+                type="date"
+                value={disparityCustomEndDate}
+                onChange={e => setDisparityCustomEndDate(e.target.value)}
+                style={{
+                  padding: '3px 6px',
+                  background: T.inputBg,
+                  border: `1px solid ${T.borderStrong}`,
+                  borderRadius: '6px',
+                  color: T.txtPrimary,
+                  fontSize: '0.74rem',
+                  fontWeight: '700',
+                  colorScheme: isLight ? 'light' : 'dark',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Quick KPI Summary Badges */}
