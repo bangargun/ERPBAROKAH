@@ -58,6 +58,89 @@ export default function SalesImportReconciliationModal({
     return masterData?.products || [];
   }, [masterData]);
 
+  const allCategories = useMemo(() => {
+    return masterData?.productCategories || [
+      { id: 1, name: 'Makanan Utama' },
+      { id: 2, name: 'Minuman' },
+      { id: 3, name: 'Snack & Tambahan' }
+    ];
+  }, [masterData]);
+
+  // Quick Product Creation State
+  const [quickCreateData, setQuickCreateData] = useState(null); // { rawName, name, categoryId, price }
+  const [isSavingNewProduct, setIsSavingNewProduct] = useState(false);
+
+  // Handle Quick Create Submit
+  const handleSaveQuickProduct = async () => {
+    if (!quickCreateData || !quickCreateData.name.trim()) return;
+    setIsSavingNewProduct(true);
+    try {
+      const nowTs = Date.now();
+      const catObj = allCategories.find(c => String(c.id) === String(quickCreateData.categoryId)) || allCategories[0];
+      const catName = catObj?.name || 'Makanan Utama';
+      const cleanName = quickCreateData.name.trim().toUpperCase();
+      const allOutlets = masterData?.outlets || [];
+
+      const newProduct = {
+        id: nowTs,
+        sku: `PRD-${String(nowTs).slice(-6)}`,
+        code: `PRD-${String(nowTs).slice(-6)}`,
+        name: cleanName,
+        category_id: quickCreateData.categoryId || (allCategories[0]?.id || 1),
+        category_name: catName,
+        category: catName,
+        price: Number(quickCreateData.price || 0),
+        cost: 0,
+        unit: 'Pcs',
+        status: 'Aktif',
+        needs_review: true,
+        status_katalog: 'perlu_diedit',
+        notes: 'Dibuat otomatis dari Impor Dokumen Penjualan (Perlu Dilengkapi)',
+        outlet_id: 'Semua Outlet',
+        outlet_name: 'Semua Outlet',
+        selectedOutletIds: allOutlets.map(o => String(o.id)),
+        selected_outlet_ids: allOutlets.map(o => String(o.id)),
+        compositions: [],
+        variants: [],
+        _updatedAt: nowTs,
+        _lastMutated: nowTs,
+        _lastUpdated: nowTs
+      };
+
+      const nextProducts = [...(masterData?.products || []), newProduct];
+      const nextMaster = {
+        ...masterData,
+        products: nextProducts,
+        _lastUpdated: nowTs,
+        _lastMutated: nowTs
+      };
+
+      if (setMasterData) setMasterData(nextMaster);
+      try {
+        localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
+      } catch (e) {}
+
+      // Save to server
+      await fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextMaster)
+      });
+
+      // Update mapping automatically to the new product name
+      setMenuMapping(prev => ({
+        ...prev,
+        [quickCreateData.rawName]: cleanName
+      }));
+
+      setQuickCreateData(null);
+    } catch (err) {
+      alert('Gagal menyimpan menu baru: ' + err.message);
+    } finally {
+      setIsSavingNewProduct(false);
+    }
+  };
+
   // Handle File Selection
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -697,10 +780,20 @@ export default function SalesImportReconciliationModal({
                             <select
                               value={currentMapped}
                               onChange={(e) => {
-                                setMenuMapping(prev => ({
-                                  ...prev,
-                                  [rawName]: e.target.value
-                                }));
+                                const val = e.target.value;
+                                if (val === '__CREATE_NEW__') {
+                                  setQuickCreateData({
+                                    rawName,
+                                    name: rawName,
+                                    categoryId: allCategories[0]?.id || 1,
+                                    price: 20000
+                                  });
+                                } else {
+                                  setMenuMapping(prev => ({
+                                    ...prev,
+                                    [rawName]: val
+                                  }));
+                                }
                               }}
                               style={{
                                 width: '100%',
@@ -716,6 +809,9 @@ export default function SalesImportReconciliationModal({
                             >
                               <option value="__KEEP_ORIGINAL__">
                                 🔒 [ Tetap Sama / Gunakan Nama Asli: {rawName} ]
+                              </option>
+                              <option value="__CREATE_NEW__" style={{ fontWeight: '900', color: '#f59e0b' }}>
+                                ➕ [ Buat Menu Master Baru: "{rawName}" ]
                               </option>
                               <optgroup label="─── Pilihan Menu Master Resmi MRIS ───">
                                 {masterProducts.map(p => (
@@ -906,6 +1002,188 @@ export default function SalesImportReconciliationModal({
         </div>
 
       </div>
+
+      {/* QUICK PRODUCT CREATION MODAL */}
+      {quickCreateData && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10000,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: isLight ? '#ffffff' : '#0f172a',
+            border: `1px solid ${T.borderStrong}`,
+            borderRadius: '14px',
+            width: '100%',
+            maxWidth: '500px',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}>
+                  <Package size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: '900', margin: 0, color: '#f59e0b' }}>
+                    Buat Menu Master Baru
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: T.txtMuted }}>
+                    Menu akan didaftarkan ke Data Master dengan status <strong>Perlu Diedit</strong>
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickCreateData(null)}
+                style={{ background: 'transparent', border: 'none', color: T.txtMuted, cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.76rem', fontWeight: '800', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>
+                  Nama Menu Resmi Restoran:
+                </label>
+                <input
+                  type="text"
+                  value={quickCreateData.name}
+                  onChange={(e) => setQuickCreateData(prev => ({ ...prev, name: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    background: isLight ? '#f8fafc' : '#1e293b',
+                    color: T.txtPrimary,
+                    fontSize: '0.84rem',
+                    fontWeight: '800'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.76rem', fontWeight: '800', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>
+                  Kategori Menu:
+                </label>
+                <select
+                  value={quickCreateData.categoryId}
+                  onChange={(e) => setQuickCreateData(prev => ({ ...prev, categoryId: Number(e.target.value) }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    background: isLight ? '#f8fafc' : '#1e293b',
+                    color: T.txtPrimary,
+                    fontSize: '0.82rem',
+                    fontWeight: '700'
+                  }}
+                >
+                  {allCategories.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.76rem', fontWeight: '800', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>
+                  Estimasi Harga Jual (Rp):
+                </label>
+                <input
+                  type="number"
+                  value={quickCreateData.price}
+                  onChange={(e) => setQuickCreateData(prev => ({ ...prev, price: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${T.border}`,
+                    background: isLight ? '#f8fafc' : '#1e293b',
+                    color: '#10b981',
+                    fontSize: '0.90rem',
+                    fontWeight: '900'
+                  }}
+                />
+              </div>
+
+              <div style={{
+                padding: '10px 12px',
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '8px',
+                fontSize: '0.74rem',
+                color: '#fbbf24',
+                lineHeight: 1.4
+              }}>
+                ℹ️ <strong>Catatan:</strong> Menu baru ini akan otomatis muncul dengan tanda kuning <strong>"Perlu Diedit / Perlu Dilengkapi"</strong> di menu Data Master Produk, sehingga Anda bisa mengupload foto atau mengatur resep bahan bakunya nanti.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: `1px solid ${T.border}`, paddingTop: '14px' }}>
+              <button
+                type="button"
+                onClick={() => setQuickCreateData(null)}
+                disabled={isSavingNewProduct}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: `1px solid ${T.border}`,
+                  background: 'transparent',
+                  color: T.txtMuted,
+                  fontSize: '0.80rem',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveQuickProduct}
+                disabled={isSavingNewProduct || !quickCreateData.name.trim()}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#fff',
+                  fontSize: '0.82rem',
+                  fontWeight: '900',
+                  cursor: isSavingNewProduct ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)'
+                }}
+              >
+                {isSavingNewProduct ? (
+                  <>
+                    <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={16} />
+                    <span>Simpan & Petakan Menu Ini</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

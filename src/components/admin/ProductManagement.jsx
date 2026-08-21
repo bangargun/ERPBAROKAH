@@ -1243,6 +1243,24 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
                     <h3 style={{ fontSize: '0.94rem', fontWeight: '900', color: T.txtPrimary, margin: 0, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>
                       {product.name}
                     </h3>
+                    {Boolean(product.needs_review || product.status_katalog === 'perlu_diedit' || (product.notes || '').includes('Perlu Dilengkapi')) && (
+                      <div style={{ marginTop: '4px' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.62rem',
+                          fontWeight: '800',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: 'rgba(245, 158, 11, 0.2)',
+                          border: '1px solid #f59e0b',
+                          color: '#fbbf24'
+                        }}>
+                          ⚠️ Perlu Diedit / Dilengkapi
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <span style={{
@@ -1425,7 +1443,25 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
 
                       {/* Product Name */}
                       <td style={{ padding: '10px 12px', fontWeight: '800', textTransform: 'uppercase' }}>
-                        {product.name}
+                        <div>{product.name}</div>
+                        {Boolean(product.needs_review || product.status_katalog === 'perlu_diedit' || (product.notes || '').includes('Perlu Dilengkapi')) && (
+                          <div style={{ marginTop: '2px' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.60rem',
+                              fontWeight: '800',
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              background: 'rgba(245, 158, 11, 0.2)',
+                              border: '1px solid #f59e0b',
+                              color: '#fbbf24'
+                            }}>
+                              ⚠️ Perlu Diedit
+                            </span>
+                          </div>
+                        )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.64rem', color: T.txtSecondary, textTransform: 'none', fontWeight: '600', marginTop: '2px', flexWrap: 'wrap' }}>
                           <span>🥣 {product.compositions?.length || 0} bahan baku</span>
                           {product.variants && product.variants.length > 0 && (
