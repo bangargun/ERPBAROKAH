@@ -42,7 +42,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 app.options('*', cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Persistent JSON Store Path
 const DB_FILE = path.join(__dirname, 'mris_finance.json');
@@ -2979,6 +2980,10 @@ app.get('/api/sales/paginated', async (req, res) => {
     });
   } catch (err) {
     console.error('GET /api/sales/paginated error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1g. POST /api/sales/parse-import-file — Parse PDF / Excel Penjualan untuk Papan Review & Koreksi
 app.post('/api/sales/parse-import-file', async (req, res) => {
   try {
