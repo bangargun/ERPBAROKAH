@@ -293,6 +293,38 @@ export default function SalesImportReconciliationModal({
     setMenuMapping(newMapping);
   };
 
+  // State & Handler for Refreshing Master Data & Menus from Server
+  const [isRefreshingMasterData, setIsRefreshingMasterData] = useState(false);
+
+  const handleRefreshMasterData = async () => {
+    setIsRefreshingMasterData(true);
+    try {
+      const res = await fetch(getApiUrl('/api/master-data'));
+      if (!res.ok) throw new Error('Gagal mengambil data master terbaru dari server');
+      const freshData = await res.json();
+      if (setMasterData) setMasterData(freshData);
+      try {
+        localStorage.setItem('mris_master_data', JSON.stringify(freshData));
+      } catch (e) {}
+
+      // Auto-match against the newly fetched products
+      if (parsedData?.uniqueRawMenus && freshData?.products) {
+        const newMapping = { ...menuMapping };
+        parsedData.uniqueRawMenus.forEach(raw => {
+          const matched = findBestMenuAndVariantMatch(raw);
+          if (matched) {
+            newMapping[raw] = matched;
+          }
+        });
+        setMenuMapping(newMapping);
+      }
+    } catch (err) {
+      console.error('Refresh master data error:', err);
+    } finally {
+      setIsRefreshingMasterData(false);
+    }
+  };
+
   // Set all to Keep Original
   const handleResetToOriginal = () => {
     if (!parsedData?.uniqueRawMenus) return;
@@ -748,7 +780,31 @@ export default function SalesImportReconciliationModal({
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleRefreshMasterData}
+                    disabled={isRefreshingMasterData}
+                    type="button"
+                    style={{
+                      padding: '6px 14px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid #38bdf8',
+                      color: '#38bdf8',
+                      borderRadius: '8px',
+                      fontSize: '0.76rem',
+                      fontWeight: '800',
+                      cursor: isRefreshingMasterData ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="Muat ulang menu & varian master terbaru dari database server"
+                  >
+                    <RefreshCw size={14} style={{ animation: isRefreshingMasterData ? 'spin 1s linear infinite' : 'none' }} />
+                    <span>{isRefreshingMasterData ? 'Memuat...' : 'Refresh Menu Master'}</span>
+                  </button>
+
                   <button
                     onClick={handleAutoMatchAll}
                     type="button"
