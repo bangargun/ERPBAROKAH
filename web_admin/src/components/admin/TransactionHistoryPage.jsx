@@ -34,6 +34,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 export default function TransactionHistoryPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const outlets = masterData?.outlets || [];
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
 
   const formatRupiah = (val) => {
     return 'Rp ' + Number(val || 0).toLocaleString('id-ID');

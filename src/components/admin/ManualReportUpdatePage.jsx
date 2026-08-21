@@ -38,6 +38,7 @@ export default function ManualReportUpdatePage({
   themeMode = 'dark' 
 }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
 
   // States
   const [searchTerm, setSearchTerm] = useState('');

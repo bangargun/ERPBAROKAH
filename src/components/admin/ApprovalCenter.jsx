@@ -30,6 +30,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function ApprovalCenter({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
   // FILTER STATES
   const [searchQuery, setSearchQuery] = useState('');
   const [outletFilter, setOutletFilter] = useState(selectedBranch || 'ALL');
