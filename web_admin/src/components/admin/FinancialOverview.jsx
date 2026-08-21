@@ -174,7 +174,7 @@ export default function FinancialOverview({
     }).format(new Date());
   }, []);
 
-  // Compute Active Dates List based on Preset
+  // Compute Active Dates List based on Preset (Formatted as MySQL YYYY-MM-DD)
   const activeDateList = useMemo(() => {
     const dates = [];
     const today = new Date();
@@ -183,19 +183,26 @@ export default function FinancialOverview({
     if (dateRangePreset === 'today') {
       dates.push(todayStr);
     } else if (dateRangePreset === 'yesterday') {
-      const yest = new Date(); yest.setDate(today.getDate() - 1);
+      const yest = new Date(today);
+      yest.setDate(today.getDate() - 1);
       dates.push(fmtDate(yest));
-    } else if (dateRangePreset === '7days') {
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setDate(today.getDate() - i);
-        dates.push(fmtDate(d));
-      }
-    } else if (dateRangePreset === '30days') {
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(); d.setDate(today.getDate() - i);
+    } else if (dateRangePreset === 'last_week') {
+      // Pekan Lalu: Dimulai dari SENIN sampai dengan MINGGU pekan lalu
+      const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
+      const daysSinceMonday = (dayOfWeek === 0 ? 7 : dayOfWeek) - 1;
+      const mondayThisWeek = new Date(today);
+      mondayThisWeek.setDate(today.getDate() - daysSinceMonday);
+
+      const mondayLastWeek = new Date(mondayThisWeek);
+      mondayLastWeek.setDate(mondayThisWeek.getDate() - 7);
+
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(mondayLastWeek);
+        d.setDate(mondayLastWeek.getDate() + i);
         dates.push(fmtDate(d));
       }
     } else if (dateRangePreset === 'this_month') {
+      // Bulan Ini (Dari tanggal 1 s/d hari ini)
       const year = today.getFullYear();
       const month = today.getMonth();
       let curr = new Date(year, month, 1);
@@ -203,16 +210,40 @@ export default function FinancialOverview({
         dates.push(fmtDate(curr));
         curr.setDate(curr.getDate() + 1);
       }
+    } else if (dateRangePreset === 'last_month') {
+      // Bulan Lalu (Dari tanggal 1 s/d hari terakhir bulan lalu)
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const firstDayLastMonth = new Date(year, month - 1, 1);
+      const lastDayLastMonth = new Date(year, month, 0);
+      let curr = new Date(firstDayLastMonth);
+      while (curr <= lastDayLastMonth) {
+        dates.push(fmtDate(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+    } else if (dateRangePreset === '7days') {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        dates.push(fmtDate(d));
+      }
+    } else if (dateRangePreset === '30days') {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        dates.push(fmtDate(d));
+      }
     } else if (dateRangePreset === 'custom' && customStartDate && customEndDate) {
-      let curr = new Date(customStartDate);
-      const end = new Date(customEndDate);
+      let curr = new Date(customStartDate + 'T00:00:00');
+      const end = new Date(customEndDate + 'T00:00:00');
       while (curr <= end) {
         dates.push(fmtDate(curr));
         curr.setDate(curr.getDate() + 1);
       }
     } else {
       for (let i = 6; i >= 0; i--) {
-        const d = new Date(); d.setDate(today.getDate() - i);
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
         dates.push(fmtDate(d));
       }
     }
@@ -731,82 +762,153 @@ export default function FinancialOverview({
         </div>
 
         {/* Global Toolbar Filters */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', width: '100%' }}>
 
-          {/* Date Preset Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
-            <Calendar size={15} color={T.txtSecondary} />
-            <select
-              value={dateRangePreset}
-              onChange={e => setDateRangePreset(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
-            >
-              <option value="today">Hari Ini</option>
-              <option value="yesterday">Kemarin</option>
-              <option value="7days">7 Hari Terakhir</option>
-              <option value="30days">30 Hari Terakhir</option>
-              <option value="this_month">Bulan Ini (MTD)</option>
-              <option value="custom">Rentang Tanggal Khusus...</option>
-            </select>
-          </div>
-
-          {/* Custom Date Pickers if selected */}
-          {dateRangePreset === 'custom' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.cardBg2, padding: '4px 8px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={e => setCustomStartDate(e.target.value)}
-                style={{ padding: '4px 6px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem' }}
-              />
-              <span style={{ fontSize: '0.70rem', color: T.txtSecondary }}>s/d</span>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={e => setCustomEndDate(e.target.value)}
-                style={{ padding: '4px 6px', background: T.inputBg, border: `1px solid ${T.border}`, borderRadius: '6px', color: T.txtPrimary, fontSize: '0.74rem' }}
-              />
-            </div>
-          )}
-
-          {/* Data Source Selector (Anti Double-Counting) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
-            <Layers size={15} color={T.txtSecondary} />
-            <select
-              value={dataSourceMode}
-              onChange={e => setDataSourceMode(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
-              title="Pilih Sumber Data Penjualan (Mencegah Double Counting)"
-            >
-              <option value="auto">📊 Otomatis (POS Prioritas)</option>
-              <option value="pos_only">🧾 Hanya Struk POS Kasir</option>
-              <option value="manual_only">📑 Hanya Rekap Manual / Excel</option>
-            </select>
-          </div>
-
-          {/* AI Refresh Button */}
-          <button
-            type="button"
-            onClick={handleTriggerAI}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '10px',
-              fontSize: '0.76rem',
-              fontWeight: '800',
-              cursor: 'pointer',
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-              color: '#ffffff',
-              border: 'none',
+            {/* Quick Date Range Tabs (Interactive Small Pills) */}
+            <div style={{
               display: 'flex',
               alignItems: 'center',
+              flexWrap: 'wrap',
               gap: '6px',
-              boxShadow: '0 3px 10px rgba(99,102,241,0.35)',
-              transition: 'transform 0.15s ease'
-            }}
-          >
-            <Sparkles size={14} className={isAnalyzingAI ? "animate-spin" : ""} />
-            <span>{isAnalyzingAI ? "Memproses AI..." : "Insight AI"}</span>
-          </button>
+              background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
+              padding: '5px',
+              borderRadius: '12px',
+              border: `1px solid ${T.border}`
+            }}>
+              {[
+                { id: 'today', label: 'Hari Ini' },
+                { id: 'yesterday', label: 'Kemarin' },
+                { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
+                { id: 'this_month', label: 'Bulan Ini' },
+                { id: 'last_month', label: 'Bulan Lalu' },
+                { id: '7days', label: '7 Hari Terakhir' },
+                { id: 'custom', label: 'Rentang Waktu 📅' }
+              ].map(tab => {
+                const isActive = dateRangePreset === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setDateRangePreset(tab.id)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
+                      background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
+                      color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+                      fontWeight: isActive ? '900' : '700',
+                      fontSize: '0.76rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      transition: 'all 0.15s ease',
+                      boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right Controls: Data Source & AI Insight */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {/* Data Source Selector (Anti Double-Counting) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: T.inputBg, padding: '4px 10px', borderRadius: '10px', border: `1px solid ${T.borderStrong}` }}>
+                <Layers size={15} color={T.txtSecondary} />
+                <select
+                  value={dataSourceMode}
+                  onChange={e => setDataSourceMode(e.target.value)}
+                  style={{ background: 'transparent', border: 'none', color: T.txtPrimary, fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer', outline: 'none' }}
+                  title="Pilih Sumber Data Penjualan (Mencegah Double Counting)"
+                >
+                  <option value="auto">📊 Otomatis (POS Prioritas)</option>
+                  <option value="pos_only">🧾 Hanya Struk POS Kasir</option>
+                  <option value="manual_only">📑 Hanya Rekap Manual / Excel</option>
+                </select>
+              </div>
+
+              {/* AI Refresh Button */}
+              <button
+                type="button"
+                onClick={handleTriggerAI}
+                disabled={isAnalyzingAI}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.78rem',
+                  cursor: isAnalyzingAI ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 10px rgba(168, 85, 247, 0.4)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Sparkles size={14} className={isAnalyzingAI ? "animate-spin" : ""} />
+                <span>{isAnalyzingAI ? 'Menganalisis...' : 'Insight AI'}</span>
+              </button>
+            </div>
+
+          </div>
+
+          {/* Custom Date Pickers Widget if selected */}
+          {dateRangePreset === 'custom' && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '10px',
+              background: T.cardBg,
+              padding: '8px 14px',
+              borderRadius: '10px',
+              border: `1px solid ${T.accentGoldBorder}`,
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              animation: 'fadeIn 0.2s ease-in-out'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', fontWeight: '800', color: T.accentGold }}>
+                <Calendar size={15} />
+                <span>Pilih Rentang Kalender:</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={e => setCustomStartDate(e.target.value)}
+                  style={{
+                    padding: '5px 8px',
+                    background: T.inputBg,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: '6px',
+                    color: T.txtPrimary,
+                    fontSize: '0.76rem',
+                    fontWeight: '700'
+                  }}
+                />
+                <span style={{ fontSize: '0.72rem', color: T.txtSecondary, fontWeight: '700' }}>s/d</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={e => setCustomEndDate(e.target.value)}
+                  style={{
+                    padding: '5px 8px',
+                    background: T.inputBg,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: '6px',
+                    color: T.txtPrimary,
+                    fontSize: '0.76rem',
+                    fontWeight: '700'
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
