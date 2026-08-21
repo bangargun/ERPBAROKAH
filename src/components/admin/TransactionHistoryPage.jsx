@@ -1389,13 +1389,32 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
 
                     {/* No. Struk (Clickable to open Invoice) */}
                     <td style={{ padding: '10px 14px' }}>
-                      <span 
-                        onClick={() => handleOpenInvoiceDetail(item)}
-                        style={{ color: T.info, fontWeight: '800', cursor: 'pointer', fontFamily: 'monospace', fontSize: '0.86rem' }}
-                        title="Klik untuk membuka rincian invoice POS"
-                      >
-                        {item.receipt_no || item.receiptNo || item.id || `POS-${idx + 1}`}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span 
+                          onClick={() => handleOpenInvoiceDetail(item)}
+                          style={{ color: T.info, fontWeight: '800', cursor: 'pointer', fontFamily: 'monospace', fontSize: '0.86rem' }}
+                          title="Klik untuk membuka rincian invoice POS"
+                        >
+                          {item.receipt_no || item.receiptNo || item.id || `POS-${idx + 1}`}
+                        </span>
+
+                        {Boolean(item.source?.includes('import') || item.cashier?.includes('Impor') || (item.notes || '').toLowerCase().includes('impor') || (item.receipt_no || '').startsWith('IMP-')) && (
+                          <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: '800',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            color: '#38bdf8',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }} title={item.notes || 'Data berasal dari Impor Dokumen'}>
+                            📥 Impor
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Outlet */}
