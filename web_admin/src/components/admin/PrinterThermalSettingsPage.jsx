@@ -631,11 +631,19 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
             <div>
               {/* HEADER */}
               <div style={{ textAlign: receiptStyle.headerAlign || 'center' }}>
-                <div style={{ fontSize: '0.98rem', fontWeight: '900', letterSpacing: '0.5px' }}>
+                <div style={{ 
+                  fontSize: is58mm ? ((headerFooter?.restaurantName || '').length > 20 ? '0.82rem' : '0.94rem') : '1.05rem', 
+                  fontWeight: '900', 
+                  letterSpacing: '0.2px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  textAlign: 'center'
+                }}>
                   {headerFooter?.restaurantName || 'MRIS RESTORAN'}
                 </div>
                 {headerFooter?.groupName && (
-                  <div style={{ fontSize: '0.74rem', fontWeight: '700', color: '#4b5563' }}>{headerFooter.groupName}</div>
+                  <div style={{ fontSize: '0.74rem', fontWeight: '700', color: '#4b5563', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{headerFooter.groupName}</div>
                 )}
                 {headerFooter?.address && (
                   <div style={{ fontSize: '0.70rem', color: '#4b5563' }}>{headerFooter.address}</div>
@@ -746,7 +754,15 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
           {receiptType === 'bill' && (
             <div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.95rem', fontWeight: '900' }}>{headerFooter?.restaurantName || 'MRIS RESTORAN'}</div>
+                <div style={{ 
+                  fontSize: is58mm ? ((headerFooter?.restaurantName || '').length > 20 ? '0.82rem' : '0.94rem') : '1.05rem', 
+                  fontWeight: '900',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {headerFooter?.restaurantName || 'MRIS RESTORAN'}
+                </div>
                 <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '2px' }}>TAGIHAN SEMENTARA</div>
               </div>
               <div style={{ margin: '8px 0', textAlign: 'center', color: '#9ca3af' }}>{sepChar.repeat(36)}</div>
@@ -797,7 +813,15 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
           {receiptType === 'kitchen' && (
             <div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.95rem', fontWeight: '900' }}>{headerFooter?.restaurantName || 'MRIS RESTORAN'}</div>
+                <div style={{ 
+                  fontSize: is58mm ? ((headerFooter?.restaurantName || '').length > 20 ? '0.82rem' : '0.94rem') : '1.05rem', 
+                  fontWeight: '900',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {headerFooter?.restaurantName || 'MRIS RESTORAN'}
+                </div>
                 <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '2px' }}>STRUK DAPUR (KITCHEN TICKET)</div>
               </div>
               <div style={{ margin: '8px 0', textAlign: 'center', color: '#9ca3af' }}>{sepChar.repeat(36)}</div>
