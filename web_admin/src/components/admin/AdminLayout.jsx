@@ -106,36 +106,36 @@ export default function AdminLayout({
     {
       title: 'UTAMA & PENJUALAN',
       items: [
-        { id: 'dashboard',           label: '1. Dashboard',                      icon: LayoutDashboard,  permKey: 'dashboard' },
-        { id: 'data',                label: '2. Data Master',                    icon: Database,         permKey: 'masterData' },
-        { id: 'sales',               label: '3. Penjualan',                      icon: ShoppingBag,      permKey: 'reports' }
+        { id: 'dashboard',           label: 'Dashboard',                     icon: LayoutDashboard,  permKey: 'dashboard' },
+        { id: 'data',                label: 'Data Master',                   icon: Database,         permKey: 'masterData' },
+        { id: 'sales',               label: 'Penjualan',                     icon: ShoppingBag,      permKey: 'reports' }
       ]
     },
     {
       title: 'OPERASIONAL & LOGISTIK',
       items: [
-        { id: 'kitchen',             label: '15. Kitchen Display (KDS)',         icon: UtensilsCrossed,  permKey: 'dashboard' },
-        { id: 'stock',               label: '4. Logistik',                       icon: Package,          permKey: 'stock' },
-        { id: 'adjustments',         label: '5. Penyesuaian',                    icon: SlidersHorizontal, permKey: 'stock' },
-        { id: 'update_laporan',      label: '6. Update Laporan Harian',          icon: FileSpreadsheet,  permKey: 'reports' },
-        { id: 'daily_approval',      label: '7. Verifikasi & Approval Laporan',  icon: ClipboardCheck,   permKey: 'reports' }
+        { id: 'kitchen',             label: 'Kitchen Display (KDS)',         icon: UtensilsCrossed,  permKey: 'dashboard' },
+        { id: 'stock',               label: 'Logistik',                      icon: Package,          permKey: 'stock' },
+        { id: 'adjustments',         label: 'Penyesuaian',                   icon: SlidersHorizontal, permKey: 'stock' },
+        { id: 'update_laporan',      label: 'Update Laporan Harian',         icon: FileSpreadsheet,  permKey: 'reports' },
+        { id: 'daily_approval',      label: 'Verifikasi & Approval',         icon: ClipboardCheck,   permKey: 'reports' }
       ]
     },
     {
       title: 'ANALISIS & KEUANGAN',
       items: [
-        { id: 'ingredient_analysis', label: '8. Analisis Harga Bahan',           icon: Scale,            permKey: 'reports' },
-        { id: 'reports',             label: '9. Laporan Keuangan',               icon: FileText,         permKey: 'reports' }
+        { id: 'ingredient_analysis', label: 'Analisis Harga Bahan',          icon: Scale,            permKey: 'reports' },
+        { id: 'reports',             label: 'Laporan Keuangan',              icon: FileText,         permKey: 'reports' }
       ]
     },
     {
       title: 'SISTEM & PENGATURAN',
       items: [
-        { id: 'printer_settings',    label: '10. Printer & Thermal',             icon: Printer,          permKey: 'settings' },
-        { id: 'sop',                 label: '11. Kelola SOP Restoran',           icon: BookOpen,         permKey: 'policies' },
-        { id: 'loyalty',             label: '12. Program Loyalitas',             icon: Award,            permKey: 'masterData' },
-        { id: 'settings',            label: '13. Pengaturan',                    icon: Settings,         permKey: 'settings' },
-        { id: 'activity_log',        label: '14. Log Aktivitas',                 icon: History,          permKey: 'settings' }
+        { id: 'printer_settings',    label: 'Printer & Thermal',             icon: Printer,          permKey: 'settings' },
+        { id: 'sop',                 label: 'Kelola SOP Restoran',           icon: BookOpen,         permKey: 'policies' },
+        { id: 'loyalty',             label: 'Program Loyalitas',             icon: Award,            permKey: 'masterData' },
+        { id: 'settings',            label: 'Pengaturan',                    icon: Settings,         permKey: 'settings' },
+        { id: 'activity_log',        label: 'Log Aktivitas',                 icon: History,          permKey: 'settings' }
       ]
     }
   ];
@@ -309,7 +309,7 @@ export default function AdminLayout({
               title="Update data penjualan & pengeluaran (Manual & Excel)"
             >
               <PlusCircle size={17} color="#000000" />
-              <span>+ Update Laporan</span>
+              <span>Update Laporan</span>
             </button>
           </div>
 
