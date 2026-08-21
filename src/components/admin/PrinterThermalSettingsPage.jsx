@@ -665,6 +665,10 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
                   <span style={{ fontWeight: '700' }}>Dine In (Meja 04)</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Pelanggan:</span>
+                  <span style={{ fontWeight: '700' }}>Bpk. Hendra (VIP)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Kasir:</span>
                   <span>Widia</span>
                 </div>
@@ -746,9 +750,19 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
                 <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '2px' }}>TAGIHAN SEMENTARA</div>
               </div>
               <div style={{ margin: '8px 0', textAlign: 'center', color: '#9ca3af' }}>{sepChar.repeat(36)}</div>
-              <div style={{ fontSize: '0.72rem' }}>
-                <div>Meja: Meja 04</div>
-                <div>Waktu: 21/08/2026 12:45</div>
+              <div style={{ fontSize: '0.72rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Meja:</span>
+                  <span style={{ fontWeight: '700' }}>Meja 04</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Pelanggan:</span>
+                  <span style={{ fontWeight: '700' }}>Bpk. Hendra</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Waktu:</span>
+                  <span>21/08/2026 12:45</span>
+                </div>
               </div>
               <div style={{ margin: '8px 0', textAlign: 'center', color: '#9ca3af' }}>{sepChar.repeat(36)}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -787,10 +801,23 @@ function ThermalReceiptPreviewSection({ printerSettings, headerFooter, receiptSt
                 <div style={{ fontSize: '0.75rem', fontWeight: '800', marginTop: '2px' }}>STRUK DAPUR (KITCHEN TICKET)</div>
               </div>
               <div style={{ margin: '8px 0', textAlign: 'center', color: '#9ca3af' }}>{sepChar.repeat(36)}</div>
-              <div style={{ fontSize: '0.72rem' }}>
-                <div>No. Order: TO-17853-04</div>
-                <div style={{ fontWeight: '900', fontSize: '0.85rem', color: '#1d4ed8' }}>MEJA 04 (DINE IN)</div>
-                <div>Pelayan: Rian • 12:45</div>
+              <div style={{ fontSize: '0.72rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>No. Order:</span>
+                  <span>TO-17853-04</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Meja:</span>
+                  <span style={{ fontWeight: '900', color: '#1d4ed8' }}>MEJA 04 (DINE IN)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Pelanggan:</span>
+                  <span style={{ fontWeight: '700' }}>Bpk. Hendra</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Pelayan:</span>
+                  <span>Rian • 12:45</span>
+                </div>
               </div>
               <div style={{ margin: '8px 0', textAlign: 'center', color: '#9ca3af' }}>{sepChar.repeat(36)}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

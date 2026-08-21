@@ -109,6 +109,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
 
   const orderTypeLabel = isTakeAway ? 'TAKE AWAY / BUNGKUS' : 'DINE IN';
   const tableDisplay = isTakeAway ? 'TAKE AWAY' : (tx.table_number || 'Meja 01');
+  const custName = (tx.customer_name || tx.customerName || tx.customer || tx.nama_pelanggan || tx.pelanggan || 'Pelanggan Umum');
 
   if (ticketType === 'kitchen') {
     // ===== STRUK DAPUR (KITCHEN TICKET - TANPA HARGA) =====
@@ -120,7 +121,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     if (!isTakeAway) {
       lines.push(rowLine('Meja:', tableDisplay));
     }
-    lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
+    lines.push(rowLine('Pelanggan:', custName));
     lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
     lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
@@ -147,7 +148,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     if (!isTakeAway) {
       lines.push(rowLine('Meja:', tableDisplay));
     }
-    lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
+    lines.push(rowLine('Pelanggan:', custName));
     lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
     lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
@@ -176,7 +177,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     if (!isTakeAway) {
       lines.push(rowLine('Meja:', tableDisplay));
     }
-    lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
+    lines.push(rowLine('Pelanggan:', custName));
     lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
     lines.push(rowLine('ITEM', 'SUBTOTAL'));
@@ -204,7 +205,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     if (!isTakeAway) {
       lines.push(rowLine('Meja:', tableDisplay));
     }
-    lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
+    lines.push(rowLine('Pelanggan:', custName));
     lines.push(rowLine('Waktu:', (tx.date || '') + ' ' + (tx.time || '')));
     lines.push(rowLine('Kasir/Waiter:', tx.cashier || '-'));
     lines.push('[DIV]');
@@ -241,7 +242,7 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     if (!isTakeAway) {
       lines.push(rowLine('Meja:', tableDisplay));
     }
-    lines.push(rowLine('Pelanggan:', tx.customer_name || 'Pelanggan Umum'));
+    lines.push(rowLine('Pelanggan:', custName));
     lines.push(rowLine('Kasir:', tx.cashier || '-'));
     lines.push('[DIV]');
     lines.push(rowLine('ITEM', 'SUBTOTAL'));
