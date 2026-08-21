@@ -3191,6 +3191,176 @@ app.post('/api/sales/execute-import-batch', async (req, res) => {
   }
 });
 
+// 1i. POST /api/expenses/parse-import-file — Parse Dokumen Pengeluaran (PDF / Excel)
+app.post('/api/expenses/parse-import-file', async (req, res) => {
+  try {
+    const { fileName, fileData } = req.body;
+    if (!fileName || !fileData) {
+      return res.status(400).json({ success: false, error: 'File atau data file tidak boleh kosong' });
+    }
+
+    const base64Clean = fileData.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Clean, 'base64');
+    const ext = path.extname(fileName).toLowerCase();
+    const tempFileName = `upload_exp_${Date.now()}${ext}`;
+    const targetPath = path.join('/tmp', tempFileName);
+
+    fs.writeFileSync(targetPath, buffer);
+
+    if (ext === '.pdf') {
+      const scriptPath = path.join(__dirname, 'scripts', 'pdf_expense_parser.py');
+      exec(`python3 "${scriptPath}" "${targetPath}"`, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('Expense PDF Parse Error:', stderr || err.message);
+          return res.status(500).json({ success: false, error: `Gagal mem-parse PDF: ${stderr || err.message}` });
+        }
+        try {
+          const parsed = JSON.parse(stdout);
+          return res.json(parsed);
+        } catch (parseErr) {
+          console.error('Expense PDF JSON parse error:', stdout.substring(0, 300));
+          return res.status(500).json({ success: false, error: 'Output parser PDF pengeluaran tidak valid' });
+        }
+      });
+    } else {
+      // Excel Expense Parser
+      const workbook = XLSX.readFile(targetPath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+
+      const expList = [];
+      const uniqueRawItems = new Set();
+      const uniqueSuppliers = new Set();
+      let totalExpense = 0;
+
+      rows.forEach((r, idx) => {
+        const rawDate = String(r.Tanggal || r.Date || r.date || r.tanggal || '').trim();
+        const dMatch = rawDate.match(/(\d{4}[-/]\d{2}[-/]\d{2})|(\d{2}[-/]\d{2}[-/]\d{4})/);
+        let isoDate = new Date().toISOString().split('T')[0];
+        if (dMatch) {
+          const dStr = dMatch[0];
+          if (dStr.includes('/')) {
+            const p = dStr.split('/');
+            isoDate = p[0].length === 4 ? `${p[0]}-${p[1]}-${p[2]}` : `${p[2]}-${p[1]}-${p[0]}`;
+          } else {
+            isoDate = dStr;
+          }
+        }
+
+        const rawItem = String(r.Item || r.Bahan || r.Barang || r.Keterangan || r.Deskripsi || r.Biaya || r.item || '').trim() || `Pengeluaran #${idx + 1}`;
+        const supplier = String(r.Supplier || r.Pemasok || r.Toko || r.supplier || 'Supplier Umum / Pasar').trim();
+        const amountVal = Number(String(r.Jumlah || r.Total || r.Amount || r.Nominal || r.total || 0).replace(/[^0-9.-]+/g, '')) || 0;
+        totalExpense += amountVal;
+
+        uniqueRawItems.add(rawItem);
+        if (supplier) uniqueSuppliers.add(supplier);
+
+        const receiptId = `EXP-XLS-${isoDate.replace(/-/g, '')}-${String(idx + 1).padStart(4, '0')}`;
+        expList.push({
+          id: receiptId,
+          receipt_no: receiptId,
+          date: isoDate,
+          time: '12:00:00',
+          outlet_name: String(r.Outlet || r.Cabang || 'Semua Outlet'),
+          supplier_name: supplier,
+          raw_item: rawItem,
+          raw_items: [rawItem],
+          amount: amountVal,
+          payment_method: String(r.Metode || r.Payment || 'Cash / Kasir'),
+          notes: String(r.Catatan || r.Notes || 'Diimpor dari Excel Pengeluaran')
+        });
+      });
+
+      return res.json({
+        success: true,
+        totalPages: 1,
+        totalCount: expList.length,
+        totalExpense,
+        dateStart: expList[0]?.date || '',
+        dateEnd: expList[expList.length - 1]?.date || '',
+        suppliersDetected: Array.from(uniqueSuppliers),
+        uniqueRawItems: Array.from(uniqueRawItems),
+        expenses: expList
+      });
+    }
+  } catch (err) {
+    console.error('POST /api/expenses/parse-import-file error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1j. POST /api/expenses/execute-import-batch — Simpan Seluruh Pengeluaran Terpetakan ke MySQL & Update Stok
+app.post('/api/expenses/execute-import-batch', async (req, res) => {
+  try {
+    const { expenses = [], itemMapping = {}, increaseStock = false, defaultOutletId = null } = req.body;
+
+    if (!Array.isArray(expenses) || expenses.length === 0) {
+      return res.status(400).json({ success: false, error: 'Tidak ada pengeluaran yang dikirim' });
+    }
+
+    const masterData = await getUnifiedData();
+    let insertedCount = 0;
+    let totalInsertedAmount = 0;
+    const nowTs = Date.now();
+
+    const createdTxList = [];
+
+    for (const exp of expenses) {
+      const expId = String(exp.id || `EXP-IMP-${nowTs}-${insertedCount}`);
+      const expDate = exp.date || new Date().toISOString().split('T')[0];
+      const outletId = Number(defaultOutletId || exp.outlet_id || 1);
+      const branchName = exp.outlet_name || 'Semua Outlet';
+      const amount = Number(exp.amount || 0);
+      const rawItem = exp.raw_item || 'Bahan / Biaya Operasional';
+      const mappedCategoryOrItem = itemMapping[rawItem] || rawItem;
+      const supplierName = exp.supplier_name || 'Supplier Pasar';
+      totalInsertedAmount += amount;
+
+      const txObj = {
+        id: nowTs + insertedCount,
+        receipt_no: exp.receipt_no || expId,
+        branch_id: outletId,
+        outlet_id: outletId,
+        branch_name: branchName,
+        type: 'expense',
+        category: mappedCategoryOrItem,
+        amount: amount,
+        description: `Pembelian/Beban: ${rawItem} (${supplierName})`,
+        supplier_name: supplierName,
+        payment_method: exp.payment_method || 'Cash / Kasir',
+        date: expDate,
+        time: exp.time || '12:00:00',
+        created_by: 'Impor Dokumen Pengeluaran',
+        status: 'approved',
+        notes: exp.notes || 'Diimpor dari Dokumen Pengeluaran'
+      };
+
+      createdTxList.push(txObj);
+      insertedCount++;
+    }
+
+    masterData.transactions = [...createdTxList, ...(masterData.transactions || [])];
+    masterData.cogsExpenses = [...createdTxList, ...(masterData.cogsExpenses || [])];
+    masterData._lastUpdated = Date.now();
+    masterData._lastMutated = Date.now();
+
+    await saveMasterDataToMySQL(masterData);
+    await syncToMySQL(masterData);
+
+    console.log(`[ExpenseImport] Berhasil mengimpor ${insertedCount} pengeluaran (Total: Rp ${totalInsertedAmount.toLocaleString('id-ID')})`);
+    return res.json({
+      success: true,
+      count: insertedCount,
+      totalAmount: totalInsertedAmount,
+      message: `Berhasil mengimpor ${insertedCount} data pengeluaran ke dalam database sistem.`
+    });
+  } catch (err) {
+    console.error('POST /api/expenses/execute-import-batch error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 2. POST /api/pos/shift-close — Direct POS Shift Closing (Auto-Approved & Immediate)
 app.post('/api/pos/shift-close', async (req, res) => {
   try {

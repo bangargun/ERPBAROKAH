@@ -788,6 +788,25 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
                     {ing.name}
                   </h3>
 
+                  {Boolean(ing.needs_review || ing.status_katalog === 'perlu_diedit' || (ing.notes || '').includes('Perlu Dilengkapi')) && (
+                    <div style={{ marginBottom: '6px' }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.62rem',
+                        fontWeight: '800',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: 'rgba(239, 68, 68, 0.2)',
+                        border: '1px solid #ef4444',
+                        color: '#f87171'
+                      }}>
+                        ⚠️ Perlu Diedit / Dilengkapi (Dari Impor)
+                      </span>
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '10px' }}>
                     <span style={{
                       fontSize: '0.66rem',
@@ -952,13 +971,33 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
 
                       {/* Name */}
                       <td style={{ padding: '10px 12px', fontWeight: '800', textTransform: 'uppercase' }}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedIngredientDetail(ing)}
-                          style={{ background: 'none', border: 'none', color: T.txtPrimary, fontWeight: '800', cursor: 'pointer', padding: 0, textTransform: 'uppercase' }}
-                        >
-                          {ing.name}
-                        </button>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedIngredientDetail(ing)}
+                            style={{ background: 'none', border: 'none', color: T.txtPrimary, fontWeight: '800', cursor: 'pointer', padding: 0, textTransform: 'uppercase' }}
+                          >
+                            {ing.name}
+                          </button>
+                        </div>
+                        {Boolean(ing.needs_review || ing.status_katalog === 'perlu_diedit' || (ing.notes || '').includes('Perlu Dilengkapi')) && (
+                          <div style={{ marginTop: '2px' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.60rem',
+                              fontWeight: '800',
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              background: 'rgba(239, 68, 68, 0.2)',
+                              border: '1px solid #ef4444',
+                              color: '#f87171'
+                            }}>
+                              ⚠️ Perlu Diedit
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Category */}

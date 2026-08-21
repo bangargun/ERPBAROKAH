@@ -39,6 +39,7 @@ import { checkWebPermission } from '../../utils/permissionUtils';
 import { getThemePalette } from '../../utils/themeUtils';
 import ManualReportUpdateModal from './ManualReportUpdateModal';
 import SalesImportReconciliationModal from './SalesImportReconciliationModal';
+import ExpenseImportReconciliationModal from './ExpenseImportReconciliationModal';
 
 export default function AdminLayout({ 
   activeTab, 
@@ -60,6 +61,7 @@ export default function AdminLayout({
 }) {
   const [showUpdateLaporanModal, setShowUpdateLaporanModal] = useState(false);
   const [showSalesImportModal, setShowSalesImportModal] = useState(false);
+  const [showExpenseImportModal, setShowExpenseImportModal] = useState(false);
   const [showInboxDropdown, setShowInboxDropdown] = useState(false);
   const [readNotifIds, setReadNotifIds] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -336,7 +338,32 @@ export default function AdminLayout({
               title="Impor dokumen Penjualan PDF & Excel dengan Papan Review & Koreksi Menu"
             >
               <FileSpreadsheet size={15} color="#fbbf24" />
-              <span>Impor Dokumen (PDF / Excel)</span>
+              <span>Impor Penjualan (PDF / Excel)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowExpenseImportModal(true)}
+              style={{
+                width: '100%',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: '#f87171',
+                fontWeight: '800',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.18s ease'
+              }}
+              title="Impor dokumen Pengeluaran & Pembelian Bahan Baku (PDF / Excel)"
+            >
+              <ShoppingBasket size={15} color="#f87171" />
+              <span>Impor Pengeluaran (PDF / Excel)</span>
             </button>
           </div>
 
@@ -850,6 +877,16 @@ export default function AdminLayout({
       <SalesImportReconciliationModal
         show={showSalesImportModal}
         onClose={() => setShowSalesImportModal(false)}
+        masterData={masterData}
+        setMasterData={setMasterData}
+        userSession={userSession}
+        themeMode={themeMode}
+      />
+
+      {/* EXPENSE & INGREDIENT RECONCILIATION IMPORT MODAL (PDF & EXCEL) */}
+      <ExpenseImportReconciliationModal
+        isOpen={showExpenseImportModal}
+        onClose={() => setShowExpenseImportModal(false)}
         masterData={masterData}
         setMasterData={setMasterData}
         userSession={userSession}
