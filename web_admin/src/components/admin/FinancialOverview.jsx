@@ -68,6 +68,7 @@ export default function FinancialOverview({
   themeMode = 'dark' 
 }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
 
   // Master Data Entities
   const allOutlets = outlets || masterData?.outlets || [];
