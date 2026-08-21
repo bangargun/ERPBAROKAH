@@ -1482,10 +1482,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // Filtered transactions for Omzet Calculation
   const filteredOmzetTxs = transactions.filter(t => {
-    if (startDate && t.date < startDate) return false;
-    if (endDate && t.date > endDate) return false;
-    if (!selectedOutletIds.includes('ALL') && !selectedOutletIds.includes(t.outlet_id)) return false;
-    if (selectedBranch && t.outlet_id !== selectedBranch) return false;
+    const dt = extractTxDate(t);
+    if (startDate && dt < startDate) return false;
+    if (endDate && dt > endDate) return false;
+    if (!selectedOutletIds.includes('ALL') && !selectedOutletIds.some(id => String(id) === String(t.outlet_id))) return false;
+    if (selectedBranch && String(t.outlet_id) !== String(selectedBranch)) return false;
     if (t.status === 'Void') return false;
     return true;
   });
@@ -1493,7 +1494,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   // Grouped Pivot Data Matrix (Grouped by Date, values per outlet)
   const pivotOmzetMap = {};
   filteredOmzetTxs.forEach(t => {
-    const d = t.date;
+    const d = extractTxDate(t) || 'Tanpa Tanggal';
     if (!pivotOmzetMap[d]) {
       pivotOmzetMap[d] = {
         date: d,
@@ -2035,7 +2036,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     // 2. Pre-filter valid transactions
     const validTxs = salesTx.filter(t => {
       if (t.status === 'Void') return false;
-      const dt = String(t.date || t.timestamp || t.created_at || '').slice(0, 10);
+      const dt = extractTxDate(t);
       if (start && dt < start) return false;
       if (end && dt > end) return false;
       return true;
@@ -2428,10 +2429,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
 
     const filteredTxs = salesTx.filter(t => {
-      if (sumStartDate && t.date < sumStartDate) return false;
-      if (sumEndDate && t.date > sumEndDate) return false;
-      if (!sumSelectedOutletIds.includes('ALL') && !sumSelectedOutletIds.includes(t.outlet_id)) return false;
-      if (selectedBranch && t.outlet_id !== selectedBranch) return false;
+      const dt = extractTxDate(t);
+      if (sumStartDate && dt < sumStartDate) return false;
+      if (sumEndDate && dt > sumEndDate) return false;
+      if (!sumSelectedOutletIds.includes('ALL') && !sumSelectedOutletIds.some(id => String(id) === String(t.outlet_id))) return false;
+      if (selectedBranch && String(t.outlet_id) !== String(selectedBranch)) return false;
       return true;
     });
 
@@ -2701,10 +2703,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   };
 
   const filteredCategoryTxs = transactions.filter(t => {
-    if (catStartDate && t.date < catStartDate) return false;
-    if (catEndDate && t.date > catEndDate) return false;
+    const dt = extractTxDate(t);
+    if (catStartDate && dt < catStartDate) return false;
+    if (catEndDate && dt > catEndDate) return false;
     // Use catSelectedOutletIds (already synced with selectedBranch via useEffect)
-    if (!catSelectedOutletIds.includes('ALL') && !catSelectedOutletIds.includes(t.outlet_id)) return false;
+    if (!catSelectedOutletIds.includes('ALL') && !catSelectedOutletIds.some(id => String(id) === String(t.outlet_id))) return false;
     if (t.status === 'Void') return false;
     return true;
   });
@@ -2873,10 +2876,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   };
 
   const filteredSummaryTxs = transactions.filter(t => {
-    if (sumStartDate && t.date < sumStartDate) return false;
-    if (sumEndDate && t.date > sumEndDate) return false;
-    if (!sumSelectedOutletIds.includes('ALL') && !sumSelectedOutletIds.includes(t.outlet_id)) return false;
-    if (selectedBranch && t.outlet_id !== selectedBranch) return false;
+    const dt = extractTxDate(t);
+    if (sumStartDate && dt < sumStartDate) return false;
+    if (sumEndDate && dt > sumEndDate) return false;
+    if (!sumSelectedOutletIds.includes('ALL') && !sumSelectedOutletIds.some(id => String(id) === String(t.outlet_id))) return false;
+    if (selectedBranch && String(t.outlet_id) !== String(selectedBranch)) return false;
     if (t.status === 'Void') return false;
     return true;
   });
@@ -2970,10 +2974,11 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   };
 
   const filteredDailyTxs = transactions.filter(t => {
-    if (dailyStartDate && t.date < dailyStartDate) return false;
-    if (dailyEndDate && t.date > dailyEndDate) return false;
-    if (!dailySelectedOutletIds.includes('ALL') && !dailySelectedOutletIds.includes(t.outlet_id)) return false;
-    if (selectedBranch && t.outlet_id !== selectedBranch) return false;
+    const dt = extractTxDate(t);
+    if (dailyStartDate && dt < dailyStartDate) return false;
+    if (dailyEndDate && dt > dailyEndDate) return false;
+    if (!dailySelectedOutletIds.includes('ALL') && !dailySelectedOutletIds.some(id => String(id) === String(t.outlet_id))) return false;
+    if (selectedBranch && String(t.outlet_id) !== String(selectedBranch)) return false;
     if (t.status === 'Void') return false;
     return true;
   });
@@ -2981,7 +2986,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
   // Group transactions by date
   const dailyOmzetMap = {};
   filteredDailyTxs.forEach(t => {
-    const d = t.date;
+    const d = extractTxDate(t) || 'Tanpa Tanggal';
     if (!dailyOmzetMap[d]) {
       dailyOmzetMap[d] = {
         date: d,
@@ -3040,7 +3045,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     const map = {};
 
     txs.forEach(t => {
-      const d = t.date || new Date().toISOString().split('T')[0];
+      const d = extractTxDate(t) || 'Tanpa Tanggal';
       if (!map[d]) {
         map[d] = {
           date: d,
@@ -3554,56 +3559,20 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     printWindow.document.close();
   };
 
-  // RECEIPTS SALES CALCULATIONS & FILTERS
-  const handleApplyRcptDatePreset = (presetKey) => {
-    setRcptDatePreset(presetKey);
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+  const totalHourlyNet = hourlyBuckets.reduce((acc, b) => acc + b.net, 0);
+  const totalHourlyTx = hourlyBuckets.reduce((acc, b) => acc + b.txCount, 0);
 
-    if (presetKey === 'today') {
-      setRcptStartDate(todayStr);
-      setRcptEndDate(todayStr);
-    } else if (presetKey === '7days') {
-      const past = new Date();
-      past.setDate(today.getDate() - 7);
-      setRcptStartDate(past.toISOString().split('T')[0]);
-      setRcptEndDate(todayStr);
-    } else if (presetKey === 'month') {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      setRcptStartDate(firstDay.toISOString().split('T')[0]);
-      setRcptEndDate(todayStr);
-    } else {
-      setRcptStartDate('');
-      setRcptEndDate('');
-    }
-  };
-
-  const handleToggleRcptOutlet = (idVal) => {
-    if (idVal === 'ALL') {
-      setRcptSelectedOutletIds(['ALL']);
-    } else {
-      let updated = rcptSelectedOutletIds.filter(id => id !== 'ALL');
-      if (updated.includes(idVal)) {
-        updated = updated.filter(id => id !== idVal);
-      } else {
-        updated.push(idVal);
-      }
-      if (updated.length === 0) updated = ['ALL'];
-      setRcptSelectedOutletIds(updated);
-    }
-  };
-
-  const handleToggleRcptColumn = (colKey) => {
-    setRcptVisibleColumns(prev => ({ ...prev, [colKey]: !prev[colKey] }));
-  };
+  // Peak Hour Determination
+  const peakHourBucket = hourlyBuckets.reduce((max, b) => b.net > max.net ? b : max, hourlyBuckets[0]);
 
   // Filtered transactions for receipts (status !== 'Void')
   const filteredRcptTxs = transactions.filter(t => {
     if (t.status === 'Void') return false;
-    if (rcptStartDate && t.date < rcptStartDate) return false;
-    if (rcptEndDate && t.date > rcptEndDate) return false;
-    if (!rcptSelectedOutletIds.includes('ALL') && !rcptSelectedOutletIds.includes(t.outlet_id)) return false;
-    if (selectedBranch && t.outlet_id !== selectedBranch) return false;
+    const dt = extractTxDate(t);
+    if (rcptStartDate && dt < rcptStartDate) return false;
+    if (rcptEndDate && dt > rcptEndDate) return false;
+    if (!rcptSelectedOutletIds.includes('ALL') && !rcptSelectedOutletIds.some(id => String(id) === String(t.outlet_id))) return false;
+    if (selectedBranch && String(t.outlet_id) !== String(selectedBranch)) return false;
     return true;
   });
 
@@ -3640,7 +3609,7 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     });
 
     const filteredTxs = salesTx.filter(t => {
-      const d = String(t.date || t.entry_date || t.transaction_date || t.created_at || '').substring(0, 10);
+      const d = extractTxDate(t);
       if (rcptStartDate && d && d < rcptStartDate) return false;
       if (rcptEndDate && d && d > rcptEndDate) return false;
       if (!rcptSelectedOutletIds.includes('ALL')) {
@@ -3878,7 +3847,9 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
   // Generate MoM Comparison Data per Outlet across Months
   const generateMonthlyComparisonData = () => {
-    const activeOutlets = outlets || [];
+    const activeOutlets = momSelectedOutletIds.includes('ALL')
+      ? (outlets || [])
+      : (outlets || []).filter(o => momSelectedOutletIds.some(id => Number(id) === Number(o.id)));
     const salesTx = masterData?.salesTransactions || masterData?.transactions || [];
 
     if (salesTx.length === 0) {
@@ -3889,21 +3860,17 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
 
     salesTx.forEach(t => {
       if (t.status === 'Void') return;
-      const d = t.date;
+      const d = extractTxDate(t);
       if (!d) return;
+      if (momStartDate && d < momStartDate) return;
+      if (momEndDate && d > momEndDate) return;
+      const otlId = Number(t.outlet_id || 1);
+      if (!momSelectedOutletIds.includes('ALL') && !momSelectedOutletIds.some(id => Number(id) === otlId)) return;
+      if (selectedBranch && Number(t.outlet_id) !== Number(selectedBranch)) return;
       
-      let monthKey = '';
-      if (d.includes('-')) {
-        const parts = d.split('-');
-        if (parts.length >= 2) monthKey = `${parts[0]}-${parts[1]}`;
-      } else if (d.includes('/')) {
-        const parts = d.split('/');
-        if (parts.length === 3) monthKey = `${parts[2]}-${parts[1].padStart(2, '0')}`;
-      }
-
+      let monthKey = d.slice(0, 7);
       if (!monthKey) return;
 
-      const otlId = Number(t.outlet_id || 1);
       const gross = Number(t.amount || t.total_amount || t.grand_total || 0);
       const disc = Number(t.discount || t.discount_amount || 0);
       const net = gross - disc;
