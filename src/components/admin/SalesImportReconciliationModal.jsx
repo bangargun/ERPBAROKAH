@@ -53,10 +53,84 @@ export default function SalesImportReconciliationModal({
   const [selectedOutletOverride, setSelectedOutletOverride] = useState('');
   const [deductStock, setDeductStock] = useState(false);
 
-  // Available master products
+  // Available master products and selectable options (including variants)
   const masterProducts = useMemo(() => {
     return masterData?.products || [];
   }, [masterData]);
+
+  const selectableMasterOptions = useMemo(() => {
+    const list = [];
+    (masterData?.products || []).forEach(p => {
+      // Add base product
+      list.push({
+        key: `prod_${p.id}`,
+        value: p.name,
+        label: `✨ ${p.name}`,
+        isVariant: false
+      });
+      // Add its variants if any
+      (p.variants || []).forEach((v, vIdx) => {
+        const varFullName = `${p.name} [${v}]`;
+        list.push({
+          key: `var_${p.id}_${vIdx}`,
+          value: varFullName,
+          label: `🎨 ${p.name} ➔ Varian: ${v}`,
+          isVariant: true
+        });
+      });
+    });
+    return list;
+  }, [masterData?.products]);
+
+  // Intelligent Menu & Variant Matcher
+  const findBestMenuAndVariantMatch = (rawName) => {
+    if (!rawName || !masterProducts.length) return null;
+    const rawUpper = rawName.toUpperCase().trim();
+    const parts = rawUpper.split('/').map(p => p.trim()).filter(Boolean);
+    const basePart = parts[0] || rawUpper;
+    const variantPart = parts[1] || '';
+
+    // 1. Exact product name match
+    const exact = masterProducts.find(p => (p.name || '').toUpperCase().trim() === rawUpper);
+    if (exact) return exact.name;
+
+    // 2. Variant matching if slash exists (e.g. "BEBEK / SAMBAL LAMONGAN" or "IKAN GEMBUNG / SAUS PADANG")
+    if (variantPart) {
+      for (const p of masterProducts) {
+        const pName = (p.name || '').toUpperCase().trim();
+        const pVariants = (p.variants || []).map(v => v.toUpperCase().trim());
+        
+        const isBaseMatch = pName.includes(basePart) || basePart.includes(pName);
+        if (isBaseMatch && pVariants.length > 0) {
+          const foundVar = pVariants.find(v => v.includes(variantPart) || variantPart.includes(v));
+          if (foundVar) {
+            return `${p.name} [${foundVar}]`;
+          }
+        }
+      }
+    }
+
+    // 3. Match product with variant embedded in raw name
+    for (const p of masterProducts) {
+      const pName = (p.name || '').toUpperCase().trim();
+      const pVariants = (p.variants || []).map(v => v.toUpperCase().trim());
+      if (pVariants.length > 0 && (rawUpper.includes(pName) || pName.includes(basePart))) {
+        const foundVar = pVariants.find(v => rawUpper.includes(v) || (variantPart && v.includes(variantPart)));
+        if (foundVar) {
+          return `${p.name} [${foundVar}]`;
+        }
+      }
+    }
+
+    // 4. Fuzzy product name match
+    const fuzzy = masterProducts.find(p => {
+      const pUpper = (p.name || '').toUpperCase().trim();
+      return pUpper.includes(basePart) || basePart.includes(pUpper);
+    });
+    if (fuzzy) return fuzzy.name;
+
+    return null;
+  };
 
   const allCategories = useMemo(() => {
     return masterData?.productCategories || [
@@ -67,7 +141,7 @@ export default function SalesImportReconciliationModal({
   }, [masterData]);
 
   // Quick Product Creation State
-  const [quickCreateData, setQuickCreateData] = useState(null); // { rawName, name, categoryId, price }
+  const [quickCreateData, setQuickCreateData] = useState(null);
   const [isSavingNewProduct, setIsSavingNewProduct] = useState(false);
 
   // Handle Quick Create Submit
@@ -83,8 +157,8 @@ export default function SalesImportReconciliationModal({
 
       const newProduct = {
         id: nowTs,
-        sku: `PRD-${String(nowTs).slice(-6)}`,
-        code: `PRD-${String(nowTs).slice(-6)}`,
+        sku: quickCreateData.sku || `PRD-${String(nowTs).slice(-6)}`,
+        code: quickCreateData.sku || `PRD-${String(nowTs).slice(-6)}`,
         name: cleanName,
         category_id: quickCreateData.categoryId || (allCategories[0]?.id || 1),
         category_name: catName,
@@ -92,7 +166,7 @@ export default function SalesImportReconciliationModal({
         price: Number(quickCreateData.price || 0),
         cost: 0,
         unit: 'Pcs',
-        status: 'Aktif',
+        status: quickCreateData.status || 'Aktif',
         needs_review: true,
         status_katalog: 'perlu_diedit',
         notes: 'Dibuat otomatis dari Impor Dokumen Penjualan (Perlu Dilengkapi)',
@@ -176,22 +250,14 @@ export default function SalesImportReconciliationModal({
 
           setParsedData(json);
 
-          // Initialize Auto-Mapping
+          // Initialize Auto-Mapping with Variant Intelligence
           const initialMapping = {};
           const rawMenus = json.uniqueRawMenus || [];
           
           rawMenus.forEach(raw => {
-            const rawUpper = raw.toUpperCase().trim();
-            // Try fuzzy matching with master products
-            const found = masterProducts.find(p => {
-              const pUpper = (p.name || '').toUpperCase().trim();
-              return pUpper === rawUpper || 
-                     rawUpper.includes(pUpper) || 
-                     pUpper.includes(rawUpper);
-            });
-
-            if (found) {
-              initialMapping[raw] = found.name;
+            const matched = findBestMenuAndVariantMatch(raw);
+            if (matched) {
+              initialMapping[raw] = matched;
             } else {
               initialMapping[raw] = '__KEEP_ORIGINAL__';
             }
@@ -218,15 +284,9 @@ export default function SalesImportReconciliationModal({
     const newMapping = { ...menuMapping };
     
     parsedData.uniqueRawMenus.forEach(raw => {
-      const rawUpper = raw.toUpperCase().trim();
-      const found = masterProducts.find(p => {
-        const pUpper = (p.name || '').toUpperCase().trim();
-        return pUpper === rawUpper || 
-               rawUpper.includes(pUpper) || 
-               pUpper.includes(rawUpper);
-      });
-      if (found) {
-        newMapping[raw] = found.name;
+      const matched = findBestMenuAndVariantMatch(raw);
+      if (matched) {
+        newMapping[raw] = matched;
       }
     });
 
@@ -816,10 +876,10 @@ export default function SalesImportReconciliationModal({
                               <option value="__CREATE_NEW__" style={{ fontWeight: '900', color: '#f59e0b' }}>
                                 ➕ [ Buat Menu Master Baru: "{rawName}" ]
                               </option>
-                              <optgroup label="─── Pilihan Menu Master Resmi MRIS ───">
-                                {masterProducts.map(p => (
-                                  <option key={p.id} value={p.name}>
-                                    ✨ Ganti ke: {p.name}
+                              <optgroup label="─── Pilihan Menu & Varian Resmi MRIS ───">
+                                {selectableMasterOptions.map(opt => (
+                                  <option key={opt.key} value={opt.value}>
+                                    {opt.label}
                                   </option>
                                 ))}
                               </optgroup>
