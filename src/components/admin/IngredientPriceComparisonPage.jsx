@@ -24,11 +24,12 @@ const TAB_DESC = {
 
 export default function IngredientPriceComparisonPage({ masterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
 
   const [activeTab, setActiveTab]       = useState('harga_bahan_outlet');
   const [periodViewMode, setPeriodViewMode] = useState('daily'); // 'daily' | 'monthly'
-  const [selectedYear, setSelectedYear]     = useState(String(new Date().getFullYear()));
-  const [selectedMonth, setSelectedMonth]   = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [selectedYear, setSelectedYear]     = useState('');
+  const [selectedMonth, setSelectedMonth]   = useState('');
   const [startDate, setStartDate]       = useState('');
   const [endDate, setEndDate]           = useState('');
   const [datePreset, setDatePreset]     = useState('all');
@@ -40,6 +41,69 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
   const [showColumnFilter, setShowColumnFilter]     = useState(false);
   const [currentPage, setCurrentPage]   = useState(1);
   const [pageSize, setPageSize]         = useState(10);
+
+  const handleQuickPreset = (presetKey) => {
+    setDatePreset(presetKey);
+    setSelectedYear('');
+    setSelectedMonth('');
+    const today = new Date();
+    const toYMD = (dt) => {
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    if (presetKey === 'today') {
+      const t = toYMD(today);
+      setStartDate(t);
+      setEndDate(t);
+      setCurrentPage(1);
+    } else if (presetKey === 'yesterday') {
+      const yes = new Date(today);
+      yes.setDate(today.getDate() - 1);
+      const yStr = toYMD(yes);
+      setStartDate(yStr);
+      setEndDate(yStr);
+      setCurrentPage(1);
+    } else if (presetKey === 'last_week') {
+      const dayOfWeek = today.getDay();
+      const daysSinceMonday = (dayOfWeek === 0 ? 7 : dayOfWeek) - 1;
+      const mondayThisWeek = new Date(today);
+      mondayThisWeek.setDate(today.getDate() - daysSinceMonday);
+
+      const mondayLastWeek = new Date(mondayThisWeek);
+      mondayLastWeek.setDate(mondayThisWeek.getDate() - 7);
+
+      const sundayLastWeek = new Date(mondayThisWeek);
+      sundayLastWeek.setDate(mondayThisWeek.getDate() - 1);
+
+      setStartDate(toYMD(mondayLastWeek));
+      setEndDate(toYMD(sundayLastWeek));
+      setCurrentPage(1);
+    } else if (presetKey === 'this_month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      setStartDate(toYMD(firstDay));
+      setEndDate(toYMD(today));
+      setCurrentPage(1);
+    } else if (presetKey === 'last_month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+      setStartDate(toYMD(firstDay));
+      setEndDate(toYMD(lastDay));
+      setCurrentPage(1);
+    } else if (presetKey === '7days') {
+      const past7 = new Date(today);
+      past7.setDate(today.getDate() - 6);
+      setStartDate(toYMD(past7));
+      setEndDate(toYMD(today));
+      setCurrentPage(1);
+    } else if (presetKey === 'all') {
+      setStartDate('');
+      setEndDate('');
+      setCurrentPage(1);
+    }
+  };
 
   const outletsList = useMemo(() => masterData?.outlets || [], [masterData]);
   const [visibleOutletIds, setVisibleOutletIds] = useState(
@@ -841,81 +905,205 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
       )}
 
       {/* 4. FILTER BAR CONTROLS */}
-      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+      <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         
-        {/* Cari Bahan / Beban */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 160px', minWidth: '150px' }}>
+        {/* Quick Date Presets (Interactive Pill Tabs) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
           <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Search size={13} color={T.txtMuted} /> Cari {isBahanTab ? 'Bahan' : 'Beban'}
+            <Calendar size={13} color={T.accentGold} /> Periode Waktu & Kalender
           </label>
-          <input type="text" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Ketik kata kunci..."
-            style={{ padding: '0 12px', height: '38px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '600', outline: 'none' }} />
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '6px',
+            background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
+            padding: '5px',
+            borderRadius: '12px',
+            border: `1px solid ${T.border}`
+          }}>
+            {[
+              { id: 'today', label: 'Hari Ini' },
+              { id: 'yesterday', label: 'Kemarin' },
+              { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
+              { id: 'this_month', label: 'Bulan Ini' },
+              { id: 'last_month', label: 'Bulan Lalu' },
+              { id: '7days', label: '7 Hari Terakhir' },
+              { id: 'custom', label: 'Rentang Waktu 📅' },
+              { id: 'all', label: 'Semua Waktu' }
+            ].map(tab => {
+              const isActive = datePreset === tab.id || (tab.id === 'custom' && (datePreset === 'custom' || (startDate && endDate)));
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    if (tab.id === 'custom') {
+                      setDatePreset('custom');
+                      if (!startDate || !endDate) {
+                        const d = new Date();
+                        const endStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        d.setDate(d.getDate() - 6);
+                        const startStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        setStartDate(startStr);
+                        setEndDate(endStr);
+                      }
+                      setCurrentPage(1);
+                    } else {
+                      handleQuickPreset(tab.id);
+                    }
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
+                    background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
+                    color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
+                    fontWeight: isActive ? '900' : '700',
+                    fontSize: '0.76rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Dropdown Tahun (2024 s/d 2040) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            Tahun
-          </label>
-          <select
-            value={selectedYear}
-            onChange={e => { setSelectedYear(e.target.value); setCurrentPage(1); }}
-            style={{
-              padding: '0 12px',
-              borderRadius: '8px',
-              border: `1px solid ${T.border}`,
-              background: T.cardBg2,
-              color: T.txtPrimary,
-              fontSize: '0.82rem',
-              fontWeight: '800',
-              height: '38px',
-              cursor: 'pointer',
-              outline: 'none'
-            }}
-          >
-            <option value="">Semua Tahun</option>
-            {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
-              <option key={yr} value={String(yr)}>Tahun {yr}</option>
-            ))}
-          </select>
-        </div>
+        {/* Second Row: Filters and Custom Date Widget */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+          {/* Cari Bahan / Beban */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 160px', minWidth: '150px' }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Search size={13} color={T.txtMuted} /> Cari {isBahanTab ? 'Bahan' : 'Beban'}
+            </label>
+            <input type="text" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Ketik kata kunci..."
+              style={{ padding: '0 12px', height: '38px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '600', outline: 'none' }} />
+          </div>
 
-        {/* Dropdown Pilihan Bulan Cepat */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            Bulan
-          </label>
-          <select
-            value={selectedMonth}
-            onChange={e => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
-            style={{
-              padding: '0 12px',
-              borderRadius: '8px',
-              border: `1px solid ${T.border}`,
-              background: T.cardBg2,
-              color: T.txtPrimary,
-              fontSize: '0.82rem',
-              fontWeight: '800',
-              height: '38px',
-              cursor: 'pointer',
-              outline: 'none'
-            }}
-          >
-            <option value="">Semua Bulan</option>
-            <option value="01">Januari</option>
-            <option value="02">Februari</option>
-            <option value="03">Maret</option>
-            <option value="04">April</option>
-            <option value="05">Mei</option>
-            <option value="06">Juni</option>
-            <option value="07">Juli</option>
-            <option value="08">Agustus</option>
-            <option value="09">September</option>
-            <option value="10">Oktober</option>
-            <option value="11">November</option>
-            <option value="12">Desember</option>
-          </select>
-        </div>
+          {/* Custom Date Inputs (Formatted MySQL YYYY-MM-DD) */}
+          {(datePreset === 'custom' || startDate || endDate) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px',
+              background: isLight ? '#ffffff' : '#1e293b',
+              border: `1px solid ${T.accentGoldBorder}`,
+              padding: '4px 10px',
+              borderRadius: '10px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              height: '38px'
+            }}>
+              <Calendar size={15} color={T.accentGold} />
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => { setStartDate(e.target.value); setDatePreset('custom'); setCurrentPage(1); }}
+                style={{
+                  padding: '4px 8px',
+                  background: T.inputBg,
+                  border: `1px solid ${T.borderStrong}`,
+                  borderRadius: '6px',
+                  color: T.txtPrimary,
+                  fontSize: '0.78rem',
+                  fontWeight: '800',
+                  colorScheme: isLight ? 'light' : 'dark',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              />
+              <span style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '800' }}>s/d</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => { setEndDate(e.target.value); setDatePreset('custom'); setCurrentPage(1); }}
+                style={{
+                  padding: '4px 8px',
+                  background: T.inputBg,
+                  border: `1px solid ${T.borderStrong}`,
+                  borderRadius: '6px',
+                  color: T.txtPrimary,
+                  fontSize: '0.78rem',
+                  fontWeight: '800',
+                  colorScheme: isLight ? 'light' : 'dark',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
+          )}
+
+          {/* Dropdown Tahun (2024 s/d 2040) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
+              Tahun
+            </label>
+            <select
+              value={selectedYear}
+              onChange={e => { setSelectedYear(e.target.value); setCurrentPage(1); }}
+              style={{
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                background: T.cardBg2,
+                color: T.txtPrimary,
+                fontSize: '0.82rem',
+                fontWeight: '800',
+                height: '38px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="">Semua Tahun</option>
+              {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
+                <option key={yr} value={String(yr)}>Tahun {yr}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown Pilihan Bulan Cepat */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
+              Bulan
+            </label>
+            <select
+              value={selectedMonth}
+              onChange={e => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
+              style={{
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: `1px solid ${T.border}`,
+                background: T.cardBg2,
+                color: T.txtPrimary,
+                fontSize: '0.82rem',
+                fontWeight: '800',
+                height: '38px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="">Semua Bulan</option>
+              <option value="01">Januari</option>
+              <option value="02">Februari</option>
+              <option value="03">Maret</option>
+              <option value="04">April</option>
+              <option value="05">Mei</option>
+              <option value="06">Juni</option>
+              <option value="07">Juli</option>
+              <option value="08">Agustus</option>
+              <option value="09">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+          </div>
 
         {/* Filter Bahan Baku / Beban */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 200px', minWidth: '180px', position: 'relative' }}>
@@ -971,6 +1159,7 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
             <RotateCcw size={13} /> Reset
           </button>
         )}
+        </div>
       </div>
 
       <div style={{ background: T.cardBg2, border: '1px solid ' + T.border, borderRadius: '10px', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
