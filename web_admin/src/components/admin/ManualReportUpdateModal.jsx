@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, 
   FileSpreadsheet, 
@@ -38,6 +38,7 @@ export default function ManualReportUpdateModal({
   if (!show) return null;
 
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'light';
   const isEditMode = !!editData;
 
   // Active Tab ('manual' | 'excel')
@@ -63,6 +64,43 @@ export default function ManualReportUpdateModal({
     return masterData?.outlets?.[0]?.id || 1;
   });
   const [authorName, setAuthorName] = useState(() => userSession?.name || userSession?.username || 'Super Admin');
+
+  // Ringkasan Status Data Terinput / Terimpor Tanggal Terpilih
+  const dateStatusSummary = useMemo(() => {
+    const currentOutletIdStr = String(selectedOutletId);
+    const curDateStr = String(reportDate);
+
+    // 1. Sales Data
+    const allSales = [...(masterData?.salesTransactions || []), ...(masterData?.transactions || []).filter(t => t.type === 'income')];
+    const matchingSales = allSales.filter(tx => {
+      const bId = String(tx.outlet_id || tx.branch_id || tx.branchId || '');
+      const dStr = String(tx.date || tx.entry_date || tx.created_at || '').substring(0, 10);
+      return (bId === currentOutletIdStr || !currentOutletIdStr) && dStr === curDateStr;
+    });
+
+    const totalSalesOmzet = matchingSales.reduce((sum, tx) => sum + Number(tx.amount || tx.final_amount || tx.total || 0), 0);
+    const importedSalesCount = matchingSales.filter(tx => tx.source?.includes('import') || (tx.notes || '').toLowerCase().includes('impor') || (tx.receipt_no || '').startsWith('IMP-')).length;
+
+    // 2. Expense & Purchasing Data
+    const allExpenses = [...(masterData?.transactions || []).filter(t => t.type === 'expense'), ...(masterData?.cogsExpenses || [])];
+    const matchingExpenses = allExpenses.filter(tx => {
+      const bId = String(tx.outlet_id || tx.branch_id || tx.branchId || '');
+      const dStr = String(tx.date || tx.entry_date || tx.created_at || '').substring(0, 10);
+      return (bId === currentOutletIdStr || !currentOutletIdStr) && dStr === curDateStr;
+    });
+
+    const totalExpenseAmount = matchingExpenses.reduce((sum, tx) => sum + Number(tx.amount || tx.subtotal || 0), 0);
+    const importedExpenseCount = matchingExpenses.filter(tx => (tx.notes || '').toLowerCase().includes('impor') || tx.created_by?.includes('Impor') || (tx.receipt_no || '').startsWith('EXP-')).length;
+
+    return {
+      salesCount: matchingSales.length,
+      salesOmzet: totalSalesOmzet,
+      importedSalesCount,
+      expenseCount: matchingExpenses.length,
+      expenseAmount: totalExpenseAmount,
+      importedExpenseCount
+    };
+  }, [masterData, selectedOutletId, reportDate]);
 
   // Manual Form - Sales Items State
   const [salesItems, setSalesItems] = useState(() => {
@@ -1365,6 +1403,84 @@ export default function ManualReportUpdateModal({
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* STATUS DATA TANGGAL & OUTLET TERPILIH (LIVE ENTRY & IMPORT STATUS) */}
+        <div style={{
+          background: isLight ? '#f8fafc' : 'rgba(15, 23, 42, 0.65)',
+          border: `1px solid ${T.borderStrong}`,
+          borderRadius: '12px',
+          padding: '12px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={16} color={T.info} />
+              <span style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtPrimary }}>
+                Status Data Tanggal: <strong style={{ color: '#38bdf8' }}>{reportDate}</strong> ({getOutletName(selectedOutletId)})
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
+            {/* Penjualan Status */}
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: '8px',
+              background: dateStatusSummary.salesCount > 0 ? (isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.12)') : (isLight ? '#fffbeb' : 'rgba(245, 158, 11, 0.08)'),
+              border: dateStatusSummary.salesCount > 0 ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(245, 158, 11, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: '800', color: dateStatusSummary.salesCount > 0 ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  {dateStatusSummary.salesCount > 0 ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                  <span>PENJUALAN: {dateStatusSummary.salesCount > 0 ? 'SUDAH TERINPUT' : 'BELUM ADA DATA'}</span>
+                </span>
+                {dateStatusSummary.importedSalesCount > 0 && (
+                  <span style={{ fontSize: '0.62rem', fontWeight: '800', background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', padding: '1px 5px', borderRadius: '4px' }}>
+                    📥 {dateStatusSummary.importedSalesCount} dari Impor
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.86rem', fontWeight: '900', color: T.txtPrimary }}>
+                {dateStatusSummary.salesCount > 0
+                  ? `${dateStatusSummary.salesCount} Transaksi (Rp ${dateStatusSummary.salesOmzet.toLocaleString('id-ID')})`
+                  : 'Belum ada transaksi tercatat'}
+              </div>
+            </div>
+
+            {/* Pengeluaran Status */}
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: '8px',
+              background: dateStatusSummary.expenseCount > 0 ? (isLight ? '#ecfdf5' : 'rgba(16, 185, 129, 0.12)') : (isLight ? '#fffbeb' : 'rgba(245, 158, 11, 0.08)'),
+              border: dateStatusSummary.expenseCount > 0 ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(245, 158, 11, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: '800', color: dateStatusSummary.expenseCount > 0 ? '#10b981' : '#f59e0b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  {dateStatusSummary.expenseCount > 0 ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                  <span>PENGELUARAN: {dateStatusSummary.expenseCount > 0 ? 'SUDAH TERINPUT' : 'BELUM ADA DATA'}</span>
+                </span>
+                {dateStatusSummary.importedExpenseCount > 0 && (
+                  <span style={{ fontSize: '0.62rem', fontWeight: '800', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '1px 5px', borderRadius: '4px' }}>
+                    📥 {dateStatusSummary.importedExpenseCount} dari Impor
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.86rem', fontWeight: '900', color: T.txtPrimary }}>
+                {dateStatusSummary.expenseCount > 0
+                  ? `${dateStatusSummary.expenseCount} Pengeluaran (Rp ${dateStatusSummary.expenseAmount.toLocaleString('id-ID')})`
+                  : 'Belum ada pengeluaran tercatat'}
+              </div>
+            </div>
           </div>
         </div>
 
