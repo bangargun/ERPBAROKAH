@@ -561,27 +561,6 @@ export default function ManualReportUpdatePage({
             </p>
           </div>
         </div>
-
-        <button
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            padding: '10px 18px',
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            border: 'none',
-            borderRadius: '10px',
-            color: '#000000',
-            fontWeight: '900',
-            fontSize: '0.82rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 16px rgba(245, 158, 11, 0.4)'
-          }}
-        >
-          <PlusCircle size={18} />
-          <span>+ Buat Update Laporan Baru</span>
-        </button>
       </div>
 
       {/* STATS CARDS BARIS 1 */}
