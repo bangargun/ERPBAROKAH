@@ -153,6 +153,12 @@ export default function ManualReportUpdateModal({
     }];
   });
 
+  // Manual Form - Diskon Penjualan (Potongan Penjualan Rp)
+  const [salesDiscount, setSalesDiscount] = useState(() => {
+    if (editData) return Number(editData.total_discount || editData.discount_amount || editData.discount || 0);
+    return 0;
+  });
+
   // Manual Form - Expense Items State
   const [expenseItems, setExpenseItems] = useState(() => {
     if (editData && (editData.expense_details || editData.expenses_breakdown || []).length > 0) {
@@ -1823,6 +1829,71 @@ export default function ManualReportUpdateModal({
                     </div>
                   );
                 })}
+
+                {/* Rangkuman Gross Sales, Diskon Penjualan & Net Sales */}
+                {(() => {
+                  const grossSalesTotal = salesItems.reduce((acc, it) => acc + (it.subtotal || 0), 0);
+                  const netSalesTotal = Math.max(0, grossSalesTotal - Number(salesDiscount || 0));
+
+                  return (
+                    <div style={{
+                      marginTop: '4px',
+                      padding: '12px 14px',
+                      background: T.cardBg2,
+                      border: `1px solid ${T.borderStrong}`,
+                      borderRadius: '10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.80rem' }}>
+                        <span style={{ color: T.txtSecondary, fontWeight: '700' }}>Total Penjualan Kotor (Gross Sales):</span>
+                        <strong style={{ color: T.txtPrimary, fontSize: '0.86rem' }}>Rp {grossSalesTotal.toLocaleString('id-ID')}</strong>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.80rem' }}>
+                        <span style={{ color: '#f87171', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>Potongan Diskon Penjualan (Contra-Revenue [4002]):</span>
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.76rem', color: T.txtMuted }}>Rp</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={salesDiscount}
+                            onChange={e => setSalesDiscount(Math.max(0, Number(e.target.value) || 0))}
+                            placeholder="0"
+                            style={{
+                              width: '130px',
+                              padding: '5px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              background: T.inputBg,
+                              color: '#f87171',
+                              fontSize: '0.84rem',
+                              fontWeight: '800',
+                              textAlign: 'right'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.92rem',
+                        fontWeight: '900',
+                        paddingTop: '8px',
+                        borderTop: `1px solid ${T.border}`,
+                        color: '#10b981'
+                      }}>
+                        <span>Total Penjualan Bersih Masuk Kas (Net Sales):</span>
+                        <span>Rp {netSalesTotal.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <button
                   type="button"
