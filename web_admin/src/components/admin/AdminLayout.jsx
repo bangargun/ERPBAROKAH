@@ -133,7 +133,8 @@ export default function AdminLayout({
       title: 'ANALISIS & KEUANGAN',
       items: [
         { id: 'ingredient_analysis', label: 'Analisis Harga Bahan',          icon: Scale,            permKey: 'reports' },
-        { id: 'reports',             label: 'Laporan Keuangan',              icon: FileText,         permKey: 'reports' }
+        { id: 'reports',             label: 'Laporan Keuangan',              icon: FileText,         permKey: 'reports' },
+        { id: 'tax_report',          label: 'Laporan Pajak (SPTPD)',         icon: Receipt,          permKey: 'reports' }
       ]
     },
     {

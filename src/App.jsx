@@ -15,6 +15,7 @@ import IngredientPriceAnalysisPage from './components/admin/IngredientPriceAnaly
 import IngredientPriceComparisonPage from './components/admin/IngredientPriceComparisonPage';
 import IngredientPriceTrendPage from './components/admin/IngredientPriceTrendPage';
 import FinancialReportsFull from './components/admin/FinancialReportsFull';
+import TaxCompliancePage from './components/admin/TaxCompliancePage';
 import TermsAndPolicies from './components/admin/TermsAndPolicies';
 import SystemSettings from './components/admin/SystemSettings';
 import UserRightsSettings from './components/admin/UserRightsSettings';
@@ -1066,6 +1067,16 @@ export default function App() {
 
           {(adminTab === 'ingredient_analysis' || adminTab === 'ingredient_prices' || adminTab === 'tren_harga_outlet') && (
             <IngredientPriceAnalysisPage
+              masterData={masterData}
+              setMasterData={updateMasterData}
+              selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          )}
+
+          
+          {adminTab === 'tax_report' && (
+            <TaxCompliancePage
               masterData={masterData}
               setMasterData={updateMasterData}
               selectedBranch={selectedBranch}
