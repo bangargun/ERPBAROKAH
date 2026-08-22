@@ -54,6 +54,21 @@ import {
 } from 'recharts';
 import { getThemePalette } from '../../utils/themeUtils';
 
+// Format Date object / String -> YYYY-MM-DD
+export const formatToYMD = (d) => {
+  if (!d) return '';
+  if (typeof d === 'string') {
+    if (d.includes('T')) return d.split('T')[0];
+    if (d.length === 10 && d.includes('-')) return d;
+  }
+  const dateObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return '';
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 // Format YYYY-MM-DD -> DD/MM/YYYY
 const formatToDMY = (dateStr) => {
   if (!dateStr) return '';
