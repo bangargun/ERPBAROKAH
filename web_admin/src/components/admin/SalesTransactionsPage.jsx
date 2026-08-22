@@ -4117,14 +4117,17 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
         position: 'sticky',
         top: '-20px',
         zIndex: 100,
-        background: T.pageBg,
-        paddingTop: '20px',
-        paddingBottom: '8px',
+        background: isLight ? 'rgba(240, 246, 255, 0.96)' : 'rgba(11, 15, 25, 0.96)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        paddingTop: '16px',
+        paddingBottom: '12px',
         marginTop: '-20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
-        boxShadow: '0 4px 12px -2px rgba(0, 0, 0, 0.25)'
+        gap: '12px',
+        borderBottom: `1px solid ${T.border}`,
+        boxShadow: isLight ? '0 10px 25px -5px rgba(0, 0, 0, 0.08)' : '0 10px 25px -5px rgba(0, 0, 0, 0.45)'
       }}>
         {/* PAGE TITLE HEADER */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
