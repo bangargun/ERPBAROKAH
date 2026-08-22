@@ -447,11 +447,16 @@ const initMySQLPool = async () => {
     });
     await ensureMasterDataTable();
 
-    // NOTE: Auto-purge startup dihapus — sanitizeMasterDataPayload dapat memfilter
-    // transaksi POS valid yang dikirim via /api/master-data (Jalur 2) sebagai "sintetis",
-    // menyebabkan data hilang permanen setiap kali server restart.
-    // Sanitize hanya dilakukan saat data DIKIRIM ke client (GET /api/master-data),
-    // bukan saat disimpan ke database.
+    // Auto-sync blob data to relational tables on startup
+    try {
+      const initialData = await getMasterDataFromMySQL();
+      if (initialData) {
+        await syncToMySQL(initialData);
+        console.log('✅ Auto-sync tabel relasional MySQL selesai saat startup');
+      }
+    } catch (sErr) {
+      console.warn('Warning initial sync to relational MySQL:', sErr.message);
+    }
 
   } catch (err) {
     mysqlInitError = err.message;
