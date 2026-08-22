@@ -9,6 +9,43 @@ import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 import PaginationControls from './PaginationControls';
 
+
+const CATEGORY_LOCATIONS = {
+  'Peralatan Dapur & Masak': [
+    'Dapur Utama (Main Kitchen)',
+    'Dapur Persiapan (Prep Area)',
+    'Area Pemanggang (Grill / Bakaran)',
+    'Area Penggorengan (Fryer Station)',
+    'Area Cuci Piring (Dishwashing Area)',
+    'Cold Storage / Freezer Room'
+  ],
+  'Hardware POS & Elektronik': [
+    'Meja Kasir Utama (Cashier Desk)',
+    'Area Bar / Kasir Bar',
+    'Ruang Server & CCTV',
+    'Kantor Manager / Supervisor Cabang',
+    'Pos Pelayan / Waiter Station'
+  ],
+  'Furnitur & Ruang Makan': [
+    'Ruang Makan Utama (Lantai 1)',
+    'Ruang Makan Lantai 2',
+    'Area VIP / Private Room',
+    'Area Outdoor / Teras Depan',
+    'Area Lesehan'
+  ],
+  'Kendaraan Operasional': [
+    'Area Parkir Depan Outlet',
+    'Garasi Logistik Cabang',
+    'Pos Delivery Motor'
+  ],
+  'Gedung & Renovasi': [
+    'Area Bangunan & Fasad Depan',
+    'Area Toilet & Wastafel',
+    'Area Gudang Belakang',
+    'Ruko / Keseluruhan Bangunan'
+  ]
+};
+
 const ASSET_CATEGORIES = [
   'Peralatan Dapur & Masak',
   'Hardware POS & Elektronik',
@@ -155,24 +192,39 @@ export default function AssetManagement({ masterData, setMasterData, selectedBra
     };
   }, [branchFilteredAssets]);
 
+  // Nama user yang sedang aktif / membuka
+  const loggedInUserName = userSession?.name || userSession?.username || 'Super Admin';
+
   // Open Modal Tambah
   const handleOpenAdd = () => {
     const defaultOutlet = outlets.find(o => String(o.id) === String(selectedBranch)) || outlets[0] || { id: 1 };
     const nextNum = (rawAssets.length + 1).toString().padStart(3, '0');
+    const defaultCat = ASSET_CATEGORIES[0];
+    const defaultLoc = CATEGORY_LOCATIONS[defaultCat]?.[0] || 'Dapur Utama (Main Kitchen)';
+
     setEditingAsset(null);
     setFormCode(`AST-${nextNum}`);
     setFormName('');
-    setFormCategory(ASSET_CATEGORIES[0]);
+    setFormCategory(defaultCat);
     setFormOutletId(defaultOutlet.id);
     setFormPurchaseDate(new Date().toISOString().split('T')[0]);
     setFormPurchaseCost('');
     setFormUsefulLifeYears('5');
     setFormSalvageValue('0');
     setFormCondition('Baik');
-    setFormLocation('Dapur Utama');
-    setFormPic(userSession?.name || 'Kepala Cabang');
+    setFormLocation(defaultLoc);
+    setFormPic(loggedInUserName);
     setFormNotes('');
     setShowModal(true);
+  };
+
+  // Saat kategori diganti, sesuaikan lokasi spesifik default
+  const handleCategoryChange = (newCat) => {
+    setFormCategory(newCat);
+    const locs = CATEGORY_LOCATIONS[newCat] || [];
+    if (locs.length > 0 && !locs.includes(formLocation)) {
+      setFormLocation(locs[0]);
+    }
   };
 
   // Open Modal Edit
@@ -749,7 +801,7 @@ export default function AssetManagement({ masterData, setMasterData, selectedBra
                   </label>
                   <select
                     value={formCategory}
-                    onChange={e => setFormCategory(e.target.value)}
+                    onChange={e => handleCategoryChange(e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.controlBg, color: T.txtPrimary, fontWeight: '700', fontSize: '0.85rem' }}
                   >
                     {ASSET_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -833,26 +885,32 @@ export default function AssetManagement({ masterData, setMasterData, selectedBra
                 </div>
                 <div>
                   <label style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>
-                    Lokasi Spesifik
+                    Lokasi Spesifik (Kategori: {formCategory}) *
                   </label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Dapur Utama / Kasir Depan"
+                  <select
                     value={formLocation}
                     onChange={e => setFormLocation(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.controlBg, color: T.txtPrimary, fontWeight: '700', fontSize: '0.85rem' }}
-                  />
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: `1.5px solid #38bdf8`, background: T.controlBg, color: T.txtPrimary, fontWeight: '800', fontSize: '0.82rem', outline: 'none' }}
+                  >
+                    {(CATEGORY_LOCATIONS[formCategory] || ['Dapur Utama']).map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                    {formLocation && !(CATEGORY_LOCATIONS[formCategory] || []).includes(formLocation) && (
+                      <option value={formLocation}>{formLocation}</option>
+                    )}
+                  </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: '800', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>
-                    Penanggung Jawab (PIC)
+                  <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                    <span>Penanggung Jawab (PIC Akun Aktif) *</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="Nama PIC / Staff"
+                    required
                     value={formPic}
                     onChange={e => setFormPic(e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.controlBg, color: T.txtPrimary, fontWeight: '700', fontSize: '0.85rem' }}
+                    placeholder="User Aktif"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: `1.5px solid #10b981`, background: 'rgba(16,185,129,0.08)', color: '#10b981', fontWeight: '900', fontSize: '0.85rem', outline: 'none' }}
                   />
                 </div>
               </div>
