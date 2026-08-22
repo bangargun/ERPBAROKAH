@@ -2484,20 +2484,29 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                          (t.notes || '').toLowerCase().includes('online');
       const orderType = isTakeAway ? 'Take Away' : 'Normal';
 
-      if (t.items && Array.isArray(t.items) && t.items.length > 0) {
-        t.items.forEach(item => {
-          const pName = item.name || item.product_name || 'Item Penjualan';
-          const q = Number(item.qty || 1);
-          const s = Number(item.total || (item.qty * item.price) || 0);
+      // Parse items safely if stored as JSON string or items array
+      let rawItems = t.items;
+      if (!rawItems && typeof t.items_json === 'string') {
+        try { rawItems = JSON.parse(t.items_json); } catch (e) {}
+      } else if (!rawItems && Array.isArray(t.items_json)) {
+        rawItems = t.items_json;
+      }
+
+      if (rawItems && Array.isArray(rawItems) && rawItems.length > 0) {
+        rawItems.forEach(item => {
+          const pName = (item.name || item.product_name || item.item_name || 'Item Penjualan').trim();
+          const q = Number(item.qty || item.quantity || 1);
+          const unitPrice = Number(item.price_unit || item.price || item.unit_price || 0);
+          const s = Number(item.amount || item.total || item.subtotal || (unitPrice > 0 ? unitPrice * q : 0) || (t.amount && rawItems.length === 1 ? t.amount : 0) || 0);
 
           if (!productMap[pName]) productMap[pName] = { Normal: { qty: 0, sales: 0 }, 'Take Away': { qty: 0, sales: 0 } };
           productMap[pName][orderType].qty += q;
           productMap[pName][orderType].sales += s;
         });
       } else {
-        const pName = t.item_name || t.product_name || 'Item Penjualan';
+        const pName = (t.item_name || t.product_name || 'Item Penjualan').trim();
         const q = Number(t.qty || t.quantity || 1);
-        const s = Number(t.amount || 0);
+        const s = Number(t.amount || t.total || t.grand_total || 0);
 
         if (!productMap[pName]) productMap[pName] = { Normal: { qty: 0, sales: 0 }, 'Take Away': { qty: 0, sales: 0 } };
         productMap[pName][orderType].qty += q;
