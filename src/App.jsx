@@ -471,7 +471,9 @@ export default function App() {
             // Track deleted master-data IDs (categories, ingredients, products, etc.)
             const deletedCatIds = new Set([
               ...(prev.deletedCategoriesIds || []),
-              ...(serverData.deletedCategoriesIds || [])
+              ...(prev.deletedCategoryIds || []),
+              ...(serverData.deletedCategoriesIds || []),
+              ...(serverData.deletedCategoryIds || [])
             ].map(x => String(x).toLowerCase().trim()));
             const deletedIngredientIds = new Set([
               ...(prev.deletedIngredientIds || []),
@@ -483,15 +485,38 @@ export default function App() {
               '1786694529714.3901', '1786771748483', '1786771829811', '1786771750515',
               'prd-045', 'prd-103', 'prd-105', 'prd-106'
             ].map(x => String(x).toLowerCase().trim()));
+            const deletedSupplierIds = new Set([
+              ...(prev.deletedSupplierIds || []),
+              ...(serverData.deletedSupplierIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+            const deletedCustomerIds = new Set([
+              ...(prev.deletedCustomerIds || []),
+              ...(serverData.deletedCustomerIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+            const deletedUnitIds = new Set([
+              ...(prev.deletedUnitIds || []),
+              ...(serverData.deletedUnitIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+            const deletedTableIds = new Set([
+              ...(prev.deletedTableIds || []),
+              ...(serverData.deletedTableIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+            const deletedExpenseIds = new Set([
+              ...(prev.deletedExpenseIds || []),
+              ...(serverData.deletedExpenseIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
 
             const isMasterItemDeleted = (item, deletedIds) => {
               if (!item) return true;
+              if (!deletedIds || deletedIds.size === 0) return false;
               const iId = String(item.id !== undefined && item.id !== null ? item.id : '').toLowerCase().trim();
               const iSku = String(item.sku || '').toLowerCase().trim();
               const iCode = String(item.code || '').toLowerCase().trim();
+              const iName = String(item.name || item.title || '').toLowerCase().trim();
               return (iId && deletedIds.has(iId)) ||
                      (iSku && deletedIds.has(iSku)) ||
-                     (iCode && deletedIds.has(iCode));
+                     (iCode && deletedIds.has(iCode)) ||
+                     (iName && deletedIds.has(iName));
             };
 
             const getCombinedArray = (a, b) => {
@@ -649,6 +674,11 @@ export default function App() {
             const mergedCategories  = mergeMasterArray(prev.categories,   serverData.categories,   deletedCatIds);
             const mergedIngredients = mergeMasterArray(prev.ingredients,  serverData.ingredients,  deletedIngredientIds);
             const mergedProducts    = mergeMasterArray(prev.products,      serverData.products,      deletedProductIds);
+            const mergedSuppliers   = mergeMasterArray(prev.suppliers,     serverData.suppliers,     deletedSupplierIds);
+            const mergedCustomers   = mergeMasterArray(prev.customers,     serverData.customers,     deletedCustomerIds);
+            const mergedUnits       = mergeMasterArray(prev.units,         serverData.units,         deletedUnitIds);
+            const mergedTables      = mergeMasterArray(prev.tables,        serverData.tables,        deletedTableIds);
+            const mergedExpenseMaster = mergeMasterArray(prev.expenseMaster, serverData.expenseMaster, deletedExpenseIds);
 
             const prevStr = JSON.stringify(prev);
             const serverStr = JSON.stringify(serverData);
@@ -757,11 +787,22 @@ export default function App() {
               categories:           mergedCategories,
               ingredients:          mergedIngredients,
               products:             mergedProducts,
+              suppliers:            mergedSuppliers,
+              customers:            mergedCustomers,
+              units:                mergedUnits,
+              tables:               mergedTables,
+              expenseMaster:        mergedExpenseMaster,
               paymentMethods:       mergedPaymentMethods,
               outlets:              mergedOutlets,
               deletedCategoriesIds:  Array.from(deletedCatIds),
+              deletedCategoryIds:    Array.from(deletedCatIds),
               deletedIngredientIds:  Array.from(deletedIngredientIds),
               deletedProductIds:     Array.from(deletedProductIds),
+              deletedSupplierIds:    Array.from(deletedSupplierIds),
+              deletedCustomerIds:    Array.from(deletedCustomerIds),
+              deletedUnitIds:        Array.from(deletedUnitIds),
+              deletedTableIds:       Array.from(deletedTableIds),
+              deletedExpenseIds:     Array.from(deletedExpenseIds),
               approvedFinanceDaily: mergedApprovedFinance,
               manualEntryRecords: mergedApprovedFinance,
               salesTransactions: mergedSalesTx,

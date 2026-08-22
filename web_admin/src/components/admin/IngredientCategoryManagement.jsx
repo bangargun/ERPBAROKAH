@@ -3,6 +3,7 @@ import { Layers, Plus, Search, Edit3, Trash2, CheckCircle2, AlertCircle, Shoppin
 import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
 export const DEFAULT_INGREDIENT_CATEGORIES = [
@@ -172,22 +173,44 @@ export default function IngredientCategoryManagement({ masterData, setMasterData
   const handleDeleteCategory = (cat) => {
     const connected = getAssociatedIngredients(cat.name);
     if (connected.length > 0) {
-      if (!window.confirm(`Kategori "${cat.name}" saat ini memiliki ${connected.length} bahan baku terhubung. Apakah Anda yakin tetap ingin menghapusnya?`)) {
+      if (!window.confirm(`Kategori "${cat.name}" saat ini memiliki ${connected.length} bahan baku terhubung. Apakah Anda yakin tetap ingin menghapusnya secara permanen?`)) {
         return;
       }
     } else {
-      if (!window.confirm(`Apakah Anda yakin ingin menghapus kategori bahan "${cat.name}"?`)) {
+      if (!window.confirm(`Apakah Anda yakin ingin menghapus kategori bahan "${cat.name}" secara permanen?`)) {
         return;
       }
     }
 
-    const updatedCategories = categoriesList.filter(c => String(c.id) !== String(cat.id));
+    const targetId = String(cat?.id || '');
+    const targetCode = String(cat?.code || '');
+    const targetName = String(cat?.name || '').trim();
+
+    const updatedDelCategoriesIds = Array.from(new Set([
+      ...(masterData?.deletedCategoriesIds || []),
+      ...(masterData?.deletedCategoryIds || []),
+      targetId, targetId.toLowerCase(), targetCode, targetCode.toLowerCase(), targetName, targetName.toLowerCase()
+    ].filter(Boolean)));
+
+    const updatedCategories = categoriesList.filter(c => String(c.id) !== targetId && String(c.name || '').trim().toLowerCase() !== targetName.toLowerCase());
     const updated = {
       ...masterData,
       _lastUpdated: Date.now(),
-      ingredientCategories: updatedCategories
+      _lastMutated: Date.now(),
+      ingredientCategories: updatedCategories,
+      deletedCategoriesIds: updatedDelCategoriesIds,
+      deletedCategoryIds: updatedDelCategoriesIds
     };
     setMasterData(updated);
+    try { localStorage.setItem('mris_master_data', JSON.stringify(updated)); } catch(e) {}
+
+    fetch(getApiUrl('/api/master-data/delete-item'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'ingredientCategories', id: targetId, code: targetCode, name: targetName })
+    }).catch(() => {});
+
+    alert(`Kategori bahan "${targetName}" berhasil dihapus.`);
   };
 
   // Filter Search

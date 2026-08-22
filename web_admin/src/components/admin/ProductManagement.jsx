@@ -36,9 +36,9 @@ import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
 import { getMenuFallbackImage } from '../../utils/formatUtils';
-import DeleteGuardModal from './DeleteGuardModal';
 import { requestDelete, countRelatedTransactions } from '../../utils/deleteGuard';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 
 export default function ProductManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -905,10 +905,15 @@ export default function ProductManagement({ masterData, setMasterData, selectedB
           localStorage.setItem('mris_master_data', JSON.stringify(nextMaster));
         } catch (e) {}
 
-        fetch('https://mris-api.barokahgroupindonesia.tech/api/master-data', {
+        fetch(getApiUrl('/api/master-data/delete-item'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(nextMaster)
+          body: JSON.stringify({
+            key: 'products',
+            id: delId,
+            sku: delSku,
+            name: delName
+          })
         }).catch(() => {});
       }
     });

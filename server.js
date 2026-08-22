@@ -1905,9 +1905,115 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
       if (shouldUnionMerge && (incVal.length > 0 || (Array.isArray(extVal) && extVal.length > 0))) {
         const unionMap = new Map();
 
+        // Kumpulkan deleted tombstone set untuk key yang sedang di-merge
+        const getDeletedSetForKey = (k) => {
+          if (k === 'ingredients') {
+            return new Set([
+              ...(result.deletedIngredientIds || []),
+              ...(incoming.deletedIngredientIds || []),
+              ...(existing.deletedIngredientIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'products' || k === 'menuItems') {
+            return new Set([
+              ...(result.deletedProductIds || []),
+              ...(incoming.deletedProductIds || []),
+              ...(existing.deletedProductIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'categories' || k === 'ingredientCategories') {
+            return new Set([
+              ...(result.deletedCategoriesIds || []),
+              ...(result.deletedCategoryIds || []),
+              ...(incoming.deletedCategoriesIds || []),
+              ...(incoming.deletedCategoryIds || []),
+              ...(existing.deletedCategoriesIds || []),
+              ...(existing.deletedCategoryIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'suppliers') {
+            return new Set([
+              ...(result.deletedSupplierIds || []),
+              ...(incoming.deletedSupplierIds || []),
+              ...(existing.deletedSupplierIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'customers') {
+            return new Set([
+              ...(result.deletedCustomerIds || []),
+              ...(incoming.deletedCustomerIds || []),
+              ...(existing.deletedCustomerIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'units') {
+            return new Set([
+              ...(result.deletedUnitIds || []),
+              ...(incoming.deletedUnitIds || []),
+              ...(existing.deletedUnitIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'outlets') {
+            return new Set([
+              ...(result.deletedOutletIds || []),
+              ...(incoming.deletedOutletIds || []),
+              ...(existing.deletedOutletIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'paymentMethods') {
+            return new Set([
+              ...(result.deletedPaymentMethodIds || []),
+              ...(incoming.deletedPaymentMethodIds || []),
+              ...(existing.deletedPaymentMethodIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'tables') {
+            return new Set([
+              ...(result.deletedTableIds || []),
+              ...(incoming.deletedTableIds || []),
+              ...(existing.deletedTableIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'expenseMaster') {
+            return new Set([
+              ...(result.deletedExpenseIds || []),
+              ...(incoming.deletedExpenseIds || []),
+              ...(existing.deletedExpenseIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (TRANSACTION_ARRAY_KEYS.has(k)) {
+            return new Set([
+              ...(result.deletedLogisticsIds || []),
+              ...(result.deletedReportIds || []),
+              ...(result.deletedSalesIds || []),
+              ...(incoming.deletedLogisticsIds || []),
+              ...(incoming.deletedReportIds || []),
+              ...(incoming.deletedSalesIds || []),
+              ...(existing.deletedLogisticsIds || []),
+              ...(existing.deletedReportIds || []),
+              ...(existing.deletedSalesIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          return new Set();
+        };
+
+        const currentDeletedSet = getDeletedSetForKey(key);
+        const isItemTombstoned = (it) => {
+          if (!it || !currentDeletedSet || currentDeletedSet.size === 0) return false;
+          const itemId = String(it.id !== undefined && it.id !== null ? it.id : '').toLowerCase().trim();
+          const itemSku = String(it.sku || '').toLowerCase().trim();
+          const itemCode = String(it.code || '').toLowerCase().trim();
+          const itemName = String(it.name || it.title || '').toLowerCase().trim();
+          const itemRcpt = String(it.receipt_no || it.receiptNo || it.report_no || it.tx_id || '').toLowerCase().trim();
+          return (itemId && currentDeletedSet.has(itemId)) ||
+                 (itemSku && currentDeletedSet.has(itemSku)) ||
+                 (itemCode && currentDeletedSet.has(itemCode)) ||
+                 (itemName && currentDeletedSet.has(itemName)) ||
+                 (itemRcpt && currentDeletedSet.has(itemRcpt));
+        };
+
         // Seed dengan data existing (base) — tidak ada yang hilang dari server
         (Array.isArray(extVal) ? extVal : []).forEach(item => {
-          if (!item) return;
+          if (!item || isItemTombstoned(item)) return;
           const k = String(
             item.id != null ? item.id :
             (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
@@ -1944,7 +2050,7 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
 
         // Overlay dengan data incoming: jika item sudah ada, ambil yang _updatedAt lebih baru
         (Array.isArray(incVal) ? incVal : []).forEach(item => {
-          if (!item) return;
+          if (!item || isItemTombstoned(item)) return;
           const k = String(
             item.id != null ? item.id :
             (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
@@ -3522,13 +3628,92 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       ].filter(Boolean)));
     }
 
-    if (key === 'products') {
+    if (key === 'products' || key === 'menuItems') {
       const targetSku = String(req.body.sku || req.body.code || '');
       const targetName = String(req.body.name || '').toLowerCase().trim();
       existing.deletedProductIds = Array.from(new Set([
         ...(existing.deletedProductIds || []),
         idStr,
         targetSku,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'ingredients') {
+      const targetCode = String(req.body.code || req.body.sku || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedIngredientIds = Array.from(new Set([
+        ...(existing.deletedIngredientIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'categories' || key === 'ingredientCategories') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedCategoriesIds = Array.from(new Set([
+        ...(existing.deletedCategoriesIds || []),
+        ...(existing.deletedCategoryIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+      existing.deletedCategoryIds = existing.deletedCategoriesIds;
+    } else if (key === 'suppliers') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedSupplierIds = Array.from(new Set([
+        ...(existing.deletedSupplierIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'customers') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedCustomerIds = Array.from(new Set([
+        ...(existing.deletedCustomerIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'units') {
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedUnitIds = Array.from(new Set([
+        ...(existing.deletedUnitIds || []),
+        idStr,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'outlets') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedOutletIds = Array.from(new Set([
+        ...(existing.deletedOutletIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'paymentMethods') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedPaymentMethodIds = Array.from(new Set([
+        ...(existing.deletedPaymentMethodIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'tables') {
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedTableIds = Array.from(new Set([
+        ...(existing.deletedTableIds || []),
+        idStr,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'expenseMaster') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedExpenseIds = Array.from(new Set([
+        ...(existing.deletedExpenseIds || []),
+        idStr,
+        targetCode,
         targetName
       ].filter(Boolean)));
     }
@@ -3652,15 +3837,22 @@ app.post('/api/master-data/delete-item', async (req, res) => {
             await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
           }
         } else {
-          const relTable = key === 'products' ? 'products' :
-                           key === 'categories' ? 'categories' :
+          const relTable = key === 'products' || key === 'menuItems' ? 'products' :
+                           key === 'categories' || key === 'ingredientCategories' ? 'categories' :
                            key === 'outlets' ? 'outlets' :
                            key === 'ingredients' ? 'ingredients' :
                            key === 'suppliers' ? 'suppliers' :
                            key === 'customers' ? 'customers' :
+                           key === 'units' ? 'units' :
                            key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
           if (relTable) {
-            await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
+            const targetName = String(req.body.name || '').trim();
+            const targetCode = String(req.body.code || req.body.sku || '').trim();
+            try {
+              await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ? OR name = ?`, [idStr, targetCode || idStr, targetName || idStr]);
+            } catch (dErr) {
+              await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ?`, [idStr]).catch(() => {});
+            }
           }
         }
       } catch (delErr) {}

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CreditCard, Plus, Search, Edit3, Trash2, X, CheckCircle2, Wallet, QrCode, Banknote, Landmark, HelpCircle, ArrowUpDown, Globe, Smartphone } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
 export default function PaymentMethodManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {

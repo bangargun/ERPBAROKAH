@@ -7,6 +7,7 @@ import {
 import OutletAnalyticsDetailModal from './OutletAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
 export default function OutletManagement({ masterData, setMasterData, userSession, themeMode = 'dark' }) {

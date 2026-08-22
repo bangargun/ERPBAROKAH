@@ -7,6 +7,7 @@ import {
 import CustomerAnalyticsDetailModal from './CustomerAnalyticsDetailModal';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
 export default function CustomerManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {

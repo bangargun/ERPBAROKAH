@@ -10,6 +10,7 @@ import PaginationControls from './PaginationControls';
 import ExcelMasterImportModal from './ExcelMasterImportModal';
 import { getThemePalette } from '../../utils/themeUtils';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 
 export const inferDefaultIngredientCategory = (name) => {
   const n = String(name || '').toLowerCase();
@@ -318,7 +319,7 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
   };
 
   // -------------------------------------------------------------
-  // DELETE INGREDIENT (DELETE GUARD)
+  // DELETE INGREDIENT (DELETE GUARD & PERMANENT DELETE)
   // -------------------------------------------------------------
   const handleDeleteIngredient = (id, name) => {
     if (!allowDelete) {
@@ -332,17 +333,64 @@ export default function IngredientsManagement({ masterData, setMasterData, selec
       return;
     }
 
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus bahan baku "${name}"?`)) {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus bahan baku "${name}" secara permanen?`)) {
       return;
     }
 
-    const updated = {
+    const targetIng = (masterData?.ingredients || []).find(i => String(i.id) === String(id) || String(i.name || '').trim().toLowerCase() === String(name || '').trim().toLowerCase());
+    const targetId = String(targetIng?.id || id);
+    const targetCode = String(targetIng?.code || '');
+    const targetName = String(targetIng?.name || name).trim();
+
+    // 1. Update tombstone tracking agar polling tidak me-restore kembali
+    const updatedDelIngredientIds = Array.from(new Set([
+      ...(masterData?.deletedIngredientIds || []),
+      targetId,
+      targetId.toLowerCase(),
+      targetCode,
+      targetCode.toLowerCase(),
+      targetName,
+      targetName.toLowerCase()
+    ].filter(Boolean)));
+
+    const remainingIngredients = (masterData?.ingredients || []).filter(i => {
+      const iId = String(i.id || '');
+      const iCode = String(i.code || '');
+      const iName = String(i.name || '').trim().toLowerCase();
+      if (iId === targetId) return false;
+      if (targetCode && iCode === targetCode) return false;
+      if (iName === targetName.toLowerCase()) return false;
+      return true;
+    });
+
+    const updatedMaster = {
       ...masterData,
+      ingredients: remainingIngredients,
+      deletedIngredientIds: updatedDelIngredientIds,
       _lastUpdated: Date.now(),
-      ingredients: (masterData?.ingredients || []).filter(i => String(i.id) !== String(id))
+      _lastMutated: Date.now()
     };
-    setMasterData(updated);
-    alert(`Bahan baku "${name}" berhasil dihapus.`);
+
+    setMasterData(updatedMaster);
+    try {
+      localStorage.setItem('mris_master_data', JSON.stringify(updatedMaster));
+    } catch (e) {}
+
+    // 2. Kirim permintaan delete langsung ke backend & MySQL
+    fetch(getApiUrl('/api/master-data/delete-item'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key: 'ingredients',
+        id: targetId,
+        code: targetCode,
+        name: targetName
+      })
+    }).catch(err => {
+      console.warn('API delete-item network error:', err);
+    });
+
+    alert(`Bahan baku "${name}" berhasil dihapus secara permanen.`);
   };
 
   // -------------------------------------------------------------

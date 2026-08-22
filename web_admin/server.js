@@ -1734,15 +1734,22 @@ app.post('/api/master-data/delete-item', async (req, res) => {
         } else if (key === 'mobileAccounts') {
           await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
         } else {
-          const relTable = key === 'products' ? 'products' :
-                           key === 'categories' ? 'categories' :
+          const relTable = key === 'products' || key === 'menuItems' ? 'products' :
+                           key === 'categories' || key === 'ingredientCategories' ? 'categories' :
                            key === 'outlets' ? 'outlets' :
                            key === 'ingredients' ? 'ingredients' :
                            key === 'suppliers' ? 'suppliers' :
                            key === 'customers' ? 'customers' :
+                           key === 'units' ? 'units' :
                            key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
           if (relTable) {
-            await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
+            const targetName = String(req.body.name || '').trim();
+            const targetCode = String(req.body.code || req.body.sku || '').trim();
+            try {
+              await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ? OR name = ?`, [idStr, targetCode || idStr, targetName || idStr]);
+            } catch (dErr) {
+              await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ?`, [idStr]).catch(() => {});
+            }
           }
         }
       } catch (delErr) {}

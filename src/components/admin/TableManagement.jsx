@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Layout, Plus, Search, Edit3, Trash2, X, CheckCircle2, Store, Grid, Smartphone } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
 
 export default function TableManagement({ masterData, setMasterData, selectedBranch, userSession, themeMode = 'dark' }) {
@@ -87,10 +88,33 @@ export default function TableManagement({ masterData, setMasterData, selectedBra
 
   // Delete Table Group
   const handleDeleteTableGroup = (id, outletName) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus data meja untuk outlet "${outletName}"?`)) {
-      const updated = { ...masterData };
-      updated.tables = updated.tables.filter(t => t.id !== id);
+    if (window.confirm(`Apakah Anda yakin ingin menghapus data meja untuk outlet "${outletName}" secara permanen?`)) {
+      const targetTable = (masterData?.tables || []).find(t => String(t.id) === String(id));
+      const targetId = String(targetTable?.id || id);
+      const targetName = String(outletName || '').trim();
+
+      const updatedDelTableIds = Array.from(new Set([
+        ...(masterData?.deletedTableIds || []),
+        targetId, targetId.toLowerCase(), targetName, targetName.toLowerCase()
+      ].filter(Boolean)));
+
+      const updated = {
+        ...masterData,
+        _lastUpdated: Date.now(),
+        _lastMutated: Date.now(),
+        tables: (masterData?.tables || []).filter(t => String(t.id) !== targetId),
+        deletedTableIds: updatedDelTableIds
+      };
       setMasterData(updated);
+      try { localStorage.setItem('mris_master_data', JSON.stringify(updated)); } catch(e) {}
+
+      fetch(getApiUrl('/api/master-data/delete-item'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'tables', id: targetId, name: targetName })
+      }).catch(() => {});
+
+      alert(`Data meja outlet "${outletName}" berhasil dihapus.`);
     }
   };
 
