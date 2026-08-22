@@ -160,6 +160,7 @@ export default function FinancialOverview({
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
   const [aiLastUpdated, setAiLastUpdated] = useState('Baru saja (Real-time)');
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showWaSummaryModal, setShowWaSummaryModal] = useState(false);
   const [aiModalTab, setAiModalTab] = useState('summary');
 
   // Currency Formatter
@@ -2417,7 +2418,16 @@ export default function FinancialOverview({
         themeMode={themeMode}
       />
 
-
+      {/* ------------------------------------------------------------- */}
+      {/* 8. DAILY WHATSAPP SUMMARY MODAL                              */}
+      {/* ------------------------------------------------------------- */}
+      {showWaSummaryModal && (
+        <DailyWhatsAppSummaryModal
+          masterData={masterData}
+          onClose={() => setShowWaSummaryModal(false)}
+          themeMode={themeMode}
+        />
+      )}
 
     </div>
   );
