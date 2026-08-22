@@ -12,7 +12,11 @@ import {
   AlertTriangle, 
   Sparkles,
   Phone,
-  Settings
+  Plus,
+  Trash2,
+  Users,
+  CheckCircle2,
+  ExternalLink
 } from 'lucide-react';
 import { getThemePalette } from '../../utils/themeUtils';
 import { getApiUrl } from '../../utils/apiConfig';
@@ -27,10 +31,19 @@ export default function DailyWhatsAppSummaryModal({
   const [copied, setCopied] = useState(false);
   const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Nomor WA Owner tersimpan di masterData atau default
-  const [ownerPhone, setOwnerPhone] = useState(() => {
-    return masterData?.settings?.ownerWaPhone || '6281234567890';
+  // Multiple Owner Phone Numbers
+  const [phoneList, setPhoneList] = useState(() => {
+    if (Array.isArray(masterData?.settings?.ownerPhones) && masterData.settings.ownerPhones.length > 0) {
+      return masterData.settings.ownerPhones;
+    }
+    const single = masterData?.settings?.ownerWaPhone || '6281234567890';
+    return [{ id: '1', label: 'Owner Utama', phone: single, enabled: true }];
   });
+
+  // State Input Form Tambah Nomor Baru
+  const [newLabel, setNewLabel] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
 
   const outlets = masterData?.outlets || [];
   const allSalesTx = masterData?.salesTransactions || [];
@@ -175,19 +188,23 @@ export default function DailyWhatsAppSummaryModal({
     return msg;
   }, [summaryData, formattedDateStr]);
 
-  // Handle Save Phone
-  const handleSavePhone = async () => {
-    let clean = ownerPhone.replace(/[^0-9]/g, '');
+  // Clean format phone helper
+  const cleanPhone = (num) => {
+    let clean = String(num || '').replace(/[^0-9]/g, '');
     if (clean.startsWith('0')) clean = '62' + clean.slice(1);
-    if (!clean.startsWith('62')) clean = '62' + clean;
+    if (!clean.startsWith('62') && clean.length > 0) clean = '62' + clean;
+    return clean;
+  };
 
-    setOwnerPhone(clean);
-
+  // Sync phones to masterData
+  const syncPhoneListToMaster = async (updatedList) => {
+    setPhoneList(updatedList);
     const newMaster = {
       ...masterData,
       settings: {
         ...(masterData?.settings || {}),
-        ownerWaPhone: clean
+        ownerPhones: updatedList,
+        ownerWaPhone: updatedList[0]?.phone || '6281234567890'
       },
       _lastUpdated: Date.now()
     };
@@ -202,17 +219,67 @@ export default function DailyWhatsAppSummaryModal({
     } catch (e) {}
   };
 
-  // Handle Send WA
-  const handleSendWhatsApp = () => {
-    let cleanPhone = ownerPhone.replace(/[^0-9]/g, '');
-    if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.slice(1);
-    if (!cleanPhone.startsWith('62')) cleanPhone = '62' + cleanPhone;
+  // Toggle enable checkbox
+  const handleTogglePhone = (id) => {
+    const updated = phoneList.map(p => p.id === id ? { ...p, enabled: !p.enabled } : p);
+    syncPhoneListToMaster(updated);
+  };
 
-    handleSavePhone();
+  // Delete phone
+  const handleDeletePhone = (id) => {
+    if (phoneList.length <= 1) {
+      alert('Minimal harus ada 1 nomor WhatsApp tersimpan!');
+      return;
+    }
+    const updated = phoneList.filter(p => p.id !== id);
+    syncPhoneListToMaster(updated);
+  };
+
+  // Add new phone
+  const handleAddPhone = (e) => {
+    e.preventDefault();
+    if (!newPhone.trim()) {
+      alert('Nomor WhatsApp wajib diisi!');
+      return;
+    }
+    const formatted = cleanPhone(newPhone);
+    const newItem = {
+      id: String(Date.now()),
+      label: newLabel.trim() || `Owner #${phoneList.length + 1}`,
+      phone: formatted,
+      enabled: true
+    };
+    const updated = [...phoneList, newItem];
+    syncPhoneListToMaster(updated);
+    setNewLabel('');
+    setNewPhone('');
+    setShowAddForm(false);
+  };
+
+  // Send to 1 single phone
+  const handleSendSingle = (phoneNum) => {
+    const formatted = cleanPhone(phoneNum);
+    const encoded = encodeURIComponent(waMessageText);
+    const waUrl = `https://api.whatsapp.com/send?phone=${formatted}&text=${encoded}`;
+    window.open(waUrl, '_blank');
+  };
+
+  // Send to all enabled phones
+  const handleSendAllEnabled = () => {
+    const activeList = phoneList.filter(p => p.enabled !== false);
+    if (activeList.length === 0) {
+      alert('Pilih minimal 1 nomor tujuan dengan mencentang kotak nomor!');
+      return;
+    }
 
     const encoded = encodeURIComponent(waMessageText);
-    const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`;
-    window.open(waUrl, '_blank');
+    activeList.forEach((item, idx) => {
+      const formatted = cleanPhone(item.phone);
+      const waUrl = `https://api.whatsapp.com/send?phone=${formatted}&text=${encoded}`;
+      setTimeout(() => {
+        window.open(waUrl, '_blank');
+      }, idx * 400);
+    });
   };
 
   // Handle Copy
@@ -221,6 +288,8 @@ export default function DailyWhatsAppSummaryModal({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const selectedCount = phoneList.filter(p => p.enabled !== false).length;
 
   return (
     <div style={{
@@ -238,29 +307,29 @@ export default function DailyWhatsAppSummaryModal({
         background: T.cardBg,
         border: `1px solid ${T.border}`,
         borderRadius: '20px',
-        padding: '26px',
+        padding: '24px',
         width: '100%',
-        maxWidth: '680px',
+        maxWidth: '720px',
         maxHeight: '92vh',
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: '18px',
+        gap: '16px',
         boxShadow: '0 25px 60px rgba(0,0,0,0.6)'
       }}>
         
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}`, paddingBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(16,185,129,0.4)' }}>
               <MessageSquare size={24} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '900', color: T.txtPrimary, margin: 0 }}>
                 Laporan Ringkasan Harian ke WhatsApp Owner
               </h3>
               <p style={{ fontSize: '0.78rem', color: T.txtSecondary, margin: '2px 0 0 0' }}>
-                Kirim rekap total omset 5 cabang, struk kasir, QRIS BCA, Grab-Food, dan stok menipis dengan 1 klik
+                Kirim rekap omset 5 cabang, struk kasir, QRIS BCA, dan Grab-Food ke banyak nomor WhatsApp sekaligus
               </p>
             </div>
           </div>
@@ -269,32 +338,144 @@ export default function DailyWhatsAppSummaryModal({
           </button>
         </div>
 
-        {/* Input Tanggal & Nomor WA Owner */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '12px', background: T.controlBg, padding: '14px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
-          <div>
-            <label style={{ fontSize: '0.76rem', fontWeight: '800', color: T.txtSecondary, display: 'block', marginBottom: '4px' }}>
-              Pilih Tanggal Laporan:
-            </label>
+        {/* Bar Pilihan Tanggal & Kelola Nomor Owner */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          
+          {/* Row 1: Tanggal Laporan */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: T.controlBg, padding: '10px 14px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={16} color={T.accentGold} />
+              <span style={{ fontSize: '0.80rem', fontWeight: '800', color: T.txtSecondary }}>
+                Pilih Tanggal Rekapitulasi:
+              </span>
+            </div>
             <input
               type="date"
               value={targetDate}
               onChange={e => setTargetDate(e.target.value)}
-              style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.cardBg, color: T.txtPrimary, fontWeight: '700', fontSize: '0.84rem' }}
+              style={{ padding: '6px 12px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.cardBg, color: T.txtPrimary, fontWeight: '800', fontSize: '0.84rem' }}
             />
           </div>
 
-          <div>
-            <label style={{ fontSize: '0.76rem', fontWeight: '800', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
-              <Phone size={13} />
-              <span>Nomor WhatsApp Owner (Format 628...):</span>
-            </label>
-            <input
-              type="text"
-              value={ownerPhone}
-              onChange={e => setOwnerPhone(e.target.value)}
-              placeholder="Contoh: 6281298765432"
-              style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: `1.5px solid #10b981`, background: T.cardBg, color: '#10b981', fontWeight: '900', fontSize: '0.88rem' }}
-            />
+          {/* Row 2: Daftar Nomor WhatsApp Penerima */}
+          <div style={{ background: T.controlBg, padding: '14px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Users size={16} color="#10b981" />
+                <span style={{ fontSize: '0.82rem', fontWeight: '900', color: '#10b981' }}>
+                  Daftar Nomor WhatsApp Tujuan ({phoneList.length} Nomor Terdaftar)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(!showAddForm)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #10b981',
+                  background: showAddForm ? 'rgba(16,185,129,0.2)' : '#10b981',
+                  color: showAddForm ? '#10b981' : '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.74rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <Plus size={14} />
+                <span>{showAddForm ? 'Tutup Form' : 'Tambahkan Nomor'}</span>
+              </button>
+            </div>
+
+            {/* Form Input Tambah Nomor */}
+            {showAddForm && (
+              <form onSubmit={handleAddPhone} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr auto', gap: '8px', marginBottom: '12px', background: T.cardBg, padding: '10px', borderRadius: '10px', border: `1.5px dashed #10b981` }}>
+                <input
+                  type="text"
+                  placeholder="Nama / Label (misal: Owner 2)"
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value)}
+                  style={{ padding: '7px 10px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.controlBg, color: T.txtPrimary, fontSize: '0.80rem', fontWeight: '700' }}
+                />
+                <input
+                  type="text"
+                  required
+                  placeholder="Nomor WA (contoh: 081298765432)"
+                  value={newPhone}
+                  onChange={e => setNewPhone(e.target.value)}
+                  style={{ padding: '7px 10px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.controlBg, color: '#10b981', fontSize: '0.82rem', fontWeight: '900' }}
+                />
+                <button
+                  type="submit"
+                  style={{ padding: '7px 14px', borderRadius: '6px', border: 'none', background: '#10b981', color: '#ffffff', fontWeight: '900', fontSize: '0.78rem', cursor: 'pointer' }}
+                >
+                  Simpan
+                </button>
+              </form>
+            )}
+
+            {/* List Nomor Terdaftar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
+              {phoneList.map(item => {
+                const isEnabled = item.enabled !== false;
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: isEnabled ? (themeMode === 'soft_blue' ? '#e0f2fe' : 'rgba(16,185,129,0.08)') : T.cardBg,
+                      border: `1px solid ${isEnabled ? '#10b981' : T.border}`
+                    }}
+                  >
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={() => handleTogglePhone(item.id)}
+                        style={{ width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer' }}
+                      />
+                      <div>
+                        <span style={{ fontSize: '0.80rem', fontWeight: '900', color: T.txtPrimary, marginRight: '8px' }}>
+                          {item.label}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#10b981', fontFamily: 'monospace' }}>
+                          +{cleanPhone(item.phone)}
+                        </span>
+                      </div>
+                    </label>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleSendSingle(item.phone)}
+                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #10b981', background: 'rgba(16,185,129,0.15)', color: '#10b981', fontSize: '0.70rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Kirim hanya ke nomor ini"
+                      >
+                        <Send size={11} />
+                        <span>Kirim</span>
+                      </button>
+
+                      {phoneList.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePhone(item.id)}
+                          style={{ padding: '4px 6px', borderRadius: '6px', border: `1px solid ${T.dangerBorder}`, background: T.dangerBg, color: T.danger, cursor: 'pointer' }}
+                          title="Hapus Nomor Ini"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
           </div>
         </div>
 
@@ -328,52 +509,59 @@ export default function DailyWhatsAppSummaryModal({
 
           <textarea
             readOnly
-            rows={12}
+            rows={10}
             value={waMessageText}
             style={{
               width: '100%',
-              padding: '14px',
+              padding: '12px',
               borderRadius: '12px',
               border: `1px solid ${T.border}`,
               background: themeMode === 'soft_blue' ? '#f0f7ff' : '#0b0f19',
               color: T.txtPrimary,
               fontFamily: 'monospace',
-              fontSize: '0.80rem',
-              lineHeight: '1.5',
+              fontSize: '0.78rem',
+              lineHeight: '1.45',
               resize: 'vertical'
             }}
           />
         </div>
 
         {/* Footer Actions */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: `1px solid ${T.border}`, paddingTop: '14px' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ padding: '10px 18px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.controlBg, color: T.txtPrimary, fontWeight: '800', cursor: 'pointer' }}
-          >
-            Tutup
-          </button>
-          <button
-            type="button"
-            onClick={handleSendWhatsApp}
-            style={{
-              padding: '10px 24px',
-              borderRadius: '10px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: '#ffffff',
-              fontWeight: '900',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 16px rgba(16,185,129,0.45)'
-            }}
-          >
-            <Send size={16} />
-            <span>Kirim Langsung ke WhatsApp Owner</span>
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${T.border}`, paddingTop: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ fontSize: '0.78rem', color: T.txtSecondary, fontWeight: '700' }}>
+            Target: <strong style={{ color: '#10b981' }}>{selectedCount} Nomor WhatsApp Aktif</strong>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ padding: '10px 18px', borderRadius: '10px', border: `1px solid ${T.border}`, background: T.controlBg, color: T.txtPrimary, fontWeight: '800', cursor: 'pointer' }}
+            >
+              Tutup
+            </button>
+            <button
+              type="button"
+              onClick={handleSendAllEnabled}
+              style={{
+                padding: '10px 22px',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                fontWeight: '900',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 16px rgba(16,185,129,0.45)'
+              }}
+            >
+              <Send size={16} />
+              <span>Kirim Otomatis ke {selectedCount} Nomor WA</span>
+            </button>
+          </div>
         </div>
 
       </div>
