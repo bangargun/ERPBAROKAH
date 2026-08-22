@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { getApiUrl } from '../../utils/apiConfig';
 
 export default function ApprovalCenter({ masterData, setMasterData, selectedBranch, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -352,8 +353,6 @@ export default function ApprovalCenter({ masterData, setMasterData, selectedBran
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedReports = filteredReports.slice(startIndex, startIndex + pageSize);
-
-  const getApiUrl = (pathStr) => `https://mris-api.barokahgroupindonesia.tech${pathStr}`;
 
   // UPDATE STATUS HANDLER (ACC -> Approved -> Done)
   const handleUpdateStatus = (item, nextStatus) => {

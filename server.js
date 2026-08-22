@@ -2968,7 +2968,7 @@ app.post('/api/pos/table-orders', async (req, res) => {
       return res.status(400).json({ success: false, error: 'outlet_id dan table_id wajib diisi' });
     }
 
-    const orderId = String(id || `TO-${outlet_id}-${table_id}`);
+    const orderId = `TO-${outlet_id}-${table_id}`;
     const itemsJson = typeof items === 'string' ? items : JSON.stringify(items || []);
     const totAmt = Number(total_amount || 0);
 
