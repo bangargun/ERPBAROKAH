@@ -66,6 +66,45 @@ export default function ManualReportUpdatePage({
     return otl ? otl.name : `Outlet #${id}`;
   };
 
+  
+  // Helper: Kirim Laporan Outlet Tunggal ke WhatsApp Owner
+  const handleSendOutletReportToWA = (row) => {
+    const ownerPhone = masterData?.settings?.ownerWaPhone || '6281234567890';
+    const outletName = row.outlet_name || getOutletName(row.outlet_id);
+    const dateStr = formatDateIndonesian(row.entry_date || row.date || row.transaction_date || row.created_at, row);
+    const salesVal = Number(row.total_omset || row.gross_sales || row.net_sales || 0);
+    const pendLainVal = Number(row.total_pendapatan_lain || 0);
+    const totalPemasukanVal = Number(row.total_pemasukan || (salesVal + pendLainVal));
+    const expenseVal = Number(row.total_expense || row.total_pengeluaran || 0);
+    const netCash = totalPemasukanVal - expenseVal;
+
+    let msg = `📊 *LAPORAN HARIAN OUTLET — BAROKAH GROUP*\n`;
+    msg += `🏢 *Outlet:* ${outletName}\n`;
+    msg += `📅 *Tanggal:* ${dateStr}\n`;
+    msg += `📝 *No. Laporan:* ${row.report_no || `UPD-${row.id}`}\n\n`;
+
+    msg += `💰 *RINGKASAN KEUANGAN OUTLET:*\n`;
+    msg += `• Total Pemasukan: + Rp ${totalPemasukanVal.toLocaleString('id-ID')}\n`;
+    msg += `• Total Pengeluaran: - Rp ${expenseVal.toLocaleString('id-ID')}\n`;
+    msg += `• *Sisa Kas Bersih:* Rp ${netCash.toLocaleString('id-ID')}\n\n`;
+
+    const allDetails = [...(row.sales_details || []), ...(row.expense_details || [])];
+    if (allDetails.length > 0) {
+      msg += `📦 *Rincian Item:*\n`;
+      allDetails.slice(0, 5).forEach((d, i) => {
+        const name = d.product_name || d.name || d.categoryName || 'Item';
+        msg += `${i + 1}. ${name} (${d.qty || 1}x)\n`;
+      });
+      msg += `\n`;
+    }
+
+    msg += `👤 *Pelapor:* ${row.created_by || row.author || 'Kasir / Staff Cabang'}\n`;
+    msg += `📌 _Laporan resmi terverifikasi sistem MRIS Barokah._`;
+
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://api.whatsapp.com/send?phone=${ownerPhone}&text=${encoded}`, '_blank');
+  };
+
   // Helper: Format Tanggal & Jam Indonesia (Disamping Tanggal)
   const formatDateIndonesian = (dateStr, rawObj = null) => {
     if (!dateStr) return '-';
@@ -923,6 +962,14 @@ export default function ManualReportUpdatePage({
 
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleSendOutletReportToWA(row)}
+                            style={{ padding: '5px 8px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '6px', color: '#10b981', cursor: 'pointer' }}
+                            title="Kirim Laporan Outlet Ini Langsung ke WhatsApp Owner"
+                          >
+                            <span style={{ fontSize: '0.85rem' }}>📲</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => setPreviewReport(row)}

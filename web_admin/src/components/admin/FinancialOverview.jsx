@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DashboardAIInsightModal from './DashboardAIInsightModal';
+import DailyWhatsAppSummaryModal from './DailyWhatsAppSummaryModal';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -941,6 +942,32 @@ export default function FinancialOverview({
                   <option value="manual_only">📑 Hanya Rekap Manual / Excel</option>
                 </select>
               </div>
+
+              
+              {/* WhatsApp Daily Summary Button */}
+              <button
+                type="button"
+                onClick={() => setShowWaSummaryModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Kirim Laporan Rekap Harian 5 Cabang ke WhatsApp Owner"
+              >
+                <Receipt size={14} />
+                <span>📲 Rekap Harian WA</span>
+              </button>
 
               {/* AI Refresh Button */}
               <button
