@@ -832,70 +832,7 @@ export default function FinancialOverview({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', background: T.pageBg, color: T.txtPrimary }} className="animate-fade-in">
-      {/* ------------------------------------------------------------- */}
-      {/* 🌟 CENTER TOP: LAPORAN RINGKASAN HARIAN KE WHATSAPP OWNER     */}
-      {/* ------------------------------------------------------------- */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: '100%',
-        marginTop: '-4px',
-        marginBottom: '4px'
-      }}>
-        <button
-          type="button"
-          onClick={() => setShowWaSummaryModal(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            padding: '12px 28px',
-            borderRadius: '16px',
-            border: '1.5px solid #10b981',
-            background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
-            color: '#ffffff',
-            fontWeight: '900',
-            fontSize: '0.92rem',
-            cursor: 'pointer',
-            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.45)',
-            letterSpacing: '0.01em',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-            e.currentTarget.style.boxShadow = '0 12px 30px rgba(16, 185, 129, 0.6)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0) scale(1)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.45)';
-          }}
-        >
-          <div style={{
-            width: '26px',
-            height: '26px',
-            borderRadius: '8px',
-            background: 'rgba(255,255,255,0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <MessageSquare size={16} color="#ffffff" />
-          </div>
-          <span>📲 Laporan Ringkasan Harian ke WhatsApp Owner</span>
-          <span style={{
-            fontSize: '0.70rem',
-            padding: '3px 10px',
-            borderRadius: '20px',
-            background: 'rgba(0,0,0,0.25)',
-            fontWeight: '900',
-            marginLeft: '4px'
-          }}>
-            KIRIM KE OWNER
-          </span>
-        </button>
-      </div>
+      
 
       
       {/* ------------------------------------------------------------- */}
@@ -1011,7 +948,32 @@ export default function FinancialOverview({
               </div>
 
               
-              {/* AI Refresh Button */}
+                            {/* WhatsApp Daily Summary Button */}
+              <button
+                type="button"
+                onClick={() => setShowWaSummaryModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  fontWeight: '800',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Buka Laporan Ringkasan Harian ke WhatsApp Owner"
+              >
+                <MessageSquare size={14} />
+                <span>📲 Rekap Harian WA</span>
+              </button>
+
+{/* AI Refresh Button */}
               <button
                 type="button"
                 onClick={handleTriggerAI}

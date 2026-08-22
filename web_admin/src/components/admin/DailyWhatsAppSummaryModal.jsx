@@ -295,13 +295,14 @@ export default function DailyWhatsAppSummaryModal({
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.85)',
+      background: 'rgba(0,0,0,0.80)',
       backdropFilter: 'blur(8px)',
       zIndex: 99999,
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
-      padding: '20px'
+      padding: '36px 20px 20px 20px',
+      overflowY: 'auto'
     }}>
       <div style={{
         background: T.cardBg,
