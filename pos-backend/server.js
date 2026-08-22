@@ -1,12 +1,18 @@
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
+import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ─── FLAG: Force-flush perintah ke semua POS client ────────────────────────
+// Diset via POST /api/pos-force-flush, dibaca dan di-clear saat GET /api/master-data
+let forceFlushActive = false;
 
 // Load .env file manually if present
 const envPath = path.join(__dirname, '.env');
@@ -36,7 +42,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 app.options('*', cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Persistent JSON Store Path
 const DB_FILE = path.join(__dirname, 'mris_finance.json');
@@ -387,18 +394,28 @@ const defaultMasterData = {
   tables: [],
   paymentMethods: [
     { id: 1, name: 'Tunai (Cash)', code: 'CASH', status: 'Aktif' },
-    { id: 2, name: 'QRIS', code: 'QRIS', status: 'Aktif' },
+    { id: 2, name: 'QRIS (BCA)', code: 'QRIS_BCA', status: 'Aktif' },
     { id: 3, name: 'Debit / EDC Bank', code: 'EDC', status: 'Aktif' }
   ],
   suppliers: [],
   units: [],
   expenseMaster: [],
   ingredients: [],
+  ingredientCategories: [
+    { id: 1, code: 'KBHN-001', name: 'Seafood & Ikan', description: 'Aneka ikan laut, udang, cumi, dan seafood segar', status: 'Aktif' },
+    { id: 2, code: 'KBHN-002', name: 'Daging & Unggas', description: 'Ayam, bebek, sapi, dan produk unggas', status: 'Aktif' },
+    { id: 3, code: 'KBHN-003', name: 'Sayur & Bumbu Segar', description: 'Sayuran hijau, cabai, bawang, dan bumbu basah', status: 'Aktif' },
+    { id: 4, code: 'KBHN-004', name: 'Minuman & Powder', description: 'Bubuk minuman, teh, kopi, sirup, dan kemasan', status: 'Aktif' },
+    { id: 5, code: 'KBHN-005', name: 'Sembako & Olahan', description: 'Beras, minyak goreng, tepung, gula, kecap, dan saus', status: 'Aktif' },
+    { id: 6, code: 'KBHN-006', name: 'Bumbu & Rempah', description: 'Bumbu kering, rempah-rempah dapur, dan perasa', status: 'Aktif' }
+  ],
   cogsExpenses: [],
   productionExpenses: [],
   otherExpenses: [],
   stockMovement: [],
   stockOpname: [],
+  stockAdjustments: [],
+  cashAdjustments: [],
   shiftClosings: [],
   sopDocuments: [],
   webAdminAccounts: [],
@@ -420,25 +437,38 @@ const initMySQLPool = async () => {
       password: process.env.MYSQL_PASSWORD || '',
       database: process.env.MYSQL_DATABASE || 'mris_db',
       port: Number(process.env.MYSQL_PORT) || 3306,
-      waitForConnections: false,
-      connectionLimit: 5,
-      connectTimeout: 2500,
-      queueLimit: 0
+      waitForConnections: true,
+      connectionLimit: 50,
+      connectTimeout: 10000,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
+      dateStrings: true
     });
-    mysqlInitError = null;
-    console.log('✅ MySQL Pool Initialized for VPS (187.77.122.142) mris_db Storage');
-    // Auto-create master data table jika belum ada
     await ensureMasterDataTable();
+
+    // Auto-sync blob data to relational tables on startup
+    try {
+      const initialData = await getMasterDataFromMySQL();
+      if (initialData) {
+        await syncToMySQL(initialData);
+        console.log('✅ Auto-sync tabel relasional MySQL selesai saat startup');
+      }
+    } catch (sErr) {
+      console.warn('Warning initial sync to relational MySQL:', sErr.message);
+    }
+
   } catch (err) {
     mysqlInitError = err.message;
   }
 };
 initMySQLPool();
 
-// Auto-create tabel mris_master_data jika belum ada
+// Auto-create semua tabel MySQL yang dibutuhkan jika belum ada
 const ensureMasterDataTable = async () => {
   if (!mysqlPool) return;
   try {
+    // 1. Tabel master data utama (JSON blob)
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS mris_master_data (
         id INT PRIMARY KEY DEFAULT 1,
@@ -447,35 +477,453 @@ const ensureMasterDataTable = async () => {
       )
     `);
     console.log('✅ Tabel mris_master_data siap');
+
+    // 1b. Tabel history/snapshot master data (Automatic Versioning & Rolling Backup 50 Versi)
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS mris_master_data_history (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        tx_count INT DEFAULT 0,
+        source_tag VARCHAR(100) DEFAULT 'auto',
+        data LONGTEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Tabel mris_master_data_history (Blob Versioning) siap');
+
+    // 2. Outlets
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS outlets (
+        id INT PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        address TEXT,
+        location TEXT,
+        manager_name VARCHAR(255),
+        phone VARCHAR(50),
+        target_omzet BIGINT DEFAULT 0,
+        employee_count INT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'Aktif',
+        color VARCHAR(50) DEFAULT '#3b82f6'
+      )
+    `);
+
+    // 3. Web Admin Users
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS web_admin_users (
+        id BIGINT PRIMARY KEY,
+        name VARCHAR(255),
+        username VARCHAR(255),
+        password VARCHAR(255),
+        role VARCHAR(100),
+        outlet VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 4. Mobile POS Users
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS mobile_pos_users (
+        id BIGINT PRIMARY KEY,
+        name VARCHAR(255),
+        username VARCHAR(255),
+        password VARCHAR(255),
+        role VARCHAR(100),
+        outlet VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'Aktif',
+        can_access_reports TINYINT(1) DEFAULT 0,
+        report_password VARCHAR(255)
+      )
+    `);
+
+    // Auto-migrate column id ke BIGINT jika sebelumnya INT untuk mendukung 13-digit Date.now() timestamp ID
+    try { await mysqlPool.execute(`ALTER TABLE web_admin_users MODIFY id BIGINT`); } catch (e) {}
+    try { await mysqlPool.execute(`ALTER TABLE mobile_pos_users MODIFY id BIGINT`); } catch (e) {}
+
+    // Auto-cleanup username ganda (case-insensitive deduplication) di MySQL
+    try {
+      await mysqlPool.execute(`
+        DELETE t1 FROM web_admin_users t1
+        INNER JOIN web_admin_users t2 
+        ON LOWER(TRIM(t1.username)) = LOWER(TRIM(t2.username)) AND t1.id < t2.id
+      `);
+      await mysqlPool.execute(`
+        DELETE t1 FROM mobile_pos_users t1
+        INNER JOIN mobile_pos_users t2 
+        ON LOWER(TRIM(t1.username)) = LOWER(TRIM(t2.username)) AND t1.id < t2.id
+      `);
+    } catch (e) {}
+
+    // 4b. Active Table Orders (Shared Realtime Multi-Device Table Orders per Outlet)
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS active_table_orders (
+        id VARCHAR(100) PRIMARY KEY,
+        outlet_id BIGINT NOT NULL,
+        table_id VARCHAR(100) NOT NULL,
+        table_number VARCHAR(100),
+        customer_name VARCHAR(255) DEFAULT 'Pelanggan Umum',
+        order_type VARCHAR(100) DEFAULT 'Dine In',
+        waiter_name VARCHAR(255),
+        items LONGTEXT NOT NULL,
+        total_amount DECIMAL(15,2) DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'occupied',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_outlet_status (outlet_id, status)
+      )
+    `);
+    console.log('✅ Tabel active_table_orders (Multi-Device Table Sync) siap');
+
+    // 5. Categories
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id INT PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        type VARCHAR(50),
+        icon VARCHAR(100),
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 6. Products
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS products (
+        id INT PRIMARY KEY,
+        sku VARCHAR(100),
+        name VARCHAR(255),
+        category_id INT,
+        category_name VARCHAR(255),
+        price BIGINT DEFAULT 0,
+        cost_price BIGINT DEFAULT 0,
+        stock DECIMAL(10,2) DEFAULT 0,
+        unit VARCHAR(50),
+        outlet_id INT,
+        selected_outlet_ids TEXT,
+        image_url TEXT,
+        description TEXT,
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 7. Sales Transactions
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS sales_transactions (
+        id VARCHAR(100) PRIMARY KEY,
+        receipt_no VARCHAR(100),
+        date DATE,
+        time VARCHAR(20),
+        outlet_id INT,
+        branch_id INT,
+        branch_name VARCHAR(255),
+        outlet VARCHAR(255),
+        customer_name VARCHAR(255),
+        table_number VARCHAR(50),
+        order_type VARCHAR(50),
+        subtotal BIGINT DEFAULT 0,
+        discount_amount BIGINT DEFAULT 0,
+        service_charge BIGINT DEFAULT 0,
+        tax_amount BIGINT DEFAULT 0,
+        adjustment_amount BIGINT DEFAULT 0,
+        amount BIGINT DEFAULT 0,
+        paid_amount BIGINT DEFAULT 0,
+        change_amount BIGINT DEFAULT 0,
+        payment_method VARCHAR(100),
+        cashier VARCHAR(255),
+        notes TEXT,
+        status VARCHAR(50) DEFAULT 'approved',
+        type VARCHAR(50) DEFAULT 'income'
+      )
+    `);
+
+    
+    
+    // 10. Ingredients Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS ingredients (
+        id VARCHAR(100) PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        category VARCHAR(100),
+        category_id VARCHAR(50),
+        unit VARCHAR(50) DEFAULT 'kg',
+        price BIGINT DEFAULT 0,
+        cost_price BIGINT DEFAULT 0,
+        stock DECIMAL(12,2) DEFAULT 0,
+        minimum_stock DECIMAL(12,2) DEFAULT 0,
+        outlet_id INT,
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 11. Suppliers Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS suppliers (
+        id VARCHAR(100) PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        phone VARCHAR(50),
+        address TEXT,
+        outlet_id INT,
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 12. Units Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS units (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(100),
+        short_name VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    
+    // 13. Fixed Assets Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS fixed_assets (
+        id VARCHAR(100) PRIMARY KEY,
+        code VARCHAR(100),
+        name VARCHAR(255),
+        category VARCHAR(100),
+        outlet_id BIGINT,
+        outlet_name VARCHAR(255),
+        purchase_date DATE,
+        purchase_cost BIGINT DEFAULT 0,
+        useful_life_years INT DEFAULT 5,
+        salvage_value BIGINT DEFAULT 0,
+        condition_status VARCHAR(50) DEFAULT 'Baik',
+        location VARCHAR(255),
+        pic VARCHAR(255),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // 8. Shift Closings Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS shift_closings (
+        id VARCHAR(100) PRIMARY KEY,
+        date DATE,
+        outlet_id INT,
+        branch_name VARCHAR(255),
+        author_name VARCHAR(255),
+        opening_float BIGINT DEFAULT 0,
+        net_sales BIGINT DEFAULT 0,
+        cash_sales BIGINT DEFAULT 0,
+        non_cash_sales BIGINT DEFAULT 0,
+        total_expense BIGINT DEFAULT 0,
+        expected_cash BIGINT DEFAULT 0,
+        cash_physical BIGINT DEFAULT 0,
+        cash_variance BIGINT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'SELESAI DITUTUP'
+      )
+    `);
+
+    // 9. Stock Movement Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS stock_movement (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        date DATE,
+        time VARCHAR(20),
+        ingredient_name VARCHAR(255),
+        type VARCHAR(20) DEFAULT 'OUT',
+        qty DECIMAL(12,2) DEFAULT 0,
+        unit VARCHAR(50) DEFAULT 'porsi',
+        outlet_id INT,
+        source_outlet VARCHAR(255),
+        target_outlet VARCHAR(255),
+        reason TEXT,
+        user_name VARCHAR(255),
+        INDEX idx_sm_outlet_date (outlet_id, date),
+        INDEX idx_sm_ing (ingredient_name)
+      )
+    `);
+
+    // Auto-create MySQL Performance Indexes for Ultra-Responsive Queries
+    try { await mysqlPool.execute(`CREATE INDEX idx_web_user_name ON web_admin_users (username)`); } catch (e) {}
+    try { await mysqlPool.execute(`CREATE INDEX idx_mob_user_name ON mobile_pos_users (username)`); } catch (e) {}
+    try { await mysqlPool.execute(`CREATE INDEX idx_sales_date_outlet ON sales_transactions (date, outlet_id)`); } catch (e) {}
+    try { await mysqlPool.execute(`CREATE INDEX idx_products_outlet ON products (outlet_id, category_id)`); } catch (e) {}
+
+    console.log('✅ Semua tabel relasional MySQL & Index Performa siap');
   } catch (err) {
-    console.error('❌ Gagal membuat tabel mris_master_data:', err.message);
+    console.error('❌ Gagal membuat tabel:', err.message);
   }
 };
 
-// Baca masterData dari MySQL
+
+// Baca masterData dari MySQL (Auto-Sync Relational Tables + JSON Blob)
 const getMasterDataFromMySQL = async () => {
   if (!mysqlPool) return null;
   try {
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('MySQL read timeout')), 3000)
+      setTimeout(() => reject(new Error('MySQL read timeout')), 4000)
     );
     const queryPromise = mysqlPool.execute('SELECT data FROM mris_master_data WHERE id = 1');
     const [rows] = await Promise.race([queryPromise, timeoutPromise]);
+    let masterData = null;
     if (rows && rows.length > 0 && rows[0].data) {
-      return JSON.parse(rows[0].data);
+      masterData = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
     }
-    return null;
+    if (!masterData || typeof masterData !== 'object') {
+      masterData = { ...defaultMasterData };
+    }
+
+    // Auto-merge semua transaksi dari tabel relasi MySQL sales_transactions
+    // MySQL adalah ground truth — semua transaksi yang masuk via POST /api/pos/transaction
+    // langsung tersimpan di tabel ini. Blob (JSON) adalah cache yang bisa out-of-sync.
+    // Strategi: selalu union antara blob + MySQL. MySQL menambah yang tidak ada di blob.
+    try {
+      const [salesRows] = await mysqlPool.execute('SELECT * FROM sales_transactions ORDER BY date DESC, time DESC');
+      if (Array.isArray(salesRows) && salesRows.length > 0) {
+        const txMap = new Map();
+        // Seed dengan data blob terlebih dahulu (blob punya detail lebih lengkap: items, dll)
+        (masterData.salesTransactions || []).forEach(t => {
+          const k = String(t.id || t.receipt_no || t.receiptNo || '');
+          if (k) txMap.set(k, t);
+        });
+        (masterData.transactions || []).forEach(t => {
+          const k = String(t.id || t.receipt_no || t.receiptNo || '');
+          if (k && !txMap.has(k)) txMap.set(k, t);
+        });
+
+        salesRows.forEach(r => {
+          const k = String(r.id || r.receipt_no || '');
+          if (!k) return;
+
+          // Parse items_json dari tabel MySQL sales_transactions
+          let resolvedItems = [];
+          if (r.items_json) {
+            try {
+              const parsed = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                resolvedItems = parsed.map(it => ({
+                  name: (it.name || it.product_name || it.item_name || 'Menu').trim(),
+                  qty: Number(it.qty || it.quantity || 1),
+                  price_unit: Number(it.price_unit || it.price || it.unit_price || 0),
+                  amount: Number(it.amount || it.total || it.subtotal || 0),
+                  category: it.category || ''
+                }));
+              }
+            } catch (e) {}
+          }
+
+          // Jika blob sudah punya transaksi ini, tetapi blob belum memiliki item rincian atau masih "Menu Paket Restoran", update items-nya dari MySQL
+          if (txMap.has(k)) {
+            const existing = txMap.get(k);
+            const hasRealItems = Array.isArray(existing.items) && existing.items.length > 0 &&
+              !existing.items.every(it => (it.name || '').includes('Menu Paket Restoran') || it.name === 'Menu');
+            if (!hasRealItems && resolvedItems.length > 0) {
+              existing.items = resolvedItems;
+              txMap.set(k, existing);
+            }
+            return;
+          }
+
+          const dtStr = typeof r.date === 'string'
+            ? r.date.substring(0, 10)
+            : (r.date ? (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)) : '');
+          const mappedTx = {
+            id: r.id,
+            receipt_no: r.receipt_no || r.id,
+            receiptNo: r.receipt_no || r.id,
+            date: dtStr || '',
+            entry_date: dtStr || '',
+            transaction_date: dtStr || '',
+            time: (r.time && !String(r.time).startsWith('00:00:')) ? String(r.time) : (r.created_at ? (typeof r.created_at === 'string' ? r.created_at.split(' ')[1] : String(r.created_at).substring(11, 19)) : '12:00:00'),
+            created_at: r.created_at,
+            outlet_id: r.outlet_id,
+            branch_id: r.branch_id || r.outlet_id,
+            branch_name: r.branch_name || 'Restoran',
+            outlet: r.outlet || r.branch_name || 'Restoran',
+            customer_name: r.customer_name || 'Pelanggan Umum',
+            table_number: r.table_number || 'N/A',
+            order_type: r.order_type || 'Dine In',
+            subtotal: Number(r.subtotal || r.amount || 0),
+            discount: Number(r.discount_amount || 0),
+            discount_amount: Number(r.discount_amount || 0),
+            amount: Number(r.amount || 0),
+            total: Number(r.amount || 0),
+            paid_amount: Number(r.paid_amount || r.amount || 0),
+            change_amount: Number(r.change_amount || 0),
+            payment_method: r.payment_method || 'Cash',
+            cashier: r.cashier || 'Kasir POS',
+            notes: r.notes || '-',
+            status: r.status || 'approved',
+            type: r.type || 'sale',
+            items: (() => {
+              if (resolvedItems.length > 0) return resolvedItems;
+              const itemTitle = (r.notes && r.notes !== '-' && !r.notes.startsWith('Pesanan Gantung') && !r.notes.startsWith('Informasi') && !r.notes.startsWith('Dine In') && !r.notes.startsWith('Take Away'))
+                ? r.notes
+                : (r.branch_name ? `Pesanan Menu (${r.branch_name})` : 'Menu Restoran');
+              return [{ name: itemTitle, qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
+            })()
+          };
+          txMap.set(k, mappedTx);
+        });
+
+
+        const delSalesSet = new Set((masterData.deletedSalesIds || []).map(x => String(x)));
+        const mergedAllTx = Array.from(txMap.values()).filter(t => {
+          if (!t) return false;
+          const k1 = String(t.id || '');
+          const k2 = String(t.receipt_no || '');
+          const k3 = String(t.receiptNo || '');
+          return !delSalesSet.has(k1) && !delSalesSet.has(k2) && !delSalesSet.has(k3);
+        }).sort((a, b) => {
+          const dateA = String(a.date || a.entry_date || a.transaction_date || a.created_at || '').substring(0, 10);
+          const dateB = String(b.date || b.entry_date || b.transaction_date || b.created_at || '').substring(0, 10);
+          if (dateA !== dateB) return dateB.localeCompare(dateA);
+          const timeA = String(a.time || '00:00:00');
+          const timeB = String(b.time || '00:00:00');
+          if (timeA !== timeB) return timeB.localeCompare(timeA);
+          const idA = String(a.id || a.receipt_no || '');
+          const idB = String(b.id || b.receipt_no || '');
+          return idB.localeCompare(idA);
+        });
+        masterData.salesTransactions = mergedAllTx;
+        masterData.transactions = mergedAllTx;
+        masterData.outletTransactions = mergedAllTx;
+      }
+    } catch (tblErr) {
+      console.warn('Warning querying sales_transactions table:', tblErr.message);
+    }
+
+    return masterData;
   } catch (err) {
     console.error('MySQL read error:', err.message);
     return null;
   }
 };
 
-// Simpan masterData ke MySQL
-const saveMasterDataToMySQL = async (masterData) => {
-  if (!mysqlPool) return false;
+// Simpan masterData ke MySQL dengan Automatic Versioning Snapshot Backup (Rolling 50 Versi)
+const saveMasterDataToMySQL = async (masterData, sourceTag = 'general_save') => {
+  if (!mysqlPool || !masterData) return false;
   try {
     const json = JSON.stringify(masterData);
+    const txCount = Array.isArray(masterData.salesTransactions) ? masterData.salesTransactions.length : 0;
+
+    // 1. Simpan Snapshot ke History Table
+    try {
+      await mysqlPool.execute(`
+        INSERT INTO mris_master_data_history (tx_count, source_tag, data)
+        VALUES (?, ?, ?)
+      `, [txCount, String(sourceTag || 'auto').substring(0, 100), json]);
+
+      // Batasi history maksimal 50 snapshot terbaru (auto-prune tertua)
+      await mysqlPool.execute(`
+        DELETE FROM mris_master_data_history
+        WHERE id NOT IN (
+          SELECT id FROM (
+            SELECT id FROM mris_master_data_history ORDER BY id DESC LIMIT 50
+          ) as t
+        )
+      `);
+    } catch (histErr) {
+      // Non-blocking history snapshot
+    }
+
+    // 2. Simpan Current Master Data
     await mysqlPool.execute(`
       INSERT INTO mris_master_data (id, data) VALUES (1, ?)
       ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = CURRENT_TIMESTAMP
@@ -495,79 +943,99 @@ const syncToMySQL = async (masterData) => {
     const outlets = masterData.outlets || [];
     for (const o of outlets) {
       if (!o || !o.id) continue;
-      await mysqlPool.execute(`
-        INSERT INTO outlets (id, code, name, address, location, manager_name, phone, target_omzet, employee_count, status, color)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          code = VALUES(code),
-          name = VALUES(name),
-          address = VALUES(address),
-          location = VALUES(location),
-          manager_name = VALUES(manager_name),
-          phone = VALUES(phone),
-          target_omzet = VALUES(target_omzet),
-          employee_count = VALUES(employee_count),
-          status = VALUES(status),
-          color = VALUES(color)
-      `, [
-        Number(o.id) || Date.now(),
-        String(o.code || `OUT-${o.id}`),
-        String(o.name || o.branch_name || 'Outlet Cabang'),
-        String(o.address || ''),
-        String(o.location || o.address || ''),
-        String(o.manager_name || o.manager || ''),
-        String(o.phone || ''),
-        Number(o.target_omzet || o.monthly_budget || 0),
-        Number(o.employee_count || 0),
-        String(o.status || 'Aktif'),
-        String(o.color || '#3b82f6')
-      ]);
+      try {
+        await mysqlPool.execute(`
+          INSERT INTO outlets (id, code, name, address, location, manager_name, phone, target_omzet, employee_count, status, color)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            code = VALUES(code),
+            name = VALUES(name),
+            address = VALUES(address),
+            location = VALUES(location),
+            manager_name = VALUES(manager_name),
+            phone = VALUES(phone),
+            target_omzet = VALUES(target_omzet),
+            employee_count = VALUES(employee_count),
+            status = VALUES(status),
+            color = VALUES(color)
+        `, [
+          Number(o.id) || Date.now(),
+          String(o.code || `OUT-${o.id}`),
+          String(o.name || o.branch_name || 'Outlet Cabang'),
+          String(o.address || ''),
+          String(o.location || o.address || ''),
+          String(o.manager_name || o.manager || ''),
+          String(o.phone || ''),
+          Number(o.target_omzet || o.monthly_budget || 0),
+          Number(o.employee_count || 0),
+          String(o.status || 'Aktif'),
+          String(o.color || '#3b82f6')
+        ]);
+      } catch (outletErr) {
+        // Duplicate code/id conflict — skip relational sync for this outlet, JSON blob is still correct
+        console.warn(`syncToMySQL outlet skip (${o.code || o.id}): ${outletErr.message}`);
+      }
     }
 
-    // 2. Sync Users to MySQL relational table
-    const usersMap = new Map();
-    const userSources = [
-      ...(masterData.users || []),
-      ...(masterData.userAccounts || []),
-      ...(masterData.webAdminAccounts || []),
-      ...(masterData.mobileAccounts || []),
-      ...(masterData.userRights || [])
-    ];
-    userSources.forEach(u => {
-      if (u && (u.id || u.username)) {
-        const key = String(u.id || u.username);
-        usersMap.set(key, u);
-      }
-    });
 
-    for (const u of Array.from(usersMap.values())) {
+    // 2. Sync Web Admin Users & Mobile POS Users to separate relational tables in MySQL
+    const webUsers = masterData.webAdminAccounts || [];
+    const webUserIds = [];
+    for (const u of webUsers) {
+      if (!u || !u.id) continue;
       const uId = Number(u.id) || Date.now();
-      const uName = String(u.name || u.username || 'User');
-      const uUsername = String(u.username || u.name || `user_${uId}`).toLowerCase().replace(/\s+/g, '_');
-      const uPassword = String(u.password || u.mobileLoginPassword || '1234');
-      const uRole = String(u.role || 'Kasir');
-      const uOutlet = String(u.outlet || u.assignedOutlet || 'Semua Outlet (Central)');
+      webUserIds.push(uId);
+      const uName = String(u.name || u.username || 'Admin');
+      const uUsername = String(u.username || u.name || `admin_${uId}`).toLowerCase().replace(/\s+/g, '_');
+      const uPassword = String(u.password || '1234');
+      const uRole = String(u.role || 'Super Admin');
+      const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
       const uStatus = String(u.status || 'Aktif');
-      const canMobile = u.canLoginMobile !== false ? 1 : 0;
-      const mobPass = String(u.mobileLoginPassword || u.password || '');
+
+      await mysqlPool.execute(`
+        INSERT INTO web_admin_users (id, name, username, password, role, outlet, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          name = VALUES(name), username = VALUES(username), password = VALUES(password),
+          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status)
+      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus]);
+    }
+    if (webUserIds.length > 0) {
+      const ph = webUserIds.map(() => '?').join(',');
+      await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id NOT IN (${ph})`, webUserIds);
+    } else {
+      await mysqlPool.execute(`DELETE FROM \`web_admin_users\``);
+    }
+
+    const mobileUsers = masterData.mobileAccounts || [];
+    const mobileUserIds = [];
+    for (const u of mobileUsers) {
+      if (!u || !u.id) continue;
+      const uId = Number(u.id) || Date.now();
+      mobileUserIds.push(uId);
+      const uName = String(u.name || u.username || 'Staf Mobile');
+      const uUsername = String(u.username || u.name || `mobile_${uId}`).toLowerCase().replace(/\s+/g, '_');
+      const uPassword = String(u.mobileLoginPassword || u.password || '123');
+      const uRole = String(u.role || 'Kasir');
+      const uOutlet = String(u.outlet || 'Semua Outlet (Central)');
+      const uStatus = String(u.status || 'Aktif');
       const canReports = u.canAccessMobileReports ? 1 : 0;
       const repPass = String(u.mobileReportPassword || '');
 
       await mysqlPool.execute(`
-        INSERT INTO users (id, name, username, password, role, outlet, status, can_login_mobile, mobile_login_password, can_access_mobile_reports, mobile_report_password)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO mobile_pos_users (id, name, username, password, role, outlet, status, can_access_reports, report_password)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
-          name = VALUES(name),
-          username = VALUES(username),
-          password = VALUES(password),
-          role = VALUES(role),
-          outlet = VALUES(outlet),
-          status = VALUES(status),
-          can_login_mobile = VALUES(can_login_mobile),
-          mobile_login_password = VALUES(mobile_login_password),
-          can_access_mobile_reports = VALUES(can_access_mobile_reports),
-          mobile_report_password = VALUES(mobile_report_password)
-      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canMobile, mobPass, canReports, repPass]);
+          name = VALUES(name), username = VALUES(username), password = VALUES(password),
+          role = VALUES(role), outlet = VALUES(outlet), status = VALUES(status),
+          can_access_reports = VALUES(can_access_reports), report_password = VALUES(report_password)
+      `, [uId, uName, uUsername, uPassword, uRole, uOutlet, uStatus, canReports, repPass]);
+    }
+    if (mobileUserIds.length > 0) {
+      const ph = mobileUserIds.map(() => '?').join(',');
+      await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id NOT IN (${ph})`, mobileUserIds);
+    } else {
+      await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\``);
     }
 
     // 3. Sync Categories to MySQL relational table
@@ -599,6 +1067,7 @@ const syncToMySQL = async (masterData) => {
     for (const p of products) {
       if (!p || !p.name) continue;
       const pId = Number(p.id) || Date.now();
+      const outIdNum = p.outlet_id && !isNaN(Number(p.outlet_id)) ? Number(p.outlet_id) : null;
       await mysqlPool.execute(`
         INSERT INTO products (id, sku, name, category_id, category_name, price, cost_price, stock, unit, outlet_id, selected_outlet_ids, image_url, description, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -626,26 +1095,125 @@ const syncToMySQL = async (masterData) => {
         Number(p.cost_price || p.cost || 0),
         Number(p.stock || 0),
         String(p.unit || 'Porsi'),
-        p.outlet_id ? Number(p.outlet_id) : null,
-        Array.isArray(p.selected_outlet_ids) ? JSON.stringify(p.selected_outlet_ids) : String(p.selected_outlet_ids || ''),
+        outIdNum,
+        Array.isArray(p.selectedOutletIds || p.selected_outlet_ids) ? JSON.stringify(p.selectedOutletIds || p.selected_outlet_ids) : String(p.selectedOutletIds || p.selected_outlet_ids || ''),
         String(p.image_url || p.image || ''),
         String(p.description || ''),
         String(p.status || 'Aktif')
       ]);
     }
 
-    // 5. Sync Transactions to MySQL relational table
-    const transactions = masterData.salesTransactions || masterData.transactions || [];
+    
+    // 4b. Sync Ingredients to MySQL relational table
+    const ingredients = masterData.ingredients || [];
+    for (const ing of ingredients) {
+      if (!ing || !ing.name) continue;
+      const ingId = String(ing.id || Date.now());
+      await mysqlPool.execute(`
+        INSERT INTO ingredients (id, code, name, category, category_id, unit, price, cost_price, stock, minimum_stock, outlet_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          code = VALUES(code),
+          name = VALUES(name),
+          category = VALUES(category),
+          category_id = VALUES(category_id),
+          unit = VALUES(unit),
+          price = VALUES(price),
+          cost_price = VALUES(cost_price),
+          stock = VALUES(stock),
+          minimum_stock = VALUES(minimum_stock),
+          outlet_id = VALUES(outlet_id),
+          status = VALUES(status)
+      `, [
+        ingId,
+        String(ing.code || `BHN-${ingId}`),
+        String(ing.name).trim(),
+        String(ing.category || ing.category_name || 'Bahan Baku'),
+        String(ing.category_id || ''),
+        String(ing.unit || 'kg'),
+        Number(ing.price || ing.cost || 0),
+        Number(ing.cost_price || ing.cost || ing.price || 0),
+        Number(ing.stock || ing.current_stock || 0),
+        Number(ing.min_stock || ing.minimum_stock || 0),
+        ing.outlet_id ? Number(ing.outlet_id) : null,
+        String(ing.status || 'Aktif')
+      ]);
+    }
+
+    
+    // 4c. Sync Fixed Assets to MySQL relational table
+    const fixedAssets = masterData.fixedAssets || masterData.assets || [];
+    for (const a of fixedAssets) {
+      if (!a || !a.name) continue;
+      const aId = String(a.id || Date.now());
+      const pCost = Number(a.purchase_cost || a.cost || a.price || 0);
+      const uLife = Number(a.useful_life_years || a.useful_life || 5);
+      const sVal = Number(a.salvage_value || 0);
+      const pDate = a.purchase_date || a.date || new Date().toISOString().split('T')[0];
+      const outId = a.outlet_id ? Number(a.outlet_id) : null;
+      
+      await mysqlPool.execute(`
+        INSERT INTO fixed_assets (id, code, name, category, outlet_id, outlet_name, purchase_date, purchase_cost, useful_life_years, salvage_value, condition_status, location, pic, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          code = VALUES(code),
+          name = VALUES(name),
+          category = VALUES(category),
+          outlet_id = VALUES(outlet_id),
+          outlet_name = VALUES(outlet_name),
+          purchase_date = VALUES(purchase_date),
+          purchase_cost = VALUES(purchase_cost),
+          useful_life_years = VALUES(useful_life_years),
+          salvage_value = VALUES(salvage_value),
+          condition_status = VALUES(condition_status),
+          location = VALUES(location),
+          pic = VALUES(pic),
+          notes = VALUES(notes)
+      `, [
+        aId,
+        String(a.code || `AST-${aId}`),
+        String(a.name).trim(),
+        String(a.category || 'Peralatan Dapur'),
+        outId,
+        String(a.outlet_name || a.outlet || ''),
+        pDate,
+        pCost,
+        uLife,
+        sVal,
+        String(a.condition_status || a.condition || 'Baik'),
+        String(a.location || 'Dapur'),
+        String(a.pic || a.penanggung_jawab || 'Kepala Cabang'),
+        String(a.notes || '')
+      ]);
+    }
+
+    // 5. Sync Transactions to MySQL relational table (Combining Sales & Expenses safely)
+    const txMap = new Map();
+    [...(masterData.salesTransactions || []), ...(masterData.transactions || [])].forEach(t => {
+      if (t && t.id) txMap.set(String(t.id), t);
+    });
+    const transactions = Array.from(txMap.values());
     for (const t of transactions) {
       if (!t || !t.id) continue;
       const txId = String(t.id);
-      const txDate = t.date || new Date().toISOString().split('T')[0];
-      const txTime = t.time || '00:00:00';
+      const txDate = typeof t.date === 'string' ? t.date.substring(0, 10) : (t.entry_date || (t.created_at ? String(t.created_at).substring(0, 10) : new Date().toISOString().split('T')[0]));
+      let txTime = '12:00:00';
+      if (t.time && typeof t.time === 'string') {
+        const cleanT = t.time.replace(/\./g, ':').trim();
+        const p = cleanT.split(':');
+        if (p.length >= 2) {
+          txTime = `${(p[0] || '00').padStart(2, '0')}:${(p[1] || '00').padStart(2, '0')}:${(p[2] || '00').substring(0, 2).padStart(2, '0')}`.substring(0, 8);
+        }
+      } else if (t.created_at) {
+        const caStr = String(t.created_at);
+        if (caStr.includes(' ')) txTime = caStr.split(' ')[1]?.substring(0, 8) || '12:00:00';
+        else if (caStr.includes('T')) txTime = caStr.split('T')[1]?.substring(0, 8) || '12:00:00';
+      }
       const outletId = Number(t.outlet_id || t.branch_id || 1);
       const branchName = t.branch_name || t.outlet || '';
       const customerName = t.customer_name || t.customer || 'Pelanggan Umum';
       const tableNumber = t.table_number || t.table || '';
-      const orderType = t.order_type || t.type || 'Dine In';
+      const orderType = t.order_type || (t.type === 'expense' ? 'Pengeluaran' : 'Dine In');
       const amount = Number(t.amount || t.total || 0);
       const paidAmount = Number(t.paid_amount || t.paid || amount);
       const changeAmount = Number(t.change_amount || t.change || 0);
@@ -653,15 +1221,29 @@ const syncToMySQL = async (masterData) => {
       const cashier = t.cashier || t.author || 'Kasir';
       const notes = t.notes || '';
       const status = t.status || 'approved';
+      const txType = t.type === 'expense' ? 'expense' : 'income';
 
       await mysqlPool.execute(`
         INSERT INTO sales_transactions 
           (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          time = VALUES(time),
+          outlet_id = VALUES(outlet_id),
+          branch_id = VALUES(branch_id),
+          branch_name = VALUES(branch_name),
+          outlet = VALUES(outlet),
+          customer_name = VALUES(customer_name),
+          table_number = VALUES(table_number),
+          order_type = VALUES(order_type),
+          subtotal = VALUES(subtotal),
           amount = VALUES(amount),
           paid_amount = VALUES(paid_amount),
+          change_amount = VALUES(change_amount),
           payment_method = VALUES(payment_method),
+          cashier = VALUES(cashier),
+          notes = VALUES(notes),
           status = VALUES(status)
       `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status, txType]);
     }
@@ -675,23 +1257,33 @@ const syncToMySQL = async (masterData) => {
           (id, date, outlet_id, branch_name, author_name, opening_float, net_sales, cash_sales, non_cash_sales, total_expense, expected_cash, cash_physical, cash_variance, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          outlet_id = VALUES(outlet_id),
+          branch_name = VALUES(branch_name),
+          author_name = VALUES(author_name),
+          opening_float = VALUES(opening_float),
           net_sales = VALUES(net_sales),
+          cash_sales = VALUES(cash_sales),
+          non_cash_sales = VALUES(non_cash_sales),
+          total_expense = VALUES(total_expense),
+          expected_cash = VALUES(expected_cash),
           cash_physical = VALUES(cash_physical),
+          cash_variance = VALUES(cash_variance),
           status = VALUES(status)
       `, [
         String(sc.id),
         sc.date || new Date().toISOString().split('T')[0],
         Number(sc.outlet_id || 1),
         sc.branch_name || '',
-        sc.author_name || sc.cashier || 'Kasir',
-        Number(sc.opening_float || 0),
-        Number(sc.net_sales || 0),
+        sc.author_name || sc.cashier_name || sc.cashier || 'Kasir',
+        Number(sc.opening_float || sc.initial_cash || 0),
+        Number(sc.net_sales || sc.gross_sales || sc.total_sales || 0),
         Number(sc.cash_sales || 0),
         Number(sc.non_cash_sales || 0),
-        Number(sc.total_expense || 0),
+        Number(sc.total_expense || sc.petty_expense || 0),
         Number(sc.expected_cash || 0),
-        Number(sc.cash_physical || 0),
-        Number(sc.cash_variance || 0),
+        Number(sc.cash_physical || sc.physical_cash || 0),
+        Number(sc.cash_variance || sc.variance || 0),
         sc.status || 'ditunda'
       ]);
     }
@@ -1387,14 +1979,54 @@ app.all('/api/webhook/deploy', (req, res) => {
 
   res.json({ success: true, message: '🚀 Deployment command triggered on VPS in background...' });
 
-  const deployCmd = `if [ -f "/var/www/deploy.sh" ]; then bash /var/www/deploy.sh; else DIR=$(pwd); if [ -d "/var/www/erp-barokah" ]; then DIR="/var/www/erp-barokah"; elif [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; cd "$DIR" && git fetch origin && git reset --hard origin/main && (cd web_admin && npm run build && cp -r dist/* ../dist/ 2>/dev/null || true) && (pm2 reload all || pm2 restart all || pm2 restart erp-barokah); fi`;
+  // Step 1: jalankan deploy.sh (atau fallback git pull + pm2 restart)
+  // Step 2: SELALU rebuild web_admin setelah deploy agar dist ter-update
+  const getProjectDir = `DIR="/var/www/erp-barokah"; if [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi; echo $DIR`;
+  const deployCmd = `
+    if [ -f "/var/www/deploy.sh" ]; then
+      bash /var/www/deploy.sh;
+    fi;
+    DIR="/var/www/erp-barokah";
+    if [ -d "/var/www/ERPBAROKAH" ]; then DIR="/var/www/ERPBAROKAH"; elif [ -d "/var/www/MRIS" ]; then DIR="/var/www/MRIS"; fi;
+    cd "$DIR" && git fetch origin && git reset --hard origin/main && echo "✅ git pull done";
+    cd "$DIR/web_admin" && npm run build && echo "✅ web_admin build done" && cp -r dist/* ../dist/ && echo "✅ dist copied";
+    pm2 reload all || pm2 restart all || true;
+  `;
 
-  exec(deployCmd, (error, stdout, stderr) => {
+  exec(deployCmd, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
     if (error) {
       console.error('❌ Auto-deploy failed:', error.message);
+      console.error('stderr:', stderr);
       return;
     }
     console.log('✅ Auto-deploy output:\n', stdout);
+  });
+});
+
+// Endpoint khusus: force rebuild web_admin saja (tanpa full deploy)
+// Berguna untuk memaksa update tampilan tanpa restart backend
+app.all('/api/webhook/build-frontend', (req, res) => {
+  const secret = req.query.secret || req.body?.secret || req.headers['x-deploy-secret'];
+  const DEPLOY_SECRET = process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026';
+
+  if (secret !== DEPLOY_SECRET) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  let projectDir = '/var/www/erp-barokah';
+  if (fs.existsSync('/var/www/ERPBAROKAH')) projectDir = '/var/www/ERPBAROKAH';
+  else if (fs.existsSync('/var/www/MRIS')) projectDir = '/var/www/MRIS';
+
+  const buildCmd = `cd "${projectDir}/web_admin" && npm run build && cp -r dist/* ../dist/ && echo "BUILD_OK"`;
+
+
+  exec(buildCmd, { maxBuffer: 1024 * 1024 * 10, timeout: 300000 }, (error, stdout, stderr) => {
+    if (error) {
+      console.error('❌ Frontend build failed:', error.message);
+      return res.status(500).json({ success: false, error: error.message, stderr });
+    }
+    console.log('✅ Frontend build output:\n', stdout);
+    res.json({ success: true, message: '✅ Frontend build selesai', output: stdout.slice(-500) });
   });
 });
 
@@ -1404,23 +2036,276 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
   const incTs = Number(incoming._lastUpdated) || 0;
   const extTs = Number(existing._lastUpdated) || 0;
 
+  // Field kritis yang TIDAK BOLEH di-overwrite dengan [] kosong (perlindungan data user & permission matrix)
+  const USER_CRITICAL_KEYS = new Set([
+    'webAdminAccounts',
+    'mobileAccounts',
+    'userRights',
+    'users',
+    'userAccounts',
+    'permissionMatrix',
+    'mobilePermissionMatrix'
+  ]);
+
   Object.keys(incoming).forEach(key => {
     const incVal = incoming[key];
     const extVal = existing[key];
 
     if (Array.isArray(incVal)) {
-      // If incoming payload timestamp is newer or equal (active client mutation), adopt incVal directly to respect additions & deletions 100%
+      // Proteksi Union Merge khusus untuk user accounts: gabungkan data incoming & existing berdasarkan ID/Username, kecualikan yang terhapus
+      if (key === 'webAdminAccounts' || key === 'mobileAccounts') {
+        const deletedSet = new Set([
+          ...(result.deletedUserIds || []),
+          ...(incoming.deletedUserIds || []),
+          ...(existing.deletedUserIds || [])
+        ].map(x => String(x)));
+
+        const deletedUsernameSet = new Set([
+          ...(result.deletedUsernames || []),
+          ...(incoming.deletedUsernames || []),
+          ...(existing.deletedUsernames || [])
+        ].map(x => String(x).toLowerCase().trim()));
+
+        const mapByUsername = new Map();
+
+        const addUsers = (list) => {
+          (list || []).forEach(u => {
+            if (!u || u.id == null) return;
+            const uIdStr = String(u.id);
+            const uNameKey = String(u.username || u.name || '').toLowerCase().trim();
+
+            if (deletedSet.has(uIdStr) || (uNameKey && deletedUsernameSet.has(uNameKey))) {
+              return;
+            }
+            if (uNameKey) {
+              mapByUsername.set(uNameKey, u);
+            }
+          });
+        };
+
+        addUsers(extVal);
+        addUsers(incVal);
+
+        result[key] = Array.from(mapByUsername.values());
+        return;
+      }
+
+      // Proteksi khusus: field user-kritis tidak boleh di-overwrite dengan [] tanpa _isExplicitClear
+      if (USER_CRITICAL_KEYS.has(key) && incVal.length === 0 && Array.isArray(extVal) && extVal.length > 0 && !incoming._isExplicitClear) {
+        result[key] = extVal;
+        return;
+      }
+
+      // ─── UNION MERGE untuk Master Data arrays ────────────────────────────────
+      // Kategori, Produk, Bahan, Outlet, dll. TIDAK BOLEH di-overwrite mentah-mentah
+      // oleh klien yang mungkin punya data lebih sedikit (misal: APK lama).
+      // Gunakan union merge: gabungkan existing + incoming berdasarkan ID/name,
+      // prioritaskan item dengan _updatedAt lebih baru.
+      // ─── UNION MERGE ADDITIVE untuk Transaction arrays ───────────────────────
+      // salesTransactions, shiftClosings, dll. TIDAK BOLEH di-overwrite (replace).
+      // Selalu gabungkan berdasarkan ID: existing + incoming, tidak ada yang hilang.
+      const TRANSACTION_ARRAY_KEYS = new Set([
+        'salesTransactions', 'transactions',
+        'shiftClosings', 'closedShifts', 'shift_closings', 'shiftReports',
+        'stockOpname', 'approvedLogistics', 'approvedOpname',
+        'stockTransfer', 'approvedTransfers',
+        'damagedGoods', 'approvedWaste',
+        'approvedFinanceDaily', 'manualEntryRecords', 'manualReports',
+        'stockMovement', 'stockIn', 'purchases', 'cogsExpenses',
+        'productionExpenses', 'otherExpenses', 'stockAdjustments',
+        'cashAdjustments', 'customers', 'suppliers', 'units', 'tables'
+      ]);
+
+      const MASTER_DATA_ARRAY_KEYS = new Set([
+        'categories', 'ingredients', 'products', 'menuItems',
+        'outlets', 'paymentMethods', 'expenseMaster'
+      ]);
+
+      const shouldUnionMerge = MASTER_DATA_ARRAY_KEYS.has(key) || TRANSACTION_ARRAY_KEYS.has(key);
+      if (shouldUnionMerge && (incVal.length > 0 || (Array.isArray(extVal) && extVal.length > 0))) {
+        const unionMap = new Map();
+
+        // Kumpulkan deleted tombstone set untuk key yang sedang di-merge
+        const getDeletedSetForKey = (k) => {
+          if (k === 'ingredients') {
+            return new Set([
+              ...(result.deletedIngredientIds || []),
+              ...(incoming.deletedIngredientIds || []),
+              ...(existing.deletedIngredientIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'products' || k === 'menuItems') {
+            return new Set([
+              ...(result.deletedProductIds || []),
+              ...(incoming.deletedProductIds || []),
+              ...(existing.deletedProductIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'categories' || k === 'ingredientCategories') {
+            return new Set([
+              ...(result.deletedCategoriesIds || []),
+              ...(result.deletedCategoryIds || []),
+              ...(incoming.deletedCategoriesIds || []),
+              ...(incoming.deletedCategoryIds || []),
+              ...(existing.deletedCategoriesIds || []),
+              ...(existing.deletedCategoryIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'suppliers') {
+            return new Set([
+              ...(result.deletedSupplierIds || []),
+              ...(incoming.deletedSupplierIds || []),
+              ...(existing.deletedSupplierIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'customers') {
+            return new Set([
+              ...(result.deletedCustomerIds || []),
+              ...(incoming.deletedCustomerIds || []),
+              ...(existing.deletedCustomerIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'units') {
+            return new Set([
+              ...(result.deletedUnitIds || []),
+              ...(incoming.deletedUnitIds || []),
+              ...(existing.deletedUnitIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'outlets') {
+            return new Set([
+              ...(result.deletedOutletIds || []),
+              ...(incoming.deletedOutletIds || []),
+              ...(existing.deletedOutletIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'paymentMethods') {
+            return new Set([
+              ...(result.deletedPaymentMethodIds || []),
+              ...(incoming.deletedPaymentMethodIds || []),
+              ...(existing.deletedPaymentMethodIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'tables') {
+            return new Set([
+              ...(result.deletedTableIds || []),
+              ...(incoming.deletedTableIds || []),
+              ...(existing.deletedTableIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (k === 'expenseMaster') {
+            return new Set([
+              ...(result.deletedExpenseIds || []),
+              ...(incoming.deletedExpenseIds || []),
+              ...(existing.deletedExpenseIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          if (TRANSACTION_ARRAY_KEYS.has(k)) {
+            return new Set([
+              ...(result.deletedLogisticsIds || []),
+              ...(result.deletedReportIds || []),
+              ...(result.deletedSalesIds || []),
+              ...(incoming.deletedLogisticsIds || []),
+              ...(incoming.deletedReportIds || []),
+              ...(incoming.deletedSalesIds || []),
+              ...(existing.deletedLogisticsIds || []),
+              ...(existing.deletedReportIds || []),
+              ...(existing.deletedSalesIds || [])
+            ].map(x => String(x).toLowerCase().trim()));
+          }
+          return new Set();
+        };
+
+        const currentDeletedSet = getDeletedSetForKey(key);
+        const isItemTombstoned = (it) => {
+          if (!it || !currentDeletedSet || currentDeletedSet.size === 0) return false;
+          const itemId = String(it.id !== undefined && it.id !== null ? it.id : '').toLowerCase().trim();
+          const itemSku = String(it.sku || '').toLowerCase().trim();
+          const itemCode = String(it.code || '').toLowerCase().trim();
+          const itemName = String(it.name || it.title || '').toLowerCase().trim();
+          const itemRcpt = String(it.receipt_no || it.receiptNo || it.report_no || it.tx_id || '').toLowerCase().trim();
+          return (itemId && currentDeletedSet.has(itemId)) ||
+                 (itemSku && currentDeletedSet.has(itemSku)) ||
+                 (itemCode && currentDeletedSet.has(itemCode)) ||
+                 (itemName && currentDeletedSet.has(itemName)) ||
+                 (itemRcpt && currentDeletedSet.has(itemRcpt));
+        };
+
+        // Seed dengan data existing (base) — tidak ada yang hilang dari server
+        (Array.isArray(extVal) ? extVal : []).forEach(item => {
+          if (!item || isItemTombstoned(item)) return;
+          const k = String(
+            item.id != null ? item.id :
+            (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
+          ).trim();
+          if (k) unionMap.set(k, item);
+        });
+
+        // ─── PROTEKSI ANTI DATA-LOSS untuk salesTransactions ──────────────────
+        // Jika incoming salesTransactions jauh lebih sedikit dari existing (< 30%),
+        // kemungkinan besar ini adalah payload parsial dari browser yang baru dibuka.
+        // Dalam kasus ini: HANYA tambahkan item baru dari incoming, JANGAN replace existing.
+        // Tujuan: mencegah 121 transaksi hilang karena browser kirim payload dengan 12 item.
+        const existingCount = Array.isArray(extVal) ? extVal.length : 0;
+        const incomingCount = Array.isArray(incVal) ? incVal.length : 0;
+        const isSalesTxKey = (key === 'salesTransactions' || key === 'transactions');
+        const isPartialPayload = isSalesTxKey && existingCount > 20 && incomingCount > 0 && incomingCount < existingCount * 0.3;
+
+        if (isPartialPayload) {
+          // Hanya tambahkan item yang BENAR-BENAR baru (tidak ada di existing)
+          (Array.isArray(incVal) ? incVal : []).forEach(item => {
+            if (!item) return;
+            const k = String(
+              item.id != null ? item.id :
+              (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
+            ).trim();
+            if (k && !unionMap.has(k)) {
+              unionMap.set(k, item); // hanya item genuinely baru
+            }
+          });
+          result[key] = Array.from(unionMap.values());
+          return;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Overlay dengan data incoming: jika item sudah ada, ambil yang _updatedAt lebih baru
+        (Array.isArray(incVal) ? incVal : []).forEach(item => {
+          if (!item || isItemTombstoned(item)) return;
+          const k = String(
+            item.id != null ? item.id :
+            (item.tx_id || item.report_no || item.receiptNo || item.code || item.name || '')
+          ).trim();
+          if (!k) return;
+
+          if (unionMap.has(k)) {
+            const existItem = unionMap.get(k);
+            const existTs = Number(existItem._updatedAt || existItem._lastMutated || existItem._lastUpdated || 0);
+            const incItemTs = Number(item._updatedAt || item._lastMutated || item._lastUpdated || 0);
+            // Jika incoming lebih baru ATAU keduanya tanpa timestamp → pakai incoming
+            if (incItemTs >= existTs) {
+              unionMap.set(k, item);
+            }
+          } else {
+            // Item baru dari incoming yang belum ada di existing → SELALU tambahkan
+            unionMap.set(k, item);
+          }
+        });
+
+        result[key] = Array.from(unionMap.values());
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
+      // Untuk array non-master-data: gunakan logika replace berdasarkan timestamp
       if (incTs >= extTs || !extVal) {
         if (incVal.length > 0) {
           result[key] = incVal;
         } else if (!extVal || extVal.length === 0 || incoming._isExplicitClear) {
           result[key] = [];
         } else {
-          // If incVal is [] but extVal has items and not an explicit clear, keep extVal to protect against accidental empty array payload wipes
           result[key] = extVal;
         }
       } else {
-        // If incoming timestamp is older, adopt incoming non-empty array or keep existing
         if (incVal.length > 0) {
           result[key] = incVal;
         } else {
@@ -1432,6 +2317,160 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
     }
   });
 
+  // Jaminan Tambahan: jika incoming payload sama sekali TIDAK menyertakan key kritis, wajib pertahankan dari existing
+  USER_CRITICAL_KEYS.forEach(critKey => {
+    if ((!incoming[critKey] || (Array.isArray(incoming[critKey]) && incoming[critKey].length === 0)) && Array.isArray(existing[critKey]) && existing[critKey].length > 0 && !incoming._isExplicitClear) {
+      result[critKey] = existing[critKey];
+    }
+  });
+
+  // Bersihkan item logistik & laporan yang sudah terhapus di deletedLogisticsIds / deletedReportIds / deletedOutflowIds
+  const deletedLogSet = new Set([
+    ...(result.deletedLogisticsIds || []),
+    ...(incoming.deletedLogisticsIds || []),
+    ...(result.deletedReportIds || []),
+    ...(incoming.deletedReportIds || []),
+    ...(result.deletedOutflowIds || []),
+    ...(incoming.deletedOutflowIds || [])
+  ].map(x => String(x)));
+
+  if (deletedLogSet.size > 0) {
+    const deletedArr = Array.from(deletedLogSet);
+    result.deletedLogisticsIds = deletedArr;
+    result.deletedReportIds = deletedArr;
+
+    const ALL_PURGED_KEYS = [
+      'stockOpname', 'approvedLogistics', 'approvedOpname',
+      'stockTransfer', 'approvedTransfers', 'damagedGoods',
+      'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+      'approvedFinanceDaily', 'shiftClosings', 'shift_closings',
+      'closedShifts', 'dailyReports', 'manualEntryRecords'
+    ];
+
+    ALL_PURGED_KEYS.forEach(lk => {
+      if (Array.isArray(result[lk])) {
+        result[lk] = result[lk].filter(item => {
+          if (!item) return false;
+          const iId = String(item.id !== undefined && item.id !== null ? item.id : '');
+          const iRNo = String(item.report_no || item.receiptNo || '');
+          return !deletedLogSet.has(iId) && !deletedLogSet.has(iRNo);
+        });
+      }
+    });
+  }
+
+  // Bersihkan produk yang sudah dihapus via deletedProductIds
+  const deletedProdSet = new Set([
+    ...(result.deletedProductIds || []),
+    ...(incoming.deletedProductIds || []),
+    ...(existing.deletedProductIds || [])
+  ].map(x => String(x).toLowerCase().trim()));
+
+  if (deletedProdSet.size > 0 && Array.isArray(result.products)) {
+    result.products = result.products.filter(p => {
+      if (!p) return false;
+      const pId  = String(p.id  !== undefined && p.id  !== null ? p.id  : '').toLowerCase().trim();
+      const pSku = String(p.sku || p.code || '').toLowerCase().trim();
+      const pName= String(p.name || '').toLowerCase().trim();
+      return !deletedProdSet.has(pId) && !deletedProdSet.has(pSku) && !deletedProdSet.has(pName);
+    });
+  }
+
+  // ── Otomatis Konsolidasi Produk dengan Nama Sama (Mencegah Duplikasi Menu Master) ──
+  if (Array.isArray(result.products) && result.products.length > 0) {
+    const nameMap = new Map();
+    result.products.forEach(p => {
+      if (!p) return;
+      const rawName = String(p.name || '').trim();
+      const normName = rawName.toUpperCase();
+      if (!normName) return;
+
+      if (!nameMap.has(normName)) {
+        nameMap.set(normName, { ...p, name: rawName });
+      } else {
+        const exist = nameMap.get(normName);
+        const existOutlets = new Set((exist.selectedOutletIds || exist.selected_outlet_ids || []).map(x => String(x)));
+        if (exist.outlet_id && !['Semua Outlet', 'ALL', ''].includes(String(exist.outlet_id))) existOutlets.add(String(exist.outlet_id));
+
+        const newOutlets = (p.selectedOutletIds || p.selected_outlet_ids || []).map(x => String(x));
+        if (p.outlet_id && !['Semua Outlet', 'ALL', ''].includes(String(p.outlet_id))) newOutlets.push(String(p.outlet_id));
+        newOutlets.forEach(o => existOutlets.add(o));
+
+        const mergedStdPrices = {
+          ...(exist.standardPrices || exist.standard_prices || {}),
+          ...(p.standardPrices || p.standard_prices || {})
+        };
+
+        const mergedVariants = Array.from(new Set([
+          ...(exist.variants || []),
+          ...(p.variants || [])
+        ]));
+
+        const mergedBranchVars = {
+          ...(exist.branchVariantPrices || exist.branch_variant_prices || {}),
+          ...(p.branchVariantPrices || p.branch_variant_prices || {})
+        };
+
+        const existTs = Number(exist._updatedAt || exist._lastMutated || exist._lastUpdated || 0);
+        const pTs = Number(p._updatedAt || p._lastMutated || p._lastUpdated || 0);
+        const baseWinner = (pTs > existTs || (Array.isArray(p.variants) && p.variants.length > (exist.variants || []).length)) ? p : exist;
+
+        const mergedProduct = {
+          ...baseWinner,
+          name: rawName,
+          selectedOutletIds: Array.from(existOutlets),
+          selected_outlet_ids: Array.from(existOutlets),
+          standardPrices: mergedStdPrices,
+          standard_prices: mergedStdPrices,
+          branch_prices: mergedStdPrices,
+          outlet_prices: mergedStdPrices,
+          variants: mergedVariants,
+          branchVariantPrices: mergedBranchVars,
+          branch_variant_prices: mergedBranchVars,
+          _updatedAt: Math.max(existTs, pTs, Date.now())
+        };
+
+        nameMap.set(normName, mergedProduct);
+      }
+    });
+    result.products = Array.from(nameMap.values());
+  }
+
+  // Bersihkan kategori yang sudah dihapus via deletedCategoriesIds
+  const deletedCatSet = new Set([
+    ...(result.deletedCategoriesIds || []),
+    ...(incoming.deletedCategoriesIds || []),
+    ...(existing.deletedCategoriesIds || [])
+  ].map(x => String(x).toLowerCase().trim()));
+
+  if (deletedCatSet.size > 0 && Array.isArray(result.categories)) {
+    result.categories = result.categories.filter(c => {
+      if (!c) return false;
+      const cId   = String(c.id   !== undefined && c.id   !== null ? c.id   : '').toLowerCase().trim();
+      const cCode = String(c.code || '').toLowerCase().trim();
+      const cName = String(c.name || '').toLowerCase().trim();
+      return !deletedCatSet.has(cId) && !deletedCatSet.has(cCode) && !deletedCatSet.has(cName);
+    });
+  }
+
+  // Bersihkan bahan baku yang sudah dihapus via deletedIngredientIds
+  const deletedIngSet = new Set([
+    ...(result.deletedIngredientIds || []),
+    ...(incoming.deletedIngredientIds || []),
+    ...(existing.deletedIngredientIds || [])
+  ].map(x => String(x).toLowerCase().trim()));
+
+  if (deletedIngSet.size > 0 && Array.isArray(result.ingredients)) {
+    result.ingredients = result.ingredients.filter(i => {
+      if (!i) return false;
+      const iId   = String(i.id   !== undefined && i.id   !== null ? i.id   : '').toLowerCase().trim();
+      const iCode = String(i.code || '').toLowerCase().trim();
+      const iName = String(i.name || '').toLowerCase().trim();
+      return !deletedIngSet.has(iId) && !deletedIngSet.has(iCode) && !deletedIngSet.has(iName);
+    });
+  }
+
+
   return result;
 };
 
@@ -1439,13 +2478,160 @@ const mergeMasterDataSafely = (existing = {}, incoming = {}) => {
 const sanitizeMasterDataPayload = (data) => {
   if (!data || typeof data !== 'object') return data;
   const clean = { ...data };
+  if (clean.masterData) delete clean.masterData;
 
-  // Hanya bersihkan nama data fiktif legacy jika ada (JANGAN hapus ID numerik milik pengguna)
-  if (Array.isArray(clean.outlets)) {
-    clean.outlets = clean.outlets.filter(o => o && o.name !== 'Outlet Cabang 2' && o.code !== 'RST-DUMMY');
-  }
-  if (Array.isArray(clean.suppliers)) {
-    clean.suppliers = clean.suppliers.filter(s => s && s.name !== 'PT Sembako Nusantara' && s.name !== 'UD Sayur Segar');
+  // Hapus seluruh data UPD- dan Update Laporan Excel dari POS Kasir (shiftReports, approvedFinanceDaily, manualEntryRecords, salesTransactions)
+  const isExcelUploadReport = (item, arrayKey = '') => {
+    if (!item) return false;
+    const str = String(JSON.stringify(item));
+    if (str.includes('UPD-') || str.includes('Batch Upload Excel') || str.includes('Update Laporan') || str.includes('Excel/Manual')) {
+      return true;
+    }
+    const rNo = String(item.report_no || item.reportNo || item.no_laporan || item.noLaporan || item.id || item.code || '');
+    const src = String(item.source || '');
+    if (rNo.startsWith('UPD-') || src.includes('Excel') || src.includes('Update Laporan')) return true;
+
+    // Hapus data mock "Restoran Utama" / dummy shift closings
+    const bName = String(item.branch_name || item.outlet_name || '').toLowerCase();
+    if (bName.includes('restoran utama')) return true;
+    const rNoLower = rNo.toLowerCase();
+    if (bName.includes('restoran utama') || rNoLower.includes('dummy') || rNoLower.includes('mock-shift')) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const POS_REPORT_KEYS = [
+    'approvedFinanceDaily', 'manualEntryRecords', 'shiftReports',
+    'dailyReports', 'manualReports', 'salesTransactions', 'outletTransactions', 'transactions', 'closedShifts', 'shift_closings'
+  ];
+
+  POS_REPORT_KEYS.forEach(key => {
+    if (Array.isArray(clean[key])) {
+      clean[key] = clean[key].filter(item => !isExcelUploadReport(item, key));
+    }
+  });
+
+  // Sanitize transaction discount anomalies (e.g. discount_unit > price_unit or discount_amount > subtotal)
+  ['salesTransactions', 'transactions', 'outletTransactions'].forEach(key => {
+    if (Array.isArray(clean[key])) {
+      clean[key] = clean[key].map(t => {
+        if (!t || typeof t !== 'object') return t;
+        let isAnomalous = false;
+        let fixedItems = t.items;
+        if (Array.isArray(t.items)) {
+          fixedItems = t.items.map(it => {
+            const pu = Number(it.price_unit || it.price || 0);
+            const du = Number(it.discount_unit || it.discount || 0);
+            const qty = Number(it.qty || 1);
+            if (du > pu && pu > 0) {
+              isAnomalous = true;
+              return {
+                ...it,
+                discount_unit: 0,
+                amount: pu * qty
+              };
+            }
+            return it;
+          });
+        }
+        const sub = Number(t.subtotal || 0);
+        const disc = Number(t.discount_amount || t.discount || 0);
+        if (isAnomalous || (disc > sub && sub > 0)) {
+          const newItems = fixedItems || t.items || [];
+          const newSub = newItems.reduce((s, it) => s + Number(it.amount || ((it.price_unit || 0) * (it.qty || 1))), 0) || sub;
+          const validDisc = Math.min(newSub, Math.max(0, disc > sub ? 0 : disc));
+          const netAmt = Math.max(0, newSub - validDisc);
+          return {
+            ...t,
+            items: newItems,
+            subtotal: newSub,
+            discount: validDisc,
+            discount_amount: validDisc,
+            item_discounts: validDisc,
+            summary_discount: validDisc,
+            amount: netAmt,
+            total: netAmt,
+            grand_total: netAmt,
+            paid_amount: netAmt,
+            tendered: netAmt,
+            _updatedAt: Date.now()
+          };
+        }
+        return t;
+      });
+    }
+  });
+
+  // ===== MASTER PRODUCTS DEDUPLICATION & SANITIZATION (MULTI-OUTLET SAFE) =====
+  if (Array.isArray(clean.products) && clean.products.length > 0) {
+    const prodMap = new Map();
+
+    for (const p of clean.products) {
+      if (!p || !p.id) continue;
+      const idKey = String(p.id).trim();
+
+      // Normalize selectedOutletIds
+      let selIds = Array.isArray(p.selectedOutletIds)
+        ? p.selectedOutletIds.map(String)
+        : (Array.isArray(p.selected_outlet_ids) ? p.selected_outlet_ids.map(String) : []);
+
+      if (selIds.length === 0 && p.outlet_id && p.outlet_id !== 'Semua Outlet' && p.outlet_id !== 'ALL') {
+        selIds = [String(p.outlet_id)];
+      }
+
+      // Preserve all standardPrices and alias maps
+      const stdPrices = {
+        ...(p.standardPrices || {}),
+        ...(p.standard_prices || {}),
+        ...(p.branch_prices || {}),
+        ...(p.outlet_prices || {})
+      };
+      const apkStatus = {
+        ...(p.apkStatus || {}),
+        ...(p.outletApkStatus || {}),
+        ...(p.outlet_apk_status || {})
+      };
+
+      const sanitizedProd = {
+        ...p,
+        id: isNaN(Number(p.id)) ? p.id : Number(p.id),
+        name: String(p.name || '').trim().toUpperCase(),
+        sku: String(p.sku || p.code || `PRD-${p.id}`).trim().toUpperCase(),
+        code: String(p.sku || p.code || `PRD-${p.id}`).trim().toUpperCase(),
+        price: Number(p.price || 0),
+        cost: Number(p.cost || p.cost_price || 0),
+        status: p.status || 'Aktif',
+        selectedOutletIds: selIds,
+        selected_outlet_ids: selIds,
+        standardPrices: stdPrices,
+        standard_prices: stdPrices,
+        branch_prices: stdPrices,
+        outlet_prices: stdPrices,
+        apkStatus: apkStatus,
+        outletApkStatus: apkStatus,
+        outlet_apk_status: apkStatus,
+        variants: Array.isArray(p.variants) ? p.variants : [],
+        variantPrices: p.variantPrices || {},
+        branchVariantPrices: p.branchVariantPrices || p.branch_variant_prices || {},
+        branch_variant_prices: p.branchVariantPrices || p.branch_variant_prices || {},
+        compositions: Array.isArray(p.compositions) ? p.compositions : []
+      };
+
+      if (prodMap.has(idKey)) {
+        const exist = prodMap.get(idKey);
+        const candTs = Number(p._lastUpdated || p._updatedAt || p._lastMutated || 0);
+        const existTs = Number(exist._lastUpdated || exist._updatedAt || exist._lastMutated || 0);
+        if (candTs >= existTs) {
+          prodMap.set(idKey, sanitizedProd);
+        }
+      } else {
+        prodMap.set(idKey, sanitizedProd);
+      }
+    }
+
+    clean.products = Array.from(prodMap.values());
   }
 
   return clean;
@@ -1455,157 +2641,1390 @@ const sanitizeMasterDataPayload = (data) => {
 // SINKRONISASI DATA MASTER TERPUSAT (SINGLE PRIMARY DATABASE: MySQL mris_db)
 // -----------------------------------------------------------------------------
 
+const FORCE_FLUSH_TTL_MS = 60 * 1000; // Auto-expire: 60 detik
+let forceFlushUntil = 0;
+
 // GET /api/master-data — 100% MySQL PRIMARY STORAGE
 app.get('/api/master-data', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   try {
+    const clientTs = Number(req.query.ts || req.headers['x-mris-ts'] || 0);
     const mysqlData = await getMasterDataFromMySQL();
-    if (mysqlData && typeof mysqlData === 'object') {
-      return res.json(sanitizeMasterDataPayload(mysqlData));
+    const activeData = (mysqlData && typeof mysqlData === 'object') ? mysqlData : defaultMasterData;
+    const serverTs = Number(activeData._lastUpdated || 0);
+
+    // ── Auto-expire _forceFlushCommand di DB jika sudah lewat 60 detik ──
+    if (activeData._forceFlushCommand === true) {
+      const flushAt = Number(activeData._forceFlushAt || 0);
+      const elapsed = Date.now() - flushAt;
+      if (flushAt > 0 && elapsed > FORCE_FLUSH_TTL_MS) {
+        // Expired — matikan otomatis di DB (async, tidak blokir response)
+        getMasterDataFromMySQL().then(cur => {
+          if (cur && cur._forceFlushCommand === true) {
+            cur._forceFlushCommand = false;
+            cur._forceFlushAt = null;
+            cur._lastUpdated = Date.now();
+            saveMasterDataToMySQL(cur).then(() =>
+              console.log(`[FORCE-FLUSH] Auto-expired setelah ${Math.round(elapsed / 1000)}s. DB direset otomatis.`)
+            ).catch(() => {});
+          }
+        }).catch(() => {});
+        // Jangan kirim _forceFlushCommand=true ke tablet
+        activeData._forceFlushCommand = false;
+      }
     }
-    // Jika MySQL belum pernah diisi, gunakan data awal default
-    res.json(sanitizeMasterDataPayload(defaultMasterData));
+
+    // Jika forceFlush window aktif (60 detik sejak di-trigger via API), embed ke response
+    const shouldForceFlush = Date.now() < forceFlushUntil;
+
+    if (clientTs > 0 && serverTs > 0 && clientTs >= serverTs && !shouldForceFlush) {
+      return res.status(304).end();
+    }
+
+    const payload = sanitizeMasterDataPayload(activeData);
+    if (shouldForceFlush) payload._forceFlushCommand = true;
+    return res.json(payload);
   } catch (err) {
-    console.error('GET /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal mengambil data master terpusat dari MySQL mris_db' });
+    return res.json(sanitizeMasterDataPayload(defaultMasterData));
   }
 });
 
-// POST /api/master-data — 100% MySQL PRIMARY STORAGE
-app.post('/api/master-data', async (req, res) => {
+// POST /api/admin/rebuild-blob-from-mysql — Emergency: Rebuild JSON blob dari tabel MySQL sales_transactions
+// Digunakan saat blob ter-overwrite dengan data parsial tapi MySQL masih punya semua transaksi.
+app.post('/api/admin/rebuild-blob-from-mysql', async (req, res) => {
   try {
-    const payload = req.body;
-    if (!payload || typeof payload !== 'object') {
-      return res.status(400).json({ error: 'Payload tidak valid' });
+    const { secret } = req.body || {};
+    if (secret !== 'MRIS-RESTORE-2026') {
+      return res.status(403).json({ success: false, error: 'Akses ditolak' });
     }
-    const nowTs = Date.now();
-
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      existing = defaultMasterData;
+    if (!mysqlPool) {
+      return res.status(500).json({ success: false, error: 'MySQL tidak terhubung' });
     }
 
-    const sanitizedPayload = sanitizeMasterDataPayload(payload);
-    const mergedData = mergeMasterDataSafely(existing, sanitizedPayload);
-    const newMasterData = sanitizeMasterDataPayload({ ...mergedData, _lastUpdated: nowTs });
+    // 1. Baca semua transaksi dari tabel sales_transactions (ground truth)
+    const [salesRows] = await mysqlPool.execute(
+      'SELECT * FROM sales_transactions ORDER BY date DESC, time DESC'
+    );
 
-    // Simpan ke MySQL mris_db
-    const mysqlOk = await saveMasterDataToMySQL(newMasterData);
+    // 2. Baca blob saat ini
+    const current = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const blobTxMap = new Map(
+      (current.salesTransactions || []).map(t => [String(t.id || t.receipt_no || ''), t])
+    );
 
-    // Sinkronisasi langsung ke tabel relasi MySQL (sales_transactions, outlets, products, dll)
-    await syncToMySQL(newMasterData);
+    let addedCount = 0;
+    const delSalesSet = new Set((current.deletedSalesIds || []).map(x => String(x)));
 
-    const timestamp = new Date().toISOString();
-    res.json({
+    // 3. Tambahkan dari MySQL semua yang tidak ada di blob dan tidak dalam deleted list
+    salesRows.forEach(r => {
+      const k = String(r.id || r.receipt_no || '');
+      if (!k || delSalesSet.has(k)) return;
+      if (blobTxMap.has(k)) return; // sudah ada di blob, skip
+
+      const dtStr = r.date
+        ? (typeof r.date === 'string' ? r.date.substring(0, 10) : (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)))
+        : '';
+
+      blobTxMap.set(k, {
+        id: r.id,
+        receipt_no: r.receipt_no || r.id,
+        receiptNo: r.receipt_no || r.id,
+        date: dtStr,
+        entry_date: dtStr,
+        transaction_date: dtStr,
+        time: r.time ? String(r.time) : '12:00:00',
+        created_at: r.created_at,
+        outlet_id: r.outlet_id,
+        branch_id: r.branch_id || r.outlet_id,
+        branch_name: r.branch_name || '',
+        outlet: r.outlet || r.branch_name || '',
+        customer_name: r.customer_name || 'Pelanggan Umum',
+        table_number: r.table_number || '',
+        order_type: r.order_type || 'Dine In',
+        subtotal: Number(r.subtotal || r.amount || 0),
+        discount: Number(r.discount_amount || 0),
+        discount_amount: Number(r.discount_amount || 0),
+        amount: Number(r.amount || 0),
+        total: Number(r.amount || 0),
+        paid_amount: Number(r.paid_amount || r.amount || 0),
+        change_amount: Number(r.change_amount || 0),
+        payment_method: r.payment_method || 'Cash',
+        cashier: r.cashier || 'Kasir POS',
+        notes: r.notes || '',
+        status: r.status || 'approved',
+        type: r.type || 'income',
+        items: (() => {
+          if (r.items_json) {
+            try {
+              const parsed = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json;
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+          }
+          return [{ name: r.branch_name || 'Menu', qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
+        })()
+      });
+      addedCount++;
+    });
+
+    // 4. Simpan blob yang sudah dipulihkan
+    const rebuiltTxList = Array.from(blobTxMap.values()).sort((a, b) => {
+      const da = String(a.date || '').substring(0, 10);
+      const db = String(b.date || '').substring(0, 10);
+      if (da !== db) return db.localeCompare(da);
+      return String(b.time || '').localeCompare(String(a.time || ''));
+    });
+
+    current.salesTransactions = rebuiltTxList;
+    current.transactions = rebuiltTxList;
+    current._lastUpdated = Date.now();
+    await saveMasterDataToMySQL(current);
+
+    return res.json({
       success: true,
-      message: 'Data master berhasil disimpan ke MySQL mris_db (Database Utama)',
-      storage: 'mysql_mris_db',
-      timestamp,
-      _lastUpdated: nowTs
+      message: `Blob berhasil di-rebuild. ${addedCount} transaksi ditambahkan dari MySQL. Total sekarang: ${rebuiltTxList.length} transaksi.`,
+      added: addedCount,
+      total: rebuiltTxList.length,
+      mysql_rows: salesRows.length,
+      blob_before: blobTxMap.size - addedCount
     });
   } catch (err) {
-    console.error('POST /api/master-data error:', err.message);
-    res.status(500).json({ error: 'Gagal menyinkronkan data master ke MySQL mris_db' });
+    console.error('POST /api/admin/rebuild-blob-from-mysql error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE /api/master-data/:key/:id — Direct Permanent Item Deletion Endpoint
-app.delete('/api/master-data/:key/:id', async (req, res) => {
+// GET /api/admin/blob-history — Lihat 50 snapshot riwayat blob terbaru
+app.get('/api/admin/blob-history', async (req, res) => {
   try {
-    const { key, id } = req.params;
-    if (!key || !id) {
-      return res.status(400).json({ error: 'Key dan ID wajib diisi' });
+    if (!mysqlPool) return res.status(500).json({ success: false, error: 'MySQL tidak terhubung' });
+    const [rows] = await mysqlPool.execute(
+      'SELECT id, tx_count, source_tag, created_at FROM mris_master_data_history ORDER BY id DESC LIMIT 50'
+    );
+    return res.json({ success: true, count: rows.length, history: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/restore-blob-version — Rollback blob ke versi history tertentu
+app.post('/api/admin/restore-blob-version', async (req, res) => {
+  try {
+    const { version_id, secret } = req.body || {};
+    if (secret !== 'MRIS-RESTORE-2026') {
+      return res.status(403).json({ success: false, error: 'Akses ditolak' });
+    }
+    if (!version_id) {
+      return res.status(400).json({ success: false, error: 'Parameter version_id wajib diisi' });
+    }
+    if (!mysqlPool) return res.status(500).json({ success: false, error: 'MySQL tidak terhubung' });
+
+    const [rows] = await mysqlPool.execute(
+      'SELECT * FROM mris_master_data_history WHERE id = ?',
+      [version_id]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, error: `Versi snapshot #${version_id} tidak ditemukan` });
     }
 
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      return res.status(404).json({ error: 'Master data tidak ditemukan' });
+    const snapshotData = JSON.parse(rows[0].data);
+    snapshotData._lastUpdated = Date.now();
+    await saveMasterDataToMySQL(snapshotData, `rollback_to_v${version_id}`);
+
+    return res.json({
+      success: true,
+      message: `Berhasil rollback master data ke versi snapshot #${version_id} (${rows[0].created_at})`,
+      version_id,
+      tx_count: rows[0].tx_count,
+      created_at: rows[0].created_at
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// =============================================================================
+// DIRECT LIGHTWEIGHT POS REST ENDPOINTS (FAST, DIRECT MYSQL COMMIT, <15ms)
+// =============================================================================
+
+// 0. POST /api/pos/bulk-restore — Pulihkan transaksi massal dari POS (bypass proteksi delete)
+// Endpoint ini dibuat untuk memulihkan data yang hilang akibat overwrite blob oleh skrip server.
+// Menerima array salesTransactions dari POS dan merge ke blob + sales_transactions.
+app.post('/api/pos/bulk-restore', async (req, res) => {
+  try {
+    const { transactions, secret } = req.body;
+    if (secret !== 'MRIS-RESTORE-2026') {
+      return res.status(403).json({ success: false, error: 'Akses ditolak' });
+    }
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ success: false, error: 'Array transactions kosong' });
     }
 
-    const idStr = String(id);
-    const nowTs = Date.now();
+    const current = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const existingIds = new Set((current.salesTransactions || []).map(t => String(t.id || t.receipt_no || '')));
 
-    // Hapus item dari array di masterData JSON
-    if (Array.isArray(existing[key])) {
-      existing[key] = existing[key].filter(item => {
-        if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : item.code || item.name);
-        return itemId !== idStr;
+    let inserted = 0;
+    let skipped = 0;
+    const newTxs = [];
+
+    for (const tx of transactions) {
+      if (!tx || !tx.id) { skipped++; continue; }
+      const txId = String(tx.id);
+      const txDate = tx.date || new Date().toISOString().split('T')[0];
+      if (txDate < '2026-08-13') { skipped++; continue; }
+
+      if (existingIds.has(txId)) { skipped++; continue; }
+      existingIds.add(txId);
+      newTxs.push(tx);
+
+      // Upsert ke sales_transactions
+      if (mysqlPool) {
+        try {
+          const txRcpt = String(tx.receipt_no || tx.receiptNo || txId);
+          const txTime = String(tx.time || '00:00:00').replace(/\./g, ':').substring(0, 8);
+          const outletId = Number(tx.outlet_id || tx.branch_id || 1);
+          const amount = Number(tx.amount || tx.total || 0);
+          const paidAmount = Number(tx.paid_amount || tx.cash_paid || amount);
+          const changeAmount = Number(tx.change_amount || tx.change || 0);
+          await mysqlPool.execute(`
+            INSERT INTO sales_transactions
+              (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name,
+               table_number, order_type, subtotal, discount_amount, service_charge, tax_amount,
+               adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
+            ON DUPLICATE KEY UPDATE amount = VALUES(amount), status = VALUES(status)
+          `, [txId, txRcpt, txDate, txTime, outletId, outletId,
+              tx.branch_name || tx.outlet || 'Cabang', tx.branch_name || tx.outlet || 'Cabang',
+              tx.customer_name || 'Pelanggan Umum', tx.table_number || '', tx.order_type || 'Dine In',
+              amount, 0, 0, 0, 0, amount, paidAmount, changeAmount,
+              tx.payment_method || 'Cash', tx.cashier || 'Kasir POS', tx.notes || '', tx.status || 'approved']);
+          inserted++;
+        } catch (e) { skipped++; }
+      }
+    }
+
+    // Merge ke blob
+    const merged = [...newTxs, ...(current.salesTransactions || [])];
+    current.salesTransactions = merged;
+    current.transactions = merged;
+    current._lastUpdated = Date.now();
+    await saveMasterDataToMySQL(current);
+
+    return res.json({
+      success: true,
+      message: `Berhasil memulihkan ${inserted} transaksi, ${skipped} dilewati (sudah ada / invalid)`,
+      inserted,
+      skipped,
+      total_in_blob: merged.length
+    });
+  } catch (err) {
+    console.error('POST /api/pos/bulk-restore error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1. POST /api/pos/transaction — Direct POS Single Receipt Checkout
+app.post('/api/pos/transaction', async (req, res) => {
+  try {
+    const tx = req.body;
+    if (!tx || !tx.id) {
+      return res.status(400).json({ success: false, error: 'Data transaksi tidak valid' });
+    }
+
+    const txId = String(tx.id);
+    const txRcpt = String(tx.receipt_no || tx.receiptNo || '');
+    const txDate = tx.date || new Date().toISOString().split('T')[0];
+
+    // Reject legacy test dates or permanently deleted transactions
+    if (txDate < '2026-08-13') {
+      return res.status(400).json({ success: false, error: 'Transaksi uji coba sebelum 13 Agustus 2026 telah dibersihkan' });
+    }
+    const formatTimeHHMMSS = (t) => {
+      if (t && typeof t === 'string') {
+        const cleanT = t.replace(/\./g, ':').trim();
+        if (cleanT.includes(':')) {
+          const parts = cleanT.split(':');
+          return `${(parts[0] || '00').padStart(2, '0')}:${(parts[1] || '00').padStart(2, '0')}:${(parts[2] || '00').substring(0, 2).padStart(2, '0')}`.substring(0, 8);
+        }
+      }
+      const _n = new Date();
+      return _n.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+    };
+    const txTime = formatTimeHHMMSS(tx.time);
+    const outletId = Number(tx.outlet_id || tx.branch_id || 1);
+    const branchName = tx.branch_name || tx.outlet || 'Cabang';
+    const customerName = tx.customer_name || tx.customer || 'Pelanggan Umum';
+    const tableNumber = tx.table_number || tx.table || '';
+    const orderType = tx.order_type || tx.type || 'Dine In';
+    const amount = Number(tx.amount || tx.total || 0);
+    const paidAmount = Number(tx.paid_amount || tx.cash_paid || tx.tendered || amount);
+    const changeAmount = Number(tx.change_amount || tx.change || tx.kembalian || 0);
+    const paymentMethod = tx.payment_method || 'Cash';
+    const cashier = tx.cashier || tx.cashier_name || 'Kasir POS';
+    const notes = tx.notes || '';
+    const status = tx.status || 'approved';
+
+    const itemsJsonStr = (Array.isArray(tx.items) && tx.items.length > 0) ? JSON.stringify(tx.items) : null;
+
+    // 1. Langsung insert ke MySQL sales_transactions
+    if (mysqlPool) {
+      await mysqlPool.execute(`
+        INSERT INTO sales_transactions 
+          (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type, items_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income', ?)
+        ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          time = VALUES(time),
+          outlet_id = VALUES(outlet_id),
+          branch_id = VALUES(branch_id),
+          branch_name = VALUES(branch_name),
+          customer_name = VALUES(customer_name),
+          table_number = VALUES(table_number),
+          order_type = VALUES(order_type),
+          amount = VALUES(amount),
+          paid_amount = VALUES(paid_amount),
+          change_amount = VALUES(change_amount),
+          payment_method = VALUES(payment_method),
+          cashier = VALUES(cashier),
+          notes = VALUES(notes),
+          status = VALUES(status),
+          items_json = VALUES(items_json)
+      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status, itemsJsonStr]);
+
+      // Catat pergerakan stok jika ada items
+      if (Array.isArray(tx.items) && tx.items.length > 0) {
+        for (const it of tx.items) {
+          const itName = String(it.name || '').trim();
+          const itQty = Number(it.qty || 1);
+          try {
+            const txReason = `POS Checkout [TX:${txId}]`;
+            const [existingSm] = await mysqlPool.execute(
+              `SELECT id FROM stock_movement WHERE outlet_id = ? AND date = ? AND ingredient_name = ? AND reason = ? LIMIT 1`,
+              [outletId, txDate, itName, txReason]
+            );
+            if (!existingSm || existingSm.length === 0) {
+              await mysqlPool.execute(`
+                INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, reason, user_name)
+                VALUES (?, ?, ?, 'OUT', ?, 'porsi', ?, ?, ?, ?)
+              `, [txDate, txTime, itName, itQty, outletId, branchName, txReason, cashier]);
+            }
+          } catch (smErr) {}
+        }
+      }
+
+      // Hapus otomatis dari active_table_orders untuk meja yang bersangkutan saat transaksi selesai dibayar
+      const tableNum = String(tx.table_number || '').trim();
+      if (tableNum && tableNum !== 'N/A (Take Away)' && tableNum !== 'N/A') {
+        try {
+          await mysqlPool.execute(`
+            DELETE FROM active_table_orders 
+            WHERE outlet_id = ? AND (table_number = ? OR table_id = ? OR id LIKE ?)
+          `, [outletId, tableNum, tableNum, `%${tableNum}%`]);
+          // Broadcast real-time SSE table cleared
+          broadcastPosEvent(outletId, { type: 'TABLE_ORDER_UPDATE', action: 'DELETE', table_id: tableNum, outlet_id: outletId });
+        } catch (delTblErr) {}
+      }
+      // Broadcast real-time SSE checkout event
+      broadcastPosEvent(outletId, { type: 'TX_CHECKOUT', tx_id: txId, table_number: tableNum, amount, outlet_id: outletId });
+    }
+
+    // 2. Synchronous update to masterData JSON blob so immediate GET /api/master-data has the latest transaction
+    try {
+      const cur = await getMasterDataFromMySQL();
+      const current = cur || defaultMasterData;
+      const salesTx = current.salesTransactions || [];
+      if (!salesTx.some(t => String(t.id) === txId)) {
+        current.salesTransactions = [tx, ...salesTx];
+        current.transactions = [tx, ...(current.transactions || [])];
+        current._lastUpdated = Date.now();
+        await saveMasterDataToMySQL(current);
+      }
+    } catch (saveErr) {
+      console.warn('Warning updating masterData blob for new transaction:', saveErr.message);
+    }
+
+    return res.json({ success: true, message: 'Transaksi berhasil disimpan ke MySQL', id: txId });
+  } catch (err) {
+    console.error('POST /api/pos/transaction error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// 1b. REAL-TIME SERVER-SENT EVENTS (SSE) ENGINE (50ms Instant Push per Outlet)
+// -----------------------------------------------------------------------------
+const sseClientsByOutlet = new Map(); // outletId -> Set of res objects
+
+const broadcastPosEvent = (outletId, eventData) => {
+  const targetOutlets = [outletId, 'all', 0];
+  const payload = `data: ${JSON.stringify(eventData)}\n\n`;
+
+  targetOutlets.forEach(oId => {
+    const clients = sseClientsByOutlet.get(Number(oId)) || sseClientsByOutlet.get(String(oId));
+    if (clients && clients.size > 0) {
+      clients.forEach(clientRes => {
+        try {
+          clientRes.write(payload);
+        } catch (err) {
+          clients.delete(clientRes);
+        }
       });
     }
+  });
+};
 
-    existing._lastUpdated = nowTs;
+// GET /api/pos/events — SSE Stream Listener
+app.get('/api/pos/events', (req, res) => {
+  const outletId = Number(req.query.outlet_id || 1);
 
-    // Simpan masterData JSON terbaru ke MySQL mris_master_data
-    await saveMasterDataToMySQL(existing);
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Bypass Nginx buffering
+  res.flushHeaders();
 
-    // Hapus baris dari tabel relasi MySQL jika ada
-    if (mysqlPool) {
-      const relTable = key === 'products' ? 'products' :
-                       key === 'categories' ? 'categories' :
-                       key === 'outlets' ? 'outlets' :
-                       key === 'users' || key === 'userRights' ? 'users' :
-                       key === 'ingredients' ? 'ingredients' :
-                       key === 'suppliers' ? 'suppliers' :
-                       key === 'customers' ? 'customers' : null;
-      if (relTable) {
-        try {
-          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ?`, [id, idStr]);
-        } catch (delErr) {}
-      }
+  if (!sseClientsByOutlet.has(outletId)) {
+    sseClientsByOutlet.set(outletId, new Set());
+  }
+  sseClientsByOutlet.get(outletId).add(res);
+
+  // Send initial connection ack
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', outlet_id: outletId, time: Date.now() })}\n\n`);
+
+  // Heartbeat keep-alive every 25s
+  const heartbeatTimer = setInterval(() => {
+    try {
+      res.write(': keepalive\n\n');
+    } catch (e) {
+      clearInterval(heartbeatTimer);
     }
+  }, 25000);
 
-    // Sync ulang sisa data ke relasi
-    await syncToMySQL(existing);
+  req.on('close', () => {
+    clearInterval(heartbeatTimer);
+    const clients = sseClientsByOutlet.get(outletId);
+    if (clients) {
+      clients.delete(res);
+      if (clients.size === 0) sseClientsByOutlet.delete(outletId);
+    }
+  });
+});
 
-    res.json({
-      success: true,
-      message: `Item ID ${id} dari ${key} berhasil dihapus permanen`,
-      masterData: existing,
-      _lastUpdated: nowTs
-    });
+// 1c. GET /api/pos/table-orders — Mengambil pesanan meja aktif per-outlet
+app.get('/api/pos/table-orders', async (req, res) => {
+  try {
+    const outletId = Number(req.query.outlet_id || 1);
+    if (!mysqlPool) return res.json({ success: true, tableOrders: [] });
+
+    const [rows] = await mysqlPool.execute(
+      'SELECT * FROM active_table_orders WHERE outlet_id = ? AND status = "occupied" ORDER BY updated_at DESC',
+      [outletId]
+    );
+
+    const formatted = rows.map(r => ({
+      id: r.id,
+      table_id: r.table_id,
+      table_number: r.table_number,
+      customer_name: r.customer_name,
+      order_type: r.order_type,
+      waiter_name: r.waiter_name,
+      total_amount: Number(r.total_amount || 0),
+      items: typeof r.items === 'string' ? (JSON.parse(r.items || '[]')) : (r.items || []),
+      status: r.status,
+      updated_at: r.updated_at
+    }));
+
+    return res.json({ success: true, tableOrders: formatted });
   } catch (err) {
-    console.error('DELETE /api/master-data/:key/:id error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('GET /api/pos/table-orders error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// POST /api/master-data/delete-item — Nginx/Cloudflare Compatible Deletion Endpoint
+// 1d. POST /api/pos/table-orders — Simpan / Update pesanan meja dari Waiters / Kasir
+app.post('/api/pos/table-orders', async (req, res) => {
+  try {
+    const { id, outlet_id, table_id, table_number, customer_name, order_type, waiter_name, items, total_amount, status } = req.body || {};
+    if (!table_id || !outlet_id) {
+      return res.status(400).json({ success: false, error: 'outlet_id dan table_id wajib diisi' });
+    }
+
+    const orderId = `TO-${outlet_id}-${table_id}`;
+    const itemsJson = typeof items === 'string' ? items : JSON.stringify(items || []);
+    const totAmt = Number(total_amount || 0);
+
+    if (mysqlPool) {
+      await mysqlPool.execute(`
+        INSERT INTO active_table_orders 
+          (id, outlet_id, table_id, table_number, customer_name, order_type, waiter_name, items, total_amount, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          table_number = VALUES(table_number),
+          customer_name = VALUES(customer_name),
+          order_type = VALUES(order_type),
+          waiter_name = VALUES(waiter_name),
+          items = VALUES(items),
+          total_amount = VALUES(total_amount),
+          status = VALUES(status),
+          updated_at = CURRENT_TIMESTAMP
+      `, [orderId, Number(outlet_id), String(table_id), String(table_number || table_id), String(customer_name || 'Pelanggan Umum'), String(order_type || 'Dine In'), String(waiter_name || 'Waiters'), itemsJson, totAmt, String(status || 'occupied')]);
+    }
+
+    // Broadcast instant SSE to Kasir & KDS screens (<50ms)
+    broadcastPosEvent(Number(outlet_id), {
+      type: 'TABLE_ORDER_UPDATE',
+      action: 'SAVE',
+      table_id: String(table_id),
+      outlet_id: Number(outlet_id),
+      order: {
+        id: orderId,
+        table_id: String(table_id),
+        table_number: String(table_number || table_id),
+        customer_name: String(customer_name || 'Pelanggan Umum'),
+        order_type: String(order_type || 'Dine In'),
+        waiter_name: String(waiter_name || 'Waiters'),
+        items: typeof items === 'string' ? JSON.parse(items) : (items || []),
+        total_amount: totAmt,
+        status: String(status || 'occupied'),
+        updated_at: new Date().toISOString()
+      }
+    });
+
+    return res.json({ success: true, message: 'Pesanan meja berhasil disinkronisasi', id: orderId });
+  } catch (err) {
+    console.error('POST /api/pos/table-orders error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1e. DELETE /api/pos/table-orders/:table_id — Hapus pesanan meja (meja dikosongkan / dibatalkan)
+app.delete('/api/pos/table-orders/:table_id', async (req, res) => {
+  try {
+    const tableId = req.params.table_id;
+    const outletId = Number(req.query.outlet_id || 1);
+    if (!tableId) return res.status(400).json({ success: false, error: 'table_id wajib diisi' });
+
+    if (mysqlPool) {
+      await mysqlPool.execute(
+        'DELETE FROM active_table_orders WHERE outlet_id = ? AND (table_id = ? OR table_number = ? OR id = ?)',
+        [outletId, tableId, tableId, tableId]
+      );
+    }
+
+    // Broadcast SSE delete event
+    broadcastPosEvent(outletId, {
+      type: 'TABLE_ORDER_UPDATE',
+      action: 'DELETE',
+      table_id: String(tableId),
+      outlet_id: outletId
+    });
+
+    return res.json({ success: true, message: `Pesanan meja ${tableId} berhasil dihapus` });
+  } catch (err) {
+    console.error('DELETE /api/pos/table-orders error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1f. GET /api/sales/paginated — High-Performance Paginated Sales Transactions (Skala Besar)
+app.get('/api/sales/paginated', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || 1, 10));
+    const limit = Math.min(200, Math.max(10, parseInt(req.query.limit || 50, 10)));
+    const offset = (page - 1) * limit;
+
+    const outletId = req.query.outlet_id ? Number(req.query.outlet_id) : null;
+    const dateFrom = req.query.date_from || null;
+    const dateTo = req.query.date_to || null;
+    const search = req.query.search ? `%${req.query.search.trim()}%` : null;
+    const paymentMethod = req.query.payment_method || null;
+
+    if (!mysqlPool) return res.json({ success: true, transactions: [], pagination: { page: 1, limit, totalRecords: 0, totalPages: 0 } });
+
+    let whereClauses = ['1=1'];
+    let params = [];
+
+    if (outletId) {
+      whereClauses.push('outlet_id = ?');
+      params.push(outletId);
+    }
+    if (dateFrom) {
+      whereClauses.push('date >= ?');
+      params.push(dateFrom);
+    }
+    if (dateTo) {
+      whereClauses.push('date <= ?');
+      params.push(dateTo);
+    }
+    if (paymentMethod && paymentMethod !== 'all') {
+      whereClauses.push('payment_method = ?');
+      params.push(paymentMethod);
+    }
+    if (search) {
+      whereClauses.push('(receipt_no LIKE ? OR id LIKE ? OR customer_name LIKE ? OR cashier LIKE ? OR notes LIKE ?)');
+      params.push(search, search, search, search, search);
+    }
+
+    const whereSql = whereClauses.join(' AND ');
+
+    const [countRows] = await mysqlPool.execute(`SELECT COUNT(*) as total FROM sales_transactions WHERE ${whereSql}`, params);
+    const totalRecords = countRows[0]?.total || 0;
+    const totalPages = Math.ceil(totalRecords / limit) || 1;
+
+    const [rows] = await mysqlPool.execute(
+      `SELECT * FROM sales_transactions WHERE ${whereSql} ORDER BY date DESC, time DESC LIMIT ? OFFSET ?`,
+      [...params, String(limit), String(offset)]
+    );
+
+    const transactions = rows.map(r => {
+      let items = [];
+      if (r.items_json) {
+        try { items = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json; } catch (e) {}
+      }
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [{ name: r.notes && r.notes !== '-' ? r.notes : (r.branch_name ? `Menu ${r.branch_name}` : 'Menu Restoran'), qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
+      }
+      const dtStr = String(r.date ? (r.date.toISOString ? r.date.toISOString().substring(0, 10) : String(r.date).substring(0, 10)) : '');
+      return {
+        id: r.id,
+        receipt_no: r.receipt_no || r.id,
+        date: dtStr,
+        time: String(r.time || '00:00:00').substring(0, 8),
+        outlet_id: r.outlet_id,
+        branch_name: r.branch_name,
+        customer_name: r.customer_name,
+        table_number: r.table_number,
+        order_type: r.order_type,
+        amount: Number(r.amount || 0),
+        subtotal: Number(r.subtotal || r.amount || 0),
+        discount_amount: Number(r.discount_amount || 0),
+        paid_amount: Number(r.paid_amount || r.amount || 0),
+        change_amount: Number(r.change_amount || 0),
+        payment_method: r.payment_method,
+        cashier: r.cashier,
+        notes: r.notes,
+        status: r.status,
+        items
+      };
+    });
+
+    return res.json({
+      success: true,
+      transactions,
+      pagination: {
+        page,
+        limit,
+        totalRecords,
+        totalPages
+      }
+    });
+  } catch (err) {
+    console.error('GET /api/sales/paginated error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1g. POST /api/sales/parse-import-file — Parse PDF / Excel Penjualan untuk Papan Review & Koreksi
+app.post('/api/sales/parse-import-file', async (req, res) => {
+  try {
+    const { fileData, fileName, filePath } = req.body;
+    let targetPath = filePath;
+
+    if (!targetPath && fileData) {
+      const isPdf = (fileName || '').toLowerCase().endsWith('.pdf') || fileData.startsWith('data:application/pdf') || fileData.startsWith('JVBERi0');
+      const ext = isPdf ? '.pdf' : '.xlsx';
+      targetPath = path.join(os.tmpdir(), `upload_${Date.now()}${ext}`);
+      
+      const base64Content = fileData.replace(/^data:[^;]+;base64,/, '');
+      await fs.promises.writeFile(targetPath, Buffer.from(base64Content, 'base64'));
+    }
+
+    if (!targetPath || !fs.existsSync(targetPath)) {
+      return res.status(400).json({ success: false, error: 'File tidak ditemukan atau format tidak didukung' });
+    }
+
+    const isPdf = targetPath.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      // Eksekusi skrip python pdf_sales_parser.py
+      const scriptPath = path.join(__dirname, 'scripts', 'pdf_sales_parser.py');
+      exec(`python3 "${scriptPath}" "${targetPath}"`, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('PDF Parse Error:', stderr || err.message);
+          return res.status(500).json({ success: false, error: `Gagal mem-parse PDF: ${stderr || err.message}` });
+        }
+        try {
+          const parsed = JSON.parse(stdout);
+          return res.json(parsed);
+        } catch (parseErr) {
+          console.error('PDF JSON parse error:', stdout.substring(0, 300));
+          return res.status(500).json({ success: false, error: 'Output parser PDF tidak valid' });
+        }
+      });
+    } else {
+      // Excel Parser
+      const workbook = XLSX.readFile(targetPath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+
+      const txList = [];
+      const uniqueRawItems = new Set();
+      let totalOmzet = 0;
+
+      rows.forEach((r, idx) => {
+        const rawDate = String(r.Tanggal || r.Date || r.date || r.tanggal || '').trim();
+        const dMatch = rawDate.match(/(\d{4}[-/]\d{2}[-/]\d{2})|(\d{2}[-/]\d{2}[-/]\d{4})/);
+        let isoDate = new Date().toISOString().split('T')[0];
+        if (dMatch) {
+          const dStr = dMatch[0];
+          if (dStr.includes('/')) {
+            const p = dStr.split('/');
+            isoDate = p[0].length === 4 ? `${p[0]}-${p[1]}-${p[2]}` : `${p[2]}-${p[1]}-${p[0]}`;
+          } else {
+            isoDate = dStr;
+          }
+        }
+
+        const rawProd = String(r.Produk || r.Item || r.Menu || r.produk || r.nama_menu || '').trim();
+        const totalVal = Number(String(r.Total || r.Jumlah || r.Amount || r.total || 0).replace(/[^0-9.-]+/g, '')) || 0;
+        totalOmzet += totalVal;
+
+        const rawItems = rawProd.split(/,|\n/).map(i => i.trim()).filter(Boolean);
+        rawItems.forEach(it => uniqueRawItems.add(it));
+
+        const receiptId = `TX-XLS-${isoDate.replace(/-/g, '')}-${idx + 1}`;
+        txList.push({
+          id: receiptId,
+          receipt_no: receiptId,
+          date: isoDate,
+          time: '12:00:00',
+          outlet_id: '1785369617361',
+          outlet_name: String(r.Outlet || r.Cabang || 'AYAM PECAK 2001 SEAFOOD - KISARAN'),
+          raw_products: rawProd,
+          raw_items: rawItems,
+          subtotal: totalVal,
+          discount: 0,
+          total: totalVal,
+          amount: totalVal,
+          paid_amount: totalVal,
+          change_amount: 0,
+          payment_method: 'Cash',
+          customer_name: String(r.Pelanggan || r.Customer || 'Pelanggan Umum'),
+          status: 'approved',
+          cashier: 'Impor Excel'
+        });
+      });
+
+      return res.json({
+        success: true,
+        totalPages: 1,
+        totalCount: txList.length,
+        totalOmzet,
+        dateStart: txList[0]?.date || '',
+        dateEnd: txList[txList.length - 1]?.date || '',
+        outletsDetected: Array.from(new Set(txList.map(t => t.outlet_name))),
+        uniqueRawMenus: Array.from(uniqueRawItems),
+        transactions: txList
+      });
+    }
+  } catch (err) {
+    console.error('POST /api/sales/parse-import-file error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1h. POST /api/sales/execute-import-batch — Simpan Seluruh Transaksi yang Terpetakan ke MySQL & Master Data
+app.post('/api/sales/execute-import-batch', async (req, res) => {
+  try {
+    const { transactions = [], menuMapping = {}, deductStock = false, defaultOutletId = null } = req.body;
+
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ success: false, error: 'Tidak ada transaksi yang dikirim' });
+    }
+
+    let insertedCount = 0;
+    let totalInsertedAmount = 0;
+
+    for (const tx of transactions) {
+      const txId = String(tx.id || `TX-IMP-${Date.now()}-${insertedCount}`);
+      const txDate = tx.date || new Date().toISOString().split('T')[0];
+      const txTime = tx.time || '12:00:00';
+      const outletId = Number(defaultOutletId || tx.outlet_id || 1);
+      const branchName = tx.outlet_name || tx.branch_name || 'Cabang';
+      const amount = Number(tx.amount || tx.total || 0);
+      totalInsertedAmount += amount;
+
+      // Transform raw items using menuMapping
+      let items = [];
+      const rawList = Array.isArray(tx.raw_items) && tx.raw_items.length > 0 ? tx.raw_items : [tx.raw_products || 'Menu Restoran'];
+      
+      const itemPrice = rawList.length > 0 ? Math.round(amount / rawList.length) : amount;
+      items = rawList.map(raw => {
+        const mappedName = menuMapping[raw] || raw;
+        return {
+          name: mappedName,
+          qty: 1,
+          price: itemPrice,
+          price_unit: itemPrice,
+          amount: itemPrice
+        };
+      });
+
+      const itemsJsonStr = JSON.stringify(items);
+
+      if (mysqlPool) {
+        await mysqlPool.execute(`
+          INSERT INTO sales_transactions 
+            (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type, items_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income', ?)
+          ON DUPLICATE KEY UPDATE
+            date = VALUES(date),
+            time = VALUES(time),
+            outlet_id = VALUES(outlet_id),
+            branch_name = VALUES(branch_name),
+            amount = VALUES(amount),
+            paid_amount = VALUES(paid_amount),
+            items_json = VALUES(items_json),
+            status = 'approved'
+        `, [
+          txId,
+          tx.receipt_no || txId,
+          txDate,
+          txTime,
+          outletId,
+          outletId,
+          branchName,
+          branchName,
+          tx.customer_name || 'Pelanggan Umum',
+          tx.table_number || '',
+          tx.order_type || 'Dine In',
+          Number(tx.subtotal || amount),
+          Number(tx.discount || 0),
+          0,
+          0,
+          0,
+          amount,
+          Number(tx.paid_amount || amount),
+          Number(tx.change_amount || 0),
+          tx.payment_method || 'Cash',
+          tx.cashier || 'Impor File',
+          tx.notes || 'Diimpor dari dokumen penjualan',
+          'approved',
+          itemsJsonStr
+        ]);
+      }
+
+      insertedCount++;
+    }
+
+    console.log(`[SalesImport] Berhasil mengimpor ${insertedCount} transaksi (Total: Rp ${totalInsertedAmount.toLocaleString('id-ID')})`);
+    return res.json({
+      success: true,
+      count: insertedCount,
+      totalAmount: totalInsertedAmount,
+      message: `Berhasil mengimpor ${insertedCount} transaksi ke dalam database sistem.`
+    });
+  } catch (err) {
+    console.error('POST /api/sales/execute-import-batch error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1i. POST /api/expenses/parse-import-file — Parse Dokumen Pengeluaran (PDF / Excel)
+app.post('/api/expenses/parse-import-file', async (req, res) => {
+  try {
+    const { fileName, fileData } = req.body;
+    if (!fileName || !fileData) {
+      return res.status(400).json({ success: false, error: 'File atau data file tidak boleh kosong' });
+    }
+
+    const base64Clean = fileData.replace(/^data:[^;]+;base64,/, '');
+    const buffer = Buffer.from(base64Clean, 'base64');
+    const ext = path.extname(fileName).toLowerCase();
+    const tempFileName = `upload_exp_${Date.now()}${ext}`;
+    const targetPath = path.join('/tmp', tempFileName);
+
+    fs.writeFileSync(targetPath, buffer);
+
+    if (ext === '.pdf') {
+      const scriptPath = path.join(__dirname, 'scripts', 'pdf_expense_parser.py');
+      exec(`python3 "${scriptPath}" "${targetPath}"`, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          console.error('Expense PDF Parse Error:', stderr || err.message);
+          return res.status(500).json({ success: false, error: `Gagal mem-parse PDF: ${stderr || err.message}` });
+        }
+        try {
+          const parsed = JSON.parse(stdout);
+          return res.json(parsed);
+        } catch (parseErr) {
+          console.error('Expense PDF JSON parse error:', stdout.substring(0, 300));
+          return res.status(500).json({ success: false, error: 'Output parser PDF pengeluaran tidak valid' });
+        }
+      });
+    } else {
+      // Excel Expense Parser
+      const workbook = XLSX.readFile(targetPath);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+
+      const expList = [];
+      const uniqueRawItems = new Set();
+      const uniqueSuppliers = new Set();
+      let totalExpense = 0;
+
+      rows.forEach((r, idx) => {
+        const rawDate = String(r.Tanggal || r.Date || r.date || r.tanggal || '').trim();
+        const dMatch = rawDate.match(/(\d{4}[-/]\d{2}[-/]\d{2})|(\d{2}[-/]\d{2}[-/]\d{4})/);
+        let isoDate = new Date().toISOString().split('T')[0];
+        if (dMatch) {
+          const dStr = dMatch[0];
+          if (dStr.includes('/')) {
+            const p = dStr.split('/');
+            isoDate = p[0].length === 4 ? `${p[0]}-${p[1]}-${p[2]}` : `${p[2]}-${p[1]}-${p[0]}`;
+          } else {
+            isoDate = dStr;
+          }
+        }
+
+        const rawItem = String(r.Item || r.Bahan || r.Barang || r.Keterangan || r.Deskripsi || r.Biaya || r.item || '').trim() || `Pengeluaran #${idx + 1}`;
+        const supplier = String(r.Supplier || r.Pemasok || r.Toko || r.supplier || 'Supplier Umum / Pasar').trim();
+        const amountVal = Number(String(r.Jumlah || r.Total || r.Amount || r.Nominal || r.total || 0).replace(/[^0-9.-]+/g, '')) || 0;
+        totalExpense += amountVal;
+
+        uniqueRawItems.add(rawItem);
+        if (supplier) uniqueSuppliers.add(supplier);
+
+        const receiptId = `EXP-XLS-${isoDate.replace(/-/g, '')}-${String(idx + 1).padStart(4, '0')}`;
+        expList.push({
+          id: receiptId,
+          receipt_no: receiptId,
+          date: isoDate,
+          time: '12:00:00',
+          outlet_name: String(r.Outlet || r.Cabang || 'Semua Outlet'),
+          supplier_name: supplier,
+          raw_item: rawItem,
+          raw_items: [rawItem],
+          amount: amountVal,
+          payment_method: String(r.Metode || r.Payment || 'Cash / Kasir'),
+          notes: String(r.Catatan || r.Notes || 'Diimpor dari Excel Pengeluaran')
+        });
+      });
+
+      return res.json({
+        success: true,
+        totalPages: 1,
+        totalCount: expList.length,
+        totalExpense,
+        dateStart: expList[0]?.date || '',
+        dateEnd: expList[expList.length - 1]?.date || '',
+        suppliersDetected: Array.from(uniqueSuppliers),
+        uniqueRawItems: Array.from(uniqueRawItems),
+        expenses: expList
+      });
+    }
+  } catch (err) {
+    console.error('POST /api/expenses/parse-import-file error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 1j. POST /api/expenses/execute-import-batch — Simpan Seluruh Pengeluaran Terpetakan ke MySQL & Update Stok
+app.post('/api/expenses/execute-import-batch', async (req, res) => {
+  try {
+    const { expenses = [], itemMapping = {}, increaseStock = false, defaultOutletId = null } = req.body;
+
+    if (!Array.isArray(expenses) || expenses.length === 0) {
+      return res.status(400).json({ success: false, error: 'Tidak ada pengeluaran yang dikirim' });
+    }
+
+    const masterData = await getUnifiedData();
+    let insertedCount = 0;
+    let totalInsertedAmount = 0;
+    const nowTs = Date.now();
+
+    const createdTxList = [];
+
+    for (const exp of expenses) {
+      const expId = String(exp.id || `EXP-IMP-${nowTs}-${insertedCount}`);
+      const expDate = exp.date || new Date().toISOString().split('T')[0];
+      const outletId = Number(defaultOutletId || exp.outlet_id || 1);
+      const branchName = exp.outlet_name || 'Semua Outlet';
+      const amount = Number(exp.amount || 0);
+      const rawItem = exp.raw_item || 'Bahan / Biaya Operasional';
+      const mappedCategoryOrItem = itemMapping[rawItem] || rawItem;
+      const supplierName = exp.supplier_name || 'Supplier Pasar';
+      totalInsertedAmount += amount;
+
+      const txObj = {
+        id: nowTs + insertedCount,
+        receipt_no: exp.receipt_no || expId,
+        branch_id: outletId,
+        outlet_id: outletId,
+        branch_name: branchName,
+        type: 'expense',
+        category: mappedCategoryOrItem,
+        amount: amount,
+        description: `Pembelian/Beban: ${rawItem} (${supplierName})`,
+        supplier_name: supplierName,
+        payment_method: exp.payment_method || 'Cash / Kasir',
+        date: expDate,
+        time: exp.time || '12:00:00',
+        created_by: 'Impor Dokumen Pengeluaran',
+        status: 'approved',
+        notes: exp.notes || 'Diimpor dari Dokumen Pengeluaran'
+      };
+
+      createdTxList.push(txObj);
+      insertedCount++;
+    }
+
+    masterData.transactions = [...createdTxList, ...(masterData.transactions || [])];
+    masterData.cogsExpenses = [...createdTxList, ...(masterData.cogsExpenses || [])];
+    masterData._lastUpdated = Date.now();
+    masterData._lastMutated = Date.now();
+
+    await saveMasterDataToMySQL(masterData);
+    await syncToMySQL(masterData);
+
+    console.log(`[ExpenseImport] Berhasil mengimpor ${insertedCount} pengeluaran (Total: Rp ${totalInsertedAmount.toLocaleString('id-ID')})`);
+    return res.json({
+      success: true,
+      count: insertedCount,
+      totalAmount: totalInsertedAmount,
+      message: `Berhasil mengimpor ${insertedCount} data pengeluaran ke dalam database sistem.`
+    });
+  } catch (err) {
+    console.error('POST /api/expenses/execute-import-batch error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. POST /api/pos/shift-close — Direct POS Shift Closing (Auto-Approved & Immediate)
+app.post('/api/pos/shift-close', async (req, res) => {
+  try {
+    const sc = req.body;
+    if (!sc || !sc.id) {
+      return res.status(400).json({ success: false, error: 'Data shift closing tidak valid' });
+    }
+
+    const scId = String(sc.id);
+    const scDate = sc.date || new Date().toISOString().split('T')[0];
+    const outletId = Number(sc.outlet_id || 1);
+    const branchName = sc.branch_name || sc.outlet_name || '';
+    const authorName = sc.cashier_name || sc.author_name || sc.cashier || 'Kasir POS';
+    const openingFloat = Number(sc.initial_cash || sc.opening_float || 0);
+    const netSales = Number(sc.gross_sales || sc.net_sales || sc.total_sales || 0);
+    const cashSales = Number(sc.cash_sales || 0);
+    const nonCashSales = Number(sc.non_cash_sales || 0);
+    const totalExpense = Number(sc.petty_expense || sc.total_expense || 0);
+    const expectedCash = Number(sc.expected_cash || (openingFloat + cashSales - totalExpense));
+    const cashPhysical = Number(sc.physical_cash || sc.cash_physical || expectedCash);
+    const cashVariance = Number(sc.variance || sc.cash_variance || (cashPhysical - expectedCash));
+    const status = 'SELESAI DITUTUP';
+
+    // Langsung insert ke MySQL shift_closings
+    if (mysqlPool) {
+      await mysqlPool.execute(`
+        INSERT INTO shift_closings 
+          (id, date, outlet_id, branch_name, author_name, opening_float, net_sales, cash_sales, non_cash_sales, total_expense, expected_cash, cash_physical, cash_variance, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          date = VALUES(date),
+          outlet_id = VALUES(outlet_id),
+          branch_name = VALUES(branch_name),
+          author_name = VALUES(author_name),
+          opening_float = VALUES(opening_float),
+          net_sales = VALUES(net_sales),
+          cash_sales = VALUES(cash_sales),
+          non_cash_sales = VALUES(non_cash_sales),
+          total_expense = VALUES(total_expense),
+          expected_cash = VALUES(expected_cash),
+          cash_physical = VALUES(cash_physical),
+          cash_variance = VALUES(cash_variance),
+          status = VALUES(status)
+      `, [scId, scDate, outletId, branchName, authorName, openingFloat, netSales, cashSales, nonCashSales, totalExpense, expectedCash, cashPhysical, cashVariance, status]);
+    }
+
+    // Update masterData cache in background
+    getMasterDataFromMySQL().then(async (cur) => {
+      const current = cur || defaultMasterData;
+      const normalizedSc = { ...sc, status: 'SELESAI DITUTUP', is_approved: true };
+      current.shiftClosings = [normalizedSc, ...(current.shiftClosings || []).filter(s => String(s.id) !== scId)];
+      current.shift_closings = [normalizedSc, ...(current.shift_closings || []).filter(s => String(s.id) !== scId)];
+      current.approvedFinanceDaily = [normalizedSc, ...(current.approvedFinanceDaily || []).filter(s => String(s.id) !== scId)];
+      current.closedShifts = [normalizedSc, ...(current.closedShifts || []).filter(s => String(s.id) !== scId)];
+      current._lastUpdated = Date.now();
+      await saveMasterDataToMySQL(current);
+    }).catch(() => {});
+
+    return res.json({ success: true, message: 'Tutup shift berhasil disimpan otomatis ke MySQL', id: scId });
+  } catch (err) {
+    console.error('POST /api/pos/shift-close error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/pos-force-flush — Paksa semua POS tablet flush data transaksi ke server (auto-expire 60 detik)
+app.post('/api/pos-force-flush', async (req, res) => {
+  forceFlushUntil = Date.now() + FORCE_FLUSH_TTL_MS; // Aktif selama 60 detik
+  console.log('[FORCE-FLUSH] Perintah force-flush aktif selama 60 detik untuk semua POS client');
+
+  // Simpan _forceFlushAt ke DB agar auto-expire bekerja meski server restart
+  try {
+    const cur = await getMasterDataFromMySQL();
+    if (cur) {
+      cur._forceFlushCommand = true;
+      cur._forceFlushAt = Date.now();
+      cur._lastUpdated = Date.now();
+      await saveMasterDataToMySQL(cur);
+    }
+  } catch (e) { /* non-fatal */ }
+
+  return res.json({ success: true, message: 'Perintah force-flush aktif selama 60 detik. Semua POS akan otomatis upload transaksi, lalu perintah mati sendiri.' });
+});
+
+// POST /api/master-data — 100% MySQL PRIMARY STORAGE UPDATE
+app.post('/api/master-data', async (req, res) => {
+  try {
+    const incomingData = req.body;
+
+    if (!incomingData || typeof incomingData !== 'object') {
+      return res.status(400).json({ success: false, error: 'Payload tidak valid' });
+    }
+
+    // Baca data terkini dari MySQL; jika gagal/null, gunakan defaultMasterData sebagai base
+    const currentData = (await getMasterDataFromMySQL()) || defaultMasterData;
+    const sanitizedIncoming = sanitizeMasterDataPayload(incomingData);
+
+    // Merge data incoming dengan data server terkini (additive union merge for transactions & master data)
+    const mergedData = mergeMasterDataSafely(currentData, sanitizedIncoming);
+    mergedData._lastUpdated = Date.now();
+
+    // Simpan ke JSON blob MySQL (dibaca oleh GET /api/master-data) — FIX KRITIS SINKRONISASI
+    await saveMasterDataToMySQL(mergedData);
+    // Sync ke tabel-tabel relasional MySQL (sales_transactions, shift_closings, stock_movement, dll)
+    await syncToMySQL(mergedData);
+
+
+    return res.json({
+      success: true,
+      message: 'Master data berhasil diperbarui & tersinkronisasi ke MySQL mris_db',
+      data: mergedData,
+      _lastUpdated: mergedData._lastUpdated
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/master-data/delete-item — Hapus spesifik item dari masterData & MySQL
 app.post('/api/master-data/delete-item', async (req, res) => {
   try {
-    const { key, id } = req.body || {};
+    const { key, id } = req.body;
     if (!key || id === undefined || id === null) {
-      return res.status(400).json({ error: 'Key dan ID wajib diisi' });
+      return res.status(400).json({ success: false, error: 'Parameter key dan id wajib diisi' });
     }
 
-    let existing = await getMasterDataFromMySQL();
-    if (!existing || typeof existing !== 'object') {
-      return res.status(404).json({ error: 'Master data tidak ditemukan' });
-    }
-
+    const existing = (await getMasterDataFromMySQL()) || defaultMasterData;
     const idStr = String(id);
     const nowTs = Date.now();
 
-    // Hapus item dari array di masterData JSON
-    if (key === 'salesTransactions' || key === 'transactions') {
-      const findTx = (arr) => Array.isArray(arr) ? arr.find(item => item && (String(item.id) === idStr || String(item.receipt_no) === idStr || String(item.receiptNo) === idStr || String(item.invoice_no) === idStr)) : null;
-      const found = findTx(existing.salesTransactions) || findTx(existing.transactions) || findTx(existing.outletTransactions);
-      
-      let targetId = idStr;
-      let targetReceiptNo = null;
-      if (found) {
-        targetId = String(found.id || idStr);
-        targetReceiptNo = found.receipt_no || found.receiptNo || found.invoice_no || null;
-      }
+    // Catat ID & Receipt No & Username yang dihapus ke tombstone tracking
+    const targetRcpt = String(req.body.receipt_no || '');
+    const targetUsername = String(req.body.username || '').toLowerCase().trim();
 
-      const isMatch = (item) => {
+    existing.deletedLogisticsIds = Array.from(new Set([
+      ...(existing.deletedLogisticsIds || []),
+      idStr,
+      targetRcpt
+    ].filter(Boolean)));
+    existing.deletedReportIds = Array.from(new Set([
+      ...(existing.deletedReportIds || []),
+      idStr,
+      targetRcpt
+    ].filter(Boolean)));
+    existing.deletedSalesIds = Array.from(new Set([
+      ...(existing.deletedSalesIds || []),
+      idStr,
+      targetRcpt
+    ].filter(Boolean)));
+    existing.deletedUserIds = Array.from(new Set([
+      ...(existing.deletedUserIds || []),
+      idStr
+    ].filter(Boolean)));
+
+    if (targetUsername) {
+      existing.deletedUsernames = Array.from(new Set([
+        ...(existing.deletedUsernames || []),
+        targetUsername
+      ].filter(Boolean)));
+    }
+
+    if (key === 'products' || key === 'menuItems') {
+      const targetSku = String(req.body.sku || req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedProductIds = Array.from(new Set([
+        ...(existing.deletedProductIds || []),
+        idStr,
+        targetSku,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'ingredients') {
+      const targetCode = String(req.body.code || req.body.sku || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedIngredientIds = Array.from(new Set([
+        ...(existing.deletedIngredientIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'categories' || key === 'ingredientCategories') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedCategoriesIds = Array.from(new Set([
+        ...(existing.deletedCategoriesIds || []),
+        ...(existing.deletedCategoryIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+      existing.deletedCategoryIds = existing.deletedCategoriesIds;
+    } else if (key === 'suppliers') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedSupplierIds = Array.from(new Set([
+        ...(existing.deletedSupplierIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'customers') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedCustomerIds = Array.from(new Set([
+        ...(existing.deletedCustomerIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'units') {
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedUnitIds = Array.from(new Set([
+        ...(existing.deletedUnitIds || []),
+        idStr,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'outlets') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedOutletIds = Array.from(new Set([
+        ...(existing.deletedOutletIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'paymentMethods') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedPaymentMethodIds = Array.from(new Set([
+        ...(existing.deletedPaymentMethodIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'tables') {
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedTableIds = Array.from(new Set([
+        ...(existing.deletedTableIds || []),
+        idStr,
+        targetName
+      ].filter(Boolean)));
+    } else if (key === 'expenseMaster') {
+      const targetCode = String(req.body.code || '');
+      const targetName = String(req.body.name || '').toLowerCase().trim();
+      existing.deletedExpenseIds = Array.from(new Set([
+        ...(existing.deletedExpenseIds || []),
+        idStr,
+        targetCode,
+        targetName
+      ].filter(Boolean)));
+    }
+
+    if (key === 'webAdminAccounts' || key === 'mobileAccounts') {
+      const filterOutUser = u => {
+        if (!u) return false;
+        const uId = String(u.id);
+        const uName = String(u.username || u.name || '').toLowerCase().trim();
+        if (uId === idStr) return false;
+        if (targetUsername && uName === targetUsername) return false;
+        return true;
+      };
+
+      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(filterOutUser);
+      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(filterOutUser);
+      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(filterOutUser);
+      if (Array.isArray(existing.users)) existing.users = existing.users.filter(filterOutUser);
+      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(filterOutUser);
+    }
+
+    const reportKeys = ['approvedFinanceDaily', 'shiftClosings', 'shift_closings', 'closedShifts', 'dailyReports', 'manualEntryRecords'];
+    const logisticsKeys = [
+      'stockOpname', 'approvedLogistics', 'approvedOpname',
+      'stockTransfer', 'approvedTransfers', 'damagedGoods',
+      'approvedWaste', 'stockMovement', 'stockIn', 'purchases',
+      'stok_masuk', 'stok_keluar', 'transfer_stok', 'stok_rusak', 'stok_opname'
+    ];
+
+    if (reportKeys.includes(key)) {
+      const matchReport = r => {
+        if (!r) return false;
+        const rId = String(r.id !== undefined && r.id !== null ? r.id : '');
+        const rNo = String(r.report_no || '');
+        return rId === idStr || rNo === idStr;
+      };
+
+      reportKeys.forEach(rk => {
+        if (Array.isArray(existing[rk])) {
+          existing[rk] = existing[rk].filter(r => !matchReport(r));
+        }
+      });
+    } else if (logisticsKeys.includes(key)) {
+      const matchLogistics = item => {
         if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : '');
-        const itemRcpt = String(item.receipt_no || item.receiptNo || item.invoice_no || '');
-        if (itemId && (itemId === targetId || itemId === idStr)) return true;
-        if (targetReceiptNo && itemRcpt && itemRcpt === targetReceiptNo) return true;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemRNo = String(item.report_no || item.receiptNo || '');
+        return itemId === idStr || itemRNo === idStr;
+      };
+
+      // Hapus dari SEMUA key logistik terkait
+      const ALL_LOGISTICS_KEYS = [
+        'stockOpname', 'approvedLogistics', 'approvedOpname',
+        'stockTransfer', 'approvedTransfers', 'damagedGoods',
+        'approvedWaste', 'stockMovement', 'stockIn', 'purchases'
+      ];
+
+      ALL_LOGISTICS_KEYS.forEach(lk => {
+        if (Array.isArray(existing[lk])) {
+          existing[lk] = existing[lk].filter(item => !matchLogistics(item));
+        }
+      });
+
+      // Hapus dari tabel relasi MySQL stock_movement
+      if (mysqlPool && idStr) {
+        try {
+          await mysqlPool.execute(`DELETE FROM \`stock_movement\` WHERE id = ? OR reason LIKE ? OR ingredient_name = ?`, [idStr, `%${idStr}%`, idStr]);
+        } catch (delErr) {}
+      }
+    } else if (key === 'salesTransactions' || key === 'transactions' || key === 'outletTransactions') {
+      const targetId = idStr;
+      const isMatch = item => {
+        if (!item) return false;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemRcpt = String(item.receipt_no || item.transaction_id || '');
+        if (itemId === targetId || itemId === idStr) return true;
         if (itemRcpt && (itemRcpt === targetId || itemRcpt === idStr)) return true;
         return false;
       };
@@ -1619,52 +4038,64 @@ app.post('/api/master-data/delete-item', async (req, res) => {
       if (Array.isArray(existing.outletTransactions)) {
         existing.outletTransactions = existing.outletTransactions.filter(item => !isMatch(item));
       }
-      if (Array.isArray(existing.stockMovement)) {
-        existing.stockMovement = existing.stockMovement.filter(item => {
-          if (!item) return false;
-          const refId = String(item.ref_id || item.transaction_id || item.receipt_no || '');
-          if (refId && (refId === targetId || refId === idStr || (targetReceiptNo && refId === targetReceiptNo))) return false;
-          return true;
-        });
-      }
-    } else if (key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'users' || key === 'userRights' || key === 'userAccounts') {
-      const isUserMatch = item => item && String(item.id !== undefined ? item.id : item.username || item.name) === idStr;
-      if (Array.isArray(existing.webAdminAccounts)) existing.webAdminAccounts = existing.webAdminAccounts.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.mobileAccounts)) existing.mobileAccounts = existing.mobileAccounts.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.userRights)) existing.userRights = existing.userRights.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.users)) existing.users = existing.users.filter(u => !isUserMatch(u));
-      if (Array.isArray(existing.userAccounts)) existing.userAccounts = existing.userAccounts.filter(u => !isUserMatch(u));
     } else if (Array.isArray(existing[key])) {
       existing[key] = existing[key].filter(item => {
         if (!item) return false;
-        const itemId = String(item.id !== undefined ? item.id : item.code || item.name);
-        return itemId !== idStr;
+        const itemId = String(item.id !== undefined && item.id !== null ? item.id : '');
+        const itemSku = String(item.sku || '');
+        const itemCode = String(item.code || '');
+        const itemName = String(item.name || '').toLowerCase().trim();
+        const targetLower = idStr.toLowerCase().trim();
+        if (itemId === idStr || (Number(itemId) && Number(itemId) === Number(idStr))) return false;
+        if (itemSku && itemSku === idStr) return false;
+        if (itemCode && itemCode === idStr) return false;
+        if (itemName && itemName === targetLower) return false;
+        return true;
       });
     }
 
     existing._lastUpdated = nowTs;
 
-    // Simpan masterData JSON terbaru ke MySQL mris_master_data
-    await saveMasterDataToMySQL(existing);
-
-    // Hapus baris dari tabel relasi MySQL jika ada
-    if (mysqlPool) {
-      const relTable = key === 'products' ? 'products' :
-                       key === 'categories' ? 'categories' :
-                       key === 'outlets' ? 'outlets' :
-                       key === 'users' || key === 'userRights' || key === 'webAdminAccounts' || key === 'mobileAccounts' || key === 'userAccounts' ? 'users' :
-                       key === 'ingredients' ? 'ingredients' :
-                       key === 'suppliers' ? 'suppliers' :
-                       key === 'customers' ? 'customers' :
-                       key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
-      if (relTable) {
-        try {
-          await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR receipt_no = ? OR code = ?`, [idStr, idStr, idStr]);
-        } catch (delErr) {}
-      }
+    // Hapus murni dari tabel relasi MySQL berdasarkan Primary Key (ID) masing-masing
+    if (mysqlPool && idStr) {
+      try {
+        if (key === 'webAdminAccounts') {
+          if (targetUsername) {
+            await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`, [idStr, targetUsername, targetUsername]);
+          } else {
+            await mysqlPool.execute(`DELETE FROM \`web_admin_users\` WHERE id = ?`, [idStr]);
+          }
+        } else if (key === 'mobileAccounts') {
+          if (targetUsername) {
+            await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ? OR LOWER(username) = ? OR LOWER(name) = ?`, [idStr, targetUsername, targetUsername]);
+          } else {
+            await mysqlPool.execute(`DELETE FROM \`mobile_pos_users\` WHERE id = ?`, [idStr]);
+          }
+        } else {
+          const relTable = key === 'products' || key === 'menuItems' ? 'products' :
+                           key === 'categories' || key === 'ingredientCategories' ? 'categories' :
+                           key === 'outlets' ? 'outlets' :
+                           key === 'ingredients' ? 'ingredients' :
+                           key === 'fixedAssets' || key === 'assets' ? 'fixed_assets' :
+                           key === 'suppliers' ? 'suppliers' :
+                           key === 'customers' ? 'customers' :
+                           key === 'units' ? 'units' :
+                           key === 'salesTransactions' || key === 'transactions' ? 'sales_transactions' : null;
+          if (relTable) {
+            const targetName = String(req.body.name || '').trim();
+            const targetCode = String(req.body.code || req.body.sku || '').trim();
+            try {
+              await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ? OR code = ? OR name = ?`, [idStr, targetCode || idStr, targetName || idStr]);
+            } catch (dErr) {
+              await mysqlPool.execute(`DELETE FROM \`${relTable}\` WHERE id = ?`, [idStr]).catch(() => {});
+            }
+          }
+        }
+      } catch (delErr) {}
     }
 
-    // Sync ulang sisa data ke relasi
+    // Sync ulang sisa data ke relasi dan JSON blob MySQL
+    await saveMasterDataToMySQL(existing);
     await syncToMySQL(existing);
 
     res.json({
@@ -1725,13 +4156,65 @@ app.post('/api/db/restore-snapshot', async (req, res) => {
 });
 
 // Serve Web Admin UI (web_admin/dist)
-app.use(express.static(path.join(__dirname, 'web_admin', 'dist')));
+// Aset JS/CSS di-cache oleh browser karena nama file berubah setiap build (content hash)
+app.use('/assets', express.static(path.join(__dirname, 'web_admin', 'dist', 'assets'), {
+  maxAge: '1y',
+  immutable: true
+}));
+// File lain (index.html, favicon, dll) TIDAK di-cache agar WebView APK selalu muat versi terbaru
+app.use(express.static(path.join(__dirname, 'web_admin', 'dist'), {
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/phpmyadmin') || req.path.startsWith('/adminer') || req.path.startsWith('/db-explorer')) {
     return next();
   }
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'web_admin', 'dist', 'index.html'));
+});
+
+// ── DEPLOY ENDPOINT: git pull dari GitHub lalu restart PM2 (TIDAK rebuild sendiri) ──
+// Alur deploy yang benar: local build → git push → VPS git pull (via endpoint ini)
+// Jangan gunakan git reset --hard karena akan menghapus file rsync yang belum di-commit
+app.all('/api/webhook/force-build', (req, res) => {
+  const secret = req.query.secret || req.body?.secret;
+  if (secret !== (process.env.DEPLOY_SECRET || 'mris_deploy_secret_2026')) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  const DIR = '/var/www/erp-barokah';
+  // Langkah 1: git pull origin main (fast-forward saja, tidak overwrite file lokal)
+  // Langkah 2: install deps jika package.json berubah
+  // Langkah 3: PM2 restart agar server.js terbaru aktif
+  const pullCmd = [
+    `cd "${DIR}"`,
+    'git fetch origin',
+    'git merge --ff-only origin/main',
+    'npm install --omit=dev --silent 2>&1 | tail -3',
+    'pm2 restart erp-barokah --update-env',
+    'echo "DEPLOY_OK"'
+  ].join(' && ');
+  exec(pullCmd, { maxBuffer: 1024 * 1024 * 20, timeout: 300000 }, (err, stdout, stderr) => {
+    if (err) {
+      // Jika ff-only gagal (ada divergence), tampilkan pesan jelas
+      const msg = stderr?.includes('Not possible to fast-forward')
+        ? 'Git divergence: push lokal ke GitHub dulu sebelum deploy!'
+        : err.message;
+      return res.status(500).json({ success: false, error: msg, stderr: stderr?.slice(-1000) });
+    }
+    res.json({ success: true, output: stdout?.slice(-500) });
+  });
 });
 
 // Start Server — PORT resmi produksi: 5001 (dikunci, tidak tergantung env)
@@ -1741,6 +4224,11 @@ const startServer = (portToUse, retries = 5) => {
   const server = app.listen(portToUse, '0.0.0.0', () => {
     console.log(`🚀 MRIS Full-Stack App & API running on http://0.0.0.0:${portToUse}`);
   });
+
+  // Tuned for 25+ simultaneous POS Kasir Android devices & Web Admin clients
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+  server.maxHeadersCount = 3000;
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE' && retries > 0) {

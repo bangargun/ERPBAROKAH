@@ -791,8 +791,34 @@ const getMasterDataFromMySQL = async () => {
           const k = String(r.id || r.receipt_no || '');
           if (!k) return;
 
-          // Blob sudah punya ini dengan data lengkap (items, dll) — skip, jangan overwrite
-          if (txMap.has(k)) return;
+          // Parse items_json dari tabel MySQL sales_transactions
+          let resolvedItems = [];
+          if (r.items_json) {
+            try {
+              const parsed = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                resolvedItems = parsed.map(it => ({
+                  name: (it.name || it.product_name || it.item_name || 'Menu').trim(),
+                  qty: Number(it.qty || it.quantity || 1),
+                  price_unit: Number(it.price_unit || it.price || it.unit_price || 0),
+                  amount: Number(it.amount || it.total || it.subtotal || 0),
+                  category: it.category || ''
+                }));
+              }
+            } catch (e) {}
+          }
+
+          // Jika blob sudah punya transaksi ini, tetapi blob belum memiliki item rincian atau masih "Menu Paket Restoran", update items-nya dari MySQL
+          if (txMap.has(k)) {
+            const existing = txMap.get(k);
+            const hasRealItems = Array.isArray(existing.items) && existing.items.length > 0 &&
+              !existing.items.every(it => (it.name || '').includes('Menu Paket Restoran') || it.name === 'Menu');
+            if (!hasRealItems && resolvedItems.length > 0) {
+              existing.items = resolvedItems;
+              txMap.set(k, existing);
+            }
+            return;
+          }
 
           const dtStr = typeof r.date === 'string'
             ? r.date.substring(0, 10)
@@ -826,13 +852,8 @@ const getMasterDataFromMySQL = async () => {
             status: r.status || 'approved',
             type: r.type || 'sale',
             items: (() => {
-              if (r.items_json) {
-                try {
-                  const parsed = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json;
-                  if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-                } catch (e) {}
-              }
-              const itemTitle = (r.notes && r.notes !== '-' && !r.notes.startsWith('Pesanan Gantung') && !r.notes.startsWith('Informasi'))
+              if (resolvedItems.length > 0) return resolvedItems;
+              const itemTitle = (r.notes && r.notes !== '-' && !r.notes.startsWith('Pesanan Gantung') && !r.notes.startsWith('Informasi') && !r.notes.startsWith('Dine In') && !r.notes.startsWith('Take Away'))
                 ? r.notes
                 : (r.branch_name ? `Pesanan Menu (${r.branch_name})` : 'Menu Restoran');
               return [{ name: itemTitle, qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
@@ -2734,7 +2755,15 @@ app.post('/api/admin/rebuild-blob-from-mysql', async (req, res) => {
         notes: r.notes || '',
         status: r.status || 'approved',
         type: r.type || 'income',
-        items: [{ name: 'Menu', qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }]
+        items: (() => {
+          if (r.items_json) {
+            try {
+              const parsed = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json;
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {}
+          }
+          return [{ name: r.branch_name || 'Menu', qty: 1, price_unit: Number(r.amount || 0), amount: Number(r.amount || 0) }];
+        })()
       });
       addedCount++;
     });

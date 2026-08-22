@@ -1459,8 +1459,17 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
               ) : (
                 paginatedTransactions.map((item, idx) => {
                   const isVoid = item.status === 'Void' || item.status === 'Dibatalkan';
-                  const itemsList = item.items && Array.isArray(item.items) && item.items.length > 0
-                    ? item.items
+                  let parsedItems = [];
+                  if (item.items && Array.isArray(item.items) && item.items.length > 0) {
+                    parsedItems = item.items;
+                  } else if (item.items_json) {
+                    try {
+                      const p = typeof item.items_json === 'string' ? JSON.parse(item.items_json) : item.items_json;
+                      if (Array.isArray(p) && p.length > 0) parsedItems = p;
+                    } catch (e) {}
+                  }
+                  const itemsList = parsedItems.length > 0
+                    ? parsedItems
                     : (item.item_name ? [{ name: item.item_name, qty: item.qty || 1 }] : []);
                   const orderInfo = getOrderTypeInfo(item);
                   
