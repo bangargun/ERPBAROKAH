@@ -677,6 +677,28 @@ const ensureMasterDataTable = async () => {
       )
     `);
 
+    
+    // 13. Fixed Assets Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS fixed_assets (
+        id VARCHAR(100) PRIMARY KEY,
+        code VARCHAR(100),
+        name VARCHAR(255),
+        category VARCHAR(100),
+        outlet_id BIGINT,
+        outlet_name VARCHAR(255),
+        purchase_date DATE,
+        purchase_cost BIGINT DEFAULT 0,
+        useful_life_years INT DEFAULT 5,
+        salvage_value BIGINT DEFAULT 0,
+        condition_status VARCHAR(50) DEFAULT 'Baik',
+        location VARCHAR(255),
+        pic VARCHAR(255),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // 8. Shift Closings Table
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS shift_closings (
@@ -1094,6 +1116,53 @@ const syncToMySQL = async (masterData) => {
         Number(ing.min_stock || ing.minimum_stock || 0),
         ing.outlet_id ? Number(ing.outlet_id) : null,
         String(ing.status || 'Aktif')
+      ]);
+    }
+
+    
+    // 4c. Sync Fixed Assets to MySQL relational table
+    const fixedAssets = masterData.fixedAssets || masterData.assets || [];
+    for (const a of fixedAssets) {
+      if (!a || !a.name) continue;
+      const aId = String(a.id || Date.now());
+      const pCost = Number(a.purchase_cost || a.cost || a.price || 0);
+      const uLife = Number(a.useful_life_years || a.useful_life || 5);
+      const sVal = Number(a.salvage_value || 0);
+      const pDate = a.purchase_date || a.date || new Date().toISOString().split('T')[0];
+      const outId = a.outlet_id ? Number(a.outlet_id) : null;
+      
+      await mysqlPool.execute(`
+        INSERT INTO fixed_assets (id, code, name, category, outlet_id, outlet_name, purchase_date, purchase_cost, useful_life_years, salvage_value, condition_status, location, pic, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          code = VALUES(code),
+          name = VALUES(name),
+          category = VALUES(category),
+          outlet_id = VALUES(outlet_id),
+          outlet_name = VALUES(outlet_name),
+          purchase_date = VALUES(purchase_date),
+          purchase_cost = VALUES(purchase_cost),
+          useful_life_years = VALUES(useful_life_years),
+          salvage_value = VALUES(salvage_value),
+          condition_status = VALUES(condition_status),
+          location = VALUES(location),
+          pic = VALUES(pic),
+          notes = VALUES(notes)
+      `, [
+        aId,
+        String(a.code || `AST-${aId}`),
+        String(a.name).trim(),
+        String(a.category || 'Peralatan Dapur'),
+        outId,
+        String(a.outlet_name || a.outlet || ''),
+        pDate,
+        pCost,
+        uLife,
+        sVal,
+        String(a.condition_status || a.condition || 'Baik'),
+        String(a.location || 'Dapur'),
+        String(a.pic || a.penanggung_jawab || 'Kepala Cabang'),
+        String(a.notes || '')
       ]);
     }
 
@@ -3978,6 +4047,7 @@ app.post('/api/master-data/delete-item', async (req, res) => {
                            key === 'categories' || key === 'ingredientCategories' ? 'categories' :
                            key === 'outlets' ? 'outlets' :
                            key === 'ingredients' ? 'ingredients' :
+                           key === 'fixedAssets' || key === 'assets' ? 'fixed_assets' :
                            key === 'suppliers' ? 'suppliers' :
                            key === 'customers' ? 'customers' :
                            key === 'units' ? 'units' :

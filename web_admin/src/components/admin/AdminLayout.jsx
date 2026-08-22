@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  LayoutDashboard, 
+  LayoutDashboard,
+  Boxes, 
   Database, 
   ShoppingBag,
   Package, 
@@ -122,6 +123,7 @@ export default function AdminLayout({
       items: [
         { id: 'kitchen',             label: 'Kitchen Display (KDS)',         icon: UtensilsCrossed,  permKey: 'dashboard' },
         { id: 'stock',               label: 'Logistik',                      icon: Package,          permKey: 'stock' },
+        { id: 'assets',              label: 'Manajemen Aset',                icon: Boxes,            permKey: 'masterData' },
         { id: 'adjustments',         label: 'Penyesuaian',                   icon: SlidersHorizontal, permKey: 'stock' },
         { id: 'update_laporan',      label: 'Update Laporan Harian',         icon: FileSpreadsheet,  permKey: 'reports' },
         { id: 'daily_approval',      label: 'Verifikasi & Approval',         icon: ClipboardCheck,   permKey: 'reports' }

@@ -22,6 +22,7 @@ export const initialMasterData = {
   suppliers: [],
   units: [],
   expenseMaster: [],
+  fixedAssets: [],
   ingredients: [],
   ingredientCategories: [
     { id: 1, code: 'KBHN-001', name: 'Seafood & Ikan', description: 'Aneka ikan laut, udang, cumi, dan seafood segar', status: 'Aktif' },

@@ -7,6 +7,7 @@ import LoyaltyProgramPage from './components/admin/LoyaltyProgramPage';
 import CostsManagement from './components/admin/CostsManagement';
 
 import StockManagement from './components/admin/StockManagement';
+import AssetManagement from './components/admin/AssetManagement';
 import AdjustmentsManagementPage from './components/admin/AdjustmentsManagementPage';
 import ApprovalCenter from './components/admin/ApprovalCenter';
 import ManualReportUpdatePage from './components/admin/ManualReportUpdatePage';
@@ -684,6 +685,7 @@ export default function App() {
             const mergedUnits       = mergeMasterArray(prev.units,         serverData.units,         deletedUnitIds);
             const mergedTables      = mergeMasterArray(prev.tables,        serverData.tables,        deletedTableIds);
             const mergedExpenseMaster = mergeMasterArray(prev.expenseMaster, serverData.expenseMaster, deletedExpenseIds);
+            const mergedFixedAssets = mergeMasterArray(prev.fixedAssets || prev.assets || [], serverData.fixedAssets || serverData.assets || [], []);
 
             const prevStr = JSON.stringify(prev);
             const serverStr = JSON.stringify(serverData);
@@ -1009,6 +1011,17 @@ export default function App() {
             <KitchenDisplayPage
               masterData={masterData}
               selectedBranch={selectedBranch}
+              themeMode={themeMode}
+            />
+          )}
+
+          
+          {adminTab === 'assets' && (
+            <AssetManagement
+              masterData={masterData}
+              setMasterData={updateMasterData}
+              selectedBranch={selectedBranch}
+              userSession={userSession}
               themeMode={themeMode}
             />
           )}
