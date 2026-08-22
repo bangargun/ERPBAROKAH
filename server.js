@@ -630,6 +630,48 @@ const ensureMasterDataTable = async () => {
     `);
 
     
+    
+    // 10. Ingredients Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS ingredients (
+        id VARCHAR(100) PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        category VARCHAR(100),
+        category_id VARCHAR(50),
+        unit VARCHAR(50) DEFAULT 'kg',
+        price BIGINT DEFAULT 0,
+        cost_price BIGINT DEFAULT 0,
+        stock DECIMAL(12,2) DEFAULT 0,
+        minimum_stock DECIMAL(12,2) DEFAULT 0,
+        outlet_id INT,
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 11. Suppliers Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS suppliers (
+        id VARCHAR(100) PRIMARY KEY,
+        code VARCHAR(50),
+        name VARCHAR(255),
+        phone VARCHAR(50),
+        address TEXT,
+        outlet_id INT,
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
+    // 12. Units Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS units (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(100),
+        short_name VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'Aktif'
+      )
+    `);
+
     // 8. Shift Closings Table
     await mysqlPool.execute(`
       CREATE TABLE IF NOT EXISTS shift_closings (
@@ -1010,6 +1052,43 @@ const syncToMySQL = async (masterData) => {
         String(p.image_url || p.image || ''),
         String(p.description || ''),
         String(p.status || 'Aktif')
+      ]);
+    }
+
+    
+    // 4b. Sync Ingredients to MySQL relational table
+    const ingredients = masterData.ingredients || [];
+    for (const ing of ingredients) {
+      if (!ing || !ing.name) continue;
+      const ingId = String(ing.id || Date.now());
+      await mysqlPool.execute(`
+        INSERT INTO ingredients (id, code, name, category, category_id, unit, price, cost_price, stock, minimum_stock, outlet_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          code = VALUES(code),
+          name = VALUES(name),
+          category = VALUES(category),
+          category_id = VALUES(category_id),
+          unit = VALUES(unit),
+          price = VALUES(price),
+          cost_price = VALUES(cost_price),
+          stock = VALUES(stock),
+          minimum_stock = VALUES(minimum_stock),
+          outlet_id = VALUES(outlet_id),
+          status = VALUES(status)
+      `, [
+        ingId,
+        String(ing.code || `BHN-${ingId}`),
+        String(ing.name).trim(),
+        String(ing.category || ing.category_name || 'Bahan Baku'),
+        String(ing.category_id || ''),
+        String(ing.unit || 'kg'),
+        Number(ing.price || ing.cost || 0),
+        Number(ing.cost_price || ing.cost || ing.price || 0),
+        Number(ing.stock || ing.current_stock || 0),
+        Number(ing.min_stock || ing.minimum_stock || 0),
+        ing.outlet_id ? Number(ing.outlet_id) : null,
+        String(ing.status || 'Aktif')
       ]);
     }
 
