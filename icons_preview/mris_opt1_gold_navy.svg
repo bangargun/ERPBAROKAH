@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bgGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f2942"/>
+      <stop offset="50%" stop-color="#091b2c"/>
+      <stop offset="100%" stop-color="#040d17"/>
+    </linearGradient>
+    <linearGradient id="goldGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe28a"/>
+      <stop offset="30%" stop-color="#d4af37"/>
+      <stop offset="70%" stop-color="#aa7c11"/>
+      <stop offset="100%" stop-color="#fdf0cd"/>
+    </linearGradient>
+    <linearGradient id="goldGlow1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="screenGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0b1b2d"/>
+    </linearGradient>
+    <filter id="shadow1" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Base Squircle -->
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#bgGrad1)"/>
+  
+  <!-- Subtle Inner Border -->
+  <rect x="36" y="36" width="952" height="952" rx="220" fill="none" stroke="url(#goldGrad1)" stroke-width="8" stroke-opacity="0.7"/>
+
+  <!-- Radial Glow Behind Logo -->
+  <circle cx="512" cy="420" r="320" fill="url(#goldGlow1)"/>
+
+  <!-- Center Artwork: POS Terminal + Cloche Crown -->
+  <g filter="url(#shadow1)">
+    <!-- Restaurant Cloche Top Dome -->
+    <path d="M512 180 C400 180 320 250 310 320 L714 320 C704 250 624 180 512 180 Z" fill="url(#goldGrad1)"/>
+    <!-- Cloche Knob -->
+    <circle cx="512" cy="160" r="26" fill="url(#goldGrad1)"/>
+    <rect x="300" y="320" width="424" height="24" rx="12" fill="url(#goldGrad1)"/>
+
+    <!-- POS Register Screen Body -->
+    <rect x="290" y="370" width="444" height="270" rx="28" fill="#152438" stroke="url(#goldGrad1)" stroke-width="12"/>
+    <rect x="314" y="394" width="396" height="222" rx="18" fill="url(#screenGrad1)"/>
+
+    <!-- POS Screen Inner Display Elements -->
+    <rect x="340" y="420" width="160" height="24" rx="6" fill="#38bdf8" opacity="0.9"/>
+    <rect x="340" y="460" width="220" height="16" rx="4" fill="#94a3b8" opacity="0.6"/>
+    <rect x="340" y="490" width="180" height="16" rx="4" fill="#94a3b8" opacity="0.6"/>
+    
+    <!-- Screen Right: Cart / Price Badge -->
+    <rect x="540" y="420" width="144" height="100" rx="12" fill="rgba(245, 158, 11, 0.15)" stroke="#f59e0b" stroke-width="4"/>
+    <text x="612" y="480" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="900" fill="#fbbf24" text-anchor="middle">Rp</text>
+
+    <!-- POS Base Stand -->
+    <path d="M440 640 L410 740 L614 740 L584 640 Z" fill="#0d1b2a" stroke="url(#goldGrad1)" stroke-width="8"/>
+    <rect x="360" y="736" width="304" height="26" rx="13" fill="url(#goldGrad1)"/>
+  </g>
+
+  <!-- Typography: MRIS -->
+  <text x="512" y="855" font-family="-apple-system, BlinkMacSystemFont, 'Montserrat', 'Inter', sans-serif" font-size="108" font-weight="900" fill="url(#goldGrad1)" letter-spacing="14" text-anchor="middle">MRIS</text>
+  
+  <!-- Sub-Badge: POS KASIR -->
+  <rect x="372" y="885" width="280" height="42" rx="21" fill="rgba(212, 175, 55, 0.15)" stroke="url(#goldGrad1)" stroke-width="3"/>
+  <text x="512" y="913" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="900" fill="#fef08a" letter-spacing="6" text-anchor="middle">POS KASIR</text>
+</svg>
