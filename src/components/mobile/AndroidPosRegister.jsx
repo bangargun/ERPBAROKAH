@@ -2,8 +2,10 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
 import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, buildShiftClosingReceiptText, testPrint as btTestPrint, _browserPrintFallback, checkPrinterLiveStatus, listenBluetoothStatusChange } from '../../utils/bluetoothPrinter';
 import { idbSaveOfflineTx, idbGetAllOfflineTx, idbDeleteOfflineTx } from '../../utils/idbStorage';
+import KitchenDisplayPage from '../admin/KitchenDisplayPage';
 import { 
-  ShoppingBag, 
+  ShoppingBag,
+  ChefHat, 
   History, 
   DollarSign, 
   Package, 
@@ -3960,6 +3962,7 @@ export default function AndroidPosRegister({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', alignItems: 'center', marginTop: '12px' }}>
           {[
             { id: 'kasir', label: 'POS', icon: Store },
+            { id: 'kds', label: 'KDS Dapur', icon: ChefHat },
             { id: 'chart', label: 'Cart', icon: ShoppingBag },
             { id: 'riwayat_transaksi', label: 'Riwayat', icon: History },
             { id: 'pelanggan', label: 'Pelanggan', icon: User },
@@ -5544,6 +5547,18 @@ export default function AndroidPosRegister({
               );
             })()}
 
+          </div>
+        )}
+
+        
+        {/* TAB NAVIGASI: KITCHEN DISPLAY SYSTEM (KDS DAPUR & BAR) */}
+        {activeNavTab === 'kds' && (
+          <div style={{ flex: 1, height: '100%', width: '100%', overflow: 'hidden', background: 'var(--pos-bg-app)' }}>
+            <KitchenDisplayPage
+              masterData={masterData}
+              selectedBranch={currentOutlet?.id || selectedBranch}
+              themeMode={appTheme === 'soft_blue' ? 'soft_blue' : 'dark'}
+            />
           </div>
         )}
 
