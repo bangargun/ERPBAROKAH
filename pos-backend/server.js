@@ -663,7 +663,7 @@ const syncToMySQL = async (masterData) => {
           paid_amount = VALUES(paid_amount),
           payment_method = VALUES(payment_method),
           status = VALUES(status)
-      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status]);
+      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status, txType]);
     }
 
     // 6. Sync Shift Closings to MySQL relational table

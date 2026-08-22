@@ -377,6 +377,7 @@ export default function App() {
       if (msSinceLastMutation < 5000) return Promise.resolve();
     }
 
+    const reqStartTs = Date.now();
     return fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
       .then(res => res.ok ? res.json() : null)
       .then(serverData => {
@@ -384,6 +385,10 @@ export default function App() {
           const remoteTs = serverData._lastUpdated || 0;
 
           setMasterData(prev => {
+            // Jika ada mutasi lokal yang terjadi selama request in-flight, pertahankan state lokal terbaru
+            if (lastLocalMutationTsRef.current > reqStartTs) {
+              return prev;
+            }
             const localTs = prev._lastUpdated || 0;
 
             // Track user accounts currently active in local state so tombstones never purge them
@@ -703,32 +708,7 @@ export default function App() {
               });
             };
 
-            const localHasExtraCategories  = mergedCategories.length  > (serverData.categories  || []).length;
-            const localHasExtraProducts    = mergedProducts.length    > (serverData.products    || []).length;
-            const localHasExtraIngredients = mergedIngredients.length > (serverData.ingredients || []).length;
-            const localHasNewerProducts    = hasNewerLocalItem(prev.products,    serverData.products);
-            const localHasNewerCategories  = hasNewerLocalItem(prev.categories,  serverData.categories);
-            const localHasNewerIngredients = hasNewerLocalItem(prev.ingredients, serverData.ingredients);
-
-            const needsAutoPush = localHasExtraCategories || localHasExtraProducts || localHasExtraIngredients
-                               || localHasNewerProducts   || localHasNewerCategories || localHasNewerIngredients;
-
-            if (needsAutoPush) {
-              const autoPushPayload = {
-                ...prev,
-                categories:   mergedCategories,
-                products:     mergedProducts,
-                ingredients:  mergedIngredients,
-                _lastUpdated: Date.now()
-              };
-              setTimeout(() => {
-                fetch(getApiUrl('/api/master-data'), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(autoPushPayload)
-                }).catch(() => {});
-              }, 200);
-            }
+            // Explicit mutations are handled directly by updateMasterData — autoPush removed to prevent zombie resurrections
 
             const mergedPaymentMethods = (() => {
               const map = new Map();
@@ -780,7 +760,7 @@ export default function App() {
             })();
 
             lastRemoteTsRef.current = remoteTs;
-            return {
+            const finalMerged = {
               ...initialMasterData,
               ...prev,
               ...serverData,
@@ -819,6 +799,8 @@ export default function App() {
               mobilePermissionMatrix: mergedMobPerm,
               _lastUpdated: Math.max(localTs, remoteTs)
             };
+            try { localStorage.setItem('mris_master_data', JSON.stringify(finalMerged)); } catch (e) {}
+            return finalMerged;
           });
         }
       })

@@ -125,7 +125,7 @@ export default function FinancialOverview({
   useEffect(() => {
     if (selectedBranch && selectedBranch !== 'ALL' && selectedBranch !== 'Semua Restoran (Konsolidasi)') {
       setActiveOutletFilter(String(selectedBranch));
-    } else if (selectedBranch === 'ALL' || selectedBranch === 'Semua Restoran (Konsolidasi)') {
+    } else {
       setActiveOutletFilter('ALL');
     }
   }, [selectedBranch]);

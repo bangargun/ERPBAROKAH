@@ -1867,7 +1867,14 @@ export default function AndroidPosRegister({
   const [initialCash, setInitialCash] = useState(0);
   const [pettyExpenseName, setPettyExpenseName] = useState('');
   const [pettyExpenseAmount, setPettyExpenseAmount] = useState('');
-  const [pettyExpenses, setPettyExpenses] = useState([]);
+  const [pettyExpenses, setPettyExpenses] = useState(() => {
+    try {
+      const saved = localStorage.getItem('MRIS_POS_PETTY_EXPENSES');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [physicalCashDrawer, setPhysicalCashDrawer] = useState('');
 
   // Waktu login shift — dicatat saat komponen pertama mount (saat user login ke POS)
@@ -2856,7 +2863,8 @@ export default function AndroidPosRegister({
     setLastPaymentTimestamp(nowMs);
     setLastProcessedCartSummary(currentCartSummary);
 
-    const receiptNo = `TX-POS-${Date.now().toString().substring(6)}`;
+    const randSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const receiptNo = `TX-POS-${currentOutlet?.id || 1}-${Date.now()}-${randSuffix}`;
     const isSuperAdminUser = (() => {
       const r = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
       return r.includes('super') || r.includes('admin') || r.includes('owner');
@@ -3165,7 +3173,9 @@ export default function AndroidPosRegister({
       amount: Number(pettyExpenseAmount),
       time: (() => { const _n = new Date(); return `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}:${String(_n.getSeconds()).padStart(2,'0')}`; })()
     };
-    setPettyExpenses([newExp, ...pettyExpenses]);
+    const updatedExp = [newExp, ...pettyExpenses];
+    setPettyExpenses(updatedExp);
+    try { localStorage.setItem('MRIS_POS_PETTY_EXPENSES', JSON.stringify(updatedExp)); } catch (e) {}
     setPettyExpenseName('');
     setPettyExpenseAmount('');
   };
@@ -3327,6 +3337,8 @@ export default function AndroidPosRegister({
       return newMaster;
     });
 
+    try { localStorage.removeItem('MRIS_POS_PETTY_EXPENSES'); } catch (e) {}
+    setPettyExpenses([]);
     setShowShiftClosingModal(false);
     alert(`✅ Rekonsiliasi Tutup Shift Berhasil Disimpan!\n\nOutlet: ${currentOutlet.name}\nTotal Penjualan: ${formatRupiah(totalSalesGross)}\nFisik Kas Laci: ${formatRupiah(physicalVal)}\nSelisih: ${variance === 0 ? 'PAS (Rp 0)' : (variance < 0 ? 'MINUS ' + formatRupiah(Math.abs(variance)) : 'LEBIH ' + formatRupiah(variance))}\n\nLaporan shift telah tersinkronisasi ke server & Web Admin.`);
   };

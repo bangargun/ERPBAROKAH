@@ -629,6 +629,47 @@ const ensureMasterDataTable = async () => {
       )
     `);
 
+    
+    // 8. Shift Closings Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS shift_closings (
+        id VARCHAR(100) PRIMARY KEY,
+        date DATE,
+        outlet_id INT,
+        branch_name VARCHAR(255),
+        author_name VARCHAR(255),
+        opening_float BIGINT DEFAULT 0,
+        net_sales BIGINT DEFAULT 0,
+        cash_sales BIGINT DEFAULT 0,
+        non_cash_sales BIGINT DEFAULT 0,
+        total_expense BIGINT DEFAULT 0,
+        expected_cash BIGINT DEFAULT 0,
+        cash_physical BIGINT DEFAULT 0,
+        cash_variance BIGINT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'SELESAI DITUTUP'
+      )
+    `);
+
+    // 9. Stock Movement Table
+    await mysqlPool.execute(`
+      CREATE TABLE IF NOT EXISTS stock_movement (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        date DATE,
+        time VARCHAR(20),
+        ingredient_name VARCHAR(255),
+        type VARCHAR(20) DEFAULT 'OUT',
+        qty DECIMAL(12,2) DEFAULT 0,
+        unit VARCHAR(50) DEFAULT 'porsi',
+        outlet_id INT,
+        source_outlet VARCHAR(255),
+        target_outlet VARCHAR(255),
+        reason TEXT,
+        user_name VARCHAR(255),
+        INDEX idx_sm_outlet_date (outlet_id, date),
+        INDEX idx_sm_ing (ingredient_name)
+      )
+    `);
+
     // Auto-create MySQL Performance Indexes for Ultra-Responsive Queries
     try { await mysqlPool.execute(`CREATE INDEX idx_web_user_name ON web_admin_users (username)`); } catch (e) {}
     try { await mysqlPool.execute(`CREATE INDEX idx_mob_user_name ON mobile_pos_users (username)`); } catch (e) {}
@@ -972,8 +1013,12 @@ const syncToMySQL = async (masterData) => {
       ]);
     }
 
-    // 5. Sync Transactions to MySQL relational table
-    const transactions = masterData.salesTransactions || masterData.transactions || [];
+    // 5. Sync Transactions to MySQL relational table (Combining Sales & Expenses safely)
+    const txMap = new Map();
+    [...(masterData.salesTransactions || []), ...(masterData.transactions || [])].forEach(t => {
+      if (t && t.id) txMap.set(String(t.id), t);
+    });
+    const transactions = Array.from(txMap.values());
     for (const t of transactions) {
       if (!t || !t.id) continue;
       const txId = String(t.id);
@@ -994,7 +1039,7 @@ const syncToMySQL = async (masterData) => {
       const branchName = t.branch_name || t.outlet || '';
       const customerName = t.customer_name || t.customer || 'Pelanggan Umum';
       const tableNumber = t.table_number || t.table || '';
-      const orderType = t.order_type || t.type || 'Dine In';
+      const orderType = t.order_type || (t.type === 'expense' ? 'Pengeluaran' : 'Dine In');
       const amount = Number(t.amount || t.total || 0);
       const paidAmount = Number(t.paid_amount || t.paid || amount);
       const changeAmount = Number(t.change_amount || t.change || 0);
@@ -1002,11 +1047,12 @@ const syncToMySQL = async (masterData) => {
       const cashier = t.cashier || t.author || 'Kasir';
       const notes = t.notes || '';
       const status = t.status || 'approved';
+      const txType = t.type === 'expense' ? 'expense' : 'income';
 
       await mysqlPool.execute(`
         INSERT INTO sales_transactions 
           (id, receipt_no, date, time, outlet_id, branch_id, branch_name, outlet, customer_name, table_number, order_type, subtotal, discount_amount, service_charge, tax_amount, adjustment_amount, amount, paid_amount, change_amount, payment_method, cashier, notes, status, type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'income')
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           date = VALUES(date),
           time = VALUES(time),
@@ -1025,7 +1071,7 @@ const syncToMySQL = async (masterData) => {
           cashier = VALUES(cashier),
           notes = VALUES(notes),
           status = VALUES(status)
-      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status]);
+      `, [txId, txId, txDate, txTime, outletId, outletId, branchName, branchName, customerName, tableNumber, orderType, amount, 0, 0, 0, 0, amount, paidAmount, changeAmount, paymentMethod, cashier, notes, status, txType]);
     }
 
     // 6. Sync Shift Closings to MySQL relational table
@@ -2275,8 +2321,8 @@ const sanitizeMasterDataPayload = (data) => {
     const bName = String(item.branch_name || item.outlet_name || '').toLowerCase();
     if (bName.includes('restoran utama')) return true;
     const rNoLower = rNo.toLowerCase();
-    if (rNoLower.includes('kasir-20260814') || rNoLower.includes('kasir-20260815') || rNoLower.startsWith('lap-shift-kasir')) {
-      if (bName.includes('restoran utama') || !item.outlet_id || item.outlet_id === 1) return true;
+    if (bName.includes('restoran utama') || rNoLower.includes('dummy') || rNoLower.includes('mock-shift')) {
+      return true;
     }
 
     return false;
@@ -2770,10 +2816,17 @@ app.post('/api/pos/transaction', async (req, res) => {
           const itName = String(it.name || '').trim();
           const itQty = Number(it.qty || 1);
           try {
-            await mysqlPool.execute(`
-              INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, reason, user_name)
-              VALUES (?, ?, ?, 'OUT', ?, 'porsi', ?, ?, 'POS Checkout Penjualan', ?)
-            `, [txDate, txTime, itName, itQty, outletId, branchName, cashier]);
+            const txReason = `POS Checkout [TX:${txId}]`;
+            const [existingSm] = await mysqlPool.execute(
+              `SELECT id FROM stock_movement WHERE outlet_id = ? AND date = ? AND ingredient_name = ? AND reason = ? LIMIT 1`,
+              [outletId, txDate, itName, txReason]
+            );
+            if (!existingSm || existingSm.length === 0) {
+              await mysqlPool.execute(`
+                INSERT INTO stock_movement (date, time, ingredient_name, type, qty, unit, outlet_id, source_outlet, reason, user_name)
+                VALUES (?, ?, ?, 'OUT', ?, 'porsi', ?, ?, ?, ?)
+              `, [txDate, txTime, itName, itQty, outletId, branchName, txReason, cashier]);
+            }
           } catch (smErr) {}
         }
       }
