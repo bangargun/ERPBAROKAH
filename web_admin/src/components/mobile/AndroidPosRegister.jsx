@@ -999,9 +999,8 @@ export default function AndroidPosRegister({
       });
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 2. Offline Queue Flusher — hanya Jalur 1: item per item ke /api/pos/transaction
-  // Jalur 2 (POST /api/master-data) dihapus — POS tidak menulis ke blob
-  const doFlushOfflineQueue = React.useCallback(() => {
+  // 2. Offline Queue Flusher — Sequential Atomic Processing ke /api/pos/transaction
+  const doFlushOfflineQueue = React.useCallback(async () => {
     if (isSavingRef.current) return;
     try {
       const queueRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
@@ -1012,28 +1011,31 @@ export default function AndroidPosRegister({
       }
       setOfflineQueueCount(queue.length);
 
-      // Kirim item per item ke /api/pos/transaction — retry sampai server konfirmasi sukses
-      queue.forEach(tx => {
-        if (!tx) return;
-        fetch(getApiUrl('/api/pos/transaction'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...tx, status: 'approved', is_offline_pending: false })
-        })
-        .then(res => res.json())
-        .then(resData => {
+      // Kirim item satu per satu secara berurutan (Sequential Atomic Flush)
+      for (const tx of queue) {
+        if (!tx) continue;
+        try {
+          const res = await fetch(getApiUrl('/api/pos/transaction'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...tx, status: 'approved', is_offline_pending: false })
+          });
+          const resData = await res.json();
           if (resData && (resData.success || resData.status === 'success')) {
-            try {
-              const curQRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
-              const curQ = curQRaw ? JSON.parse(curQRaw) : [];
-              const remaining = curQ.filter(item => String(item.id || item.receipt_no || '') !== String(tx.id || tx.receipt_no || ''));
-              localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
-              setOfflineQueueCount(remaining.length);
-            } catch (e) {}
+            const curQRaw = localStorage.getItem('MRIS_POS_OFFLINE_TX_QUEUE');
+            const curQ = curQRaw ? JSON.parse(curQRaw) : [];
+            const remaining = curQ.filter(item => String(item.id || item.receipt_no || '') !== String(tx.id || tx.receipt_no || ''));
+            localStorage.setItem('MRIS_POS_OFFLINE_TX_QUEUE', JSON.stringify(remaining));
+            setOfflineQueueCount(remaining.length);
+          } else {
+            // Jika response server bukan sukses, hentikan siklus flush agar tidak loop
+            break;
           }
-        })
-        .catch(() => {});
-      });
+        } catch (fetchErr) {
+          // Jika koneksi kembali offline di tengah jalan, hentikan loop dan simpan sisa antrean
+          break;
+        }
+      }
     } catch (err) {}
   }, []);
 
