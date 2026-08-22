@@ -1062,6 +1062,7 @@ export function ColumnVisibilityDropdown({ columns, visibleColumns, onToggleColu
 
 export default function SalesTransactionsPage({ masterData, setMasterData, selectedBranch, themeMode = 'dark', onRefreshFromServer }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
 
   const [activeTab, setActiveTab] = useState('omzet');
   const [searchTerm, setSearchTerm] = useState('');
