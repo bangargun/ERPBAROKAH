@@ -11997,10 +11997,9 @@ export default function AndroidPosRegister({
                   { id: 'Pembayaran Poin', label: 'Pembayaran Poin' },
                   { id: 'Transfer Bank', label: 'Transfer Bank' },
                   { id: 'GrabFood', label: 'GrabFood' },
-                  { id: 'QRIS Link Aja', label: 'QRIS Link Aja' },
+                  { id: 'QRIS (BCA)', label: 'QRIS (BCA)' },
                   { id: 'Go-Food', label: 'Go-Food' },
                   { id: 'ShopeeFood', label: 'ShopeeFood' },
-                  { id: 'QRIS BCA', label: 'QRIS BCA' },
                   { id: 'EDC Mandiri', label: 'EDC Mandiri' },
                   { id: 'EDC BCA', label: 'EDC BCA' }
                 ].map(method => {

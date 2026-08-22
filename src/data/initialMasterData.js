@@ -16,7 +16,7 @@ export const initialMasterData = {
   tables: [],
   paymentMethods: [
     { id: 1, name: 'Tunai (Cash)', code: 'CASH', status: 'Aktif' },
-    { id: 2, name: 'QRIS', code: 'QRIS', status: 'Aktif' },
+    { id: 2, name: 'QRIS (BCA)', code: 'QRIS_BCA', status: 'Aktif' },
     { id: 3, name: 'Debit / EDC Bank', code: 'EDC', status: 'Aktif' }
   ],
   suppliers: [],
