@@ -1217,65 +1217,6 @@ export default function TransactionHistoryPage({ masterData, setMasterData, sele
             />
           </div>
 
-          {/* Tahun Dropdown (2024 s/d 2040) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <select
-              value={selectedYear}
-              onChange={e => handleYearChange(e.target.value)}
-              style={{
-                padding: '0 10px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                background: T.cardBg2,
-                color: T.txtPrimary,
-                fontSize: '0.78rem',
-                fontWeight: '800',
-                height: '36px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              <option value="">Semua Tahun</option>
-              {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
-                <option key={yr} value={String(yr)}>Tahun {yr}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Bulan Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <select
-              value={selectedMonth}
-              onChange={e => handleMonthChange(e.target.value)}
-              style={{
-                padding: '0 10px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                background: T.cardBg2,
-                color: T.txtPrimary,
-                fontSize: '0.78rem',
-                fontWeight: '800',
-                height: '36px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              <option value="">Semua Bulan</option>
-              <option value="01">Januari</option>
-              <option value="02">Februari</option>
-              <option value="03">Maret</option>
-              <option value="04">April</option>
-              <option value="05">Mei</option>
-              <option value="06">Juni</option>
-              <option value="07">Juli</option>
-              <option value="08">Agustus</option>
-              <option value="09">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Desember</option>
-            </select>
-          </div>
-
           {/* Tipe Pesanan Filter (Dine In / Take Away) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <select
