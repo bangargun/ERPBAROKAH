@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import PaginationControls from './PaginationControls';
 import { getThemePalette } from '../../utils/themeUtils';
+import { generateDocNumber, getOutletCode } from '../../utils/docNumberGenerator';
 
 export default function ManualFinancialEntryPage({ masterData, setMasterData, selectedBranch, setActiveTab, triggerOpenModal, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
@@ -295,8 +296,18 @@ export default function ManualFinancialEntryPage({ masterData, setMasterData, se
 
   const handleSaveDailyReportModal = (e) => {
     e.preventDefault();
-    const repNo = `LAP-${dailyRepDate.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`;
     const selectedOutletObj = outlets.find(o => Number(o.id) === Number(dailyRepOutletId)) || outlets[0] || { name: outlets[0]?.name || 'Outlet Barokah' };
+    const repNo = generateDocNumber({
+      prefix: 'REP',
+      outlet: selectedOutletObj,
+      outlets: outlets,
+      date: dailyRepDate,
+      existingRecords: [
+        ...(masterData?.approvedFinanceDaily || []),
+        ...(masterData?.manualReports || [])
+      ],
+      digits: 5
+    });
 
     const cogsItems = dailyExpenseRows
       .filter(r => r.itemType === 'Bahan Baku')

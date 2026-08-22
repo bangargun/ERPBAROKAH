@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { initialMasterData } from '../../data/initialMasterData';
 import { scanPairedPrinters, printToBluetoothPrinter, buildReceiptText, buildShiftClosingReceiptText, testPrint as btTestPrint, _browserPrintFallback, checkPrinterLiveStatus, listenBluetoothStatusChange } from '../../utils/bluetoothPrinter';
 import { idbSaveOfflineTx, idbGetAllOfflineTx, idbDeleteOfflineTx } from '../../utils/idbStorage';
+import { generateDocNumber, getOutletCode } from '../../utils/docNumberGenerator';
 import KitchenDisplayPage from '../admin/KitchenDisplayPage';
 import { 
   ShoppingBag,
@@ -2867,13 +2868,24 @@ export default function AndroidPosRegister({
     setLastPaymentTimestamp(nowMs);
     setLastProcessedCartSummary(currentCartSummary);
 
-    const randSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const receiptNo = `TX-POS-${currentOutlet?.id || 1}-${Date.now()}-${randSuffix}`;
     const isSuperAdminUser = (() => {
       const r = String(currentUserSession?.role || userSession?.role || '').toLowerCase();
       return r.includes('super') || r.includes('admin') || r.includes('owner');
     })();
     const currentDate = isSuperAdminUser && customTxDate ? customTxDate : new Date().toISOString().split('T')[0];
+
+    const allKnownTxs = [
+      ...(masterData?.salesTransactions || []),
+      ...(masterData?.transactions || [])
+    ];
+    const receiptNo = generateDocNumber({
+      prefix: 'TRX',
+      outlet: currentOutlet,
+      outlets: outlets,
+      date: currentDate,
+      existingRecords: allKnownTxs,
+      digits: 5
+    });
     const _now2601 = new Date();
     const currentTime = `${String(_now2601.getHours()).padStart(2,'0')}:${String(_now2601.getMinutes()).padStart(2,'0')}:${String(_now2601.getSeconds()).padStart(2,'0')}`;
     const paidVal = customTendered !== null && customTendered !== '' ? Number(customTendered) : cartTotal;
@@ -3170,11 +3182,25 @@ export default function AndroidPosRegister({
   // Handle Petty Expense Entry
   const handleAddPettyExpense = (e) => {
     e.preventDefault();
-    if (!pettyExpenseName || !pettyExpenseAmount) return;
+    const expDate = new Date().toISOString().split('T')[0];
+    const expCode = generateDocNumber({
+      prefix: 'EXP',
+      outlet: currentOutlet,
+      outlets: outlets,
+      date: expDate,
+      existingRecords: [
+        ...pettyExpenses,
+        ...(masterData?.expenses || []),
+        ...(masterData?.transactions?.filter(t => t.type === 'expense') || [])
+      ],
+      digits: 5
+    });
     const newExp = {
-      id: Date.now(),
+      id: expCode,
+      code: expCode,
       name: pettyExpenseName,
       amount: Number(pettyExpenseAmount),
+      date: expDate,
       time: (() => { const _n = new Date(); return `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}:${String(_n.getSeconds()).padStart(2,'0')}`; })()
     };
     const updatedExp = [newExp, ...pettyExpenses];
@@ -3189,10 +3215,24 @@ export default function AndroidPosRegister({
     e.preventDefault();
     if (!logisticsItemName || !logisticsQty) return;
 
+    const reqDate = new Date().toISOString().split('T')[0];
+    const poCode = generateDocNumber({
+      prefix: 'PO',
+      outlet: currentOutlet,
+      outlets: outlets,
+      date: reqDate,
+      existingRecords: [
+        ...(masterData?.logisticsRequests || []),
+        ...(masterData?.purchaseOrders || [])
+      ],
+      digits: 5
+    });
+
     const newReq = {
-      id: `LOG-REQ-${Date.now().toString().substring(7)}`,
-      report_no: `LOG-REQ-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
-      date: new Date().toISOString().split('T')[0],
+      id: poCode,
+      report_no: poCode,
+      code: poCode,
+      date: reqDate,
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
       outlet_name: currentOutlet.name,
@@ -3281,10 +3321,24 @@ export default function AndroidPosRegister({
       return;
     }
 
+    const shiftDate = new Date().toISOString().split('T')[0];
+    const shiftReportNo = generateDocNumber({
+      prefix: 'SFT',
+      outlet: currentOutlet,
+      outlets: outlets,
+      date: shiftDate,
+      existingRecords: [
+        ...(masterData?.shiftClosings || []),
+        ...(masterData?.shift_closings || []),
+        ...(masterData?.approvedFinanceDaily || [])
+      ],
+      digits: 2
+    });
+
     const newShiftReport = {
-      id: `SHIFT-CLOSE-${Date.now().toString().substring(7)}`,
-      report_no: `LAP-SHIFT-${new Date().toISOString().split('T')[0].replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`,
-      date: new Date().toISOString().split('T')[0],
+      id: shiftReportNo,
+      report_no: shiftReportNo,
+      date: shiftDate,
       time: (() => { const _n = new Date(); return `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}:${String(_n.getSeconds()).padStart(2,'0')}`; })(),
       outlet_id: Number(currentOutlet.id),
       outlet_name: currentOutlet.name,

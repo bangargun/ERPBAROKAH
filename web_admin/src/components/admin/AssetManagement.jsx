@@ -7,6 +7,7 @@ import {
 import { getThemePalette } from '../../utils/themeUtils';
 import { getApiUrl } from '../../utils/apiConfig';
 import { canDeleteModule, canEditModule } from '../../utils/permissionUtils';
+import { generateDocNumber, getOutletCode } from '../../utils/docNumberGenerator';
 import PaginationControls from './PaginationControls';
 
 
@@ -254,12 +255,19 @@ export default function AssetManagement({ masterData, setMasterData, selectedBra
     }
 
     const matchedOutlet = outlets.find(o => String(o.id) === String(formOutletId)) || { name: 'Cabang' };
-    const nowTs = Date.now();
-    const assetId = editingAsset ? editingAsset.id : `AST-${nowTs}`;
+    const autoAssetCode = generateDocNumber({
+      prefix: 'AST',
+      outlet: matchedOutlet,
+      outlets: outlets,
+      date: formPurchaseDate || new Date(),
+      existingRecords: rawAssets,
+      digits: 5
+    });
+    const assetId = editingAsset ? editingAsset.id : autoAssetCode;
 
     const newAsset = {
       id: assetId,
-      code: formCode || `AST-${nowTs}`,
+      code: formCode || autoAssetCode,
       name: formName.trim(),
       category: formCategory,
       outlet_id: Number(formOutletId),
