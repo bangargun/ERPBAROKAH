@@ -5,6 +5,7 @@ import { getThemePalette } from '../../utils/themeUtils';
 
 export default function SystemSettings({ masterData, setMasterData, themeMode = 'dark' }) {
   const T = getThemePalette(themeMode);
+  const isLight = themeMode === 'soft_blue' || themeMode === 'light';
   const [activeSubTab, setActiveSubTab] = useState('user_rights_web'); // Default to 'user_rights_web'
   const [selectedOutletIdForPrint, setSelectedOutletIdForPrint] = useState(1);
 
