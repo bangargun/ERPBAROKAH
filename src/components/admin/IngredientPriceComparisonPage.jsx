@@ -904,261 +904,148 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
         </div>
       )}
 
-      {/* 4. FILTER BAR CONTROLS */}
+      {/* 4. FILTER BAR CONTROLS - CLEAN & CONFLICT-FREE */}
       <div style={{ background: T.cardBg, border: `1px solid ${T.border}`, borderRadius: '14px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         
-        {/* Quick Date Presets (Interactive Pill Tabs) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <Calendar size={13} color={T.accentGold} /> Periode Waktu & Kalender
-          </label>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '6px',
-            background: isLight ? '#f1f5f9' : 'rgba(15, 23, 42, 0.75)',
-            padding: '5px',
-            borderRadius: '12px',
-            border: `1px solid ${T.border}`
-          }}>
-            {[
-              { id: 'today', label: 'Hari Ini' },
-              { id: 'yesterday', label: 'Kemarin' },
-              { id: 'last_week', label: 'Pekan Lalu (Sen-Min)' },
-              { id: 'this_month', label: 'Bulan Ini' },
-              { id: 'last_month', label: 'Bulan Lalu' },
-              { id: '7days', label: '7 Hari Terakhir' },
-              { id: 'custom', label: 'Rentang Waktu 📅' },
-              { id: 'all', label: 'Semua Waktu' }
-            ].map(tab => {
-              const isActive = datePreset === tab.id || (tab.id === 'custom' && (datePreset === 'custom' || (startDate && endDate)));
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    if (tab.id === 'custom') {
-                      setDatePreset('custom');
-                      if (!startDate || !endDate) {
-                        const d = new Date();
-                        const endStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                        d.setDate(d.getDate() - 6);
-                        const startStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                        setStartDate(startStr);
-                        setEndDate(endStr);
-                      }
-                      setCurrentPage(1);
-                    } else {
-                      handleQuickPreset(tab.id);
-                    }
-                  }}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: isActive ? `1px solid ${T.accentGold}` : '1px solid transparent',
-                    background: isActive ? (isLight ? '#ffffff' : 'rgba(245, 158, 11, 0.20)') : 'transparent',
-                    color: isActive ? (isLight ? '#b45309' : '#fbbf24') : T.txtSecondary,
-                    fontWeight: isActive ? '900' : '700',
-                    fontSize: '0.76rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    transition: 'all 0.15s ease',
-                    boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
-                  }}
-                >
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Second Row: Filters and Custom Date Widget */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
-          {/* Cari Bahan / Beban */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 160px', minWidth: '150px' }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Search size={13} color={T.txtMuted} /> Cari {isBahanTab ? 'Bahan' : 'Beban'}
-            </label>
-            <input type="text" value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} placeholder="Ketik kata kunci..."
-              style={{ padding: '0 12px', height: '38px', borderRadius: '8px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.82rem', fontWeight: '600', outline: 'none' }} />
-          </div>
-
-          {/* Custom Date Inputs (Formatted MySQL YYYY-MM-DD) */}
-          {(datePreset === 'custom' || startDate || endDate) && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '8px',
-              background: isLight ? '#ffffff' : '#1e293b',
-              border: `1px solid ${T.accentGoldBorder}`,
-              padding: '4px 10px',
-              borderRadius: '10px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              height: '38px'
-            }}>
-              <Calendar size={15} color={T.accentGold} />
+        {/* Single Row Filter Bar */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+          
+          {/* Left Group: Search & Item Filter */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', flex: '1 1 320px' }}>
+            {/* Cari Bahan / Beban */}
+            <div style={{ position: 'relative', flex: '1 1 200px', minWidth: '160px' }}>
+              <Search size={14} color={T.txtSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
-                type="date"
-                value={startDate}
-                onChange={e => { setStartDate(e.target.value); setDatePreset('custom'); setCurrentPage(1); }}
+                type="text"
+                value={searchTerm}
+                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                placeholder={`Cari ${isBahanTab ? 'bahan baku' : 'beban'}...`}
                 style={{
-                  padding: '4px 8px',
+                  width: '100%',
+                  paddingLeft: '34px',
+                  paddingRight: '12px',
+                  height: '38px',
+                  borderRadius: '8px',
+                  border: `1px solid ${T.border}`,
                   background: T.inputBg,
-                  border: `1px solid ${T.borderStrong}`,
-                  borderRadius: '6px',
                   color: T.txtPrimary,
-                  fontSize: '0.78rem',
-                  fontWeight: '800',
-                  colorScheme: isLight ? 'light' : 'dark',
-                  outline: 'none',
-                  cursor: 'pointer'
-                }}
-              />
-              <span style={{ fontSize: '0.74rem', color: T.txtSecondary, fontWeight: '800' }}>s/d</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={e => { setEndDate(e.target.value); setDatePreset('custom'); setCurrentPage(1); }}
-                style={{
-                  padding: '4px 8px',
-                  background: T.inputBg,
-                  border: `1px solid ${T.borderStrong}`,
-                  borderRadius: '6px',
-                  color: T.txtPrimary,
-                  fontSize: '0.78rem',
-                  fontWeight: '800',
-                  colorScheme: isLight ? 'light' : 'dark',
-                  outline: 'none',
-                  cursor: 'pointer'
+                  fontSize: '0.82rem',
+                  fontWeight: '600',
+                  outline: 'none'
                 }}
               />
             </div>
-          )}
 
-          {/* Dropdown Tahun (2024 s/d 2040) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-              Tahun
-            </label>
-            <select
-              value={selectedYear}
-              onChange={e => { setSelectedYear(e.target.value); setCurrentPage(1); }}
-              style={{
-                padding: '0 12px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                background: T.cardBg2,
-                color: T.txtPrimary,
-                fontSize: '0.82rem',
-                fontWeight: '800',
-                height: '38px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              <option value="">Semua Tahun</option>
-              {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
-                <option key={yr} value={String(yr)}>Tahun {yr}</option>
-              ))}
-            </select>
-          </div>
+            {/* Filter Dropdown Bahan Baku / Beban */}
+            <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '180px' }}>
+              <button
+                type="button"
+                onClick={() => setShowItemDropdown(v => !v)}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  padding: '0 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  border: `1px solid ${selectedItem !== 'ALL' ? T.accentGold : T.border}`,
+                  background: T.inputBg,
+                  color: selectedItem !== 'ALL' ? T.accentGold : T.txtPrimary,
+                  fontSize: '0.82rem',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px'
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedItem === 'ALL' ? ('— Semua ' + (isBahanTab ? 'bahan' : 'beban') + ' —') : selectedItem}
+                </span>
+                <ChevronDown size={14} color={T.txtMuted} />
+              </button>
 
-          {/* Dropdown Pilihan Bulan Cepat */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-              Bulan
-            </label>
-            <select
-              value={selectedMonth}
-              onChange={e => { setSelectedMonth(e.target.value); setCurrentPage(1); }}
-              style={{
-                padding: '0 12px',
-                borderRadius: '8px',
-                border: `1px solid ${T.border}`,
-                background: T.cardBg2,
-                color: T.txtPrimary,
-                fontSize: '0.82rem',
-                fontWeight: '800',
-                height: '38px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              <option value="">Semua Bulan</option>
-              <option value="01">Januari</option>
-              <option value="02">Februari</option>
-              <option value="03">Maret</option>
-              <option value="04">April</option>
-              <option value="05">Mei</option>
-              <option value="06">Juni</option>
-              <option value="07">Juli</option>
-              <option value="08">Agustus</option>
-              <option value="09">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Desember</option>
-            </select>
-          </div>
-
-        {/* Filter Bahan Baku / Beban */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 200px', minWidth: '180px', position: 'relative' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            {isBahanTab ? 'Filter Bahan Baku' : 'Filter Beban / Akun'}
-          </label>
-          <button type="button" onClick={() => setShowItemDropdown(v => !v)}
-            style={{ height: '38px', padding: '0 12px', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${selectedItem !== 'ALL' ? T.accentGold : T.border}`, background: T.inputBg, color: selectedItem !== 'ALL' ? T.accentGold : T.txtPrimary, fontSize: '0.82rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {selectedItem === 'ALL' ? ('— Semua ' + (isBahanTab ? 'bahan' : 'beban') + ' —') : selectedItem}
-            </span>
-            <ChevronDown size={14} color={T.txtMuted} />
-          </button>
-          {showItemDropdown && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '10px', boxShadow: '0 16px 40px rgba(0,0,0,0.65)', zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px' }}>
-              <input type="text" value={itemDropdownSearch} onChange={e => setItemDropdownSearch(e.target.value)} placeholder="Cari..." autoFocus
-                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem' }} />
-              <div style={{ overflowY: 'auto', maxHeight: '220px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <button type="button"
-                  onClick={() => { setSelectedItem('ALL'); setShowItemDropdown(false); setItemDropdownSearch(''); setCurrentPage(1); }}
-                  style={{ padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer', background: selectedItem === 'ALL' ? T.accentGoldBg : 'transparent', color: selectedItem === 'ALL' ? T.accentGold : T.txtMuted, fontSize: '0.80rem', fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>— Semua {isBahanTab ? 'bahan' : 'beban'} —</span>
-                  {selectedItem === 'ALL' && <Check size={13} color={T.accentGold} />}
-                </button>
-                {currentItemList
-                  .filter(n => !itemDropdownSearch || n.toLowerCase().includes(itemDropdownSearch.toLowerCase()))
-                  .map((name, i) => (
-                    <button key={i} type="button"
-                      onClick={() => { setSelectedItem(name); setShowItemDropdown(false); setItemDropdownSearch(''); setCurrentPage(1); }}
-                      style={{ padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer', background: selectedItem === name ? T.accentGoldBg : 'transparent', color: selectedItem === name ? T.accentGold : T.txtPrimary, fontSize: '0.80rem', fontWeight: '900', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>{name}</span>
-                      {selectedItem === name && <Check size={13} color={T.accentGold} />}
+              {showItemDropdown && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: T.cardBg, border: `1px solid ${T.accentGoldBorder}`, borderRadius: '10px', boxShadow: '0 16px 40px rgba(0,0,0,0.65)', zIndex: 9999, padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '240px' }}>
+                  <input
+                    type="text"
+                    value={itemDropdownSearch}
+                    onChange={e => setItemDropdownSearch(e.target.value)}
+                    placeholder="Ketik untuk mencari..."
+                    autoFocus
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: `1px solid ${T.border}`, background: T.inputBg, color: T.txtPrimary, fontSize: '0.78rem', outline: 'none' }}
+                  />
+                  <div style={{ overflowY: 'auto', maxHeight: '220px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedItem('ALL'); setShowItemDropdown(false); setItemDropdownSearch(''); setCurrentPage(1); }}
+                      style={{ padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer', background: selectedItem === 'ALL' ? T.accentGoldBg : 'transparent', color: selectedItem === 'ALL' ? T.accentGold : T.txtMuted, fontSize: '0.80rem', fontWeight: '700', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                      <span>— Semua {isBahanTab ? 'bahan' : 'beban'} —</span>
+                      {selectedItem === 'ALL' && <Check size={13} color={T.accentGold} />}
                     </button>
-                  ))}
-                {currentItemList.filter(n => !itemDropdownSearch || n.toLowerCase().includes(itemDropdownSearch.toLowerCase())).length === 0 && (
-                  <div style={{ padding: '12px', fontSize: '0.74rem', color: T.txtMuted, textAlign: 'center' }}>Tidak ditemukan</div>
-                )}
-              </div>
+                    {currentItemList
+                      .filter(n => !itemDropdownSearch || n.toLowerCase().includes(itemDropdownSearch.toLowerCase()))
+                      .map((name, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => { setSelectedItem(name); setShowItemDropdown(false); setItemDropdownSearch(''); setCurrentPage(1); }}
+                          style={{ padding: '7px 10px', borderRadius: '6px', border: 'none', textAlign: 'left', cursor: 'pointer', background: selectedItem === name ? T.accentGoldBg : 'transparent', color: selectedItem === name ? T.accentGold : T.txtPrimary, fontSize: '0.80rem', fontWeight: '900', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                          <span>{name}</span>
+                          {selectedItem === name && <Check size={13} color={T.accentGold} />}
+                        </button>
+                      ))}
+                    {currentItemList.filter(n => !itemDropdownSearch || n.toLowerCase().includes(itemDropdownSearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: '12px', fontSize: '0.74rem', color: T.txtMuted, textAlign: 'center' }}>Tidak ditemukan</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Double Calendar Picker */}
-        <DoubleCalendarPicker
-          startDate={startDate} endDate={endDate} datePreset={datePreset}
-          setStartDate={setStartDate} setEndDate={setEndDate} setDatePreset={setDatePreset}
-          showPopover={showCalendarPopover} setShowPopover={setShowCalendarPopover}
-          hideOutletFilter={true} noWrapper={true} themeMode={themeMode}
-        />
+          {/* Right Group: Unified Calendar & Reset */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Unified Double Calendar Picker */}
+            <DoubleCalendarPicker
+              startDate={startDate}
+              endDate={endDate}
+              datePreset={datePreset}
+              setStartDate={setStartDate}
+              setEndDate={setEndDate}
+              setDatePreset={setDatePreset}
+              showPopover={showCalendarPopover}
+              setShowPopover={setShowCalendarPopover}
+              hideOutletFilter={true}
+              themeMode={themeMode}
+            />
 
-        {(searchTerm || startDate || endDate || selectedItem !== 'ALL' || selectedYear || selectedMonth) && (
-          <button onClick={resetFilters} style={{ height: '38px', padding: '0 14px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <RotateCcw size={13} /> Reset
-          </button>
-        )}
+            {(searchTerm || startDate || endDate || selectedItem !== 'ALL' || datePreset !== 'all') && (
+              <button
+                onClick={resetFilters}
+                style={{
+                  height: '38px',
+                  padding: '0 14px',
+                  borderRadius: '8px',
+                  border: `1px solid ${T.border}`,
+                  background: 'transparent',
+                  color: T.txtMuted,
+                  fontSize: '0.78rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Reset semua filter ke kondisi awal"
+              >
+                <RotateCcw size={13} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
