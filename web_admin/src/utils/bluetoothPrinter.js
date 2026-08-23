@@ -137,6 +137,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[C][B]*** PERINGATAN KERAS ***');
     lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
     lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
+    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
+    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
+    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
 
   } else if (ticketType === 'bar') {
     // ===== STRUK BAR (BAR TICKET - TANPA HARGA) =====
@@ -164,6 +167,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[C][B]*** PERINGATAN KERAS ***');
     lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
     lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
+    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
+    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
+    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
 
   } else if (ticketType === 'bill') {
     // ===== CONTOH TAGIHAN SEMENTARA / BILL MEJA (DENGAN RINCIAN HARGA) =====
@@ -194,6 +200,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[C][B]*** PERINGATAN KERAS ***');
     lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
     lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
+    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
+    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
+    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
 
   } else if (ticketType === 'table' || ticketType === 'checker') {
     // ===== STRUK MEJA / ORDER CHECKER (TANPA HARGA) =====
@@ -221,6 +230,9 @@ export const buildReceiptText = (tx, outletName, ticketType = 'receipt', paperWi
     lines.push('[C][B]*** PERINGATAN KERAS ***');
     lines.push('[C][B]STRUK INI BUKAN STRUK PEMBAYARAN');
     lines.push('[C]JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR');
+    lines.push('[C]Apabila kasir memberikan struk ini dan anda');
+    lines.push('[C]melakukan pembayaran, maka anda berhak mendapatkan');
+    lines.push('[C]1 JUTA RUPIAH LANGSUNG DARI KASIR');
 
   } else {
     // ===== STRUK NOTA PEMBAYARAN (DEFAULT RECEIPT - DENGAN HARGA) =====

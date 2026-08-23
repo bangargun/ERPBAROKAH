@@ -2359,16 +2359,39 @@ export default function AndroidPosRegister({
 
   // GENERATE CONTOH TAGIHAN SEMENTARA (MASUK PESANAN GANTUNG & CETAK CONTOH TAGIHAN)
   const handleGenerateContohTagihan = () => {
-    if (cart.length === 0) return;
+    // 1. Tentukan items yang akan dijadikan bill
+    let effectiveItems = [...cart];
+    let effectiveTotal = cartTotal;
+    let effectiveCustomer = selectedCustomer || 'Pelanggan Umum';
 
-    const tblNum = orderType === 'Dine In' ? (selectedTableObj?.number || 'Meja 01') : 'N/A';
+    if (effectiveItems.length === 0 && selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) {
+      effectiveItems = [...tableStatusMap[selectedTableId].pendingOrder.items];
+      effectiveTotal = tableStatusMap[selectedTableId].pendingOrder.totalAmount || effectiveItems.reduce((acc, it) => acc + ((it.price || it.price_unit || 0) * (it.qty || 1)), 0);
+      effectiveCustomer = tableStatusMap[selectedTableId].pendingOrder.customerName || effectiveCustomer;
+    }
+
+    if (effectiveItems.length === 0 && activeRecallOrderId) {
+      const recalled = heldOrdersList.find(o => o.id === activeRecallOrderId);
+      if (recalled && recalled.items?.length > 0) {
+        effectiveItems = [...recalled.items];
+        effectiveTotal = recalled.totalAmount || recalled.amount || effectiveItems.reduce((acc, it) => acc + ((it.price || it.price_unit || 0) * (it.qty || 1)), 0);
+        effectiveCustomer = recalled.customerName || recalled.customer_name || effectiveCustomer;
+      }
+    }
+
+    if (effectiveItems.length === 0) {
+      alert('Keranjang pesanan masih kosong. Pilih menu atau pilih meja yang memiliki pesanan terlebih dahulu.');
+      return;
+    }
+
+    const tblNum = orderType === 'Dine In' ? (selectedTableObj?.number || (selectedTableId ? `Meja ${selectedTableId}` : 'Meja 01')) : 'N/A';
     const _now2121 = new Date();
     const currentTime = `${String(_now2121.getHours()).padStart(2,'0')}:${String(_now2121.getMinutes()).padStart(2,'0')}:${String(_now2121.getSeconds()).padStart(2,'0')}`;
     const currentDate = new Date().toISOString().split('T')[0];
     const receiptNo = `BILL-${Date.now().toString().substring(6)}`;
 
     // Compute diff items for supplementary printing if order was opened & modified
-    const finalPrintItems = openedOriginalCart ? computeOrderDiffItems(cart, openedOriginalCart) : [...cart];
+    const finalPrintItems = openedOriginalCart ? computeOrderDiffItems(effectiveItems, openedOriginalCart) : [...effectiveItems];
 
     const billTx = {
       id: receiptNo,
@@ -2377,28 +2400,28 @@ export default function AndroidPosRegister({
       time: currentTime,
       outlet_id: currentOutlet.id,
       branch_name: currentOutlet.name,
-      customer_name: selectedCustomer || 'Pelanggan Umum',
+      customer_name: effectiveCustomer,
       order_type: `${orderType} (${tblNum})`,
       table_number: tblNum,
       items: finalPrintItems,
-      amount: cartTotal,
+      amount: effectiveTotal,
       payment_method: 'Contoh Tagihan (Belum Dibayar)',
-      cashier: 'master (Superadmin POS)',
+      cashier: currentUserSession?.name || 'Kasir POS',
       notes: `Informasi Tagihan Meja ${tblNum}`,
       status: 'Belum Dibayar',
       isContohTagihan: true
     };
 
-    // Save order into active table orders (Cart / Order Gantung)
+    // Save order into active table orders (Cart / Order Gantung) if in table
     if (selectedTableId) {
       setTableStatusMap(prev => ({
         ...prev,
         [selectedTableId]: {
           status: 'occupied',
           pendingOrder: {
-            items: [...cart],
-            totalAmount: cartTotal,
-            customerName: selectedCustomer,
+            items: [...effectiveItems],
+            totalAmount: effectiveTotal,
+            customerName: effectiveCustomer,
             startTime: currentTime,
             holdTx: billTx
           }
@@ -4918,23 +4941,24 @@ export default function AndroidPosRegister({
                     </button>
                     <button
                       type="button"
-                      disabled={cart.length === 0}
+                      disabled={cart.length === 0 && !(selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) && !activeRecallOrderId}
                       onClick={handleGenerateContohTagihan}
                       style={{
                         flex: 1,
                         height: '42px',
-                        background: 'rgba(56,189,248,0.12)',
-                        border: '1px solid #38bdf8',
-                        color: '#38bdf8',
+                        background: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? 'rgba(56,189,248,0.12)' : 'transparent',
+                        border: `1px solid ${(cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? '#38bdf8' : T.border}`,
+                        color: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? '#38bdf8' : T.txtMuted,
                         borderRadius: '8px',
                         fontWeight: '800',
                         fontSize: '0.82rem',
-                        cursor: cart.length > 0 ? 'pointer' : 'not-allowed',
+                        cursor: (cart.length > 0 || (selectedTableId && tableStatusMap[selectedTableId]?.pendingOrder?.items?.length > 0) || activeRecallOrderId) ? 'pointer' : 'not-allowed',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '4px'
                       }}
+                      title="Lihat / cetak contoh tagihan sementara (Bill Meja)"
                     >
                       <FileText size={15} />
                       <span>Tagihan</span>
@@ -11825,8 +11849,27 @@ export default function AndroidPosRegister({
                 </div>
               </div>
             ) : (
-              <div style={{ borderTop: '2px dashed #000', paddingTop: '10px', marginBottom: '16px', textAlign: 'center', fontSize: '0.80rem', fontWeight: '900', fontStyle: 'italic' }}>
-                *** PRODUK TANPA HARGA (TICKET DAPUR / BAR / MEJA) ***
+              <div style={{ borderTop: '2px dashed #000', paddingTop: '10px', marginBottom: '16px', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.80rem', fontWeight: '900', fontStyle: 'italic', marginBottom: '8px' }}>
+                  *** PRODUK TANPA HARGA (TICKET DAPUR / BAR / MEJA) ***
+                </div>
+                <div style={{
+                  fontSize: '0.72rem',
+                  fontWeight: '800',
+                  color: '#dc2626',
+                  background: '#fef2f2',
+                  border: '1.5px dashed #dc2626',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  lineHeight: 1.35
+                }}>
+                  <div style={{ fontWeight: '900', fontSize: '0.78rem', marginBottom: '2px' }}>*** PERINGATAN KERAS ***</div>
+                  <div>STRUK INI BUKAN STRUK PEMBAYARAN!</div>
+                  <div>JANGAN DIBAYAR SEBELUM DIBERI STRUK RESMI KASIR.</div>
+                  <div style={{ fontSize: '0.66rem', marginTop: '3px', color: '#991b1b' }}>
+                    Apabila kasir memberikan struk ini dan anda melakukan pembayaran, maka anda berhak mendapatkan 1 juta rupiah langsung dari kasir.
+                  </div>
+                </div>
               </div>
             )}
 
