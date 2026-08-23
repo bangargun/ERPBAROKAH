@@ -174,10 +174,6 @@ export default function IngredientPriceTrendPage({
       if (r.ingredient_name.toLowerCase().trim() !== trendIngredient.toLowerCase().trim()) return false;
       if (r.unit_price <= 0) return false;
       
-      // Filter Tahun & Bulan
-      if (selectedYear && !r.date.startsWith(selectedYear)) return false;
-      if (selectedMonth && r.date.substring(5, 7) !== selectedMonth) return false;
-
       // Rentang Tanggal Kalender
       if (startDate && r.date < startDate) return false;
       if (endDate && r.date > endDate) return false;
@@ -193,7 +189,7 @@ export default function IngredientPriceTrendPage({
       const pct  = (prev && prev.unit_price > 0) ? ((diff / prev.unit_price) * 100) : null;
       return { ...r, diff, pct };
     }).reverse(); // Tampilkan terbaru di atas pada tabel
-  }, [allPurchaseRecords, trendOutletId, trendIngredient, selectedYear, selectedMonth, startDate, endDate]);
+  }, [allPurchaseRecords, trendOutletId, trendIngredient, startDate, endDate]);
 
   const trendStats = useMemo(() => {
     if (!trendIngredient) return null;
@@ -344,72 +340,7 @@ export default function IngredientPriceTrendPage({
           )}
         </div>
 
-        {/* Dropdown Tahun (2024 s/d 2040) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            Tahun
-          </label>
-          <select
-            value={selectedYear}
-            onChange={e => setSelectedYear(e.target.value)}
-            style={{
-              padding: '0 12px',
-              borderRadius: '8px',
-              border: `1px solid ${T.border}`,
-              background: T.cardBg2,
-              color: T.txtPrimary,
-              fontSize: '0.82rem',
-              fontWeight: '800',
-              height: '38px',
-              cursor: 'pointer',
-              outline: 'none'
-            }}
-          >
-            <option value="">Semua Tahun</option>
-            {Array.from({ length: 2040 - 2024 + 1 }, (_, i) => 2040 - i).map(yr => (
-              <option key={yr} value={String(yr)}>Tahun {yr}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Dropdown Pilihan Bulan Cepat */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '0.72rem', fontWeight: '800', color: T.txtSecondary, textTransform: 'uppercase' }}>
-            Bulan
-          </label>
-          <select
-            value={selectedMonth}
-            onChange={e => setSelectedMonth(e.target.value)}
-            style={{
-              padding: '0 12px',
-              borderRadius: '8px',
-              border: `1px solid ${T.border}`,
-              background: T.cardBg2,
-              color: T.txtPrimary,
-              fontSize: '0.82rem',
-              fontWeight: '800',
-              height: '38px',
-              cursor: 'pointer',
-              outline: 'none'
-            }}
-          >
-            <option value="">Semua Bulan</option>
-            <option value="01">Januari</option>
-            <option value="02">Februari</option>
-            <option value="03">Maret</option>
-            <option value="04">April</option>
-            <option value="05">Mei</option>
-            <option value="06">Juni</option>
-            <option value="07">Juli</option>
-            <option value="08">Agustus</option>
-            <option value="09">September</option>
-            <option value="10">Oktober</option>
-            <option value="11">November</option>
-            <option value="12">Desember</option>
-          </select>
-        </div>
-
-        {/* 3. Rentang Waktu Tanggal (Inline DoubleCalendarPicker) */}
+        {/* 3. Rentang Waktu Tanggal (DoubleCalendarPicker) */}
         <DoubleCalendarPicker
           startDate={startDate}
           endDate={endDate}
@@ -420,13 +351,12 @@ export default function IngredientPriceTrendPage({
           showPopover={showCalendarPopover}
           setShowPopover={setShowCalendarPopover}
           hideOutletFilter={true}
-          noWrapper={true}
           themeMode={themeMode}
         />
 
         {/* 4. Reset Button */}
-        {(trendOutletId || trendIngredient || selectedYear || selectedMonth || startDate || endDate) && (
-          <button onClick={() => { setTrendOutletId(''); setTrendIngredient(''); setTrendIngSearch(''); setSelectedYear(''); setSelectedMonth(''); setStartDate(''); setEndDate(''); setDatePreset('all'); setShowTrendIngDropdown(false); }} style={{ height: '38px', padding: '0 14px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {(trendOutletId || trendIngredient || startDate || endDate || datePreset !== 'all') && (
+          <button onClick={() => { setTrendOutletId(''); setTrendIngredient(''); setTrendIngSearch(''); setStartDate(''); setEndDate(''); setDatePreset('all'); setShowTrendIngDropdown(false); }} style={{ height: '38px', padding: '0 14px', borderRadius: '8px', border: `1px solid ${T.border}`, background: 'transparent', color: T.txtMuted, fontSize: '0.78rem', fontWeight: '700', cursor: 'pointer', alignSelf: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <RotateCcw size={13} /> Reset Filter
           </button>
         )}

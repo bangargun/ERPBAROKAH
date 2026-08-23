@@ -272,8 +272,6 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
     if (selectedBranch && selectedBranch !== 'ALL' && !String(selectedBranch).includes('Konsolidasi')) {
       if (String(r.outlet_id) !== String(selectedBranch)) return false;
     }
-    if (selectedYear && !r.date.startsWith(selectedYear)) return false;
-    if (periodViewMode === 'daily' && selectedMonth && r.date.substring(5, 7) !== selectedMonth) return false;
     if (startDate && r.date < startDate) return false;
     if (endDate   && r.date > endDate)   return false;
     if (searchTerm.trim() && !r.name.toLowerCase().includes(searchTerm.toLowerCase().trim())) return false;
@@ -281,9 +279,9 @@ export default function IngredientPriceComparisonPage({ masterData, selectedBran
   });
 
   const filteredIngredients = useMemo(() => applyFilters(allIngredientRecords),
-    [allIngredientRecords, selectedBranch, selectedYear, selectedMonth, periodViewMode, startDate, endDate, searchTerm]);
+    [allIngredientRecords, selectedBranch, startDate, endDate, searchTerm]);
   const filteredExpenses = useMemo(() => applyFilters(allExpenseRecords),
-    [allExpenseRecords, selectedBranch, selectedYear, selectedMonth, periodViewMode, startDate, endDate, searchTerm]);
+    [allExpenseRecords, selectedBranch, startDate, endDate, searchTerm]);
 
   const markMinMax = (infoMap) => {
     const vals = Object.values(infoMap).map(o => o.value).filter(v => v > 0);
