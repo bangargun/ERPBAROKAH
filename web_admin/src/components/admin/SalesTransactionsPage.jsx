@@ -3846,6 +3846,24 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
     printWindow.document.close();
   };
 
+  const handleToggleRcptOutlet = (idVal) => {
+    if (idVal === 'ALL') {
+      setRcptSelectedOutletIds(['ALL']);
+    } else {
+      let updated = rcptSelectedOutletIds.filter(id => id !== 'ALL');
+      if (updated.includes(idVal)) {
+        updated = updated.filter(id => id !== idVal);
+      } else {
+        updated.push(idVal);
+      }
+      if (updated.length === 0) updated = ['ALL'];
+      setRcptSelectedOutletIds(updated);
+    }
+  };
+
+  const handleToggleRcptColumn = (colKey) => {
+    setRcptVisibleColumns(prev => ({ ...prev, [colKey]: !prev[colKey] }));
+  };
 
   // -------------------------------------------------------------
   // MONTHLY COMPARISON / MoM GROWTH LOGIC (SUB-TAB 9)
