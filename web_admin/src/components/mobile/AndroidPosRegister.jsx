@@ -3586,9 +3586,41 @@ export default function AndroidPosRegister({
           {/* TAHAP 1: GRID THUMBNAIL PILIH OUTLET */}
           {loginStep === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <label style={{ fontSize: '0.86rem', fontWeight: '900', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>LANGKAH 1: Pilih Outlet Cabang</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '0.86rem', fontWeight: '900', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>LANGKAH 1: Pilih Outlet Cabang</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetch(getApiUrl('/api/master-data'), { cache: 'no-store' })
+                      .then(r => r.ok ? r.json() : null)
+                      .then(data => {
+                        if (data && typeof data === 'object' && Array.isArray(data.outlets)) {
+                          setMasterData(prev => ({ ...prev, ...data, outlets: data.outlets }));
+                        }
+                      })
+                      .catch(() => {});
+                  }}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    color: '#10b981',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.72rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Klik untuk menyinkronkan daftar cabang outlet terbaru dari server"
+                >
+                  <RefreshCw size={12} />
+                  <span>Sync Outlet Server</span>
+                </button>
+              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', maxHeight: '320px', overflowY: 'auto', paddingRight: '4px' }}>
                 {availableOutlets.map(o => {

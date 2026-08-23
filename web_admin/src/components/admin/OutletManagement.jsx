@@ -233,6 +233,17 @@ export default function OutletManagement({ masterData, setMasterData, userSessio
     setMasterData(updated);
     setShowAddModal(false);
     setEditingOutlet(null);
+
+    // Langsung push ke server VPS MySQL secara eksplisit
+    try {
+      fetch(getApiUrl('/api/master-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(err => console.warn('Failed to push outlet to server:', err));
+    } catch (e) {
+      console.warn('Push error:', e);
+    }
   };
 
   // Delete Outlet (Delete Guard)
@@ -252,9 +263,25 @@ export default function OutletManagement({ masterData, setMasterData, userSessio
       const updated = {
         ...masterData,
         _lastUpdated: Date.now(),
-        outlets: (masterData?.outlets || []).filter(o => o.id !== id)
+        outlets: (masterData?.outlets || []).filter(o => o.id !== id),
+        deletedOutletIds: [...(masterData?.deletedOutletIds || []), String(id)]
       };
       setMasterData(updated);
+
+      try {
+        fetch(getApiUrl('/api/master-data'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated)
+        }).catch(err => console.warn('Failed to delete outlet on server:', err));
+
+        fetch(getApiUrl('/api/master-data/delete-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemType: 'outlets', itemId: id })
+        }).catch(err => console.warn('Failed to delete outlet tombstone:', err));
+      } catch (e) {}
+
       alert(`Outlet "${outletName}" berhasil dihapus.`);
     }
   };
