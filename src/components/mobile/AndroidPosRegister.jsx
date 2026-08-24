@@ -719,6 +719,13 @@ export default function AndroidPosRegister({
 
   const [showAddManualReportModal, setShowAddManualReportModal] = useState(false);
   const [previewManualReport, setPreviewManualReport] = useState(null);
+
+  // Daily Report WhatsApp & Download States
+  const [showDailyReportWhatsAppModal, setShowDailyReportWhatsAppModal] = useState(false);
+  const [whatsAppReportData, setWhatsAppReportData] = useState(null);
+  const [targetWhatsAppPhone, setTargetWhatsAppPhone] = useState('');
+  const [customWhatsAppPhone, setCustomWhatsAppPhone] = useState('');
+  const [isCopiedWhatsApp, setIsCopiedWhatsApp] = useState(false);
   
   // Mobile Report Password Protection States
   const [isMobileReportUnlocked, setIsMobileReportUnlocked] = useState(false);
@@ -2619,6 +2626,327 @@ export default function AndroidPosRegister({
 
     return totalMasuk;
   }, [masterData]);
+
+  // HANDLER: DOWNLOAD LAPORAN HARIAN (PDF / PRINT VIEW)
+  const handleDownloadDailyReportPdf = useCallback((report) => {
+    if (!report) return;
+    const rDate = report.date || new Date().toISOString().split('T')[0];
+    const rNo = report.report_no || report.id || `LAP-${rDate}`;
+    const rOutlet = report.branch_name || report.outlet_name || currentOutlet.name || 'Outlet Barokah';
+    const rAuthor = report.author_name || report.cashier_name || userSession?.name || 'Kasir';
+    const netSales = Number(report.net_sales || 0);
+    const cashSales = Number(report.cash_sales || 0);
+    const nonCashSales = Number(report.non_cash_sales || 0);
+    const salesDiscount = Number(report.sales_discount || 0);
+    const totalExpense = Number(report.total_expense || 0);
+    const cogsExpense = Number(report.cogs_expense || 0);
+    const cashPhysical = Number(report.cash_physical || report.actual_cash || 0);
+    const grossProfit = Number(report.gross_profit || (netSales - totalExpense));
+    const expenseRows = Array.isArray(report.expense_rows) ? report.expense_rows : [];
+
+    const printWin = window.open('', '_blank', 'width=850,height=900');
+    if (!printWin) {
+      alert('Popup diblokir browser. Harap izinkan popup untuk mencetak laporan.');
+      return;
+    }
+
+    printWin.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Laporan Harian POS - ${rNo}</title>
+          <style>
+            @page { size: A4; margin: 15mm; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #0f172a; margin: 0; padding: 20px; font-size: 12px; }
+            .header { border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+            .title { font-size: 18px; font-weight: 900; color: #0f172a; text-transform: uppercase; }
+            .sub-title { font-size: 12px; color: #475569; margin-top: 3px; }
+            .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
+            .meta-item { display: flex; flex-direction: column; }
+            .meta-label { font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; }
+            .meta-val { font-size: 12px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+            .section-title { font-size: 13px; font-weight: 800; color: #1e4a7c; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 4px; margin: 16px 0 8px 0; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+            th { background: #f1f5f9; padding: 8px 10px; font-weight: 800; font-size: 11px; text-align: left; border: 1px solid #cbd5e1; }
+            td { padding: 8px 10px; border: 1px solid #e2e8f0; font-size: 11px; }
+            .text-right { text-align: right; }
+            .text-center { text-align: center; }
+            .font-bold { font-weight: 800; }
+            .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+            .kpi-box { padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; }
+            .kpi-title { font-size: 11px; color: #475569; font-weight: 700; }
+            .kpi-amount { font-size: 16px; font-weight: 900; margin-top: 4px; }
+            .sig-section { display: grid; grid-template-columns: 1fr 1fr; margin-top: 30px; padding-top: 10px; }
+            .sig-box { text-align: center; }
+            .sig-space { height: 60px; }
+            @media print {
+              body { padding: 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div class="title">BAROKAH GROUP — LAPORAN HARIAN KASIR</div>
+                <div class="sub-title">${rOutlet} • Rekapitulasi Penjualan, Pengeluaran & Fisik Kas</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-weight: 900; font-size: 13px; color: #1e4a7c;">${rNo}</div>
+                <div style="font-size: 10px; color: #64748b;">Tanggal Cetak: ${new Date().toLocaleString('id-ID')}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Tanggal Laporan</span>
+              <span class="meta-val">${rDate}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Outlet Cabang</span>
+              <span class="meta-val">${rOutlet}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Kasir / Pembuat</span>
+              <span class="meta-val">${rAuthor}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Status Verifikasi</span>
+              <span class="meta-val" style="color: ${report.status === 'approved' ? '#059669' : '#d97706'};">${report.status || 'Pending'}</span>
+            </div>
+          </div>
+
+          <div class="kpi-row">
+            <div class="kpi-box" style="border-left: 4px solid #0284c7;">
+              <div class="kpi-title">TOTAL PENJUALAN BERSIH</div>
+              <div class="kpi-amount" style="color: #0284c7;">Rp ${netSales.toLocaleString('id-ID')}</div>
+            </div>
+            <div class="kpi-box" style="border-left: 4px solid #e11d48;">
+              <div class="kpi-title">TOTAL PENGELUARAN (HPP & BIAYA)</div>
+              <div class="kpi-amount" style="color: #e11d48;">Rp ${totalExpense.toLocaleString('id-ID')}</div>
+            </div>
+            <div class="kpi-box" style="border-left: 4px solid #059669;">
+              <div class="kpi-title">UANG FISIK KAS DI LACI</div>
+              <div class="kpi-amount" style="color: #059669;">Rp ${cashPhysical.toLocaleString('id-ID')}</div>
+            </div>
+          </div>
+
+          <div class="section-title">1. RINCIAN PENDAPATAN & PENJUALAN</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Komponen Penjualan</th>
+                <th>Keterangan / Kanal Pembayaran</th>
+                <th class="text-right" style="width: 150px;">Nominal (IDR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-bold">Penjualan Kas Tunai (Cash)</td>
+                <td>Uang tunai diterima kasir dari pelanggan</td>
+                <td class="text-right font-bold" style="color: #059669;">Rp ${cashSales.toLocaleString('id-ID')}</td>
+              </tr>
+              <tr>
+                <td class="font-bold">Penjualan Non-Tunai</td>
+                <td>QRIS, Debit, EDC, & Transfer Bank</td>
+                <td class="text-right font-bold" style="color: #6366f1;">Rp ${nonCashSales.toLocaleString('id-ID')}</td>
+              </tr>
+              <tr>
+                <td class="font-bold">Diskon & Potongan Penjualan</td>
+                <td>Promo & voucher belanja pelanggan</td>
+                <td class="text-right font-bold" style="color: #e11d48;">- Rp ${salesDiscount.toLocaleString('id-ID')}</td>
+              </tr>
+              <tr style="background: #f8fafc;">
+                <td class="font-bold" colspan="2">TOTAL PENJUALAN BERSIH (NET SALES)</td>
+                <td class="text-right font-bold" style="color: #0284c7; font-size: 13px;">Rp ${netSales.toLocaleString('id-ID')}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="section-title">2. RINCIAN PENGELUARAN (HPP BAHAN BAKU & OPERASIONAL)</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 30px;">No</th>
+                <th>Nama Bahan Baku / Jenis Biaya</th>
+                <th>Kategori</th>
+                <th class="text-center" style="width: 60px;">Qty</th>
+                <th class="text-center" style="width: 60px;">Satuan</th>
+                <th class="text-right" style="width: 110px;">Harga Satuan</th>
+                <th class="text-right" style="width: 120px;">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${expenseRows.length === 0 ? `
+                <tr>
+                  <td colspan="7" class="text-center" style="color: #64748b; padding: 12px;">Tidak ada rincian baris pengeluaran.</td>
+                </tr>
+              ` : expenseRows.map((r, i) => `
+                <tr>
+                  <td class="text-center">${i + 1}</td>
+                  <td class="font-bold">${r.item_name || r.name || '-'}</td>
+                  <td>${r.category_type || 'Biaya'}</td>
+                  <td class="text-center font-bold">${r.qty || 1}</td>
+                  <td class="text-center">${r.unit || '-'}</td>
+                  <td class="text-right">Rp ${(Number(r.price_per_unit || r.price || 0)).toLocaleString('id-ID')}</td>
+                  <td class="text-right font-bold" style="color: #e11d48;">Rp ${(Number(r.subtotal || r.amount || 0)).toLocaleString('id-ID')}</td>
+                </tr>
+              `).join('')}
+              <tr style="background: #f8fafc;">
+                <td class="font-bold" colspan="6">TOTAL PENGELUARAN</td>
+                <td class="text-right font-bold" style="color: #e11d48; font-size: 13px;">Rp ${totalExpense.toLocaleString('id-ID')}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="sig-section">
+            <div class="sig-box">
+              <div>Dibuat Oleh (Kasir / Staff):</div>
+              <div class="sig-space"></div>
+              <div style="font-weight: 800; text-decoration: underline;">${rAuthor}</div>
+              <div style="font-size: 10px; color: #64748b;">Kasir Operasional</div>
+            </div>
+            <div class="sig-box">
+              <div>Disetujui Oleh (Supervisor / Owner):</div>
+              <div class="sig-space"></div>
+              <div style="font-weight: 800; text-decoration: underline;">( .................................... )</div>
+              <div style="font-size: 10px; color: #64748b;">Manajemen / Owner Barokah</div>
+            </div>
+          </div>
+
+          <script>
+            window.onload = function() { window.print(); };
+          </script>
+        </body>
+      </html>
+    `);
+    printWin.document.close();
+  }, [currentOutlet, userSession]);
+
+  // HANDLER: DOWNLOAD CSV LAPORAN HARIAN
+  const handleDownloadDailyReportCsv = useCallback((report) => {
+    if (!report) return;
+    const rDate = report.date || new Date().toISOString().split('T')[0];
+    const rNo = report.report_no || report.id || `LAP-${rDate}`;
+    const rOutlet = report.branch_name || report.outlet_name || currentOutlet.name || 'Outlet Barokah';
+    const rAuthor = report.author_name || report.cashier_name || userSession?.name || 'Kasir';
+    const expenseRows = Array.isArray(report.expense_rows) ? report.expense_rows : [];
+
+    let csv = `LAPORAN HARIAN POS KASIR - BAROKAH GROUP\n`;
+    csv += `No Laporan,${rNo}\n`;
+    csv += `Tanggal,${rDate}\n`;
+    csv += `Outlet Cabang,${rOutlet}\n`;
+    csv += `Pembuat (Kasir),${rAuthor}\n`;
+    csv += `Status,${report.status || 'Pending'}\n\n`;
+
+    csv += `RINGKASAN KEUANGAN\n`;
+    csv += `Penjualan Tunai (Cash),${Number(report.cash_sales || 0)}\n`;
+    csv += `Penjualan Non-Tunai,${Number(report.non_cash_sales || 0)}\n`;
+    csv += `Diskon Penjualan,${Number(report.sales_discount || 0)}\n`;
+    csv += `Total Penjualan Bersih (Net Sales),${Number(report.net_sales || 0)}\n`;
+    csv += `Total Pengeluaran,${Number(report.total_expense || 0)}\n`;
+    csv += `HPP Bahan Baku,${Number(report.cogs_expense || 0)}\n`;
+    csv += `Laba Kotor,${Number(report.gross_profit || 0)}\n`;
+    csv += `Uang Fisik Kas di Laci,${Number(report.cash_physical || 0)}\n\n`;
+
+    csv += `RINCIAN PENGELUARAN\n`;
+    csv += `No,Nama Item / Bahan,Kategori,Qty,Satuan,Harga Satuan,Subtotal\n`;
+    expenseRows.forEach((r, idx) => {
+      csv += `${idx + 1},"${r.item_name || r.name || ''}","${r.category_type || ''}",${r.qty || 1},"${r.unit || ''}",${Number(r.price_per_unit || 0)},${Number(r.subtotal || 0)}\n`;
+    });
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Laporan_Harian_${rOutlet.replace(/\s+/g, '_')}_${rDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [currentOutlet, userSession]);
+
+  // HANDLER: BUKA MODAL WHATSAPP SUMMARY
+  const handleOpenWhatsAppModal = useCallback((report) => {
+    if (!report) return;
+    const defaultOwnerPhone = masterData?.settings?.ownerWaPhone || '6281234567890';
+    setWhatsAppReportData(report);
+    setTargetWhatsAppPhone(defaultOwnerPhone);
+    setCustomWhatsAppPhone('');
+    setIsCopiedWhatsApp(false);
+    setShowDailyReportWhatsAppModal(true);
+  }, [masterData]);
+
+  // BUILDER: TEKS WHATSAPP LAPORAN HARIAN
+  const buildDailyReportWhatsAppText = useCallback((report) => {
+    if (!report) return '';
+    const rDate = report.date || new Date().toISOString().split('T')[0];
+    const rNo = report.report_no || report.id || `LAP-${rDate}`;
+    const rOutlet = report.branch_name || report.outlet_name || currentOutlet.name || 'Outlet Barokah';
+    const rAuthor = report.author_name || report.cashier_name || userSession?.name || 'Kasir';
+    const netSales = Number(report.net_sales || 0);
+    const cashSales = Number(report.cash_sales || 0);
+    const nonCashSales = Number(report.non_cash_sales || 0);
+    const salesDiscount = Number(report.sales_discount || 0);
+    const totalExpense = Number(report.total_expense || 0);
+    const cogsExpense = Number(report.cogs_expense || 0);
+    const cashPhysical = Number(report.cash_physical || report.actual_cash || 0);
+    const grossProfit = Number(report.gross_profit || (netSales - totalExpense));
+    const expenseRows = Array.isArray(report.expense_rows) ? report.expense_rows : [];
+
+    let msg = `📊 *LAPORAN HARIAN KASIR POS — BAROKAH GROUP*\n`;
+    msg += `🏢 *Cabang:* ${rOutlet}\n`;
+    msg += `📅 *Tanggal Shift:* ${rDate}\n`;
+    msg += `👤 *Kasir / Penginput:* ${rAuthor}\n`;
+    msg += `🧾 *Nomor Laporan:* ${rNo}\n\n`;
+
+    msg += `💰 *RINGKASAN PENDAPATAN:*\n`;
+    msg += `• 💵 *Penjualan Tunai (Cash):* Rp ${cashSales.toLocaleString('id-ID')}\n`;
+    msg += `• 📱 *Penjualan Non-Tunai (QRIS/EDC):* Rp ${nonCashSales.toLocaleString('id-ID')}\n`;
+    if (salesDiscount > 0) {
+      msg += `• 🏷️ *Diskon / Potongan:* - Rp ${salesDiscount.toLocaleString('id-ID')}\n`;
+    }
+    msg += `• 📈 *Total Penjualan Bersih (Net Sales):* Rp ${netSales.toLocaleString('id-ID')}\n\n`;
+
+    msg += `💸 *PENGELUARAN & OPERASIONAL:*\n`;
+    msg += `• 🛒 *Total Pengeluaran:* Rp ${totalExpense.toLocaleString('id-ID')}\n`;
+    if (cogsExpense > 0) {
+      msg += `• 🥦 *Belanja HPP Bahan Baku:* Rp ${cogsExpense.toLocaleString('id-ID')}\n`;
+    }
+    msg += `• 📊 *Estimasi Laba Kotor:* Rp ${grossProfit.toLocaleString('id-ID')}\n\n`;
+
+    if (expenseRows.length > 0) {
+      msg += `📋 *Rincian Belanja Bahan / Biaya:*\n`;
+      expenseRows.slice(0, 5).forEach((r, idx) => {
+        msg += `  ${idx + 1}. ${r.item_name || r.name} (${r.qty || 1} ${r.unit || ''}) = Rp ${Number(r.subtotal || r.amount || 0).toLocaleString('id-ID')}\n`;
+      });
+      if (expenseRows.length > 5) {
+        msg += `  _... dan ${expenseRows.length - 5} item lainnya_\n`;
+      }
+      msg += `\n`;
+    }
+
+    msg += `💵 *UANG FISIK KAS DI LACI:* Rp ${cashPhysical.toLocaleString('id-ID')}\n`;
+    msg += `📌 *Status Approval:* ${report.status === 'approved' ? '✅ APPROVED' : '⏳ PENDING (Menunggu Persetujuan)'}\n\n`;
+    msg += `_Laporan otomatis dari POS Kasir Mobile Barokah Group_`;
+
+    return msg;
+  }, [currentOutlet, userSession]);
+
+  // HANDLER: KIRIM PESAN KE WHATSAPP
+  const handleSendDailyReportWhatsApp = useCallback(() => {
+    if (!whatsAppReportData) return;
+    const phone = (customWhatsAppPhone || targetWhatsAppPhone || '').replace(/\D/g, '');
+    if (!phone) {
+      alert('Harap masukkan nomor WhatsApp tujuan.');
+      return;
+    }
+    const cleanPhone = phone.startsWith('0') ? '62' + phone.slice(1) : (phone.startsWith('62') ? phone : '62' + phone);
+    const text = buildDailyReportWhatsAppText(whatsAppReportData);
+    const encoded = encodeURIComponent(text);
+    window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`, '_blank');
+  }, [whatsAppReportData, customWhatsAppPhone, targetWhatsAppPhone, buildDailyReportWhatsAppText]);
 
   const getTransferStokMasuk = useCallback((ingName, targetDate, targetOutletId) => {
     if (!ingName) return 0;
@@ -6566,49 +6894,91 @@ export default function AndroidPosRegister({
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      // Gunakan HANYA data nyata dari masterData — tidak ada fallback fake/mock
-                      const ingredientsList = masterData.ingredients || [];
-                      const expenseMasterList = masterData.expenseMaster || [];
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rawReports = [
+                          ...(masterData?.approvedFinanceDaily || []),
+                          ...(masterData?.manualEntryRecords || [])
+                        ];
+                        if (rawReports.length > 0) {
+                          handleDownloadDailyReportCsv(rawReports[0]);
+                        } else {
+                          alert('Belum ada data laporan harian.');
+                        }
+                      }}
+                      style={{ padding: '9px 14px', background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', borderRadius: '10px', fontWeight: '900', fontSize: '0.80rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      title="Download rekap laporan harian dalam format CSV (Excel)"
+                    >
+                      <Download size={15} />
+                      <span>Download CSV</span>
+                    </button>
 
-                      const masterIngs = (masterData.ingredients || []).map(ing => ({
-                        id: `ing-${ing.id}`, name: ing.name, item_type: 'Bahan Baku',
-                        category: 'HPP Dapur (Bahan Mentah)', unit: ing.unit || 'kg',
-                        cost: ing.cost || ing.price || 0
-                      }));
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rawReports = [
+                          ...(masterData?.approvedFinanceDaily || []),
+                          ...(masterData?.manualEntryRecords || [])
+                        ];
+                        if (rawReports.length > 0) {
+                          handleOpenWhatsAppModal(rawReports[0]);
+                        } else {
+                          alert('Belum ada data laporan harian untuk dikirim ke WhatsApp.');
+                        }
+                      }}
+                      style={{ padding: '9px 14px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.80rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(5,150,105,0.3)' }}
+                      title="Kirim ringkasan laporan harian ke WhatsApp Owner / Supervisor"
+                    >
+                      <Send size={15} />
+                      <span>Kirim ke WhatsApp</span>
+                    </button>
 
-                      const masterAccs = (masterData.chartOfAccounts || masterData.expenseMaster || masterData.accounts || []).map(acc => ({
-                        id: `acc-${acc.id}`, name: acc.name || acc.account_name,
-                        item_type: 'Biaya Operasional',
-                        category: acc.category || acc.account_type || acc.type || 'Biaya Operasional (OPEX)',
-                        unit: 'paket', cost: acc.amount || acc.cost || 0
-                      }));
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const todayStr = now.toLocaleDateString('en-CA');
 
-                      setManualRepDate(todayStr);
-                      setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
-                      setManualRepOutletId(currentOutlet.id || 1);
-                      setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || userSession?.name || '');
-                      // Hitung hanya dari transaksi tanggal hari ini (bukan total akumulatif)
-                      const initSales = getSalesForDate(todayStr);
-                      setManualRepNetSales(initSales.cash);
-                      setManualRepNonCash(initSales.nonCash);
+                        // Cek apakah akun penginput memiliki nomor rekening
+                        const currentAuthor = masterData?.currentUser || masterData?.user || {};
+                        const authorAccounts = Array.isArray(currentAuthor?.bank_accounts) ? currentAuthor.bank_accounts : [];
+                        const debtRefundRows = authorAccounts.map((acc, idx) => ({
+                          id: Date.now() + idx,
+                          account_name: acc.account_name || acc.name || 'Kasir',
+                          bank_name: acc.bank_name || acc.bank || 'BCA',
+                          account_number: acc.account_number || acc.no_rek || '-',
+                          item_name: `Pengembalian Modal Awal - ${acc.bank_name || 'BCA'}`,
+                          amount_returned: 0,
+                          returnAmount: 0,
+                          notes: `Pelunasan modal kasir via ${acc.bank_name || 'Bank'}`,
+                          unit: 'paket', cost: acc.amount || acc.cost || 0
+                        }));
 
-                      setManualRepDebtPayment(0);
-                      setManualCogsRows([]);
-                      setManualExpenseRows([]);
-                      setManualCogsSearch('');
-                      setManualExpenseSearch('');
-                      setManualRepStatus('pending');
-                      setManualRepNotes('Laporan harian shift kasir');
-                      setShowAddManualReportModal(true);
-                    }}
-                    style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(99,102,241,0.35)' }}
-                  >
-                    <span>+ Tambahkan Input Manual</span>
-                  </button>
+                        setManualRepDate(todayStr);
+                        setManualRepNo(`LAP-${todayStr.replace(/-/g,'')}-${Math.floor(100 + Math.random() * 900)}`);
+                        setManualRepOutletId(currentOutlet.id || 1);
+                        setManualRepAuthor(masterData?.currentUser?.name || masterData?.user?.name || userSession?.name || '');
+                        // Hitung hanya dari transaksi tanggal hari ini (bukan total akumulatif)
+                        const initSales = getSalesForDate(todayStr);
+                        setManualRepNetSales(initSales.cash);
+                        setManualRepNonCash(initSales.nonCash);
+
+                        setManualRepDebtPayment(0);
+                        setManualCogsRows([]);
+                        setManualExpenseRows([]);
+                        setManualCogsSearch('');
+                        setManualExpenseSearch('');
+                        setManualRepStatus('pending');
+                        setManualRepNotes('Laporan harian shift kasir');
+                        setShowAddManualReportModal(true);
+                      }}
+                      style={{ padding: '9px 16px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'var(--pos-txt-white)', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '0.80rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(99,102,241,0.35)' }}
+                    >
+                      <span>+ Tambahkan Input Manual</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* TABEL HISTORI LAPORAN HARIAN (TANGGAL, NOMOR LAPORAN, STATUS PENDING / APPROVED) */}
@@ -6624,11 +6994,11 @@ export default function AndroidPosRegister({
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.80rem' }}>
                       <thead>
                         <tr style={{ background: 'var(--pos-bg-app)', color: 'var(--pos-txt-secondary)', borderBottom: '2px solid #334155', textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: '800' }}>
-                          <th style={{ padding: '12px 16px', width: '180px' }}>TANGGAL</th>
+                          <th style={{ padding: '12px 16px', width: '160px' }}>TANGGAL</th>
                           <th style={{ padding: '12px 16px' }}>NO LAPORAN</th>
-                          <th style={{ padding: '12px 16px', width: '150px' }}>PENGAJU</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'center', width: '140px' }}>STATUS</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'right', width: '140px' }}>AKSI</th>
+                          <th style={{ padding: '12px 16px', width: '130px' }}>PENGAJU</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', width: '100px' }}>STATUS</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'right', width: '240px' }}>AKSI</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -6737,13 +7107,34 @@ export default function AndroidPosRegister({
 
                                 {/* 5. AKSI */}
                                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setPreviewManualReport(item)}
-                                    style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', cursor: 'pointer' }}
-                                  >
-                                    Pratinjau
-                                  </button>
+                                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewManualReport(item)}
+                                      style={{ padding: '6px 10px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                                      title="Lihat Rincian Laporan"
+                                    >
+                                      Pratinjau
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDownloadDailyReportPdf(item)}
+                                      style={{ padding: '6px 10px', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', color: '#38bdf8', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                      title="Cetak / Download PDF Laporan"
+                                    >
+                                      <Download size={13} />
+                                      <span>PDF</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenWhatsAppModal(item)}
+                                      style={{ padding: '6px 10px', background: 'rgba(5,150,105,0.2)', border: '1px solid rgba(5,150,105,0.4)', color: '#34d399', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                      title="Kirim Laporan ke WhatsApp"
+                                    >
+                                      <Send size={13} />
+                                      <span>WA</span>
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -13486,7 +13877,70 @@ export default function AndroidPosRegister({
               </div>
             </div>
 
-            <button onClick={() => setPreviewManualReport(null)} style={{ padding: '12px', background: 'var(--pos-border-card)', color: 'var(--pos-txt-primary)', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer' }}>
+            {/* Action Buttons: Cetak PDF, CSV, WhatsApp, Tutup */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => handleDownloadDailyReportPdf(previewManualReport)}
+                style={{
+                  padding: '10px 14px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid #38bdf8',
+                  color: '#38bdf8',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Download size={16} />
+                <span>Cetak / PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleOpenWhatsAppModal(previewManualReport);
+                  setPreviewManualReport(null);
+                }}
+                style={{
+                  padding: '10px 14px',
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(5,150,105,0.3)'
+                }}
+              >
+                <Send size={16} />
+                <span>Kirim WhatsApp</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setPreviewManualReport(null)}
+              style={{
+                padding: '11px',
+                background: 'var(--pos-border-card)',
+                color: 'var(--pos-txt-primary)',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: '800',
+                fontSize: '0.82rem',
+                cursor: 'pointer'
+              }}
+            >
               Tutup Pratinjau
             </button>
           </div>
@@ -15775,6 +16229,193 @@ export default function AndroidPosRegister({
           {printStatus === 'success_pdf' && <span style={{ fontSize: '1.2rem' }}></span>}
           {printStatus === 'error'       && <span style={{ fontSize: '1.2rem' }}></span>}
           <span>{printStatusMsg}</span>
+        </div>
+      )}
+
+      {/* ── MODAL KIRIM LAPORAN HARIAN KE WHATSAPP ── */}
+      {showDailyReportWhatsAppModal && whatsAppReportData && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px'
+        }}>
+          <div className="glass-card animate-fade-in" style={{
+            width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto',
+            padding: '24px', background: 'var(--pos-bg-card)', borderRadius: '18px',
+            border: '1.5px solid #059669', boxShadow: '0 10px 30px rgba(5,150,105,0.3)',
+            display: 'flex', flexDirection: 'column', gap: '16px'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--pos-border)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Send size={18} color="#ffffff" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--pos-txt-primary)', margin: 0 }}>
+                    Kirim Laporan Harian ke WhatsApp
+                  </h3>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--pos-txt-secondary)' }}>
+                    {whatsAppReportData.branch_name || currentOutlet.name} • {whatsAppReportData.date}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDailyReportWhatsAppModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--pos-txt-secondary)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Nomor WhatsApp Tujuan */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
+                Nomor WhatsApp Tujuan:
+              </label>
+              
+              {/* Opsi Preset Nomor */}
+              {Array.isArray(masterData?.settings?.ownerPhones) && masterData.settings.ownerPhones.length > 0 ? (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {masterData.settings.ownerPhones.map((ph, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setTargetWhatsAppPhone(ph.phone);
+                        setCustomWhatsAppPhone(ph.phone);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.75rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        background: (customWhatsAppPhone || targetWhatsAppPhone) === ph.phone ? 'rgba(5,150,105,0.2)' : 'var(--pos-bg-app)',
+                        border: `1px solid ${(customWhatsAppPhone || targetWhatsAppPhone) === ph.phone ? '#059669' : 'var(--pos-border-card)'}`,
+                        color: (customWhatsAppPhone || targetWhatsAppPhone) === ph.phone ? '#34d399' : 'var(--pos-txt-secondary)'
+                      }}
+                    >
+                      {ph.label || 'Owner'}: {ph.phone}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Input Nomor Manual */}
+              <input
+                type="text"
+                placeholder="Contoh: 081234567890 / 6281234567890"
+                value={customWhatsAppPhone || targetWhatsAppPhone}
+                onChange={e => {
+                  setCustomWhatsAppPhone(e.target.value);
+                  setTargetWhatsAppPhone(e.target.value);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  background: 'var(--pos-bg-app)',
+                  border: '1px solid #059669',
+                  borderRadius: '10px',
+                  color: 'var(--pos-txt-primary)',
+                  fontWeight: '800',
+                  fontSize: '0.85rem'
+                }}
+              />
+            </div>
+
+            {/* Pratinjau Teks WhatsApp */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'var(--pos-txt-primary)' }}>
+                  Pratinjau Format Pesan:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = buildDailyReportWhatsAppText(whatsAppReportData);
+                    navigator.clipboard.writeText(text);
+                    setIsCopiedWhatsApp(true);
+                    setTimeout(() => setIsCopiedWhatsApp(false), 2500);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: isCopiedWhatsApp ? '#34d399' : '#38bdf8',
+                    fontSize: '0.75rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Copy size={13} />
+                  <span>{isCopiedWhatsApp ? 'Tersalin!' : 'Salin Teks'}</span>
+                </button>
+              </div>
+
+              <pre style={{
+                background: 'var(--pos-bg-app)',
+                padding: '14px',
+                borderRadius: '10px',
+                border: '1px solid var(--pos-border-card)',
+                color: 'var(--pos-txt-secondary)',
+                fontSize: '0.75rem',
+                fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap',
+                maxHeight: '220px',
+                overflowY: 'auto',
+                lineHeight: 1.4,
+                margin: 0
+              }}>
+                {buildDailyReportWhatsAppText(whatsAppReportData)}
+              </pre>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowDailyReportWhatsAppModal(false)}
+                style={{
+                  padding: '12px',
+                  background: 'var(--pos-border-card)',
+                  color: 'var(--pos-txt-primary)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendDailyReportWhatsApp}
+                style={{
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '900',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(5,150,105,0.4)'
+                }}
+              >
+                <Send size={16} />
+                <span>Buka WhatsApp & Kirim</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
