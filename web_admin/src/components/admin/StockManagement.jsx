@@ -2543,16 +2543,22 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
         )}
       </div>
 
-      {/* Sub-Tab Navigation Bar — 6 subtab rapi */}
-      <div style={{ background: T.cardBg2, padding: '8px', borderRadius: '16px', border: `1px solid ${T.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '6px' }}>
+      {/* Sub-Tab Navigation Bar — Enterprise Modern Segmented Bar */}
+      <div style={{
+        background: themeMode === 'soft_blue' ? 'rgba(234, 244, 255, 0.75)' : 'rgba(15, 23, 42, 0.65)',
+        padding: '6px',
+        borderRadius: '14px',
+        border: `1px solid ${themeMode === 'soft_blue' ? 'rgba(176, 204, 236, 0.6)' : 'rgba(51, 65, 85, 0.6)'}`,
+        boxShadow: themeMode === 'soft_blue' ? 'inset 0 1px 3px rgba(0,0,0,0.04)' : 'inset 0 1px 3px rgba(0,0,0,0.3)'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
           {[
-            { id: 'stok_masuk',        label: 'Stok Masuk',                         color: T.info },
-            { id: 'stok_keluar',       label: 'Stok Keluar',                        color: T.danger },
-            { id: 'transfer_stok',     label: 'Transfer Stok',                      color: T.accentGold },
-            { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',                 color: T.danger },
-            { id: 'stok_opname_system',label: 'Opname by Sistem (Auto Mutasi)',   color: T.info },
-            { id: 'stok_opname',       label: 'Audit Opname Fisik (POS Kasir)',     color: T.success }
+            { id: 'stok_masuk',        label: 'Stok Masuk',                         color: '#38bdf8' },
+            { id: 'stok_keluar',       label: 'Stok Keluar',                        color: '#f87171' },
+            { id: 'transfer_stok',     label: 'Transfer Stok',                      color: '#fbbf24' },
+            { id: 'stok_rusak',        label: 'Stok Rusak (Waste)',                 color: '#fb7185' },
+            { id: 'stok_opname_system',label: 'Opname by Sistem (Auto Mutasi)',   color: '#818cf8' },
+            { id: 'stok_opname',       label: 'Audit Opname Fisik (POS Kasir)',     color: '#34d399' }
           ].map(tab => {
             const isActive = activeSubTab === tab.id;
             return (
@@ -2572,19 +2578,32 @@ export default function StockManagement({ masterData, setMasterData, selectedBra
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  padding: '5px 8px',
-                  borderRadius: '8px',
-                  border: isActive ? `1.5px solid ${tab.color}` : `1px solid ${T.border}`,
-                  background: isActive ? `${tab.color}18` : T.cardBg,
-                  color: isActive ? tab.color : T.txtSecondary,
-                  fontWeight: isActive ? '800' : '600',
-                  fontSize: '0.72rem',
+                  padding: '9px 12px',
+                  borderRadius: '10px',
+                  border: isActive ? `1px solid ${tab.color}80` : '1px solid transparent',
+                  background: isActive
+                    ? (themeMode === 'soft_blue' ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : `linear-gradient(135deg, ${tab.color}25 0%, rgba(15, 23, 42, 0.95) 100%)`)
+                    : (themeMode === 'soft_blue' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(30, 41, 59, 0.4)'),
+                  color: isActive ? (themeMode === 'soft_blue' ? '#ffffff' : tab.color) : (themeMode === 'soft_blue' ? '#1e4a7c' : '#94a3b8'),
+                  fontWeight: isActive ? '900' : '700',
+                  fontSize: '0.74rem',
+                  letterSpacing: '-0.01em',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: isActive ? `0 3px 12px ${tab.color}30` : 'none'
+                  transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isActive
+                    ? (themeMode === 'soft_blue' ? '0 4px 14px rgba(13, 82, 149, 0.3)' : `0 4px 14px ${tab.color}30`)
+                    : 'none',
+                  transform: isActive ? 'scale(1.01)' : 'none'
                 }}
               >
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{tab.label}</span>
+                <div style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: isActive ? (themeMode === 'soft_blue' ? '#ffffff' : tab.color) : tab.color,
+                  boxShadow: isActive ? `0 0 8px ${tab.color}` : 'none'
+                }} />
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
               </button>
             );
           })}

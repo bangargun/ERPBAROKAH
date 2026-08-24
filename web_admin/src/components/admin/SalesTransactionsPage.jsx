@@ -4180,9 +4180,18 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
           </div>
         </div>
 
-        {/* 9 Sub-Tabs Navigation Grid (3 Baris x 3 Sub-Tab) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-          {analysisTabs.map(tab => {
+        {/* 9 Sub-Tabs Navigation Grid (3 Baris x 3 Sub-Tab) — Enterprise Executive Styling */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '8px',
+          background: isLight ? 'rgba(234, 244, 255, 0.7)' : 'rgba(15, 23, 42, 0.6)',
+          padding: '6px',
+          borderRadius: '14px',
+          border: `1px solid ${isLight ? 'rgba(176, 204, 236, 0.6)' : 'rgba(51, 65, 85, 0.6)'}`,
+          boxShadow: isLight ? 'inset 0 1px 3px rgba(0,0,0,0.04)' : 'inset 0 1px 3px rgba(0,0,0,0.3)'
+        }}>
+          {analysisTabs.map((tab, idx) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -4192,24 +4201,41 @@ export default function SalesTransactionsPage({ masterData, setMasterData, selec
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '5px 8px',
-                  borderRadius: '8px',
-                  border: '1px solid',
-                  borderColor: isActive ? T.accentGold : T.border,
-                  background: isActive ? T.navActiveBg : T.cardBg,
-                  color: isActive ? T.navActiveTxt : T.txtSecondary,
-                  fontWeight: isActive ? '800' : '600',
-                  fontSize: '0.72rem',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '10px',
+                  border: isActive ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid transparent',
+                  background: isActive
+                    ? (isLight ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)')
+                    : (isLight ? 'rgba(255, 255, 255, 0.6)' : 'rgba(30, 41, 59, 0.4)'),
+                  color: isActive ? '#ffffff' : (isLight ? '#1e4a7c' : '#94a3b8'),
+                  fontWeight: isActive ? '900' : '700',
+                  fontSize: '0.74rem',
+                  letterSpacing: '-0.01em',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis'
+                  textOverflow: 'ellipsis',
+                  boxShadow: isActive
+                    ? (isLight ? '0 4px 14px rgba(13, 82, 149, 0.35)' : '0 4px 14px rgba(56, 189, 248, 0.25)')
+                    : 'none',
+                  transform: isActive ? 'scale(1.01)' : 'none'
                 }}
               >
-                <Icon size={14} color={isActive ? `${T.info}` : T.txtMuted} />
-                <span>{tab.name}</span>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isActive ? 'rgba(255, 255, 255, 0.18)' : (isLight ? 'rgba(30, 74, 124, 0.08)' : 'rgba(255, 255, 255, 0.06)'),
+                  flexShrink: 0
+                }}>
+                  <Icon size={14} color={isActive ? '#ffffff' : (isLight ? '#1a6fc4' : '#38bdf8')} />
+                </div>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.name}</span>
               </button>
             );
           })}

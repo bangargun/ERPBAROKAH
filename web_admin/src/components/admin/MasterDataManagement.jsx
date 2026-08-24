@@ -140,20 +140,22 @@ export default function MasterDataManagement({ masterData, setMasterData, select
         </p>
       </div>
 
-      {/* Sticky Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) */}
+      {/* Sticky Sub-Tab Navigation Bar (2-Row Grid: 5 tabs per row) — Enterprise Executive Styling */}
       <div style={{
         position: 'sticky',
         top: '-20px',
         zIndex: 1000,
-        margin: '-20px -20px 12px -20px',
-        padding: '16px 20px 12px 20px',
-        background: T.pageBg,
-        borderBottom: `1.5px solid ${T.border}`,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        margin: '-20px -20px 14px -20px',
+        padding: '14px 20px 12px 20px',
+        background: themeMode === 'soft_blue' ? 'rgba(240, 246, 255, 0.96)' : 'rgba(11, 15, 25, 0.96)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        borderBottom: `1px solid ${T.border}`,
+        boxShadow: themeMode === 'soft_blue' ? '0 6px 20px -4px rgba(0,0,0,0.06)' : '0 6px 20px -4px rgba(0,0,0,0.4)',
         display: 'grid',
         gridTemplateColumns: 'repeat(5, 1fr)',
         gap: '8px',
-        transition: 'background 0.25s ease'
+        transition: 'all 0.25s ease'
       }}>
         {subTabs.map(tab => {
           const Icon = tab.icon;
@@ -166,31 +168,49 @@ export default function MasterDataManagement({ masterData, setMasterData, select
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '6px',
-                padding: '5px 8px',
-                borderRadius: '8px',
-                border: '1px solid',
-                borderColor: isActive ? T.accentGold : T.border,
-                background: isActive ? T.navActiveBg : T.cardBg,
-                color: isActive ? T.navActiveTxt : T.txtSecondary,
-                fontWeight: isActive ? '800' : '600',
-                fontSize: '0.72rem',
+                gap: '8px',
+                padding: '8px 12px',
+                borderRadius: '10px',
+                border: isActive ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid transparent',
+                background: isActive
+                  ? (themeMode === 'soft_blue' ? 'linear-gradient(135deg, #1a6fc4 0%, #0d5295 100%)' : 'linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%)')
+                  : (themeMode === 'soft_blue' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(30, 41, 59, 0.4)'),
+                color: isActive ? '#ffffff' : (themeMode === 'soft_blue' ? '#1e4a7c' : '#94a3b8'),
+                fontWeight: isActive ? '900' : '700',
+                fontSize: '0.74rem',
+                letterSpacing: '-0.01em',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: isActive ? T.navActiveShadow : 'none'
+                transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: isActive
+                  ? (themeMode === 'soft_blue' ? '0 4px 14px rgba(13, 82, 149, 0.3)' : '0 4px 14px rgba(56, 189, 248, 0.25)')
+                  : 'none',
+                transform: isActive ? 'scale(1.01)' : 'none'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                <Icon size={13} color={isActive ? T.navActiveTxt : T.txtMuted} />
-                <span>{tab.name}</span>
+                <div style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isActive ? 'rgba(255, 255, 255, 0.18)' : (themeMode === 'soft_blue' ? 'rgba(30, 74, 124, 0.08)' : 'rgba(255, 255, 255, 0.06)'),
+                  flexShrink: 0
+                }}>
+                  <Icon size={13} color={isActive ? '#ffffff' : (themeMode === 'soft_blue' ? '#1a6fc4' : '#38bdf8')} />
+                </div>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.name}</span>
               </div>
               <span style={{
-                background: isActive ? 'rgba(255,255,255,0.25)' : T.cardBg2,
-                color: isActive ? '#ffffff' : T.txtMuted,
+                background: isActive ? 'rgba(255, 255, 255, 0.22)' : (themeMode === 'soft_blue' ? '#eaf4ff' : '#1e293b'),
+                color: isActive ? '#ffffff' : (themeMode === 'soft_blue' ? '#1a6fc4' : '#38bdf8'),
                 fontSize: '0.64rem',
-                fontWeight: '700',
-                padding: '1px 5px',
-                borderRadius: '6px'
+                fontWeight: '900',
+                padding: '2px 7px',
+                borderRadius: '8px',
+                border: isActive ? '1px solid rgba(255,255,255,0.3)' : `1px solid ${T.border}`,
+                flexShrink: 0
               }}>
                 {tab.count}
               </span>
